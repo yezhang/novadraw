@@ -547,7 +547,6 @@ module.runtime struct ComponentUpdateReceipt
 module.runtime struct FigureCapabilityContext
 module.runtime struct FigureComponentContext
 module.runtime struct FigureMut
-module.runtime struct FigureUpdateCommitContext
 module.runtime struct FigureUpdateEffectContext
 module.runtime struct FontId
 module.runtime struct ImageId

@@ -17,8 +17,8 @@ use novadraw::render::{
 };
 use novadraw::runtime::{
     ComponentInvalidation, ComponentUpdateError, FigureComponentContext, FigureComponentUpdate,
-    FocusError, PreparedFigureUpdate, ResourceError, RuntimeMutationError,
-    SubmissionAcknowledgement,
+    FigureUpdateEffect, FigureUpdateEffectContext, FocusError, PreparedFigureUpdate, ResourceError,
+    RuntimeMutationError, SubmissionAcknowledgement,
 };
 use novadraw::{
     figure::Figure, figure::RectangleFigure, geometry::Dimension, geometry::Rectangle,
@@ -150,6 +150,71 @@ impl PropertyChangeListener for PropertyRecorder {
 }
 
 struct ProbeBadge;
+
+struct InvalidGeometryEffect;
+
+impl FigureUpdateEffect for InvalidGeometryEffect {
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        context.set_bounds(Rectangle::new(0.0, 0.0, -1.0, 24.0))
+    }
+}
+
+struct InvalidBadgeUpdate;
+
+impl FigureComponentUpdate for InvalidBadgeUpdate {
+    type Figure = BadgeFigure;
+    type Prepared = BadgeSnapshot;
+    type Error = &'static str;
+
+    fn prepare(
+        self,
+        current: &BadgeFigure,
+        context: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<BadgeSnapshot>, Self::Error> {
+        Ok(SetBadgeText("new".to_owned())
+            .prepare(current, context)?
+            .with_effect(InvalidGeometryEffect))
+    }
+
+    fn commit(prepared: BadgeSnapshot, target: &mut BadgeFigure) {
+        SetBadgeText::commit(prepared, target);
+    }
+}
+
+#[test]
+fn component_effect_failure_does_not_commit_value_revision_or_property_fact() {
+    let mut tree = FigureTree::new();
+    let badge = tree
+        .builder()
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+    let events = Arc::new(Mutex::new(Vec::new()));
+    runtime
+        .observations()
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
+    record_full_submission(&mut runtime);
+    assert!(matches!(
+        runtime
+            .figure(badge)
+            .unwrap()
+            .update_component(InvalidBadgeUpdate),
+        Err(ComponentUpdateError::Effect(
+            RuntimeMutationError::InvalidBounds { .. }
+        ))
+    ));
+    assert_eq!(runtime.tree().component_revision(badge), Some(0));
+    assert!(!runtime.frames().has_pending_update());
+    assert!(matches!(
+        runtime.figure(badge).unwrap().update_component(ProbeBadge),
+        Err(ComponentUpdateError::Rejected(snapshot)) if snapshot.text == "old"
+    ));
+    record_full_submission(&mut runtime);
+    assert!(events.lock().unwrap().is_empty());
+}
 
 impl FigureComponentUpdate for ProbeBadge {
     type Figure = BadgeFigure;

@@ -11,8 +11,7 @@ use crate::geometry::{Dimension, Point, PointList, Rectangle};
 use crate::render::{DashPattern, LineCap, LineJoin, StrokeStyle};
 use crate::runtime::{
     FigureCapabilityContext, FigureCapabilityUpdate, FigureComponentContext, FigureComponentUpdate,
-    FigureUpdateCommitContext, FigureUpdateEffect, FigureUpdateEffectContext,
-    PreparedCapabilityUpdate, PreparedFigureUpdate,
+    FigureUpdateEffect, FigureUpdateEffectContext, PreparedCapabilityUpdate, PreparedFigureUpdate,
 };
 use crate::{Figure, ImageId, RuntimeMutationError};
 
@@ -562,15 +561,12 @@ impl FigureComponentUpdate for SetTriangleDirection {
 struct RefreshBorderState;
 
 impl FigureUpdateEffect for RefreshBorderState {
-    fn validate(
-        &self,
-        _context: FigureUpdateEffectContext<'_>,
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
     ) -> Result<(), RuntimeMutationError> {
-        Ok(())
-    }
-
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
         context.refresh_border_state();
+        Ok(())
     }
 }
 
@@ -742,12 +738,11 @@ impl FigureCapabilityUpdate for SetClickableRolloverEnabled {
 struct CommitNodeBounds(Rectangle);
 
 impl FigureUpdateEffect for CommitNodeBounds {
-    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError> {
-        context.validate_node_bounds(self.0)
-    }
-
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
-        context.commit_node_bounds(self.0);
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        context.set_bounds(self.0)
     }
 }
 

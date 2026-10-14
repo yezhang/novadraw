@@ -667,6 +667,17 @@ impl ConnectionRuntime {
         let Some(constraint) = state.constraint.as_deref() else {
             return Ok(None);
         };
+        self.prepare_reparent_constraint_value(connection, constraint, from, to, source)
+    }
+
+    pub(crate) fn prepare_reparent_constraint_value(
+        &self,
+        connection: ConnectionId,
+        constraint: &dyn RoutingConstraint,
+        from: CoordinateSpace,
+        to: CoordinateSpace,
+        source: &dyn RouteSceneRead,
+    ) -> Result<Option<Box<dyn RoutingConstraint>>, ConnectionRuntimeError> {
         let Some(constraint) = constraint.as_any().downcast_ref::<BendpointConstraint>() else {
             return Err(ConnectionRuntimeError::UnsupportedConstraintReparent {
                 connection,

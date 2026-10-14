@@ -53,7 +53,16 @@ impl FigureTree {
         layer_admission: bool,
     ) -> Result<(), GraphMutationError> {
         let new_depth = self.validate_attachment_admission(parent_id, child_id, layer_admission)?;
+        self.attach_child_validated(parent_id, child_id, new_depth);
+        Ok(())
+    }
 
+    fn attach_child_validated(
+        &mut self,
+        parent_id: FigureId,
+        child_id: FigureId,
+        new_depth: usize,
+    ) {
         self.blocks[parent_id].children.push(child_id);
         {
             let child = &mut self.blocks[child_id];
@@ -67,7 +76,6 @@ impl FigureTree {
         });
         self.set_subtree_depth(child_id, new_depth);
         self.mark_validation_path_invalid(parent_id);
-        Ok(())
     }
 
     pub(super) fn detach_child(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
@@ -107,6 +115,56 @@ impl FigureTree {
         child_id: FigureId,
     ) -> Result<usize, GraphMutationError> {
         self.validate_attachment_admission(parent_id, child_id, false)
+    }
+
+    /// Validates a target-only reparent against the preceding declared parent.
+    /// Other nodes cannot move in a Figure update, so ancestor depths and the target
+    /// subtree are stable. Exclude the target from the parent's committed child count.
+    pub(crate) fn validate_effect_reparent(
+        &self,
+        child: FigureId,
+        old_parent: FigureId,
+        new_parent: FigureId,
+    ) -> Result<(), GraphMutationError> {
+        if child == new_parent || self.is_descendant_or_self(new_parent, child) {
+            return Err(GraphMutationError::CycleDetected);
+        }
+        if self.blocks[old_parent].child_policy() == ChildPolicy::Layered
+            || self.blocks[new_parent].child_policy() == ChildPolicy::Layered
+        {
+            return Err(GraphMutationError::LayerKeyRequired);
+        }
+        let parent = &self.blocks[new_parent];
+        if parent.child_policy() == ChildPolicy::Single
+            && parent.children.iter().any(|id| *id != child)
+        {
+            return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+        }
+        if parent.depth + 1 + self.subtree_height(child) > MAX_TREE_DEPTH {
+            return Err(GraphMutationError::DepthLimitExceeded {
+                limit: MAX_TREE_DEPTH,
+            });
+        }
+        Ok(())
+    }
+
+    /// Applies an already validated target-scoped effect without repeating admission.
+    pub(crate) fn commit_effect_reparent(
+        &mut self,
+        updates: &mut UpdateManager,
+        child: FigureId,
+        parent: FigureId,
+    ) {
+        let old_parent = self.blocks[child].parent.expect("attached effect target");
+        let visual_bounds = self.blocks[child].visual_bounds();
+        let depth = self.blocks[parent].depth + 1;
+        self.detach_child(old_parent, child);
+        self.mark_invalid(updates, old_parent);
+        self.repaint(updates, old_parent, None);
+        self.attach_child_validated(parent, child, depth);
+        self.mark_invalid(updates, parent);
+        updates.add_dirty_region(child, visual_bounds);
+        self.repaint(updates, parent, None);
     }
 
     pub(super) fn validate_attachment_admission(

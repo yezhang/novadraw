@@ -1,6 +1,7 @@
 use crate::render::ResourceId;
+use crate::runtime::FigureUpdateEffectContext;
 use crate::runtime::PreparedFigureUpdate;
-use crate::runtime::{FigureUpdateCommitContext, FigureUpdateEffectContext};
+use crate::runtime::mutation::ValidatedFigureEffect;
 use crate::{
     ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
     FigureComponentUpdate, FigureId, PropertyKey, PropertyValueType, RuntimeMutationError,
@@ -22,9 +23,10 @@ impl Runtime {
         figure: FigureId,
         context: FigureUpdateRevisionContext,
         prepared: PreparedFigureUpdate<T>,
+        effects: Vec<ValidatedFigureEffect>,
         commit: impl FnOnce(T, &mut crate::FigureNode),
     ) -> ComponentUpdateReceipt {
-        let (value, invalidation, changed, effects) = prepared.into_parts();
+        let (value, invalidation, changed, _) = prepared.into_parts();
         if !changed {
             return ComponentUpdateReceipt {
                 figure,
@@ -48,12 +50,8 @@ impl Runtime {
             node.component_revision = context.revision;
         }
 
-        let mut effect_context = FigureUpdateCommitContext {
-            runtime: self,
-            figure_id: figure,
-        };
         for effect in effects {
-            effect.commit(&mut effect_context);
+            self.commit_figure_effect(figure, effect);
         }
 
         if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
@@ -110,7 +108,7 @@ impl Runtime {
         };
 
         self.guarded(move |runtime| {
-            let prepared = {
+            let mut prepared = {
                 let node = runtime
                     .tree
                     .node(figure)
@@ -126,11 +124,8 @@ impl Runtime {
                     .prepare(target, context)
                     .map_err(ComponentUpdateError::Rejected)?
             };
-            prepared
-                .validate_effects(FigureUpdateEffectContext {
-                    runtime,
-                    figure_id: figure,
-                })
+            let effects = runtime
+                .prepare_figure_effects(figure, &mut prepared)
                 .map_err(ComponentUpdateError::Effect)?;
             let revision = if prepared.changed() {
                 previous_revision
@@ -149,6 +144,7 @@ impl Runtime {
                     visible,
                 },
                 prepared,
+                effects,
                 |value, node| {
                     let target = node
                         .component_mut::<U::Figure>()
@@ -159,68 +155,133 @@ impl Runtime {
         })
     }
 
-    fn validate_reparent_effect(
+    pub(super) fn prepare_figure_effects<T>(
         &self,
-        child: FigureId,
-        new_parent: FigureId,
-    ) -> Result<(), RuntimeMutationError> {
-        self.validate_attached_figure(child)?;
-        self.validate_attached_figure(new_parent)?;
-        let old_parent = self
-            .tree
-            .parent_id(child)
-            .ok_or(RuntimeMutationError::DetachedFigure(child))?;
-        if old_parent == new_parent {
-            return Ok(());
+        figure: FigureId,
+        prepared: &mut PreparedFigureUpdate<T>,
+    ) -> Result<Vec<ValidatedFigureEffect>, RuntimeMutationError> {
+        if !prepared.changed() {
+            return Ok(Vec::new());
         }
-        if self.tree.is_layered_pane(old_parent) {
-            return Err(RuntimeMutationError::LayeredParent(old_parent));
+        let mut context = FigureUpdateEffectContext {
+            runtime: self,
+            figure_id: figure,
+            parent: self
+                .tree
+                .parent_id(figure)
+                .ok_or(RuntimeMutationError::DetachedFigure(figure))?,
+            effects: Vec::new(),
+            rejected: false,
+        };
+        for effect in std::mem::take(&mut prepared.effects) {
+            effect.prepare(&mut context)?;
+            if context.rejected {
+                return Err(RuntimeMutationError::Rejected);
+            }
         }
-        if self.tree.is_layered_pane(new_parent) {
-            return Err(RuntimeMutationError::LayeredParent(new_parent));
-        }
-        self.tree.validate_attachment(new_parent, child)?;
-        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
-        self.connections.prepare_reparent_constraint(
-            ConnectionId::from_figure(child),
-            CoordinateSpace::ChildContent(old_parent),
-            CoordinateSpace::ChildContent(new_parent),
-            &scene,
-        )?;
-        Ok(())
+        Ok(context.effects)
     }
 }
 
 impl FigureUpdateEffectContext<'_> {
-    pub fn validate_reparent(
-        self,
+    /// Declares a move of the update target. Other Figure writes are rejected.
+    pub fn reparent(
+        &mut self,
         child: FigureId,
         new_parent: FigureId,
     ) -> Result<(), RuntimeMutationError> {
-        self.runtime.validate_reparent_effect(child, new_parent)
+        let result = self.prepare_reparent(child, new_parent);
+        self.rejected |= result.is_err();
+        result
     }
 
-    pub(crate) fn validate_resource_dependency_change(
-        self,
+    fn prepare_reparent(
+        &mut self,
+        child: FigureId,
+        new_parent: FigureId,
+    ) -> Result<(), RuntimeMutationError> {
+        self.runtime.validate_attached_figure(child)?;
+        self.runtime.validate_attached_figure(new_parent)?;
+        if child != self.figure_id {
+            return Err(RuntimeMutationError::EffectTargetMismatch {
+                target: self.figure_id,
+                requested: child,
+            });
+        }
+        if self.parent == new_parent {
+            return Ok(());
+        }
+        self.runtime
+            .tree
+            .validate_effect_reparent(child, self.parent, new_parent)?;
+        // A target-only move cannot change either legal parent's coordinate chain.
+        // Remap the preceding prepared constraint, not the committed original.
+        let scene =
+            FigureTreeRouteSceneRead::new(&self.runtime.tree, &self.runtime.anchor_geometries);
+        let connection = ConnectionId::from_figure(child);
+        let from = CoordinateSpace::ChildContent(self.parent);
+        let to = CoordinateSpace::ChildContent(new_parent);
+        let previous = self.effects.iter().rev().find_map(|effect| match effect {
+            ValidatedFigureEffect::Reparent {
+                constraint: Some(value),
+                ..
+            } => Some(value.as_ref()),
+            _ => None,
+        });
+        let constraint = if let Some(previous) = previous {
+            self.runtime
+                .connections
+                .prepare_reparent_constraint_value(connection, previous, from, to, &scene)?
+        } else {
+            self.runtime
+                .connections
+                .prepare_reparent_constraint(connection, from, to, &scene)?
+        };
+        self.effects.push(ValidatedFigureEffect::Reparent {
+            parent: new_parent,
+            constraint,
+        });
+        self.parent = new_parent;
+        Ok(())
+    }
+
+    pub fn resource_dependency_change(
+        &mut self,
         old_resource: Option<ResourceId>,
         new_resource: Option<ResourceId>,
     ) -> Result<(), RuntimeMutationError> {
-        if old_resource == new_resource {
-            return Ok(());
-        }
+        let result = self.prepare_resource_dependency_change(old_resource, new_resource);
+        self.rejected |= result.is_err();
+        result
+    }
+
+    fn prepare_resource_dependency_change(
+        &mut self,
+        old_resource: Option<ResourceId>,
+        new_resource: Option<ResourceId>,
+    ) -> Result<(), RuntimeMutationError> {
         if let Some(resource) = old_resource {
             self.runtime.resources.status(resource)?;
         }
         if let Some(resource) = new_resource {
             self.runtime.resources.status(resource)?;
         }
+        if old_resource != new_resource {
+            self.effects.push(ValidatedFigureEffect::Resource {
+                old: old_resource,
+                new: new_resource,
+            });
+        }
         Ok(())
     }
 
-    pub(crate) fn validate_node_bounds(
-        self,
-        bounds: crate::Rectangle,
-    ) -> Result<(), RuntimeMutationError> {
+    pub fn set_bounds(&mut self, bounds: crate::Rectangle) -> Result<(), RuntimeMutationError> {
+        let result = self.prepare_bounds(bounds);
+        self.rejected |= result.is_err();
+        result
+    }
+
+    fn prepare_bounds(&mut self, bounds: crate::Rectangle) -> Result<(), RuntimeMutationError> {
         if !bounds.x.is_finite()
             || !bounds.y.is_finite()
             || !bounds.width.is_finite()
@@ -233,11 +294,9 @@ impl FigureUpdateEffectContext<'_> {
                 bounds,
             });
         }
+        self.effects.push(ValidatedFigureEffect::Bounds(bounds));
         Ok(())
     }
-}
-
-impl FigureUpdateCommitContext<'_> {
     pub fn record_property_change<V>(
         &mut self,
         property: PropertyKey<V>,
@@ -246,54 +305,62 @@ impl FigureUpdateCommitContext<'_> {
     ) where
         V: PropertyValueType,
     {
-        self.runtime
-            .tree
-            .record_property_change(self.figure_id, property, old_value, new_value);
+        self.effects.push(ValidatedFigureEffect::Property(Box::new(
+            move |tree, figure| {
+                tree.record_property_change(figure, property, old_value, new_value);
+            },
+        )));
     }
 
-    pub fn reparent(&mut self, child: FigureId, new_parent: FigureId) -> bool {
-        self.runtime
-            .reparent_inner(child, new_parent)
-            .expect("validated Figure update effect must commit")
+    pub fn refresh_border_state(&mut self) {
+        self.effects.push(ValidatedFigureEffect::Border);
     }
+}
 
-    pub(crate) fn commit_resource_dependency_change(
-        &mut self,
-        old_resource: Option<ResourceId>,
-        new_resource: Option<ResourceId>,
-    ) {
-        if old_resource == new_resource {
-            return;
+impl Runtime {
+    fn commit_figure_effect(&mut self, figure: FigureId, effect: ValidatedFigureEffect) {
+        match effect {
+            ValidatedFigureEffect::Property(record) => record(&mut self.tree, figure),
+            ValidatedFigureEffect::Resource { old, new } => {
+                if let Some(resource) = new {
+                    self.resources
+                        .add_dependency(resource, figure)
+                        .expect("validated resource dependency must commit");
+                }
+                if let Some(resource) = old {
+                    self.resources
+                        .remove_dependency(resource, figure)
+                        .expect("validated resource dependency must commit");
+                }
+            }
+            ValidatedFigureEffect::Reparent { parent, constraint } => {
+                let old_parent = self.tree.parent_id(figure).expect("attached effect target");
+                self.tree
+                    .commit_effect_reparent(&mut self.updates, figure, parent);
+                if let Some(constraint) = constraint {
+                    self.connections
+                        .commit_reparent_constraint(ConnectionId::from_figure(figure), constraint);
+                }
+                self.invalidate_connection_figure_change(figure, true);
+                self.retain_interactive_figures();
+                self.tree.complete_detachment(figure, old_parent);
+                self.tree.complete_attachment(figure, parent);
+            }
+            ValidatedFigureEffect::Border => {
+                let node = self
+                    .tree
+                    .node_mut(figure)
+                    .expect("validated Figure update target must remain attached");
+                node.state.border_snapshot = None;
+                node.state.insets = node
+                    .figure
+                    .get_border()
+                    .map(crate::figure::Border::get_insets)
+                    .unwrap_or_default();
+            }
+            ValidatedFigureEffect::Bounds(bounds) => {
+                self.set_bounds_inner(figure, bounds);
+            }
         }
-        if let Some(resource) = new_resource {
-            self.runtime
-                .resources
-                .add_dependency(resource, self.figure_id)
-                .expect("validated resource dependency must commit");
-        }
-        if let Some(resource) = old_resource {
-            self.runtime
-                .resources
-                .remove_dependency(resource, self.figure_id)
-                .expect("validated resource dependency must commit");
-        }
-    }
-
-    pub(crate) fn refresh_border_state(&mut self) {
-        let node = self
-            .runtime
-            .tree
-            .node_mut(self.figure_id)
-            .expect("validated Figure update target must remain attached");
-        node.state.border_snapshot = None;
-        node.state.insets = node
-            .figure
-            .get_border()
-            .map(crate::figure::Border::get_insets)
-            .unwrap_or_default();
-    }
-
-    pub(crate) fn commit_node_bounds(&mut self, bounds: crate::Rectangle) {
-        self.runtime.set_bounds_inner(self.figure_id, bounds);
     }
 }

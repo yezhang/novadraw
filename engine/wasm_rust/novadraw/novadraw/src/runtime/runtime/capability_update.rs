@@ -1,4 +1,3 @@
-use crate::runtime::FigureUpdateEffectContext;
 use crate::{
     CapabilityUpdateError, CapabilityUpdateReceipt, FigureCapabilityContext,
     FigureCapabilityUpdate, FigureId,
@@ -44,7 +43,7 @@ impl Runtime {
         };
 
         self.guarded(move |runtime| {
-            let prepared = {
+            let mut prepared = {
                 let node = runtime
                     .tree
                     .node(figure)
@@ -58,11 +57,8 @@ impl Runtime {
                     .prepare(capability, node.figure.as_ref(), context)
                     .map_err(CapabilityUpdateError::Rejected)?
             };
-            prepared
-                .validate_effects(FigureUpdateEffectContext {
-                    runtime,
-                    figure_id: figure,
-                })
+            let effects = runtime
+                .prepare_figure_effects(figure, &mut prepared)
                 .map_err(CapabilityUpdateError::Effect)?;
             let revision = if prepared.changed() {
                 previous_revision
@@ -81,6 +77,7 @@ impl Runtime {
                     visible,
                 },
                 prepared,
+                effects,
                 |value, node| {
                     let capability = node
                         .capabilities

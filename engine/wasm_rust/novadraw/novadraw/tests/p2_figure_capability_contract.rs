@@ -24,8 +24,8 @@ use novadraw::{
     runtime::Runtime,
     runtime::{
         CapabilityUpdateError, ComponentInvalidation, FigureCapabilityContext,
-        FigureCapabilityUpdate, FigureUpdateCommitContext, FigureUpdateEffect,
-        FigureUpdateEffectContext, PreparedCapabilityUpdate, RuntimeMutationError,
+        FigureCapabilityUpdate, FigureUpdateEffect, FigureUpdateEffectContext,
+        PreparedCapabilityUpdate, RuntimeMutationError,
     },
     tree::FigureTree,
     tree::GraphMutationError,
@@ -168,18 +168,105 @@ struct ReparentEffect {
 }
 
 impl FigureUpdateEffect for ReparentEffect {
-    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError> {
-        context.validate_reparent(self.child, self.new_parent)
-    }
-
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
-        assert!(context.reparent(self.child, self.new_parent));
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        context.reparent(self.child, self.new_parent)
     }
 }
 
 struct MoveCounter {
     value: u64,
     new_parent: novadraw::tree::FigureId,
+}
+
+struct ConflictingMoves {
+    first: novadraw::tree::FigureId,
+    second: novadraw::tree::FigureId,
+}
+
+struct CounterEffects {
+    parents: Vec<novadraw::tree::FigureId>,
+    resource: Option<novadraw::render::ResourceId>,
+    bounds: Option<Rectangle>,
+    unchanged: bool,
+    swallow_error: bool,
+}
+
+impl FigureUpdateEffect for CounterEffects {
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        for parent in self.parents {
+            context.reparent(context.figure_id(), parent)?;
+        }
+        if let Some(resource) = self.resource {
+            context.resource_dependency_change(None, Some(resource))?;
+        }
+        if let Some(bounds) = self.bounds {
+            let result = context.set_bounds(bounds);
+            if !self.swallow_error {
+                result?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl FigureCapabilityUpdate for CounterEffects {
+    type Capability = CounterCapability;
+    type Prepared = u64;
+    type Error = &'static str;
+    const KEY: CapabilityKey<Self::Capability> = COUNTER;
+
+    fn prepare(
+        self,
+        _: &Self::Capability,
+        _: &dyn Figure,
+        _: FigureCapabilityContext,
+    ) -> Result<PreparedCapabilityUpdate<u64>, Self::Error> {
+        let prepared = if self.unchanged {
+            PreparedCapabilityUpdate::unchanged(7)
+        } else {
+            PreparedCapabilityUpdate::paint(7)
+        };
+        Ok(prepared.with_effect(self))
+    }
+
+    fn commit(capability: &Self::Capability, value: u64, _: &mut dyn Figure) {
+        capability.value.store(value, Ordering::SeqCst);
+    }
+}
+
+impl FigureCapabilityUpdate for ConflictingMoves {
+    type Capability = CounterCapability;
+    type Prepared = u64;
+    type Error = &'static str;
+
+    const KEY: CapabilityKey<Self::Capability> = COUNTER;
+
+    fn prepare(
+        self,
+        _capability: &Self::Capability,
+        _target: &dyn Figure,
+        _context: FigureCapabilityContext,
+    ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error> {
+        Ok(PreparedCapabilityUpdate::paint(7)
+            .with_effect(ReparentEffect {
+                child: self.first,
+                new_parent: self.second,
+            })
+            .with_effect(ReparentEffect {
+                child: self.second,
+                new_parent: self.first,
+            }))
+    }
+
+    fn commit(capability: &Self::Capability, prepared: Self::Prepared, _target: &mut dyn Figure) {
+        capability.value.store(prepared, Ordering::SeqCst);
+    }
 }
 
 impl FigureCapabilityUpdate for MoveCounter {
@@ -418,6 +505,202 @@ fn external_capability_effect_uses_validated_runtime_structural_commit() {
             .snapshot(),
         7
     );
+}
+
+#[test]
+fn conflicting_effects_reject_before_component_or_structure_commit() {
+    let (mut tree, root, external) = tree_with_external_child();
+    let sibling = tree
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+    record_full_submission(&mut runtime);
+    let before_children = runtime.tree().child_order(root).unwrap();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        runtime
+            .figure(external)
+            .unwrap()
+            .update_capability(ConflictingMoves {
+                first: external,
+                second: sibling,
+            })
+    }));
+    assert!(
+        result.is_ok(),
+        "conflicting effects must return an error, not panic"
+    );
+    assert!(matches!(result.unwrap(), Err(CapabilityUpdateError::Effect(
+        RuntimeMutationError::EffectTargetMismatch { target, requested }
+    )) if target == external && requested == sibling));
+    assert_eq!(runtime.tree().parent_id(external), Some(root));
+    assert_eq!(runtime.tree().parent_id(sibling), Some(root));
+    assert_eq!(runtime.tree().child_order(root).unwrap(), before_children);
+    assert_eq!(runtime.tree().component_revision(external), Some(0));
+    assert!(!runtime.frames().has_pending_update());
+    assert_eq!(
+        runtime
+            .tree()
+            .capability(external, COUNTER)
+            .unwrap()
+            .unwrap()
+            .snapshot(),
+        1
+    );
+    runtime
+        .figure(external)
+        .unwrap()
+        .update_capability(SetCounter(2))
+        .unwrap();
+}
+
+#[test]
+fn target_effect_batch_validates_sequential_moves_and_rejects_late_failure() {
+    let (mut tree, root, external) = tree_with_external_child();
+    let sibling = tree
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .unwrap();
+    let descendant = tree
+        .builder()
+        .add_child(
+            external,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+        )
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+    record_full_submission(&mut runtime);
+    let before = runtime.tree().child_order(root).unwrap();
+    let error = runtime
+        .figure(external)
+        .unwrap()
+        .update_capability(CounterEffects {
+            parents: vec![sibling, descendant],
+            resource: None,
+            bounds: None,
+            unchanged: false,
+            swallow_error: false,
+        })
+        .unwrap_err();
+    assert_eq!(
+        error,
+        CapabilityUpdateError::Effect(RuntimeMutationError::Graph(
+            GraphMutationError::CycleDetected
+        ))
+    );
+    assert_eq!(runtime.tree().child_order(root).unwrap(), before);
+    assert_eq!(runtime.tree().parent_id(external), Some(root));
+    assert_eq!(runtime.tree().parent_id(descendant), Some(external));
+    assert_eq!(runtime.tree().component_revision(external), Some(0));
+    assert_eq!(
+        runtime
+            .tree()
+            .capability(external, COUNTER)
+            .unwrap()
+            .unwrap()
+            .snapshot(),
+        1
+    );
+    assert!(!runtime.frames().has_pending_update());
+
+    // Reusing the committed original parent must not be mistaken for DuplicateChild.
+    runtime
+        .figure(external)
+        .unwrap()
+        .update_capability(CounterEffects {
+            parents: vec![sibling, root, sibling, sibling],
+            resource: None,
+            bounds: None,
+            unchanged: false,
+            swallow_error: false,
+        })
+        .unwrap();
+    assert_eq!(runtime.tree().parent_id(external), Some(sibling));
+    assert_eq!(
+        runtime.tree().depth(descendant),
+        Some(runtime.tree().depth(external).unwrap() + 1)
+    );
+    assert_eq!(runtime.tree().component_revision(external), Some(1));
+    assert_eq!(
+        runtime
+            .tree()
+            .capability(external, COUNTER)
+            .unwrap()
+            .unwrap()
+            .snapshot(),
+        7
+    );
+}
+
+#[test]
+fn late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged() {
+    let (mut tree, root, external) = tree_with_external_child();
+    let sibling = tree
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+    let resource = runtime.resources().register_image().unwrap().resource_id();
+    let mut foreign = Runtime::new(FigureTree::new());
+    let foreign_resource = foreign.resources().register_image().unwrap().resource_id();
+    record_full_submission(&mut runtime);
+    let bounds = runtime.tree().figure_bounds(external).unwrap();
+    for (new_resource, invalid_bounds, swallow_error) in [
+        (foreign_resource, None, false),
+        (resource, Some(Rectangle::new(0.0, 0.0, -1.0, 10.0)), false),
+        (
+            resource,
+            Some(Rectangle::new(f64::NAN, 0.0, 10.0, 10.0)),
+            true,
+        ),
+    ] {
+        assert!(
+            runtime
+                .figure(external)
+                .unwrap()
+                .update_capability(CounterEffects {
+                    parents: vec![sibling],
+                    resource: Some(new_resource),
+                    bounds: invalid_bounds,
+                    unchanged: false,
+                    swallow_error,
+                })
+                .is_err()
+        );
+        assert_eq!(runtime.tree().parent_id(external), Some(root));
+        assert_eq!(runtime.tree().figure_bounds(external), Some(bounds));
+        assert_eq!(runtime.tree().component_revision(external), Some(0));
+        assert_eq!(
+            runtime
+                .tree()
+                .capability(external, COUNTER)
+                .unwrap()
+                .unwrap()
+                .snapshot(),
+            1
+        );
+        assert!(
+            !runtime
+                .resources()
+                .remove_dependency(resource, external)
+                .unwrap()
+        );
+        assert!(!runtime.frames().has_pending_update());
+    }
+    let receipt = runtime
+        .figure(external)
+        .unwrap()
+        .update_capability(CounterEffects {
+            parents: vec![external],
+            resource: Some(foreign_resource),
+            bounds: None,
+            unchanged: true,
+            swallow_error: false,
+        })
+        .unwrap();
+    assert!(!receipt.changed);
+    assert!(!runtime.frames().has_pending_update());
+    assert_eq!(runtime.tree().component_revision(external), Some(0));
 }
 
 #[test]

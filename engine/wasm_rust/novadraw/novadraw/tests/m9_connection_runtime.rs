@@ -20,10 +20,44 @@ use novadraw::render::{
     command::RenderCommandKind,
 };
 use novadraw::runtime::RuntimeMutationError;
+use novadraw::runtime::{
+    FigureComponentContext, FigureComponentUpdate, FigureUpdateEffect, FigureUpdateEffectContext,
+    PreparedFigureUpdate,
+};
 use novadraw::{figure::RectangleFigure, runtime::Runtime, tree::FigureId};
 
 struct ConstraintA;
 struct ConstraintB;
+
+struct MoveConnectionBatch(Vec<FigureId>);
+
+impl FigureUpdateEffect for MoveConnectionBatch {
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        for parent in self.0 {
+            context.reparent(context.figure_id(), parent)?;
+        }
+        Ok(())
+    }
+}
+
+impl FigureComponentUpdate for MoveConnectionBatch {
+    type Figure = ConnectionFigure;
+    type Prepared = ();
+    type Error = ();
+
+    fn prepare(
+        self,
+        _: &ConnectionFigure,
+        _: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<()>, ()> {
+        Ok(PreparedFigureUpdate::geometry_and_paint(()).with_effect(self))
+    }
+
+    fn commit(_: (), _: &mut ConnectionFigure) {}
+}
 
 struct TypedRouter<T>(PhantomData<T>);
 
@@ -1215,6 +1249,20 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
             .get(2)
             .map(|point| point - Vec2::new(100.0, 0.0))
     );
+    // Three moves must remap the preceding prepared constraint on every step.
+    runtime
+        .figure(connection_figure)
+        .unwrap()
+        .update_component(MoveConnectionBatch(vec![
+            old_parent, new_parent, old_parent,
+        ]))
+        .unwrap();
+    let roundtrip = runtime
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(old_parent))
+        .unwrap();
+    assert_eq!(roundtrip.points().get(1), initial.points().get(1));
+    assert_eq!(roundtrip.points().get(2), initial.points().get(2));
 }
 
 #[test]

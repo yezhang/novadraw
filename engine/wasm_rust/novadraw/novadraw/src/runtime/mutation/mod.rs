@@ -61,15 +61,17 @@ pub struct FigureCapabilityContext {
     pub bounds: crate::geometry::Rectangle,
 }
 
-/// Read-only Runtime view used to validate one prepared Figure update effect.
-#[derive(Clone, Copy)]
+/// Read-only Runtime view and target-scoped operation sink for Figure update effects.
 pub struct FigureUpdateEffectContext<'a> {
     pub(crate) runtime: &'a Runtime,
     pub(crate) figure_id: FigureId,
+    pub(crate) parent: FigureId,
+    pub(crate) effects: Vec<ValidatedFigureEffect>,
+    pub(crate) rejected: bool,
 }
 
 impl FigureUpdateEffectContext<'_> {
-    pub const fn figure_id(self) -> FigureId {
+    pub const fn figure_id(&self) -> FigureId {
         self.figure_id
     }
 
@@ -78,34 +80,37 @@ impl FigureUpdateEffectContext<'_> {
     }
 }
 
-/// Restricted Runtime commit surface available to prepared Figure update effects.
-pub struct FigureUpdateCommitContext<'a> {
-    pub(crate) runtime: &'a mut Runtime,
-    pub(crate) figure_id: FigureId,
-}
-
-impl FigureUpdateCommitContext<'_> {
-    pub const fn figure_id(&self) -> FigureId {
-        self.figure_id
-    }
-}
-
-/// One open, two-phase side effect attached to a prepared Figure update.
-///
-/// Validation runs before the Figure value, revision, notification journal, resources, or
-/// topology are mutated. `commit` must only use operations it validated and must not reject.
-/// A panic during commit faults the Runtime through the normal mutation guard.
+/// Declares target-scoped operations before any Figure update is committed.
+/// Runtime validates operations in declaration order, including earlier reparent effects.
+/// There is no external effect callback during commit.
 pub trait FigureUpdateEffect: 'static {
-    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError>;
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError>;
+}
 
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>);
+type PropertyEffect = Box<dyn FnOnce(&mut FigureTree, FigureId)>;
+
+pub(crate) enum ValidatedFigureEffect {
+    Property(PropertyEffect),
+    Resource {
+        old: Option<ResourceId>,
+        new: Option<ResourceId>,
+    },
+    Reparent {
+        parent: FigureId,
+        constraint: Option<Box<dyn crate::connection::RoutingConstraint>>,
+    },
+    Border,
+    Bounds(Rectangle),
 }
 
 pub struct PreparedFigureUpdate<T> {
     pub(crate) value: T,
     pub(crate) invalidation: ComponentInvalidation,
     changed: bool,
-    effects: Vec<Box<dyn FigureUpdateEffect>>,
+    pub(crate) effects: Vec<Box<dyn FigureUpdateEffect>>,
 }
 
 /// A prepared capability value and its required derived-state invalidation.
@@ -184,19 +189,6 @@ impl<T> PreparedFigureUpdate<T> {
         })
     }
 
-    pub(crate) fn validate_effects(
-        &self,
-        context: FigureUpdateEffectContext<'_>,
-    ) -> Result<(), RuntimeMutationError> {
-        if !self.changed {
-            return Ok(());
-        }
-        for effect in &self.effects {
-            effect.validate(context)?;
-        }
-        Ok(())
-    }
-
     pub(crate) const fn changed(&self) -> bool {
         self.changed
     }
@@ -235,15 +227,12 @@ impl<V> FigureUpdateEffect for PropertyChangeEffect<V>
 where
     V: PropertyValueType,
 {
-    fn validate(
-        &self,
-        _context: FigureUpdateEffectContext<'_>,
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
     ) -> Result<(), RuntimeMutationError> {
-        Ok(())
-    }
-
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
         context.record_property_change(self.property, self.old_value, self.new_value);
+        Ok(())
     }
 }
 
@@ -253,12 +242,11 @@ struct ResourceDependencyChange {
 }
 
 impl FigureUpdateEffect for ResourceDependencyChange {
-    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError> {
-        context.validate_resource_dependency_change(self.old_resource, self.new_resource)
-    }
-
-    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
-        context.commit_resource_dependency_change(self.old_resource, self.new_resource);
+    fn prepare(
+        self: Box<Self>,
+        context: &mut FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        context.resource_dependency_change(self.old_resource, self.new_resource)
     }
 }
 
@@ -399,6 +387,10 @@ pub enum RuntimeMutationError {
     Faulted,
     UnknownOrDisposedFigure(FigureId),
     DetachedFigure(FigureId),
+    EffectTargetMismatch {
+        target: FigureId,
+        requested: FigureId,
+    },
     SyntheticRootOperation(FigureId),
     WrongCapability {
         figure: FigureId,
@@ -450,6 +442,10 @@ impl fmt::Display for RuntimeMutationError {
                 write!(formatter, "unknown or disposed Figure ID: {figure:?}")
             }
             Self::DetachedFigure(figure) => write!(formatter, "detached Figure: {figure:?}"),
+            Self::EffectTargetMismatch { target, requested } => write!(
+                formatter,
+                "Figure update target {target:?} cannot mutate {requested:?}"
+            ),
             Self::SyntheticRootOperation(figure) => {
                 write!(
                     formatter,
