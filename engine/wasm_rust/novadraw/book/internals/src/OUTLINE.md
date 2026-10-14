@@ -205,6 +205,7 @@
 - 语义图层与叠放；
 - freeform 内容范围；
 - viewport、range model 和 scalable pane；
+- 业务连接、ConnectionPart 与 Core Connection 的三层边界；
 - 锚点、SceneQuery 和依赖追踪；
 - 路由器的纯计算边界；
 - 分组路由、连接失效和自环。
@@ -219,9 +220,11 @@
 
 - 模型是持久事实，Figure 是可重建投影；
 - ModelAdapter 和稳定快照；
-- EditPart 作为控制器；
-- containment 与 connection projection；
-- registry 和 visual ownership；
+- PartNode、EditPartBehavior 与 PartTree 的职责；
+- Root、Containment 与 Connection 三种 Part 角色；
+- containment 与 connection projection，以及 ConnectionPart 的身份边界；
+- primary Figure、content pane、registry 和 visual ownership；
+- Overlay、Handle 与 Feedback 的所有权和生命周期；
 - plan、validate、commit 与 revision publication；
 - synchronize/synchronize_model 的受控模型入口；
 - ViewerDrive 的宿主驱动边界。
@@ -240,7 +243,8 @@
 - Command 的执行、撤销、重做和补偿；
 - ViewerEditSession 的 commit/reject/fault 关闭动作；
 - CommandStack 的 has/check 查询分层；
-- Feedback 不提前写入模型；
+- Overlay 中 Handle 与 Feedback 的交互边界；
+- Feedback 和连接预览不提前写入模型或创建稳定 ConnectionPart；
 - 创建、移动、连接和直接编辑的共同结构。
 
 关键图：输入到模型再到 Viewer 刷新的完整编辑闭环。

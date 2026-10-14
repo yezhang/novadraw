@@ -109,9 +109,30 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 不能先按旧坐标更新反馈，再异步滚动，否则预览会跳动。
 
-## 10.8 Connection 的四个角色
+## 10.8 Connection 的三层含义与四个角色
 
-连接能力可拆为：
+“连接（Connection）”在模型、Editor 和图形核心中表示三个相关但不同的对象：
+
+| 层次 | 身份 | 表达的事实 | 长期所有者 |
+|---|---|---|---|
+| 业务模型 | `ModelConnection` 或领域连接 ID | 哪两个业务对象存在何种关系 | 应用模型 |
+| Editor 投影 | `ConnectionPart` / `EditPartId` | 当前 Viewer 如何控制这条关系的投影 | Viewer |
+| 图形核心 | Connection Figure / `ConnectionId` | 端点如何依附、路径如何路由和绘制 | Runtime |
+
+三层对象按因果顺序建立：
+
+```text
+业务连接
+-> Viewer 解析 source/target Part
+-> ConnectionPart 建立视觉投影
+-> Core Connection 解析 anchor 并计算路径
+```
+
+业务连接是可撤销、可持久化的事实。`ConnectionPart` 是单个 Viewer 中的控制器角色。
+Core Connection 是可重建的场景对象和派生路径。删除或暂时无法解析 Core 路径，不等于
+删除业务连接；反过来，预览中画出一条临时路径，也不等于已经创建业务关系。
+
+本章后文单独使用 Connection 时，指图形核心中的连接能力。它可拆为四个角色：
 
 ### Anchor
 
@@ -251,7 +272,8 @@ target local -> common surface/root -> connection layer local
 4. 滚动和缩放进入统一坐标链；
 5. 跨节点查询记录身份与版本依赖；
 6. Router 只返回候选路径，Runtime 提交；
-7. unresolved 不复用未经证明的旧几何。
+7. unresolved 不复用未经证明的旧几何；
+8. 业务连接、ConnectionPart 和 Core Connection 不互相冒充身份。
 
 ## 10.17 常见错误设计
 
@@ -288,3 +310,4 @@ target local -> common surface/root -> connection layer local
 3. SceneQuery 为什么既要返回值，也要记录依赖？
 4. 分组路由为何需要批量原子提交？
 5. unresolved 连接在什么条件下可以自动恢复？
+6. Core Connection 暂时 unresolved 时，为什么不能直接删除业务连接？

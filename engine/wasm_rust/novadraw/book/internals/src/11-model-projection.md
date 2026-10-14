@@ -51,7 +51,10 @@ Adapter 是业务系统与 Editor 的边界，不应把 Figure 或 Runtime 类�
 
 ## 11.3 EditPart 的职责
 
-EditPart 是控制器，负责：
+编辑部件（EditPart，后文简称 Part）是 Viewer 内的投影控制器。它把一个模型对象或
+一种投影角色连接到 Figure，但它本身既不是业务对象，也不是 Figure。
+
+Part 负责：
 
 - 选择适当 Figure 构造；
 - 把模型属性刷新到 Figure；
@@ -59,8 +62,29 @@ EditPart 是控制器，负责：
 - 安装编辑 Policy；
 - 管理该投影的视觉所有权。
 
-EditPart 不应复制整份业务模型。它可以缓存最近应用 revision 或派生展示值，但模型
-变化后应从稳定快照刷新。
+Part 不应复制整份业务模型。它可以缓存最近应用 revision 或派生展示值，但模型变化后
+应从稳定快照刷新。
+
+为了让所有 Part 共享同一结构协议，同时允许不同领域对象选择不同视觉和行为，可以把
+职责拆成两部分：
+
+- `PartNode` 保存身份、父子关系、模型映射、Figure 关联和已安装 Policy 等通用状态；
+- `EditPartBehavior` 提供创建 Figure、选择 content pane、刷新视觉、创建 Policy、
+  解析 anchor 或 router 等差异行为。
+
+Viewer 拥有由 `PartNode` 组成的 Part 树（`PartTree`）。行为对象参与候选计算，但不能
+绕过 Viewer 直接发布半完成结构。
+
+### 三种 Part 角色
+
+| 角色 | 含义 | 是否进入 containment children |
+|---|---|---|
+| Root Part | Viewer 创建的合成根，承载图层和顶层投影，不代表业务模型 | 作为树根 |
+| Containment Part | 投影业务 containment 中的对象 | 是 |
+| Connection Part | 投影业务连接以及 source/target 关系 | 否 |
+
+Root Part 没有业务模型身份。Connection Part 仍使用 `EditPartId`，只是经过角色校验后
+以 `ConnectionPart` 参与连接 API；它不建立第四种身份域。
 
 ## 11.4 三个身份域
 
@@ -82,26 +106,57 @@ flowchart LR
 
 ## 11.5 Visual ownership
 
-一个 EditPart 可以拥有主 Figure、标签、手柄或连接视觉。Visual ownership 回答：
+视觉所有权（visual ownership）说明谁负责某个 Figure 的创建、事件归属和销毁。一个
+Part 的稳定视觉不一定只有一个 Figure：
+
+- primary Figure 表示该 Part 的主要外观；
+- content pane 是接纳 child Part 视觉的容器；
+- internal visuals 是标签、图标或其他只服务于该 Part 的内部子树。
+
+content pane 可以等于 primary Figure，也可以是其内部后代。child Part 挂到 content
+pane，不表示 content pane 获得新的 Part 身份。
+
+视觉所有权回答：
 
 - 谁负责创建和销毁 Figure；
 - Figure 事件映射回哪个 Part；
 - Part 删除时清理哪些视觉；
-- 哪些临时反馈不属于稳定 Part。
+- 哪些临时视觉不属于稳定 Part。
 
 树父级不一定等于视觉所有者。例如连接 Figure 可以挂在连接层，却由 ConnectionPart
 拥有。所有权和拓扑必须分别记录。
 
+### Overlay 与稳定 Part 视觉
+
+覆盖视觉（Overlay）是 Viewer 管理、位于业务内容之上的临时 Figure 子树。它不是业务
+模型，不是 Part，也不是一棵平行场景树。Overlay 中的 Figure 仍挂在显式根图层下，
+继续服从 Core 的坐标、裁剪、damage 和生命周期规则。
+
+Overlay 包含两类主要对象：
+
+| 对象 | 身份 | 用途 | 生命周期 |
+|---|---|---|---|
+| Handle | `HandleId` | 选中对象的可交互控制点或装饰 | 随选择或编辑模式存在 |
+| Feedback | `FeedbackId` | 当前手势的候选结果、提示或拒绝视觉 | 随手势创建、替换和清理 |
+
+Handle 和 Feedback 可以关联某个 owner Part，但该关联只表达 targeting 与清理责任，
+不把它们变成 Part 的 containment children。Viewer 维护从 `FigureId` 到 Part、Handle
+或 Feedback 所有者的映射；命中内部 Figure 时，可以沿祖先链找到最近的已登记所有者。
+
+“Overlay”也不等于一个固定图层。缩放反馈、非缩放反馈和 Handle 可以使用不同根图层，
+以获得不同坐标和叠放语义。Part 被删除时，Viewer 必须同步清理选择、焦点和与其关联的
+Overlay，不能等待孤立 Figure 自行失效。
+
 ## 11.6 Containment projection
 
-业务 containment 决定 Part 树的主要结构。投影过程：
+业务 containment 决定 Containment Part 树的主要结构。投影过程：
 
 1. 从模型快照读取根身份；
-2. 为每个模型对象选择 Part 类型；
+2. 创建合成 Root Part，并为每个模型对象选择 Containment Part 行为；
 3. 建立 ModelId 到 EditPartId 映射；
 4. 按稳定业务顺序规划 child Part；
 5. 为 Part 创建或复用 Figure；
-6. 把 Figure 挂到目标图层或父 Figure；
+6. 把 Figure 挂到父 Part 的 content pane；
 7. 刷新属性；
 8. 发布完整 Viewer revision。
 
@@ -110,20 +165,23 @@ Part 树与 Figure 树通常相关，但不要求完全同构。图层、装饰�
 ## 11.7 Connection projection
 
 业务连接通常引用 source/target ModelId。Viewer 只有在端点 Part 可解析后，才能建立
-连接投影。
+连接投影。ConnectionPart 是 `EditPartId` 的受检角色视图，而不是新的身份：它与其他
+Part 共用 registry、Policy 和生命周期协议，但不作为 source 或 target 的 containment
+child。Viewer 另行维护 source/target 以及 incoming/outgoing 关系索引。
 
 过程是：
 
 1. 读取连接模型及端点身份；
 2. 解析 source/target Part；
-3. 选择 anchor 描述；
-4. 创建 ConnectionPart 和 Figure；
-5. 挂到连接层；
-6. 注册端点依赖；
+3. 创建或复用 ConnectionPart；
+4. 选择 anchor 描述并创建 Connection Figure；
+5. 把 Figure 挂到连接层；
+6. 原子登记 source/target 关系和视觉所有权；
 7. 由 Core 稳定化路径。
 
 端点暂时缺失时，投影应进入显式 pending/unresolved，而不是把任意现有 Figure 当作
-端点。
+端点。Core 路径进入 unresolved 也只表示当前场景依赖尚不可解析，不会自行删除业务
+连接或 ConnectionPart。
 
 ## 11.8 稳定快照
 
@@ -352,7 +410,9 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 7. revision 断裂时重建，不猜测；
 8. Viewer 不暴露长期模型可变引用；
 9. 每次模型变化都以通知校验和投影同步关闭；
-10. 宿主只通过 `ViewerDrive` 驱动平台职责，不取得编辑内部所有权。
+10. 宿主只通过 `ViewerDrive` 驱动平台职责，不取得编辑内部所有权；
+11. ConnectionPart 复用 EditPartId 身份域，不进入 containment children；
+12. Overlay 仍是统一 Figure 树中的临时视觉，不成为稳定 Part。
 
 ## 11.21 常见错误设计
 
@@ -371,6 +431,14 @@ Viewer 重建后命令历史失效。
 ### Part 保存完整模型副本
 
 需要双向同步，Part 变成第二份模型。
+
+### 把 Handle 或 Feedback 建成 Part
+
+临时交互视觉进入稳定模型投影后，选择变化和取消手势都会被误解为模型结构变化。
+
+### 让 ConnectionPart 成为端点的 containment child
+
+业务 containment 与连接关系混在一棵树中，重排或删除父子结构时会错误改变连接语义。
 
 ### revision 断裂仍继续应用
 
@@ -400,3 +468,5 @@ Part 如何通过类型化扩展保持开放。
 5. revision 断裂后全量重建为何比补猜事件更可靠？
 6. 为什么 `synchronize_model` 不能替代普通编辑命令？
 7. `ViewerDrive` 为什么不能暴露 selection 或 CommandStack？
+8. ConnectionPart 为什么使用 EditPartId，却不进入 containment children？
+9. Overlay Figure 与 Part 的 internal visual 有什么所有权差异？

@@ -103,12 +103,17 @@ Policy 回答：
 
 Policy 不应执行 Command，也不应直接持久化模型。
 
-Handle 的实例身份 `HandleId` 与行为身份 `HandleActionKey<R>` 分离。每个 handle 最多
-绑定一个 typed action；外部 action 可以注册自己的 Tool factory，不需要修改 Editor。
+## 12.5 Overlay、Handle 与 Feedback
 
-## 12.5 Feedback
+覆盖视觉（Overlay）是 Viewer 在稳定 Part 视觉之上管理的临时 Figure。它把交互状态
+画出来，但不把交互候选写入模型或稳定 Part 树。Overlay 主要分为 Handle 和 Feedback。
 
-Feedback 是对候选结果的临时可视化：
+控制柄（Handle）是可命中的交互入口，例如缩放点、连接端点或折点控制点。它具有 Viewer
+命名空间内的实例身份 `HandleId`。Handle 的实例身份与行为身份
+`HandleActionKey<R>` 分离：每个 Handle 最多绑定一个 typed action，外部 action 可以
+注册自己的 Tool factory，不需要修改 Editor。
+
+反馈图形（Feedback）是候选结果的临时可视化，例如：
 
 - 移动轮廓；
 - 对齐线；
@@ -117,11 +122,41 @@ Feedback 是对候选结果的临时可视化：
 - 拒绝指示；
 - 文本 preedit。
 
-它由 Viewer 的反馈层持有，可在每次 move 后替换，并在完成或取消时清理。Feedback
-不是模型，也不应被命令历史记录。
+Feedback 具有 `FeedbackId`，可以关联 owner Part 以便定位和清理，但它不接收稳定业务
+身份，也不成为 ConnectionPart。它由 Viewer 中具有匹配缩放语义的 feedback layer
+持有，可在每次 move 后替换，并在完成或取消时清理。
 
-若预览需要计算布局或坐标，应使用稳定场景查询和候选数据，不能先改真实 Figure 再
-观察效果。
+```mermaid
+flowchart TD
+    Viewer --> PartVisual[稳定 Part 视觉]
+    Viewer --> Overlay
+    Overlay --> Handle[Handle<br/>可命中并启动 Tool]
+    Overlay --> Feedback[Feedback<br/>只表达候选结果]
+    Handle --> Action[typed HandleAction]
+    Action --> Tool
+    Tool --> Request
+    Policy --> Feedback
+```
+
+Handle 与 Feedback 都是普通 Figure 子树，因此继续使用同一坐标转换、裁剪、damage 和
+销毁协议。二者的差异在于交互语义：Handle 可以成为输入目标并启动动作；Feedback
+通常只展示当前候选，不成为下一次业务命令的稳定目标。
+
+Overlay 的典型生命周期按因果顺序发生：
+
+1. selection 或 Tool 会话决定需要哪些临时视觉；
+2. Viewer 创建 Handle 或 Feedback 身份；
+3. Figure 挂入具有正确缩放语义的 overlay layer；
+4. visual ownership registry 登记 Figure 与临时所有者；
+5. 输入命中通过 registry 解析 Handle action 或 owner Part；
+6. selection 变化、完成、取消或 Part 删除时，Viewer 注销并销毁整棵临时子树。
+
+Feedback 不是模型，也不应被命令历史记录。若预览需要计算布局或坐标，应使用稳定场景
+查询和候选数据，不能先改真实 Figure 再观察效果。
+
+连接预览尤其不能提前创建稳定 ConnectionPart。它可以复用 Core 的连接 Figure 与路由
+能力，但其所有者仍是 Feedback；只有最终 Command 创建业务连接后，Viewer 才在下一次
+稳定投影中创建 ConnectionPart。
 
 ## 12.6 Command
 
@@ -345,7 +380,9 @@ undo 伪装成取消。
 8. Viewer 只通过模型 revision 刷新稳定投影；
 9. CommandStack 操作和 Viewer 同步在同一 ViewerEditSession 中关闭；
 10. reject 必须证明模型、revision 和待发布事件均未改变；
-11. `has_*` 是纯查询，`check_*` 的扩展故障必须结构化暴露。
+11. `has_*` 是纯查询，`check_*` 的扩展故障必须结构化暴露；
+12. Handle 与 Feedback 都由 Viewer 管理，不进入稳定 Part 树；
+13. 连接预览不能提前创建业务连接或稳定 ConnectionPart。
 
 ## 12.19 常见错误设计
 
@@ -364,6 +401,15 @@ undo 伪装成取消。
 ### Feedback 复用业务 Figure
 
 预览污染稳定场景，取消需要猜测如何恢复。
+
+### 把连接预览注册为 ConnectionPart
+
+候选关系获得了稳定投影身份，取消手势时只能模拟一次结构删除，也可能被选择和 Policy
+误认为已提交业务连接。
+
+### Handle 直接执行模型修改
+
+Handle 绕过 Tool、Request 和 Policy 后，外部 action 无法复用统一校验、取消和命令历史。
 
 ### Command 保存 EditPart
 
@@ -394,3 +440,5 @@ Editor 闭环至此完成。下一章讨论这些层中的扩展对象如何分�
 5. 多个 Policy 同时贡献 Command 时，需要定义哪些冲突规则？
 6. reject 路径观察到模型 revision 前进时，为什么必须升级为故障？
 7. `has_undo` 与 `check_undo` 分离后，UI 和实际 undo 各自应使用哪个入口？
+8. 为什么 Handle 可以命中并启动 Tool，而 Feedback 通常不应成为稳定目标？
+9. 连接预览复用 Core 路由能力时，为什么其所有者仍应是 Feedback？

@@ -83,6 +83,12 @@
 | 图形对象、图形行为 | Figure | 场景节点或节点上的具体行为协议，按上下文区分 |
 | 场景运行时 | Runtime | 场景事务、派生收敛、帧出版和完成确认的权威 |
 | 查看器 | Viewer | 模型、编辑部件和图形投影的当前视图所有者 |
+| 编辑部件 | EditPart、Part | Viewer 内连接模型身份、编辑行为与稳定视觉的投影控制器 |
+| 连接部件 | ConnectionPart | 使用 EditPartId 的连接投影角色，不建立新的身份域 |
+| 连接 | Connection | 按上下文指业务关系、ConnectionPart 或 Core 中的连接 Figure |
+| 覆盖视觉 | Overlay | Viewer 管理、位于稳定 Part 视觉之上的临时 Figure 子树 |
+| 控制柄 | Handle | 具有 HandleId 和类型化动作的可交互 Overlay |
+| 反馈图形 | Feedback | 表达当前候选结果、完成或取消后清理的 Overlay |
 | 边界矩形 | bounds | 节点在父内容域中的布局位置和尺寸 |
 | 客户区 | client area | 父节点提供给子内容的可用区域 |
 | 重绘区域 | damage | 表面上可能需要修复的保守像素范围 |
@@ -90,7 +96,6 @@
 | 表现平面 | Presentation Plane | 从已提交事实采样出的可丢弃视觉覆盖 |
 | 渲染提交包 | RenderSubmission | Runtime 出版给后端的一帧拥有数据 |
 | 指针捕获 | pointer capture | 把后续指针事件锁定到同一交互会话 |
-| 反馈图形 | feedback | 编辑会话中的临时视觉，不是业务事实 |
 | 故障锁定状态 | faulted | 无法继续证明一致性，只允许诊断或重建 |
 
 相似词不一定表示同一事实：

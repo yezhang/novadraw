@@ -97,6 +97,63 @@ flowchart LR
 Command 保存业务身份，不保存 Part 或 Figure 身份。输入捕获可以保存当前 Figure 身份，
 但目标删除时必须取消会话，不能让旧代际身份“复活”。
 
+## Editor 核心对象与所有权
+
+```mermaid
+flowchart LR
+    subgraph Model[业务模型]
+        ModelNode[模型对象]
+        ModelConnection[业务连接]
+    end
+
+    subgraph Viewer[Viewer]
+        RootPart[Root Part]
+        Part[Containment Part]
+        ConnectionPart[Connection Part]
+        Overlay[Overlay]
+        Handle[Handle]
+        Feedback[Feedback]
+    end
+
+    subgraph Runtime[Runtime / FigureTree]
+        Primary[primary Figure]
+        Content[content pane]
+        ConnectionFigure[Connection Figure]
+        HandleFigure[Handle Figure]
+        FeedbackFigure[Feedback Figure]
+    end
+
+    ModelNode -->|投影| Part
+    ModelConnection -->|投影| ConnectionPart
+    RootPart -->|containment| Part
+    Part -->|visual ownership| Primary
+    Primary --> Content
+    ConnectionPart -->|visual ownership| ConnectionFigure
+    Overlay --> Handle
+    Overlay --> Feedback
+    Handle -->|overlay ownership| HandleFigure
+    Feedback -->|overlay ownership| FeedbackFigure
+    Part -.所有者关联.-> Handle
+    Part -.所有者关联.-> Feedback
+```
+
+| 概念 | 属于哪一层 | 负责什么 | 不负责什么 |
+|---|---|---|---|
+| Part | Viewer | 控制模型到稳定 Figure 的投影、Policy 和视觉所有权 | 不保存业务事实，不直接绘制 |
+| ConnectionPart | Viewer | 控制业务连接的 source/target 关系与连接视觉 | 不成为端点 Part 的 containment child |
+| Connection Figure | Core | 解析 anchor、保存派生路径并绘制 | 不决定业务连接是否存在 |
+| Overlay | Viewer | 统称稳定内容之上的临时视觉所有权 | 不是单一图层，也不是平行 Figure 树 |
+| Handle | Viewer | 提供可命中的类型化交互入口 | 不直接修改模型 |
+| Feedback | Viewer | 显示候选结果、提示或拒绝状态 | 不成为稳定 Part 或命令历史 |
+
+Part 树、视觉所有权和 Figure 树是三种不同关系。Part 树表达控制器 containment；
+视觉所有权表达谁创建、解析和销毁 Figure；Figure 树表达绘制、命中、坐标与 Z-order。
+同一对对象在三种关系中不必具有相同父子结构。
+
+“Connection”还跨越三个层次：业务连接是持久事实，ConnectionPart 是单个 Viewer 的
+控制器投影，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
+Command；后两层可以随 Viewer 或 Runtime 重建。
+
 ## 四种版本域
 
 | 版本身份 | 证明什么 | 不证明什么 |
