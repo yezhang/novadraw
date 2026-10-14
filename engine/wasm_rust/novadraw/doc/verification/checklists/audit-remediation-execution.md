@@ -42,13 +42,17 @@
 | 2 | P2-S03 Runtime 子系统 Facade | P0 | `complete` | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
 | 3 | P2-S04 Editor 开放协议 | P0 | `complete` | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
 | 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
-| 5 | P2-S06 Editor prepared publication | P0 | `not_started` | R06、TC-08 | 待补 ADR |
+| 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `not_started` | R06、TC-08 | [机制必要性复核](../reviews/p2-s06-mechanism-necessity-2026-10-14.md)，实现前确认最小契约 |
 | 6 | P2-S07 查询身份与失败语义 | P1 | `not_started` | R04、TC-09、API-F06、API-07 | 待补 ADR |
-| 7 | P2-S08 Detached 受检值 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR |
+| 7 | P2-S08 Detached 输入不变量 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR/规范，先复用已有受检值 |
 | 8 | P2-S09 服务失败与 Inspector | P1 | `not_started` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 待补 ADR |
 
 执行顺序默认按表推进。只有依赖、用户优先级或新的 P0 正确性证据发生变化时才调整；
 调整必须先更新 Backlog。
+
+本表为 Backlog 的执行映射；G01/M01/GA-2/GA-3 的 `in_progress` 表示仍待交付证据，
+不表示它们与本表同时 Execute。当前 S06 的必要性复核已完成，代码尚未实施。
+本轮校准记录见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)。
 
 ## 3. P2-S02：显式领域导入与 Root 收口
 
@@ -76,7 +80,7 @@
 - [x] source gate 禁止 root 非 module 项和 `novadraw::prelude`。
 - [x] 每个禁止 root 名称有独立 compile-fail 证据。
 - [x] 外部 consumer 只用显式领域路径。
-- [x] `cargo xtask check --quick` 通过；最终组合交付 full gate 待执行。
+- [x] quick 与 S02/S03/S04 组合交付 full gate 通过，见 S04 完成记录。
 - [x] 新建 P2-S02 completion record，关闭 R02/API-F07。
 
 ## 4. P2-S03：Runtime 子系统 Facade 与统一 Figure Mutation
@@ -106,7 +110,7 @@
 - [x] 外部 Figure component update 与 capability update 共用内置提交链。
 - [x] 各子 facade 分别进入 API snapshot。
 - [x] Core、Editor、Native/Web platform 和 examples suite 通过。
-- [x] quick gate 通过；full gate 随 P2-S02/S03/S04 组合交付执行。
+- [x] quick 与 S02/S03/S04 组合交付 full gate 通过，见 S04 完成记录。
 - [x] 新建 P2-S03 completion record，关闭 R01。
 
 ## 5. P2-S04：Editor Tool / Request / Policy / Handle 统一开放协议
@@ -140,12 +144,12 @@
 - [x] G1-G5、P2-E02、定向 suite 与 quick gate 通过。
 - [x] P2-S02/S03/S04 组合交付 full gate 通过。
 - [x] 新建 P2-S04 completion record；关闭 TC-06/R05，并关闭 R08
-  overlay 暴露面。TC-08/R06 的 prepared publication 仍归 P2-S06。
+  overlay 暴露面。TC-08/R06 的投影失败隔离与批量校验仍归 P2-S06。
 
 ## 6. P2-S05：深层复合布局与文字 Presentation 收敛
 
 来源：
-[UML 扩展能力验证 F-01](../reviews/uml-extension-capability-2026-10-05.md#f-01深层复合布局与文字-presentation-未稳定收敛)。
+[UML 扩展能力验证 F-01](../reviews/uml-extension-capability-2026-10-05.md#f-01深层复合布局与文字-presentation-未稳定收敛已关闭)。
 
 - [x] 提取两层以上嵌套 Toolbar/Layout + Label 的最小复现。
 - [x] 证明问题位于 FigureNode layout content/outer measurement 投影遗漏
@@ -160,16 +164,19 @@
 - [x] [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)
   关闭 UML F-01。
 
-## 7. P2-S06：Editor Prepared Publication
+## 7. P2-S06：Editor 增量投影失败隔离与 Overlay 批量校验
 
 来源：R06、TC-08。
 
-- [ ] ADR 定义 `PartProjectionPlan`、`ConnectionProjectionPlan` 和 `OverlayBatch`。
-- [ ] 明确 prepare/validate/commit 的状态所有者。
-- [ ] Part/Connection 创建不再依靠跨 registry 手工补偿。
-- [ ] Overlay Drop 只做不可失败的本地撤销，显式 commit 后转交 Viewer。
-- [ ] 外部 callback 副作用明确排除在回滚保证之外。
-- [ ] fault injection 验证失败前后 Runtime、PartTree、registry、anchor 和 overlay 快照一致。
+- [x] 先复核机制必要性，撤销三个具名类型的强制建设要求；见复核报告。
+- [ ] 冻结单次新建子树失败隔离、完整同步前缀和 callback/fault 的保证边界。
+- [ ] 新建子树可恢复拒绝时清除本次新增 Figure、Part、registry、behavior/policy 登记；成功激活前缀只撤销一次。
+- [ ] Connection 复用已有清理路径，补齐晚期 route/binding/activation 拒绝与清理失败证据；不为已有能力再造 Plan。
+- [ ] Overlay 批量预检覆盖重复 ID、祖孙重叠、foreign/stale/owner、Figure/style 拒绝；写入前拒绝，或明确规范化重复输入。
+- [ ] 清理错误不得静默丢弃；callback panic 或清理失败进入 fault，不宣称完整回滚。
+- [ ] 不承诺 Drop 能回滚 Runtime；只有未发布 owned 候选可以靠正常释放撤销。
+- [ ] fault injection 按上述边界验证新增结构、registry、anchor、overlay 和通知/damage；不要求完整 synchronize 任意失败前后完全相同。
+- [ ] 模型/history 已提交事实与视觉投影失败分别报告，不以视觉失败伪装模型回滚。
 - [ ] 与 P2-S04 的 typed Tool/Handle ownership 集成。
 - [ ] completion record 关闭 TC-08/R06。
 
@@ -177,43 +184,55 @@
 
 来源：R04、TC-09、API-F06、API-07。
 
-- [ ] ADR 定义统一 QueryError 分类。
-- [ ] `Option` 只表示已验证对象上的合法缺失。
-- [ ] unknown/foreign/stale identity 返回结构化错误。
-- [ ] LayoutSceneQuery 不返回 ZERO、INFINITY 或 default 伪造成功。
+- [ ] 先核对 ADR-036 已完成的 Event/Layout/Route 命名和阶段权限迁移，不重复实施。
+- [ ] ADR 定义身份、合法缺失与领域失败的分类及组合；仅在共享消费者需要时统一错误类型。
+- [ ] 任意 ID 入口对 unknown/foreign/stale 返回结构化错误；
+  已验证 snapshot/typed view 可保留直接 getter。
+- [ ] `Option` 表示合法缺失；不可逆变换/无路径遵循其领域契约。
+- [ ] LayoutSceneQuery 不为无效 ID 返回 ZERO、INFINITY 或 default 伪造成功；
+  合法空布局、零尺寸、无上限约束仍按原合同表达。
 - [ ] `is_visible/is_enabled` 不把 unknown 折叠成 false。
 - [ ] 删除或改名非权威查询，避免 FigureNode/FigureTree 同名不同语义。
-- [ ] 保留坐标不可逆/无路径等真正可选语义，不机械把全部 Option 改为 Result。
 - [ ] foreign/stale/absent/fault 负向测试和外部 LayoutManager consumer 通过。
 - [ ] completion record 关闭 TC-09/R04/API-F06/API-07。
 
-## 9. P2-S08：Detached Figure / Border / Style 受检值
+## 9. P2-S08：Detached Figure / Border / Style 输入不变量
 
 来源：R03、TC-03、API-F04、API-10。
 
-- [ ] ADR 或 normative design 定义 `Alpha01`、非负长度、圆角、stroke 和字体值。
-- [ ] Figure、Border、Style 公共字段改为私有 accessor。
-- [ ] detached constructor 在对象发布前返回 Result。
+- [ ] 先盘点 Opacity、StrokeStyle、几何与字体现有不变量；仅为真实缺口补充受检值，
+  不预定 `Alpha01` 等新类型，不为所有 f64 建 wrapper。
+- [ ] 防止字段写入绕过跨字段不变量；已受检且可独立替换的字段无需一律私有化。
+- [ ] 接受未受检输入的构造/更新在对象发布前返回结构化错误；
+  默认构造与安装已验证值不机械改成 Result。
 - [ ] 删除 Border 构造 assert/panic alias。
-- [ ] 删除用于隐藏非法输入的 silent clamp。
-- [ ] admission 只保留跨对象、namespace 和 topology 最后防线。
+- [ ] 删除隐藏非法输入的 silent clamp；保留已定义的 viewport range 收敛、圆角按
+  目标几何适配等合法算法行为，区分负坐标与非负尺寸。
+- [ ] 构造保证领域不变量；admission 保留跨对象/namespace/topology 及派生溢出校验，
+  backend 精度与 capability 预检继续独立存在。
 - [ ] 内置与外部 Figure 使用相同值类型和失败语义。
-- [ ] 构造负测、序列化边界和渲染回归通过。
+- [ ] 构造、更新、外部 Figure admission 的负测与渲染回归通过；
+  产品 schema/serializer 不进入引擎验收。
 - [ ] completion record 关闭 TC-03/R03/API-F04/API-10。
 
 ## 10. P2-S09：服务失败、Inspector 与错误 Source
 
 来源：R07、TC-10、API-F08、API-F10，以及 API-F09 未覆盖的 connection register alias。
 
-- [ ] ADR 统一 query、check、mutation 和 idempotence 返回语义。
+- [ ] ADR 收口本批服务的 fault、mutation、check 与 idempotence 语义；
+  身份/查询规范引用 S07，不重复改造所有 getter。
 - [ ] AnimationMut 的 fault 与 `Ok(false)` 幂等未变化分离。
 - [ ] Inspector 锁 poison 返回结构化 fault，不再返回空集合或静默跳过。
-- [ ] Inspector attach 返回 subscription token/guard，明确 detach 生命周期。
-- [ ] `register_*` 只保留 fallible 入口，删除 `try_*` 双入口和 panic alias。
-- [ ] Command/Policy/extension error 保留 `source`，不压缩为 String/label。
+- [ ] Inspector attach 明确订阅所有者、注销与 observer fault 的可观测路径；
+  优先复用 Observations token，仅在无法满足生命周期时增加 guard。
+- [ ] 盘点 S03 迁移后的残余注册入口；有失败可能的注册保留一个 fallible 入口，
+  删除 panic alias，不按名称批量删除不同语义的 `try_*`。
+- [ ] Command/Policy/extension 的错误链可追溯，不仅保存 String/label；
+  领域分类与 source 保留，panic payload 的诊断策略单独定义。
 - [ ] fault injection 覆盖 Animation、Inspector、registration 和 extension panic。
 - [ ] 与 P2-S03 Runtime facade 的 Observations/Connections 边界一致。
-- [ ] completion record 关闭 TC-10/R07/API-F08/API-F10。
+- [ ] completion record 按实际覆盖关闭 TC-10/R07/API-F08/API-F10，
+  回填 API-F09 残余 register alias，不把已完成 CommandStack check/has 重新列为缺口。
 
 ## 11. 审计派生的能力 Backlog
 
@@ -221,7 +240,7 @@
 
 | Delta | 状态 | 审计来源 | 剩余验收 |
 |---|---|---|---|
-| P2-G01 Graphics extension | `in_progress` | GOAL-CAP、Graphics 审计 | Native surface partial repair 人工验收 |
+| P2-G01 Graphics extension | `in_progress` | GOAL-CAP、Graphics 审计 | 定位 present suite 首帧 Skipped，闭合 Native surface partial repair 证据 |
 | P2-M01 Animation/Presentation | `in_progress` | Animation 架构审计 | M01-D 平台/视觉发布证据 |
 | P2-L01 Directed/Compound layout | `not_started` | GOAL-CAP、UML F-02 | 独立图模型、确定性输出、外部算法 consumer |
 | P2-C03 跨 viewport connection | `not_started` | 能力分母、UML 未覆盖边界 | common viewport、clip、damage、hit-test |
@@ -241,7 +260,7 @@
 - [ ] input-to-present 延迟。
 - [ ] Chrome WebGPU 固定场景预算。
 - [ ] validation/routing 与 Draw2D 同机同场景复核。
-- [ ] 首帧重复录制、Label/TextFlow 深链祖先扫描等候选先测量再决定优化。
+- 候选性能问题的唯一待复核列表见 §13；本节仅维护发布预算与采证。
 
 ### GA-3 平台
 
@@ -249,13 +268,16 @@
 - [ ] Linux X11 原生 runner。
 - [ ] Linux Wayland 原生 runner。
 - [ ] Firefox/Safari 支持等级复核。
-- [ ] Native accessibility provider（由 P2-A01 承接）。
+- Native accessibility provider 由 P2-A01 单项承接，GA-3 只引用其平台资格证据。
 
-### Web 文本输入
+### Web EditContext 扩展验收
 
-- [ ] 真实系统 IME composition 与候选窗人工验收。
+- P2-E02 的 Native/Web textarea 输入与系统 IME 人工复验已完成，不重开。
+  以下仅针对[EditContext partial 集成](../reviews/web-edit-context-capability-2026-09-30.md)：
+- [ ] EditContext 路径真实系统 IME composition、候选窗及 characterboundsupdate 验收。
 - [ ] trusted keyboard 触发 EditContext `textupdate`。
-- [ ] `textformatupdate` composition 样式是否进入平台无关反馈协议。
+- [ ] 裁决 `textformatupdate` 样式映射范围与 fallback；如增加反馈协议，
+  先登记独立平台切片，不默认为 P2-E02 旧完成范围。
 
 ## 13. Hold / 待定向复核
 
@@ -266,8 +288,17 @@
 - [ ] 外部 LayoutOutput 非有限值预检：在 P2-S08 Design 时判断属于值不变量还是
   Layout contract。
 - [ ] 浏览器 composition 去重：只有真实事件序列证明重复写回后才升级为缺陷。
+- [ ] 2026-10-12 新增规范的其余证据：prepare 当前提交前缀与 NoChange 容量边界、
+  过期 measurement/layout/route/presentation 候选和 stable epoch 失败隔离、
+  disabled Figure 几何查询、外部标准容器 effect/clip/projection 权限对等。
+  来源见[契约修订记录 §3](../reviews/framework-architecture-contract-revision-2026-10-12.md#3-实现证据与待验证要求)；
+  先核对既有 suite 再补负测，不直接断言缺陷或归入 S06。
+- [ ] RootLayerFactory/SelectionPolicy/tracker 外部可达性、新资源消费者及一般多区域
+  裁剪需求：先以公开 consumer 定向证明，来源为 2026-10-12 审查 §8。
 
 Hold 项不得顺手并入正在执行的批次；先完成复现和 Triage。
+FigureUpdateEffect 越权与整批末项拒绝的预检整改已由 `b6a34b1`/`ec415b2` 完成；
+不重复新建批次，也不以它代替上述其余契约证据。
 
 ## 14. 已关闭基线
 
@@ -286,18 +317,20 @@ Hold 项不得顺手并入正在执行的批次；先完成复现和 Triage。
 | TC-11 | ResourceProvider 与 request token |
 | TC-12 | RenderBackend 结构化运行失败 |
 | TC-13 / TC-14 | 分层 API snapshot 与热路径日志门禁 |
+| ADR-036 | Event/Layout/Route 阶段权限与 Query 命名迁移，见独立完成记录 |
+| FigureUpdateEffect（2026-10-14） | Runtime 整批顺序预检与授权目标限制；不代表 Editor S06 完成 |
 | P2-C01 connection.locator | decoration orientation/reference 与 locator 已验证 |
 | M1-M10 / G0-G5 | 既定 Core 与 Editor milestone 已完成 |
 
 ## 15. 每个批次的固定关闭动作
 
 - [ ] 当前 batch 的 ADR/normative design 已接受。
-- [ ] Backlog 只有该 batch 为 `in_progress`。
+- [ ] 当前只有该整改 batch 进入 Execute；待采证 delta 保留原交付状态。
 - [ ] completion criteria 在 Execute 前冻结。
 - [ ] 新发现已登记为 hold，没有隐式扩大范围。
-- [ ] 定向 suite 通过。
-- [ ] `cargo xtask check --quick` 通过。
-- [ ] 对公共跨 crate API、高扩散或里程碑边界执行一次 full gate。
+- [ ] 按风险完成定向 suite 与必要 quick gate；纯文档只运行 docs 与 diff check。
+- [ ] 最终提交、推送、合并或里程碑关闭前执行一次 full gate（纯文档按 CLAUDE.md
+  例外）；不因每个小补丁重复运行 workspace 门禁。
 - [ ] 新建 completion record。
 - [ ] 回填原审计 ID、Backlog 状态和文档索引。
 - [ ] 下一 batch 才可进入 `in_progress`。

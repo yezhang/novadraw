@@ -7,6 +7,9 @@
 > **编号约定**：本文统一使用 `M1-M10`，并与 `doc/parity/draw2d/api-coverage.md` 中的 milestone 映射保持一致。
 > **与 product-deliverables.md 的关系**：产品清单回答 *what to ship*，本文回答 *how to verify*。
 
+M1-M10 的 demo 基线已完成；本文维护回归覆盖，不是当前工作队列。后续能力与
+待采证状态见 [P2 backlog](p2-delta-backlog.md)，不以测试增量数量判断完成。
+
 ## 验证分层
 
 每个 milestone 完成必须三层验证齐过：
@@ -14,28 +17,26 @@
 | 层 | 来源 | 度量 |
 |----|------|------|
 | **契约层** | `doc/parity/draw2d/api-coverage.md` 中的语义覆盖检查点 | 单元测试、契约属性测试 |
-| **产品层** | `product-deliverables.md` 清单 | 类型/能力存在性测试 |
+| **产品层** | `product-deliverables.md` 清单 | 可观察行为、组合与失败路径 |
 | **端到端层** | 本文 demo + 验证策略 | demo 截图断言 / 帧率断言 / 集成测试 |
 
 建议把里程碑收敛按两级判断：核心行为已验证时至少通过前两层；标记完成时三层全过。
 
 ## Demo 矩阵
 
-| Milestone | Demo 名称 | 路径 | 验证策略 | 测试增量预期 |
-|------|-----------|------|----------|--------------|
-| M1 | 无独立 demo | — | 仅类型单测 + Graphics 状态栈嵌套测试 | +30 |
-| M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 | +60 |
-| M3 | `clip-app` nested clip 场景 | `examples/native/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
-| M4 | `transform-app` ✅ | `examples/native/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
-| M5 | `layout-app` ✅ + `update-app` ✅ | `examples/native/layout-app`、`examples/native/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
-| M6 | `event-app` ✅ | `examples/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
-| M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
-| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `examples/native/scroll-pane-demo`、`examples/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
-| D2 | `scroll-pane-demo` ✅ + Web `layer-freeform` suite ✅ | `examples/native/scroll-pane-demo`、`examples/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、content-domain range 与锚点缩放；自动与人工验收通过 | — |
-| M9 | `connections-demo` | `examples/native/connections-demo` | 5 anchor + Direct/Bendpoint/shared Manhattan/Fan + Locator/Decoration + ConnectionLayer + viewport topology 八场景 | +150 |
-| M10 | `shape-app` + `border-app` + `text-app` + `widgets-app` + Web `text-image`/`widgets` suites ✅ | `examples/native/shape-app`、`examples/native/border-app`、`examples/native/text-app`、`examples/native/widgets-app`、`examples/web/web-validation` | deferred builtin Figure + 6 边框 + 文本/图像资源 + Clickable/Button/Toggle 交互 + Tooltip 悬停延迟/边界 placement + accessibility Snapshot/Delta/action；Native/Web 等价验收完成 | +220 |
-
-**测试增量合计**：+1,100（基线 146，目标 ~1,250）
+| Milestone | Demo 名称 | 路径 | 验证策略 |
+|------|-----------|------|----------|
+| M1 | 无独立 demo | — | 类型单测 + Graphics 状态栈嵌套测试 |
+| M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 |
+| M3 | `clip-app` nested clip 场景 | `examples/native/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 |
+| M4 | `transform-app` ✅ | `examples/native/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 |
+| M5 | `layout-app` ✅ + `update-app` ✅ | `examples/native/layout-app`、`examples/native/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 |
+| M6 | `event-app` ✅ | `examples/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 |
+| M7 | 集成入 `event-app` + `update-app` | 同上 | bounds/坐标根变化通知；UpdateManager validating/painting 通知 |
+| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `examples/native/scroll-pane-demo`、`examples/native/viewport-app` | ScrollBar、滚动、缩放、pinch；契约与 CLI 验证 |
+| D2 | `scroll-pane-demo` ✅ + Web `layer-freeform` suite ✅ | `examples/native/scroll-pane-demo`、`examples/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、range 与锚点缩放 |
+| M9 | `connections-demo` | `examples/native/connections-demo` | Anchor/Router/Locator/Decoration、ConnectionLayer 与 viewport topology 八场景 |
+| M10 | `shape-app` + `border-app` + `text-app` + `widgets-app` + Web `text-image`/`widgets` suites ✅ | `examples/native/shape-app`、`examples/native/border-app`、`examples/native/text-app`、`examples/native/widgets-app`、`examples/web/web-validation` | Figure/Border、文本/图像、控件、Tooltip 与 accessibility；Native/Web 等价 |
 
 ## 通用验证规范
 
@@ -59,14 +60,11 @@
 - 命令与报告路径的唯一可执行定义：
   [`../../verification/suites.toml`](../../verification/suites.toml)
 
-### 帧率断言
+### 性能采证
 
-仅 M5 `update-app` 的 stress 场景与 M8 滚动 demo 需要：
-
-- 1k+ Figure 全量更新 ≥ 30fps
-- 局部失效 ≥ 60fps（部分场景）
-
-> 注：Year 1 不强求所有 demo 都达 60fps，符合 CLAUDE.md "扩展性 > 稳定性 > 性能" 原则。
+固定场景、硬件、DPI、输入轨迹和原始样本后，按 GA-2 记录 p50/p95、GPU 与
+input-to-present。旧 30/60fps 建议不作为当前未完成门禁；帧预算在测量后校准。
+常规回归保留确定性工作量，不能用 demo 帧率或命令录制耗时证明总体性能达标。
 
 ### 等价测试
 
@@ -118,14 +116,14 @@
 
 ### 节点编辑器探索 demo
 
-- **路径**：`examples/native/node-editor-demo`（暂定）
-- **触发时机**：M1-M10 全部 `behavior_verified` 之后
+- **路径**：`examples/native/node-editor-demo`（已作为 G3-G5 验证入口）
+- **阶段**：历史探索已完成，当前 Editor 增量进入 P2 backlog
 - **能力范围**：创建节点 / 拖拽 / 连接 / 删除 / 滚动+缩放 / Tooltip
 - **GEF helper**：`AutoexposeHelper` 在拖拽期间驱动 Viewport 自动滚动，属于本层，
   不计入 M8 Draw2D 核心完成门禁
 - **验证目的**：
   - draw2d 核心协议在端到端编辑场景下是否仍自洽
-  - 暴露未来 GEF 层的需求点（Tool / Command / Request 在何处自然涌现）
+  - 回归 Tool / Command / Request 与模型投影的现行契约
 - **不验证目的**：
   - ❌ 不作为 draw2d 核心毕业判据
   - ❌ 不强求 60fps / 100 节点性能基线
@@ -135,10 +133,10 @@
 
 如果探索过程中发现协议层缺口，正确做法：
 
-1. 在本文档附录记录缺口
-2. 在对应 milestone 下记录新的架构增量及受影响 API family
+1. 在整改清单登记 finding 与最小反例
+2. 建立独立 P2 delta 并记录受影响 API family，不重开已完成 M/G milestone
 3. 通过 contract probe 把缺口收口
 4. **禁止**为单独让 demo 跑通而在 apps 层堆便利方法
 
-GEF 层已经确认启动。后续新增状态只写入 `doc/roadmap/editor/`；本附录保留为
+GEF G0-G5 已完成；后续新增执行状态只写入 P2 backlog。本附录保留为
 Draw2D 阶段的历史边界说明。

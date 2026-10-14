@@ -6,6 +6,11 @@
 [`../../design/editor/architecture.md`](../../design/editor/architecture.md) 为准；本文不
 通过任务描述改变架构。
 
+G0-G5 已完成，以下阶段描述保留历史交付边界；当前协议与公开路径以 accepted ADR
+和 Editor architecture 为准，后续整改不重新执行这些阶段。唯一队列见
+[P2 backlog](../p2-delta-backlog.md)；P2-S04 已开放 Tool/Request/Policy/Handle，
+P2-S06 负责增量投影失败隔离和 Overlay 校验。
+
 ## G0：架构与工程启动
 
 ### 分析过程

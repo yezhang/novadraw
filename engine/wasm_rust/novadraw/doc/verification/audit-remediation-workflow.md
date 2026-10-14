@@ -61,15 +61,15 @@ flowchart LR
 | 文件 | 作用 | 更新时机 |
 |---|---|---|
 | **本次审计报告**（`reviews/<name>-YYYY-MM-DD.md`） | 一次审计时的全部发现快照 | 审计完成时写入；不再回头修改既有条目 |
-| **总台账**（`reviews/temporary-concept-design-audit-2026-10-08.md`） | 跨审计的发现项状态登记 + 关联批次 | 发现项定级、状态翻转、批次关联时 |
+| **整改总清单**（`checklists/audit-remediation-execution.md`） | 跨审计的来源映射、未关闭要求和 hold | 发现项定级、批次关联及证据更新时 |
 | **收口完成记录**（`reviews/<id>-completion-YYYY-MM-DD.md`） | 一次原子批次关闭后的证据 | 批次关闭时一次写入 |
 | **ADR / normative design** | 当前批次的"目标契约" | Design 阶段写入；Execute 阶段不改 |
 | **`roadmap/p2-delta-backlog.md`** | 可实施批次队列 + 状态 | Triage 阶段把审计发现挂到对应 delta ID |
 | **`verification/suites.toml`** | 批次毕业门禁 | Design 阶段登记新门禁；收口时不再增删 |
 | **本文档** | 工作流本身 | 流程本身改变时才改 |
 
-**关键原则**：审计报告是历史快照，不被覆盖；台账是当前真源，持续更新；完成记录
-是不可变证据，一次写入。这与项目既有的"doc 分层"保持一致，不新增类型。
+**关键原则**：审计报告和完成记录是历史证据；整改清单维护来源映射，执行状态唯一
+由 roadmap 维护。TC 审计保留历史发现，不再作为与 Backlog 竞争的当前状态真源。
 
 ## 4. 阶段细则
 
@@ -78,7 +78,7 @@ flowchart LR
 两种输入：
 
 - **主动审计**：周期性或里程碑驱动，产出 `reviews/<name>-YYYY-MM-DD.md`。
-- **临时发现**：实施过程中偶遇；立即以列表形式追加到总台账的"3. 发现项"节的末尾，
+- **临时发现**：实施过程中偶遇；立即追加到整改总清单的 Hold 节，
   不等待下一轮主动审计。
 
 Discover 阶段 **只写文档**，不改代码。
@@ -102,14 +102,15 @@ Discover 阶段 **只写文档**，不改代码。
 - `dependencies`：显式列出前置批次；
 - `linked_findings`：挂上来的审计发现 ID。
 
-**执行顺序只在 Backlog 顶部单链**：同一时刻 Backlog 的 `in_progress` 条目不得
-超过 1 条。这是"因果单步"在工作流层的强制：
+**执行顺序只在 Backlog 当前推进顺序维护**：同一时刻只能一个整改批次进入 Execute。
+交付状态 `in_progress` 也可能表示历史实现仍待平台/性能证据，不能把状态数当成并行
+写入数，也不能为通过计数而把未毕业 delta 标成完成：
 
 ```text
-status in_progress 数 ≤ 1
+当前 Execute 批次数 ≤ 1
 ```
 
-如果需要并行推进两个独立批次，必须显式写明"同时持有两个 in_progress 需要的证据
+如果需要并行推进两个独立批次，必须显式写明"同时进入 Execute 需要的证据
 与隔离机制"，否则默认拒绝并行执行。
 
 ### 4.4 Design — 契约先行
@@ -129,21 +130,20 @@ Design 阶段结束时产出一个 commit：`<batch-id> 定义目标契约与完
 实施期间的硬性约束：
 
 - 任何本批次之外的"顺手修"**禁止**：发现问题就追加到台账末尾，继续当前批次；
-- 门禁顺序遵循 CLAUDE.md 的"分层验证"：定向 `cargo check --lib` → 定向 suite →
-  `cargo xtask check --quick` → 批次关闭前的一次 `--full`；
+- 门禁遵循 CLAUDE.md 分层验证：内环定向 check/suite，按扩散范围运行 quick，
+  最终提交或里程碑关闭前一次 full；纯文档使用 docs 与 diff check；
 - 每个 commit 都应 **可独立回退**：失败即 `git revert`，不做"先糊后修"。
 
-Execute 期间发现、但不属于当前批次的问题，被标记为 `hold`：直接追加到总台账
-"3. 发现项"末尾，优先级留空，Triage 环节再定级。
+Execute 期间发现、但不属于当前批次的问题，被标记为 `hold`：直接追加到整改总清单
+Hold 节，优先级留空，Triage 环节再定级。
 
 ### 4.6 Verify — 分层门禁
 
 批次关闭需要通过：
 
-- Design 阶段登记的 compile-fail / snapshot 门禁；
-- `verification/suites.toml` 对应的 suite；
-- `cargo xtask check --quick` 全套；
-- 批次关闭前 **一次** `cargo xtask check --full`。
+- Design 阶段登记的适用 compile-fail / snapshot / suite；
+- 按 CLAUDE.md 风险分层运行 quick 与交付边界的一次 full；
+- 纯文档只运行 docs 与 diff check，不用代码批次要求重复触发 full。
 
 Full gate 阻断分两类：
 
@@ -156,10 +156,10 @@ Full gate 阻断分两类：
 批次关闭时必须：
 
 1. 新建 `<id>-completion-YYYY-MM-DD.md`；
-2. 把总台账对应条目改为 `complete`，并给出完成记录链接；
+2. 回填整改总清单的来源 ID 与完成记录链接，不改写旧报告结论；
 3. 更新 `p2-delta-backlog.md` 该条目 status；
 4. 如果本批次关闭 **顺带** 关闭了其他发现（例如 Runtime facade 拆分顺带收窄了
-   root），在总台账逐条翻状态，不留隐式关闭。
+   root），在整改总清单逐条回填证据，不留隐式关闭。
 
 ## 5. 推荐的仓库辅助工具
 
@@ -177,10 +177,10 @@ Full gate 阻断分两类：
 
 | 候选命令 | 作用 | 实现粒度 |
 |---|---|---|
-| audit list | 读取总台账，输出 open / in_progress 条目 | 读 markdown 表格 |
+| audit list | 读取整改总清单与 Backlog，输出未关闭来源与状态 | 读 markdown 表格 |
 | audit queue | 读取 p2-delta-backlog.md，输出当前 in_progress 与下一条 | 读 markdown |
-| audit verify-single-inflight | 校验 Backlog in_progress 条目数 ≤ 1 | 作为 docs 的子步骤 |
-| audit snapshot-api | 把 Runtime / root / prelude 的公开符号与方法计数输出到 verification/public-api/ | 已部分存在，扩充即可 |
+| audit verify-single-inflight | 校验当前 Execute 批次数 ≤ 1，排除待采证交付 | 只有引入明确执行阶段记录后才评审，不能靠 in_progress 计数 |
+| audit snapshot-api | 扩展领域公开符号与方法计数的现有门禁 | 已有 API snapshot/root gate；仅为证明的新盲点扩充，不重建 prelude 表面 |
 
 这些命令不是前置条件，但能把"单步执行"与"前缀锁定"从约定变成机器化门禁。
 
@@ -190,22 +190,21 @@ Full gate 阻断分两类：
 
 1. **立即决定是否中断当前批次**。判据：
    - 新发现 **会让当前批次契约失效** → 立即暂停 Execute，回到 Design 修订契约；
-   - 新发现 **只是另一处同类问题** → 不中断，加入当前批次（扩大范围需在
-     Design 文档追加一行"范围扩充"说明）；
+   - 新发现 **只是另一处同类问题** → 仅在既有冻结范围和完成判据已覆盖时纳入；
+     否则进入 hold，不能以同类为由扩大 Execute；
    - 其他情况 → `hold`，追加到台账末尾，不中断。
 2. **不允许"隐式扩张"**：Execute 阶段的 PR 不得静默修改范围；范围变更必须
    先更新 Design 文档。
 3. **挂起项必须显式归队**：Close 时若台账仍有未定级的 `hold`，必须在完成记录
    显式列出，并约定下一轮 Triage 的时间点，不留"稍后看看"。
 
-## 7. 建议的本周行动
+## 7. 当前执行入口
 
-- 把本次 Review 的 R01 ~ R08 按本工作流 Triage，归入 `p2-delta-backlog.md`
-  对应 P2-S* 或新建 delta；
-- 把 Runtime facade 拆分（R01）作为下一个 `in_progress` 批次；
-- 为该批次写一份独立 ADR（候选编号 ADR-033），把完成判据机器化为 symbol
-  snapshot 与 compile-fail；
-- 本文档作为后续审计/收口闭环的流程基线，流程本身的后续调整走 ADR。
+R01/R02/R05 与 S05 已有完成记录，ADR-033/034/035 已实施，不再以本周行动重复启动。
+当前顺序见 [P2 backlog](../roadmap/p2-delta-backlog.md#当前推进顺序2026-10-14-校准)，
+未关闭要求和来源见[整改总清单](checklists/audit-remediation-execution.md)。
+辅助工具保持候选，不作为 S06–S09 前置任务；先证明现有 manifest/snapshot 无法满足
+的检查需求再登记。
 
 ## 8. 不作为流程的事项
 

@@ -55,6 +55,8 @@
 | 2026-10-12 | [P2-S05 深层布局与文字 Presentation 收敛](p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
 | 2026-10-12 | [图形框架五项架构契约修订](framework-architecture-contract-revision-2026-10-12.md) |
 | 2026-10-13 | [ADR-036 Context 阶段权限投影与 Query 命名](adr-036-context-phase-authority-completion-2026-10-13.md) |
+| 2026-10-14 | [P2-S06 投影失败隔离与批量校验机制必要性](p2-s06-mechanism-necessity-2026-10-14.md) |
+| 2026-10-14 | [路线图与待办校准复核](roadmap-calibration-2026-10-14.md) |
 
 ## 平台与产品验收
 

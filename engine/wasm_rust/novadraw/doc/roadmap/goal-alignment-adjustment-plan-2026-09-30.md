@@ -27,8 +27,11 @@
 ## 1. 调整方向
 
 2026-10-02 经用户确认，当前开发主线调整为框架核心架构与 API 的灵活、扩展和稳定。
-GA-1/GA-4 已完成的边界作为基础，先推进 P2-S01 原子 child insertion，再评审 P2-G01
-Graphics 扩展与 P2-L01 外部布局算法集成。每个切片先明确契约、失败语义和外部消费者，
+GA-1/GA-4 已完成的边界作为基础。原首批 P2-S01、P2-F02、P2-G02 及 API 整改
+P2-S02–S05 已完成；2026-10-14 校准后的当前队列为 P2-S06 → S07 → S08 → S09，
+随后进入 P2-L01 外部布局算法 Design，状态与顺序只在
+[P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准) 维护。
+每个切片先明确契约、失败语义和外部消费者，
 再实现与验证；不以新增方法数量或内部文件拆分作为扩展性证据。
 
 P2-S01 已完成，证据见 [P2 backlog](p2-delta-backlog.md)。P2-G01 已按
@@ -84,12 +87,12 @@ runner 验收移至发布准备阶段。保留已有工具、支持等级和未�
 4. 定义平台状态：未验证、可编译、运行通过、完整支持，逐平台登记；
 5. 统一“Core 1.0 完成”指既定切片完成，不能代指全部 Draw2D 能力或四平台达标。
 
-建议近期承接的剩余能力：
+GA-0 登记的能力去向（不是当前执行队列）：
 
 | 能力组 | 下一步 | 依赖 |
 |---|---|---|
-| Graphics | path clip、gradient、custom dash/dash offset、miter 配置；每项贯通 IR 与 backend | GA-1 公共表面 |
-| Figure/Connection | 原子 indexed+constraint add；跨 viewport 连接可见性与 clip 扩展 | topology/clip 专题评审 |
+| Graphics | P2-G01 IR/backend 已贯通，剩余 Native surface 验收 | 实际 surface 证据 |
+| Figure/Connection | P2-S01 已完成；跨 viewport 连接可见性归 P2-C03 | topology/clip 专题评审 |
 | Text/Widget | fragment 样式、inline/block 组合的剩余语义、repeat firing | 文本测量与平台时钟契约 |
 | 图自动布局 | 从 Draw2D graph 包建立行为清单，先验证外部布局算法集成 | 独立布局输入/输出模型 |
 | 平台/输出 | 原生 AT provider、打印/导出目标的能力矩阵与适配契约 | GA-3 |
@@ -174,7 +177,8 @@ XOR、SWT 特有入口等先判断可观察行为与现代替代方案，不直�
 
 ### GA-4：按依赖方向整理内部模块与扩展表面
 
-依赖：GA-1 与 GA-2 基线。负责人角色：Core/Editor 维护者。
+依赖：GA-1 与已建立的 GA-2 CPU/工作量基线；不依赖 GA-2 全部呈现采证。
+负责人角色：Core/Editor 维护者。
 
 实施方式：
 
@@ -236,7 +240,8 @@ Book 修订仅展示当前机制与正确使用路径，不把 ADR、审计历�
 
 ### GA-6：按目标矩阵完成一次发布审计
 
-依赖：GA-1—GA-5 的对应切片与 GA-0 剩余能力执行结果。
+依赖：GA-1—GA-5 已有证据及 GA-0 剩余能力处置。审计可以给出 `not_ready`，
+不要求先关闭全部长期能力；发布资格仍取决于实际承诺范围的证据。
 
 产物：
 
@@ -266,7 +271,7 @@ flowchart LR
     A --> D["GA-3 四平台验证"]
     A --> E["GA-5 文档与门禁"]
     B --> F["GA-4 模块与扩展表面"]
-    C --> F
+    C -->|"已有 CPU/工作量基线"| F
     B --> G["GA-6 发布审计"]
     C --> G
     D --> G

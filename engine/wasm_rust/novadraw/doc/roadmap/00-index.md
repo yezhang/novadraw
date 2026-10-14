@@ -69,8 +69,12 @@ direct-edit session、Winit bridge、Web DOM host、Native/Web 场景与 2026-09
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发按
 [`目标一致性调整计划`](goal-alignment-adjustment-plan-2026-09-30.md)
-的 2026-10-02 优先级推进核心架构与 API：GA-1/GA-4 已完成，先推进 P2-S01，
-再评审 Graphics 与外部布局算法扩展。GA-2/GA-3 剩余环境采证后置到发布准备，
+的核心架构与 API 优先级推进：GA-1/GA-4、P2-S01、P2-F02、P2-G02 与
+P2-S02–S05 已完成；当前按 P2-S06 → S07 → S08 → S09 收口失败与 API 边界，
+随后进入 P2-L01 外部图布局 Design。唯一执行队列见
+[P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准)。
+P2-G01 尚待 Native surface 验收；P2-M01 A/B/C 已完成，M01-D 待平台/视觉采证。
+GA-2/GA-3 剩余环境采证后置到发布准备，
 保留未完成状态，不阻塞平台无关核心开发。原 G6 的产品 schema、
 serializer 和产品级 Native/Web 场景由独立产品包负责；已完成的 D0-D4、M8/M9 与
 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为当前工作入口。
@@ -105,7 +109,7 @@ Core 机制之后的动画与表现平面、图布局、内置组件、Thumbnail
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
 | `editor/00-index.md` | Editor G0-G5 编号、状态和验收检查点 |
 | `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |
-| `p2-delta-backlog.md` | 已确认但尚未进入实施的 P2 delta |
+| `p2-delta-backlog.md` | P2 delta 状态、当前单链与待采证/长期候选 |
 | `draw2d-capability-enrichment-plan-2026-10-05.md` | Draw2D 内置能力丰富度分组、优先级与建议执行顺序 |
 | `platform-support-matrix.md` | 平台支持等级、环境边界和证据缺口 |
 | `goal-alignment-adjustment-plan-2026-09-30.md` | GA-0 至 GA-6 整改状态 |

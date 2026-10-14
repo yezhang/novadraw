@@ -43,12 +43,13 @@ Novadraw 已完成的主要能力包括：
 - Clickable、Button、Toggle 与 Editor G0-G5 编辑闭环。
 
 因此，下一阶段的主要缺口不是更多普通几何图元，而是从框架机制走向可直接组装应用的
-内置策略、组合组件、动态表现和输出能力。动画应先于这些能力建立为可选横切基础设施，
-使后续图布局、Connection、控件和概览能力按需接入，而不是各自实现私有动画循环。
+内置策略、组合组件、动态表现和输出能力。动画可选基座与领域消费者已有实现，
+后续图布局、Connection、控件和概览能力可按需接入。当前先收口 API 与失败边界，
+动画平台验收不作为无动画能力的启动条件。
 
 ## 3. 能力缺口分组
 
-| 优先级 | 能力组 | 主要缺口 | 当前去向 |
+| 能力分组 | 能力组 | 主要缺口 | 当前去向 |
 |---|---|---|---|
 | P0 | 动画与表现平面 | 显式时钟、Timeline/Track、属性/布局/路由/生命周期/视口动画、无动画快速路径 | P2-M01，ADR-026 已接受；M01-A/B/C complete，M01-D verification pending |
 | P1 | 内置控件族 | repeat scheduler、ButtonGroup、checkbox、radio 互斥；Slider 作为现代扩展候选 | P2-W01 |
@@ -56,10 +57,14 @@ Novadraw 已完成的主要能力包括：
 | P1 | 图自动布局 | DirectedGraphLayout、CompoundDirectedGraphLayout 与外部算法 adapter | P2-L01 |
 | P2 | 概览与反馈 | Ghost/snapshot feedback、Thumbnail、ScrollableThumbnail/minimap 协作 | 尚未登记正式 delta |
 | P2 | 高级图形与裁剪 | Graphics surface 验收、跨 Viewport Connection 可见性、多区域 clipping provider | P2-G01、P2-C03 |
-| P2 | 高级文本 | 统一 Graphics 测量/绘制、fragment style、剩余 inline/block flow | P2-G02、P2-T03 |
+| P2 | 高级文本 | fragment style、剩余 inline/block flow；统一 Graphics 已完成 | P2-T03；P2-G02 为已有基座 |
 | P2 | 输出能力 | printing/export、ScaledGraphics 等价输出目标 | P2-O01 |
 | P2 | 平台无障碍 | Web action/focus 与 Native 原生 AT provider | P2-A01 |
 | P3 | API convenience | `getClip`、`getAbsoluteScale`、`removeAll`、`isMirrored`、统一 Shape mutation | 真实跨消费者需求成立后登记 |
+
+本表的 P0–P3 是能力价值分组，不是审计严重级或执行顺序；动画 P0 不优先于当前
+S06–S09 正确性/API 整改。统一 Figure mutation 已由 S03 完成，候选 convenience
+不得重新引入仅内置 Shape 可用的修改路径。
 
 ## 4. Figure 丰富度策略
 
@@ -338,7 +343,8 @@ P2-L01 是当前最具领域价值的算法补齐项。目标不是把 Draw2D gr
 - 输出节点位置、rank、反馈边和长边 bendpoints；
 - 固定输入顺序、数值策略和确定性要求；
 - 外部算法通过 adapter 接入，不持有 FigureTree 或 Runtime 可变引用；
-- 布局结果经预检后由 Runtime/Editor 原子发布；
+- 布局结果先校验输入身份、版本、数值和输出覆盖范围，再由既有 owner 发布；
+  Design 时明确单次布局应用的失败边界，不预设通用事务或覆盖模型/history 的回滚；
 - 默认直接发布最终布局；只有调用方启用布局 transition 时才生成动画。
 
 ### 5.5 打印与导出
@@ -350,54 +356,44 @@ P2-O01 应抽象为输出目标和 scale/clip adapter，而不是引入 SWT Prin
 - 输出目标能力不足时在提交前结构化拒绝；
 - 具体文件格式或平台打印桥由 backend/host 承担。
 
-## 6. 建议执行顺序
+## 6. 能力演进建议与当前队列
 
-### 阶段 0：关闭当前 Graphics 主线
+执行顺序统一由 [P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准)
+维护：当前 S06–S09 收口后进入 L01 Design。本节只描述后续能力的拆分原则，
+不建立第二条必须逐阶段完成的主链。
 
-1. 完成 P2-G01 剩余的 Native surface 局部修复验收；
-2. P2-G02 已按 ADR-025 完成统一测量/绘制 API 与 glyph 准备链路；
-3. 保持 Graphics、TextLayout、Figure paint 和 backend capability 单一合同。
+### 已有基座与待采证
 
-### 阶段 1：动画与表现平面
+P2-G02、P2-F02 和 M01-A/B/C 已有完成证据。G01 Native surface 与 M01-D 仍需
+平台/视觉采证；无动画布局、组件和只读概览不依赖它们全部毕业。
+通用 path morph、shared element、force solver 逐轮动画和 backend compositor
+快路径仍是需求驱动候选，不能借 M01-D 追加为必交付。
 
-1. 已完成 Draw2D Animation/Animator 对标，ADR-026 已接受；
-2. 已登记 P2-M01、稳定 API family 与 `core.p2-m01-animation` 可执行 suite；
-3. 已在提案中冻结 Clock、Timeline、Track、Motion、Composition 以及独立
-   Behavior/Trigger 边界；
-4. 已冻结 source/committed state、presentation state 与 backend state 三平面；
-5. M01-A 已实现 typed 属性 channel、并行/顺序/错峰编排和确定性 headless clock；
-6. M01-B 已实现 Figure presentation override、old/new damage、temporary visual 与
-   suspend/dispose/fault 清理；M01-C 已实现 transaction/layout、Connection route、
-   Viewport、continuous procedural、dash flow 与 pulse/handoff；
-7. 验证 Disabled、Enabled、Reduced motion 及零活动动画快速路径；
-8. 暂不实现通用 path morph、shared element、force solver 逐轮动画或 backend
-   专有 compositor 快路径。
-
-### 阶段 2：图自动布局
+### 图自动布局：下一能力设计切片
 
 1. 完成 P2-L01 Draw2D graph 行为清单；
 2. 冻结独立图模型与确定性输出；
 3. 以外部算法 consumer 验证 adapter；
-4. 接入 Editor/Runtime 原子发布；
-5. 默认无动画；可选消费阶段 1 的布局 transition。
+4. 定义并验证布局应用的版本校验、失败隔离和发布权限，复用 Runtime/Editor 所有者；
+5. 默认无动画；可选消费已有布局 transition。
 
-### 阶段 3：内置组件层
+### 内置组件：消费者证明后登记
 
-1. 评审并推进 P2-W01；
+1. P2-W01 保持 deferred；有消费者需求后评审 repeat/selection/action 合同；
 2. 将 LabeledContainer/GroupBox、Separator/Focus Border 与 MultiLineLabel facade
    拆成最小独立切片；
 3. 每个切片先定义无动画行为，再声明可选 hover/pressed/focus/lifecycle transition；
 4. 每个切片证明组合价值，避免扩大基础 `Figure` trait 或通用 `FigureMut`。
 
-### 阶段 4：生命周期、结构动画与概览
+### 结构动画与概览：避免重复基座
 
-1. 增加 enter/exit snapshot 和 temporary visual；
-2. 评审 collapse/expand、reparent 与 shared-element identity；
-3. 为 snapshot feedback 与 Thumbnail/minimap 建立独立 delta；
+1. 复用已有 lifecycle Trigger、NonInteractive temporary visual 与清理机制；
+2. collapse/expand、reparent 与 shared-element 先证明需求和稳定身份边界；
+3. snapshot feedback 与 Thumbnail/minimap 有真实消费者后才登记独立 delta；
 4. Thumbnail 可以选择消费动画表现帧或稳定最终态，必须显式声明；
 5. 动画和缩略图不得共享隐式全局时钟或可变场景副本。
 
-### 阶段 5：需求驱动的高级能力
+### 其他长期能力
 
 按真实消费者顺序推进 P2-C03、P2-T03、P2-O01、P2-A01 和生命周期能力。
 Windows/Linux 原生运行、Safari/Firefox 和完整 AT provider 保留到对应平台发布准备，
@@ -411,7 +407,8 @@ Windows/Linux 原生运行、Safari/Firefox 和完整 AT provider 保留到对�
 2. 在 normative design 或 ADR 中定义所有权、扩展点、失败模式和替代边界；
 3. 公开 API 不暴露 Kurbo、Vello、Winit 或 SWT 类型；
 4. 至少一个外部消费者不修改 Core 枚举或内部 match 即可接入；
-5. 构造、替换、失败、取消和 dispose 无半提交状态；
+5. 按冻结的单次操作边界验证构造、替换、失败、取消和 dispose；可恢复拒绝不遗留
+   无主结构，callback 副作用、清理 fault 与已提交模型/history 分别报告；
 6. 精确定向 contract test 覆盖正例、反例和恢复路径；
 7. 可见能力具备 Native/Web 或对应输出目标的视觉证据；
 8. 任何 public Render IR 均被启用 backend 完整消费，或在提交前结构化拒绝；

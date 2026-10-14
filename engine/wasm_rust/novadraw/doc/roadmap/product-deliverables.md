@@ -7,6 +7,10 @@
 > **编号约定**：本文统一使用 `M1-M10`，并与 `doc/parity/draw2d/api-coverage.md` 中的 milestone 映射保持一致。
 > **完成判据**：API 语义覆盖（`doc/parity/draw2d/api-coverage.md`）+ 产品层清单（本文）+ Demo 验证（`demo-matrix.md`）三者齐过。
 
+M1-M10 已完成，本文保留其交付范围，不是当前待办队列。Draw2D 风格名称表示行为
+对照，不保证同名 Rust 签名；当前公开路径以公共 API 契约与 API snapshot 为准。
+后续工作与状态见 [P2 backlog](p2-delta-backlog.md)。测试数量不作为交付目标。
+
 ## 与 milestone 的挂接关系
 
 | Milestone | 标题（协议层） | 本文章节 | 产品策略要点 |
@@ -49,10 +53,6 @@
 - 图像：`drawImage`
 - 属性：`setForegroundColor` / `setBackgroundColor` / `setLineWidth` / `setLineStyle` / `setAlpha`
 
-### 测试增量预期
-
-+30
-
 ---
 
 ## M2 Figure 树与盒模型
@@ -81,10 +81,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `FigureTree`：通过 `SlotMap<FigureId, FigureNode>` 维护拓扑和 Z-order
 - `InteractionState`：独立维护 pointer、capture、hover、focus 和 gesture session
 
-### 测试增量预期
-
-+60
-
 ---
 
 ## M3 绘制遍历与裁剪闭环
@@ -103,10 +99,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - 子 `bounds` 裁剪
 - `optimizeClip` 优化路径
 
-### 测试增量预期
-
-+40
-
 ---
 
 ## M4 坐标域与变换闭环
@@ -119,10 +111,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `translateToParent` / `translateFromParent`
 - `translateToAbsolute` / `translateToRelative`
 - `SceneDispatchContext`（入口域 → target/source 域降域）
-
-### 测试增量预期
-
-+50
 
 ---
 
@@ -144,8 +132,8 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 ### 约束系统
 
 - `LayoutConstraint` trait
-- `FigureTreeBuilder::set_layout_constraint(figure, constraint)`
-- `Runtime::figure(figure)?.set_layout_constraint(constraint)`
+- Builder detached 配置与 mounted FigureMut 的受检约束修改
+- 原子 indexed + constraint child add 为已完成 P2-S01，不扩写 M5 原始范围
 
 ### UpdateManager 能力
 
@@ -153,10 +141,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - repaint coalescing
 - damage repair 全图元覆盖
 - 1k+ Figure stress
-
-### 测试增量预期
-
-+250（含 6 布局 +150、UpdateManager +100）
 
 ---
 
@@ -173,10 +157,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `MouseListener` / `MouseMotionListener` / `MouseWheelListener`
 - `KeyListener` / `FocusListener`
 - hit-test 全图元覆盖（含 Ellipse 精确命中）
-
-### 测试增量预期
-
-+100
 
 ---
 
@@ -199,10 +179,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `notifyValidating()`
 - `notifyPainting(damage, dirty_regions)`
 
-### 测试增量预期
-
-+80
-
 ---
 
 ## M8 Viewport / Scroll / Zoom
@@ -220,19 +196,15 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ### Scalable 能力
 
-- `Figure::scale_model` + 可克隆共享 `ScaleModel`
+- 标准 Scale capability 与 scale model；通过统一 registry/query/mutation 接入
 - `ScalableLayeredPane`
 - Zoom transform 集成
 
 ### 收口要求
 
-- 历史暂停项不阻塞当前 M2 恢复热路径；仅在执行 M8 时纳入验收。
+- M8 已完成；新 viewport 缺口登记独立 P2 delta，不重开 M2/M8。
 - Draw2D 的 Viewport/ScrollPane 属于 M8；GEF 的 `AutoexposeHelper` 依赖
   EditPart/Tool 拖拽生命周期，不进入 draw2d 核心 M8。
-
-### 测试增量预期
-
-+120
 
 ---
 
@@ -272,10 +244,6 @@ M9 原始“三种 Router”交付范围。实现与验证状态见
 - Decorations（箭头等）
 - `ConnectionLayer`
 
-### 测试增量预期
-
-+150
-
 ---
 
 ## M10 常用 Figure 与文本/控件
@@ -295,8 +263,8 @@ M10.1 不重新设计 M1 Graphics 基础契约。状态栈、坐标、裁剪和�
 - `PolygonFigure`
 - `TriangleFigure`
 
-这些 deferred builtin Figure 在 M10 必须补齐与 `RectangleFigure` 等价的
-paint、hit-test、border、style 和更新协议证据；类型可导出不等于 M10 已完成。
+这些 Figure 的 paint、hit-test、border、style 和更新协议属于已验收的 M10 基线；
+类型数量与导出本身不替代行为证据。
 
 ### Border 实现（M10 共 6 个）
 
@@ -312,7 +280,7 @@ paint、hit-test、border、style 和更新协议证据；类型可导出不等�
 `TitleBarBorder` 仍属于 M10 产品范围，但因 insets、preferred size 和 paint 均依赖
 字体测量，随 M10.2 文本与 Label 一并交付，不进入 M10.1。
 
-可选附加：`FocusedBorder`
+Focus 类边框属于后续能力候选，需证明组合价值后登记，不追加为 M10 未完成项。
 
 ### 文本 + 图像
 
@@ -331,30 +299,6 @@ paint、hit-test、border、style 和更新协议证据；类型可导出不等�
 - Runtime-owned Tooltip（悬停延迟、show/replace/hide、超时与边界 placement）
 - engine-owned accessibility Snapshot/Delta（name、role、state、bounds、children、focus）
 - focus/default action 受控回流；不实现完整 ARIA 或原生 AT provider
-
-### 测试增量预期
-
-+220（含 6 边框 +80、文本图像 +100、Tooltip+Accessible +40）
-
----
-
-## 测试增量汇总
-
-| Milestone | 增量 |
-|-----------|------|
-| M1 | +30 |
-| M2 | +60 |
-| M3 | +40 |
-| M4 | +50 |
-| M5 | +250 |
-| M6 | +100 |
-| M7 | +80 |
-| M8 | +120 |
-| M9 | +150 |
-| M10 | +220 |
-| **合计** | **+1,100** |
-
-当前基线 146，目标 ~1,250。
 
 ---
 

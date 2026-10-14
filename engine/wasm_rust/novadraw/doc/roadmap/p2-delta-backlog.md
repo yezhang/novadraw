@@ -49,7 +49,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
 | 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
 | 3 | P2-F02 | 开放的 Figure capability registry 与 Runtime mutation | `complete` | ADR-014/019、GA-4 | 外部标准/自定义 capability、无 Core accessor 扩张或横切能力 concrete 分支 |
-| 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02 complete；M01-B 前闭合 P2-G01 visual surface；外部 binding 依赖 P2-F02 | 确定时钟、双平面、跨域消费者、禁用零工作与视觉证据 |
+| 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02、P2-F02 已完成；Native surface 视觉毕业依赖 P2-G01 present 证据 | A/B/C 已完成；D 待 Native/Web 关键帧、组合场景与实际 runner 预算 |
 | 5 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
 | 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
 | 7 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
@@ -72,7 +72,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
-"单链 in_progress ≤ 1"约束执行；三份 ADR 均已实现。
+"当前 Execute 批次 ≤ 1"约束执行；三份 ADR 均已实现。
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
 |---|---|---|---|---|---|
@@ -80,17 +80,42 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法 ≤ 25、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
 | 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
-| 5 | P2-S06 | Editor Part / Connection / Overlay prepared publication | `not_started` | P2-S04、TC-08 | `PartProjectionPlan` / `ConnectionProjectionPlan` / `OverlayBatch`，故障注入前后结构快照一致 |
-| 6 | P2-S07 | 结构查询身份与失败语义统一 | `not_started` | ADR-018、TC-09 | `Result<Option<T>, QueryError>` 规则、foreign/stale 负测、LayoutSceneQuery 不返回伪造零值 |
-| 7 | P2-S08 | Detached Figure / Border / Style 受检值 | `not_started` | ADR-020、TC-03 | 私有字段、受检领域值、fallible constructor，删除 panic alias 与静默 clamp |
-| 8 | P2-S09 | Animation / Inspector / 注册与扩展错误统一 | `not_started` | P2-S03、TC-10 | fault 与幂等分离、Inspector subscription/fault、单一 fallible register、保留 error source |
+| 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `not_started` | P2-S04、TC-08 | 新建 Part 子树失败不遗留登记；Connection 清理覆盖晚期失败；Overlay 非法批次在写入前拒绝；模型/history 与投影 fault 分离 |
+| 6 | P2-S07 | 结构查询身份与失败语义 | `not_started` | ADR-018/036、TC-09 | 任意 ID 查询拒绝 foreign/stale；合法缺失与失败分离；LayoutSceneQuery 不返回伪造成功值 |
+| 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `not_started` | ADR-020/024、TC-03 | 复用已有受检值；构造/更新拒绝非法输入；保留合法几何适配与范围收敛 |
+| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `not_started` | P2-S03、TC-10 | fault 与幂等分离；Inspector 错误及 detach 所有权；消除残余 panic 注册入口；保留可追溯错误 |
 
-本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受"单链
-in_progress ≤ 1"约束；P2-S02 → P2-S03 → P2-S04 → P2-S05 已完成。P2-S05 的
+本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受单链 Execute
+约束；P2-S02 → P2-S03 → P2-S04 → P2-S05 已完成。P2-S05 的
 [normative design](../design/architecture/deep-layout-presentation-convergence.md)、
 实现与验证证据见
 [completion record](../verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)。
 下一批按队列进入 P2-S06 Design。
+
+### 当前推进顺序（2026-10-14 校准）
+
+1. **审计整改主链**：P2-S06 → P2-S07 → P2-S08 → P2-S09。每批先核对当前
+   反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
+2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
+   消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。
+3. **待采证**：P2-G01 Native surface 验收、P2-M01 M01-D、GA-2/GA-3 保留
+   未完成状态。G01 的 Skipped 先区分 runner 驱动与引擎缺陷；若证明 Core 正确性
+   问题，重新 Triage，不能仅因归入发布准备而忽略。
+4. **长期候选**：P2-C03/T03/W01/O01/A01/LC01 及尚未登记的组件、概览能力按
+   消费者需求评审；`not_started` 和 `deferred` 均不表示已批准立即实施。
+
+`in_progress` 表示交付尚未闭合，不表示同时执行；G01/M01 的待采证状态不应改成
+`complete` 或重新做 A/B/C。单链约束针对当前进入 Execute 的整改批次。
+候选类型名、统一错误枚举、所有字段私有化或新 guard 均不能单独成为毕业条件。
+校准依据见[路线图复核](../verification/reviews/roadmap-calibration-2026-10-14.md)。
+
+2026-10-14 按[机制必要性复核](../verification/reviews/p2-s06-mechanism-necessity-2026-10-14.md)
+调整 S06 范围：不再要求创建 `PartProjectionPlan`、`ConnectionProjectionPlan` 或
+`OverlayBatch`。先收口单次新建子树及其登记的失败清理、保留已有 Connection 清理路径并
+补齐故障覆盖，再完善现有 Overlay 批量入口的完整预检和清理失败报告。
+具体内部候选或操作日志只有在现有所有者无法满足验收时才设计，不增加公共 Plan/lease
+语言。外部 callback panic 和清理失败进入 fault；不承诺回滚完整 synchronize 前缀、
+外部副作用或已成功提交的模型命令。本次仅完成范围复核，实施状态保持 `not_started`。
 
 ## Figure capability
 
@@ -312,8 +337,8 @@ Vello lowering、失败原子性和视觉证据全部闭合。
 
 ### P2-M01: Animation Timeline 与 Presentation Plane
 
-状态：`in_progress`。ADR-026 已接受；M01-A、M01-B 已完成，下一切片为 M01-C
-领域消费者。
+状态：`in_progress`。ADR-026 已接受；M01-A/B/C 已完成，剩余切片为 M01-D
+平台与视觉采证，不重新建设已完成的时钟、表现平面或领域消费者。
 
 目标：`GOAL-CAP`、`GOAL-EXT`、`GOAL-PERF`。建立可选的一等动画基础设施，
 让属性、布局结果、Connection route、Viewport、生命周期和持续效果共享同一
@@ -335,11 +360,12 @@ Draw2D 源码事实见
 依赖与启动门禁：
 
 1. P2-G02 的统一 Graphics、FigurePresentation 与 glyph 准备链路已经完成；
-2. M01-B 前必须关闭 P2-G01 的 Native surface visual repair 验收，避免在未稳定的
-   presentation/damage surface 上叠加逐帧状态；纯 Core/Headless 的 M01-A 不受阻塞；
+2. P2-G01 Native surface visual repair 仍未通过；它约束 M01-D 的 Native surface
+   视觉毕业，不能倒写为已完成 M01-B/C 的启动阻塞。Core/Headless 已有证据保留，
+   Native surface 等价仍须独立验证；
 3. ADR-026、公开 API、错误枚举与外部 typed consumer 已完成人工评审；
-4. `core.p2-m01-animation` 是保留的目标 suite；有可执行 contract test 与命令后才写入
-   `verification/suites.toml`，不登记空门禁。
+4. `core.p2-m01-animation` 已登记且覆盖 A/B/C；M01-D 新采证入口先注册可执行
+   命令及原始证据路径，不登记空门禁。
 
 分阶段毕业证据：
 
@@ -388,6 +414,11 @@ M01-C 已完成：
   continuous dash 与 arc-length pulse/handoff 已实现；
 - 进展证据见
   [P2-M01C 实现记录](../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
+
+M01-D 剩余工作：Native/Web 同时间关键帧像素、DPI/nested transform/scroll/zoom
+组合、disabled/reduced-motion 视觉等价及实际 runner 帧时间预算。
+Headless replay 和 1/64/1,024 active track 工作量已有 C 阶段证据；仅在行为变更后
+运行回归，不将它们重复列为未实现能力。不得从 headless 计数推断实际帧时间。
 
 ## Connection
 
@@ -643,7 +674,8 @@ IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
 FigureInspector 以独立 crate 消费 Runtime 的稳定场景查询与提交后 notification journal，
 为 Native、Web 和 headless 工具提供统一诊断事实。它不属于 Draw2D Core 的运行时语义，
 也不改变 GEF Editor 里程碑。按当前优先级，本项与 Studio 一并后置，不进入
-P2-C01/C02/F01/T01 执行批次；已有实现和文档保留，不继续扩展。
+P2-C01/C02/F01/T01 执行批次；已有实现和文档保留，工具 UI 和新增诊断功能后置。
+现有 Inspector 的 fault、订阅释放与错误传播归 P2-S09，不能因 D01 deferred 而跳过。
 
 首期范围：
 

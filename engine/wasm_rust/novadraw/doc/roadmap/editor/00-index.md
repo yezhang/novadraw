@@ -49,12 +49,16 @@ milestone：
 |---|---|---|---|
 | P2-E02 | Direct text edit 与 IME | `complete` | P2-T02、G1-G5 |
 
+当前开放协议已由 P2-S04 完成；增量投影失败隔离与 Overlay 批量校验归 P2-S06。
+本页不另建 Editor 待办队列，状态与优先级见 [P2 backlog](../p2-delta-backlog.md)。
+
 人工验收只在对应 milestone 的自动门禁通过后进行：
 
 - 检查点 A：验证单选、多选、primary/focus、空白区回退和 widget 输入隔离；
 - 检查点 B：验证 create/move/resize/delete、feedback 与 undo/redo 完整闭环；
 - 检查点 C：验证连接创建/重连、bendpoint、zoom/scroll 与 auto-expose；
-- 最终验收：验证保存加载及 Native/Web/Headless 等价。
+- 产品最终验收：保存加载及产品级 Native/Web/Headless 等价由独立产品包负责，
+  不作为 G0-G5 的未完成门禁。
 
 ## 固定执行顺序
 
