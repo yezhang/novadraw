@@ -301,7 +301,9 @@ Core 中禁止：
 - 继承 ADR-015 的 Editor 边界和 ADR-032 的 ViewerEditSession；
 - 复用 [ADR-027](adr-027-open-figure-capability-registry.md) 的 typed identity、
   attach/install-time descriptor、私有擦除与外部 consumer 方法；
-- 为 TC-08/R06 的 OverlayBatch 与 ProjectionPlan 提供统一 Tool/Handle 所有权协议。
+- 为 TC-08/R06 的投影失败隔离与临时视觉清理复用统一 Tool/Handle 所有权协议；
+  不要求新增 OverlayBatch 或 ProjectionPlan，当前范围见
+  [P2-S06 队列](../roadmap/p2-delta-backlog.md)。
 
 ## 日期
 
