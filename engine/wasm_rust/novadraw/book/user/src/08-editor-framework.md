@@ -1,10 +1,10 @@
 # 8. 编辑框架：从业务模型到可撤销编辑
 
-> **本章解决的问题**：如何把应用自己的模型投影成节点和连接，并把选择、拖拽、
+> **本章解决的问题**：如何从应用自己的模型派生节点和连接视图，并把选择、拖拽、
 > 创建、删除、连线和直接文本编辑转换成可撤销的业务命令。
 
-Editor 的核心纪律是：**模型保存业务事实，Figure 只是投影，Command 只改模型，
-Viewer 负责刷新。** 一旦让命令和 Figure 同时写同一项事实，撤销、重建和多视图都会
+Editor 的核心纪律是：**模型保存业务事实，Figure 属于派生视图，Command 只改模型，
+Viewer 负责同步。** 一旦让命令和 Figure 同时写同一项事实，撤销、重建和多视图都会
 失去一致性。
 
 ## 8.1 图形核心与编辑框架的边界
@@ -22,8 +22,8 @@ Viewer 负责刷新。** 一旦让命令和 Figure 同时写同一项事实，�
 - 一段输入手势表示什么编辑意图？
 - 如何生成可撤销的模型修改？
 
-这里的**投影**是指根据业务模型创建或刷新对应的编辑部件与图形对象；模型是事实
-来源，投影可以删除并重建。
+这里的**视图派生**是指 Viewer 根据单一模型 revision 构建或同步对应的编辑部件与
+图形对象；模型是事实来源，派生视图可以删除并重建。
 
 因此 `novadraw-editor` 是独立的 Rust 包（crate），不把业务模型、选择状态或命令
 历史栈写入 `novadraw` Core。
@@ -69,9 +69,10 @@ pub trait ModelAdapter {
 ```
 
 代码锚点：
-[`ModelAdapter`](../../novadraw-editor/src/model/mod.rs)。
+[`ModelAdapter`](../../../novadraw-editor/src/model/mod.rs)。
 
-模型不知道图形对象或查看器，图形对象也不知道模型。编辑部件和查看器负责投影。
+模型不知道图形对象或查看器，图形对象也不知道模型。编辑部件和查看器负责构建和同步
+视图。
 
 ## 8.4 编辑部件是控制器，不是第二份模型
 
@@ -104,9 +105,9 @@ flowchart LR
 
 代码锚点：
 
-- [`PartNode`](../../novadraw-editor/src/part/mod.rs)
-- [`PartTree`](../../novadraw-editor/src/part/mod.rs)
-- [`EditPartBehavior`](../../novadraw-editor/src/part/mod.rs)
+- [`PartNode`](../../../novadraw-editor/src/part/mod.rs)
+- [`PartTree`](../../../novadraw-editor/src/part/mod.rs)
+- [`EditPartBehavior`](../../../novadraw-editor/src/part/mod.rs)
 
 ## 8.5 连接编辑部件不是包含关系子节点
 
@@ -126,8 +127,8 @@ flowchart LR
 
 ## 8.6 查看器的组合职责
 
-**图形查看器**（`GraphicalViewer`）把一份业务模型投影成编辑部件树和图形树，并
-协调交互状态。它拥有一个模型投影及其运行时：
+**图形查看器**（`GraphicalViewer`）根据业务模型构建编辑部件树和图形树，并协调
+交互状态。它拥有一份派生视图及其运行时：
 
 ```rust
 pub struct GraphicalViewer<A, F> {
@@ -139,12 +140,12 @@ pub struct GraphicalViewer<A, F> {
     model_registry: HashMap<A::ModelId, EditPartId>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
-    // behavior, policy, connection projections...
+    // behavior, policy, connection views...
 }
 ```
 
 实际定义见
-[`GraphicalViewer`](../../novadraw-editor/src/viewer/mod.rs#L646-L667)。
+[`GraphicalViewer`](../../../novadraw-editor/src/viewer/mod.rs#L646-L667)。
 
 查看器负责：
 
@@ -154,11 +155,11 @@ pub struct GraphicalViewer<A, F> {
 - 维护选择状态与编辑部件焦点；
 - 维护根图层拓扑；
 - 仲裁图形核心分发与编辑工具输入；
-- 投影连接。
+- 构建和同步连接视图。
 
-## 8.7 投影先计划，再提交
+## 8.7 视图同步先计划，再提交
 
-**投影刷新**是把稳定模型快照与当前视图比较，先制定变更计划，再统一同步到编辑部件
+**视图同步**是把稳定模型快照与当前视图比较，先制定变更计划，再统一更新编辑部件
 树和图形树。`GraphicalViewer::refresh()` 的顺序如下：
 
 ```text
@@ -177,7 +178,7 @@ pub struct GraphicalViewer<A, F> {
 无法补偿的扩展失败时，查看器进入故障锁定状态。
 
 代码锚点：
-[`GraphicalViewer::refresh`](../../novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
+[`GraphicalViewer::refresh`](../../../novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
 
 ## 8.8 选择状态与视觉对象所有者
 
@@ -203,9 +204,9 @@ Feedback(FeedbackId, optional owner)
 
 代码锚点：
 
-- [`SelectionModel`](../../novadraw-editor/src/selection/mod.rs)
-- [`VisualOwner`](../../novadraw-editor/src/feedback/mod.rs)
-- [`GraphicalViewer::target_at`](../../novadraw-editor/src/viewer/mod.rs#L1127-L1155)
+- [`SelectionModel`](../../../novadraw-editor/src/selection/mod.rs)
+- [`VisualOwner`](../../../novadraw-editor/src/feedback/mod.rs)
+- [`GraphicalViewer::target_at`](../../../novadraw-editor/src/viewer/mod.rs#L1127-L1155)
 
 ## 8.9 编辑工具、请求、策略与命令
 
@@ -232,7 +233,7 @@ sequenceDiagram
         Tool->>Stack: 执行
         Stack->>Model: 修改模型
         Model-->>Viewer: 有序变更通知
-        Viewer->>Viewer: 刷新投影
+        Viewer->>Viewer: 同步视图
     end
 ```
 
@@ -257,7 +258,7 @@ pub enum EditorRequest {
 ```
 
 实际定义：
-[`EditorRequest`](../../novadraw-editor/src/request/mod.rs#L546-L603)。
+[`EditorRequest`](../../../novadraw-editor/src/request/mod.rs#L546-L603)。
 
 ### 编辑策略（EditPolicy）
 
@@ -316,7 +317,7 @@ pub enum EditorRequest {
 - 补偿失败或代码恐慌导致故障锁定。
 
 实际历史提交逻辑见
-[`CommandStack::execute/undo/redo`](../../novadraw-editor/src/command/mod.rs#L398-L574)。
+[`CommandStack::execute/undo/redo`](../../../novadraw-editor/src/command/mod.rs#L398-L574)。
 
 `is_dirty` 比较当前历史身份与保存位置，而不是只判断撤销栈是否为空。
 
@@ -342,7 +343,7 @@ viewer.refresh()?;
 ```
 
 实际实现见
-[`EditorDomain::execute_request`](../../novadraw-editor/src/domain.rs#L193-L209)。
+[`EditorDomain::execute_request`](../../../novadraw-editor/src/domain.rs#L193-L209)。
 
 ## 8.13 连接编辑
 
@@ -359,7 +360,7 @@ viewer.refresh()?;
 ### 折点
 
 请求明确区分创建、移动和删除，并携带路由坐标域中的位置与索引。模型保存折点，
-运行时路径是模型投影，不是纯视觉模拟。
+运行时路径来自模型派生视图，不是纯视觉模拟。
 
 ### 边缘自动滚动
 
@@ -421,9 +422,9 @@ pub trait DirectTextEdit<A: ModelAdapter> {
 
 代码锚点：
 
-- [`DirectTextEditState` 与 `DirectTextEdit`](../../novadraw-editor/src/direct_edit.rs)
-- [`EditPolicy::start_direct_text_edit`](../../novadraw-editor/src/policy/mod.rs#L220-L228)
-- [`GraphicalViewer::start_direct_text_edit`](../../novadraw-editor/src/viewer/mod.rs#L1504-L1570)
+- [`DirectTextEditState` 与 `DirectTextEdit`](../../../novadraw-editor/src/direct_edit.rs)
+- [`EditPolicy::start_direct_text_edit`](../../../novadraw-editor/src/policy/mod.rs#L220-L228)
+- [`GraphicalViewer::start_direct_text_edit`](../../../novadraw-editor/src/viewer/mod.rs#L1504-L1570)
 
 ### 草稿和输入法预编辑
 
@@ -481,9 +482,9 @@ flowchart LR
 
 代码锚点：
 
-- [`TextFlowFigure` 的文本交互查询](../../novadraw/src/figure/text_flow.rs#L293-L390)
-- [`Runtime` 的表面坐标查询](../../novadraw/src/runtime/runtime.rs#L2834-L2903)
-- [`GraphicalViewer::direct_text_caret_geometry`](../../novadraw-editor/src/viewer/mod.rs#L1669-L1699)
+- [`TextFlowFigure` 的文本交互查询](../../../novadraw/src/figure/text_flow.rs#L293-L390)
+- [`Runtime` 的表面坐标查询](../../../novadraw/src/runtime/runtime.rs#L2834-L2903)
+- [`GraphicalViewer::direct_text_caret_geometry`](../../../novadraw-editor/src/viewer/mod.rs#L1669-L1699)
 
 ### 编辑反馈、裁剪与长文本
 
@@ -509,13 +510,13 @@ Viewer 把完整草稿排版在这个固定视口内，并通过 `TextFlowViewpo
 
 每次草稿、选择或 preedit 改变时，Viewer 先构造并校验新 feedback，再移除旧
 feedback。添加与删除分别登记新旧可视区域的 damage，使目标移动或文本滚动后旧像素
-也会被清除；新投影失败时则保留旧状态。
+也会被清除；新 feedback 构建失败时则保留旧状态。
 
 代码锚点：
 
-- [`TextFlowViewport`](../../novadraw/src/figure/text_flow.rs#L184-L215)
-- [`GraphicalViewer::attach_direct_text_feedback`](../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
-- [`GraphicalViewer::replace_direct_text_state`](../../novadraw-editor/src/viewer/mod.rs#L1948-L1993)
+- [`TextFlowViewport`](../../../novadraw/src/figure/text_flow.rs#L184-L215)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
+- [`GraphicalViewer::replace_direct_text_state`](../../../novadraw-editor/src/viewer/mod.rs#L1948-L1993)
 
 ### 光标闪烁由宿主时间驱动
 
@@ -593,12 +594,12 @@ Web 的隐藏输入控件关闭自身 caret 显示，避免 canvas 光标与 DOM
 
 代码锚点：
 
-- [`GraphicalViewer::attach_direct_text_feedback`](../../novadraw-editor/src/viewer/mod.rs#L2032-L2215)
-- [`GraphicalViewer::advance_time`](../../novadraw-editor/src/viewer/mod.rs#L880-L927)
-- [`GraphicalViewer::reset_direct_text_blink`](../../novadraw-editor/src/viewer/mod.rs#L2240-L2250)
-- [`FigureTree::set_visible_with_update`](../../novadraw/src/graph/mod.rs#L4177-L4205)
-- [`Native deadline 调度`](../../examples/native/node-editor-demo/src/main.rs#L2017-L2070)
-- [`Web deadline 调度`](../../examples/web/web-validation/src/direct_edit_mode.rs#L602-L644)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../../novadraw-editor/src/viewer/mod.rs#L2032-L2215)
+- [`GraphicalViewer::advance_time`](../../../novadraw-editor/src/viewer/mod.rs#L880-L927)
+- [`GraphicalViewer::reset_direct_text_blink`](../../../novadraw-editor/src/viewer/mod.rs#L2240-L2250)
+- [`FigureTree::set_visible_with_update`](../../../novadraw/src/graph/mod.rs#L4177-L4205)
+- [`Native deadline 调度`](../../../examples/native/node-editor-demo/src/main.rs#L2017-L2070)
+- [`Web deadline 调度`](../../../examples/web/web-validation/src/direct_edit_mode.rs#L602-L644)
 
 ### 接受、取消与失败恢复
 
@@ -610,15 +611,15 @@ Web 的隐藏输入控件关闭自身 caret 显示，避免 canvas 光标与 DOM
 4. 策略验证草稿通过。
 
 草稿未变化时直接结束，不产生空命令；草稿变化时只生成一个模型 Command，交给
-`CommandStack` 执行，再由 Viewer 刷新投影。可恢复的命令拒绝会重新安装原草稿
+`CommandStack` 执行，再由 Viewer 同步视图。可恢复的命令拒绝会重新安装原草稿
 feedback 并重新获取输入租约。取消则只删除 feedback、停止闪烁并释放租约，不创建
 历史记录。来源节点退休或 Viewer 故障时也必须强制清理会话。
 
 代码锚点：
 
-- [`GraphicalViewer::prepare_direct_text_accept`](../../novadraw-editor/src/viewer/mod.rs#L1863-L1914)
-- [`EditorDomain::accept_direct_text_edit`](../../novadraw-editor/src/domain.rs#L283-L312)
-- [`GraphicalViewer::force_drop_direct_text_edit`](../../novadraw-editor/src/viewer/mod.rs#L2845-L2859)
+- [`GraphicalViewer::prepare_direct_text_accept`](../../../novadraw-editor/src/viewer/mod.rs#L1863-L1914)
+- [`EditorDomain::accept_direct_text_edit`](../../../novadraw-editor/src/domain.rs#L283-L312)
+- [`GraphicalViewer::force_drop_direct_text_edit`](../../../novadraw-editor/src/viewer/mod.rs#L2845-L2859)
 
 ## 8.15 实现一个编辑器的顺序
 
@@ -629,7 +630,7 @@ feedback 并重新获取输入租约。取消则只删除 feedback、停止闪�
 2. **实现 `ModelAdapter`**
    先支持根、子节点、连接快照和有序事件排空。
 3. **实现 `EditPartFactory` 与最小 `EditPartBehavior`**
-   只创建静态主图形，证明模型可以确定性投影。
+   只创建静态主图形，证明模型可以确定性派生出视图。
 4. **创建 `GraphicalViewer`**
    检查模型注册表、图形注册表、连接层和刷新错误。
 5. **加入选择与一个编辑请求**
@@ -659,7 +660,7 @@ let domain = EditorDomain::new();
 
 `GraphicalViewer` 拥有 Figure Runtime，平台输入应先交给 Viewer/Core 仲裁，再由
 `EditorDomain` 推进活动工具。窗口尺寸、滚动或缩放变化后，需要让活动工具在同一
-逻辑表面指针位置重新投影。
+逻辑表面指针位置重新计算请求、目标和反馈。
 
 产品代码建议把职责分开：
 
@@ -673,7 +674,7 @@ let domain = EditorDomain::new();
 | `app` | Viewer、EditorDomain、文本输入宿主和后端组合 |
 
 可运行示例：
-[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。该示例包含完整能力，
+[`examples/native/node-editor-demo`](../../../examples/native/node-editor-demo)。该示例包含完整能力，
 实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
 
 ## 8.16 失败模式
@@ -687,7 +688,7 @@ let domain = EditorDomain::new();
 | 选择状态写入 `NodeState` | 多个查看器的选择状态互相污染 |
 | 反馈图形直接写模型 | 取消时无法恢复，撤销粒度错误 |
 | 图形已处理后编辑工具仍执行 | 控件点击同时触发编辑 |
-| 刷新时忽略版本缺口 | 丢失事件后仍宣称投影稳定 |
+| 刷新时忽略版本缺口 | 丢失事件后仍宣称视图稳定 |
 | 把草稿写入稳定 Figure 或模型 | 取消、撤销和多视图同步失去边界 |
 | 光标几何自行估算 | 字体替换、emoji、换行或双向文本下错位 |
 | 编辑态使用省略号 | 光标和选择无法到达被截断文本 |
@@ -697,15 +698,15 @@ let domain = EditorDomain::new();
 
 ## 8.17 验证入口
 
-- [`g1_model_contract.rs`](../../novadraw-editor/tests/g1_model_contract.rs)
-- [`g1_command_stack_contract.rs`](../../novadraw-editor/tests/g1_command_stack_contract.rs)
-- [`g2_viewer_projection_contract.rs`](../../novadraw-editor/tests/g2_viewer_projection_contract.rs)
-- [`g3_selection_contract.rs`](../../novadraw-editor/tests/g3_selection_contract.rs)
-- [`g3_viewer_interaction_contract.rs`](../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
-- [`g4_editing_loop_contract.rs`](../../novadraw-editor/tests/g4_editing_loop_contract.rs)
-- [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
-- [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
-- [`p2_e02_direct_text_edit_contract.rs`](../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
+- [`g1_model_contract.rs`](../../../novadraw-editor/tests/g1_model_contract.rs)
+- [`g1_command_stack_contract.rs`](../../../novadraw-editor/tests/g1_command_stack_contract.rs)
+- [`g2_viewer_projection_contract.rs`](../../../novadraw-editor/tests/g2_viewer_projection_contract.rs)
+- [`g3_selection_contract.rs`](../../../novadraw-editor/tests/g3_selection_contract.rs)
+- [`g3_viewer_interaction_contract.rs`](../../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
+- [`g4_editing_loop_contract.rs`](../../../novadraw-editor/tests/g4_editing_loop_contract.rs)
+- [`g5_connection_projection_contract.rs`](../../../novadraw-editor/tests/g5_connection_projection_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`p2_e02_direct_text_edit_contract.rs`](../../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
 - `cargo xtask run replay.editor-g3`
 - `cargo xtask run replay.editor-g4`
 - `cargo xtask run replay.editor-g5.2`

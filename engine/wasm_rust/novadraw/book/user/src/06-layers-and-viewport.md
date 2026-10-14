@@ -28,7 +28,7 @@ fn hit_participation(&self) -> HitParticipation {
 ```
 
 代码锚点：
-[`LayerFigure`](../../novadraw/src/container/layer.rs)。
+[`LayerFigure`](../../../novadraw/src/container/layer.rs)。
 
 ## 6.2 分层面板的两个索引
 
@@ -66,7 +66,7 @@ ChildClippingStrategy::OverflowVisible
 -> 仍在最近的视口或普通裁剪祖先处停止
 ```
 
-这里的“继承”是指图层进入绘制、命中测试或重绘区域投影时，先沿用父链已经形成的
+这里的“继承”是指图层参与绘制、命中测试或把重绘区域变换到逻辑表面域时，先沿用父链已经形成的
 有效裁剪区。`OverflowVisible` 仅跳过当前自由范围图层的两次收紧：它不再把有效裁剪区
 与自身客户区求交，也不再追加每个子节点的边界裁剪。因此，子节点可以越过该图层的
 固定边界；但它们不能越过已经存在的视口或普通裁剪祖先。换言之，自由范围图层解决的
@@ -107,7 +107,7 @@ flowchart TB
 ```
 
 实际构造见
-[`create_root_layers`](../../novadraw-editor/src/viewer/mod.rs#L504-L630)。
+[`create_root_layers`](../../../novadraw-editor/src/viewer/mod.rs#L504-L630)。
 
 各层职责：
 
@@ -144,8 +144,8 @@ flowchart TB
 
 代码锚点：
 
-- [`ViewportHandle::set_view_location`](../../novadraw/src/container/viewport.rs)
-- [`normalize_range`](../../novadraw/src/container/range_model.rs)
+- [`ViewportHandle::set_view_location`](../../../novadraw/src/container/viewport.rs)
+- [`normalize_range`](../../../novadraw/src/container/range_model.rs)
 
 ## 6.6 滚动与缩放的状态真源
 
@@ -220,9 +220,9 @@ sequenceDiagram
 - 释放指针前清理临时反馈，只执行一个模型命令。
 
 实际策略见
-[`autoexpose.rs`](../../novadraw-editor/src/autoexpose.rs)。
+[`autoexpose.rs`](../../../novadraw-editor/src/autoexpose.rs)。
 
-## 6.9 视口变化后的同帧重投影
+## 6.9 视口变化后在同帧重新计算交互
 
 滚动、缩放、窗口尺寸变化或范围钳制改变坐标变换后，即使指针没有移动，活动手势也
 必须在同帧重新计算：
@@ -234,7 +234,7 @@ sequenceDiagram
 5. 不缩放的操作手柄。
 
 `EditorDomain` 在视口变化后保留同一个逻辑表面指针位置，并刷新活动工具。该行为见
-[`EditorDomain::autoexpose_tick`](../../novadraw-editor/src/domain.rs#L328-L352) 和
+[`EditorDomain::autoexpose_tick`](../../../novadraw-editor/src/domain.rs#L328-L352) 和
 `refresh_after_viewport_change`。
 
 ## 6.10 为什么缩放反馈层必须采用自由范围
@@ -300,8 +300,8 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 - 需要 Editor：优先使用 `GraphicalViewer` 已建立的标准根图层，不要自行复制拓扑。
 
 完整构建示例见
-[`examples/scenes/src/scroll_pane.rs`](../../examples/scenes/src/scroll_pane.rs) 和
-[`examples/scenes/src/freeform.rs`](../../examples/scenes/src/freeform.rs)。
+[`examples/scenes/src/scroll_pane.rs`](../../../examples/scenes/src/scroll_pane.rs) 和
+[`examples/scenes/src/freeform.rs`](../../../examples/scenes/src/freeform.rs)。
 
 ## 6.12 失败模式
 
@@ -317,9 +317,9 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 
 ## 6.13 验证入口
 
-- [`d2_layer_contract.rs`](../../novadraw/tests/d2_layer_contract.rs)
-- [`d2_freeform_contract.rs`](../../novadraw/tests/d2_freeform_contract.rs)
-- [`m8_viewport_contract.rs`](../../novadraw/tests/m8_viewport_contract.rs)
-- [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`d2_layer_contract.rs`](../../../novadraw/tests/d2_layer_contract.rs)
+- [`d2_freeform_contract.rs`](../../../novadraw/tests/d2_freeform_contract.rs)
+- [`m8_viewport_contract.rs`](../../../novadraw/tests/m8_viewport_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run verify.scroll-pane`
 - `cargo xtask run replay.editor-g5.5`

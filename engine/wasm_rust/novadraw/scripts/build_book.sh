@@ -3,7 +3,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-readonly USER_BOOK_DIR="${ROOT_DIR}/book"
+readonly USER_BOOK_DIR="${ROOT_DIR}/book/user"
 readonly INTERNALS_BOOK_DIR="${ROOT_DIR}/book/internals"
 readonly CONTRIBUTOR_BOOK_DIR="${ROOT_DIR}/book/contributor"
 readonly USER_OUTPUT="${ROOT_DIR}/target/book/user/pdf/output.pdf"

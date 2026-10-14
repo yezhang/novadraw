@@ -30,15 +30,15 @@ dirty 驱动稳定化，damage 驱动呈现修复。
 节点从 A 移到 B 时，正确 damage 是：
 
 ```text
-damage = old_projected_visual_bounds
-       union new_projected_visual_bounds
+damage = old_surface_visual_bounds
+       union new_surface_visual_bounds
 ```
 
 旧范围用于清除残留像素，新范围用于绘制新内容。visual bounds 必须包含边框、阴影、
 装饰和可能溢出的子内容。
 
-如果祖先滚动、缩放或裁剪变化，旧新投影链也不同。Runtime 必须在覆盖状态前保留旧
-投影摘要。
+如果祖先滚动、缩放或裁剪变化，旧新祖先变换链也不同。Runtime 必须在覆盖状态前保留
+旧变换摘要。
 
 ## 7.3 Damage 的保守原则
 
@@ -268,7 +268,7 @@ acknowledgement 执行重新调度、surface reconfigure、backend rebuild 或�
 
 节点原本在 A，具有向外扩张 2 像素的边框，现移动到 B。
 
-1. Runtime 在 mutation 前读取 A 的旧 visual projection；
+1. Runtime 在 mutation 前读取 A 的旧表面视觉包围盒；
 2. 原子更新 bounds；
 3. 布局、连接和相关容器进入失效集合；
 4. 稳定化得到最终 B 和新连接路径；

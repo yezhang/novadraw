@@ -11,7 +11,7 @@
 
 - [3. Runtime 事务与稳定帧](03-runtime-and-frame.md)
 - [4. Figure 协议与 Capability](04-figure-and-capability.md)
-- [5. Editor 投影与编辑协议](05-editor-internals.md)
+- [5. Editor 视图派生与编辑协议](05-editor-internals.md)
 - [6. 平台、资源与渲染后端](06-platform-and-backend.md)
 
 # 第三部分：完成可信贡献

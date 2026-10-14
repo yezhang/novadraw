@@ -52,6 +52,10 @@
 正文不复制完整 ADR、路线图状态表或大段源码。引用代码时优先链接模块、类型或函数，
 并解释为什么该入口与本章边界相关。
 
+模型到视图使用“视图派生”或具体的构建、同步、重建动作；几何跨域使用“坐标变换”
+或“表面包围盒”。`projection.rs` 等真实源码路径和标识符保持原名，并在首次出现时
+说明其中文语义。
+
 ## 同步规则
 
 发生以下变化时必须检查贡献者指南：
@@ -59,7 +63,7 @@
 - crate 或公开 facade 边界变化；
 - Figure、Runtime、UpdateManager 或 RenderSubmission 协议变化；
 - Capability 分类或 registry 合同变化；
-- Editor Tool、Request、Policy、Command 或投影事务变化；
+- Editor Tool、Request、Policy、Command 或视图同步事务变化；
 - 平台输入、资源、后端失败合同变化；
 - 验证命令、suite 或贡献门禁变化。
 

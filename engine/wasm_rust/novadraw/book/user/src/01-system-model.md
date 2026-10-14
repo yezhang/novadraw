@@ -20,7 +20,7 @@ Editor 都遵守这条边界。
 3. 后代到绘制表面（surface）的映射失效，但后代自己的父级局部边界矩形
    （parent-local bounds）不被改写；
 4. 连接（Connection）观察到端点几何变化并重新计算路径；
-5. 活动反馈图形（active feedback）和操作手柄（handles）使用新变换重新投影；
+5. 活动反馈图形（active feedback）和操作手柄（handles）按新变换重新计算位置；
 6. 监听器（listener）只能观察到稳定提交后的结果。
 
 因此 Novadraw 的核心不是某种绘图 API，而是一组跨模块不变量。
@@ -40,7 +40,7 @@ Novadraw 使用 Rust 所有权和显式事务组织对象关系。这里的**事
 | 客户区是盒模型协议 | 边界矩形 + 内边距 | 同时约束布局、子节点裁剪、命中下降 |
 | 几何变化必须受控 | `Runtime::figure(id)?.set_bounds(...)` | 新旧重绘区域、通知、失效原子发生 |
 | 校验收敛先于重绘修复 | `UpdateManager`、`Runtime::stabilize` | 重绘区域基于稳定几何计算 |
-| 脏区必须投影到根 | `repair::propagate_damage_to_root` | 不能绕过变换与祖先裁剪 |
+| 脏区必须变换到根坐标域 | `repair::propagate_damage_to_root` | 不能绕过变换与祖先裁剪 |
 | 输入是有状态分发 | `EventDispatcher`、`InteractionState` | 指针捕获、悬停、焦点统一管理 |
 
 ### 应用使用的是哪一段
@@ -58,7 +58,7 @@ Novadraw 使用 Rust 所有权和显式事务组织对象关系。这里的**事
 ```
 
 两者共享 Runtime 之后的图形核心。区别只在于源状态由应用直接管理，还是由 Editor
-通过命令修改业务模型后再投影。应用不应同时把业务模型和 Figure 状态都当作可写真源。
+通过命令修改业务模型后再同步视图。应用不应同时把业务模型和 Figure 状态都当作可写真源。
 
 ## 1.3 总体渲染管线
 
@@ -132,7 +132,7 @@ flowchart TD
     subgraph Record["4. 重绘区域与命令录制"]
         Stable --> Accessibility[发布无障碍快照]
         Stable --> DirtySnapshot[UpdateManager 冻结脏区快照]
-        DirtySnapshot --> Damage[父链投影与裁剪]
+        DirtySnapshot --> Damage[沿父链变换与裁剪]
         Damage --> DamageSet[DamageSet]
         Stable --> Renderer[FigureRenderer 递归遍历]
         Renderer --> Canvas[NdCanvas]
@@ -199,7 +199,7 @@ sequenceDiagram
         Editor->>Editor: Tool -> Request -> EditPolicy
         Editor->>Model: CommandStack.execute(Command)
         Model-->>Editor: ModelAdapter 有序通知
-        Editor->>Runtime: GraphicalViewer.refresh 投影场景变化
+        Editor->>Runtime: GraphicalViewer.refresh 同步场景变化
     end
 
     Runtime-->>Host: PlatformHost.request_redraw
@@ -256,7 +256,7 @@ sequenceDiagram
    运行时随后提交这些效果。
 2. **编辑框架路径**：图形未处理输入时，`Tool` 把输入解释成 `Request`，
    `EditPolicy` 产生 `Command`，命令修改模型，再由 `GraphicalViewer` 把模型通知
-   投影回图形场景。
+   同步回图形场景。
 3. **应用直接修改路径**：不经过编辑框架的命名操作直接进入 `Runtime` 事务。
 
 三条路径只能提交源状态变化或更新请求，不能直接拼装最终帧。源状态提交后，运行时
@@ -266,7 +266,7 @@ sequenceDiagram
 
 稳定场景形成后，帧准备分成两条汇合支路：
 
-- `UpdateManager` 把节点本地脏区沿坐标父链投影并裁剪，得到 `DamageSet`；
+- `UpdateManager` 把节点本地脏区沿坐标父链变换到逻辑表面域并裁剪，得到 `DamageSet`；
 - `FigureRenderer` 递归遍历稳定的 `FigureTree`，向 `NdCanvas` 录制
   `RenderCommand`。
 
@@ -294,16 +294,16 @@ sequenceDiagram
 总管线的主要代码入口：
 
 - 平台帧循环与后端提交：
-  [`novadraw-example-support/src/app.rs`](../../examples/support/src/app.rs)
+  [`novadraw-example-support/src/app.rs`](../../../examples/support/src/app.rs)
 - 帧准备、派生状态收敛与完成反馈：
-  [`Runtime::prepare_submission / stabilize / complete_submission`](../../novadraw/src/runtime/runtime.rs)
+  [`Runtime::prepare_submission / stabilize / complete_submission`](../../../novadraw/src/runtime/runtime.rs)
 - 图形树递归命令录制：
-  [`render_recursive.rs`](../../novadraw/src/graph/render_recursive.rs)
+  [`render_recursive.rs`](../../../novadraw/src/graph/render_recursive.rs)
 - 渲染提交包与后端接口：
-  [`submission.rs`](../../novadraw/src/render/submission.rs)、
-  [`traits.rs`](../../novadraw/src/render/traits.rs)
-- 编辑框架输入仲裁与模型投影：
-  [`GraphicalViewer`](../../novadraw-editor/src/viewer/mod.rs)
+  [`submission.rs`](../../../novadraw/src/render/submission.rs)、
+  [`traits.rs`](../../../novadraw/src/render/traits.rs)
+- 编辑框架输入仲裁与视图派生：
+  [`GraphicalViewer`](../../../novadraw-editor/src/viewer/mod.rs)
 
 ## 1.4 静态职责
 
@@ -345,7 +345,7 @@ flowchart TB
 它不保存父节点、子节点、平台绘制表面或全局管理器。
 
 实际接口见
-[`Figure`](../../novadraw/src/figure/mod.rs#L369-L573)。
+[`Figure`](../../../novadraw/src/figure/mod.rs#L369-L573)。
 
 ### 图形节点（FigureNode）
 
@@ -365,7 +365,7 @@ pub struct FigureNode {
 ```
 
 实际定义见
-[`FigureNode`](../../novadraw/src/graph/mod.rs#L403-L432)。
+[`FigureNode`](../../../novadraw/src/graph/mod.rs#L403-L432)。
 
 ### 图形树（FigureTree）
 
@@ -379,7 +379,7 @@ pub struct FigureNode {
 原子维护跨组件不变量。
 
 实际字段见
-[`Runtime`](../../novadraw/src/runtime/runtime.rs#L160-L189)。
+[`Runtime`](../../../novadraw/src/runtime/runtime.rs#L160-L189)。
 
 ### 平台宿主与渲染后端（PlatformHost / RenderBackend）
 
@@ -462,9 +462,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`EventContext`](../../novadraw/src/runtime/context.rs#L33-L43)
-- [`RuntimeEffect`](../../novadraw/src/runtime/context.rs#L14-L31)
-- [`PendingMutation`](../../novadraw/src/runtime/mutation/mod.rs)
+- [`EventContext`](../../../novadraw/src/runtime/context.rs#L33-L43)
+- [`RuntimeEffect`](../../../novadraw/src/runtime/context.rs#L14-L31)
+- [`PendingMutation`](../../../novadraw/src/runtime/mutation/mod.rs)
 
 ## 1.8 稳定状态与可观察状态
 
@@ -489,9 +489,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`DerivedWorkKind`](../../novadraw/src/runtime/runtime.rs#L50-L85)
-- [`Runtime::stabilize`](../../novadraw/src/runtime/runtime.rs#L3533-L3614)
-- [`Runtime::stable_query`](../../novadraw/src/runtime/runtime.rs#L2706-L2715)
+- [`DerivedWorkKind`](../../../novadraw/src/runtime/runtime.rs#L50-L85)
+- [`Runtime::stabilize`](../../../novadraw/src/runtime/runtime.rs#L3533-L3614)
+- [`Runtime::stable_query`](../../../novadraw/src/runtime/runtime.rs#L2706-L2715)
 
 ## 1.9 失败边界
 

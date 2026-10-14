@@ -20,7 +20,7 @@
 
 # 第三部分：编辑框架
 
-- [11. 模型、EditPart 与确定性投影](11-model-projection.md)
+- [11. 模型、EditPart 与确定性视图派生](11-model-view-derivation.md)
 - [12. Tool、Request、Policy 与 Command](12-editing-protocol.md)
 
 # 第四部分：扩展与演进

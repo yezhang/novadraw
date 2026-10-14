@@ -39,9 +39,9 @@ flowchart LR
 
 代码锚点：
 
-- [`GlyphRun` 与 `TextLayout`](../../novadraw/src/render/text.rs)
-- [`RenderCommandKind::DrawGlyphRun`](../../novadraw/src/render/command.rs)
-- [`NdCanvas::draw_text_layout`](../../novadraw/src/render/context.rs)
+- [`GlyphRun` 与 `TextLayout`](../../../novadraw/src/render/text.rs)
+- [`RenderCommandKind::DrawGlyphRun`](../../../novadraw/src/render/command.rs)
+- [`NdCanvas::draw_text_layout`](../../../novadraw/src/render/context.rs)
 
 ## 字体资源如何到达后端
 
@@ -59,9 +59,9 @@ flowchart LR
 
 代码锚点：
 
-- [`VelloRenderer` 字体缓存](../../novadraw-backend-vello/src/lib.rs#L366-L383)
-- [`sync_font_face_cache`](../../novadraw-backend-vello/src/lib.rs#L1485-L1515)
-- [`ResourceSync`](../../novadraw/src/render/submission.rs)
+- [`VelloRenderer` 字体缓存](../../../novadraw-backend-vello/src/lib.rs#L366-L383)
+- [`sync_font_face_cache`](../../../novadraw-backend-vello/src/lib.rs#L1485-L1515)
+- [`ResourceSync`](../../../novadraw/src/render/submission.rs)
 
 ## 从 GlyphRun 到 Vello Scene
 
@@ -96,7 +96,7 @@ patch，并不在调用点立即生成最终像素。这样文字可以保持与
 glyph 的基线位置吸附到整数像素。
 
 代码锚点：
-[`append_glyph_run`](../../novadraw-backend-vello/src/lib.rs#L287-L332)。
+[`append_glyph_run`](../../../novadraw-backend-vello/src/lib.rs#L287-L332)。
 
 ## 普通字形是矢量路径，不是位图 Atlas
 
@@ -159,8 +159,8 @@ texture，最后呈现 retained texture。字形因此遵守与其他图元相�
 
 代码锚点：
 
-- [`VelloRenderer::render_command`](../../novadraw-backend-vello/src/lib.rs#L709-L1092)
-- [`VelloRenderer::submit`](../../novadraw-backend-vello/src/lib.rs#L1122-L1309)
+- [`VelloRenderer::render_command`](../../../novadraw-backend-vello/src/lib.rs#L709-L1092)
+- [`VelloRenderer::submit`](../../../novadraw-backend-vello/src/lib.rs#L1122-L1309)
 
 ## 彩色字形的特殊分支
 

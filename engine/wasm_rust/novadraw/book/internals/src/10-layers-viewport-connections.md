@@ -30,19 +30,19 @@
 
 - 保证预览位于内容之上；
 - 在取消时整体清理；
-- 使用表面或内容坐标投影；
+- 使用逻辑表面域或内容域中的几何；
 - 独立产生 damage；
-- 不改变业务模型和稳定投影。
+- 不改变业务模型和稳定视图。
 
 反馈层仍应由 Viewer 或 Runtime 拥有，Tool 只提交反馈描述。
 
 ## 10.3 Freeform 内容范围
 
-自由画布的内容范围通常由 children 的投影范围并集得到：
+自由画布的内容范围通常由 children 变换到容器坐标域后的范围并集得到：
 
 ```text
 content_extent =
-    union(project_to_container(child.visual_bounds))
+    union(transform_to_container(child.visual_bounds))
     expanded_by(margin)
 ```
 
@@ -79,7 +79,7 @@ Viewport 负责裁剪和内容偏移；ScrollPane 负责组合 viewport、滚动
 不应混成一个拥有所有行为的巨大 Figure。
 
 Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更新控制部件。滚动条
-修改 range model，再由统一视口路径改变投影。
+修改 range model，再由统一视口路径改变内容变换。
 
 这样程序滚动、滚轮、拖动滚动条和自动暴露共享同一事实。
 
@@ -87,7 +87,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 缩放容器对内容施加比例变换。缩放会影响：
 
-- 内容到表面的投影；
+- 内容到逻辑表面域的坐标变换；
 - 可见内容范围；
 - 指针降域；
 - 连接与反馈位置；
@@ -104,7 +104,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 2. Range model 归一化新 value；
 3. Viewport 内容变换更新；
 4. 当前手势用同一表面 pointer 重新计算内容位置；
-5. 反馈和目标命中重新投影；
+5. 按新的内容变换重新计算反馈和目标命中；
 6. damage 覆盖旧新反馈区域。
 
 不能先按旧坐标更新反馈，再异步滚动，否则预览会跳动。
@@ -116,7 +116,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 | 层次 | 身份 | 表达的事实 | 长期所有者 |
 |---|---|---|---|
 | 业务模型 | `ModelConnection` 或领域连接 ID | 哪两个业务对象存在何种关系 | 应用模型 |
-| Editor 投影 | `ConnectionPart` / `EditPartId` | 当前 Viewer 如何控制这条关系的投影 | Viewer |
+| Editor 视图 | `ConnectionPart` / `EditPartId` | 当前 Viewer 如何控制这条关系的视图 | Viewer |
 | 图形核心 | Connection Figure / `ConnectionId` | 端点如何依附、路径如何路由和绘制 | Runtime |
 
 三层对象按因果顺序建立：
@@ -124,7 +124,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 ```text
 业务连接
 -> Viewer 解析 source/target Part
--> ConnectionPart 建立视觉投影
+-> ConnectionPart 构建连接视图
 -> Core Connection 解析 anchor 并计算路径
 ```
 
@@ -215,13 +215,13 @@ source 与 target 指向同一 Figure 时，普通两端点直线路由可能退
 - 两个 anchor 是否允许选择不同侧；
 - 最小环绕范围；
 - 与节点 visual bounds 的间距；
-- 在缩放和旋转下如何投影。
+- 在缩放和旋转下如何变换到连接图层坐标域。
 
 自环仍使用同一 Anchor、SceneQuery 和 Router 协议，不应成为绘制阶段的特判。
 
 ## 10.13 Unresolved 状态
 
-端点可能暂时不存在，例如模型连接先于目标投影出现，或目标正在被删除。连接需要显式
+端点可能暂时不存在，例如模型连接先于目标视图出现，或目标正在被删除。连接需要显式
 状态：
 
 ```text
@@ -237,20 +237,20 @@ Unresolved 不等于沿用旧路径。框架可以选择隐藏连接、绘制诊
 
 ### 节点移动
 
-节点 bounds 变化 -> anchor 依赖失效 -> router 重算 -> connection damage -> 反馈和
-手柄重新投影。
+节点 bounds 变化 -> anchor 依赖失效 -> router 重算 -> connection damage -> 按当前
+祖先变换重新计算反馈和手柄。
 
 ### 视口滚动
 
-业务 bounds 不变 -> ancestor transform 变化 -> 可见区域和表面投影变化 -> 连接与反馈
+业务 bounds 不变 -> ancestor transform 变化 -> 可见区域和表面几何变化 -> 连接与反馈
 无需改本地路径语义，但需重新生成表面提交。
 
 ### 内容缩放
 
-逻辑路径可保持 -> projected visual bounds、描边策略和命中容差重新解释 -> damage
-覆盖旧新投影。
+逻辑路径可保持 -> 重新计算表面视觉包围盒、描边策略和命中容差 -> damage 覆盖旧新
+表面范围。
 
-这三个事件说明“几何值变化”和“几何投影变化”都可以触发可见结果更新。
+这三个事件说明“几何值变化”和“几何所依附的坐标变换变化”都可以触发可见结果更新。
 
 ## 10.15 图层间坐标
 
@@ -300,13 +300,13 @@ target local -> common surface/root -> connection layer local
 ## 10.18 与后续章节的关系
 
 至此，图形核心已经形成从树、坐标、布局、damage、输入到跨节点派生状态的闭环。下一
-部分进入 Editor：业务模型如何确定性投影为这些 Figure，以及连续交互如何最终产生
+部分进入 Editor：业务模型如何确定性派生为这些 Figure，以及连续交互如何最终产生
 模型命令。
 
 ## 10.19 思考题
 
 1. 为什么 freeform extent 不能只在 child 变大时更新？
-2. 视口滚动后，连接的逻辑 path 和表面投影分别发生什么变化？
+2. 视口滚动后，连接的逻辑 path 和表面几何分别发生什么变化？
 3. SceneQuery 为什么既要返回值，也要记录依赖？
 4. 分组路由为何需要批量原子提交？
 5. unresolved 连接在什么条件下可以自动恢复？

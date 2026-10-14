@@ -10,6 +10,9 @@
 
 > 坐标不是一对裸数字；每个点和矩形都必须属于明确的坐标域。
 
+坐标变换把几何从一个明确坐标域映射到另一个坐标域。矩形经过旋转或倾斜后，需要对
+变换后的角点计算保守轴对齐包围盒。
+
 ## 5.1 五种常用几何
 
 ### Bounds
@@ -36,10 +39,10 @@ client area，而不是假设子内容从 `(0, 0)` 开始。
 visual bounds 覆盖节点真正可能影响的像素，包括描边外扩、阴影、装饰和溢出内容。
 它可以大于 border box。
 
-### Projected bounds
+### 变换后包围盒
 
-projected bounds 是某个本地几何经过祖先变换后，在目标域中的保守轴对齐包围盒。
-surface damage 使用的就是投影后的视觉范围。
+变换后包围盒是某个本地几何经过祖先变换后，在目标域中的保守轴对齐包围盒。表面
+damage 使用的是变换到逻辑表面域后的视觉范围，也就是表面视觉包围盒。
 
 这五种矩形数值可能相似，但用途不可互换。
 
@@ -108,7 +111,7 @@ Surface
             └── Node bounds=(15, 5, 60, 30)
 ```
 
-Node 局部点 `(x, y)` 投影到表面时，按实际父链依次经过：
+Node 局部点 `(x, y)` 变换到逻辑表面域时，按实际父链依次经过：
 
 1. Node bounds 平移；
 2. Panel client-area 偏移；
@@ -152,9 +155,9 @@ p_local = inverse(T_surface_from_local) * p_surface
 
 绘制使用正向链，命中使用同一链的逆变换。这是二者一致的数学基础。
 
-## 5.8 Damage 上投影
+## 5.8 把重绘范围变换到表面域
 
-节点变化时，Runtime 取得节点本地 visual bounds，沿同一父链投影到表面：
+节点变化时，Runtime 取得节点本地 visual bounds，沿同一父链变换到逻辑表面域：
 
 ```text
 damage_surface = aabb(T_surface_from_local * visual_bounds_local)
@@ -163,7 +166,7 @@ damage_surface = aabb(T_surface_from_local * visual_bounds_local)
 若 bounds 或祖先变换发生变化，需要分别用旧链和新链计算：
 
 ```text
-damage = old_projected_visual union new_projected_visual
+damage = old_surface_visual_bounds union new_surface_visual_bounds
 ```
 
 只记录新位置会留下旧像素。只记录 layout bounds 则可能漏掉描边、阴影或连接装饰。
@@ -227,11 +230,11 @@ scale 为零、矩阵包含非有限数值或行列式接近零时，逆变换�
 
 ## 5.14 轴对齐包围盒
 
-旋转矩形投影后通常不再轴对齐。damage 和空间索引常使用其四个角投影后的最小 AABB。
-这是保守近似：
+旋转矩形经过变换后通常不再轴对齐。damage 和空间索引常使用其四个角变换后的最小
+AABB。这是保守近似：
 
 ```text
-projected shape ⊆ projected AABB
+transformed shape ⊆ transformed AABB
 ```
 
 保守范围可以多覆盖像素，不能少覆盖。描边宽度和滤镜外扩应在正确坐标域加入，不能在
@@ -244,7 +247,7 @@ projected shape ⊆ projected AABB
 - point/rect 从节点本地到表面；
 - 表面到节点本地；
 - 两个节点坐标域之间转换；
-- local visual bounds 的表面投影；
+- local visual bounds 的表面包围盒；
 - 当前变换是否可逆；
 - 两节点是否存在可转换关系。
 
@@ -264,7 +267,7 @@ projected shape ⊆ projected AABB
 4. 子布局结果属于父内容域；
 5. visual bounds 覆盖所有可能像素影响；
 6. 不可逆变换不能被命中路径静默接受；
-7. 投影包围盒必须保守。
+7. 变换后包围盒必须保守。
 
 ## 5.17 常见错误设计
 
@@ -286,13 +289,13 @@ projected shape ⊆ projected AABB
 
 ### 用新位置覆盖旧位置后再算 damage
 
-旧投影链已经丢失，无法清除旧像素。
+旧祖先变换链已经丢失，无法清除旧像素。
 
 ## 5.18 与后续章节的关系
 
 本章定义了几何事实和坐标链。下一章的布局只在父内容域内产生候选 bounds；第 7 章
-利用旧新 visual projection 形成 damage；第 9 章通过逆链执行命中；第 10 章的视口与
-连接则复用同一坐标查询。
+利用旧新表面视觉包围盒形成 damage；第 9 章通过逆链执行命中；第 10 章的视口与连接
+则复用同一坐标查询。
 
 ## 5.19 思考题
 

@@ -52,7 +52,7 @@
 -> 命中与交互状态
 -> Tool / Request / Policy
 -> Command 修改模型
--> Viewer 刷新投影
+-> Viewer 同步视图
 -> 图形闭环
 ```
 
@@ -125,14 +125,14 @@
 
 覆盖：
 
-- bounds、client area、visual bounds 和 projected bounds；
+- bounds、client area、visual bounds 和表面包围盒；
 - 父内容域、节点本地域、子内容域和表面域；
 - 仿射变换组合顺序；
 - 坐标根、视口与缩放；
 - 不可逆变换和保守轴对齐包围盒；
 - 坐标查询为何必须集中。
 
-关键图：一个嵌套节点从本地坐标投影到表面的完整链路。
+关键图：一个嵌套节点从本地域变换到逻辑表面域的完整链路。
 
 ### 第 6 章：测量、布局与稳定化
 
@@ -210,26 +210,26 @@
 - 路由器的纯计算边界；
 - 分组路由、连接失效和自环。
 
-关键图：节点变化经依赖追踪触发连接重算和视口重投影。
+关键图：节点变化经依赖追踪触发连接重算和表面几何重算。
 
-### 第 11 章：模型、EditPart 与确定性投影
+### 第 11 章：模型、EditPart 与确定性视图派生
 
 主问题：为什么业务模型不能直接等同于 Figure 树？
 
 覆盖：
 
-- 模型是持久事实，Figure 是可重建投影；
+- 模型是持久事实，Figure 是可重建的派生视图；
 - ModelAdapter 和稳定快照；
 - PartNode、EditPartBehavior 与 PartTree 的职责；
 - Root、Containment 与 Connection 三种 Part 角色；
-- containment 与 connection projection，以及 ConnectionPart 的身份边界；
+- containment 视图构建、连接视图构建，以及 ConnectionPart 的身份边界；
 - primary Figure、content pane、registry 和 visual ownership；
 - Overlay、Handle 与 Feedback 的所有权和生命周期；
 - plan、validate、commit 与 revision publication；
 - synchronize/synchronize_model 的受控模型入口；
 - ViewerDrive 的宿主驱动边界。
 
-关键图：模型、Part、Figure 三个身份域及投影事务。
+关键图：模型、Part、Figure 三个身份域及视图同步事务。
 
 ### 第 12 章：Tool、Request、Policy 与 Command
 

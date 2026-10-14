@@ -45,7 +45,7 @@ flowchart LR
     Domain --> Session[ViewerEditSession]
     Session --> Stack[CommandStack]
     Stack --> Model[业务模型]
-    Model --> Viewer[确定性投影]
+    Model --> Viewer[确定性视图派生]
     Viewer --> Figure[Figure 树]
 ```
 
@@ -156,7 +156,7 @@ Feedback 不是模型，也不应被命令历史记录。若预览需要计算�
 
 连接预览尤其不能提前创建稳定 ConnectionPart。它可以复用 Core 的连接 Figure 与路由
 能力，但其所有者仍是 Feedback；只有最终 Command 创建业务连接后，Viewer 才在下一次
-稳定投影中创建 ConnectionPart。
+稳定视图中创建 ConnectionPart。
 
 ## 12.6 Command
 
@@ -180,7 +180,7 @@ MoveNodes {
 - redo 重放已确认意图；
 - 不保存 Viewer 或 Runtime 私有身份。
 
-Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 11 章的投影流程。
+Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 11 章的视图同步流程。
 
 ## 12.7 移动案例
 
@@ -206,7 +206,7 @@ Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 11 章的
 3. 生成一个 Move Command；
 4. 清理反馈；
 5. EditorDomain 在 ViewerEditSession 中执行 CommandStack 操作；
-6. 会话校验模型通知并同步 Viewer 投影；
+6. 会话校验模型通知并同步 Viewer 视图；
 7. Viewer 显示新 revision 对应的 Figure。
 
 整个拖拽只产生一个业务命令。
@@ -221,7 +221,7 @@ Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 11 章的
 4. Feedback 显示 resolved 或 rejected 预览；
 5. up 时再次验证 source、target 和 revision；
 6. Command 创建业务连接；
-7. Viewer 投影新的 ConnectionPart；
+7. Viewer 构建新的 ConnectionPart；
 8. Core 计算 anchor 和 route。
 
 预览连接可以是 Figure，但它位于反馈层，不是最终业务连接的提前实例。
@@ -247,15 +247,15 @@ Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 11 章的
 短生命周期查看器编辑会话（`ViewerEditSession`），并在会话内完成 execute、undo 或
 redo。
 
-会话开始前，Viewer 先同步已经存在的外部通知。这样命令总是建立在已投影的稳定 revision
+会话开始前，Viewer 先同步已经存在的外部通知。这样命令总是建立在已同步的稳定 revision
 前缀上。会话只向一次 CommandStack 操作提供短期模型可变借用，并且必须以三种结论之一
 关闭：
 
 | 结论 | 适用情况 | 关闭动作 |
 |---|---|---|
-| commit | execute、undo 或 redo 成功 | 校验并消费通知，然后同步投影 |
+| commit | execute、undo 或 redo 成功 | 校验并消费通知，然后同步视图 |
 | reject | 明确拒绝或可恢复错误 | 要求模型 revision 和待发布事件保持不变 |
-| fault | panic、unknown-state 或不可恢复错误 | 不投影未知模型，使 Stack 和 Viewer 故障锁定 |
+| fault | panic、unknown-state 或不可恢复错误 | 不从未知模型派生视图，使 Stack 和 Viewer 故障锁定 |
 
 会话没有显式关闭就离开作用域，Viewer 也进入故障锁定状态。析构过程不猜测模型状态，
 也不自动提交。
@@ -364,7 +364,7 @@ undo 伪装成取消。
 - Policy：Request 和快照到反馈/Command；
 - Command：模型 before/after/undo/redo；
 - ViewerEditSession：commit/reject/fault 与通知同步；
-- Viewer：模型 revision 到 Figure 投影。
+- Viewer：模型 revision 到 Figure 视图。
 
 端到端测试再验证完整闭环。分层后，核心业务规则不需要窗口或 GPU 才能测试。
 
@@ -377,7 +377,7 @@ undo 伪装成取消。
 5. Command 只引用业务身份；
 6. 历史只记录成功提交；
 7. cancel 不产生最终模型变化；
-8. Viewer 只通过模型 revision 刷新稳定投影；
+8. Viewer 只通过模型 revision 同步稳定视图；
 9. CommandStack 操作和 Viewer 同步在同一 ViewerEditSession 中关闭；
 10. reject 必须证明模型、revision 和待发布事件均未改变；
 11. `has_*` 是纯查询，`check_*` 的扩展故障必须结构化暴露；
@@ -404,7 +404,7 @@ undo 伪装成取消。
 
 ### 把连接预览注册为 ConnectionPart
 
-候选关系获得了稳定投影身份，取消手势时只能模拟一次结构删除，也可能被选择和 Policy
+候选关系获得了稳定视图身份，取消手势时只能模拟一次结构删除，也可能被选择和 Policy
 误认为已提交业务连接。
 
 ### Handle 直接执行模型修改
@@ -417,7 +417,7 @@ Viewer 重建后历史失效，也可能意外延长视图生命周期。
 
 ### 命令成功后由调用者手工刷新 Viewer
 
-成功、拒绝和模型状态未知没有统一关闭动作；遗漏刷新会让 history、模型和投影停在
+成功、拒绝和模型状态未知没有统一关闭动作；遗漏同步会让 history、模型和视图停在
 不同前缀。
 
 ### 用 `can_undo() -> bool` 隐藏扩展检查

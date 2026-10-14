@@ -51,7 +51,7 @@ composition root 应持有平台窗口、`Runtime` 或 `GraphicalViewer`，以�
 - 业务对象需要映射为节点和连接；
 - 用户可以选择、移动、调整尺寸或创建连接；
 - 每次编辑必须形成业务命令并支持撤销重做；
-- 同一模型可能被不同视图重新投影。
+- 同一模型可能由不同 Viewer 分别派生视图。
 
 Editor 建立在 Core 之上。它不会替代业务模型，也不会把 `FigureId` 变成持久化 ID。
 
@@ -166,8 +166,8 @@ fn build_scene() -> Result<AppScene, Box<dyn Error>> {
 3. 树交给 `Runtime` 后，运行期修改不再经过 Builder。
 
 完整可运行场景见
-[`examples/scenes/src/update.rs`](../../examples/scenes/src/update.rs) 和
-[`examples/scenes/src/layout.rs`](../../examples/scenes/src/layout.rs)。
+[`examples/scenes/src/update.rs`](../../../examples/scenes/src/update.rs) 和
+[`examples/scenes/src/layout.rs`](../../../examples/scenes/src/layout.rs)。
 
 ## 5. 在运行期修改图形
 
@@ -226,7 +226,7 @@ runtime.pointer_exited();
 统一维护，否则绘制与交互会在嵌套、滚动或缩放后产生偏差。
 
 桌面适配实现见
-[`novadraw-platform-winit/src/input.rs`](../../novadraw-platform-winit/src/input.rs)，输入状态机原理见
+[`novadraw-platform-winit/src/input.rs`](../../../novadraw-platform-winit/src/input.rs)，输入状态机原理见
 [第 5 章](05-input-and-interaction.md)。
 
 ## 7. 驱动一帧
@@ -260,7 +260,7 @@ fn redraw(
 宿主必须把后端结果交还 `Runtime::complete_submission`。否则 Runtime 无法确认资源
 增量是否已消费，也无法安全开始下一帧。
 
-真实桌面实现见 [`examples/support/src/app.rs`](../../examples/support/src/app.rs)。帧准备状态和
+真实桌面实现见 [`examples/support/src/app.rs`](../../../examples/support/src/app.rs)。帧准备状态和
 失败恢复见[第 4 章](04-layout-update-and-frame.md)。
 
 ## 8. 何时引入业务模型
@@ -283,10 +283,10 @@ let domain = EditorDomain::new();
 
 这是接口形态示意，具体类型由应用的 `ModelAdapter` 和 `EditPartFactory` 决定。
 应用模型保存自己的 `ModelId`；查看器内部管理 `EditPartId` 和 `FigureId`。命令只
-修改模型，查看器再把模型变化投影到场景。
+修改模型，查看器再把模型变化同步到图形场景。
 
 完整实现路线见[第 8 章](08-editor-framework.md)，可运行示例见
-[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。
+[`examples/native/node-editor-demo`](../../../examples/native/node-editor-demo)。
 
 ## 9. 推荐的应用目录
 

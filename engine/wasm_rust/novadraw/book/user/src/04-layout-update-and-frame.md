@@ -27,7 +27,8 @@
 失效回答“哪些数据要重算”，脏区回答“哪些像素要重画”。只有颜色变化时可能只需
 重绘；文本或边框改变首选尺寸时通常还需要重新布局。
 
-正确顺序必须是先收敛几何，再投影脏区。否则重绘区域会使用旧位置，造成残影或漏绘。
+正确顺序必须是先收敛几何，再把脏区变换到逻辑表面域。否则重绘区域会使用旧位置，
+造成残影或漏绘。
 
 ## 4.2 布局器只计算，不直接改树
 
@@ -145,7 +146,7 @@ runtime
 场景见[第 6 章](06-layers-and-viewport.md)。
 
 完整布局示例集中在
-[`examples/scenes/src/layout.rs`](../../examples/scenes/src/layout.rs)。阅读时优先看场景构造
+[`examples/scenes/src/layout.rs`](../../../examples/scenes/src/layout.rs)。阅读时优先看场景构造
 函数，不需要从 native 应用的窗口代码开始。
 
 ## 4.5 测量先于排列
@@ -198,9 +199,9 @@ runtime
 
 代码入口：
 
-- [`MeasureConstraints` 与 `FigureMeasurement`](../../novadraw/src/figure/mod.rs)
-- [`LayoutSnapshot` 与 `LayoutOutput`](../../novadraw/src/layout/mod.rs)
-- [约束文本测量测试](../../novadraw/tests/d4_constrained_measurement.rs)
+- [`MeasureConstraints` 与 `FigureMeasurement`](../../../novadraw/src/figure/mod.rs)
+- [`LayoutSnapshot` 与 `LayoutOutput`](../../../novadraw/src/layout/mod.rs)
+- [约束文本测量测试](../../../novadraw/tests/d4_constrained_measurement.rs)
 
 ## 4.6 应用运行期如何触发更新
 
@@ -244,7 +245,7 @@ Runtime 使用固定优先级工作列表：
 发布只完成一部分的场景或提交包。
 
 实现入口：
-[`Runtime::stabilize`](../../novadraw/src/runtime/runtime.rs)。
+[`Runtime::stabilize`](../../../novadraw/src/runtime/runtime.rs)。
 
 ## 4.8 重绘区域如何得到
 
@@ -275,7 +276,7 @@ Partial { union, regions }
 > 帧提交后，重绘区域外的可见像素必须与提交前等价。
 
 实现入口：
-[`repair.rs`](../../novadraw/src/runtime/update/repair.rs)。
+[`repair.rs`](../../../novadraw/src/runtime/update/repair.rs)。
 
 ## 4.9 帧准备状态
 
@@ -363,9 +364,9 @@ assert!(runtime.complete_submission(session_id, frame_id, outcome));
 
 ## 4.13 验证入口
 
-- [`m5_layout_contract.rs`](../../novadraw/tests/m5_layout_contract.rs)
-- [`d4_constrained_measurement.rs`](../../novadraw/tests/d4_constrained_measurement.rs)
-- [`d4_component_update.rs`](../../novadraw/tests/d4_component_update.rs)
-- [`d4_notification_epoch.rs`](../../novadraw/tests/d4_notification_epoch.rs)
-- [`runtime_resize_contract.rs`](../../novadraw/tests/runtime_resize_contract.rs)
+- [`m5_layout_contract.rs`](../../../novadraw/tests/m5_layout_contract.rs)
+- [`d4_constrained_measurement.rs`](../../../novadraw/tests/d4_constrained_measurement.rs)
+- [`d4_component_update.rs`](../../../novadraw/tests/d4_component_update.rs)
+- [`d4_notification_epoch.rs`](../../../novadraw/tests/d4_notification_epoch.rs)
+- [`runtime_resize_contract.rs`](../../../novadraw/tests/runtime_resize_contract.rs)
 - `cargo xtask verify core.runtime`

@@ -17,7 +17,7 @@ Novadraw 明确区分：
 | 布局边界（layout bounds） | 父内容域 | `NodeState.bounds`，记录布局位置与边框盒尺寸 |
 | 本地边框盒（local border box） | 节点本地域 | `(0, 0, width, height)` |
 | 视觉边界（visual bounds） | 节点本地域 | 包含描边、阴影等效果后的保守可见范围 |
-| 投影边界（projected bounds） | 逻辑表面域 | 沿父链变换后的保守轴对齐包围盒 |
+| 表面包围盒（projected bounds） | 逻辑表面域 | 沿父链变换后的保守轴对齐包围盒 |
 
 核心公式：
 
@@ -61,7 +61,7 @@ pub(crate) fn client_area(&self) -> Rectangle {
 ```
 
 代码锚点：
-[`FigureNode::figure_bounds/client_area`](../../novadraw/src/graph/mod.rs#L472-L505)。
+[`FigureNode::figure_bounds/client_area`](../../../novadraw/src/graph/mod.rs#L472-L505)。
 
 注意，“统一真源”不表示只有一个矩形概念，而表示其他矩形必须由明确协议从
 `bounds` 和 `Figure` 能力推导，不能由各模块私存一份位置真相。
@@ -154,7 +154,7 @@ Affine2D::from_translation(left, top) * figure_transform.affine()
 ```
 
 代码锚点：
-[`FigureNode::child_transform`](../../novadraw/src/graph/mod.rs#L496-L505)。
+[`FigureNode::child_transform`](../../../novadraw/src/graph/mod.rs#L496-L505)。
 
 ## 2.6 矩阵组合顺序
 
@@ -174,7 +174,7 @@ let combined = parent * child;
 ```
 
 实际实现与非交换测试见
-[`Transform`](../../novadraw/src/geometry/transform.rs)。
+[`Transform`](../../../novadraw/src/geometry/transform.rs)。
 
 ## 2.7 从节点到绘制表面
 
@@ -191,7 +191,7 @@ loop {
 ```
 
 实际实现见
-[`FigureTree::local_to_surface_transform`](../../novadraw/src/graph/mod.rs#L3996-L4019)。
+[`FigureTree::local_to_surface_transform`](../../../novadraw/src/graph/mod.rs#L3996-L4019)。
 
 逆向变换必须显式处理不可逆矩阵：
 
@@ -222,9 +222,9 @@ content_point = viewport_point / scale + origin
 
 代码锚点：
 
-- [`ViewportHandle`](../../novadraw/src/container/viewport.rs)
-- [`ScalableLayeredPaneFigure`](../../novadraw/src/container/scalable.rs)
-- [`DefaultRangeModel`](../../novadraw/src/container/range_model.rs)
+- [`ViewportHandle`](../../../novadraw/src/container/viewport.rs)
+- [`ScalableLayeredPaneFigure`](../../../novadraw/src/container/scalable.rs)
+- [`DefaultRangeModel`](../../../novadraw/src/container/range_model.rs)
 
 ## 2.9 几何变更事务
 
@@ -240,8 +240,8 @@ content_point = viewport_point / scale + origin
 ```
 
 实际实现见
-[`FigureTree::set_bounds_with_update`](../../novadraw/src/graph/mod.rs#L3875-L3933) 和
-[`FigureMut::set_bounds`](../../novadraw/src/runtime/runtime.rs)。
+[`FigureTree::set_bounds_with_update`](../../../novadraw/src/graph/mod.rs#L3875-L3933) 和
+[`FigureMut::set_bounds`](../../../novadraw/src/runtime/runtime.rs)。
 
 父节点移动时，后代的 `bounds` 不会被重写；父链变换的结果发生变化，并产生
 `CoordinateSystemChanged`。这避免与子树规模成正比的存储改写，也保持父级局部
@@ -259,8 +259,8 @@ right  = max(all x)
 bottom = max(all y)
 ```
 
-该原则用于投影边界和重绘区域。实现辅助函数见
-[`transform_rectangle`](../../novadraw/src/graph/mod.rs#L40-L69)。
+该原则用于表面包围盒和重绘区域。实现辅助函数见
+[`transform_rectangle`](../../../novadraw/src/graph/mod.rs#L40-L69)。
 
 ## 2.11 应用中的坐标用法
 
@@ -277,7 +277,7 @@ let transform = runtime
 let local = transform.transform_point(Point::new(surface_x, surface_y));
 ```
 
-需要把节点本地点投影到表面时使用 `local_to_surface_transform`。不要在应用中手写
+需要把节点本地点变换到逻辑表面域时使用 `local_to_surface_transform`。不要在应用中手写
 `(surface / scale) + origin`，因为真实父链还可能包含内边距、嵌套容器、旋转和
 自由范围变换。
 
@@ -293,7 +293,7 @@ runtime
 
 应用侧建议：
 
-- 模型保存业务坐标，不保存逻辑表面投影结果；
+- 模型保存业务坐标，不保存变换到逻辑表面域后的结果；
 - 指针位置在进入 Runtime 或 Viewer 后始终使用逻辑表面单位；
 - 需要跨节点比较几何时，先转换到同一个明确坐标域；
 - 变换查询失败时停止当前操作，不使用 `(0, 0)` 或恒等变换兜底。
@@ -312,6 +312,6 @@ runtime
 
 ## 2.13 验证入口
 
-- [`m4_coordinate_contract.rs`](../../novadraw/tests/m4_coordinate_contract.rs)
-- [`m8_viewport_contract.rs`](../../novadraw/tests/m8_viewport_contract.rs)
-- [`bounds_test.rs`](../../novadraw/src/graph/bounds_test.rs)
+- [`m4_coordinate_contract.rs`](../../../novadraw/tests/m4_coordinate_contract.rs)
+- [`m8_viewport_contract.rs`](../../../novadraw/tests/m8_viewport_contract.rs)
+- [`bounds_test.rs`](../../../novadraw/src/graph/bounds_test.rs)

@@ -4,7 +4,7 @@
 > 缩放、换父节点或折点变化后自动更新。
 
 先决定事实属于哪一层：只做图形场景时，应用向 Core 注册连接；做可编辑节点图时，
-业务模型保存连接关系，由 Editor 创建和更新连接投影。
+业务模型保存连接关系，由 Editor 创建和同步连接视图。
 
 ## 7.1 连接为什么不是普通折线
 
@@ -107,7 +107,7 @@ pub trait ConnectionAnchor {
 ```
 
 代码锚点：
-[`ConnectionAnchor`](../../novadraw/src/connection/anchor.rs)。
+[`ConnectionAnchor`](../../../novadraw/src/connection/anchor.rs)。
 
 锚点不注册监听器，不持有 `Runtime`，也不缓存构造时所属图形的矩形。它通过短生命
 周期的 `SceneQuery` 读取当前几何。
@@ -160,7 +160,7 @@ Topology(FigureId)
 - 失败前已读取的依赖仍可用于恢复调度。
 
 代码锚点：
-[`SceneQuery`](../../novadraw/src/connection/query.rs)。
+[`SceneQuery`](../../../novadraw/src/connection/query.rs)。
 
 ## 7.7 路由器是纯计算策略
 
@@ -185,8 +185,8 @@ pub trait ConnectionRouter {
 
 代码锚点：
 
-- [`ConnectionRouter`](../../novadraw/src/connection/router.rs)
-- [`RouteOutput`](../../novadraw/src/connection/router.rs)
+- [`ConnectionRouter`](../../../novadraw/src/connection/router.rs)
+- [`RouteOutput`](../../../novadraw/src/connection/router.rs)
 
 ## 7.8 四种核心路由
 
@@ -248,7 +248,7 @@ flowchart LR
     C -->|全部有效| D[原子提交]
     C -->|失败| E[整组进入未解析状态]
     D --> F[更新依赖与代数]
-    F --> G[计算新旧投影重绘区域]
+    F --> G[计算新旧表面重绘区域]
 ```
 
 `PreparedConnectionGeometry` 从父内容域中的点计算：
@@ -257,7 +257,7 @@ flowchart LR
 - 平移到节点本地域的点列表。
 
 实际实现见
-[`PreparedConnectionGeometry`](../../novadraw/src/connection/figure.rs)。
+[`PreparedConnectionGeometry`](../../../novadraw/src/connection/figure.rs)。
 
 ## 7.11 路由自动失效
 
@@ -287,7 +287,7 @@ flowchart LR
 空连接或未解析连接不绘制旧路径。
 
 代码锚点：
-[`ConnectionFigure`](../../novadraw/src/connection/figure.rs)。
+[`ConnectionFigure`](../../../novadraw/src/connection/figure.rs)。
 
 ## 7.13 自环连接
 
@@ -315,7 +315,7 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 
 业务模型保存连接 ID、起点 `ModelId`、终点 `ModelId` 和必要的折点数据。
 `ModelAdapter::connections` 暴露这些关系，`EditPartFactory` 提供锚点描述符和路由器
-选择，`GraphicalViewer` 投影出连接图形。
+选择，`GraphicalViewer` 构建连接图形。
 
 适合：
 
@@ -336,8 +336,8 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 | 相同端点间多条边需要分离 | Fan |
 
 完整 Core 示例见
-[`examples/scenes/src/connection.rs`](../../examples/scenes/src/connection.rs)，Editor 连接实现见
-[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。
+[`examples/scenes/src/connection.rs`](../../../examples/scenes/src/connection.rs)，Editor 连接实现见
+[`examples/native/node-editor-demo`](../../../examples/native/node-editor-demo)。
 
 ## 7.15 失败模式
 
@@ -353,8 +353,8 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 
 ## 7.16 验证入口
 
-- [`m9_connection_contract.rs`](../../novadraw/tests/m9_connection_contract.rs)
-- [`m9_connection_runtime.rs`](../../novadraw/tests/m9_connection_runtime.rs)
-- [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
-- [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`m9_connection_contract.rs`](../../../novadraw/tests/m9_connection_contract.rs)
+- [`m9_connection_runtime.rs`](../../../novadraw/tests/m9_connection_runtime.rs)
+- [`g5_connection_projection_contract.rs`](../../../novadraw-editor/tests/g5_connection_projection_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run test.scene-connection`

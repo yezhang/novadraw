@@ -9,7 +9,7 @@
 | 变化 | 主要责任域 |
 |---|---|
 | 几何、Figure 树、布局、输入、连接、Runtime | `novadraw` |
-| 模型投影、选择、工具、请求、策略、命令 | `novadraw-editor` |
+| 视图派生、选择、工具、请求、策略、命令 | `novadraw-editor` |
 | 只读诊断和观测 | `novadraw-inspector` |
 | Vello lowering 与 GPU 提交 | `novadraw-backend-vello` |
 | 窗口、浏览器、DPI、输入法桥接 | platform crate |

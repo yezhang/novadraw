@@ -60,7 +60,7 @@ if node.child_transform().apply_inverse_to(&mut child_point) {
 ```
 
 代码锚点：
-[`FigureTree::hit_test_from_with_inner`](../../novadraw/src/graph/search.rs#L227-L277)。
+[`FigureTree::hit_test_from_with_inner`](../../../novadraw/src/graph/search.rs#L227-L277)。
 
 ## 5.3 容器命中与自身命中是两件事
 
@@ -152,7 +152,7 @@ if handled {
 捕获，再重新计算悬停目标。
 
 实际实现见
-[`EventDispatcher::dispatch_mouse_pressed/released`](../../novadraw/src/runtime/event/mod.rs#L464-L504)。
+[`EventDispatcher::dispatch_mouse_pressed/released`](../../../novadraw/src/runtime/event/mod.rs#L464-L504)。
 
 ## 5.8 焦点与键盘事件
 
@@ -188,8 +188,8 @@ if handled {
 
 代码锚点：
 
-- [`EventDispatcher::dispatch_scroll`](../../novadraw/src/runtime/event/mod.rs#L575-L598)
-- [`EventDispatcher::dispatch_zoom`](../../novadraw/src/runtime/event/mod.rs#L600-L620)
+- [`EventDispatcher::dispatch_scroll`](../../../novadraw/src/runtime/event/mod.rs#L575-L598)
+- [`EventDispatcher::dispatch_zoom`](../../../novadraw/src/runtime/event/mod.rs#L600-L620)
 
 ## 5.10 事件上下文与效果队列
 
@@ -209,7 +209,7 @@ pub fn reparent_later(...);
 可以合并重绘区域，但不能重排有可观察差异的状态变化。
 
 代码锚点：
-[`EventContext`](../../novadraw/src/runtime/context.rs#L33-L325)。
+[`EventContext`](../../../novadraw/src/runtime/context.rs#L33-L325)。
 
 ## 5.11 分发结果是图形核心与编辑框架的仲裁边界
 
@@ -238,8 +238,8 @@ pub struct DispatchOutcome {
 
 代码锚点：
 
-- [`DispatchOutcome`](../../novadraw/src/runtime/event/mod.rs#L268-L299)
-- [`GraphicalViewer::dispatch_mouse_pressed`](../../novadraw-editor/src/viewer/mod.rs#L1157-L1198)
+- [`DispatchOutcome`](../../../novadraw/src/runtime/event/mod.rs#L268-L299)
+- [`GraphicalViewer::dispatch_mouse_pressed`](../../../novadraw-editor/src/viewer/mod.rs#L1157-L1198)
 
 ## 5.12 指针离开绘制表面
 
@@ -359,8 +359,8 @@ sequenceDiagram
 
 代码锚点：
 
-- [`TextInputEvent` 与 `TextInputEffect`](../../novadraw-editor/src/text_input.rs)
-- [`EditorDomain::handle_text_input_event`](../../novadraw-editor/src/domain.rs#L345-L392)
+- [`TextInputEvent` 与 `TextInputEffect`](../../../novadraw-editor/src/text_input.rs)
+- [`EditorDomain::handle_text_input_event`](../../../novadraw-editor/src/domain.rs#L345-L392)
 
 ### Native：从系统文本服务到 Winit 事件
 
@@ -521,13 +521,13 @@ resize 或节点移动后，Viewer 重新执行几何查询并发出 `SetArea`�
 
 代码锚点：
 
-- [`WinitTextInputBridge`](../../novadraw-platform-winit/src/text_input.rs)
-- [`WebTextInputBridge`](../../novadraw-platform-web/src/text_input.rs)
-- [`WebTextInputHost`](../../novadraw-platform-web/src/dom_text_input.rs)
-- [`WebEditContextHost`](../../novadraw-platform-web/src/edit_context.rs)
-- [`DirectTextEditState`](../../novadraw-editor/src/direct_edit.rs#L228-L439)
-- [`GraphicalViewer::attach_direct_text_feedback`](../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
-- [`TextFlowFigure` 交互几何](../../novadraw/src/figure/text_flow.rs#L293-L390)
+- [`WinitTextInputBridge`](../../../novadraw-platform-winit/src/text_input.rs)
+- [`WebTextInputBridge`](../../../novadraw-platform-web/src/text_input.rs)
+- [`WebTextInputHost`](../../../novadraw-platform-web/src/dom_text_input.rs)
+- [`WebEditContextHost`](../../../novadraw-platform-web/src/edit_context.rs)
+- [`DirectTextEditState`](../../../novadraw-editor/src/direct_edit.rs#L228-L439)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
+- [`TextFlowFigure` 交互几何](../../../novadraw/src/figure/text_flow.rs#L293-L390)
 
 ## 5.15 失败模式
 
@@ -552,11 +552,11 @@ resize 或节点移动后，Viewer 重新执行几何查询并发出 `SetArea`�
 
 ## 5.16 验证入口
 
-- [`m6_event_contract.rs`](../../novadraw/tests/m6_event_contract.rs)
-- [`p2_dispatch_outcome_contract.rs`](../../novadraw/tests/p2_dispatch_outcome_contract.rs)
-- [`d1_focus_contract.rs`](../../novadraw/tests/d1_focus_contract.rs)
-- [`g3_viewer_interaction_contract.rs`](../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
-- [`Winit 文本输入桥测试`](../../novadraw-platform-winit/src/text_input.rs)
-- [`Web 文本输入桥测试`](../../novadraw-platform-web/src/text_input.rs)
+- [`m6_event_contract.rs`](../../../novadraw/tests/m6_event_contract.rs)
+- [`p2_dispatch_outcome_contract.rs`](../../../novadraw/tests/p2_dispatch_outcome_contract.rs)
+- [`d1_focus_contract.rs`](../../../novadraw/tests/d1_focus_contract.rs)
+- [`g3_viewer_interaction_contract.rs`](../../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
+- [`Winit 文本输入桥测试`](../../../novadraw-platform-winit/src/text_input.rs)
+- [`Web 文本输入桥测试`](../../../novadraw-platform-web/src/text_input.rs)
 - `cargo xtask verify core.runtime`
 - `cargo xtask verify platform.p2-e02-text-input`

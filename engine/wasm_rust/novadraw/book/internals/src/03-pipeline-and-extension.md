@@ -265,7 +265,7 @@ Editor 也遵循同一原则：
 - Request 表达编辑意图；
 - Policy 解释目标并贡献候选 Command；
 - CommandStack 提交模型变化；
-- Viewer 在模型 revision 发布后刷新投影。
+- Viewer 在模型 revision 发布后同步视图。
 
 Policy 不应直接改模型，Tool 不应直接改 Figure 作为最终结果，Viewer 也不应在模型
 通知之前猜测业务事实。扩展点很多，但提交权威仍然清晰。
@@ -404,7 +404,7 @@ Policy 不应直接改模型，Tool 不应直接改 Figure 作为最终结果，
 - 第 7 章把稳定场景转成帧提交；
 - 第 8 章把动画限制为 Runtime-owned Presentation Plane；
 - 第 9 章把回调效果排队后统一应用；
-- 第 11 章把模型投影拆成 plan、validate、commit；
+- 第 11 章把视图同步拆成 plan、validate、commit；
 - 第 13 章进一步区分基础协议、Capability 和组件更新；
 - 第 14 章统一讨论提交故障和可验证演进。
 

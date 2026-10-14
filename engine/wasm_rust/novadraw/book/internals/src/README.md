@@ -27,7 +27,7 @@
 - 身份、所有权与生命周期；
 - 坐标、布局、绘制和命中的一致性；
 - 固定执行管线与开放扩展点；
-- 模型投影、编辑意图和撤销语义；
+- 模型到视图的派生、编辑意图和撤销语义；
 - 原子提交、故障隔离和确定性验证。
 
 本书不承担：
@@ -82,9 +82,13 @@
 |---|---|---|
 | 图形对象、图形行为 | Figure | 场景节点或节点上的具体行为协议，按上下文区分 |
 | 场景运行时 | Runtime | 场景事务、派生收敛、帧出版和完成确认的权威 |
-| 查看器 | Viewer | 模型、编辑部件和图形投影的当前视图所有者 |
-| 编辑部件 | EditPart、Part | Viewer 内连接模型身份、编辑行为与稳定视觉的投影控制器 |
-| 连接部件 | ConnectionPart | 使用 EditPartId 的连接投影角色，不建立新的身份域 |
+| 查看器 | Viewer | 模型、编辑部件和派生视图的当前所有者 |
+| 视图派生 | model-to-view derivation | Viewer 根据单一模型 revision 构建或同步 Part/Figure 视图 |
+| 视图同步 | view synchronization | 已有 Viewer 消费模型变化并更新稳定视图 |
+| 坐标变换 | coordinate transform | 把几何从一个明确坐标域映射到另一个坐标域 |
+| 表面包围盒 | surface bounds | 几何变换到逻辑表面域后的保守轴对齐包围盒 |
+| 编辑部件 | EditPart、Part | Viewer 内连接模型身份、编辑行为与稳定视觉的视图控制器 |
+| 连接部件 | ConnectionPart | 使用 EditPartId 的连接视图角色，不建立新的身份域 |
 | 连接 | Connection | 按上下文指业务关系、ConnectionPart 或 Core 中的连接 Figure |
 | 覆盖视觉 | Overlay | Viewer 管理、位于稳定 Part 视觉之上的临时 Figure 子树 |
 | 控制柄 | Handle | 具有 HandleId 和类型化动作的可交互 Overlay |

@@ -33,7 +33,7 @@ Core 不反向依赖它们。应用在 composition root 组装所需 crate。
 | 业务节点、连接和属性 | 应用模型 |
 | Figure 拓扑和通用节点状态 | `FigureTree` |
 | 失效、重绘、交互与提交会话 | `Runtime` |
-| Model 到 Figure 的投影关系 | `GraphicalViewer` |
+| Model 到 Figure 的视图派生关系 | `GraphicalViewer` |
 | 选择和活动编辑会话 | Viewer / `EditorDomain` |
 | GPU 专有资源 | 渲染后端 |
 | 窗口、系统事件和文本输入客户端 | 平台宿主 |

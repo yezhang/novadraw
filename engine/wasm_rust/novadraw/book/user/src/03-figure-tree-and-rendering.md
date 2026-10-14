@@ -55,10 +55,10 @@ classDiagram
 
 代码锚点：
 
-- [`FigureNode`](../../novadraw/src/graph/mod.rs#L403-L432)
-- [`NodeState`](../../novadraw/src/graph/mod.rs)
-- [`LayoutState`](../../novadraw/src/graph/mod.rs)
-- [`Figure`](../../novadraw/src/figure/mod.rs#L369-L573)
+- [`FigureNode`](../../../novadraw/src/graph/mod.rs#L403-L432)
+- [`NodeState`](../../../novadraw/src/graph/mod.rs)
+- [`LayoutState`](../../../novadraw/src/graph/mod.rs)
+- [`Figure`](../../../novadraw/src/figure/mod.rs#L369-L573)
 
 ## 3.2 图形对象的小能力模型
 
@@ -154,7 +154,7 @@ flowchart TD
 ```
 
 实际主循环见
-[`render_recursive.rs`](../../novadraw/src/graph/render_recursive.rs#L57-L257)。
+[`render_recursive.rs`](../../../novadraw/src/graph/render_recursive.rs#L57-L257)。
 
 代码中的关键隔离：
 
@@ -202,15 +202,15 @@ self.gc.pop_state();
 
 - 绘制；
 - 命中测试向子树下降；
-- 重绘区域投影。
+- 把重绘区域变换到逻辑表面域。
 
 只修改其中一条链路会造成不可见内容仍可命中，或可见内容无法刷新。
 
 代码锚点：
 
-- [`ChildClippingStrategy`](../../novadraw/src/figure/mod.rs)
-- [`FigureRenderer::paint_client_area`](../../novadraw/src/graph/render_recursive.rs#L146-L193)
-- [`repair::collect_parent_chain_steps`](../../novadraw/src/runtime/update/repair.rs#L109-L159)
+- [`ChildClippingStrategy`](../../../novadraw/src/figure/mod.rs)
+- [`FigureRenderer::paint_client_area`](../../../novadraw/src/graph/render_recursive.rs#L146-L193)
+- [`repair::collect_parent_chain_steps`](../../../novadraw/src/runtime/update/repair.rs#L109-L159)
 
 ## 3.8 命令画布（NdCanvas）
 
@@ -232,8 +232,8 @@ DrawGlyphRun
 
 代码锚点：
 
-- [`NdCanvas`](../../novadraw/src/render/context.rs)
-- [`RenderCommandKind`](../../novadraw/src/render/command.rs)
+- [`NdCanvas`](../../../novadraw/src/render/context.rs)
+- [`RenderCommandKind`](../../../novadraw/src/render/command.rs)
 
 ## 3.9 渲染提交包（RenderSubmission）
 
@@ -252,7 +252,7 @@ pub struct RenderSubmission {
 ```
 
 实际定义：
-[`RenderSubmission`](../../novadraw/src/render/submission.rs#L365-L373)。
+[`RenderSubmission`](../../../novadraw/src/render/submission.rs#L365-L373)。
 
 它分离“画什么”与“如何提交到设备”。渲染后端声明自身能力，`Runtime` 在提交前
 检查命令需要的字形组（`GlyphRuns`）、图像资源（`ImageResources`）等能力。永久
@@ -288,7 +288,7 @@ flowchart LR
 - 绘制表面丢失或过期时走结构化恢复。
 
 代码锚点：
-[`VelloRenderer::submit`](../../novadraw-backend-vello/src/lib.rs#L1114-L1306)。
+[`VelloRenderer::submit`](../../../novadraw-backend-vello/src/lib.rs#L1114-L1306)。
 
 普通轮廓字形如何从 `DrawGlyphRun` 进入 Vello 的路径缓存和 GPU 栅格化管线，见
 [附录：Vello 字形绘制机制](appendix-vello-glyph-rendering.md)。
@@ -357,8 +357,8 @@ runtime.container(root)?.bring_child_to_front(added)?;
 
 ## 3.14 验证入口
 
-- [`m2_product_existence.rs`](../../novadraw/tests/m2_product_existence.rs)
-- [`d1_tree_search_contract.rs`](../../novadraw/tests/d1_tree_search_contract.rs)
-- [`d2_freeform_contract.rs`](../../novadraw/tests/d2_freeform_contract.rs)
-- [`r8_extension_boundaries.rs`](../../novadraw/tests/r8_extension_boundaries.rs)
+- [`m2_product_existence.rs`](../../../novadraw/tests/m2_product_existence.rs)
+- [`d1_tree_search_contract.rs`](../../../novadraw/tests/d1_tree_search_contract.rs)
+- [`d2_freeform_contract.rs`](../../../novadraw/tests/d2_freeform_contract.rs)
+- [`r8_extension_boundaries.rs`](../../../novadraw/tests/r8_extension_boundaries.rs)
 - `cargo xtask run workspace.test`

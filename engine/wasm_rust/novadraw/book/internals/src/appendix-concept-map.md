@@ -9,7 +9,7 @@
 
 ```mermaid
 flowchart TD
-    Model[业务模型<br/>持久事实] --> Projection[Viewer 投影]
+    Model[业务模型<br/>持久事实] --> View[Viewer 视图派生]
     Input[平台输入] --> Interaction[命中与交互状态]
     Interaction --> Editing[Tool / Request / Policy]
     Editing --> Command[候选 Command]
@@ -18,9 +18,9 @@ flowchart TD
     Stack --> Model
 
     External[外部模型变化] --> Synchronize[synchronize / synchronize_model]
-    Synchronize --> Projection
+    Synchronize --> View
 
-    Projection --> Runtime[Runtime<br/>场景事务权威]
+    View --> Runtime[Runtime<br/>场景事务权威]
     App[应用场景修改] --> Runtime
     Interaction --> Runtime
 
@@ -64,7 +64,7 @@ flowchart TD
 | 状态类别 | 典型内容 | 长期所有者 | 合法变化入口 | 可否重建 |
 |---|---|---|---|---|
 | 业务源状态 | 节点、连接、领域属性 | 应用模型 | Command 或明确外部同步 | 不能从视图反推 |
-| 场景源状态 | Figure 拓扑、bounds、样式 | Runtime | 场景事务或 Viewer 投影 | 可从模型部分重建 |
+| 场景源状态 | Figure 拓扑、bounds、样式 | Runtime | 场景事务或 Viewer 视图派生 | 可从模型部分重建 |
 | 派生状态 | 布局、路径、文本排版、内容范围 | Runtime | 稳定化工作列表 | 必须可从依赖重建 |
 | 交互临时状态 | hover、capture、手势、preedit | 输入状态机或 Editor | 事件会话 | 会话结束即丢弃 |
 | 表现状态 | opacity、transform、动画路径、临时视觉 | Runtime 的 Presentation Plane | Animation plan/track | 可随时丢弃 |
@@ -91,7 +91,7 @@ flowchart LR
 | 身份 | 有效范围 | 跨重建稳定性 | 主要消费者 |
 |---|---|---|---|
 | `ModelId` | 业务模型 | 应保持语义稳定 | Command、ModelAdapter、持久化 |
-| `EditPartId` | 单个 Viewer | Viewer 重建后可变化 | 选择、Policy、投影 registry |
+| `EditPartId` | 单个 Viewer | Viewer 重建后可变化 | 选择、Policy、Part registry |
 | `FigureId` | 单个 Runtime | Runtime 重建后可变化 | 树、布局、输入、连接、渲染查询 |
 
 Command 保存业务身份，不保存 Part 或 Figure 身份。输入捕获可以保存当前 Figure 身份，
@@ -123,8 +123,8 @@ flowchart LR
         FeedbackFigure[Feedback Figure]
     end
 
-    ModelNode -->|投影| Part
-    ModelConnection -->|投影| ConnectionPart
+    ModelNode -->|派生视图| Part
+    ModelConnection -->|派生视图| ConnectionPart
     RootPart -->|containment| Part
     Part -->|visual ownership| Primary
     Primary --> Content
@@ -139,7 +139,7 @@ flowchart LR
 
 | 概念 | 属于哪一层 | 负责什么 | 不负责什么 |
 |---|---|---|---|
-| Part | Viewer | 控制模型到稳定 Figure 的投影、Policy 和视觉所有权 | 不保存业务事实，不直接绘制 |
+| Part | Viewer | 控制模型到稳定 Figure 的视图派生、Policy 和视觉所有权 | 不保存业务事实，不直接绘制 |
 | ConnectionPart | Viewer | 控制业务连接的 source/target 关系与连接视觉 | 不成为端点 Part 的 containment child |
 | Connection Figure | Core | 解析 anchor、保存派生路径并绘制 | 不决定业务连接是否存在 |
 | Overlay | Viewer | 统称稳定内容之上的临时视觉所有权 | 不是单一图层，也不是平行 Figure 树 |
@@ -151,7 +151,7 @@ Part 树、视觉所有权和 Figure 树是三种不同关系。Part 树表达�
 同一对对象在三种关系中不必具有相同父子结构。
 
 “Connection”还跨越三个层次：业务连接是持久事实，ConnectionPart 是单个 Viewer 的
-控制器投影，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
+视图控制器，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
 Command；后两层可以随 Viewer 或 Runtime 重建。
 
 ## 四种版本域
@@ -183,7 +183,8 @@ flowchart LR
 | 子内容域 | 后代布局和内容变换 | 容器、Viewport、ScalablePane |
 | 逻辑表面域 | 平台输入、最终重绘区域 | Host、输入系统、帧准备 |
 
-绘制沿正向链下降，命中沿逆链降域，重绘区域沿正向链投影。三者必须读取同一父链事实。
+绘制沿正向链下降，命中沿逆链降域，重绘区域沿正向链变换到逻辑表面域。三者必须读取
+同一父链事实。
 
 ## 固定事务管线
 
@@ -226,13 +227,13 @@ sequenceDiagram
     Session->>Stack: execute / undo / redo
     Stack->>Model: 修改业务事实
     Model-->>Session: revision 与通知
-    Session->>Viewer: 校验并同步投影
+    Session->>Viewer: 校验并同步视图
     Viewer->>Runtime: 提交场景变化
 ```
 
 会话只允许三种结论：
 
-- `commit`：命令成功，通知有效，投影同步；
+- `commit`：命令成功，通知有效，视图同步；
 - `reject`：可恢复拒绝，并证明模型没有变化；
 - `fault`：模型状态未知或协议破坏，Stack 与 Viewer 故障锁定。
 
@@ -286,14 +287,14 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 | 2. 状态、身份与所有权 | 对象和关系 | 单一权威与命名空间身份 | ID 不跨域解释 |
 | 3. 固定管线与扩展 | 扩展差异 | 受控候选结果 | 调度权属于框架 |
 | 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
-| 5. 几何与坐标 | 带域几何 | 可逆或保守的投影 | 绘制、命中和重绘共享变换链 |
+| 5. 几何与坐标 | 带域几何 | 可逆坐标变换或保守表面包围盒 | 绘制、命中和重绘共享变换链 |
 | 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
 | 7. 绘制与帧 | 稳定场景和表现快照 | RenderSubmission 与 acknowledgement | 录制不等于出版 |
 | 8. 动画与表现 | committed facts 和时间 | 可丢弃表现快照 | 表现不反向污染事实 |
 | 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
 | 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
-| 11. 模型投影 | 单一模型 revision | 完整 Viewer 投影 | 模型变化必须受控同步 |
-| 12. 编辑协议 | 连续输入和 Request | 可撤销 Command 结果 | 会话关闭模型与投影事务 |
+| 11. 视图派生 | 单一模型 revision | 完整 Viewer 视图 | 模型变化必须受控同步 |
+| 12. 编辑协议 | 连续输入和 Request | 可撤销 Command 结果 | 会话关闭模型与视图同步事务 |
 | 13. Capability | 新扩展概念 | 正确分类的扩展对象 | Capability 必须有独立消费者 |
 | 14. 正确性与演进 | 变化和故障 | 可重复证据 | 失败前后状态必须可描述 |
 

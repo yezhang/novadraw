@@ -135,7 +135,7 @@ stateDiagram-v2
 - prepare 可直接重算；
 - backend submission 需要 session/frame identity 和 Runtime acknowledgement；
 - model command 若完成状态未知，不能盲目重复；
-- projection revision 断裂应重建，不重放猜测事件。
+- Viewer revision 断裂应重建视图，不重放猜测事件。
 
 每个可重试错误都应说明：
 
@@ -184,7 +184,7 @@ stateDiagram-v2
 
 ### 契约测试
 
-验证跨实现共同语义：树事务、坐标往返、输入取消、布局原子性、投影 revision。
+验证跨实现共同语义：树事务、坐标往返、输入取消、布局原子性、Viewer revision。
 
 ### 集成测试
 
@@ -211,7 +211,7 @@ stateDiagram-v2
 - 坐标往返在容差内一致；
 - old/new damage 覆盖变化；
 - cancel 不修改模型；
-- revision 断裂不做增量投影；
+- revision 断裂不做增量视图同步；
 - registry 的 typed key 不发生类型错配。
 
 属性测试和状态机测试适合生成大量操作序列，特别是添加、换父、删除、撤销和重做组合。
@@ -229,7 +229,7 @@ stateDiagram-v2
 - Unsupported、InvalidInput、OutOfMemory 和 Fatal 停止自动重试；
 - completion 的 session/frame identity 不匹配；
 - capture owner 在 move 前删除；
-- projection 批次中发现重复 ModelId；
+- 视图同步批次中发现重复 ModelId；
 - CompoundCommand 中间步骤失败。
 
 每个注入点都应断言：
@@ -335,10 +335,10 @@ stateDiagram-v2
 2. EditorDomain 在 ViewerEditSession 中执行 CommandStack 操作；
 3. Command 只修改模型权威；
 4. 成功会话校验并消费连续 revision，拒绝会话证明模型未变；
-5. Viewer 从单一快照规划投影；
+5. Viewer 从单一快照规划视图同步；
 6. Runtime 原子更新 Figure 状态；
 7. 布局和连接在稳定 epoch 内收敛；
-8. 坐标链统一投影旧新 visual bounds；
+8. 坐标链统一把旧新 visual bounds 变换到逻辑表面域；
 9. Animation 只生成可丢弃 presentation，不修改 committed truth；
 10. PaintContext 和 CommandRecorder 使用稳定场景与表现快照生成受检绘制记录；
 11. Runtime 是唯一帧出版权威，并为 RenderSubmission 分配 session/frame；

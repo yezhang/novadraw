@@ -223,7 +223,7 @@ update 通路；不让应用借共享可变 Figure 绕开 Runtime。通用节点
 | [viewport parity](../../parity/draw2d/api-coverage.md#L304-L309) | 把已经内部化的 handle mutator 作为公开入口 | identity handle 与 Runtime editor 分开 |
 | [product-deliverables](../../roadmap/product-deliverables.md) | ShortestPath 仍为 Year 2，而 P2-C02 已完成 | 更新能力清单，保留旧阶段范围说明 |
 | [roadmap](../../roadmap/00-index.md) | 当前执行方向仍写从已完成的 ADR-020 继续 | 当前入口只指向真实下一步 |
-| [book](../../../book/src/09-verification-and-extension.md#L72-L78) | `workspace.quality` 已不存在 | 替换为当前有效验证入口 |
+| [book](../../../book/user/src/09-verification-and-extension.md#L72-L78) | `workspace.quality` 已不存在 | 替换为当前有效验证入口 |
 | design 状态/类型 | target、approved、accepted/complete 混用，basic-widgets 使用未列入类型表的 architecture | 规范效力与交付状态分离 |
 
 `cargo xtask docs` 只校验 manifest 引用与 parity 状态词，不解析上述公开符号、

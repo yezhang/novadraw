@@ -4,9 +4,29 @@
 
 | 书籍 | 读者 | 目标 | 入口 |
 |---|---|---|---|
-| 《Novadraw 应用开发与扩展指南》 | 应用开发者、外部扩展作者 | 使用公开 API 构建应用并扩展能力 | [`src/README.md`](src/README.md) |
+| 《Novadraw 应用开发与扩展指南》 | 应用开发者、外部扩展作者 | 使用公开 API 构建应用并扩展能力 | [`user/src/README.md`](user/src/README.md) |
 | 《深入理解 Novadraw》 | 高级用户、架构设计者、贡献者 | 理解稳定模型、不变量与算法 | [`internals/src/README.md`](internals/src/README.md) |
 | 《Novadraw 贡献者指南》 | Novadraw 贡献者 | 在当前仓库中安全实现和验证修改 | [`contributor/src/README.md`](contributor/src/README.md) |
+
+目录约定：
+
+```text
+book/
+├── user/          # 应用开发与扩展指南
+│   ├── book.toml
+│   └── src/
+├── internals/     # 核心原理书
+│   ├── book.toml
+│   └── src/
+├── contributor/   # 贡献者指南
+│   ├── book.toml
+│   └── src/
+├── doc/           # 三本书共享的维护方案，不参与出版
+└── theme/         # 三本书共享的主题资源
+```
+
+`mermaid.min.js`、`mermaid-init.js` 和 `WRITING_PROFILE.md` 同样由三本书共享，保留在
+`book/` 根目录。三本书的读者内容、配置和维护提示词必须留在各自目录内。
 
 分界规则：
 

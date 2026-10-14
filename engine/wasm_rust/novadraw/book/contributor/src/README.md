@@ -33,7 +33,7 @@ Policy 等扩展点增加能力，请阅读
 
 - 修改 Core 的 Figure、Runtime、布局、事件、连接或渲染协议；
 - 新增一种需要 Core 统一发现的横切 Capability；
-- 修改 Editor 的 Tool、Request、Policy、Command 或 Viewer 投影协议；
+- 修改 Editor 的 Tool、Request、Policy、Command 或 Viewer 视图同步协议；
 - 修改公开 API、crate 边界、错误模型或生命周期；
 - 修改平台输入、资源交接或渲染后端合同；
 - 修复必须触及上述内部协议的缺陷。
@@ -58,7 +58,7 @@ Policy 等扩展点增加能力，请阅读
 
 ### 修改 Editor
 
-先掌握 Core 的身份、坐标、输入和 Runtime 提交边界，再进入 Editor 的模型投影和编辑
+先掌握 Core 的身份、坐标、输入和 Runtime 提交边界，再进入 Editor 的视图派生和编辑
 协议。Editor 不拥有第二份业务事实。
 
 ## 贡献完成标准

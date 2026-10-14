@@ -83,6 +83,17 @@
 - 章节间链接；
 - 自动检查词典。
 
+“投影”不能作为跨领域通用词。普通叙述必须按机制选择首选名称：
+
+- 模型经过 Viewer、Part 和 Runtime 形成可重建视图，称为“视图派生”；动作明确时，
+  直接写“构建视图”“同步视图”或“重建视图”；
+- 点、矩形或视觉范围跨坐标域，称为“坐标变换”或“几何变换”，并写明源域和目标域；
+- `projection`、`projected` 或 `project_to_*` 属于源码标识符时保留原名，首次出现时
+  说明其中文语义。
+
+只有真实的 projective transform、透视变换、降维、外部原文和旧术语讨论可以继续使用
+“投影”。
+
 ### BP-04 首次出现即定义
 
 概念首次出现时，应说明：
@@ -238,6 +249,10 @@
 | faulted | 故障锁定状态 | 表示不能继续普通操作 |
 | Presentation Plane | 表现平面 | 不反向修改已提交状态 |
 | RenderSubmission | 渲染提交包 | 后端消费的拥有数据 |
+| model-to-view derivation | 视图派生 | Viewer 根据单一模型 revision 构建或同步 Part/Figure 视图 |
+| view synchronization | 视图同步 | 已有 Viewer 消费模型变化并更新稳定视图 |
+| coordinate transform | 坐标变换 | 点或向量跨明确坐标域 |
+| surface bounds | 表面包围盒 | 几何变换到逻辑表面域后的保守 AABB |
 
 ### 5.3 禁止无定义切换
 
@@ -248,6 +263,7 @@
 - validate、validation、校验、稳定化；
 - model、scene、presentation、backend state；
 - 失败、拒绝、取消、故障锁定。
+- 视图派生、坐标变换和未定义的 projection。
 
 如果这些概念确实不同，应分别定义。
 

@@ -31,7 +31,7 @@
 -> Figure Runtime
 -> Tool -> Request -> EditPolicy -> Command
 -> 修改模型
--> 刷新图形投影
+-> 同步图形视图
 ```
 
 ## 适合谁
