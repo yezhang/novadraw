@@ -192,16 +192,19 @@ preedit 和插入光标闪烁阶段。它不能被误认为持久业务事实。
 
 ### 表现状态
 
-表现状态（presentation state）是场景运行时拥有的可丢弃视觉覆盖，例如动画中的透明度、
-变换、路径和临时视觉。它可以在多帧中变化，但不能反向写入模型、图形对象边界矩形、
-布局结果、连接路由或命令历史。
+表现状态层（Presentation Plane）是场景运行时在稳定场景状态与帧录制之间维护的
+可丢弃状态边界。表现状态包括动画当前采样出的透明度、变换、内容等表现覆盖值，以及
+不进入 Figure 树的动画临时绘制项。它可以在多帧中变化，但不能反向写入模型、图形
+对象边界矩形、布局结果、连接路由或命令历史。
 
-没有活动表现覆盖时，表现状态等价于直接读取稳定场景状态。
+`PresentationSnapshot` 是当前帧的表现覆盖快照，只包含活动 Figure 的稀疏覆盖和动画
+临时绘制项。没有活动表现覆盖时，当前帧不生成表现覆盖快照，帧录制直接读取稳定场景
+状态。
 
 ### 后端状态
 
 后端状态保存 GPU 或软件资源、surface 和已经呈现的像素。绘制命令、重绘区域、资源
-增量和渲染提交包只是从稳定场景状态与只读表现快照送往后端的输出，不属于场景状态。
+增量和渲染提交包只是从稳定场景状态与可选表现覆盖快照送往后端的输出，不属于场景状态。
 后端状态不能反向成为场景状态的权威来源。
 
 这六类状态之间只能沿明确方向传播：
@@ -215,8 +218,10 @@ flowchart TD
     Session[交互临时状态] --> Intent[编辑意图]
     Intent --> Business
     Derived --> Stable[稳定场景状态]
-    Stable --> Presentation[表现状态]
-    Presentation --> Output[渲染输出]
+    Stable --> Record[帧录制输入]
+    Stable --> Presentation[表现状态层]
+    Presentation -.可选表现覆盖快照.-> Record
+    Record --> Output[渲染输出]
     Output --> Backend[后端状态]
 ```
 
@@ -232,7 +237,7 @@ sequenceDiagram
     participant Source as 应用或 Viewer
     participant Runtime
     participant Derived as 派生计算
-    participant Presentation as 表现平面
+    participant Presentation as 表现状态层
     participant Recorder as 命令录制
     participant Host as 平台宿主
     participant Backend as 渲染后端
@@ -241,10 +246,10 @@ sequenceDiagram
     Runtime->>Runtime: 校验并提交场景状态变化
     Runtime->>Derived: 收敛布局、连接和容器状态
     Derived-->>Runtime: 稳定场景状态
-    Runtime->>Presentation: 采样可选表现状态
-    Presentation-->>Runtime: 只读表现快照
+    Runtime->>Presentation: 采样活动表现覆盖
+    Presentation-->>Runtime: 稀疏表现覆盖快照或 None
     Runtime->>Runtime: 计算重绘区域
-    Runtime->>Recorder: 稳定场景状态 + 表现快照
+    Runtime->>Recorder: 稳定场景状态 + 可选表现覆盖快照
     Recorder-->>Runtime: 绘制命令
     Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
     Host->>Backend: RenderBackend::submit
@@ -256,7 +261,7 @@ sequenceDiagram
 这条链包含六个容易混淆的阶段：
 
 1. **场景稳定**：所有必须的派生状态已经闭合，形成稳定场景状态；
-2. **表现采样**：只读表现快照已经形成，但没有改变已提交场景状态；
+2. **表现采样**：有活动覆盖时形成稀疏表现覆盖快照；没有活动覆盖时不生成快照；
 3. **提交包已就绪**：Runtime 已分配 session/frame 并建立 in-flight 状态，但 Host
    尚未调用后端；
 4. **提交后端**：Host 已调用 `RenderBackend::submit`，但结果尚未确定；
@@ -359,8 +364,9 @@ Viewer 或 ViewerEditSession/CommandStack 提交。
 
 ### 8. 表现不能反向污染事实
 
-动画、反馈图形和其他表现覆盖可以改变当前帧，但不能修改模型、已提交图形状态、布局、
-路由、通知或撤销历史。清除表现覆盖后，系统应直接显示已经存在的最终事实。
+动画表现覆盖可以改变当前帧，但不能修改模型、已提交图形状态、布局、路由、通知或
+撤销历史。清除表现覆盖后，系统应直接显示已经存在的最终事实。Viewer 的反馈图形属于
+Overlay Figure，不属于表现状态层。
 
 ## 1.9 完整案例：移动一个已连接节点
 
@@ -404,9 +410,9 @@ Viewer 或 ViewerEditSession/CommandStack 提交。
 ### 阶段五：形成新帧
 
 1. Runtime 收敛布局和连接；
-2. 表现平面从稳定事实生成可选只读快照；
+2. 表现状态层从活动覆盖生成可选的稀疏只读快照；
 3. 新旧视觉范围合并为重绘区域；
-4. Renderer 使用稳定图形对象树和表现快照录制命令；
+4. Renderer 使用稳定图形对象树和可选表现覆盖快照录制命令；
 5. 绘制命令、重绘区域和资源数据组成渲染提交包；
 6. Host 把提交包交给后端，并取得结构化结果；
 7. Host 把结果交回 Runtime；

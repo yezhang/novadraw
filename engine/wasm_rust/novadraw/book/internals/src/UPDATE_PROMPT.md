@@ -50,6 +50,11 @@
 - 运行时帧协议依次使用“帧提交准备”“渲染提交包已就绪”“Host 提交后端”“帧已呈现”
   和“完成已确认”；普通叙述不使用“帧出版”，也不把提交包就绪写成已提交或已呈现。
   书稿和读者内容的出版边界继续使用“出版”。
+- `Presentation Plane` 首次定义为“表现状态层”，`PresentationSnapshot` 称为“表现
+  覆盖快照”，`FigurePresentation` 称为“图形准备结果”，`TemporaryVisual` 称为
+  “动画临时绘制项”；普通叙述不使用“表现平面”。
+- “表现”只描述 Runtime 中可丢弃的当前视觉状态，“呈现”只描述 surface 与后端的
+  present 结果。动画临时绘制项不得与 Viewer 的 Overlay、Handle 或 Feedback 混用。
 
 ## 章节模板
 

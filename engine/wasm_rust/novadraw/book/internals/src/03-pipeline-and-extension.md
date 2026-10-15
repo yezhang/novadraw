@@ -402,7 +402,7 @@ Policy 不应直接改模型，Tool 不应直接改 Figure 作为最终结果，
 - 第 4 章把结构变更建模为树事务；
 - 第 6 章把布局建模为 snapshot 与 output；
 - 第 7 章把稳定场景状态转成帧提交；
-- 第 8 章把动画限制为 Runtime-owned Presentation Plane；
+- 第 8 章把动画限制在 Runtime 拥有的表现状态层；
 - 第 9 章把回调效果排队后统一应用；
 - 第 11 章把视图同步拆成 plan、validate、commit；
 - 第 13 章进一步区分基础协议、Capability 和组件更新；

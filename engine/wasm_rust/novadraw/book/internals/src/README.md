@@ -101,7 +101,10 @@
 | 客户区 | client area | 父节点提供给子内容的可用区域 |
 | 重绘区域 | damage | 表面上可能需要修复的保守像素范围 |
 | 校验收敛 | validation | 使布局和其他派生状态达到稳定版本的过程 |
-| 表现平面 | Presentation Plane | 从稳定场景状态采样出的可丢弃视觉覆盖 |
+| 表现状态层 | Presentation Plane | Runtime 在稳定场景状态与帧录制之间维护的可丢弃状态边界 |
+| 表现覆盖快照 | PresentationSnapshot | 当前帧可选的稀疏覆盖集合；无活动覆盖时不生成 |
+| 图形准备结果 | FigurePresentation | 受检测量、视觉边界和不可变绘制数据，不专属于动画 |
+| 动画临时绘制项 | TemporaryVisual | Runtime 管理、树外、默认不可交互的绘制项 |
 | 帧提交准备 | frame submission preparation | Runtime 从稳定场景状态生成正式渲染提交包的过程 |
 | 渲染提交包 | RenderSubmission | Runtime 生成并交给 Host 的一帧拥有数据 |
 | 提交包已就绪 | FramePreparation::Ready | Runtime 已建立 in-flight，Host 尚未调用后端 |

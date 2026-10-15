@@ -66,6 +66,11 @@ Runtime 直接状态使用“场景源状态”，提交后的前缀使用“已
 `SubmissionAcknowledgement` 表示 Runtime 已形成完成确认结果。真实代码标识符保持
 原名，普通叙述不使用“帧出版”。
 
+动画相关说明必须区分：`FigurePresentation` 是图形准备结果，
+`PresentationSnapshot` 是稀疏表现覆盖快照，`TemporaryVisual` 是 Runtime 管理的树外
+动画临时绘制项。Viewer 的 Overlay、Handle 和 Feedback 进入 Figure 树，不属于表现
+状态层。普通叙述不使用“表现平面”。
+
 ## 同步规则
 
 发生以下变化时必须检查贡献者指南：

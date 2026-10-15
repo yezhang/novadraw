@@ -40,7 +40,7 @@
 -> Runtime 事务
 -> 布局与派生状态收敛
 -> 稳定场景状态
--> 可选 presentation snapshot
+-> 可选表现覆盖快照
 -> damage 与绘制命令
 -> 后端提交和完成反馈
 ```
@@ -165,21 +165,21 @@
 
 关键图：从 mutation 到完成反馈的完整帧生命周期。
 
-### 第 8 章：动画与表现平面
+### 第 8 章：动画与表现状态
 
 主问题：如何产生连续视觉过渡，同时保证模型、布局、命中、通知和历史只认最终事实？
 
 覆盖：
 
-- committed、presentation 与 backend 三个状态平面；
+- 已提交状态、表现状态与后端状态的所有权边界；
 - Target、Motion、Trigger 与 Composition；
-- Runtime-owned clock、timeline 与 presentation snapshot；
+- Runtime-owned clock、timeline 与稀疏表现覆盖快照；
 - before/after capture、channel ownership 与 retarget；
 - old/new visual envelope 与 animation damage；
-- Disabled、ReducedMotion、suspension 和 interaction geometry；
-- layout、route、viewport 与 temporary visual 消费者。
+- Disabled、ReducedMotion、suspension 和当前已实现的 interaction geometry；
+- layout、route、viewport 与动画临时绘制项消费者。
 
-关键图：committed state 经 Presentation Plane 形成帧，而不反向污染源状态。
+关键图：稳定场景状态与可选表现覆盖快照合并形成帧，表现状态不反向污染源状态。
 
 ### 第 9 章：命中、输入与交互状态
 

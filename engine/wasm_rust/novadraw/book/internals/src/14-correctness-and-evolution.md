@@ -340,8 +340,9 @@ stateDiagram-v2
 6. Runtime 原子更新 Figure 状态；
 7. 布局和连接在稳定 epoch 内收敛；
 8. 坐标链统一把旧新 visual bounds 变换到逻辑表面域；
-9. Animation 只生成可丢弃 presentation，不修改 committed truth；
-10. PaintContext 和 CommandRecorder 使用稳定场景状态与表现快照生成受检绘制记录；
+9. Animation 只生成可丢弃的表现覆盖值和动画临时绘制项，不修改已提交状态；
+10. PaintContext 和 CommandRecorder 使用稳定场景状态与可选表现覆盖快照生成受检
+    绘制记录；
 11. 只有 Runtime 可以生成正式 `RenderSubmission` 并分配 session/frame；
 12. Backend 返回结构化 RenderResult；
 13. Runtime acknowledgement 决定资源基线和 session 恢复；

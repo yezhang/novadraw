@@ -122,7 +122,7 @@ flowchart TD
         PreparedGeometry --> RouteCommit[原子提交连接几何]
         LayoutCommit --> Containers[Layer / Freeform extent / Viewport range]
         RouteCommit --> Containers
-        Containers --> Presentation[文本、图像与边框呈现快照]
+        Containers --> Presentation[文本、图像与边框准备]
         Presentation --> Stable[stable_epoch / 稳定场景状态]
         LayoutCommit -.产生新工作.-> Worklist
         RouteCommit -.产生新工作.-> Worklist

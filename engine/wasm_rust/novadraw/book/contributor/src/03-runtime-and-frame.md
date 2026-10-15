@@ -72,6 +72,15 @@ session 与 frame 身份，宿主将后端结果交回完成入口后，才能�
 `Suspended` 只表示 surface 当前不可呈现。Runtime 仍管理已提交场景状态和待处理工作，
 但该结果本身不证明最新派生工作已经稳定。
 
+贡献者还必须区分三类名称相近的视觉对象：
+
+- `FigurePresentation` 是图形准备结果，包含受检测量、视觉边界和不可变绘制数据；
+- `PresentationSnapshot` 是当前帧可选的稀疏表现覆盖快照，没有活动覆盖时为 `None`；
+- `TemporaryVisual` 是 Runtime 动画服务管理的树外动画临时绘制项。
+
+Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现状态层。它们继续
+使用 Figure 树的坐标、裁剪、命中、重绘和销毁协议。
+
 需要核验的公开合同：
 
 - [`ADR-018：Runtime 驱动与测量 API`](../../../doc/adr/adr-018-runtime-driving-and-measurement-api.md)

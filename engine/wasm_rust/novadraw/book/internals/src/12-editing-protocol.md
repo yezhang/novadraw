@@ -144,7 +144,7 @@ Handle 与 Feedback 都是普通 Figure 子树，因此继续使用同一坐标�
 
 Overlay 的典型生命周期按因果顺序发生：
 
-1. selection 或 Tool 会话决定需要哪些临时视觉；
+1. selection 或 Tool 会话决定需要哪些 Overlay Figure；
 2. Viewer 创建 Handle 或 Feedback 身份；
 3. Figure 挂入具有正确缩放语义的 overlay layer；
 4. visual ownership registry 登记 Figure 与临时所有者；

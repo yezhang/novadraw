@@ -1,4 +1,4 @@
-# 8. 动画与表现平面
+# 8. 动画与表现状态
 
 > **本章解决的问题**：如何让属性、布局、连接和视口产生连续视觉过渡，同时保证模型、
 > Figure、布局、命中、通知和撤销仍然只认同一份最终事实？
@@ -9,8 +9,8 @@ bounds、连接路径或业务属性，布局、通知、命中、撤销和重�
 
 核心结论是：
 
-> 权威状态立即提交最终结果；动画只在 Runtime 拥有的 Presentation Plane 中生成可丢弃
-> 的表现值。
+> 权威状态立即提交最终结果；动画只在 Runtime 拥有的表现状态层
+> （Presentation Plane）中生成可丢弃的表现覆盖值。
 
 ## 8.1 为什么逐帧修改源状态是错误模型
 
@@ -24,20 +24,22 @@ bounds、连接路径或业务属性，布局、通知、命中、撤销和重�
 - 不同刷新率会产生不同状态序列。
 
 动画真正需要的是“最终事实已经是 B，但当前画面暂时显示在 A 与 B 之间”。这要求把
-状态分成不同平面，而不是让一个字段承担两种时间语义。
+状态分成不同层次，而不是让一个字段承担两种时间语义。
 
-## 8.2 三个状态平面
+## 8.2 已提交状态、表现状态与后端状态
 
-Novadraw 区分三层状态：
+这三类状态具有不同所有者和生命周期：
 
 ```mermaid
 flowchart LR
-    Source[已提交状态<br/>模型与场景最终值] --> Presentation[表现状态<br/>当前表现]
-    Presentation --> Submission[RenderSubmission<br/>帧输入]
+    Source[已提交状态<br/>模型与场景最终值] --> Record[帧录制输入]
+    Source --> Presentation[表现状态层]
+    Presentation -.可选表现覆盖快照.-> Record
+    Record --> Submission[RenderSubmission<br/>帧输入]
     Submission --> Backend[Backend state<br/>资源与像素]
 
     Source -.布局 / 路由 / 命中 / 通知.-> Semantics[语义消费者]
-    Presentation -.绘制 / 可选表现命中.-> Visual[视觉消费者]
+    Record -.绘制.-> Visual[视觉消费者]
 ```
 
 ### 已提交状态
@@ -52,20 +54,33 @@ flowchart LR
 
 源事务必须先完成验证和派生状态收敛。动画不能延迟业务提交。
 
-### Presentation state
+### 表现状态层
 
-这是 Runtime-owned、可丢弃的派生层：
+表现状态层是 Runtime 在稳定场景状态与帧录制之间维护的可丢弃状态边界。它包含：
 
-- 当前 opacity、transform、paint；
-- layout bounds 或 route 的当前表现 geometry；
-- temporary visual；
-- endpoint decoration override；
-- sampled visual envelope。
+- 当前 opacity、transform 和内容等表现覆盖值；
+- 布局边界或连接路径的采样表现几何；
+- 不进入 Figure 树的动画临时绘制项；
+- 表现覆盖的所有者和生命周期信息；
+- 计算重绘区域所需的保守视觉包围范围。
 
-它不产生 FigureMoved、业务属性通知、route notification 或 undo entry。清除该层后，
-画面直接显示已经存在的已提交最终状态。
+`PresentationSnapshot` 是当前帧的表现覆盖快照。它只保存活动 Figure 的稀疏覆盖和
+动画临时绘制项，不是完整 Figure 树或另一份场景。没有活动表现覆盖时，
+`AnimationService::snapshot()` 返回 `None`，帧录制直接读取稳定场景状态。
 
-### Backend state
+表现状态不产生 FigureMoved、业务属性通知、route notification 或 undo entry。清除
+覆盖后，画面直接显示已经存在的已提交最终状态。
+
+### 图形准备结果
+
+`FigurePresentation` 是图形准备结果，包含受检测量、视觉边界和不可变绘制数据。普通
+Figure 准备、动画内容覆盖和动画临时绘制项都可以复用它，因此它不等同于表现覆盖快照，
+也不专属于动画。
+
+`PresentationBinding<V>` 是表现准备绑定。它读取类型化当前值，并把同一家族的有效值
+准备成图形准备结果；Runtime 仍负责通道采样和帧录制。
+
+### 后端状态
 
 后端只消费 RenderSubmission，并管理 GPU 或软件资源。后端可以优化表现值的降低方式，
 但不能定义动画时间、取消语义或最终状态。
@@ -76,7 +91,7 @@ flowchart LR
 
 | 维度 | 回答 | 不负责 |
 |---|---|---|
-| Target | 哪个 subject 的哪个表现 channel 变化 | 时间曲线 |
+| Target | 哪个 subject 的哪个表现通道变化 | 时间曲线 |
 | Motion | 给定时间如何采样值 | 查找 Figure、提交帧 |
 | Trigger | 何时创建或 retarget plan | 插值与组合 |
 | Composition | Track 如何并行、顺序、错峰或重复 | 修改源状态 |
@@ -92,29 +107,29 @@ flowchart TD
     Motion --> Track
     Composition --> Timeline[Timeline 调度]
     Track --> Timeline
-    Timeline --> Sample[Presentation sample]
+    Timeline --> Sample[表现采样]
 ```
 
 显式调用直接创建 Plan，不需要构造一个虚假的 ExplicitTrigger。Trigger 属于可选的
 AnimationBehavior，用于观察稳定 fact 后创建 Plan。两条入口最终进入同一 admission、
-channel ownership 和采样管线。
+通道所有权和采样管线。
 
-## 8.4 Target 与 Presentation Channel
+## 8.4 Target 与动画表现通道
 
-Target 由 subject identity 和 typed channel identity 组成。常见 channel 包括：
+Target 由 subject identity 和类型化动画表现通道 identity 组成。常见通道包括：
 
 - opacity、local transform、Color 或 Paint；
-- layout result 的 child presentation bounds；
-- Connection route presentation；
+- layout result 的 child 表现边界；
+- Connection route 表现值；
 - Viewport pan、zoom 和 fit transform；
 - dash phase 和 route visual progress；
-- temporary visual 的完整 FigurePresentation；
-- 外部 Figure 声明的 typed presentation binding。
+- 动画临时绘制项的完整 `FigurePresentation`；
+- 外部 Figure 声明的类型化 `PresentationBinding<V>`。
 
-Channel 不是覆盖所有 Figure 私有状态的中心枚举。Core 提供通用 channel；Connection、
-Viewport 和外部 Figure 可以通过 typed descriptor 增加领域 channel。
+表现通道不是覆盖所有 Figure 私有状态的中心枚举。Core 提供通用通道；Connection、
+Viewport 和外部 Figure 可以通过类型化 descriptor 增加领域通道。
 
-同一 subject/channel 同时只有一个 owner，除非该 channel 明确声明可组合代数。
+同一 subject/表现通道同时只有一个 owner。
 
 ## 8.5 Motion 只负责采样
 
@@ -131,7 +146,7 @@ Motion 不能：
 - 查询或修改 Runtime；
 - 请求重绘；
 - 修改 Figure 或模型；
-- 决定 channel 冲突；
+- 决定表现通道冲突；
 - 返回后端专有类型。
 
 同一绝对时间必须产生确定结果。掉帧后直接采样新的单调时间，而不是循环补做每个中间
@@ -166,8 +181,8 @@ Runtime
 └── AnimationService
     ├── mode
     ├── active timelines
-    ├── presentation overrides
-    ├── temporary visuals
+    ├── 表现覆盖值
+    ├── 动画临时绘制项
     └── next wakeup
 ```
 
@@ -199,9 +214,9 @@ sequenceDiagram
     Scene-->>Runtime: 稳定场景状态
     Runtime->>Animation: 处理稳定变化记录 / plans
     Animation->>Animation: 采样 active tracks
-    Animation-->>Runtime: immutable presentation snapshot
-    Runtime->>Runtime: 合并 old/new presentation damage
-    Runtime->>Recorder: 稳定场景状态 + 表现快照
+    Animation-->>Runtime: 稀疏表现覆盖快照或 None
+    Runtime->>Runtime: 合并前后表现范围的 damage
+    Runtime->>Recorder: 稳定场景状态 + 可选表现覆盖快照
     Recorder-->>Runtime: RenderSubmission
     Runtime-->>Host: FramePreparation::Ready
     Host->>Backend: submit(RenderSubmission)
@@ -239,32 +254,32 @@ Trigger。Trigger 只决定“何时建计划”，不决定“如何插值”�
 的旧几何，不能在 mutation 后从新状态反推。
 
 ```text
-capture selected stable presentation
+捕获过渡前稳定边界、路径或图形准备结果
 -> 提交 source mutation
 -> 收敛新的稳定场景状态
 -> 比较 before / after
 -> admission
--> 建立 presentation transition
+-> 建立视觉过渡
 ```
 
-capture 是 Runtime-scoped、one-shot 的拥有值。它不锁住 FigureTree，也不承诺 source
-rollback。
+过渡前快照是 Runtime-scoped、one-shot 的拥有值。它不锁住 FigureTree，也不承诺
+source rollback。
 
 若 transition admission 失败：
 
 - source mutation 保持已提交；
 - 不创建半个 timeline；
-- 不留下 channel owner、override 或 wakeup；
+- 不留下通道 owner、表现覆盖值或 wakeup；
 - 画面直接显示已提交最终状态。
 
 ## 8.11 Damage 与视觉包络
 
-每次采样必须同时给出 old/new visual envelope：
+每次采样必须同时给出前后保守视觉包围范围：
 
 ```text
 damage =
-    union(old_presentation_envelope,
-          new_presentation_envelope)
+    union(old_visual_envelope,
+          new_visual_envelope)
 ```
 
 包络需要覆盖：
@@ -272,20 +287,21 @@ damage =
 - stroke 与 shadow outset；
 - transform 后的保守范围；
 - Connection decoration；
-- temporary visual 的创建、移动和删除；
+- 动画临时绘制项的创建、移动和删除；
 - cancel 后当前表现与已提交最终视觉的差异。
 
-只有值而没有包络的 presentation effect 不能进入可见管线。后端可以优化实际绘制，但
-不能缩小 Core 无法证明安全的 damage。
+只有表现覆盖值而没有保守视觉包围范围的效果不能进入可见管线。后端可以优化实际绘制，
+但不能缩小 Core 无法证明安全的 damage。
 
 ## 8.12 Channel 冲突与 Retarget
 
-同一 channel 出现新计划时，可以选择：
+当前公开 `InterruptionPolicy` 支持两种处理：
 
-- Replace：从当前 presentation value 原子 retarget；
-- Queue：等待当前 owner 结束；
+- Replace：从当前表现值原子 retarget；
 - Ignore：保留现有 owner；
-- Additive：仅当 channel 声明组合代数时使用。
+
+已接受设计还定义了 Queue 和 Additive，但当前公开 API 尚未实现。Queue 需要显式等待
+当前 owner 结束；Additive 还要求通道声明组合代数。书稿不能把这两项写成当前可用策略。
 
 交互状态通常使用 Replace。Retarget 必须先完整预检 replacement，再采样当前表现并
 转移 owner。若预检失败，旧计划原样继续，不能短暂闪到已提交最终状态。
@@ -294,8 +310,8 @@ damage =
 
 取消动画的默认语义是：
 
-1. 移除 track、temporary visual 和 wakeup；
-2. 清除 presentation override；
+1. 移除 track、动画临时绘制项和 wakeup；
+2. 清除表现覆盖值；
 3. 显示已经存在的已提交最终状态；
 4. damage 覆盖当前表现与最终视觉范围。
 
@@ -312,7 +328,7 @@ source operation 或新 Plan，而不是回滚已提交状态。
 | ReducedMotion | 使用声明过的短时、离散或静态 fallback |
 
 全局 Disabled 高于局部请求。切换到 Disabled 时，Runtime 原子终止 active plan、清理
-override/temporary visual、重算 damage 和 wakeup。
+表现覆盖值和动画临时绘制项，并重算 damage 和 wakeup。
 
 切回 Enabled 不自动复活已终止计划。模式切换只有在像素实际变化时才请求帧。
 
@@ -322,51 +338,57 @@ Surface suspended 或 target effectively hidden 时，每个计划需要明确�
 
 - Advance：逻辑时间继续，恢复时采样当前绝对时间；
 - Pause：恢复后平移 local time；
-- Finish：清除 override，直接显示已提交最终状态。
+- Finish：清除表现覆盖值，直接显示已提交最终状态。
 
 持续 Connection 效果通常使用 Pause；短时业务 transition 通常使用 Advance。不能由
 每个 Figure 私自实现另一套隐藏计时规则。
 
 ## 8.16 交互与 Accessibility
 
-可见 Track 必须声明交互几何：
+公共协议声明三种交互几何策略：
 
 - Committed：命中使用最终几何；
 - Presentation：命中使用当前采样几何；
-- NonInteractive：temporary visual 不参与输入。
+- NonInteractive：对象不参与输入或 accessibility。
 
-表现几何参与命中时，绘制和命中必须消费同一 sampled presentation snapshot。否则会
-出现“看得见但点不到”或目标随下一帧跳变。
+当前 Figure 动画的命中仍使用已提交几何。`bind_figure` 和
+`bind_presentation` 只接受 `Committed`；传入 `Presentation` 或 `NonInteractive`
+会返回 `UnsupportedInteractionGeometry`。`Presentation` 策略保留在公共协议中，
+现有 Figure 绑定尚未实现基于采样表现几何的命中。
 
-Accessibility 的 role、state 和 action 始终来自稳定场景状态。Temporary visual
-默认不进入 accessibility tree；presentation bounds 是否更新必须由平台合同显式决定。
+`TemporaryVisual` 是树外动画临时绘制项，默认不参与命中或 accessibility。Viewer 的
+Overlay、Handle 和 Feedback 则是 Figure 树中的临时 Figure 子树所有权机制，继续使用
+Figure 树的坐标、裁剪、重绘和销毁协议。
+
+未来若启用采样表现几何命中，绘制和命中必须消费同一表现覆盖快照。Accessibility 的
+role、state 和 action 仍来自稳定场景状态；是否报告采样表现边界必须由平台合同明确。
 
 ## 8.17 领域能力如何接入
 
 ### 属性过渡
 
-Committed property 立即变成最终值；Track 只覆盖 opacity、transform、Color 等表现
-channel。未安装 Behavior 时保持静态行为。
+已提交属性立即变成最终值；Track 只覆盖 opacity、transform、Color 等动画
+表现通道。未安装 Behavior 时保持静态行为。
 
 ### Layout result transition
 
-LayoutManager 只计算一次 final bounds。动画在 before/after stable snapshot 之间插值
-presentation bounds，不每帧重新布局。
+LayoutManager 只计算一次 final bounds。动画在过渡前后稳定快照之间插值采样表现边界，
+不每帧重新布局。
 
 ### Connection route transition
 
-Router 只计算 final route。兼容 topology 可以插值；不兼容 topology 使用 old temporary
-route 与 new route 的 opacity crossfade，不伪造通用 path morph。
+Router 只计算 final route。兼容 topology 可以插值；不兼容 topology 使用旧动画临时
+路径与新路径的 opacity crossfade，不伪造通用 path morph。
 
 ### Viewport transition
 
-Committed origin/scale 先到最终值，presentation transform 再过渡。直接用户输入默认
-抢占自动 pan/zoom；auto-expose 仍是输入控制器，不伪装成固定 Tween。
+已提交 origin/scale 先到最终值，表现变换再过渡。直接用户输入默认抢占自动
+pan/zoom；auto-expose 仍是输入控制器，不伪装成固定 Tween。
 
 ### 持续效果
 
 Dash flow、moving pulse 等使用 Procedural track，共享 Runtime clock。它们不修改 route、
-通知、history 或 hit-test，并受 active-track 与 temporary-visual 预算约束。
+通知、history 或 hit-test，并受 active-track 与动画临时绘制项预算约束。
 
 ## 8.18 失败语义
 
@@ -375,18 +397,18 @@ Animation admission 在修改任何表现所有权前验证：
 - 单调时间；
 - duration、key time、value 和 simulation 参数；
 - target namespace 与 generation；
-- channel capability 与冲突策略；
+- 表现通道 capability 与冲突策略；
 - interaction geometry；
-- visual envelope；
-- active track 和 temporary visual 预算。
+- 保守视觉包围范围；
+- active track 和动画临时绘制项预算。
 
 失败边界：
 
-- admission 失败不创建 ID、owner、override、wakeup 或 damage；
+- admission 失败不创建 ID、owner、表现覆盖值、wakeup 或 damage；
 - retarget 失败保留旧计划；
 - sample/provider error 终止当前计划并显示已提交最终状态；
 - provider panic 沿 Runtime fault boundary 处理；
-- target dispose 同一事务清理 track、temporary visual 和 wakeup；
+- target dispose 同一事务清理 track、动画临时绘制项和 wakeup；
 - backend 不支持时在提交前拒绝或使用已声明 fallback。
 
 动画失败从不回滚已经提交的模型、布局或路由。
@@ -397,12 +419,12 @@ Animation admission 在修改任何表现所有权前验证：
 
 ```text
 advance/sample = O(active tracks)
-presentation lookup = O(animated subjects/channels)
+表现覆盖查找 = O(animated subjects/channels)
 damage merge = O(sampled visual effects)
 ```
 
 所有随机数、时钟和平台尺寸必须作为显式输入。Headless 用固定 MonotonicTime 重放时，
-相同计划、相同输入和相同时间点必须产生语义等价的 presentation snapshot。
+相同计划、相同输入和相同时间点必须产生语义等价的表现覆盖快照。
 
 性能降级不能改变最终已提交状态。预算耗尽只拒绝新计划，不能驱逐无关 active
 plan 或静默修改组合语义。
@@ -410,11 +432,11 @@ plan 或静默修改组合语义。
 ## 8.20 必须保持的不变量
 
 1. 已提交状态是模型、布局、路由、通知和历史的最终值来源；
-2. Presentation state 由 Runtime 拥有且可随时丢弃；
+2. 表现状态由 Runtime 拥有且可随时丢弃；
 3. 动画采样不产生 source mutation 或 derived-state work；
 4. 所有时间来自同一 Runtime 单调时间入口；
 5. 每个可见 sample 都提供保守 old/new envelope；
-6. 同一 subject/channel 的 owner 唯一；
+6. 同一 subject/表现通道的 owner 唯一；
 7. Cancel 清除表现覆盖并显示已提交最终状态；
 8. Retarget 失败时旧计划原样继续；
 9. 交互几何策略必须显式；
@@ -434,7 +456,7 @@ plan 或静默修改组合语义。
 
 Core 无法统一 damage、Headless 结果、ReducedMotion 和取消语义。
 
-### Cancel 保留当前 override
+### Cancel 保留当前表现覆盖值
 
 Timeline 已结束但表现状态仍存在，形成没有 owner 的第二权威。
 
@@ -446,25 +468,26 @@ Timeline 已结束但表现状态仍存在，形成没有 owner 的第二权威�
 
 值类型、命名空间和外部扩展边界只能在运行时猜测。
 
-### Temporary visual 默认可命中
+### 把动画临时绘制项当作 Overlay
 
-预览对象意外成为输入和 accessibility 目标。
+两者具有不同所有者和树归属。`TemporaryVisual` 不进入 Figure 树；Overlay、Handle 和
+Feedback 由 Viewer 管理，并继续使用 Figure 树的交互协议。
 
 ## 8.22 与前后章节的关系
 
 第 7 章定义稳定场景状态、damage、RenderSubmission 和 Runtime acknowledgement。
-本章在不改变已提交场景状态的前提下，为帧录制增加只读 presentation snapshot。
+本章在不改变已提交场景状态的前提下，为帧录制增加可选的稀疏表现覆盖快照。
 
-下一章从平台输入进入场景。输入命中默认读取已提交几何；只有 Track 明确选择
-Presentation 策略时，命中才读取与当前帧一致的表现几何。第 10 章的 Viewport 和
-Connection 则是 Presentation Plane 的典型领域消费者。
+下一章从平台输入进入场景。当前输入命中读取已提交几何；`Presentation` 策略已经进入
+公共协议，但现有 Figure 绑定仍会拒绝该策略。第 10 章的 Viewport 和 Connection 是
+表现状态层的领域消费者。
 
 ## 8.23 思考题
 
 1. 为什么布局动画不能每帧调用 LayoutManager？
-2. Source 已经是最终值时，取消动画为什么不需要回滚？
+2. 源状态已经是最终值时，取消动画为什么不需要回滚？
 3. Retarget 为什么必须在替换 owner 前完成预检？
-4. Viewport 使用 Presentation 命中时，输入系统必须共享什么快照？
+4. 未来启用 Presentation 命中时，输入系统必须共享什么快照？
 5. 不兼容 Connection route 为什么应 crossfade，而不是强行逐点插值？
-6. Disabled 模式为什么仍需要清理旧 override 和 damage？
+6. Disabled 模式为什么仍需要清理旧表现覆盖值和 damage？
 7. active set 为空时，如何证明动画服务没有持续成本？

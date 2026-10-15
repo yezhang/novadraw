@@ -2,7 +2,7 @@
 
 本附录用于回顾全书的因果、所有权和身份关系，不替代各章中的推导。
 
-遇到一个新问题时，先判断它属于哪个状态平面，再判断由谁提交、使用什么身份，以及失败
+遇到一个新问题时，先判断它属于哪类状态，再判断由谁提交、使用什么身份，以及失败
 后哪些事实必须保持不变。
 
 ## 一致性总图
@@ -31,8 +31,9 @@ flowchart TD
     Tree --> Stabilize
     Stabilize --> Stable[稳定场景状态]
 
-    Stable --> Presentation[Presentation Plane<br/>可丢弃表现]
-    Presentation --> Record[PaintContext / CommandRecorder]
+    Stable --> Record[PaintContext / CommandRecorder]
+    Stable --> Presentation[表现状态层]
+    Presentation -.可选表现覆盖快照.-> Record
     Stable --> Damage[重绘区域]
     Damage --> PrepareSubmission[Runtime 准备提交包]
     Record --> PrepareSubmission
@@ -69,7 +70,7 @@ flowchart TD
 | 场景源状态 | Figure 拓扑、bounds、样式 | Runtime | 场景事务或 Viewer 视图派生 | 可从模型部分重建 |
 | 派生状态 | 布局、路径、文本排版、内容范围 | Runtime | 稳定化工作列表 | 必须可从依赖重建 |
 | 交互临时状态 | hover、capture、手势、preedit | 输入状态机或 Editor | 事件会话 | 会话结束即丢弃 |
-| 表现状态 | opacity、transform、动画路径、临时视觉 | Runtime 的 Presentation Plane | Animation plan/track | 可随时丢弃 |
+| 表现状态 | 表现覆盖值、采样表现几何、动画临时绘制项 | Runtime 的表现状态层 | Animation plan/track | 可随时丢弃 |
 | 后端状态 | GPU 资源、surface、已呈现像素 | RenderBackend | RenderSubmission | 从稳定场景状态和源资源恢复 |
 
 判断一个字段属于哪类状态时，应问：
@@ -155,13 +156,22 @@ flowchart LR
 | Part | Viewer | 控制模型到稳定 Figure 的视图派生、Policy 和视觉所有权 | 不保存业务事实，不直接绘制 |
 | ConnectionPart | Viewer | 控制业务连接的 source/target 关系与连接视觉 | 不成为端点 Part 的 containment child |
 | Connection Figure | Core | 解析 anchor、保存派生路径并绘制 | 不决定业务连接是否存在 |
-| Overlay | Viewer | 统称稳定内容之上的临时视觉所有权 | 不是单一图层，也不是平行 Figure 树 |
+| Overlay | Viewer | 统称稳定内容之上的临时 Figure 子树所有权 | 不是单一图层，也不是平行 Figure 树 |
 | Handle | Viewer | 提供可命中的类型化交互入口 | 不直接修改模型 |
 | Feedback | Viewer | 显示候选结果、提示或拒绝状态 | 不成为稳定 Part 或命令历史 |
 
 Part 树、视觉所有权和 Figure 树是三种不同关系。Part 树表达控制器 containment；
 视觉所有权表达谁创建、解析和销毁 Figure；Figure 树表达绘制、命中、坐标与 Z-order。
 同一对对象在三种关系中不必具有相同父子结构。
+
+动画临时绘制项与 Editor Overlay 也不属于同一机制：
+
+| 概念 | 所有者 | 是否进入 Figure 树 | 默认交互 |
+|---|---|---|---|
+| `TemporaryVisual` | Runtime 的动画服务 | 否 | 不参与命中和 accessibility |
+| Overlay | Viewer | 是 | 由具体 Handle 或 Feedback 决定 |
+| Handle | Viewer | 是 | 可命中并产生类型化动作 |
+| Feedback | Viewer | 是 | 通常只表达候选结果 |
 
 “Connection”还跨越三个层次：业务连接是持久事实，ConnectionPart 是单个 Viewer 的
 视图控制器，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
@@ -208,7 +218,7 @@ flowchart LR
 -> validate 身份、版本和值
 -> commit 权威状态
 -> stabilize 派生状态
--> sample 可选表现状态
+-> 形成可选表现覆盖快照
 -> record 受检绘制命令
 -> 生成 RenderSubmission，提交包已就绪
 -> Host 提交后端
@@ -303,8 +313,8 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 | 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
 | 5. 几何与坐标 | 带域几何 | 可逆坐标变换或保守表面包围盒 | 绘制、命中和重绘共享变换链 |
 | 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
-| 7. 绘制与帧 | 稳定场景状态和表现快照 | RenderSubmission 与 acknowledgement | 录制完成不等于提交包就绪 |
-| 8. 动画与表现 | 已提交状态和时间 | 可丢弃表现快照 | 表现不反向改写已提交状态 |
+| 7. 绘制与帧 | 稳定场景状态和可选表现覆盖快照 | RenderSubmission 与 acknowledgement | 录制完成不等于提交包就绪 |
+| 8. 动画与表现状态 | 已提交状态和时间 | 稀疏表现覆盖快照或无快照 | 表现不反向改写已提交状态 |
 | 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
 | 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
 | 11. 视图派生 | 单一模型 revision | 完整 Viewer 视图 | 模型变化必须受控同步 |

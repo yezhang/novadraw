@@ -124,7 +124,7 @@ pane，不表示 content pane 获得新的 Part 身份。
 - 谁负责创建和销毁 Figure；
 - Figure 事件映射回哪个 Part；
 - Part 删除时清理哪些视觉；
-- 哪些临时视觉不属于稳定 Part。
+- 哪些 Overlay Figure 不属于稳定 Part。
 
 树父级不一定等于视觉所有者。例如连接 Figure 可以挂在连接层，却由 ConnectionPart
 拥有。所有权和拓扑必须分别记录。
@@ -417,7 +417,7 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 9. 每次模型变化都以通知校验和视图同步关闭；
 10. 宿主只通过 `ViewerDrive` 驱动平台职责，不取得编辑内部所有权；
 11. ConnectionPart 复用 EditPartId 身份域，不进入 containment children；
-12. Overlay 仍是统一 Figure 树中的临时视觉，不成为稳定 Part。
+12. Overlay 仍是统一 Figure 树中的临时 Figure 子树，不成为稳定 Part。
 
 ## 11.21 常见错误设计
 

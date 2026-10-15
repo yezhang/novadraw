@@ -38,6 +38,7 @@
 | 重绘损伤区域 | damage | 新帧可能与旧帧不同、需要重新生成像素的逻辑表面区域 |
 | 派生状态 | derived state | 由源状态计算得到、可失效并重新生成的状态 |
 | 稳定版本 | stable epoch | 所有必需派生工作闭合后，可以对外发布的场景版本 |
+| 图形准备结果 | FigurePresentation | 受检测量、视觉边界和不可变绘制数据组成的受检结果 |
 | 渲染提交包 | RenderSubmission | 携带命令、重绘区域、资源、绘制表面与帧身份的后端输入 |
 | 帧提交准备 | frame submission preparation | Runtime 从稳定场景状态生成正式渲染提交包的过程 |
 | 提交包已就绪 | FramePreparation::Ready | Runtime 已建立 in-flight，Host 尚未调用后端 |

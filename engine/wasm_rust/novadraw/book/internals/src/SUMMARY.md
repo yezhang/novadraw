@@ -14,7 +14,7 @@
 - [5. 几何、坐标域与变换](05-geometry-and-coordinates.md)
 - [6. 测量、布局与稳定化](06-layout-and-stabilization.md)
 - [7. Damage、绘制与帧提交](07-rendering-and-frame.md)
-- [8. 动画与表现平面](08-animation-and-presentation.md)
+- [8. 动画与表现状态](08-animation-and-presentation.md)
 - [9. 命中、输入与交互状态](09-input-and-interaction.md)
 - [10. 图层、视口与连接](10-layers-viewport-connections.md)
 

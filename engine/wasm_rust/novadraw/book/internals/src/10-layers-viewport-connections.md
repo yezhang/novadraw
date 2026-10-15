@@ -284,7 +284,7 @@ target local -> common surface/root -> connection layer local
 
 ### 滚动直接修改所有 child bounds
 
-业务几何被呈现状态污染，命令和持久化失去稳定含义。
+视口滚动污染已提交业务几何，命令和持久化失去稳定含义。
 
 ### Freeform 范围只增不减
 
