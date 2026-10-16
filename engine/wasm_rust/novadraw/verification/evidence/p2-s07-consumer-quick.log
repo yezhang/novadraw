@@ -1,0 +1,135 @@
+
+==> workspace.fmt: Check Rust formatting for the complete workspace
+    $ cargo fmt --all -- --check
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/container/scalable.rs:500:
+         &self,
+         figure_id: FigureId,
+     ) -> Result<Option<ScaleHandle>, crate::figure::CapabilityQueryError> {
+-        Ok(self.capability(figure_id, SCALE)?.map(|capability| ScaleHandle {
+-            figure_id,
+-            model: capability.model().clone(),
+-        }))
++        Ok(self
++            .capability(figure_id, SCALE)?
++            .map(|capability| ScaleHandle {
++                figure_id,
++                model: capability.model().clone(),
++            }))
+     }
+ 
+     pub(crate) fn add_scalable_layered_pane_to(
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/container/viewport.rs:207:
+         self.figure_id
+     }
+ 
+-    pub fn contents(&self, graph: &FigureTree) -> Result<Option<FigureId>, crate::tree::TreeQueryError> {
++    pub fn contents(
++        &self,
++        graph: &FigureTree,
++    ) -> Result<Option<FigureId>, crate::tree::TreeQueryError> {
+         Ok(graph.child_order(self.figure_id)?.first().copied())
+     }
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/container/viewport.rs:664:
+ }
+ 
+ impl FigureTree {
+-    pub fn viewport_handle(&self, figure_id: FigureId) -> Result<Option<ViewportHandle>, crate::tree::TreeQueryError> {
+-        let viewport = self.node(figure_id)?
++    pub fn viewport_handle(
++        &self,
++        figure_id: FigureId,
++    ) -> Result<Option<ViewportHandle>, crate::tree::TreeQueryError> {
++        let viewport = self
++            .node(figure_id)?
+             .figure
+             .as_any()
+             .downcast_ref::<ViewportFigure>();
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/graph/query.rs:282:
+         id: FigureId,
+     ) -> Result<crate::figure::ImageDisplayState, crate::figure::ShapeMutationError> {
+         self.validate_identity(id).map_err(|error| match error {
+-            TreeQueryError::ForeignFigure(id) => crate::figure::ShapeMutationError::ForeignFigure(id),
+-            TreeQueryError::UnknownFigure(id) => crate::figure::ShapeMutationError::UnknownFigure(id),
++            TreeQueryError::ForeignFigure(id) => {
++                crate::figure::ShapeMutationError::ForeignFigure(id)
++            }
++            TreeQueryError::UnknownFigure(id) => {
++                crate::figure::ShapeMutationError::UnknownFigure(id)
++            }
+         })?;
+         self.image_figure(id)
+             .map(crate::figure::ImageFigure::display_state)
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/runtime/context.rs:524:
+     fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
+         loop {
+             let block = self.scene.node(target_id).ok()?;
+-            if self.scene.scale_handle(target_id).is_ok_and(|handle| handle.is_some()) {
++            if self
++                .scene
++                .scale_handle(target_id)
++                .is_ok_and(|handle| handle.is_some())
++            {
+                 return Some(target_id);
+             }
+             if block.figure.as_any().is::<ViewportFigure>()
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/runtime/context.rs:533:
+                     .child_order(target_id)
+                     .ok()
+                     .and_then(|children| children.first().copied())
+-                && self.scene.scale_handle(contents).is_ok_and(|handle| handle.is_some())
++                && self
++                    .scene
++                    .scale_handle(contents)
++                    .is_ok_and(|handle| handle.is_some())
+             {
+                 return Some(contents);
+             }
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/runtime/runtime/frame_submission.rs:417:
+         }
+         let tree_viewport = self
+             .tree
+-            .viewport_handle(viewport_id)
+-            ?
++            .viewport_handle(viewport_id)?
+             .ok_or(crate::animation::AnimationError::DisposedTarget)?;
+         let contents = tree_viewport
+-            .contents(&self.tree)
+-            ?
++            .contents(&self.tree)?
+             .ok_or(crate::animation::AnimationError::MissingViewportContents)?;
+         let viewport_node = self.tree.node(viewport_id)?;
+         let contents_node = self.tree.node(contents)?;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw/src/runtime/runtime/viewport_facades.rs:92:
+     ) -> Result<FigureId, RuntimeMutationError> {
+         let handle = self.handle(viewport)?;
+         self.runtime.guarded_runtime_mutation(move |runtime| {
+-            if let Some(previous) = handle.contents(&runtime.tree).map_err(|_| RuntimeMutationError::Rejected)? {
++            if let Some(previous) = handle
++                .contents(&runtime.tree)
++                .map_err(|_| RuntimeMutationError::Rejected)?
++            {
+                 runtime.dispose_subtree(previous)?;
+             }
+             runtime.add_figure_inner(viewport, figure)
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs:1295:
+             .ok_or(ViewerError::InconsistentState)?;
+         let viewport = runtime
+             .tree()
+-            .viewport_handle(root_layers.viewport())
+-            ?
++            .viewport_handle(root_layers.viewport())?
+             .ok_or(ViewerError::InconsistentState)?;
+         let mut zoom_manager = ZoomManager::new(scalable, viewport);
+         zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs:1762:
+     fn viewport_handle(&self) -> Result<ViewportHandle, ViewerError> {
+         self.runtime
+             .tree()
+-            .viewport_handle(self.root_layers.viewport())
+-            ?
++            .viewport_handle(self.root_layers.viewport())?
+             .ok_or(ViewerError::InconsistentState)
+     }
+ 
+xtask: command `workspace.fmt` failed with exit status: 1

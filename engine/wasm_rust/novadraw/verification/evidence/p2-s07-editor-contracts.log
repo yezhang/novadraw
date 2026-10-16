@@ -1,0 +1,80 @@
+Suite editor.contracts: Complete Editor unit, integration, and documentation contracts
+
+==> $ cargo test -p novadraw-editor
+    Blocking waiting for file lock on artifact directory
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+error[E0308]: mismatched types
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:328:9
+    |
+328 | /         Some(&FigureStyle {
+329 | |             foreground: Some(Color::WHITE),
+330 | |             font: Some("16px Inter Variable".to_owned()),
+331 | |             ..FigureStyle::default()
+332 | |         })
+    | |__________^ expected `Result<&FigureStyle, TreeQueryError>`, found `Option<&FigureStyle>`
+    |
+    = note: expected enum `Result<&FigureStyle, TreeQueryError>`
+               found enum `Option<&FigureStyle>`
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:347:5
+    |
+347 |     assert!(viewer.runtime().tree().is_visible(caret_figure));
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:358:13
+    |
+358 |     assert!(!viewer.runtime().tree().is_visible(caret_figure));
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:361:5
+    |
+361 |     assert!(viewer.runtime().tree().is_visible(caret_figure));
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:530:13
+    |
+530 |     assert!(!viewer.runtime().tree().is_attached(old_feedback));
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0308]: mismatched types
+   --> novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs:533:9
+    |
+533 |         Some(new_bounds)
+    |         ^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+Some errors have detailed explanations: E0308, E0600.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `novadraw-editor` (test "p2_e02_direct_text_edit_contract") due to 6 previous errors
+warning: build failed, waiting for other jobs to finish...
+xtask: `cargo test -p novadraw-editor` failed with exit status: 101

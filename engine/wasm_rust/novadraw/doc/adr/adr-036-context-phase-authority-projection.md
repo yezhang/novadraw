@@ -193,6 +193,13 @@ fn layout(
 Router 同理消费 `RouteSceneQuery` 与 `RouteRequest`，返回 `RouteOutput`。tracked
 dependency recording 是 Route query 的领域语义，不进入通用 Event query。
 
+任意 Figure 身份的 Route 事实读取遵循
+[ADR-038](adr-038-query-identity-and-failure-semantics.md)：`RouteSceneRead` 和 tracked
+query 都保留 Result，先拒绝 foreign/unknown/retired 身份，再解释 detached、anchor
+缺失或不可逆映射。查询失败及拓扑失败保留结构化来源。
+`dependency_generation` 观察依赖存在性与代次，允许记录缺失主体；记录指纹不证明
+事实读取成功。删除旧绑定后的恢复需要换成有效新绑定，不会复活旧 FigureId。
+
 ### 7. Paint 不获得 SceneQuery
 
 Paint 阶段消费最终 geometry、resolved style 和已准备 presentation，只通过

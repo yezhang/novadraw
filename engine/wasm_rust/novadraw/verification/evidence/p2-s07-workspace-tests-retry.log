@@ -1,0 +1,725 @@
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+   Compiling style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/style-app)
+   Compiling xtask v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/tools/xtask)
+   Compiling viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/viewport-app)
+   Compiling web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/web/web-validation)
+   Compiling ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/ndcanvas-app)
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/native-vello-perf)
+   Compiling novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: function `record_full_submission` is never used
+  --> novadraw/tests/support/mod.rs:31:8
+   |
+31 | pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-web)
+warning: `novadraw` (test "p2_query_failure_semantics") generated 1 warning
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m9_connection_runtime.rs:803:5
+    |
+803 | /     runtime
+804 | |         .frames()
+805 | |         .complete_submission(
+806 | |             initial.session_id,
+...   |
+810 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+803 |     let _ = runtime
+    |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m9_connection_runtime.rs:831:5
+    |
+831 | /     runtime
+832 | |         .frames()
+833 | |         .complete_submission(
+834 | |             moved.session_id,
+...   |
+838 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+831 |     let _ = runtime
+    |     +++++++
+
+warning: `novadraw` (test "m5_layout_contract") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "m9_connection_runtime") generated 2 warnings
+warning: `novadraw` (test "p2_c02_shortest_path_contract") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_child_insertion") generated 1 warning (1 duplicate)
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m10_label_contract.rs:708:5
+    |
+708 | /     runtime
+709 | |         .frames()
+710 | |         .complete_submission(
+711 | |             initial.session_id,
+...   |
+715 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+708 |     let _ = runtime
+    |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m10_label_contract.rs:738:5
+    |
+738 | /     runtime
+739 | |         .frames()
+740 | |         .complete_submission(
+741 | |             failed.session_id,
+...   |
+745 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+738 |     let _ = runtime
+    |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m10_label_contract.rs:777:5
+    |
+777 | /     runtime
+778 | |         .frames()
+779 | |         .complete_submission(
+780 | |             recovered.session_id,
+...   |
+784 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+777 |     let _ = runtime
+    |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m10_label_contract.rs:799:5
+    |
+799 | /     runtime
+800 | |         .frames()
+801 | |         .complete_submission(
+802 | |             removed.session_id,
+...   |
+806 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+799 |     let _ = runtime
+    |     +++++++
+
+warning: `novadraw` (test "m10_label_contract") generated 5 warnings (1 duplicate)
+warning: unused `SubmissionAcknowledgement` that must be used
+  --> novadraw/tests/m10_accessibility_contract.rs:59:9
+   |
+59 | /         runtime
+60 | |             .frames()
+61 | |             .complete_submission(
+62 | |                 submission.session_id,
+...  |
+66 | |             .expect("frame completion");
+   | |_______________________________________^
+   |
+   = note: the host must apply the Runtime's render recovery decision
+   = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+59 |         let _ = runtime
+   |         +++++++
+
+warning: `novadraw` (test "m10_accessibility_contract") generated 1 warning
+warning: `novadraw` (test "m4_coordinate_contract") generated 1 warning (1 duplicate)
+   Compiling r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/r8-perf)
+warning: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_tree_query_identity") generated 1 warning (1 duplicate)
+warning: multiple methods are never used
+   --> novadraw/src/render/context.rs:223:8
+    |
+ 64 | impl NdCanvas {
+    | ------------- methods in this implementation
+...
+223 |     fn color_with_global_alpha(&self, color: Color) -> Color {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+307 |     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+    |            ^^^^^^^^^^
+...
+483 |     pub fn draw_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+498 |     pub fn fill_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+519 |     pub fn close_path(&mut self) {
+    |            ^^^^^^^^^^
+...
+543 |     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^^
+...
+567 |     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+575 |     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^
+...
+584 |     pub fn fill(&mut self) {
+    |            ^^^^
+...
+618 |     pub fn fill_and_stroke(&mut self) {
+    |            ^^^^^^^^^^^^^^^
+...
+655 |     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^
+...
+667 |     pub fn clear_commands(&mut self) {
+    |            ^^^^^^^^^^^^^^
+...
+684 |     pub fn to_submission(&self) -> RenderSubmission {
+    |            ^^^^^^^^^^^^^
+...
+689 |     pub fn to_submission_for_surface(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+701 |     pub fn to_submission_for_frame(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+766 |     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^
+...
+771 |     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+777 |     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+783 |     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+    |            ^^^^^^^^^^^^^^^^
+...
+788 |     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+    |            ^^^^^^^^
+...
+798 |     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^
+...
+803 |     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^^^^^
+...
+812 |     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3892:9
+     |
+3892 | /         runtime
+3893 | |             .complete_submission(
+3894 | |                 initial.session_id,
+3895 | |                 initial.frame_id,
+...    |
+3898 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+     = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+     |
+3892 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3935:9
+     |
+3935 | /         runtime
+3936 | |             .complete_submission(
+3937 | |                 initial.session_id,
+3938 | |                 initial.frame_id,
+...    |
+3941 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3935 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3986:9
+     |
+3986 | /         runtime
+3987 | |             .complete_submission(
+3988 | |                 initial.session_id,
+3989 | |                 initial.frame_id,
+...    |
+3992 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3986 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4001:9
+     |
+4001 | /         runtime
+4002 | |             .complete_submission(
+4003 | |                 replacement.session_id,
+4004 | |                 replacement.frame_id,
+...    |
+4007 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4001 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4032:9
+     |
+4032 | /         runtime
+4033 | |             .complete_submission(
+4034 | |                 initial.session_id,
+4035 | |                 initial.frame_id,
+...    |
+4038 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4032 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4051:9
+     |
+4051 | /         runtime
+4052 | |             .complete_submission(
+4053 | |                 partial.session_id,
+4054 | |                 partial.frame_id,
+...    |
+4057 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4051 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4082:9
+     |
+4082 | /         runtime
+4083 | |             .complete_submission(
+4084 | |                 initial.session_id,
+4085 | |                 initial.frame_id,
+...    |
+4088 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4082 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4141:9
+     |
+4141 | /         runtime
+4142 | |             .complete_submission(
+4143 | |                 retry.session_id,
+4144 | |                 retry.frame_id,
+...    |
+4147 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4141 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4170:9
+     |
+4170 | /         runtime
+4171 | |             .complete_submission(
+4172 | |                 initial.session_id,
+4173 | |                 initial.frame_id,
+...    |
+4176 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4170 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4189:9
+     |
+4189 | /         runtime
+4190 | |             .complete_submission(
+4191 | |                 first_update.session_id,
+4192 | |                 first_update.frame_id,
+...    |
+4195 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4189 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4226:9
+     |
+4226 | /         runtime
+4227 | |             .complete_submission(
+4228 | |                 initial.session_id,
+4229 | |                 initial.frame_id,
+...    |
+4232 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4226 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4441:9
+     |
+4441 | /         runtime
+4442 | |             .complete_submission(
+4443 | |                 initial.session_id,
+4444 | |                 initial.frame_id,
+...    |
+4447 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4441 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4581:9
+     |
+4581 | /         runtime
+4582 | |             .complete_submission(
+4583 | |                 submission.session_id,
+4584 | |                 submission.frame_id,
+...    |
+4587 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4581 |         let _ = runtime
+     |         +++++++
+
+warning: `novadraw` (lib test) generated 14 warnings
+warning: unused `SubmissionAcknowledgement` that must be used
+  --> novadraw/tests/d4_notification_epoch.rs:90:5
+   |
+90 | /     runtime
+91 | |         .frames()
+92 | |         .complete_submission(
+93 | |             baseline.session_id,
+...  |
+97 | |         .expect("frame completion");
+   | |___________________________________^
+   |
+   = note: the host must apply the Runtime's render recovery decision
+   = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+90 |     let _ = runtime
+   |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/d4_notification_epoch.rs:171:5
+    |
+171 | /     runtime
+172 | |         .frames()
+173 | |         .complete_submission(
+174 | |             submission.session_id,
+...   |
+178 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+171 |     let _ = runtime
+    |     +++++++
+
+warning: `novadraw` (test "d4_notification_epoch") generated 2 warnings
+   Compiling novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+warning: `novadraw` (test "d3_runtime_listener") generated 1 warning (1 duplicate)
+   Compiling novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+warning: `novadraw` (test "m10_widget_contract") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "m8_viewport_contract") generated 1 warning (1 duplicate)
+error[E0308]: mismatched types
+   --> examples/scenes/src/clip.rs:574:13
+    |
+574 |             Some(novadraw::geometry::Rectangle::new(72.0, 56.0, 456.0, 300.0))
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/clip.rs:578:13
+    |
+578 |             Some(novadraw::geometry::Insets::uniform(4.0))
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Insets, TreeQueryError>`, found `Option<Insets>`
+    |
+    = note: expected enum `Result<Insets, TreeQueryError>`
+               found enum `Option<Insets>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/clip.rs:582:13
+    |
+582 | /             Some(novadraw::geometry::Rectangle::new(
+583 | |                 150.0, 90.0, 700.0, 500.0
+584 | |             ))
+    | |______________^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/focus.rs:158:13
+    |
+158 |             Some(vec![ids.a, ids.group, ids.d])
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Vec<FigureId>, TreeQueryError>`, found `Option<Vec<FigureId>>`
+    |
+    = note: expected enum `Result<Vec<FigureId>, TreeQueryError>`
+               found enum `Option<Vec<FigureId>>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/focus.rs:162:13
+    |
+162 |             Some(vec![ids.b, ids.skip, ids.c])
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Vec<FigureId>, TreeQueryError>`, found `Option<Vec<FigureId>>`
+    |
+    = note: expected enum `Result<Vec<FigureId>, TreeQueryError>`
+               found enum `Option<Vec<FigureId>>`
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> examples/scenes/src/focus.rs:164:17
+    |
+164 |         assert!(!tree.is_focus_traversable(ids.group));
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> examples/scenes/src/focus.rs:165:9
+    |
+165 |         assert!(tree.is_focus_traversable(ids.skip));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> examples/scenes/src/focus.rs:166:17
+    |
+166 |         assert!(!tree.is_effectively_enabled(ids.skip));
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/layout.rs:902:13
+    |
+902 |             Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/layout.rs:906:13
+    |
+906 |             Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/layout.rs:910:13
+    |
+910 | /             Some(novadraw::geometry::Rectangle::new(
+911 | |                 120.0, 72.0, 760.0, 572.0
+912 | |             ))
+    | |______________^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/text.rs:636:24
+    |
+635 |                 runtime.tree().figure_bounds(*child)
+    |                 ------------------------------------ expected because this is `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+636 |                     == Some(Rectangle::new(80.0, 100.0, 640.0, 300.0))
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/text.rs:642:13
+    |
+642 |             Some(Rectangle::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT))
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/text.rs:656:33
+    |
+656 |             .filter_map(|child| runtime.tree().figure_bounds(child))
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Option<_>`, found `Result<Rectangle, TreeQueryError>`
+    |
+    = note: expected enum `Option<_>`
+               found enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+help: try wrapping the expression in `Some`
+    |
+656 |             .filter_map(|child| Some(runtime.tree().figure_bounds(child)))
+    |                                 +++++                                   +
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/uml.rs:878:13
+    |
+878 | /             Some(Rectangle::new(
+879 | |                 (viewport_width - before.width).max(0.0),
+880 | |                 (viewport_height - before.height).max(0.0),
+881 | |                 before.width,
+882 | |                 before.height,
+883 | |             ))
+    | |______________^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+error[E0599]: no method named `is_some_and` found for enum `Result<T, E>` in the current scope
+   --> examples/scenes/src/uml.rs:927:22
+    |
+923 | /                 example
+924 | |                     .runtime
+925 | |                     .tree()
+926 | |                     .connection_route_points(*connection)
+927 | |                     .is_some_and(|points| points.len() >= 2)
+    | |_____________________-^^^^^^^^^^^
+    |
+note: the method `is_some_and` exists on the type `Option<&novadraw::geometry::PointList>`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:661:5
+    |
+661 |     pub const fn is_some_and(self, f: impl [const] FnOnce(T) -> bool + [const] Destruct) -> bool {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: consider using `Result::expect` to unwrap the `Option<&novadraw::geometry::PointList>` value, panicking if the value is a `Result::Err`
+    |
+926 |                     .connection_route_points(*connection).expect("REASON")
+    |                                                          +++++++++++++++++
+help: there is a method `is_ok_and` with a similar name
+    |
+927 -                     .is_some_and(|points| points.len() >= 2)
+927 +                     .is_ok_and(|points| points.len() >= 2)
+    |
+
+error[E0282]: type annotations needed
+   --> examples/scenes/src/uml.rs:927:35
+    |
+927 |                     .is_some_and(|points| points.len() >= 2)
+    |                                   ^^^^^^  ------ type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type
+    |
+927 |                     .is_some_and(|points: /* Type */| points.len() >= 2)
+    |                                         ++++++++++++
+
+error[E0308]: mismatched types
+    --> examples/scenes/src/uml.rs:999:9
+     |
+ 999 | /         assert_ne!(
+1000 | |             example
+1001 | |                 .runtime
+1002 | |                 .tree()
+...    |
+1005 | |             &before_route
+1006 | |         );
+     | |_________^ expected `Option<&PointList>`, found `&Option<&PointList>`
+     |
+     = note:   expected enum `Option<&novadraw::geometry::PointList>`
+             found reference `&Option<&novadraw::geometry::PointList>`
+     = note: this error originates in the macro `assert_ne` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: try using `.as_deref()` to convert `&Option<&novadraw::geometry::PointList>` to `Option<&novadraw::geometry::PointList>`
+    -->  /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/macros/mod.rs:102:43
+     |
+ 102 |                 if *left_val == *right_val.as_deref() {
+     |                                           +++++++++++
+
+error[E0308]: mismatched types
+   --> examples/scenes/src/widget.rs:417:24
+    |
+416 |                 runtime.tree().figure_bounds(*child)
+    |                 ------------------------------------ expected because this is `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+417 |                     == Some(Rectangle::new(70.0, 125.0, 300.0, 150.0))
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |
+    = note: expected enum `Result<novadraw::geometry::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw::geometry::Rectangle>`
+
+Some errors have detailed explanations: E0282, E0308, E0599, E0600.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `novadraw-example-scenes` (lib test) due to 19 previous errors
+warning: build failed, waiting for other jobs to finish...

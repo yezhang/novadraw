@@ -1,0 +1,20 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: function `record_full_submission` is never used
+  --> novadraw/tests/support/mod.rs:31:8
+   |
+31 | pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `novadraw` (test "p2_tree_query_identity") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.25s
+     Running tests/p2_tree_query_identity.rs (target/debug/deps/p2_tree_query_identity-ae91d2299de4c988)
+
+running 3 tests
+test valid_zero_absence_and_false_remain_distinct_from_identity_failure ... ok
+test arbitrary_tree_facts_reject_foreign_and_retired_generation ... ok
+test stable_query_revalidates_ids_and_owned_values_keep_their_original_epoch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

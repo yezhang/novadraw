@@ -1,0 +1,13 @@
+   Compiling xtask v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.s07-commit-check/tools/xtask)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.44s
+     Running unittests src/main.rs (xtask-target/debug/deps/xtask-d581c0741e2ce431)
+
+running 5 tests
+test tests::markdown_link_parser_keeps_local_targets_and_ignores_web_links ... ok
+test tests::suite_prefix_must_be_unique ... ok
+test tests::removed_commands_are_rejected_in_current_docs ... ok
+test tests::suite_ids_are_unique ... ok
+test tests::repository_documentation_is_valid ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+

@@ -1,0 +1,175 @@
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+error[E0599]: no method named `ok_or` found for enum `Result<T, E>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:1608:14
+     |
+1604 |           let transform = self
+     |  _________________________-
+1605 | |             .runtime
+1606 | |             .tree()
+1607 | |             .local_to_surface_transform(viewport)
+1608 | |             .ok_or(ViewerError::InconsistentState)?;
+     | |             -^^^^^ method not found in `Result<Affine2D, CoordinateQueryError>`
+     | |_____________|
+     |
+
+error[E0599]: no method named `transform_point` found for enum `Option<T>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:1660:48
+     |
+1660 |                     .map(|transform| transform.transform_point(point))
+     |                                                ^^^^^^^^^^^^^^^ method not found in `Option<Affine2D>`
+     |
+note: the method `transform_point` exists on the type `Affine2D`
+    --> novadraw/src/geometry/transform.rs:125:5
+     |
+ 125 |     pub fn transform_point(self, point: Point) -> Point {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: consider using `Option::expect` to unwrap the `Affine2D` value, panicking if the value is an `Option::None`
+     |
+1660 |                     .map(|transform| transform.expect("REASON").transform_point(point))
+     |                                               +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw-editor/src/viewer/mod.rs:1678:35
+     |
+1678 |             .and_then(|transform| transform.inverse())
+     |                                   ^^^^^^^^^^^^^^^^^^^ expected `Result<_, CoordinateQueryError>`, found `Option<Affine2D>`
+     |
+     = note: expected enum `Result<_, CoordinateQueryError>`
+                found enum `Option<Affine2D>`
+help: try wrapping the expression in `Ok`
+     |
+1678 |             .and_then(|transform| Ok(transform.inverse()))
+     |                                   +++                   +
+
+error[E0599]: no method named `ok_or` found for enum `Result<T, E>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:1679:14
+     |
+1674 |           let transform = self
+     |  _________________________-
+1675 | |             .runtime
+1676 | |             .tree()
+1677 | |             .child_content_to_surface_transform(self.root_layers.scalable())
+1678 | |             .and_then(|transform| transform.inverse())
+1679 | |             .ok_or(ViewerError::InconsistentState)?;
+     | |             -^^^^^ method not found in `Result<_, CoordinateQueryError>`
+     | |_____________|
+     |
+
+error[E0308]: mismatched types
+    --> novadraw-editor/src/viewer/mod.rs:1733:35
+     |
+1733 |             .and_then(|transform| transform.inverse())
+     |                                   ^^^^^^^^^^^^^^^^^^^ expected `Result<_, CoordinateQueryError>`, found `Option<Affine2D>`
+     |
+     = note: expected enum `Result<_, CoordinateQueryError>`
+                found enum `Option<Affine2D>`
+help: try wrapping the expression in `Ok`
+     |
+1733 |             .and_then(|transform| Ok(transform.inverse()))
+     |                                   +++                   +
+
+error[E0599]: no method named `ok_or` found for enum `Result<T, E>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:1734:14
+     |
+1729 |           let transform = self
+     |  _________________________-
+1730 | |             .runtime
+1731 | |             .tree()
+1732 | |             .child_content_to_surface_transform(figure)
+1733 | |             .and_then(|transform| transform.inverse())
+1734 | |             .ok_or(ViewerError::InconsistentState)?;
+     | |             -^^^^^ method not found in `Result<_, CoordinateQueryError>`
+     | |_____________|
+     |
+
+error[E0277]: the `?` operator can only be used on `Option`s, not `Result`s, in a method that returns `Option`
+    --> novadraw-editor/src/viewer/mod.rs:1851:79
+     |
+1843 | /     pub fn connection_route_points_in_surface(
+1844 | |         &self,
+1845 | |         connection: ConnectionPartId,
+1846 | |     ) -> Option<Vec<Point>> {
+     | |___________________________- this function returns an `Option`
+...
+1851 |           let transform = self.runtime.tree().local_to_surface_transform(figure)?;
+     |                                                                                 ^ use `.ok()?` if you want to discard the `Result<Infallible, CoordinateQueryError>` error information
+
+error[E0599]: no method named `ok_or` found for enum `Result<T, E>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:1898:14
+     |
+1894 |           let routing_to_surface = self
+     |  __________________________________-
+1895 | |             .runtime
+1896 | |             .tree()
+1897 | |             .child_content_to_surface_transform(self.root_layers.connection())
+1898 | |             .ok_or(ViewerError::InconsistentState)?;
+     | |             -^^^^^ method not found in `Result<Affine2D, CoordinateQueryError>`
+     | |_____________|
+     |
+
+error[E0282]: type annotations needed
+    --> novadraw-editor/src/viewer/mod.rs:1913:31
+     |
+1913 |                 .is_some_and(|bendpoint| bendpoint.approx_eq(segment[1], Precision::DEFAULT))
+     |                               ^^^^^^^^^  --------- type must be known at this point
+     |
+help: consider giving this closure parameter an explicit type
+     |
+1913 |                 .is_some_and(|bendpoint: /* Type */| bendpoint.approx_eq(segment[1], Precision::DEFAULT))
+     |                                        ++++++++++++
+
+error[E0277]: the `?` operator can only be used on `Option`s, not `Result`s, in a method that returns `Option`
+    --> novadraw-editor/src/viewer/mod.rs:1929:79
+     |
+1926 |     pub fn part_bounds_in_surface(&self, part: EditPartId) -> Option<Rectangle> {
+     |     --------------------------------------------------------------------------- this function returns an `Option`
+...
+1929 |         let transform = self.runtime.tree().local_to_surface_transform(figure)?;
+     |                                                                               ^ use `.ok()?` if you want to discard the `Result<Infallible, CoordinateQueryError>` error information
+
+error[E0308]: mismatched types
+    --> novadraw-editor/src/viewer/mod.rs:2607:13
+     |
+2607 |           let Some(transform) = self
+     |  _____________^^^^^^^^^^^^^^^___-
+     | |             |
+     | |             expected `Result<Affine2D, CoordinateQueryError>`, found `Option<_>`
+2608 | |             .runtime
+2609 | |             .tree()
+2610 | |             .local_to_surface_transform(active.text_feedback)
+     | |_____________________________________________________________- this expression has type `Result<Affine2D, CoordinateQueryError>`
+     |
+     = note: expected enum `Result<Affine2D, CoordinateQueryError>`
+                found enum `Option<_>`
+
+error[E0599]: no method named `ok_or` found for enum `Result<T, E>` in the current scope
+    --> novadraw-editor/src/viewer/mod.rs:2684:14
+     |
+2680 |           let transform = self
+     |  _________________________-
+2681 | |             .runtime
+2682 | |             .tree()
+2683 | |             .local_to_surface_transform(text_feedback)
+2684 | |             .ok_or(ViewerError::InconsistentState)?;
+     | |             -^^^^^ method not found in `Result<Affine2D, CoordinateQueryError>`
+     | |_____________|
+     |
+
+error[E0308]: mismatched types
+    --> novadraw-editor/src/viewer/mod.rs:3014:13
+     |
+3014 |           let Some(transform) = self
+     |  _____________^^^^^^^^^^^^^^^___-
+     | |             |
+     | |             expected `Result<Affine2D, CoordinateQueryError>`, found `Option<_>`
+3015 | |             .runtime
+3016 | |             .tree()
+3017 | |             .local_to_surface_transform(text_feedback)
+     | |______________________________________________________- this expression has type `Result<Affine2D, CoordinateQueryError>`
+     |
+     = note: expected enum `Result<Affine2D, CoordinateQueryError>`
+                found enum `Option<_>`
+
+Some errors have detailed explanations: E0277, E0282, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `novadraw-editor` (lib) due to 13 previous errors

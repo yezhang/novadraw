@@ -1,0 +1,77 @@
+Suite runtime.apps: Deterministic Update, Event, Viewport, UML, and Animation applications
+
+==> $ cargo run -p update-app -- --verify --report=target/verification/reports/update-app.json
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+   Compiling novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/update-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 20.09s
+     Running `target/debug/update-app --verify --report=target/verification/reports/update-app.json`
+PASS damage_modes
+PASS notification_order
+PASS dirty_coalescing
+PASS runtime_fault_boundary
+PASS stress_1024
+PASS submission_lifecycle
+REPORT target/verification/reports/update-app.json
+
+==> $ cargo run -p event-app -- --verify --report=target/verification/reports/event-app.json
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/event-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.15s
+     Running `target/debug/event-app --verify --report=target/verification/reports/event-app.json`
+PASS pointer_capture
+PASS pointer_leave_cleanup
+PASS focus_keyboard
+PASS wheel_hover_double
+PASS coordinate_root
+PASS hover_highlight
+REPORT target/verification/reports/event-app.json
+
+==> $ cargo run -p scroll-pane-demo -- --verify --report=target/verification/reports/scroll-pane-demo.json
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/scroll-pane-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.20s
+     Running `target/debug/scroll-pane-demo --verify --report=target/verification/reports/scroll-pane-demo.json`
+PASS auto_visibility
+PASS wheel_scroll
+PASS scale_chain
+PASS pinch_anchor
+PASS freeform_range
+PASS freeform_layer_hit_order
+PASS freeform_scroll_and_zoom
+REPORT target/verification/reports/scroll-pane-demo.json
+
+==> $ cargo run -p uml-demo -- --verify --report=target/verification/reports/uml-demo.json
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/uml-demo)
+error[E0308]: mismatched types
+   --> examples/native/uml-demo/src/main.rs:186:12
+    |
+186 |         == Some(&before_route)
+    |            ^^^^^^^^^^^^^^^^^^^ expected `Result<Option<&PointList>, ...>`, found `Option<&PointList>`
+    |
+    = note: expected enum `Result<Option<&novadraw_example_support::PointList>, TreeQueryError>`
+               found enum `Option<&novadraw_example_support::PointList>`
+help: try wrapping the expression in `Ok`
+    |
+186 |         == Ok(Some(&before_route))
+    |            +++                   +
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `uml-demo` (bin "uml-demo") due to 1 previous error
+xtask: `cargo run -p uml-demo -- --verify --report=target/verification/reports/uml-demo.json` failed with exit status: 101

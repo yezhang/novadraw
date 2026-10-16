@@ -10,6 +10,9 @@
 新增 disabled 几何查询和外部策略验证要求见
 [架构修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
 
+2026-10-16 按 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
+收紧任意 FigureId 查询：先验证 namespace 与 live slot，再读取对象事实。
+
 ## 1. 目标
 
 - 为几何命中提供可接受、可剪枝的搜索策略；
@@ -64,7 +67,9 @@ pub trait TreeSearch {
 - `state() -> &NodeState`
 - `figure() -> &dyn Figure`
 
-它不能逃逸当前查询，也不暴露 mutation、UpdateManager 或 Runtime。
+视图构造前节点已验证；不可变 tree 借用期间拓扑不能变化，所以这些 getter
+直接读取局部值。它不能逃逸当前查询，也不暴露 mutation、UpdateManager 或 Runtime。
+保存的 ID 再交给 live query 时仍须重新验证。
 
 内置策略：
 
@@ -118,15 +123,18 @@ effective clip；普通容器继续使用默认 client clip。
 FigureTree 提供以下只读查询：
 
 ```rust
-ancestor_ids(id) -> Option<Vec<FigureId>>
-descendant_ids(root) -> Option<Vec<FigureId>>
-is_ancestor_of(ancestor, candidate) -> bool
+ancestor_ids(id) -> Result<Vec<FigureId>, TreeQueryError>
+descendant_ids(root) -> Result<Vec<FigureId>, TreeQueryError>
+is_ancestor_of(ancestor, candidate) -> Result<bool, TreeQueryError>
 find_in_subtree(root, &mut dyn TreeSearch) -> Result<Option<FigureId>, TreeQueryError>
 ```
 
 - ancestor 顺序为 parent → root，不包含自身；
 - descendant 顺序为稳定前序、child 从前到后，不包含 root；
-- unknown root 返回结构化错误，不与“无匹配项”混淆；
+- foreign 返回 ForeignFigure，unknown/retired generation 返回 UnknownFigure，均保留 ID；
+- 有效无 ancestor/descendant 返回成功空集合，无匹配项返回 Ok(None)；
+- is_ancestor_of 和 child_z_index 先验证两个主体，再判断关系；两个有效但无直接
+  父子关系的主体，child_z_index 返回 Ok(None)；
 - stale exclusion ID 无副作用；
 - 查询期间不允许结构修改。
 
@@ -157,6 +165,13 @@ traversal focus =
     && effectively enabled
     && focus_traversable
 ```
+
+FigureTree 的本地/有效布尔事实、is_attached、can_request_focus 与
+can_traverse_focus 均返回 Result<bool, TreeQueryError>。先验证目标再短路组合；
+合法隐藏、disabled 或不具资格可返回 Ok(false)，无效 ID 不得被短路隐藏。
+node、bounds、style、revision、depth、children 使用 Result<T, TreeQueryError>；
+parent 和可选 capability 内容使用 Result<Option<T>, 对应领域错误>。
+contains(id) 只判断当前 live 集合成员，是直接 bool 的例外。
 
 焦点资格不再由 `FigureEventHandler::wants_key_events()` 推导。没有 key handler 的
 Figure 仍可接收 focus gained/lost；键盘事件投递给没有 handler 的 owner 时自然
@@ -211,7 +226,7 @@ runtime.focus().set_focus_traversal_policy(policy)
 ```
 
 `FocusChange` 区分 changed/unchanged；`FocusTraversalOutcome` 区分 moved/boundary。
-unknown、detached、hidden、disabled 和不可 focus 的请求返回结构化错误，且不改变
+foreign、unknown、detached、hidden、disabled 和不可 focus 的请求返回结构化错误，且不改变
 原 owner。
 
 焦点切换是单个 Runtime 事务：
@@ -250,6 +265,7 @@ Headless 直接通过 `runtime.focus()` 调用 traversal，用于确定性契约
 | 场景 | 行为 |
 |------|------|
 | 搜索起点不存在 | `TreeQueryError::UnknownFigure` |
+| 搜索主体属于其他 owner | `TreeQueryError::ForeignFigure` |
 | strategy 排除当前节点 | 当前节点和整个子树均不访问 |
 | direct focus 目标不合格 | 返回 `FocusError`，原 owner 不变 |
 | policy 返回 scope 外节点 | 视为 boundary，原 owner 不变 |

@@ -54,8 +54,14 @@ Figure 在 scoped mutable facade 获取阶段返回 `RuntimeMutationError`。
 - `surface_to_local_transform`;
 - `child_content_to_surface_transform`。
 
-所有查询返回 `Option<Affine2D>`。调用方自行把变换应用到点、矩形或其他几何对象。
-删除静默修改输入的 `translate_*` convenience，避免 unknown Figure 被解释为成功。
+本节的失败合同已由 [ADR-038](adr-038-query-identity-and-failure-semantics.md) 替换：
+三个正向查询返回 `Result<Affine2D, CoordinateQueryError>`，两个逆向查询返回
+`Result<Option<Affine2D>, CoordinateQueryError>`。先校验身份，再执行计算；逆向的
+`Ok(None)` 仅表示有限输入在数学上奇异。非有限输入、逆结果不可表示和数值计算失败
+保留结构化分类。调用方自行把变换应用到几何对象。
+五个查询及内部受检求逆已在 P2-S07 坐标切片实施；当前行为验收直接运行
+`p2_coordinate_query_failure`、`m4_coordinate_contract` 与内部 `--lib s07_` 测试，结果见
+[实施核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 
 ### 3. Layout 测量使用领域类型
 
@@ -68,19 +74,22 @@ fn preferred_measurement(
     container: FigureId,
     constraints: MeasureConstraints,
     snapshot: &LayoutSceneQuery<'_>,
-) -> FigureMeasurement;
+) -> Result<FigureMeasurement, LayoutError>;
 
 fn minimum_size(
     &self,
     container: FigureId,
     constraints: MeasureConstraints,
     snapshot: &LayoutSceneQuery<'_>,
-) -> Dimension;
+) -> Result<Dimension, LayoutError>;
 ```
 
 保留 preferred 与 minimum 两条查询，以维持 Draw2D 的回退顺序。Preferred 使用
 `FigureMeasurement` 传播 baseline；minimum 和 maximum 使用 `Dimension`。
 `FigureTree` 与 `LayoutSceneQuery` 使用同一组类型，缓存键由结构化 constraints 构成。
+ADR-038 补充身份校验与测量准入：尺寸和 baseline 在组合、投影及成功缓存写入前
+受检；非法 callback 成功值与派生溢出通过 LayoutError 返回，普通失败不自动成为
+Runtime fault。内置布局器与外部布局器使用相同通道。
 
 `XYConstraint` 等布局约束自身的自动尺寸语义不属于本决策；布局器必须在调用测量 API
 前把它们转换为 `MeasureConstraints`，不得继续传播 sentinel。
@@ -93,9 +102,9 @@ deprecated 双入口。
 ## 错误处理
 
 - Runtime 更新请求对无效 Figure 返回 `RuntimeMutationError`；
-- 坐标查询失败返回 `None`，不修改调用方数据；
+- 坐标查询按 ADR-038 区分身份、数学奇异与几何计算失败，不修改调用方数据；
 - `MeasureConstraints` 只接受有限、非负上限，非法值在构造边界返回错误；
-- LayoutManager 返回确定测量结果；零尺寸是合法值，不作为 sentinel。
+- LayoutManager 通过 Result 返回测量或错误；零尺寸是合法值，不作为 sentinel。
 
 ## 扩展点与稳定性
 

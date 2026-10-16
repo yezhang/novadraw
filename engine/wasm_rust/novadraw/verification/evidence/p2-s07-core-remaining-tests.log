@@ -1,0 +1,58 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: function `record_full_submission` is never used
+  --> novadraw/tests/support/mod.rs:31:8
+   |
+31 | pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `novadraw` (test "p2_query_failure_semantics") generated 1 warning
+warning: `novadraw` (test "p2_tree_query_identity") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_c02_shortest_path_contract") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_child_insertion") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.00s
+     Running tests/p2_animation_transition_contract.rs (target/debug/deps/p2_animation_transition_contract-05e2638904f3c156)
+
+running 13 tests
+test runtime_transaction_reports_capture_and_mutation_phases ... ok
+test capture_rejects_empty_duplicate_foreign_and_disposed_targets ... ok
+test nonzero_to_zero_bounds_transition_is_rejected_without_active_work ... ok
+test connection_pulse_uses_arc_length_and_hands_off_to_decoration ... ok
+test captured_bounds_transition_keeps_committed_geometry_final ... ok
+test unchanged_and_zero_duration_transitions_are_suppressed ... ok
+test connection_dash_flow_uses_continuous_procedural_phase ... ok
+test runtime_transaction_stabilizes_layout_before_installing_presentation ... ok
+test stagger_uses_capture_order_without_mutating_source_bounds ... ok
+test incompatible_connection_route_crossfades_and_retires_old_visual ... ok
+test viewport_transaction_animates_pan_without_changing_committed_origin ... ok
+test compatible_connection_route_interpolates_without_mutating_final_route ... ok
+test connection_route_and_dash_share_one_composable_presentation_family ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_c02_shortest_path_contract.rs (target/debug/deps/p2_c02_shortest_path_contract-7dee17ed49d9910e)
+
+running 3 tests
+test shortest_path_batch_failure_clears_every_member_and_recovers_atomically ... ok
+test shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility ... FAILED
+test one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch ... ok
+
+failures:
+
+---- shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility stdout ----
+
+thread 'shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility' (134330233) panicked at novadraw/tests/p2_c02_shortest_path_contract.rs:150:5:
+assertion `left == right` failed
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p novadraw --test p2_c02_shortest_path_contract`

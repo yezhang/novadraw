@@ -81,7 +81,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
 | 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `not_started` | P2-S04、TC-08 | 新建 Part 子树失败不遗留登记；Connection 清理覆盖晚期失败；Overlay 非法批次在写入前拒绝；模型/history 与投影 fault 分离 |
-| 6 | P2-S07 | 结构查询身份与失败语义 | `not_started` | ADR-018/036、TC-09 | 任意 ID 查询拒绝 foreign/stale；合法缺失与失败分离；LayoutSceneQuery 不返回伪造成功值 |
+| 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
 | 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `not_started` | ADR-020/024、TC-03 | 复用已有受检值；构造/更新拒绝非法输入；保留合法几何适配与范围收敛 |
 | 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `not_started` | P2-S03、TC-10 | fault 与幂等分离；Inspector 错误及 detach 所有权；消除残余 panic 注册入口；保留可追溯错误 |
 
@@ -92,9 +92,22 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 [completion record](../verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)。
 下一批按队列进入 P2-S06 Design。
 
+P2-S07 已形成
+[ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)、
+[验证矩阵](../verification/plans/p2-s07-query-identity-and-failure-semantics.md)与
+[当前反例盘点](../verification/reviews/p2-s07-query-design-inventory-2026-10-15.md)。
+草案修订 1（2026-10-16）已按首轮评审补齐求逆数值分类、测量成功值与缓存准入、
+Route 存在性指纹及 SSOT 同步清单。继续复用 tree identity 与领域错误，
+不重复 ADR-036，不强制万能 QueryError。修订 1 已于 2026-10-16
+[复核通过](../verification/reviews/adr-038-revision-1-review-2026-10-16.md)并接受。
+实施与行为验收已于同日完成，R04/TC-09/API-F06/API-07 由
+[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)关闭。
+记录合并 Core 全部目标与其余 workspace 消费者的 1,033 项通过结果，以及
+最后 33 项 Route 回归、wasm consumer、API snapshot、Clippy 和文档门禁。
+
 ### 当前推进顺序（2026-10-14 校准）
 
-1. **审计整改主链**：P2-S06 → P2-S07 → P2-S08 → P2-S09。每批先核对当前
+1. **审计整改主链**：P2-S06 → P2-S07（已完成）→ P2-S08 → P2-S09。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
 2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
    消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。

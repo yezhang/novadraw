@@ -1,0 +1,54 @@
+    Blocking waiting for file lock on build directory
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+    Checking novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+    Checking r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/r8-perf)
+    Checking novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+    Checking novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-web)
+    Checking native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/native-vello-perf)
+    Checking web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/web/web-validation)
+    Checking novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+    Checking clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/clip-app)
+    Checking ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/ndcanvas-app)
+    Checking viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/viewport-app)
+    Checking animation-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/animation-app)
+    Checking text-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/text-app)
+    Checking event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/event-app)
+    Checking advanced-figures-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/advanced-figures-app)
+    Checking transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/transform-app)
+    Checking update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/update-app)
+    Checking uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/uml-demo)
+    Checking widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/widgets-app)
+    Checking scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/scroll-pane-demo)
+    Checking style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/style-app)
+    Checking connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/connections-demo)
+error[E0308]: mismatched types
+   --> examples/native/animation-app/src/main.rs:320:71
+    |
+320 |     if example.runtime.tree().figure_bounds(example.bounds_figure) != Some(committed) {
+    |        -----------------------------------------------------------    ^^^^^^^^^^^^^^^ expected `Result<Rectangle, TreeQueryError>`, found `Option<Rectangle>`
+    |        |
+    |        expected because this is `Result<novadraw_example_support::Rectangle, TreeQueryError>`
+    |
+    = note: expected enum `Result<novadraw_example_support::Rectangle, TreeQueryError>`
+               found enum `Option<novadraw_example_support::Rectangle>`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `animation-app` (bin "animation-app") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0308]: mismatched types
+   --> examples/native/uml-demo/src/main.rs:186:12
+    |
+186 |         == Some(&before_route)
+    |            ^^^^^^^^^^^^^^^^^^^ expected `Result<Option<&PointList>, ...>`, found `Option<&PointList>`
+    |
+    = note: expected enum `Result<Option<&novadraw_example_support::PointList>, TreeQueryError>`
+               found enum `Option<&novadraw_example_support::PointList>`
+help: try wrapping the expression in `Ok`
+    |
+186 |         == Ok(Some(&before_route))
+    |            +++                   +
+
+error: could not compile `uml-demo` (bin "uml-demo") due to 1 previous error

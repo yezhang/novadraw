@@ -1,0 +1,259 @@
+    Blocking waiting for file lock on build directory
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+    Checking novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-web)
+    Checking web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/web/web-validation)
+error[E0624]: method `pointer_exited` is private
+    --> examples/web/web-validation/src/lib.rs:1501:21
+     |
+1501 |         app.runtime.pointer_exited();
+     |                     ^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2841:5
+     |
+2841 |     pub(crate) fn pointer_exited(&mut self) {
+     |     --------------------------------------- private method defined here
+
+error[E0624]: method `release_focus` is private
+    --> examples/web/web-validation/src/lib.rs:1502:21
+     |
+1502 |         app.runtime.release_focus();
+     |                     ^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2784:5
+     |
+2784 |     pub(crate) fn release_focus(&mut self) -> FocusChange {
+     |     ----------------------------------------------------- private method defined here
+
+error[E0624]: method `pointer_exited` is private
+    --> examples/web/web-validation/src/lib.rs:809:22
+     |
+ 809 |         self.runtime.pointer_exited();
+     |                      ^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2841:5
+     |
+2841 |     pub(crate) fn pointer_exited(&mut self) {
+     |     --------------------------------------- private method defined here
+
+error[E0624]: method `release_focus` is private
+    --> examples/web/web-validation/src/lib.rs:811:22
+     |
+ 811 |         self.runtime.release_focus();
+     |                      ^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2784:5
+     |
+2784 |     pub(crate) fn release_focus(&mut self) -> FocusChange {
+     |     ----------------------------------------------------- private method defined here
+
+error[E0624]: method `cursor_icon` is private
+   --> examples/web/web-validation/src/lib.rs:866:43
+    |
+866 |         self.host.set_cursor(self.runtime.cursor_icon());
+    |                                           ^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:673:5
+    |
+673 |     pub(crate) fn cursor_icon(&self) -> CursorIcon {
+    |     ---------------------------------------------- private method defined here
+
+error[E0624]: method `advance_time` is private
+   --> examples/web/web-validation/src/lib.rs:983:30
+    |
+983 |         let _ = self.runtime.advance_time(now);
+    |                              ^^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:700:5
+    |
+700 |     pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
+    |     ------------------------------------------------------------------------------------ private method defined here
+
+error[E0624]: method `cursor_icon` is private
+   --> examples/web/web-validation/src/lib.rs:987:43
+    |
+987 |         self.host.set_cursor(self.runtime.cursor_icon());
+    |                                           ^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:673:5
+    |
+673 |     pub(crate) fn cursor_icon(&self) -> CursorIcon {
+    |     ---------------------------------------------- private method defined here
+
+error[E0624]: method `take_tooltip_updates` is private
+   --> examples/web/web-validation/src/lib.rs:988:36
+    |
+988 |         for update in self.runtime.take_tooltip_updates() {
+    |                                    ^^^^^^^^^^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:732:5
+    |
+732 |     pub(crate) fn take_tooltip_updates(&mut self) -> Vec<TooltipUpdate> {
+    |     ------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `take_accessibility_updates` is private
+   --> examples/web/web-validation/src/lib.rs:991:36
+    |
+991 |         for update in self.runtime.take_accessibility_updates() {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:740:5
+    |
+740 |     pub(crate) fn take_accessibility_updates(&mut self) -> Vec<AccessibilityUpdate> {
+    |     ------------------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `next_wake_deadline` is private
+   --> examples/web/web-validation/src/lib.rs:994:46
+    |
+994 |         self.host.schedule_wake(self.runtime.next_wake_deadline());
+    |                                              ^^^^^^^^^^^^^^^^^^ private method
+    |
+   ::: novadraw/src/runtime/runtime.rs:717:5
+    |
+717 |     pub(crate) fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+    |     ---------------------------------------------------------------- private method defined here
+
+error[E0624]: method `dispatch_mouse_moved` is private
+    --> examples/web/web-validation/src/lib.rs:1064:26
+     |
+1064 |             self.runtime.dispatch_mouse_moved(point.x(), point.y());
+     |                          ^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2603:5
+     |
+2603 |     pub(crate) fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
+     |     --------------------------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `dispatch_mouse_moved` is private
+    --> examples/web/web-validation/src/lib.rs:1077:26
+     |
+1077 |             self.runtime.dispatch_mouse_moved(point.x(), point.y());
+     |                          ^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2603:5
+     |
+2603 |     pub(crate) fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
+     |     --------------------------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `dispatch_mouse_pressed` is private
+    --> examples/web/web-validation/src/lib.rs:1079:18
+     |
+1079 |                   .dispatch_mouse_pressed(point.x(), point.y(), button);
+     |                    ^^^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2614:5
+     |
+2614 | /     pub(crate) fn dispatch_mouse_pressed(
+2615 | |         &mut self,
+2616 | |         x: f64,
+2617 | |         y: f64,
+2618 | |         button: MouseButton,
+2619 | |     ) -> crate::DispatchOutcome {
+     | |_______________________________- private method defined here
+
+error[E0624]: method `dispatch_mouse_released` is private
+    --> examples/web/web-validation/src/lib.rs:1090:18
+     |
+1090 |                   .dispatch_mouse_released(point.x(), point.y(), button);
+     |                    ^^^^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2631:5
+     |
+2631 | /     pub(crate) fn dispatch_mouse_released(
+2632 | |         &mut self,
+2633 | |         x: f64,
+2634 | |         y: f64,
+2635 | |         button: MouseButton,
+2636 | |     ) -> crate::DispatchOutcome {
+     | |_______________________________- private method defined here
+
+error[E0624]: method `pointer_exited` is private
+    --> examples/web/web-validation/src/lib.rs:1098:22
+     |
+1098 |         self.runtime.pointer_exited();
+     |                      ^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2841:5
+     |
+2841 |     pub(crate) fn pointer_exited(&mut self) {
+     |     --------------------------------------- private method defined here
+
+error[E0624]: method `dispatch_scroll` is private
+    --> examples/web/web-validation/src/lib.rs:1132:63
+     |
+1132 |                 AdaptedGesture::Scroll(wheel) => self.runtime.dispatch_scroll(wheel),
+     |                                                               ^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2677:5
+     |
+2677 |     pub(crate) fn dispatch_scroll(&mut self, event: WheelEvent) -> crate::DispatchOutcome {
+     |     ------------------------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `dispatch_zoom` is private
+    --> examples/web/web-validation/src/lib.rs:1133:60
+     |
+1133 |                 AdaptedGesture::Zoom(zoom) => self.runtime.dispatch_zoom(zoom),
+     |                                                            ^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2726:5
+     |
+2726 |     pub(crate) fn dispatch_zoom(&mut self, event: ZoomEvent) -> crate::DispatchOutcome {
+     |     ---------------------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `traverse_focus` is private
+    --> examples/web/web-validation/src/lib.rs:1153:34
+     |
+1153 |                       self.runtime.traverse_focus(direction),
+     |                                    ^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2788:5
+     |
+2788 | /     pub(crate) fn traverse_focus(
+2789 | |         &mut self,
+2790 | |         direction: FocusTraversalDirection,
+2791 | |     ) -> FocusTraversalOutcome {
+     | |______________________________- private method defined here
+
+error[E0624]: method `dispatch_key_pressed` is private
+    --> examples/web/web-validation/src/lib.rs:1166:34
+     |
+1166 |                       self.runtime.dispatch_key_pressed(key, modifiers);
+     |                                    ^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2733:5
+     |
+2733 | /     pub(crate) fn dispatch_key_pressed(
+2734 | |         &mut self,
+2735 | |         key: Key,
+2736 | |         modifiers: KeyModifiers,
+2737 | |     ) -> crate::DispatchOutcome {
+     | |_______________________________- private method defined here
+
+error[E0624]: method `dispatch_key_released` is private
+    --> examples/web/web-validation/src/lib.rs:1168:34
+     |
+1168 |                       self.runtime.dispatch_key_released(key, modifiers);
+     |                                    ^^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: novadraw/src/runtime/runtime.rs:2747:5
+     |
+2747 | /     pub(crate) fn dispatch_key_released(
+2748 | |         &mut self,
+2749 | |         key: Key,
+2750 | |         modifiers: KeyModifiers,
+2751 | |     ) -> crate::DispatchOutcome {
+     | |_______________________________- private method defined here
+
+error[E0596]: cannot borrow data in dereference of `std::cell::Ref<'_, DirectEditWebApp>` as mutable
+   --> examples/web/web-validation/src/direct_edit_mode.rs:453:42
+    |
+453 | ...                   .map(|range| app.viewer.direct_text_range_bounds(range).ok())
+    |                                    ^^^^^^^^^^ cannot borrow as mutable
+    |
+    = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `std::cell::Ref<'_, DirectEditWebApp>`
+
+Some errors have detailed explanations: E0596, E0624.
+For more information about an error, try `rustc --explain E0596`.
+error: could not compile `web-validation` (lib) due to 21 previous errors

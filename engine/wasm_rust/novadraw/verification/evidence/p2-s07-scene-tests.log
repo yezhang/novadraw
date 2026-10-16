@@ -1,0 +1,28 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.42s
+     Running unittests src/lib.rs (target/debug/deps/novadraw_example_scenes-77ea0c82c5c4bc9d)
+
+running 19 tests
+test focus::tests::shared_focus_scene_has_stable_nested_traversal_order ... ok
+test layout::tests::root_viewport_resize_reflows_border_regions ... ok
+test clip::tests::responsive_clip_resizes_parent_without_rewriting_child_bounds ... ok
+test freeform::tests::shared_scene_reaches_four_edges_and_preserves_zoom_anchor ... ok
+test freeform::tests::shared_scene_preserves_extent_range_and_layer_hit_order ... ok
+test transform::tests::target_domain_click_selects_the_figure_after_parent_chain_reduction ... ok
+test freeform::tests::blank_viewport_area_routes_zoom_to_direct_scalable_contents ... ok
+test viewport::tests::zoom_scene_rebuilds_the_same_logical_content_without_scale_accumulation ... ok
+test widget::tests::interactive_tooltip_scene_uses_the_default_hover_delay ... ok
+test widget::tests::tooltip_scene_starts_with_the_boundary_tooltip_visible ... ok
+test text::tests::title_bar_border_is_a_panel_below_the_host_contents ... ok
+test widget::tests::tooltip_style_replacement_preserves_scene_and_panel_backgrounds ... ok
+test uml::tests::complex_uml_scene_uses_external_figures_nested_layout_and_routed_relations ... ok
+test text::tests::text_flow_renders_mixed_scripts_without_missing_glyphs ... ok
+test uml::tests::class_drag_bounds_follow_expanded_and_shrunk_logical_viewports ... ok
+test advanced_figures::tests::advanced_figures_suite_builds_and_records_all_feature_scenes ... ok
+test text::tests::image_resource_cards_fit_the_standard_web_content_width ... ok
+test text::tests::shared_text_suite_builds_every_web_scene_with_required_resources ... ok
+test tests::catalog_has_unique_ids_and_buildable_scenes ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+

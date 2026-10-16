@@ -1,0 +1,679 @@
+Suite core.p2-s07-coordinate-route-query (P2-S07)
+
+==> test.p2-s07-coordinate-query: Check external coordinate identity and numerical failure semantics
+    $ cargo test -p novadraw --test p2_coordinate_query_failure
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.88s
+     Running tests/p2_coordinate_query_failure.rs (target/debug/deps/p2_coordinate_query_failure-71c797a80996d5d5)
+
+running 5 tests
+test finite_parent_composition_overflow_is_a_geometry_error ... ok
+test external_container_singular_inverse_is_legal_absence ... ok
+test external_container_inverse_distinguishes_range_and_input_failures ... ok
+test external_container_representable_extreme_inverse_succeeds ... ok
+test coordinate_queries_revalidate_foreign_and_retired_identity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+==> test.p2-s07-checked-inverse: Check exact singularity and inverse calculation range limits
+    $ cargo test -p novadraw --lib geometry::checked_inverse::tests
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: multiple methods are never used
+   --> novadraw/src/render/context.rs:223:8
+    |
+ 64 | impl NdCanvas {
+    | ------------- methods in this implementation
+...
+223 |     fn color_with_global_alpha(&self, color: Color) -> Color {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+307 |     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+    |            ^^^^^^^^^^
+...
+483 |     pub fn draw_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+498 |     pub fn fill_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+519 |     pub fn close_path(&mut self) {
+    |            ^^^^^^^^^^
+...
+543 |     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^^
+...
+567 |     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+575 |     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^
+...
+584 |     pub fn fill(&mut self) {
+    |            ^^^^
+...
+618 |     pub fn fill_and_stroke(&mut self) {
+    |            ^^^^^^^^^^^^^^^
+...
+655 |     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^
+...
+667 |     pub fn clear_commands(&mut self) {
+    |            ^^^^^^^^^^^^^^
+...
+684 |     pub fn to_submission(&self) -> RenderSubmission {
+    |            ^^^^^^^^^^^^^
+...
+689 |     pub fn to_submission_for_surface(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+701 |     pub fn to_submission_for_frame(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+766 |     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^
+...
+771 |     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+777 |     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+783 |     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+    |            ^^^^^^^^^^^^^^^^
+...
+788 |     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+    |            ^^^^^^^^
+...
+798 |     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^
+...
+803 |     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^^^^^
+...
+812 |     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3892:9
+     |
+3892 | /         runtime
+3893 | |             .complete_submission(
+3894 | |                 initial.session_id,
+3895 | |                 initial.frame_id,
+...    |
+3898 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+     = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+     |
+3892 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3935:9
+     |
+3935 | /         runtime
+3936 | |             .complete_submission(
+3937 | |                 initial.session_id,
+3938 | |                 initial.frame_id,
+...    |
+3941 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3935 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3986:9
+     |
+3986 | /         runtime
+3987 | |             .complete_submission(
+3988 | |                 initial.session_id,
+3989 | |                 initial.frame_id,
+...    |
+3992 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3986 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4001:9
+     |
+4001 | /         runtime
+4002 | |             .complete_submission(
+4003 | |                 replacement.session_id,
+4004 | |                 replacement.frame_id,
+...    |
+4007 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4001 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4032:9
+     |
+4032 | /         runtime
+4033 | |             .complete_submission(
+4034 | |                 initial.session_id,
+4035 | |                 initial.frame_id,
+...    |
+4038 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4032 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4051:9
+     |
+4051 | /         runtime
+4052 | |             .complete_submission(
+4053 | |                 partial.session_id,
+4054 | |                 partial.frame_id,
+...    |
+4057 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4051 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4082:9
+     |
+4082 | /         runtime
+4083 | |             .complete_submission(
+4084 | |                 initial.session_id,
+4085 | |                 initial.frame_id,
+...    |
+4088 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4082 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4141:9
+     |
+4141 | /         runtime
+4142 | |             .complete_submission(
+4143 | |                 retry.session_id,
+4144 | |                 retry.frame_id,
+...    |
+4147 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4141 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4170:9
+     |
+4170 | /         runtime
+4171 | |             .complete_submission(
+4172 | |                 initial.session_id,
+4173 | |                 initial.frame_id,
+...    |
+4176 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4170 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4189:9
+     |
+4189 | /         runtime
+4190 | |             .complete_submission(
+4191 | |                 first_update.session_id,
+4192 | |                 first_update.frame_id,
+...    |
+4195 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4189 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4226:9
+     |
+4226 | /         runtime
+4227 | |             .complete_submission(
+4228 | |                 initial.session_id,
+4229 | |                 initial.frame_id,
+...    |
+4232 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4226 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4441:9
+     |
+4441 | /         runtime
+4442 | |             .complete_submission(
+4443 | |                 initial.session_id,
+4444 | |                 initial.frame_id,
+...    |
+4447 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4441 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4581:9
+     |
+4581 | /         runtime
+4582 | |             .complete_submission(
+4583 | |                 submission.session_id,
+4584 | |                 submission.frame_id,
+...    |
+4587 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4581 |         let _ = runtime
+     |         +++++++
+
+warning: `novadraw` (lib test) generated 14 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.24s
+     Running unittests src/lib.rs (target/debug/deps/novadraw-9fe91b6be2f3f609)
+
+running 3 tests
+test geometry::checked_inverse::tests::classifies_exact_singularity_and_range_failures ... ok
+test geometry::checked_inverse::tests::distinguishes_exact_cancellation_from_rounded_product_equality ... ok
+test geometry::checked_inverse::tests::avoids_intermediate_determinant_range_limits ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 369 filtered out; finished in 0.00s
+
+
+==> test.p2-s07-route-query-internal: Check Route adapter identity and dependency existence fingerprints
+    $ cargo test -p novadraw --lib connection::query::query_failure_tests
+warning: multiple methods are never used
+   --> novadraw/src/render/context.rs:223:8
+    |
+ 64 | impl NdCanvas {
+    | ------------- methods in this implementation
+...
+223 |     fn color_with_global_alpha(&self, color: Color) -> Color {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+307 |     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+    |            ^^^^^^^^^^
+...
+483 |     pub fn draw_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+498 |     pub fn fill_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+519 |     pub fn close_path(&mut self) {
+    |            ^^^^^^^^^^
+...
+543 |     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^^
+...
+567 |     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+575 |     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^
+...
+584 |     pub fn fill(&mut self) {
+    |            ^^^^
+...
+618 |     pub fn fill_and_stroke(&mut self) {
+    |            ^^^^^^^^^^^^^^^
+...
+655 |     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^
+...
+667 |     pub fn clear_commands(&mut self) {
+    |            ^^^^^^^^^^^^^^
+...
+684 |     pub fn to_submission(&self) -> RenderSubmission {
+    |            ^^^^^^^^^^^^^
+...
+689 |     pub fn to_submission_for_surface(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+701 |     pub fn to_submission_for_frame(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+766 |     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^
+...
+771 |     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+777 |     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+783 |     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+    |            ^^^^^^^^^^^^^^^^
+...
+788 |     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+    |            ^^^^^^^^
+...
+798 |     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^
+...
+803 |     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^^^^^
+...
+812 |     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3892:9
+     |
+3892 | /         runtime
+3893 | |             .complete_submission(
+3894 | |                 initial.session_id,
+3895 | |                 initial.frame_id,
+...    |
+3898 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+     = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+     |
+3892 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3935:9
+     |
+3935 | /         runtime
+3936 | |             .complete_submission(
+3937 | |                 initial.session_id,
+3938 | |                 initial.frame_id,
+...    |
+3941 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3935 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3986:9
+     |
+3986 | /         runtime
+3987 | |             .complete_submission(
+3988 | |                 initial.session_id,
+3989 | |                 initial.frame_id,
+...    |
+3992 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3986 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4001:9
+     |
+4001 | /         runtime
+4002 | |             .complete_submission(
+4003 | |                 replacement.session_id,
+4004 | |                 replacement.frame_id,
+...    |
+4007 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4001 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4032:9
+     |
+4032 | /         runtime
+4033 | |             .complete_submission(
+4034 | |                 initial.session_id,
+4035 | |                 initial.frame_id,
+...    |
+4038 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4032 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4051:9
+     |
+4051 | /         runtime
+4052 | |             .complete_submission(
+4053 | |                 partial.session_id,
+4054 | |                 partial.frame_id,
+...    |
+4057 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4051 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4082:9
+     |
+4082 | /         runtime
+4083 | |             .complete_submission(
+4084 | |                 initial.session_id,
+4085 | |                 initial.frame_id,
+...    |
+4088 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4082 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4141:9
+     |
+4141 | /         runtime
+4142 | |             .complete_submission(
+4143 | |                 retry.session_id,
+4144 | |                 retry.frame_id,
+...    |
+4147 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4141 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4170:9
+     |
+4170 | /         runtime
+4171 | |             .complete_submission(
+4172 | |                 initial.session_id,
+4173 | |                 initial.frame_id,
+...    |
+4176 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4170 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4189:9
+     |
+4189 | /         runtime
+4190 | |             .complete_submission(
+4191 | |                 first_update.session_id,
+4192 | |                 first_update.frame_id,
+...    |
+4195 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4189 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4226:9
+     |
+4226 | /         runtime
+4227 | |             .complete_submission(
+4228 | |                 initial.session_id,
+4229 | |                 initial.frame_id,
+...    |
+4232 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4226 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4441:9
+     |
+4441 | /         runtime
+4442 | |             .complete_submission(
+4443 | |                 initial.session_id,
+4444 | |                 initial.frame_id,
+...    |
+4447 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4441 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4581:9
+     |
+4581 | /         runtime
+4582 | |             .complete_submission(
+4583 | |                 submission.session_id,
+4584 | |                 submission.frame_id,
+...    |
+4587 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4581 |         let _ = runtime
+     |         +++++++
+
+warning: `novadraw` (lib test) generated 14 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running unittests src/lib.rs (target/debug/deps/novadraw-9fe91b6be2f3f609)
+
+running 2 tests
+test connection::query::query_failure_tests::adapter_dependency_fingerprint_changes_when_a_subject_is_deleted ... ok
+test connection::query::query_failure_tests::adapter_rejects_identity_before_missing_anchor_or_detachment ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 370 filtered out; finished in 0.00s
+
+
+==> test.p2-s07-route-recovery: Check stale tracked dependencies and replacement binding recovery
+    $ cargo test -p novadraw --test p2_route_dependency_recovery
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: function `record_full_submission` is never used
+  --> novadraw/tests/support/mod.rs:31:8
+   |
+31 | pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.43s
+     Running tests/p2_route_dependency_recovery.rs (target/debug/deps/p2_route_dependency_recovery-a35758efe428228c)
+
+running 1 test
+test missing_tracked_dependency_stabilizes_and_new_binding_recovers ... FAILED
+
+failures:
+
+---- missing_tracked_dependency_stabilizes_and_new_binding_recovers stdout ----
+
+thread 'missing_tracked_dependency_stabilizes_and_new_binding_recovers' (134174766) panicked at novadraw/tests/p2_route_dependency_recovery.rs:78:5:
+assertion failed: matches!(runtime.connections().state(connection).unwrap().resolution,
+    ConnectionResolution::Resolved { .. })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    missing_tracked_dependency_stabilizes_and_new_binding_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p novadraw --test p2_route_dependency_recovery`
+xtask: command `test.p2-s07-route-recovery` failed with exit status: 101

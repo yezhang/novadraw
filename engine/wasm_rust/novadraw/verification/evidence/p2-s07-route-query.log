@@ -1,0 +1,37 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.27s
+     Running tests/m9_connection_contract.rs (target/debug/deps/m9_connection_contract-66bf12d437019641)
+
+running 16 tests
+test endpoint_locator_uses_anchor_normal_only_for_fully_degenerate_route ... ok
+test endpoint_locators_skip_duplicate_terminal_points_and_apply_tangent_offsets ... ok
+test anchor_semantic_keys_group_equivalent_owner_geometry ... ok
+test direct_router_uses_opposite_reference_points ... ok
+test ellipse_and_rounded_rectangle_follow_their_actual_outlines ... ok
+test label_anchor_reads_named_icon_geometry ... ok
+test chopbox_anchor_maps_owner_geometry_into_requested_space ... ok
+test external_route_read_rejects_missing_facts_but_retains_dependency_observation ... ok
+test direct_router_rejects_constraints_without_partial_output ... ok
+test locators_preserve_topological_middle_and_arc_fraction_semantics ... ok
+test missing_named_geometry_is_a_structured_anchor_error ... ok
+test named_anchor_geometry_key_rejects_empty_values ... ok
+test rectangle_boundary_site_projects_toward_the_reference ... ok
+test route_output_rejects_short_and_non_finite_point_lists ... ok
+test route_rejects_dependency_generation_drift ... ok
+test xy_anchor_maps_from_its_declared_space ... FAILED
+
+failures:
+
+---- xy_anchor_maps_from_its_declared_space stdout ----
+
+thread 'xy_anchor_maps_from_its_declared_space' (133995312) panicked at novadraw/tests/m9_connection_contract.rs:495:14:
+called `Result::unwrap()` on an `Err` value: Scene(UnknownFigure(FigureId { namespace: RuntimeNamespace(68172b53-4498-4ecd-9e70-3c7362b59c8e), local: 3v1 }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    xy_anchor_maps_from_its_declared_space
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p novadraw --test m9_connection_contract`

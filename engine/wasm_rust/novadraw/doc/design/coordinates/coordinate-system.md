@@ -147,7 +147,16 @@ surface_to_local(id)
 - scale；
 - visual transform 变化。
 
-不可逆变换不能产生伪造坐标。调用应返回 `None` 或结构化错误。
+任意 FigureId 的坐标查询先校验 owner namespace 与 live slot。三个正向入口返回
+`Result<Affine2D, CoordinateQueryError>`；两个逆向入口返回
+`Result<Option<Affine2D>, CoordinateQueryError>`。`Ok(None)` 仅表示有限输入在数学上
+奇异，foreign/unknown/retired ID 返回身份错误。
+
+非有限输入、逆结果不可表示、数值计算失败和正向组合溢出分别保留结构化原因及
+失败 FigureId。求逆按 f64 输入系数的精确值判定奇异，不使用固定 epsilon；
+行列式中间乘法溢出或下溢不能成为不可逆结论。内部受检计算与公开
+`Affine2D::inverse` 的旧 Option getter 分开；本切片不重构公开 geometry API。
+完整合同见 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)。
 
 ## 6. Bounds
 

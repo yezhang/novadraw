@@ -124,11 +124,19 @@ Point 表示位置，Vec2 表示位移，Dimension 表示尺寸，Rectangle 表�
 | 安装已验证的值 | 可无 Result，不添加没有失败含义的包装 |
 | attached mutation | 领域错误；`Ok(false)`/NoChange 仅表示合法不变 |
 | capability discovery | 无效身份为错误；合法缺失为 `Ok(None)` |
-| 既有坐标 Option 查询 | 保留 ADR-018 合同；None 的身份/不可逆语义须明确，不机械改 Result |
+| 任意 FigureId 查询 | 先校验 owner 与 live membership；foreign/unknown 为错误，合法缺失才是 None |
+| 坐标查询 | 按 ADR-038 区分身份错误、数学奇异与几何计算失败；正向 Result，逆向 Result<Option<_>> |
+| 布局测量 | Result 保留查询和测量失败；owner 在组合、投影及缓存写入前校验尺寸与 baseline |
 | deferred mutation | 入队不等于提交；错误从 deferred outcome 观察 |
 | paint | GraphicsError 原因传播；失败帧不出版，状态栈仍复原 |
 | frame/backend | 保留 Idle/Suspended/AwaitingCompletion/Error 和完整确认/恢复分类 |
 | 扩展 panic | 进入 fault 边界；不声称回滚私有 interior mutation 或外部副作用 |
+
+查询的目标合同以 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
+为准。P2-S07 的布局测量、五个坐标入口和 Route 身份切片已经迁移 Result；
+Tree 结构、状态、关系、专用可选查询与 workspace 消费者也已迁移。
+Node 非权威尺寸 getter 已退出公开表面；行为与最终门禁登记在
+[实施核验](../../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 
 ## 5. 计算、发布与开放策略
 

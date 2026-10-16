@@ -1,0 +1,258 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: function `record_full_submission` is never used
+  --> novadraw/tests/support/mod.rs:31:8
+   |
+31 | pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning
+warning: `novadraw` (test "p2_query_failure_semantics") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_child_insertion") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_tree_query_identity") generated 1 warning (1 duplicate)
+warning: `novadraw` (test "p2_c02_shortest_path_contract") generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.08s
+     Running tests/p2_c02_shortest_path_contract.rs (target/debug/deps/p2_c02_shortest_path_contract-7dee17ed49d9910e)
+
+running 3 tests
+test shortest_path_batch_failure_clears_every_member_and_recovers_atomically ... ok
+test shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility ... ok
+test one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/p2_child_insertion.rs (target/debug/deps/p2_child_insertion-5b97e1229322196f)
+
+running 9 tests
+test initial_bounds_are_rejected_before_topology_publication ... ok
+test constraint_without_manager_is_retained_and_checked_on_manager_installation ... ok
+test runtime_publishes_one_added_and_one_constraint_event ... ok
+test rejected_constraint_never_publishes_node_or_reuses_failed_identity ... ok
+test index_boundaries_are_checked_before_constraint_validation ... ok
+test admission_and_target_errors_do_not_reach_constraint_validator ... ok
+test builder_and_runtime_insert_preserve_order_and_external_constraints ... ok
+test validator_panic_retires_unpublished_identity_and_faults_runtime ... ok
+test insertion_keeps_the_depth_limit ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s
+
+     Running tests/p2_coordinate_query_failure.rs (target/debug/deps/p2_coordinate_query_failure-71c797a80996d5d5)
+
+running 5 tests
+test external_container_singular_inverse_is_legal_absence ... ok
+test external_container_representable_extreme_inverse_succeeds ... ok
+test finite_parent_composition_overflow_is_a_geometry_error ... ok
+test external_container_inverse_distinguishes_range_and_input_failures ... ok
+test coordinate_queries_revalidate_foreign_and_retired_identity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/p2_deep_layout_presentation_contract.rs (target/debug/deps/p2_deep_layout_presentation_contract-8e9942870d4df92f)
+
+running 2 tests
+test layout_measurement_orders_outer_constraints_insets_and_container_projection ... ok
+test nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_dispatch_outcome_contract.rs (target/debug/deps/p2_dispatch_outcome_contract-5bbb4186362e6fb5)
+
+running 2 tests
+test handled_press_reports_target_and_capture_to_the_caller ... ok
+test unhandled_press_is_observable_for_editor_tool_fallback ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/p2_f01_scalable_polygon_contract.rs (target/debug/deps/p2_f01_scalable_polygon_contract-01b0adcd19e41187)
+
+running 4 tests
+test scalable_polygon_maps_one_template_with_stretch_and_preserved_aspect ... ok
+test scalable_polygon_handles_empty_and_single_axis_templates_without_nan ... ok
+test scalable_polygon_reserves_miter_outset_and_uses_precise_hit ... ok
+test runtime_mutations_and_resize_use_current_template_without_stale_geometry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/p2_figure_capability_contract.rs (target/debug/deps/p2_figure_capability_contract-f0afbb46b41650d6)
+
+running 10 tests
+test duplicate_descriptor_rejects_admission_before_publication ... ok
+test standard_capabilities_are_discovered_without_concrete_type_branches ... ok
+test external_capability_effect_uses_validated_runtime_structural_commit ... ok
+test external_capability_supports_typed_query_and_shared_runtime_commit ... ok
+test capability_identity_and_absence_have_structured_results ... ok
+test presentation_binding_absence_and_parallel_content_conflict_are_structured ... ok
+test late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged ... ok
+test target_effect_batch_validates_sequential_moves_and_rejects_late_failure ... ok
+test conflicting_effects_reject_before_component_or_structure_commit ... ok
+test external_presentation_binding_drives_immutable_content_without_core_dispatch ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_graphics_contract.rs (target/debug/deps/p2_graphics_contract-c1020392bb0d6860)
+
+running 23 tests
+test invalid_dash_and_stroke_values_are_rejected ... ok
+test linear_gradient_owns_ordered_stops_and_preserves_hard_edges ... ok
+test custom_dash_is_owned_and_odd_patterns_have_an_even_period ... ok
+test builtin_dash_scales_with_width_but_custom_dash_does_not ... ok
+test invalid_gradients_reject_degenerate_endpoints_and_unordered_stops ... ok
+test ellipse_checks_both_paints_and_its_stroke ... ok
+test device_preflight_replays_transform_restore_for_paints_and_clips ... ok
+test clip_paths_validate_structure_and_own_curves_without_consuming_current_path ... ok
+test mixed_clip_and_fill_rule_restore_after_pop ... ok
+test connection_and_decorations_use_actual_stroke_for_geometry_and_recording ... ok
+test paint_context_primitives_share_one_stroke_style ... ok
+test paint_context_rejects_device_overflow_without_partial_commands ... ok
+test paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients ... ok
+test paint_context_snapshots_complete_strokes_and_restores_them ... ok
+test polygon_and_scalable_polygon_record_complete_strokes ... ok
+test rejected_paint_setter_is_atomic_and_fails_recording ... ok
+test solid_offset_is_preserved_until_a_dash_pattern_is_selected ... ok
+test stroke_outset_uses_actual_miter_and_cap ... ok
+test runtime_dash_changes_repaint_without_moving_geometry ... ok
+test miter_transaction_updates_freeform_extent_with_one_move_notification ... ok
+test runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes ... ok
+test rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_retry ... ok
+test gradient_glyph_stroke_requires_each_capability_and_preserves_full_style ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_query_failure_semantics.rs (target/debug/deps/p2_query_failure_semantics-50a22bb0f49f2fe0)
+
+running 7 tests
+test valid_absence_and_unbounded_maximum_remain_successful ... ok
+test intrinsic_minimum_baseline_is_checked_before_discarding_it ... ok
+test invalid_callback_success_is_rejected_and_never_cached ... ok
+test minimum_callback_failure_is_not_cached_and_can_retry ... ok
+test projection_overflow_is_rejected_before_cache_publication ... ok
+test normal_invalidation_retries_measurements_without_reusing_failed_values ... ok
+test foreign_and_retired_queries_discard_the_entire_candidate_output ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/p2_route_dependency_recovery.rs (target/debug/deps/p2_route_dependency_recovery-a35758efe428228c)
+
+running 1 test
+test missing_tracked_dependency_stabilizes_and_new_binding_recovers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/p2_t01_text_flow_contract.rs (target/debug/deps/p2_t01_text_flow_contract-6ed100b5866def88)
+
+running 3 tests
+test text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout ... ok
+test text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout ... ok
+test text_flow_truncation_is_utf8_safe_and_respects_the_line_limit ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/p2_t02_text_interaction_contract.rs (target/debug/deps/p2_t02_text_interaction_contract-8365d3da6567aec7)
+
+running 13 tests
+test external_text_engines_can_supply_backend_neutral_interaction_maps ... ok
+test caret_geometry_follows_nested_viewport_and_scale_transforms ... ok
+test centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together ... ok
+test text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating ... ok
+test caret_round_trips_through_surface_coordinates ... ok
+test paragraph_movement_uses_flow_page_boundaries_not_embedded_newlines ... ok
+test runtime_text_queries_distinguish_unknown_and_wrong_capability ... ok
+test text_queries_are_read_only_for_runtime_updates ... ok
+test cross_paragraph_selection_produces_ordered_visual_quads ... ok
+test visual_movement_never_splits_a_grapheme_cluster ... ok
+test wrapped_boundary_preserves_distinct_caret_affinity ... ok
+test positions_from_an_old_layout_revision_are_rejected ... ok
+test invalid_utf8_and_truncated_positions_are_rejected ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/p2_text_graphics_contract.rs (target/debug/deps/p2_text_graphics_contract-927473d272339bef)
+
+running 11 tests
+test independent_paths_can_be_filled_and_stroked_repeatedly ... ok
+test graphics_rotation_names_degrees_and_rejects_non_finite_input_atomically ... ok
+test scoped_paint_helpers_cannot_consume_the_callers_state ... ok
+test font_state_restores_and_does_not_reinterpret_prepared_text ... ok
+test one_context_measures_and_records_a_retained_layout ... ok
+test external_figure_prepares_and_paints_through_phase_limited_contexts ... ok
+test recording_rejects_two_revisions_of_the_same_resource ... ok
+test outlines_preserve_beziers_and_distinguish_space_from_missing_glyph ... ok
+test stale_and_foreign_layouts_fail_without_partial_recording ... ok
+test custom_outline_assets_are_cached_separately_from_glyph_instances ... ok
+test outlined_fallback_rtl_and_variations_preserve_layout_metrics ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/p2_tree_query_identity.rs (target/debug/deps/p2_tree_query_identity-ae91d2299de4c988)
+
+running 4 tests
+test arbitrary_tree_facts_reject_foreign_and_retired_generation ... ok
+test valid_zero_absence_and_false_remain_distinct_from_identity_failure ... ok
+test saved_viewport_handle_checks_its_owner_on_contents_queries ... ok
+test stable_query_revalidates_ids_and_owned_values_keep_their_original_epoch ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/r8_extension_boundaries.rs (target/debug/deps/r8_extension_boundaries-343e4f0c6ab5159c)
+
+running 2 tests
+test projective_composition_requires_explicit_backend_support ... ok
+test scene3d_frame_embeds_through_the_existing_2d_image_boundary ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render_m1_product_existence.rs (target/debug/deps/render_m1_product_existence-c4310ee067ead589)
+
+running 2 tests
+test m1_graphics_image_clip_and_alpha_entries_emit_commands ... ok
+test m1_graphics_shape_and_style_entries_emit_commands ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/runtime_resize_contract.rs (target/debug/deps/runtime_resize_contract-cd2d2a183af3ea1b)
+
+running 3 tests
+test logical_viewport_rejects_non_finite_and_negative_sizes ... ok
+test replacing_contents_after_resize_uses_the_current_logical_viewport ... ok
+test logical_viewport_resizes_contents_without_rewriting_child_world_coordinates ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tc01_graphics_boundary.rs (target/debug/deps/tc01_graphics_boundary-17a2b9f0a0bde0b0)
+
+running 2 tests
+test command_recorder_owns_standalone_paint_without_exposing_internal_canvas ... ok
+test figure_paint_failure_blocks_publication_and_preserves_retry_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tc04_typed_property_identity.rs (target/debug/deps/tc04_typed_property_identity-1b88f18d5c21d807)
+
+running 2 tests
+test lifecycle_visibility_mapping_uses_the_standard_typed_key ... ok
+test typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tc11_resource_provider_contract.rs (target/debug/deps/tc11_resource_provider_contract-428454d3d2df6f1d)
+
+running 4 tests
+test provider_failure_consumes_only_the_matching_request ... ok
+test decode_and_runtime_failures_remain_distinct ... ok
+test direct_completion_invalidates_an_outstanding_provider_request ... ok
+test replacement_request_rejects_stale_completion_without_mutating_resource ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/tc12_render_failure_contract.rs (target/debug/deps/tc12_render_failure_contract-8242e02ccd6bf8d4)
+
+running 5 tests
+test stale_or_duplicate_completion_is_structurally_rejected ... ok
+test surface_loss_retries_full_frame_without_invalidating_backend_session ... ok
+test device_loss_invalidates_session_and_refreezes_snapshot ... ok
+test dispositions_preserve_their_distinct_acknowledgements ... ok
+test deterministic_and_terminal_failures_do_not_collapse_into_retry ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

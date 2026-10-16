@@ -1,0 +1,13 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.48s
+     Running tests/p2_coordinate_query_failure.rs (target/debug/deps/p2_coordinate_query_failure-71c797a80996d5d5)
+
+running 5 tests
+test finite_parent_composition_overflow_is_a_geometry_error ... ok
+test external_container_representable_extreme_inverse_succeeds ... ok
+test external_container_singular_inverse_is_legal_absence ... ok
+test external_container_inverse_distinguishes_range_and_input_failures ... ok
+test coordinate_queries_revalidate_foreign_and_retired_identity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

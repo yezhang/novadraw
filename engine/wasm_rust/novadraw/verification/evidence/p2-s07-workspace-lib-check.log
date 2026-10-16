@@ -1,0 +1,22 @@
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+    Checking novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+    Checking novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+    Checking novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-web)
+    Checking web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/web/web-validation)
+    Checking novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+error[E0308]: mismatched types
+   --> examples/support/src/app.rs:868:9
+    |
+868 |     let Some(style) = runtime.tree().resolved_style(snapshot.source) else {
+    |         ^^^^^^^^^^^   ---------------------------------------------- this expression has type `Result<ResolvedStyle, TreeQueryError>`
+    |         |
+    |         expected `Result<ResolvedStyle, TreeQueryError>`, found `Option<_>`
+    |
+    = note: expected enum `Result<ResolvedStyle, TreeQueryError>`
+               found enum `std::option::Option<_>`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `novadraw-example-support` (lib) due to 1 previous error

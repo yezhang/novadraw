@@ -43,7 +43,7 @@
 | 3 | P2-S04 Editor 开放协议 | P0 | `complete` | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
 | 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
 | 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `not_started` | R06、TC-08 | [机制必要性复核](../reviews/p2-s06-mechanism-necessity-2026-10-14.md)，实现前确认最小契约 |
-| 6 | P2-S07 查询身份与失败语义 | P1 | `not_started` | R04、TC-09、API-F06、API-07 | 待补 ADR |
+| 6 | P2-S07 查询身份与失败语义 | P1 | `complete` | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md)，ADR-038 已实现 |
 | 7 | P2-S08 Detached 输入不变量 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR/规范，先复用已有受检值 |
 | 8 | P2-S09 服务失败与 Inspector | P1 | `not_started` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 待补 ADR |
 
@@ -184,17 +184,24 @@
 
 来源：R04、TC-09、API-F06、API-07。
 
-- [ ] 先核对 ADR-036 已完成的 Event/Layout/Route 命名和阶段权限迁移，不重复实施。
-- [ ] ADR 定义身份、合法缺失与领域失败的分类及组合；仅在共享消费者需要时统一错误类型。
-- [ ] 任意 ID 入口对 unknown/foreign/stale 返回结构化错误；
+- [x] 先核对 ADR-036 已完成的 Event/Layout/Route 命名和阶段权限迁移，不重复实施。
+- [x] ADR 草案定义身份、合法缺失与领域失败的分类及组合；仅在共享消费者需要时统一错误类型。
+- [x] 完成[当前反例盘点](../reviews/p2-s07-query-design-inventory-2026-10-15.md)及
+  [验证矩阵](../plans/p2-s07-query-identity-and-failure-semantics.md)，区分既有基线与未执行用例。
+- [x] 完成[ADR-038 首轮评审](../reviews/adr-038-draft-review-2026-10-15.md)。
+- [x] 按 S07-DR01/02 明确求逆数值失败和测量成功值校验，并补充 DR03/04 的依赖
+  指纹与 SSOT 迁移清单；已写入 ADR 与矩阵修订 1（2026-10-16）。
+- [x] [复核 ADR-038 修订 1](../reviews/adr-038-revision-1-review-2026-10-16.md) 的 S07-DR01–DR04 处理，不以文档修订代替行为验证。
+- [x] 评审并接受 ADR-038，明确任意 ID 返回值和 LayoutManager 测量失败传播。
+- [x] 任意 ID 入口对 unknown/foreign/stale 返回结构化错误；
   已验证 snapshot/typed view 可保留直接 getter。
-- [ ] `Option` 表示合法缺失；不可逆变换/无路径遵循其领域契约。
-- [ ] LayoutSceneQuery 不为无效 ID 返回 ZERO、INFINITY 或 default 伪造成功；
+- [x] `Option` 表示合法缺失；不可逆变换/无路径遵循其领域契约。
+- [x] LayoutSceneQuery 不为无效 ID 返回 ZERO、INFINITY 或 default 伪造成功；
   合法空布局、零尺寸、无上限约束仍按原合同表达。
-- [ ] `is_visible/is_enabled` 不把 unknown 折叠成 false。
-- [ ] 删除或改名非权威查询，避免 FigureNode/FigureTree 同名不同语义。
-- [ ] foreign/stale/absent/fault 负向测试和外部 LayoutManager consumer 通过。
-- [ ] completion record 关闭 TC-09/R04/API-F06/API-07。
+- [x] `is_visible/is_enabled` 不把 unknown 折叠成 false。
+- [x] 删除或改名非权威查询，避免 FigureNode/FigureTree 同名不同语义。
+- [x] foreign/stale/absent/fault 负向测试和外部 LayoutManager consumer 通过。
+- [x] [completion record](../reviews/p2-s07-query-identity-completion-2026-10-16.md) 关闭 TC-09/R04/API-F06/API-07。
 
 ## 9. P2-S08：Detached Figure / Border / Style 输入不变量
 

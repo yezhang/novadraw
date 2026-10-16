@@ -1,0 +1,93 @@
+
+==> workspace.fmt: Check Rust formatting for the complete workspace
+    $ cargo fmt --all -- --check
+
+==> workspace.check: Compile all workspace packages
+    $ cargo check --workspace
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+    Checking novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+    Checking r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/r8-perf)
+    Checking novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+    Checking novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-web)
+    Checking native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/benchmarks/native-vello-perf)
+    Checking web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/web/web-validation)
+    Checking novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+    Checking animation-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/animation-app)
+    Checking node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+    Checking shape-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/shape-app)
+    Checking ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/ndcanvas-app)
+    Checking style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/style-app)
+    Checking widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/widgets-app)
+    Checking scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/scroll-pane-demo)
+    Checking transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/transform-app)
+    Checking clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/clip-app)
+    Checking uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/uml-demo)
+    Checking layout-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/layout-app)
+    Checking update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/update-app)
+    Checking border-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/border-app)
+    Checking connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/connections-demo)
+    Checking viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/viewport-app)
+    Checking advanced-figures-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/advanced-figures-app)
+    Checking text-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/text-app)
+    Checking event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/event-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.24s
+
+==> facade.core: Compile the standard facade without a platform backend
+    $ cargo check -p novadraw --no-default-features
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.27s
+
+==> facade.dependencies: Reject editor, inspector, backend, and platform dependencies from Core
+    $ ./scripts/check_facade_dependencies.sh
+PASS novadraw core has no editor, inspector, backend, or platform dependencies
+
+==> api.third-party-types: Reject Kurbo, Vello, and Winit types from public API signatures
+    $ ./scripts/check_public_api_dependencies.sh
+     Removed 1694 files, 33.5MiB total
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+ Documenting novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+ Documenting novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+ Documenting novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 13.58s
+   Generated /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/public-api/aarch64-apple-darwin/doc/novadraw/index.html and 2 other files
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+ Documenting novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+ Documenting novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+ Documenting novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-inspector)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.85s
+   Generated /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/public-api/wasm32-unknown-unknown/doc/novadraw/index.html and 2 other files
+PASS public API signatures do not expose kurbo, vello, or winit types
+
+==> api.surface: Compare the module-only root, domain modules, and advanced symbols with the reviewed snapshot
+    $ ./scripts/check_public_api_surface.sh
+ Documenting novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.75s
+   Generated /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/public-api/doc/novadraw/index.html
+PASS module-only root, domain module, advanced API symbols, and Runtime method budget (24/25)
+
+==> quality.hot-path-logging: Reject tracing and print macros from protected render, layout, and backend hot paths
+    $ ./scripts/check_hot_path_logging.sh
+PASS protected render, layout, and backend hot paths contain no logging macros
+
+==> quality.core-resource-io: Reject platform resource I/O from Core render and runtime
+    $ ./scripts/check_core_resource_io.sh
+PASS Core render/runtime contain no platform resource I/O
+
+==> dependencies.kurbo: Require one Kurbo version across all workspace feature graphs
+    $ ./scripts/check_kurbo_versions.sh
+PASS workspace dependency graph uses kurbo 0.13.1
+
+==> backend.native-vello: Compile the native Vello backend
+    $ cargo check -p novadraw-backend-vello --features native
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.57s
+
+==> backend.web-vello: Compile the Web Vello backend
+    $ cargo check -p novadraw-backend-vello --target wasm32-unknown-unknown --features web
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.39s

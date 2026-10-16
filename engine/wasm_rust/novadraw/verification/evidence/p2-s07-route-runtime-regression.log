@@ -1,0 +1,73 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m9_connection_runtime.rs:803:5
+    |
+803 | /     runtime
+804 | |         .frames()
+805 | |         .complete_submission(
+806 | |             initial.session_id,
+...   |
+810 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+803 |     let _ = runtime
+    |     +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+   --> novadraw/tests/m9_connection_runtime.rs:831:5
+    |
+831 | /     runtime
+832 | |         .frames()
+833 | |         .complete_submission(
+834 | |             moved.session_id,
+...   |
+838 | |         .expect("frame completion");
+    | |___________________________________^
+    |
+    = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+    |
+831 |     let _ = runtime
+    |     +++++++
+
+warning: `novadraw` (test "m9_connection_runtime") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.83s
+     Running tests/m9_connection_runtime.rs (target/debug/deps/m9_connection_runtime-ed3e8371b5a0f0ad)
+
+running 29 tests
+test connection_cannot_anchor_to_its_own_subtree ... ok
+test connection_locator_rejects_non_child_targets ... ok
+test inherited_router_defaults_to_draw2d_equivalent_direct_routing ... ok
+test bendpoint_router_preserves_absolute_and_relative_constraints ... ok
+test incompatible_router_change_is_rejected_atomically ... ok
+test invalid_decoration_template_is_rejected_before_attachment ... ok
+test divergent_viewport_topology_is_rejected_and_reparent_recovers ... ok
+test invalid_connection_geometry_never_commits_resolved_state ... ok
+test first_locator_preflight_failure_recovers_when_an_observed_owner_moves ... ok
+test fan_router_separates_bidirectional_connections ... ok
+test manhattan_router_emits_only_orthogonal_non_duplicate_segments ... ok
+test manhattan_reservations_are_isolated_by_router_id ... ok
+test missing_endpoint_is_unresolved_and_binding_it_restores_dirty_state ... ok
+test removing_connection_figure_cleans_runtime_state ... ok
+test matching_viewport_topology_routes_normally ... ok
+test manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically ... ok
+test reparenting_connection_with_unknown_constraint_is_rejected_atomically ... ok
+test layout_output_geometry_automatically_invalidates_and_reroutes ... ok
+test locator_preflight_failure_after_success_refreshes_recovery_dependencies ... ok
+test reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain ... ok
+test shared_router_and_anchor_cannot_be_removed_while_referenced ... ok
+test normal_frame_automatically_resolves_dirty_connection_routes ... ok
+test resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty ... ok
+test runtime_orients_endpoint_decorations_and_offsets_labels_in_terminal_frames ... ok
+test unresolved_transition_clears_previously_committed_geometry ... ok
+test runtime_relocates_bound_connection_children_after_route_commit ... ok
+test fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal ... ok
+test shared_manhattan_reserves_lanes_across_different_anchor_pairs ... ok
+test independent_routing_supplies_one_order_entry_per_connection ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

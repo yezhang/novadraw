@@ -57,6 +57,13 @@
 | 2026-10-13 | [ADR-036 Context 阶段权限投影与 Query 命名](adr-036-context-phase-authority-completion-2026-10-13.md) |
 | 2026-10-14 | [P2-S06 投影失败隔离与批量校验机制必要性](p2-s06-mechanism-necessity-2026-10-14.md) |
 | 2026-10-14 | [路线图与待办校准复核](roadmap-calibration-2026-10-14.md) |
+| 2026-10-15 | [P2-S07 查询设计与当前反例盘点（草案）](p2-s07-query-design-inventory-2026-10-15.md) |
+| 2026-10-15 | [ADR-038 草案评审](adr-038-draft-review-2026-10-15.md) |
+| 2026-10-16 | [ADR-038 修订 1 复核](adr-038-revision-1-review-2026-10-16.md) |
+| 2026-10-16 | [P2-S07 布局查询实施证据](p2-s07-layout-query-evidence-2026-10-16.md) |
+| 2026-10-16 | [P2-S07 坐标与 Route 查询实施证据](p2-s07-coordinate-route-query-evidence-2026-10-16.md) |
+| 2026-10-16 | [P2-S07 Tree 与 Stable 查询实施证据](p2-s07-tree-query-evidence-2026-10-16.md) |
+| 2026-10-16 | [P2-S07 查询身份与失败语义完成核验](p2-s07-query-identity-completion-2026-10-16.md) |
 
 ## 平台与产品验收
 

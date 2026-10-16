@@ -1,0 +1,27 @@
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.80s
+     Running tests/d2_freeform_contract.rs (target/debug/deps/d2_freeform_contract-f357ffceb87a9f5b)
+
+running 19 tests
+test freeform_constraint_rejects_invalid_values_and_accepts_explicit_zero ... ok
+test empty_freeform_extent_is_zero ... ok
+test builder_rejects_invalid_constraint_type_before_layout ... ok
+test freeform_extent_unions_positive_and_negative_child_bounds ... ok
+test freeform_query_distinguishes_unknown_non_freeform_and_unvalidated ... ok
+test freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback ... ok
+test normal_ancestor_still_clips_freeform_overflow ... ok
+test overflow_visible_allows_hits_outside_freeform_border_box ... ok
+test nested_freeform_uses_derived_extent_not_presentation_bounds ... ok
+test child_move_keeps_old_stable_extent_until_revalidation ... ok
+test freeform_fit_uses_derived_extent_instead_of_presentation_bounds ... ok
+test freeform_zoom_preserves_anchor_and_keeps_range_unscaled ... ok
+test moving_overflow_visible_child_damages_old_and_new_surface_regions ... ok
+test overflow_visible_damage_is_not_clipped_to_host_bounds ... ok
+test freeform_viewport_range_uses_unscaled_content_domain ... ok
+test freeform_extent_shrink_clamps_origin_and_repaints_viewport ... ok
+test visibility_does_not_change_freeform_extent ... ok
+test overflow_visible_skips_host_clip_during_rendering ... ok
+test viewport_does_not_clip_freeform_contents_to_presentation_bounds ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,4 @@
+    Blocking waiting for file lock on build directory
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.23s

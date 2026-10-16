@@ -1,0 +1,79 @@
+Suite extensions: External Core/Editor consumers and open Editor protocols
+
+==> $ cargo test -p novadraw --test d4_component_update --test d4_constrained_measurement --test m10_text_extension_contract
+    Blocking waiting for file lock on artifact directory
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.26s
+     Running tests/d4_component_update.rs (target/debug/deps/d4_component_update-cd5a6839919dae64)
+
+running 8 tests
+test deferred_component_rejection_is_reported_without_losing_fifo_suffix ... ok
+test component_update_rejects_wrong_foreign_and_disposed_targets ... ok
+test external_component_update_commits_typed_property_effect_once ... ok
+test external_figure_callback_can_defer_a_typed_self_update ... ok
+test component_effect_failure_does_not_commit_value_revision_or_property_fact ... ok
+test external_component_update_is_typed_atomic_and_conservatively_invalidated ... ok
+test component_prepare_or_commit_panic_faults_runtime ... ok
+test lifecycle_invalidation_panic_faults_all_public_mutation_domains ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/d4_constrained_measurement.rs (target/debug/deps/d4_constrained_measurement-66e167aafd3b69e5)
+
+running 2 tests
+test xy_layout_passes_fixed_width_hint_when_height_is_automatic ... ok
+test constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/m10_text_extension_contract.rs (target/debug/deps/m10_text_extension_contract-7847ec28e32b4fd1)
+
+running 2 tests
+test external_text_engine_constructs_non_empty_backend_neutral_layout ... ok
+test backend_neutral_layout_can_be_consumed_without_vello_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+==> $ cargo test -p novadraw-editor --test ga4_external_visual_component
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/ga4_external_visual_component.rs (target/debug/deps/ga4_external_visual_component-47a8b6f343f438c3)
+
+running 2 tests
+test external_compound_visual_updates_private_component_during_model_refresh ... ok
+test model_refresh_rejects_a_component_target_outside_the_part_visuals ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+==> $ ./scripts/check_editor_open_protocol.sh
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-editor-open-protocol-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/verification/consumers/editor-open-protocol)
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> src/lib.rs:300:31
+    |
+300 |                 .all(|figure| !viewer.runtime().tree().is_attached(*figure))
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> src/lib.rs:302:9
+    |
+302 |         assert!(viewer.runtime().tree().is_attached(node));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+For more information about this error, try `rustc --explain E0600`.
+error: could not compile `novadraw-editor-open-protocol-consumer` (lib test) due to 2 previous errors
+xtask: `./scripts/check_editor_open_protocol.sh` failed with exit status: 101

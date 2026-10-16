@@ -1,0 +1,78 @@
+Suite runtime.apps: Deterministic Update, Event, Viewport, UML, and Animation applications
+
+==> $ cargo run -p update-app -- --verify --report=target/verification/reports/update-app.json
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+   Compiling novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/scenes)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/update-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.80s
+     Running `target/debug/update-app --verify --report=target/verification/reports/update-app.json`
+PASS damage_modes
+PASS notification_order
+PASS dirty_coalescing
+PASS runtime_fault_boundary
+PASS stress_1024
+PASS submission_lifecycle
+REPORT target/verification/reports/update-app.json
+
+==> $ cargo run -p event-app -- --verify --report=target/verification/reports/event-app.json
+    Blocking waiting for file lock on artifact directory
+   Compiling event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/event-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.14s
+     Running `target/debug/event-app --verify --report=target/verification/reports/event-app.json`
+PASS pointer_capture
+PASS pointer_leave_cleanup
+PASS focus_keyboard
+PASS wheel_hover_double
+PASS coordinate_root
+PASS hover_highlight
+REPORT target/verification/reports/event-app.json
+
+==> $ cargo run -p scroll-pane-demo -- --verify --report=target/verification/reports/scroll-pane-demo.json
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/scroll-pane-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.07s
+     Running `target/debug/scroll-pane-demo --verify --report=target/verification/reports/scroll-pane-demo.json`
+PASS auto_visibility
+PASS wheel_scroll
+PASS scale_chain
+PASS pinch_anchor
+PASS freeform_range
+PASS freeform_layer_hit_order
+PASS freeform_scroll_and_zoom
+REPORT target/verification/reports/scroll-pane-demo.json
+
+==> $ cargo run -p uml-demo -- --verify --report=target/verification/reports/uml-demo.json
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/uml-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.69s
+     Running `target/debug/uml-demo --verify --report=target/verification/reports/uml-demo.json`
+PASS order-domain-extension
+REPORT target/verification/reports/uml-demo.json
+
+==> $ cargo run -p animation-app -- --verify --report=target/verification/reports/animation-app.json
+    Blocking waiting for file lock on artifact directory
+   Compiling animation-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/animation-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 30.25s
+     Running `target/debug/animation-app --verify --report=target/verification/reports/animation-app.json`
+PASS target-motion-composition
+PASS motion-substitution
+PASS source-presentation-separation
+PASS temporary-lifecycle-and-cancel
+PASS trigger-and-layout-transaction
+PASS viewport-and-route-transition
+PASS continuous-effects-and-reduced-motion
+PASS dashed-arrow-flow
+PASS complete-motion-family
+PASS composition-grammar
+PASS channels-and-loop-policies
+PASS behavior-interruption-policies
+PASS interaction-geometry-policy
+PASS suspension-policies
+REPORT target/verification/reports/animation-app.json

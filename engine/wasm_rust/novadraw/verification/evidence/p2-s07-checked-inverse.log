@@ -1,0 +1,124 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3222:25
+     |
+3222 |         point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
+     |               --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |               |
+     |               arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3222 |         point.transform(scene.parent_to_local_transform(coord_root_id).unwrap().expect("REASON"));
+     |                                                                                +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3245:25
+     |
+3245 |         point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
+     |               --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |               |
+     |               arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3245 |         point.transform(scene.parent_to_local_transform(coord_root_id).unwrap().expect("REASON"));
+     |                                                                                +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3273:25
+     |
+3273 |         point.transform(scene.surface_to_local_transform(child_id).unwrap());
+     |               --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |               |
+     |               arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3273 |         point.transform(scene.surface_to_local_transform(child_id).unwrap().expect("REASON"));
+     |                                                                            +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3307:25
+     |
+3307 |         point.transform(scene.surface_to_local_transform(child_id).unwrap());
+     |               --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |               |
+     |               arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3307 |         point.transform(scene.surface_to_local_transform(child_id).unwrap().expect("REASON"));
+     |                                                                            +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3337:25
+     |
+3337 |         point.transform(scene.surface_to_local_transform(coord_root2_id).unwrap());
+     |               --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |               |
+     |               arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3337 |         point.transform(scene.surface_to_local_transform(coord_root2_id).unwrap().expect("REASON"));
+     |                                                                                  +++++++++++++++++
+
+error[E0308]: mismatched types
+    --> novadraw/src/graph/mod.rs:3364:24
+     |
+3364 |         rect.transform(scene.surface_to_local_transform(child_id).unwrap());
+     |              --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Affine2D`, found `Option<Affine2D>`
+     |              |
+     |              arguments to this method are incorrect
+     |
+     = note: expected struct `geometry::transform::Affine2D`
+                  found enum `std::option::Option<geometry::transform::Affine2D>`
+note: method defined here
+    --> novadraw/src/geometry/translatable.rs:103:8
+     |
+ 103 |     fn transform(&mut self, transform: crate::Affine2D);
+     |        ^^^^^^^^^            ---------
+help: consider using `Option::expect` to unwrap the `std::option::Option<geometry::transform::Affine2D>` value, panicking if the value is an `Option::None`
+     |
+3364 |         rect.transform(scene.surface_to_local_transform(child_id).unwrap().expect("REASON"));
+     |                                                                           +++++++++++++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `novadraw` (lib test) due to 6 previous errors

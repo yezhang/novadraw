@@ -1,0 +1,34 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.13s
+     Running unittests src/main.rs (target/debug/deps/node_editor_demo-cfc4483a907d151d)
+
+running 17 tests
+test tests::node_labels_render_model_colors_before_interaction ... ok
+test replay::tests::g4_replay_passes ... ok
+test replay::tests::g3_replay_passes ... ok
+test tests::direct_text_edit_commits_one_rename_and_round_trips_history ... ok
+test tests::reconnecting_both_self_loop_endpoints_rebases_bendpoints_to_the_new_owner ... ok
+test tests::self_loop_owns_two_bendpoints_and_moving_one_preserves_the_other ... ok
+test tests::pointer_leave_cancels_autoexpose_and_clears_the_active_gesture ... ok
+test tests::long_direct_text_edit_clips_to_the_node_and_commits_the_complete_label ... ok
+test tests::autoexpose_release_keeps_viewport_on_the_committed_target ... ok
+test tests::dragging_committed_target_back_preserves_the_feedback_surface_position ... ok
+test tests::resized_viewport_does_not_retain_the_initial_canvas_clip ... ok
+test tests::viewport_guide_uses_light_background_and_dashed_outline ... ok
+test tests::viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp ... ok
+test tests::zoom_keeps_unscaled_selection_handles_aligned_after_frame_stabilization ... ok
+test tests::reconnect_release_reprojects_handles_after_temporary_range_clamps ... ok
+test tests::autoexpose_and_pointer_return_keep_selection_handles_aligned ... ok
+test replay::tests::g5_connection_replays_pass ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+

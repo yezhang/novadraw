@@ -1,0 +1,272 @@
+Suite editor.contracts: Complete Editor unit, integration, and documentation contracts
+
+==> $ cargo test -p novadraw-editor
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.79s
+     Running unittests src/lib.rs (target/debug/deps/novadraw_editor-bff779f143058c33)
+
+running 20 tests
+test autoexpose::tests::long_host_stalls_are_clamped_to_one_bounded_step ... ok
+test autoexpose::tests::blocked_axis_does_not_hide_a_scrollable_corner_axis ... ok
+test autoexpose::tests::edge_detection_requires_an_inside_edge_band ... ok
+test direct_edit::tests::synchronized_input_snapshot_rejects_invalid_utf8_boundaries ... ok
+test direct_edit::tests::single_line_draft_rejects_line_breaks ... ok
+test policy::tests::duplicate_request_handler_is_rejected_before_installation ... ok
+test direct_edit::tests::draft_positions_preserve_paragraph_boundaries ... ok
+test policy::tests::erased_handler_rejects_a_mismatched_payload ... ok
+test direct_edit::tests::synchronized_input_snapshot_updates_draft_selection_and_composition_atomically ... ok
+test viewer::failure::tests::s06_feedback_batch_preflights_both_layers_and_styles ... ok
+test viewer::failure::tests::s06_overlay_topology_is_checked_before_any_disposal ... ok
+test viewer::failure::tests::s06_cleanup_driver_keeps_real_refusal_and_continues_independent_roots ... ok
+test viewer::failure::tests::s06_cleanup_panic_reports_retired_structure_and_never_repeats_callback ... ok
+test viewer::failure::tests::s06_fault_close_preserves_original_panic_when_text_feedback_cleanup_panics ... ok
+test viewer::failure::tests::s06_overlay_late_lifecycle_panic_records_retired_prefix_and_item ... ok
+test viewer::failure::tests::s06_core_attach_panic_preserves_live_identity_for_isolated_exit ... ok
+test viewer::failure::tests::s06_overlay_installation_panic_reports_the_attached_prefix_without_publishing_owners ... ok
+test viewer::failure::tests::s06_policy_cleanup_panic_preserves_original_error_and_continues_independent_cleanup ... ok
+test viewer::failure::tests::s06_creation_failures_clear_all_acquired_registries ... ok
+test viewer::failure::tests::s06_faulted_viewer_only_completes_an_existing_healthy_runtime_submission ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/domain_module_contract.rs (target/debug/deps/domain_module_contract-de4c18ee1cfa535a)
+
+running 1 test
+test editor_domains_are_available_through_named_modules ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g1_command_stack_contract.rs (target/debug/deps/g1_command_stack_contract-fa08c55ac31f3a8e)
+
+running 15 tests
+test command_capabilities_reject_undo_and_redo_without_moving_history ... ok
+test dirty_state_tracks_history_identity_across_branching ... ok
+test compound_undo_failure_restores_the_executed_prefix ... ok
+test failed_compound_compensation_faults_the_stack ... ok
+test compound_command_rolls_back_executed_prefix_and_undoes_in_reverse_order ... ok
+test failed_redo_preserves_the_redo_entry_and_model_state ... ok
+test command_panic_faults_the_stack_and_blocks_later_operations ... ok
+test command_stack_executes_undoes_redoes_and_reports_stable_events ... ok
+test explicit_unknown_state_failure_faults_the_stack ... ok
+test command_query_panic_faults_the_stack_before_model_mutation ... ok
+test failed_undo_preserves_the_undo_entry_and_model_state ... ok
+test flush_drops_history_and_marks_the_current_document_clean ... ok
+test history_queries_are_pure_and_extension_checks_report_panics ... ok
+test rejected_or_failed_execute_does_not_change_history_or_clear_redo ... ok
+test undo_limit_discards_oldest_history_without_changing_the_model ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g1_model_contract.rs (target/debug/deps/g1_model_contract-2ca2e4f54df53c82)
+
+running 2 tests
+test model_revision_rejects_zero_and_advances_without_wrapping ... ok
+test model_adapter_exposes_stable_identity_children_and_ordered_events ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g2_viewer_projection_contract.rs (target/debug/deps/g2_viewer_projection_contract-16250fdb8567397e)
+
+running 24 tests
+test duplicate_model_identity_is_rejected_during_initial_projection ... ok
+test initial_projection_absorbs_events_already_represented_by_the_snapshot ... ok
+test initial_projection_failure_deactivates_every_activated_part_once ... ok
+test dropping_viewer_deactivates_every_live_part_in_preorder ... ok
+test one_revision_may_carry_multiple_ordered_events ... ok
+test duplicate_overlay_batch_rejects_before_disposing_the_first_figure ... ok
+test duplicate_model_identity_faults_refresh_before_projection_changes ... ok
+test late_initial_projection_failure_deactivates_the_complete_live_prefix_once ... ok
+test failed_incremental_subtree_clears_new_parent_and_preserves_successful_sibling ... ok
+test overlay_foreign_and_stale_batches_leave_valid_prefix_alive ... ok
+test policy_activation_failure_rolls_back_only_the_active_prefix_once ... ok
+test refresh_panic_faults_viewer_after_partial_visual_mutation ... ok
+test root_part_is_not_a_model_part ... ok
+test removing_and_readding_a_model_rebuilds_runtime_identity ... ok
+test refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup ... ok
+test part_ids_are_namespaced_and_rejected_by_another_viewer ... ok
+test reparenting_is_order_independent_and_rebuilds_the_moved_part ... ok
+test revision_gap_faults_viewer_before_projection_changes ... ok
+test stale_notification_faults_viewer_without_changing_projection ... ok
+test viewer_projects_model_tree_and_registers_model_and_visual_identity ... ok
+test unregistered_internal_visual_resolves_through_its_registered_ancestor ... ok
+test unknown_and_foreign_visuals_do_not_resolve_to_parts ... ok
+test viewer_retains_zoom_manager_policy_and_levels_across_zoom_operations ... ok
+test model_snapshot_rejects_depth_above_ten_thousand_without_stack_overflow ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/g3_selection_contract.rs (target/debug/deps/g3_selection_contract-91d749df0c682ab9)
+
+running 3 tests
+test focus_is_independent_but_reconciled_with_retired_parts ... ok
+test ordered_selection_keeps_the_last_selected_item_primary ... ok
+test toggle_and_clear_report_exact_selection_deltas ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g3_viewer_interaction_contract.rs (target/debug/deps/g3_viewer_interaction_contract-0443352bf8015964)
+
+running 8 tests
+test widget_consumption_blocks_editor_selection_fallback ... ok
+test background_click_clears_visual_selection_to_contents_fallback ... ok
+test root_layers_have_stable_scaled_and_unscaled_z_order ... ok
+test handles_win_targeting_and_feedback_is_transparent ... ok
+test figure_capture_owns_the_complete_pointer_gesture ... ok
+test removing_parts_reconciles_selection_focus_and_owned_overlays ... ok
+test pointer_selection_preserves_order_primary_and_focus ... ok
+test viewport_scroll_changes_targeting_through_the_shared_transform_chain ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/g4_editing_loop_contract.rs (target/debug/deps/g4_editing_loop_contract-fd6101e370b7ed12)
+
+running 19 tests
+test policy_rejection_is_distinct_from_no_command_contribution ... ok
+test connection_extension_panic_faults_viewer ... ok
+test create_and_delete_round_trip_through_policy_command_and_projection ... ok
+test domain_executes_compound_move_and_refreshes_then_undoes_and_redoes ... ok
+test policy_command_panic_faults_viewer_and_rejects_follow_up_operations ... ok
+test policy_feedback_panic_faults_viewer_before_attaching_feedback ... ok
+test policy_target_rejects_foreign_and_stale_parts ... ok
+test policy_target_routes_command_and_feedback_to_the_resolved_part_once ... ok
+test autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta ... ok
+test recoverable_command_error_that_changes_model_faults_viewer ... ok
+test typed_change_bounds_request_preserves_operation_and_transforms_bounds ... ok
+test successful_command_history_survives_projection_failure ... ok
+test autoexpose_corner_scrolls_both_available_viewport_axes ... ok
+test unknown_command_state_faults_stack_and_viewer_without_projection ... ok
+test resize_handle_commits_resize_request_without_changing_selection ... ok
+test selection_tool_preserves_multi_selection_for_drag_and_collapses_on_click ... ok
+test selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup ... ok
+test transient_feedback_expands_freeform_range_before_edge_scroll ... ok
+test zoom_during_drag_preserves_the_content_point_under_the_pointer ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/g5_connection_creation_contract.rs (target/debug/deps/g5_connection_creation_contract-54b2a2b46e917154)
+
+running 20 tests
+test duplicate_source_plans_are_rejected_without_starting_a_gesture ... ok
+test invalid_target_keeps_gesture_and_escape_cancels_without_model_change ... ok
+test non_finite_model_bendpoint_is_rejected_before_projection ... ok
+test connection_visual_is_an_invalid_target_without_aborting_the_gesture ... ok
+test connection_creation_autoexpose_scrolls_both_corner_axes ... ok
+test connection_creation_autoexpose_keeps_source_locked_and_rebuilds_feedback ... ok
+test committed_connection_undo_redo_preserves_model_identity_and_projection ... ok
+test application_router_keeps_self_loop_endpoints_distinct_with_one_bendpoint ... ok
+test history_transition_cancels_an_incomplete_connection_before_model_refresh ... ok
+test bendpoint_create_move_delete_round_trips_without_rebuilding_connection ... ok
+test policy_can_accept_a_self_loop ... ok
+test reconnect_cancel_clears_feedback_without_model_change ... ok
+test typed_request_preserves_source_target_and_interaction_state ... ok
+test source_endpoint_reconnects_while_invalid_drop_has_no_effect ... ok
+test selected_connection_deletes_and_undo_restores_the_same_model_identity ... ok
+test two_stage_tool_locks_source_preserves_selection_and_commits_after_feedback_cleanup ... ok
+test widget_consumed_press_does_not_start_or_complete_connection ... ok
+test target_endpoint_handle_reconnects_and_undo_preserves_connection_part_identity ... ok
+test zoomed_bendpoint_drag_commits_in_connection_routing_coordinates ... ok
+test endpoint_reconnect_autoexpose_scrolls_both_corner_axes ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/g5_connection_projection_contract.rs (target/debug/deps/g5_connection_projection_contract-1f93b27d0742d276)
+
+running 22 tests
+test connection_and_containment_model_identity_collision_is_rejected ... ok
+test duplicate_and_missing_endpoint_snapshots_are_rejected ... ok
+test dangling_endpoint_faults_before_existing_projection_changes ... ok
+test connection_part_id_is_a_checked_view_of_edit_part_identity ... ok
+test connection_factory_must_create_a_connection_figure ... ok
+test failed_connection_activation_rolls_back_all_registrations ... ok
+test endpoint_geometry_change_is_rerouted_by_runtime ... ok
+test model_order_drives_layer_and_relation_order_without_recreating_parts ... ok
+test node_and_connection_can_be_removed_in_one_model_revision ... ok
+test connection_add_and_remove_preserve_unrelated_part_identity ... ok
+test invalid_route_output_clears_geometry_and_recovers_without_recreating_resources ... ok
+test revision_drift_during_snapshot_is_rejected ... ok
+test endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end ... ok
+test ordered_snapshot_projects_one_connection_part_outside_containment ... ok
+test self_loop_is_indexed_once_at_both_ends ... ok
+test reconnect_preserves_part_figure_order_and_unchanged_anchor ... ok
+test connection_cleanup_lifecycle_panic_preserves_original_error_and_retired_ids ... ok
+test viewer_drop_deactivates_connections_before_endpoint_parts ... ok
+test rejected_incremental_connection_creation_leaves_no_registration ... ok
+test late_connection_refusals_and_panic_preserve_existing_projection ... ok
+test unresolved_route_keeps_a_live_recoverable_connection_part ... ok
+test unchanged_connection_projection_does_not_reroute_each_connection ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/ga4_external_visual_component.rs (target/debug/deps/ga4_external_visual_component-47a8b6f343f438c3)
+
+running 2 tests
+test model_refresh_rejects_a_component_target_outside_the_part_visuals ... ok
+test external_compound_visual_updates_private_component_during_model_refresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_e02_direct_text_edit_contract.rs (target/debug/deps/p2_e02_direct_text_edit_contract-f51791066433fa7d)
+
+running 10 tests
+test source_retirement_cancels_session_and_removes_owned_feedback ... ok
+test stale_revision_and_recoverable_command_rejection_preserve_the_draft ... ok
+test edit_context_snapshot_flows_through_domain_into_the_draft ... ok
+test interaction_map_moves_and_deletes_whole_grapheme_clusters ... ok
+test one_session_unsupported_feature_cancel_and_no_change_are_deterministic ... ok
+test draft_is_transient_and_accept_creates_one_undoable_command ... ok
+test direct_edit_extension_panic_faults_viewer_and_cleans_feedback ... ok
+test preedit_updates_are_transient_and_cancel_restores_the_composition_base ... ok
+test target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bounds ... ok
+test long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Doc-tests novadraw_editor
+
+running 2 tests
+test novadraw-editor/src/viewer/mod.rs - viewer::GraphicalViewer (line 1072) - compile fail ... ok
+test novadraw-editor/src/viewer/mod.rs - viewer::GraphicalViewer (line 1060) - compile fail ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+
+
+==> $ cargo check -p node-editor-demo
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+    Checking novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+    Checking node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+error[E0600]: cannot apply unary operator `!` to type `Result<bool, TreeQueryError>`
+   --> examples/native/node-editor-demo/src/harness/failure_host.rs:164:9
+    |
+164 |         !fresh.viewer.runtime().tree().is_attached(old_figure),
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot apply unary operator `!`
+    |
+note: `Result<bool, TreeQueryError>` does not implement `Not`
+   --> /Users/bytedance/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:557:1
+    |
+557 | pub enum Result<T, E> {
+    | ^^^^^^^^^^^^^^^^^^^^^ `Result<bool, TreeQueryError>` is defined in another crate
+
+error[E0308]: mismatched types
+   --> examples/native/node-editor-demo/src/harness.rs:554:34
+    |
+554 |             .filter_map(|figure| tree.point_list_points(figure))
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Option<_>`, found `Result<Option<Vec<Point>>, ...>`
+    |
+    = note: expected enum `std::option::Option<_>`
+               found enum `Result<std::option::Option<Vec<novadraw::geometry::Point>>, TreeQueryError>`
+help: consider using `Result::expect` to unwrap the `Result<std::option::Option<Vec<novadraw::geometry::Point>>, TreeQueryError>` value, panicking if the value is a `Result::Err`
+    |
+554 |             .filter_map(|figure| tree.point_list_points(figure).expect("REASON"))
+    |                                                                +++++++++++++++++
+
+Some errors have detailed explanations: E0308, E0600.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `node-editor-demo` (bin "node-editor-demo") due to 2 previous errors
+xtask: `cargo check -p node-editor-demo` failed with exit status: 101
