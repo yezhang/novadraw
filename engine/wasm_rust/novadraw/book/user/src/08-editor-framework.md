@@ -707,11 +707,6 @@ let domain = EditorDomain::new();
 - [`g5_connection_projection_contract.rs`](../../../novadraw-editor/tests/g5_connection_projection_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - [`p2_e02_direct_text_edit_contract.rs`](../../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
-- `cargo xtask run replay.editor-g3`
-- `cargo xtask run replay.editor-g4`
-- `cargo xtask run replay.editor-g5.2`
-- `cargo xtask run replay.editor-g5.3`
-- `cargo xtask run replay.editor-g5.4`
-- `cargo xtask run replay.editor-g5.5`
-- `cargo xtask verify editor.p2-e02-direct-text-edit`
-- `cargo xtask verify platform.p2-e02-text-input`
+- `cargo xtask verify editor.contracts`
+- `cargo xtask verify editor.replay`
+- `cargo xtask verify platform.text-input`

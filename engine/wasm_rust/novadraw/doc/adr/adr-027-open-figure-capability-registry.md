@@ -154,7 +154,7 @@ admission 阶段按 Replace/Ignore 仲裁；结果不依赖渲染顺序。
 - 横切 capability concrete downcast 扫描；
 - PointList/TextFlow/Image/Viewport 等类型专用 API 的分类测试；
 - render/layout/event/connection 回归；
-- `cargo xtask check --quick`，最终完成边界运行 full。
+- 批次运行 workspace fmt/check，最终完成边界运行 workspace Clippy/test。
 
 实现和工作量证据见
 [P2-F02 Figure Capability 实现记录](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。

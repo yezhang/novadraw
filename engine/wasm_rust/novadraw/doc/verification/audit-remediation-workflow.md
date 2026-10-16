@@ -21,8 +21,8 @@
 
 - `temporary-concept-design-audit-2026-10-08.md` 作为长期演进"台账"，用 `complete` /
   `partial` / `not_started` 跟踪每一条；
-- `verification/suites.toml` 把执行命令与证据路径集中到 manifest；
-- `cargo xtask check --quick` / `--full` 把门禁开销分层；
+- xtask 为跨工具验收提供稳定 suite ID；
+- 标准 Cargo 命令按修改内环、批次和最终边界分层；
 - 每条收口单独写一份 `tc0X-...-completion-*.md` 作为历史证据。
 
 但当前流程只定义了"每一次审计 → 每一次收口"的单链条，没有定义"审计结果如何
@@ -65,7 +65,7 @@ flowchart LR
 | **收口完成记录**（`reviews/<id>-completion-YYYY-MM-DD.md`） | 一次原子批次关闭后的证据 | 批次关闭时一次写入 |
 | **ADR / normative design** | 当前批次的"目标契约" | Design 阶段写入；Execute 阶段不改 |
 | **`roadmap/p2-delta-backlog.md`** | 可实施批次队列 + 状态 | Triage 阶段把审计发现挂到对应 delta ID |
-| **`verification/suites.toml`** | 批次毕业门禁 | Design 阶段登记新门禁；收口时不再增删 |
+| **xtask suite 或精确 Cargo target** | 批次毕业门禁 | Design 阶段登记新门禁；收口时不再增删 |
 | **本文档** | 工作流本身 | 流程本身改变时才改 |
 
 **关键原则**：审计报告和完成记录是历史证据；整改清单维护来源映射，执行状态唯一
@@ -169,7 +169,7 @@ Full gate 阻断分两类：
 
 - `cargo xtask list` / `verify <suite-id>`：按 Backlog 挂的 suite 查门禁；
 - `cargo xtask docs`：Markdown 索引与分类校验；
-- `cargo xtask check --quick` / `--full`：分层门禁。
+- workspace fmt/check 与最终 Clippy/test：分层门禁。
 
 ### 5.2 建议补齐（候选，尚未实现）
 

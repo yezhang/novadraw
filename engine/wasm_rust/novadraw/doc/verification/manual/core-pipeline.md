@@ -60,12 +60,14 @@ cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw
 依次执行：
 
 ```bash
-cargo xtask check --full
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
 
 通过标准：
 
-- profile 中的全部命令均以退出码 0 结束。
+- 全部命令均以退出码 0 结束。
 - 不存在 panic、测试失败或 clippy warning。
 - 后续窗口异常如果不能通过这里复现，应优先检查窗口系统、GPU 和 surface。
 
@@ -74,7 +76,7 @@ cargo xtask check --full
 先运行无窗口验证，并保留 JSON 报告：
 
 ```bash
-cargo xtask verify core.runtime
+cargo xtask verify runtime.apps
 ```
 
 终端必须按发生顺序出现以下结果：
@@ -297,10 +299,10 @@ Commit:
 图形设备 / 后端:
 
 自动门禁:
-[ ] cargo xtask check --full
+[ ] cargo fmt / clippy / test workspace
 
 无窗口 verification:
-[ ] cargo xtask verify core.runtime PASS，报告路径:
+[ ] cargo xtask verify runtime.apps PASS，报告路径:
 
 窗口验收:
 [ ] update-app：切场景、partial damage、1,024 Figure、resize/恢复

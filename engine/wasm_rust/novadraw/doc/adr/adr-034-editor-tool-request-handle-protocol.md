@@ -277,7 +277,7 @@ Core 中禁止：
 5. G1、G2、G3、G4、G5、P2-E02 定向 suite 全部通过；
 6. fault injection：duplicate key、missing handler、handler rejection、descriptor mismatch、
    callback panic；
-7. `cargo xtask docs`、`cargo xtask check --quick`，完成边界执行一次 full gate。
+7. `cargo xtask docs`、workspace fmt/check，完成边界执行 workspace Clippy/test。
 
 ## 实施与回滚
 

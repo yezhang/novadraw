@@ -21,21 +21,17 @@
 
 ## 自动化入口
 
-可执行命令、suite 到 milestone 的映射和证据路径统一定义在
-[`../../verification/suites.toml`](../../verification/suites.toml)，schema 和证据
-保留规则见 [`../../verification/README.md`](../../verification/README.md)。
+跨工具 suite 与直接 Cargo 门禁见
+[`../../verification/README.md`](../../verification/README.md)。
 
 ```bash
 cargo xtask list
 cargo xtask docs
-cargo xtask check --quick
-cargo xtask check --full
 cargo xtask verify <suite-id>
-cargo xtask manual <suite-id>
 ```
 
-新增或修改验证入口时先更新 manifest。Review 只引用稳定 suite ID 和执行结果，
-不得复制一套会漂移的命令定义。
+单个测试直接使用 Cargo；平台和人工验收使用对应手册中的直接命令。Review 只引用稳定
+suite ID 或精确 test target 和执行结果，不复制冗余别名。
 
 ## 证据边界
 

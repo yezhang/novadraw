@@ -103,7 +103,7 @@ owned 命令录制由 `CommandRecorder` 承担；`NdCanvas` 只保留为 crate �
 - RenderCommand 公开字段不再出现 `glam`；
 - 删除 geometry alias 后 workspace 调用方全部迁移；
 - `novadraw --no-default-features` 保持可编译；
-- `cargo xtask check --quick`，最终交付执行 `cargo xtask check --full`。
+- 批次运行 workspace fmt/check，最终交付运行 workspace fmt、Clippy 与 test。
 
 ## 实施结果
 

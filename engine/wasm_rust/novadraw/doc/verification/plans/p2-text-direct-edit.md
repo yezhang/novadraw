@@ -12,7 +12,7 @@
 - [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)
 
 本页定义完成证据。P2-T02 与 P2-E02a 的实际 command 和 suite 已注册到
-`verification/suites.toml`；P2-E02b 不注册不可执行的占位门禁。
+`verification/README.md`；P2-E02b 不注册不可执行的占位门禁。
 
 ## 1. 计划 Suite
 
@@ -120,7 +120,7 @@ P2-T02 complete：
 
 P2-E02 complete：
 
-- 三个计划 suite 均进入 `verification/suites.toml` 并通过；
+- 计划中的自动验证均已执行通过；
 - Native/Web 人工验收有日期、平台和原始结果；
 - GEF parity `direct_edit` 提升为 `verified`；
 - `cargo xtask check --quick` 通过；

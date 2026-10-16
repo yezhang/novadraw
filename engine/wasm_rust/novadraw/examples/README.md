@@ -1,7 +1,7 @@
 # Novadraw Examples
 
 本目录提供可运行、可阅读、可改造的 Novadraw 示例。示例同时承担集成验证职责，但
-验证命令和证据仍由 `verification/suites.toml` 统一管理。性能基线独立放在
+验证命令和证据入口见 `verification/README.md`。性能基线独立放在
 [`benchmarks/`](../benchmarks/)。
 
 ## 目录结构
@@ -97,5 +97,5 @@ cargo xtask check --full
 2. 可复用的无平台场景放入 `scenes/`。
 3. 示例宿主共用逻辑放入 `support/`，不要下沉产品专用逻辑。
 4. 在 workspace `Cargo.toml` 中注册 package。
-5. 需要自动验证时，在 `verification/suites.toml` 注册稳定命令与 suite。
+5. 需要跨工具自动验证时，在 xtask 中登记稳定 suite。
 6. 更新本 README。

@@ -4,7 +4,7 @@
 
 本流程用于提升
 [`平台支持矩阵`](../../roadmap/platform-support-matrix.md) 的支持等级。
-它不替代 `verification/suites.toml` 中的自动命令，也不允许在没有对应环境时填写 PASS。
+它不允许在没有对应环境时填写 PASS。
 
 ## 证据头
 
@@ -21,16 +21,15 @@
 
 ## 自动前置
 
-| 环境 | Suite |
+| 环境 | 自动前置 |
 |---|---|
-| macOS | `platform.native-macos-release` |
-| Windows | `platform.native-windows-release` |
-| Linux X11 | `platform.native-linux-x11-release` |
-| Linux Wayland | `platform.native-linux-wayland-release` |
-| Chrome + WebGPU | `platform.web-chrome-release` |
+| macOS | `cargo check -p node-editor-demo` |
+| Windows | `./scripts/build_windows_target.sh` |
+| Linux x86_64 | `cargo check --target x86_64-unknown-linux-gnu -p node-editor-demo` |
+| Chrome + WebGPU | `cargo xtask verify web.build` |
 
-1. 运行本表对应的 suite；
-2. 运行受影响 Core/Editor contract suite；
+1. 运行本表对应的自动前置；
+2. 运行受影响 Core/Editor test 或跨工具 suite；
 3. 保存原始日志，不只保存人工结论；
 4. 若缺少平台 runner，保持 `not_verified`，不得用 host check 替代。
 

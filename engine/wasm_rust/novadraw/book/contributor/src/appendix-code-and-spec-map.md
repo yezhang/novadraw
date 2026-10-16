@@ -9,7 +9,7 @@
 | 项目规则 | [`AGENTS.md`](../../../AGENTS.md)、[`CLAUDE.md`](../../../CLAUDE.md) |
 | 文档总索引 | [`doc/00-index.md`](../../../doc/00-index.md) |
 | ADR 索引 | [`doc/adr/README.md`](../../../doc/adr/README.md) |
-| 验证清单 | [`verification/suites.toml`](../../../verification/suites.toml) |
+| 验证入口 | [`verification/README.md`](../../../verification/README.md) |
 | 用户指南 | <a href="../../user/html/index.html">《Novadraw 应用开发与扩展指南》</a> |
 | 核心原理 | <a href="../../internals/html/index.html">《深入理解 Novadraw》</a> |
 
@@ -56,10 +56,11 @@ Editor 的规范入口：
 ```bash
 cargo xtask list
 cargo xtask docs
-cargo xtask check --quick
-cargo xtask check --full
+cargo fmt --all -- --check
+cargo check --workspace
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
 
-选择 suite 时先按修改路径和语义范围查询
-[`verification/suites.toml`](../../../verification/suites.toml)，不要凭章节中的示例命令
-推断当前门禁。
+选择跨工具 suite 时查看 [`verification/README.md`](../../../verification/README.md)
+和 `cargo xtask list`，单个测试直接使用 Cargo。

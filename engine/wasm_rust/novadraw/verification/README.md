@@ -1,73 +1,72 @@
-# Verification Manifest
+# Verification
 
-`suites.toml` is the executable source of truth for Novadraw verification commands and their
-mapping to milestones, source areas, documents, platforms, and artifacts.
+Novadraw 直接使用 Cargo 完成常规编译和测试。xtask 只保留项目特有的文档校验与跨工具
+验收编排。
 
-It does not define architecture or milestone completion state:
-
-- `doc/design/` and accepted ADRs define behavior.
-- `doc/roadmap/` and `doc/roadmap/editor/` define delivery state.
-- `verification/suites.toml` defines how those claims are checked.
-- `doc/verification/` records manual procedures and historical results.
-
-## Commands
-
-Run all commands from the Novadraw workspace root:
+## xtask
 
 ```bash
 cargo xtask list
 cargo xtask docs
-cargo xtask check --quick
-cargo xtask check --full
-cargo xtask verify g5.4
-cargo xtask manual g5.4
+cargo xtask verify <suite-id>
 ```
 
-Suite selectors accept either a complete ID or an unambiguous dotted prefix. `verify --all`
-deduplicates shared commands before execution.
+当前 suite：
 
-Use the profiles at different workflow boundaries:
+| Suite | 覆盖范围 |
+|---|---|
+| `core.facade` | 公开 API、依赖、热路径和 backend feature |
+| `core.resources` | Core token、Native/Web provider 与 Vello image lowering |
+| `core.render-failure` | 后端失败恢复与 Native/Web host |
+| `core.graphics` | Core Graphics、Text Graphics 与 Vello lowering |
+| `extensions` | Core/Editor 外部消费者和开放协议 |
+| `runtime.apps` | Update、Event、Viewport、UML、Animation 应用探针 |
+| `editor.contracts` | Editor 完整测试与 Native host 编译 |
+| `editor.replay` | G3、G4、G5.2-G5.5 单进程回放 |
+| `platform.text-input` | Winit/Web 文字输入与 wasm host |
+| `graphics.native` | Native 像素与 surface present |
+| `web.build` | release Wasm 与 wasm-bindgen 产物 |
+| `web.performance` | Chrome/WebGPU 证据校验与采样 |
 
-- `check --quick` runs workspace formatting and compilation for batch-level feedback.
-- `check --full` runs formatting, workspace Clippy, and all workspace tests once at the final
-  submission, push, merge, or milestone boundary. Clippy already performs the normal workspace
-  compilation pass, so the full profile does not run a separate redundant `cargo check`.
-- During the edit loop, prefer `cargo check -p <crate>`, an exact test, and the affected suite.
-- Documentation-only changes use `cargo xtask docs` and `git diff --check`.
+单个 Cargo test、应用启动、性能观测和平台构建不再包装成 suite。
 
-## Editor Headless Replay
+## 常规门禁
 
-The `g3`, `g4`, and `g5.2`-`g5.4` suites run `node-editor-demo` without creating a window. Native
-input and replay both delegate to the same platform-neutral `EditorHarness`, so replay exercises the
-real Tool, Request, Command, model notification, Viewer projection, and overlay-handle path.
+编辑内环：
 
-Each replay starts from a fresh model and writes an ordered checkpoint report under
-`target/verification/reports/`. On failure, the report retains the successfully verified prefix and
-the first failing transition. Replay does not replace the manual Native/GPU acceptance step.
+```bash
+cargo check -p <crate> --lib
+cargo test -p <crate> --test <target>
+```
 
-## Schema
+同类整改批次：
 
-- `commands`: structured executable definitions. Commands use an argv array and never a shell
-  command string.
-- `profiles`: ordered command sets for developer feedback and submission gates.
-- `suites`: stable verification IDs with affected paths, documents, expected artifacts, automated
-  commands, and an optional manual entry.
-- `documentation`: parity ledgers and their allowed status vocabulary.
+```bash
+cargo fmt --all -- --check
+cargo check --workspace
+```
 
-All paths are relative to the Novadraw workspace. Generated evidence belongs under
-`target/verification/`; the manifest may name expected artifacts before they exist.
+最终提交边界：
 
-Committed audit evidence belongs under `verification/evidence/<audit-id>/`. Keep human-readable
-conclusions in `doc/verification/`; do not place generated executables in either location.
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+```
 
-`cargo xtask docs` rejects:
+纯文档变化：
 
-- unknown or unused command IDs;
-- duplicate or malformed suite IDs;
-- missing referenced documents or working directories;
-- absolute paths and parent-directory traversal;
-- parity ledger statuses outside the declared vocabulary.
+```bash
+cargo xtask docs
+git diff --check
+```
 
-When adding a new milestone slice, add or update its suite before copying commands into a review
-document. Reviews should cite the suite ID and record its result rather than redefining the command
-sequence.
+## 边界
+
+- `cargo xtask docs` 不编译 Rust，只检查 Markdown 类型、本地链接、当前 xtask 引用、
+  设计索引分类和 parity 状态。
+- suite 顺序执行，首个失败立即停止。
+- 平台人工验收按 `doc/verification/manual/` 的直接命令执行。
+- 性能采样按 `doc/verification/performance/` 的直接命令执行。
+- 生成证据放在 `target/verification/`；需要提交的审计日志放在
+  `verification/evidence/<audit-id>/`。

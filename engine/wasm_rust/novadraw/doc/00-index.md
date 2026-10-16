@@ -39,7 +39,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
   [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md) 维护。
-- 可执行验证只在 [`../verification/suites.toml`](../verification/suites.toml) 维护。
+- 可执行验证入口见 [`../verification/README.md`](../verification/README.md) 和
+  `cargo xtask list`。
 
 ## 权威边界
 
@@ -144,7 +145,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/editor/g5-viewport-autoexpose.md`](design/editor/g5-viewport-autoexpose.md)
 - GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
 - G0-G5 唯一编号与状态：[`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
-- 可执行验证 suite 与命令：[`../verification/suites.toml`](../verification/suites.toml)
+- 可执行验证 suite 与命令：[`../verification/README.md`](../verification/README.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 

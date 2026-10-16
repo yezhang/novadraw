@@ -357,4 +357,4 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 - [`m9_connection_runtime.rs`](../../../novadraw/tests/m9_connection_runtime.rs)
 - [`g5_connection_projection_contract.rs`](../../../novadraw-editor/tests/g5_connection_projection_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
-- `cargo xtask run test.scene-connection`
+- `cargo test -p novadraw --test m9_connection_contract`

@@ -72,7 +72,7 @@
   `PropertyKey<V>` / `ErasedPropertyKey`，字符串只用于诊断显示
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
-- **可执行验证清单**：`verification/suites.toml`
+- **可执行验证入口**：`verification/README.md` 与 `cargo xtask list`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。
 
 ### 当前执行门禁
@@ -137,9 +137,9 @@
 - **渲染**: Vello (WebGPU)
 - **构建**: `cargo build && cargo test`
 - **分层门禁**: 修改内环使用 crate `--lib` 或单个 `--test` 的 check/Clippy/精确测试，
-  不使用 `--tests`、`--all-targets` 扫描无关目标；功能切片先运行对应 suite，suite
-  已含命令不重复手工执行；`cargo xtask check --quick` 用于同类整改批次，
-  `cargo xtask check --full` 只在最终提交、推送、合并或里程碑关闭前执行一次
+  不使用 `--tests`、`--all-targets` 扫描无关目标；跨工具功能切片运行对应 xtask
+  suite。同类整改批次直接运行 workspace fmt/check，最终边界直接运行 workspace
+  fmt、Clippy 与 test，不再通过 xtask 包装标准 Cargo 命令
 - **公开包**: `novadraw` Core、`novadraw-editor`、`novadraw-inspector`、
   `novadraw-backend-vello`、`novadraw-platform-winit`、`novadraw-platform-web`
 - **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate

@@ -9,7 +9,8 @@
 启动：
 
 ```bash
-cargo xtask manual platform.p2-e02-text-input
+cargo xtask verify platform.text-input
+cargo run -p node-editor-demo
 ```
 
 验收步骤：
@@ -34,7 +35,7 @@ cargo xtask manual platform.p2-e02-text-input
 
 ```bash
 cargo xtask verify web.build
-cargo xtask manual web.build
+./scripts/serve_web_validation.sh
 ```
 
 打开

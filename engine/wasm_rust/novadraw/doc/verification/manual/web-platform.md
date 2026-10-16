@@ -112,13 +112,13 @@ WASM_BINDGEN="$(command -v wasm-bindgen)" cargo xtask verify web.build
 在独立终端执行：
 
 ```bash
-cargo xtask manual web.build
+./scripts/serve_web_validation.sh
 ```
 
 默认监听 `127.0.0.1:4173`。端口占用时指定其他端口：
 
 ```bash
-PORT=4174 cargo xtask manual web.build
+PORT=4174 ./scripts/serve_web_validation.sh
 ```
 
 在另一个终端检查静态资源：

@@ -52,13 +52,12 @@ M1-M10 的 demo 基线已完成；本文维护回归覆盖，不是当前工作�
 
 ### 统一 CLI
 
-- `cargo xtask list`：列出统一 profile 与 suite ID
-- `cargo xtask verify core.runtime`：验证 damage、通知顺序、dirty 合并、panic 恢复、
-  1,024 Figure 事务、capture、focus 和坐标根降域
-- `cargo xtask verify m8`：验证 Viewport、ScrollPane、Freeform 与 Zoom
-- `cargo xtask check --full`：运行完整 workspace 提交门禁
-- 命令与报告路径的唯一可执行定义：
-  [`../../verification/suites.toml`](../../verification/suites.toml)
+- `cargo xtask list`：列出跨工具 suite
+- `cargo xtask verify runtime.apps`：验证 Update、Event、Viewport、UML 和 Animation
+  应用探针
+- 单个契约直接运行对应 `cargo test -p <crate> --test <target>`
+- 最终 workspace 门禁直接运行 fmt、Clippy 与 test
+- 当前命令集合见 [`../../verification/README.md`](../../verification/README.md)
 
 ### 性能采证
 

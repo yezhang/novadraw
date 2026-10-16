@@ -136,8 +136,8 @@ Workspace 当前版本为 `0.1.0`，且所有已知调用点都在同一仓库�
 - 不兼容 constraint replacement 在构建期和运行期均不改变旧 manager；
 - 删除 `FigureTree::validate` 后，validation 契约仍通过；
 - 公开源码和非归档文档不再使用旧 `block` API；
-- `cargo xtask docs`、`cargo xtask check --quick`；
-- 本 breaking change 交付前执行一次 `cargo xtask check --full`。
+- `cargo xtask docs`、workspace fmt/check；
+- 本 breaking change 交付前执行一次 workspace fmt、Clippy 与 test。
 
 ## 关系
 

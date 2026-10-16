@@ -321,5 +321,5 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 - [`d2_freeform_contract.rs`](../../../novadraw/tests/d2_freeform_contract.rs)
 - [`m8_viewport_contract.rs`](../../../novadraw/tests/m8_viewport_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
-- `cargo xtask run verify.scroll-pane`
-- `cargo xtask run replay.editor-g5.5`
+- `cargo xtask verify runtime.apps`
+- `cargo xtask verify editor.replay`

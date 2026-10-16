@@ -7,7 +7,7 @@
 入口：
 
 ```bash
-cargo xtask manual g3
+cargo run -p node-editor-demo
 ```
 
 窗口初始应显示：

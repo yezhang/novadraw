@@ -361,4 +361,4 @@ runtime.container(root)?.bring_child_to_front(added)?;
 - [`d1_tree_search_contract.rs`](../../../novadraw/tests/d1_tree_search_contract.rs)
 - [`d2_freeform_contract.rs`](../../../novadraw/tests/d2_freeform_contract.rs)
 - [`r8_extension_boundaries.rs`](../../../novadraw/tests/r8_extension_boundaries.rs)
-- `cargo xtask run workspace.test`
+- `cargo test --workspace`

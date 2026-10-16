@@ -191,7 +191,7 @@ ADR-032 的 `ViewerDrive` 继续是 Editor 对宿主暴露的受限能力集。�
 4. compile-fail：`runtime.label(id)` 等 concrete facade 不可用；
 5. external consumer：内置与外部 component/capability 共用协议；
 6. editor、platform-winit、platform-web、examples 与相关 Core suite 通过；
-7. `cargo xtask docs`、`cargo xtask check --quick`，完成边界执行一次 full gate。
+7. `cargo xtask docs`、workspace fmt/check，完成边界执行 workspace Clippy/test。
 
 ## 实施与回滚
 

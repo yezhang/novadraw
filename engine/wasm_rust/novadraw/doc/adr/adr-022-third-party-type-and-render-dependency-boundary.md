@@ -91,7 +91,7 @@ Core 的可选安装和平台依赖隔离，而不是预设第二个 renderer。
   `SurfaceInfo` 构造；
 - Web backend 使用 `VelloInitializationError`；
 - Resvg 0.48.1 将依赖图统一为 Kurbo 0.13.1；
-- 公共 API、Kurbo 版本和二进制体积入口已登记到 `verification/suites.toml`。
+- 公共 API 与 Kurbo 版本由 `core.facade` suite 检查；二进制体积按需直接观测。
 
 ## 关系
 

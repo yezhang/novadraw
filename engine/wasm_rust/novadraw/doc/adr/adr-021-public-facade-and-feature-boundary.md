@@ -122,8 +122,8 @@ backend feature，因为 Scene/Runtime 只依赖 backend-neutral render protocol
 - `cargo check -p novadraw --no-default-features --features native-vello`；
 - `cargo check -p novadraw --no-default-features --features web-vello`；
 - native demo、Web validation 和 Editor 测试继续通过；
-- `cargo xtask docs`、`cargo xtask check --quick`；
-- 最终交付执行一次 `cargo xtask check --full`。
+- `cargo xtask docs`、workspace fmt/check；
+- 最终交付执行一次 workspace fmt、Clippy 与 test。
 
 ## 实施结果
 

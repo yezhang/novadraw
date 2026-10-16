@@ -269,5 +269,5 @@ cargo run -p node-editor-demo
 
 # 查看并执行验证套件
 cargo xtask list
-cargo xtask verify core.runtime
+cargo xtask verify runtime.apps
 ```

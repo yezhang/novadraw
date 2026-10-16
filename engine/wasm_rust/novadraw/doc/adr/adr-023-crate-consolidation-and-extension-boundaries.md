@@ -100,7 +100,7 @@ FigureTree 或 Runtime 的领域实现。
 
 `examples/*`、`benchmarks/*` 和 `xtask` 是示例、验证或工具 package，显式设置
 `publish = false`。它们不构成框架公共 crate 集合；示例是否参与门禁由
-`verification/suites.toml` 表达，不通过目录归属区分。
+xtask suite 或精确 Cargo target 表达，不通过目录归属区分。
 
 ### 6. 不保留旧 crate 转发壳
 

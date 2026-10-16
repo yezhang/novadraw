@@ -123,7 +123,7 @@ pub use novadraw::runtime::Runtime;
 
 ### 6. API snapshot 按领域冻结
 
-[check_public_api_surface.sh](../../scripts/check_public_api_surface.sh) 调整为：
+[check_architecture.sh](../../scripts/check_architecture.sh) 调整为：
 
 1. 删除 `prelude:prelude/index.html` scope；
 2. root scope 只允许 `mod`；
@@ -187,7 +187,7 @@ module.graphics ...
 4. compile-pass：外部 consumer 只用显式领域路径；
 5. API snapshot：删除 prelude scope，root 仅有 module 行；
 6. README、book、examples、benchmarks、tests 和各公开 crate 完成迁移；
-7. `cargo xtask docs`、`cargo xtask check --quick`；
+7. `cargo xtask docs`、workspace fmt/check；
 8. 因涉及公共跨 crate API，完成边界执行一次 full gate。
 
 ## 实施与回滚

@@ -72,8 +72,16 @@
 
 1. 受影响 crate 的 `cargo check -p <crate> --lib`；
 2. 精确 integration test 或 `cargo xtask verify <suite-id>`；
-3. 同类整改批次使用 `cargo xtask check --quick`；
-4. 最终提交、推送、合并或里程碑关闭前运行一次 `cargo xtask check --full`。
+3. 同类整改批次运行 workspace fmt 和 check；
+4. 最终提交、推送、合并或里程碑关闭前运行 workspace fmt、Clippy 和 test。
+
+```bash
+cargo fmt --all -- --check
+cargo check --workspace
+
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+```
 
 纯文档变化通常只需要：
 

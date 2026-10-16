@@ -16,8 +16,8 @@
 在 workspace 根目录执行：
 
 ```bash
-cargo xtask check --full
-cargo xtask verify m8
+cargo test -p novadraw --test m8_viewport_contract
+cargo xtask verify runtime.apps
 ```
 
 通过标准：

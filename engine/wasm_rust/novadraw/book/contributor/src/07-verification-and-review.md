@@ -48,13 +48,16 @@ cargo xtask verify <suite-id>
 同类整改批次运行：
 
 ```bash
-cargo xtask check --quick
+cargo fmt --all -- --check
+cargo check --workspace
 ```
 
 最终提交、推送、合并或里程碑关闭前运行一次：
 
 ```bash
-cargo xtask check --full
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
 
 suite 已包含的命令不应紧接着重复手工执行。
@@ -98,6 +101,6 @@ suite 已包含的命令不应紧接着重复手工执行。
 8. 测试是否覆盖最重要的负向路径；
 9. 文档、suite 和代码是否引用同一合同。
 
-验证入口统一定义在
-[`verification/suites.toml`](../../../verification/suites.toml)。不得在验证报告中复制
-会随实现漂移的命令清单。
+跨工具 suite 和直接 Cargo 门禁见
+[`verification/README.md`](../../../verification/README.md)。单测试 target 不建立
+xtask 别名。

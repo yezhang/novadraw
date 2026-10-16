@@ -663,7 +663,7 @@ IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
 - `doc/design/rendering/image-source-rectangle.md`
 - `doc/parity/draw2d/api-coverage.md`
 - `novadraw/tests/image_source_rectangle_contract.rs`
-- `verification/suites.toml`
+- `verification/README.md`
 
 ## Developer tooling
 

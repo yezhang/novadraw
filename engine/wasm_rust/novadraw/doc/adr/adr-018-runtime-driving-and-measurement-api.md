@@ -110,8 +110,8 @@ deprecated 双入口。
 - Runtime 的局部重绘、重验证、panic recovery 和完整帧录制通过；
 - 坐标父链、逆变换和 unknown Figure 查询通过；
 - bounded/unbounded、baseline、固定轴 hint 和测量缓存键通过；
-- `cargo xtask docs`、`cargo xtask check --quick`；
-- 批次交付前执行一次 `cargo xtask check --full`。
+- `cargo xtask docs`、workspace fmt/check；
+- 批次交付前执行一次 workspace fmt、Clippy 与 test。
 
 ## 关系
 

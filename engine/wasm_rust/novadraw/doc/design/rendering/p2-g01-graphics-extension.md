@@ -240,7 +240,7 @@ GPU 场景不提供对目标设备像素进行读改写的 XOR 契约。Differen
 ## 10. 分步交付与验收
 
 以下是 P2-G01 内部切片，不另立 M/G 里程碑。suite 的实际命令和证据路径已在
-`verification/suites.toml` 登记；验证结果见独立验证记录。
+`verification/README.md` 登记；验证结果见独立验证记录。
 
 | 顺序 | 交付切片 | 毕业证据 |
 |---|---|---|

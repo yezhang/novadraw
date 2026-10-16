@@ -21,10 +21,7 @@ Native/Vello 可视结果。算法边界、失败原子性、Bidi、UTF-8 安全
 可从任一对应 suite 启动同一个应用：
 
 ```bash
-cargo xtask manual core.p2-c01-connection-decoration
-cargo xtask manual core.p2-c02-shortest-path-routing
-cargo xtask manual core.p2-f01-scalable-polygon
-cargo xtask manual core.p2-t01-text-flow
+cargo run -p advanced-figures-app
 ```
 
 也可直接运行：

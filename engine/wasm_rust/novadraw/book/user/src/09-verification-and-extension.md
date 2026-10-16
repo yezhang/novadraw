@@ -74,11 +74,14 @@ flowchart TB
 ```bash
 cargo xtask list
 cargo xtask docs
-cargo xtask verify workspace.quality
-cargo xtask check --full
+cargo xtask verify runtime.apps
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
 
-使用 `cargo xtask list` 查看当前可执行套件，再选择覆盖本次应用变化的最小集合。
+使用 `cargo xtask list` 查看跨工具套件。单个 crate 或 integration target 直接使用
+Cargo，不再通过 xtask 转发。
 
 ## 9.4 先选择正确的扩展层
 

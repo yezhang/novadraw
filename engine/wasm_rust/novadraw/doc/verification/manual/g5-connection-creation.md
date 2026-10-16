@@ -9,7 +9,7 @@
 入口：
 
 ```bash
-cargo xtask manual g5.2
+cargo run -p node-editor-demo
 ```
 
 窗口初始应显示蓝色节点、绿色节点和右上角 `Widget`。

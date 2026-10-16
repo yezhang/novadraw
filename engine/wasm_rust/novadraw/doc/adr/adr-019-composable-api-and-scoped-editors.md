@@ -131,8 +131,8 @@ Runtime 内部 mutation primitive 可以是 `pub(crate)`，但不得作为第二
 - facade mutation 产生与原 Runtime 路径相同的 validation、damage 和 notification；
 - 外部测试 crate 不能调用被收口的 Runtime 平铺 mutator；
 - 不存在接受 `&mut FigureTree + &mut UpdateManager` 的公开 attached mutation；
-- `cargo xtask docs`、`cargo xtask check --quick`；
-- 最终交付执行一次 `cargo xtask check --full`。
+- `cargo xtask docs`、workspace fmt/check；
+- 最终交付执行一次 workspace fmt、Clippy 与 test。
 
 ## 关系
 

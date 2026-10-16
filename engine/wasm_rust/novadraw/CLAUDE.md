@@ -52,9 +52,10 @@ benchmarks/        - 无窗口性能基线
 2. **功能切片完成**：先运行 `cargo xtask verify <suite-id>` 对应的契约或应用门禁；
    只有修改共享行为、跨多个 integration target 或定向 suite 覆盖不足时，再运行受影响
    crate 的完整测试。suite 已包含的相同命令不得紧接着手工重复执行。
-3. **同类整改批次完成**：运行 `cargo xtask check --quick`。
-4. **最终提交、推送、合并或里程碑关闭前**：只需运行一次
-   `cargo xtask check --full`。
+3. **同类整改批次完成**：运行 `cargo fmt --all -- --check` 和
+   `cargo check --workspace`。
+4. **最终提交、推送、合并或里程碑关闭前**：运行一次 workspace fmt、
+   `cargo clippy --workspace -- -D warnings` 和 `cargo test --workspace`。
 
 `cargo fmt --all` 成本较低，但只在一个连贯编辑批次结束或提交前运行一次；不要在每个
 小补丁后重复格式化并触发后续目标重编译。多个验证命令应从低成本到高成本顺序执行，
@@ -77,9 +78,9 @@ git diff --check
 `cargo test -p <crate> --tests` 造成重复执行；需要完整 crate 验证时直接运行
 `cargo test -p <crate>`。
 
-验证命令、suite 与证据路径统一定义在 `verification/suites.toml`。使用
-`cargo xtask list` 查看入口，使用 `cargo xtask docs` 检查 manifest、文档引用与
-parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复制命令序列。
+跨工具 suite 由 xtask 维护，当前入口见 `verification/README.md` 和
+`cargo xtask list`。`cargo xtask docs` 只检查 Markdown 类型、本地链接、当前命令引用、
+设计索引与 parity 状态，不编译 Rust。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
 
 ## Git 提交规范
 

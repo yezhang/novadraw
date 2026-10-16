@@ -167,7 +167,7 @@
    - 当前 ADR、相关 `doc/design/` 专题
    - Draw2D/GEF 语义对等账本
    - 图形核心与编辑框架路线图
-   - `verification/suites.toml`
+   - `verification/README.md`
 2. 用 `rg` 定位受影响类型、trait、算法函数和测试。只读任务相关代码，不做无关扫描。
 3. 建立“书稿陈述 -> 规范 -> 实现 -> 验证”对照，先找出过期或缺失项。
 4. 先更新主题章节，再更新：

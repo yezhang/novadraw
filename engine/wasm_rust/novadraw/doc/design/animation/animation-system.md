@@ -360,7 +360,7 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 ## 15. 验证与实施切片
 
 目标 suite：`core.p2-m01-animation`，在实现开始前登记到
-`verification/suites.toml`。
+`verification/README.md`。
 公开合同门禁详见
 [Animation 公开 API 合同提案 §12](public-api-contract.md#12-m01-a-公开合同门禁)。
 领域消费者与后续能力接入门禁见

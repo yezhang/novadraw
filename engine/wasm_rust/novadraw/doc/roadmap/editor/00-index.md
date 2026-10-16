@@ -16,7 +16,7 @@
 - 关键架构决策：
   [`../../adr/adr-015-editor-framework-boundary.md`](../../adr/adr-015-editor-framework-boundary.md)
 - 实施顺序和状态：本目录
-- 可执行验证定义：[`../../../verification/suites.toml`](../../../verification/suites.toml)
+- 可执行验证定义：[`../../../verification/README.md`](../../../verification/README.md)
 - 阶段验证：[`../../verification/`](../../verification/00-index.md)
 
 ## 状态
@@ -159,7 +159,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 人工验收入口：
 
-- `cargo xtask manual g3`；
+- `cargo run -p node-editor-demo`；
 - `doc/verification/manual/g3-selection-targeting.md`。
 
 ## G4 自动门禁记录
@@ -182,7 +182,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 人工验收入口：
 
-- `cargo xtask manual g4`；
+- `cargo run -p node-editor-demo`；
 - `doc/verification/manual/g4-editing-loop.md`。
 
 ## G5 当前记录
@@ -207,22 +207,24 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 G5.1 自动验证入口：
 
-- `cargo xtask verify g5.1`；
+- `cargo xtask verify editor.contracts`；
 - `novadraw-editor/tests/g5_connection_projection_contract.rs`；
 - `doc/verification/reviews/g5-connection-projection-design-2026-09-14.md`。
 
 G5.2 自动与人工验证入口：
 
-- `cargo xtask verify g5.2`；
-- `cargo xtask manual g5.2`；
+- `cargo xtask verify editor.contracts`；
+- `cargo xtask verify editor.replay`；
+- `cargo run -p node-editor-demo`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md`；
 - `doc/verification/manual/g5-connection-creation.md`。
 
 G5.3 自动与人工验证入口：
 
-- `cargo xtask verify g5.3`；
-- `cargo xtask manual g5.3`；
+- `cargo xtask verify editor.contracts`；
+- `cargo xtask verify editor.replay`；
+- `cargo run -p node-editor-demo`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `novadraw/tests/m9_connection_contract.rs`；
 - `doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md`；
@@ -230,8 +232,9 @@ G5.3 自动与人工验证入口：
 
 G5.4 自动与人工验证入口：
 
-- `cargo xtask verify g5.4`；
-- `cargo xtask manual g5.4`；
+- `cargo xtask verify editor.contracts`；
+- `cargo xtask verify editor.replay`；
+- `cargo run -p node-editor-demo`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `novadraw/tests/m9_connection_contract.rs`；
 - `doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md`；
@@ -239,8 +242,9 @@ G5.4 自动与人工验证入口：
 
 G5.5 自动与人工验证入口：
 
-- `cargo xtask verify g5.5`；
-- `cargo xtask manual g5.5`；
+- `cargo xtask verify editor.contracts`；
+- `cargo xtask verify editor.replay`；
+- `cargo run -p node-editor-demo`；
 - `novadraw-editor/tests/g4_editing_loop_contract.rs`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `doc/design/editor/g5-viewport-autoexpose.md`；
@@ -256,8 +260,8 @@ P2-E02 分两步执行：
 2. `P2-E02b`：platform-neutral text-input lease、Winit IME、Web DOM composition
    bridge、candidate area 与 Native/Web 人工验收。
 
-P2-E02a 已于 2026-09-29 完成并由
-`cargo xtask verify editor.p2-e02-direct-text-edit` 验证。P2-E02b 的平台协议、Winit
+P2-E02a 已于 2026-09-29 完成，当前由 `cargo xtask verify editor.contracts` 验证。
+P2-E02b 的平台协议、Winit
 bridge、Web DOM host、Native 示例与 Web validation direct-edit 场景已完成；
 2026-09-30 后续人工复验发现首帧背景、编辑文本定位与 caret 可见性回归。修正版已通过
 Web Vello 自动视觉复核，以及 Native macOS/Vello 与 Web Chrome/Vello 系统输入法

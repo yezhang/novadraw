@@ -333,4 +333,4 @@ completion callback。需要业务回调时，由 Host 在提交后稳定边界�
 10. Disabled/ReducedMotion/Enabled 模式切换的原子清理。
 
 实现测试存在后，才把 `core.p2-m01-animation` 写入
-`verification/suites.toml`。
+`verification/README.md`。

@@ -293,8 +293,8 @@ child-content area，不依赖初始窗口常量。
 4. event contract 覆盖 committed-prefix query 与 deferred effect 不可见性；
 5. UML 覆盖扩大、缩小 logical viewport 后的拖拽边界；
 6. layout、routing、paint、stable observation 和 Editor Tool 定向 suite 通过；
-7. `cargo xtask docs`、`cargo xtask check --quick`；
-8. 因涉及公共跨 crate API，完成边界执行一次 `cargo xtask check --full`。
+7. `cargo xtask docs`、workspace fmt/check；
+8. 因涉及公共跨 crate API，完成边界执行一次 workspace fmt、Clippy 与 test。
 
 ## 实施与回滚
 
