@@ -139,20 +139,18 @@ pub struct DependencyObservation {
 /// Immutable scene data source wrapped by [`TrackedRouteSceneQuery`].
 pub trait RouteSceneRead {
     /// Returns whether a Figure is attached to the current public tree.
-    fn is_attached(&self, figure: FigureId) -> bool;
+    fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError>;
 
     /// Returns the direct parent of a Figure.
-    fn parent_id(&self, figure: FigureId) -> Option<FigureId>;
+    fn parent_id(&self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError>;
 
     /// Returns effective visibility through the Figure ancestor chain.
-    fn is_visible(&self, figure: FigureId) -> bool {
+    fn is_visible(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.is_attached(figure)
     }
 
     /// Returns whether a Figure is a Viewport coordinate/clipping boundary.
-    fn is_viewport(&self, _figure: FigureId) -> bool {
-        false
-    }
+    fn is_viewport(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError>;
 
     /// Returns the Figure-local border box.
     fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError>;
@@ -288,17 +286,17 @@ impl<'a> TrackedRouteSceneQuery<'a> {
 impl RouteSceneQuery for TrackedRouteSceneQuery<'_> {
     fn is_attached(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
-        Ok(self.source.is_attached(figure))
+        self.source.is_attached(figure)
     }
 
     fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
-        Ok(self.source.parent_id(figure))
+        self.source.parent_id(figure)
     }
 
     fn is_visible(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.observe(DependencySubject::FigureVisibility(figure))?;
-        Ok(self.source.is_visible(figure))
+        self.source.is_visible(figure)
     }
 
     fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
@@ -367,13 +365,35 @@ impl<'a> FigureTreeRouteSceneRead<'a> {
         }
     }
 
-    fn to_surface_transform(&self, space: CoordinateSpace) -> Option<Affine2D> {
+    fn validate_figure(&self, figure: FigureId) -> Result<(), RouteSceneQueryError> {
+        self.tree
+            .validate_identity(figure)
+            .map_err(RouteSceneQueryError::from)
+    }
+
+    fn validate_space(&self, space: CoordinateSpace) -> Result<(), RouteSceneQueryError> {
         match space {
-            CoordinateSpace::LogicalSurface => Some(Affine2D::IDENTITY),
-            CoordinateSpace::FigureLocal(figure) => self.tree.local_to_surface_transform(figure),
-            CoordinateSpace::ChildContent(figure) => {
-                self.tree.child_content_to_surface_transform(figure)
+            CoordinateSpace::LogicalSurface => Ok(()),
+            CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
+                self.validate_figure(figure)
             }
+        }
+    }
+
+    fn to_surface_transform(
+        &self,
+        space: CoordinateSpace,
+    ) -> Result<Affine2D, RouteSceneQueryError> {
+        match space {
+            CoordinateSpace::LogicalSurface => Ok(Affine2D::IDENTITY),
+            CoordinateSpace::FigureLocal(figure) => self
+                .tree
+                .local_to_surface_transform(figure)
+                .map_err(Into::into),
+            CoordinateSpace::ChildContent(figure) => self
+                .tree
+                .child_content_to_surface_transform(figure)
+                .map_err(Into::into),
         }
     }
 
@@ -382,46 +402,57 @@ impl<'a> FigureTreeRouteSceneRead<'a> {
         from: CoordinateSpace,
         to: CoordinateSpace,
     ) -> Result<Affine2D, RouteSceneQueryError> {
-        let from_surface = self
-            .to_surface_transform(from)
-            .ok_or_else(|| coordinate_space_error(from))?;
-        let to_surface = self
-            .to_surface_transform(to)
-            .ok_or_else(|| coordinate_space_error(to))?;
-        let inverse = to_surface
-            .inverse()
-            .ok_or_else(|| coordinate_space_error(to))?;
-        Ok(inverse * from_surface)
+        self.validate_space(from)?;
+        self.validate_space(to)?;
+        let from_surface = self.to_surface_transform(from)?;
+        let to_surface = self.to_surface_transform(to)?;
+        let inverse = match to {
+            CoordinateSpace::LogicalSurface => Affine2D::IDENTITY,
+            CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
+                crate::graph::checked_coordinate_inverse(figure, to_surface)?
+                    .ok_or_else(|| coordinate_space_error(to))?
+            }
+        };
+        let transform = inverse * from_surface;
+        if !transform.coeffs().into_iter().all(f64::is_finite) {
+            return Err(RouteSceneQueryError::NonFiniteCoordinateMap { from, to });
+        }
+        Ok(transform)
     }
 }
 
 impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
-    fn is_attached(&self, figure: FigureId) -> bool {
-        self.tree.is_attached(figure)
+    fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
+        self.validate_figure(figure)?;
+        self.tree.is_attached(figure).map_err(Into::into)
     }
 
-    fn parent_id(&self, figure: FigureId) -> Option<FigureId> {
-        self.tree.parent_id(figure)
+    fn parent_id(&self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError> {
+        self.validate_figure(figure)?;
+        self.tree.parent_id(figure).map_err(Into::into)
     }
 
-    fn is_visible(&self, figure: FigureId) -> bool {
-        self.tree.is_effectively_visible(figure)
+    fn is_visible(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
+        self.validate_figure(figure)?;
+        self.tree.is_effectively_visible(figure).map_err(Into::into)
     }
 
-    fn is_viewport(&self, figure: FigureId) -> bool {
-        self.tree
-            .node(figure)
-            .is_some_and(|block| block.figure.as_any().is::<ViewportFigure>())
+    fn is_viewport(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
+        self.validate_figure(figure)?;
+        Ok(self
+            .tree
+            .node(figure)?
+            .figure
+            .as_any()
+            .is::<ViewportFigure>())
     }
 
     fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
-        if !self.tree.is_attached(figure) {
+        self.validate_figure(figure)?;
+        if !self.tree.is_attached(figure)? {
             return Err(RouteSceneQueryError::DetachedFigure(figure));
         }
-        let bounds = self
-            .tree
-            .figure_bounds(figure)
-            .ok_or(RouteSceneQueryError::UnknownFigure(figure))?;
+        let bounds = self.tree.figure_bounds(figure)?;
         if !bounds.width.is_finite() || !bounds.height.is_finite() {
             return Err(RouteSceneQueryError::NonFiniteGeometry(figure));
         }
@@ -433,6 +464,10 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         figure: FigureId,
         key: &AnchorGeometryKey,
     ) -> Result<AnchorGeometry, RouteSceneQueryError> {
+        self.validate_figure(figure)?;
+        if !self.tree.is_attached(figure)? {
+            return Err(RouteSceneQueryError::DetachedFigure(figure));
+        }
         if key.is_border_box() {
             return self.border_box(figure).map(AnchorGeometry::Rectangle);
         }
@@ -490,7 +525,12 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
             .iter()
             .map(|point| point.y())
             .fold(f64::NEG_INFINITY, f64::max);
-        Ok(Rectangle::new(min_x, min_y, max_x - min_x, max_y - min_y))
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        if !width.is_finite() || !height.is_finite() {
+            return Err(RouteSceneQueryError::NonFiniteCoordinateMap { from, to });
+        }
+        Ok(Rectangle::new(min_x, min_y, width, height))
     }
 
     fn map_normal(
@@ -499,13 +539,22 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         from: CoordinateSpace,
         to: CoordinateSpace,
     ) -> Result<Vec2, RouteSceneQueryError> {
-        let [a, b, c, d, _, _] = self.transform(from, to)?.coeffs();
-        let determinant = a * d - b * c;
-        if !determinant.is_finite() || determinant.abs() <= f64::EPSILON {
-            return Err(RouteSceneQueryError::NonInvertibleCoordinateMap { from, to });
-        }
-        let x = (d * normal.x() - b * normal.y()) / determinant;
-        let y = (-c * normal.x() + a * normal.y()) / determinant;
+        let transform = self.transform(from, to)?;
+        let figure = match (from, to) {
+            (CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure), _)
+            | (_, CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure)) => {
+                Some(figure)
+            }
+            _ => None,
+        };
+        let inverse = match figure {
+            Some(figure) => crate::graph::checked_coordinate_inverse(figure, transform)?
+                .ok_or(RouteSceneQueryError::NonInvertibleCoordinateMap { from, to })?,
+            None => Affine2D::IDENTITY,
+        };
+        let [a, b, c, d, _, _] = inverse.coeffs();
+        let x = a * normal.x() + b * normal.y();
+        let y = c * normal.x() + d * normal.y();
         if !x.is_finite() || !y.is_finite() {
             return Err(RouteSceneQueryError::NonFiniteCoordinateMap { from, to });
         }
@@ -515,10 +564,26 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
     fn dependency_generation(&self, subject: &DependencySubject) -> u64 {
         let mut hasher = DefaultHasher::new();
         subject.hash(&mut hasher);
+        let figure_for = |space| match space {
+            CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
+                Some(figure)
+            }
+            CoordinateSpace::LogicalSurface => None,
+        };
+        let figures = match subject {
+            DependencySubject::FigureGeometry(figure)
+            | DependencySubject::FigureVisibility(figure)
+            | DependencySubject::Topology(figure)
+            | DependencySubject::NamedAnchorRegion(figure, _) => [Some(*figure), None],
+            DependencySubject::RelativeTransform(from, to) => [figure_for(*from), figure_for(*to)],
+        };
+        for figure in figures.into_iter().flatten() {
+            self.tree.contains(figure).hash(&mut hasher);
+        }
         match subject {
             DependencySubject::FigureGeometry(figure)
             | DependencySubject::NamedAnchorRegion(figure, _) => {
-                if let Some(bounds) = self.tree.figure_bounds(*figure) {
+                if let Ok(bounds) = self.tree.figure_bounds(*figure) {
                     for value in [bounds.x, bounds.y, bounds.width, bounds.height] {
                         value.to_bits().hash(&mut hasher);
                     }
@@ -572,6 +637,10 @@ fn coordinate_space_error(space: CoordinateSpace) -> RouteSceneQueryError {
 /// Failure produced by a read-only scene query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RouteSceneQueryError {
+    /// The Figure identity belongs to another tree.
+    ForeignFigure(FigureId),
+    /// A checked coordinate calculation failed.
+    Coordinate(crate::tree::CoordinateQueryError),
     /// The Figure identity does not resolve.
     UnknownFigure(FigureId),
     /// The Figure exists but is detached from the public tree.
@@ -610,6 +679,8 @@ pub enum RouteSceneQueryError {
 impl fmt::Display for RouteSceneQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ForeignFigure(figure) => write!(formatter, "foreign Figure ID: {figure:?}"),
+            Self::Coordinate(error) => error.fmt(formatter),
             Self::UnknownFigure(figure) => write!(formatter, "unknown Figure ID: {figure:?}"),
             Self::DetachedFigure(figure) => write!(formatter, "detached Figure ID: {figure:?}"),
             Self::MissingAnchorGeometry { figure, key } => {
@@ -649,4 +720,130 @@ impl fmt::Display for RouteSceneQueryError {
     }
 }
 
-impl Error for RouteSceneQueryError {}
+impl Error for RouteSceneQueryError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Coordinate(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl From<crate::tree::TreeQueryError> for RouteSceneQueryError {
+    fn from(error: crate::tree::TreeQueryError) -> Self {
+        match error {
+            crate::tree::TreeQueryError::ForeignFigure(figure) => Self::ForeignFigure(figure),
+            crate::tree::TreeQueryError::UnknownFigure(figure) => Self::UnknownFigure(figure),
+        }
+    }
+}
+
+impl From<crate::tree::CoordinateQueryError> for RouteSceneQueryError {
+    fn from(error: crate::tree::CoordinateQueryError) -> Self {
+        match error {
+            crate::tree::CoordinateQueryError::Identity(error) => error.into(),
+            error => Self::Coordinate(error),
+        }
+    }
+}
+
+#[cfg(test)]
+mod s07_query_failure_tests {
+    use super::*;
+    use crate::figure::RectangleFigure;
+    use crate::runtime::Runtime;
+
+    #[test]
+    fn adapter_rejects_identity_before_missing_anchor_or_detachment() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .unwrap();
+        let retired = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+            )
+            .unwrap();
+        let mut other = FigureTree::new();
+        let foreign = other
+            .builder()
+            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .unwrap();
+        let mut runtime = Runtime::new(tree);
+        runtime.figure(root).unwrap().remove(retired).unwrap();
+        let geometries = HashMap::new();
+        let adapter = FigureTreeRouteSceneRead::new(runtime.tree(), &geometries);
+        for (id, error) in [
+            (retired, RouteSceneQueryError::UnknownFigure(retired)),
+            (foreign, RouteSceneQueryError::ForeignFigure(foreign)),
+        ] {
+            assert_eq!(adapter.is_attached(id), Err(error.clone()));
+            assert_eq!(adapter.parent_id(id), Err(error.clone()));
+            assert_eq!(adapter.is_visible(id), Err(error.clone()));
+            assert_eq!(adapter.is_viewport(id), Err(error.clone()));
+            assert_eq!(adapter.border_box(id), Err(error.clone()));
+            assert_eq!(
+                adapter.anchor_geometry(id, &AnchorGeometryKey::icon()),
+                Err(error.clone())
+            );
+            assert_eq!(
+                adapter.map_point(
+                    Point::ORIGIN,
+                    CoordinateSpace::FigureLocal(root),
+                    CoordinateSpace::FigureLocal(id)
+                ),
+                Err(error)
+            );
+        }
+        assert_eq!(adapter.is_attached(root), Ok(true));
+        assert_eq!(adapter.is_viewport(root), Ok(false));
+    }
+
+    #[test]
+    fn adapter_dependency_fingerprint_changes_when_a_subject_is_deleted() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .unwrap();
+        let child = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+            )
+            .unwrap();
+        let mut runtime = Runtime::new(tree);
+        runtime.figure(child).unwrap().set_visible(false).unwrap();
+        let geometries = HashMap::new();
+        let subjects = [
+            DependencySubject::FigureGeometry(child),
+            DependencySubject::FigureVisibility(child),
+            DependencySubject::Topology(child),
+            DependencySubject::RelativeTransform(
+                CoordinateSpace::FigureLocal(child),
+                CoordinateSpace::LogicalSurface,
+            ),
+        ];
+        let before = {
+            let adapter = FigureTreeRouteSceneRead::new(runtime.tree(), &geometries);
+            subjects
+                .each_ref()
+                .map(|subject| adapter.dependency_generation(subject))
+        };
+        runtime.figure(root).unwrap().remove(child).unwrap();
+        let adapter = FigureTreeRouteSceneRead::new(runtime.tree(), &geometries);
+        for (subject, before) in subjects.iter().zip(before) {
+            assert_ne!(adapter.dependency_generation(subject), before);
+        }
+        let mut query = TrackedRouteSceneQuery::new(&adapter);
+        assert_eq!(
+            query.border_box(child),
+            Err(RouteSceneQueryError::UnknownFigure(child))
+        );
+        assert_eq!(query.into_observations().len(), 1);
+    }
+}

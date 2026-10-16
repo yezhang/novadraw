@@ -865,7 +865,7 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
     let Some(snapshot) = runtime.tooltip().visible().cloned() else {
         return Vec::new();
     };
-    let Some(style) = runtime.tree().resolved_style(snapshot.source) else {
+    let Ok(style) = runtime.tree().resolved_style(snapshot.source) else {
         return Vec::new();
     };
     let Ok(font) = FontDescriptor::parse(&style.font) else {

@@ -875,7 +875,7 @@ mod tests {
         example.runtime.input().dispatch_mouse_moved(far_x, far_y);
         assert_eq!(
             example.runtime.tree().figure_bounds(dragged),
-            Some(Rectangle::new(
+            Ok(Rectangle::new(
                 (viewport_width - before.width).max(0.0),
                 (viewport_height - before.height).max(0.0),
                 before.width,
@@ -924,6 +924,7 @@ mod tests {
                     .runtime
                     .tree()
                     .connection_route_points(*connection)
+                    .expect("live connection")
                     .is_some_and(|points| points.len() >= 2)
             );
         }
@@ -938,6 +939,7 @@ mod tests {
             .runtime
             .tree()
             .connection_route_points(example.connection_figures[0])
+            .expect("live connection")
             .expect("connected relation route")
             .clone();
         let start = Point::new(
@@ -1001,6 +1003,7 @@ mod tests {
                 .runtime
                 .tree()
                 .connection_route_points(example.connection_figures[0])
+                .expect("live connection")
                 .expect("rerouted relation"),
             &before_route
         );

@@ -88,7 +88,7 @@ fn freeform_query_distinguishes_unknown_non_freeform_and_unvalidated() {
     );
     assert_eq!(
         tree.freeform_extent(novadraw::tree::FigureId::null()),
-        Err(FreeformError::UnknownFigure(
+        Err(FreeformError::ForeignFigure(
             novadraw::tree::FigureId::null()
         ))
     );
@@ -97,6 +97,10 @@ fn freeform_query_distinguishes_unknown_non_freeform_and_unvalidated() {
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0)))
         .expect("valid FigureTree construction");
+    assert_eq!(
+        tree.freeform_extent(ordinary),
+        Err(FreeformError::UnknownFigure(ordinary))
+    );
     assert_eq!(
         tree.freeform_extent(freeform),
         Err(FreeformError::Unvalidated(freeform))
@@ -514,7 +518,7 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
     assert_eq!(
         tree.preferred_measurement(host, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size().into()),
-        Some((40.0, 20.0))
+        Ok((40.0, 20.0))
     );
     assert_eq!(
         tree.freeform_extent(host),
@@ -527,7 +531,7 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
 
     assert_eq!(
         tree.figure_bounds(child),
-        Some(Rectangle::new(-30.0, -20.0, 40.0, 0.0))
+        Ok(Rectangle::new(-30.0, -20.0, 40.0, 0.0))
     );
     assert_eq!(
         tree.freeform_extent(host),
@@ -574,7 +578,7 @@ fn builder_rejects_invalid_constraint_type_before_layout() {
     ));
     assert_eq!(
         tree.figure_bounds(first),
-        Some(Rectangle::new(1.0, 2.0, 3.0, 4.0))
+        Ok(Rectangle::new(1.0, 2.0, 3.0, 4.0))
     );
 }
 
@@ -589,7 +593,7 @@ fn freeform_viewport_range_uses_unscaled_content_domain() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 300.0, 200.0))
+        Ok(Rectangle::new(0.0, 0.0, 300.0, 200.0))
     );
     assert_eq!(viewport.horizontal_range().minimum, -100.0);
     assert_eq!(viewport.horizontal_range().maximum, 400.0);
@@ -622,7 +626,7 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
     assert_eq!(viewport.vertical_range().extent, 100.0);
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 150.0, 100.0))
+        Ok(Rectangle::new(0.0, 0.0, 150.0, 100.0))
     );
     assert_eq!((60.0 - viewport.view_location().x()) * zoom.zoom(), 60.0);
     assert_eq!((40.0 - viewport.view_location().y()) * zoom.zoom(), 40.0);

@@ -78,7 +78,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
             .runtime
             .tree()
             .node(*class)
-            .ok_or_else(|| format!("class {class:?} is detached"))?;
+            .map_err(|error| error.to_string())?;
         if node.figure_name() != "ExampleUmlClassFigure" || node.children_count() != 3 {
             return Err(format!(
                 "class {class:?} did not preserve the custom compound Figure contract"
@@ -92,6 +92,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
             .runtime
             .tree()
             .connection_route_points(*connection)
+            .map_err(|error| error.to_string())?
             .ok_or_else(|| format!("connection {connection:?} has no committed route"))?;
         if points.len() < 2 {
             return Err(format!("connection {connection:?} has a degenerate route"));
@@ -104,11 +105,12 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(dragged)
-        .ok_or_else(|| "draggable class has no bounds".to_owned())?;
+        .map_err(|error| error.to_string())?;
     let before_route = example
         .runtime
         .tree()
         .connection_route_points(example.connection_figures[0])
+        .map_err(|error| error.to_string())?
         .ok_or_else(|| "draggable class relation has no route".to_owned())?
         .clone();
     let start = Point::new(
@@ -132,7 +134,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(dragged)
-        .ok_or_else(|| "dragged class became detached".to_owned())?;
+        .map_err(|error| error.to_string())?;
     let expected_bounds = Rectangle::new(
         before_bounds.x + delta.x(),
         before_bounds.y + delta.y(),
@@ -181,6 +183,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .connection_route_points(example.connection_figures[0])
+        .map_err(|error| error.to_string())?
         == Some(&before_route)
     {
         return Err("connected relation did not reroute after class drag".to_owned());
@@ -246,7 +249,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(resized_dragged)
-        .ok_or_else(|| "resized draggable class has no bounds".to_owned())?;
+        .map_err(|error| error.to_string())?;
     let resized_start = resized_before.center();
     let resized_press = example.runtime.input().dispatch_mouse_pressed(
         resized_start.x(),
@@ -264,7 +267,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(resized_dragged)
-        .ok_or_else(|| "resized dragged class became detached".to_owned())?;
+        .map_err(|error| error.to_string())?;
     let resized_expected = Rectangle::new(
         RESIZED_WIDTH - resized_before.width,
         RESIZED_HEIGHT - resized_before.height,

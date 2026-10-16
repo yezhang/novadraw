@@ -1132,7 +1132,7 @@ fn figure_opacity_and_transform_are_presentation_only() {
 
     assert_eq!(
         runtime.tree().figure_bounds(figure),
-        Some(Rectangle::new(20.0, 30.0, 40.0, 20.0))
+        Ok(Rectangle::new(20.0, 30.0, 40.0, 20.0))
     );
     assert_eq!(runtime.tree().resolved_style(figure).unwrap().alpha, 1.0);
 
@@ -1148,7 +1148,7 @@ fn figure_opacity_and_transform_are_presentation_only() {
     }));
     assert_eq!(
         runtime.tree().figure_bounds(figure),
-        Some(Rectangle::new(20.0, 30.0, 40.0, 20.0))
+        Ok(Rectangle::new(20.0, 30.0, 40.0, 20.0))
     );
 }
 
@@ -1337,7 +1337,10 @@ fn disposing_a_figure_cancels_bound_presentation_without_source_revival() {
         runtime.animation().timeline().value(channel),
         Err(AnimationError::UnknownChannel)
     );
-    assert!(!runtime.tree().is_attached(figure));
+    assert_eq!(
+        runtime.tree().is_attached(figure),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(figure))
+    );
 }
 
 #[test]

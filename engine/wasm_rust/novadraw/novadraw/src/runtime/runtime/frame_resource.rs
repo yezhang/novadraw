@@ -92,7 +92,7 @@ impl Runtime {
         if self.faulted {
             return Err(ResourceError::Faulted);
         }
-        if !self.tree.is_attached(figure) {
+        if self.tree.is_attached(figure) != Ok(true) {
             return Err(ResourceError::UnknownFigure);
         }
         self.resources.add_dependency(resource_id, figure)

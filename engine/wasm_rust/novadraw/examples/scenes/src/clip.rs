@@ -571,15 +571,15 @@ mod tests {
 
         assert_eq!(
             runtime.tree().figure_bounds(clip_parent),
-            Some(novadraw::geometry::Rectangle::new(72.0, 56.0, 456.0, 300.0))
+            Ok(novadraw::geometry::Rectangle::new(72.0, 56.0, 456.0, 300.0))
         );
         assert_eq!(
             runtime.tree().insets(clip_parent),
-            Some(novadraw::geometry::Insets::uniform(4.0))
+            Ok(novadraw::geometry::Insets::uniform(4.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(child),
-            Some(novadraw::geometry::Rectangle::new(
+            Ok(novadraw::geometry::Rectangle::new(
                 150.0, 90.0, 700.0, 500.0
             ))
         );

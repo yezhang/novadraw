@@ -82,7 +82,7 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
     let child = runtime
         .tree()
         .child_order(root)
-        .ok_or("missing root children")?[0];
+        .map_err(|error| error.to_string())?[0];
 
     let full = prepare_next_submission(&mut runtime).ok_or("initial frame was not prepared")?;
     if !full.damage.is_full() {
@@ -116,7 +116,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
     let child = runtime
         .tree()
         .child_order(root)
-        .ok_or("missing root children")?[0];
+        .map_err(|error| error.to_string())?[0];
     prepare_next_submission(&mut runtime);
     let effects = Arc::new(Mutex::new(Vec::new()));
     runtime
@@ -159,7 +159,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
 fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
     let graph = baseline_scene();
     let root = graph.contents().ok_or("missing root")?;
-    let child = graph.child_order(root).ok_or("missing root children")?[0];
+    let child = graph.child_order(root).map_err(|error| error.to_string())?[0];
     let mut manager = UpdateManager::new();
     manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 20.0, 20.0));
     manager.add_dirty_region(child, Rectangle::new(10.0, 10.0, 30.0, 30.0));
@@ -202,7 +202,7 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
     let child = runtime
         .tree()
         .child_order(root)
-        .ok_or("missing root children")?[0];
+        .map_err(|error| error.to_string())?[0];
     prepare_next_submission(&mut runtime);
     runtime
         .observations()

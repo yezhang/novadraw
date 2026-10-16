@@ -173,11 +173,11 @@ impl<'a> StableSceneQuery<'a> {
         self.epoch
     }
 
-    pub fn is_attached(self, figure: FigureId) -> bool {
+    pub fn is_attached(self, figure: FigureId) -> Result<bool, crate::tree::TreeQueryError> {
         self.tree.is_attached(figure)
     }
 
-    pub fn bounds(self, figure: FigureId) -> Option<Rectangle> {
+    pub fn bounds(self, figure: FigureId) -> Result<Rectangle, crate::tree::TreeQueryError> {
         self.tree.figure_bounds(figure)
     }
 }

@@ -57,37 +57,47 @@ pub(crate) trait LayoutSceneRead {
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
-    fn get_children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)>;
+    fn get_children(&self, parent_id: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError>;
 
     /// 获取子元素的布局约束
-    fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint>;
+    fn get_constraint(
+        &self,
+        child_id: FigureId,
+    ) -> Result<Option<&dyn LayoutConstraint>, LayoutError>;
 
     /// 获取 Figure 的首选测量结果。
     fn preferred_measurement(
         &self,
         figure_id: FigureId,
         constraints: MeasureConstraints,
-    ) -> FigureMeasurement;
+    ) -> Result<FigureMeasurement, LayoutError>;
 
     /// 获取 Figure 的最小尺寸。
-    fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
-        self.preferred_measurement(figure_id, constraints).size()
+    fn minimum_size(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self.preferred_measurement(figure_id, constraints)?.size())
     }
 
     /// 获取 Figure 的最大尺寸。
-    fn maximum_size(&self, _figure_id: FigureId) -> Dimension {
-        Dimension::new(f64::INFINITY, f64::INFINITY)
+    fn maximum_size(&self, figure_id: FigureId) -> Result<Dimension, LayoutError> {
+        self.get_constraint(figure_id)?;
+        Ok(Dimension::new(f64::INFINITY, f64::INFINITY))
     }
 
     /// 获取容器 client area 在子节点坐标域中的矩形。
-    fn get_container_bounds(&self, container_id: FigureId) -> Rectangle;
+    fn get_container_bounds(&self, container_id: FigureId) -> Result<Rectangle, LayoutError>;
 
-    fn get_freeform_extent(&self, _figure_id: FigureId) -> Option<Rectangle> {
-        None
+    fn get_freeform_extent(&self, figure_id: FigureId) -> Result<Option<Rectangle>, LayoutError> {
+        self.get_constraint(figure_id)?;
+        Ok(None)
     }
 
-    fn get_content_scale(&self, _figure_id: FigureId) -> Option<f64> {
-        None
+    fn get_content_scale(&self, figure_id: FigureId) -> Result<Option<f64>, LayoutError> {
+        self.get_constraint(figure_id)?;
+        Ok(None)
     }
 }
 
@@ -102,11 +112,14 @@ impl<'a> LayoutSceneQuery<'a> {
         Self { source }
     }
 
-    pub fn children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
+    pub fn children(&self, parent_id: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
         self.source.get_children(parent_id)
     }
 
-    pub fn constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint> {
+    pub fn constraint(
+        &self,
+        child_id: FigureId,
+    ) -> Result<Option<&dyn LayoutConstraint>, LayoutError> {
         self.source.get_constraint(child_id)
     }
 
@@ -115,7 +128,11 @@ impl<'a> LayoutSceneQuery<'a> {
         container: FigureId,
         child: FigureId,
     ) -> Result<Option<&C>, LayoutError> {
-        let Some(constraint) = self.constraint(child) else {
+        let constraint = self.constraint(child)?;
+        if !self.children(container)?.iter().any(|(id, _)| *id == child) {
+            return Err(LayoutError::InvalidChild { container, child });
+        }
+        let Some(constraint) = constraint else {
             return Ok(None);
         };
         constraint.as_any().downcast_ref::<C>().map(Some).ok_or(
@@ -132,36 +149,37 @@ impl<'a> LayoutSceneQuery<'a> {
         &self,
         figure_id: FigureId,
         constraints: MeasureConstraints,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         self.source.preferred_measurement(figure_id, constraints)
     }
 
-    pub fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
+    pub fn minimum_size(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<Dimension, LayoutError> {
         self.source.minimum_size(figure_id, constraints)
     }
 
-    pub fn maximum_size(&self, figure_id: FigureId) -> Dimension {
+    pub fn maximum_size(&self, figure_id: FigureId) -> Result<Dimension, LayoutError> {
         self.source.maximum_size(figure_id)
     }
 
-    pub fn container_bounds(&self, container_id: FigureId) -> Rectangle {
+    pub fn container_bounds(&self, container_id: FigureId) -> Result<Rectangle, LayoutError> {
         self.source.get_container_bounds(container_id)
     }
 
-    pub fn freeform_extent(&self, figure_id: FigureId) -> Option<Rectangle> {
+    pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Option<Rectangle>, LayoutError> {
         self.source.get_freeform_extent(figure_id)
     }
 
-    pub fn content_scale(&self, figure_id: FigureId) -> Option<f64> {
+    pub fn content_scale(&self, figure_id: FigureId) -> Result<Option<f64>, LayoutError> {
         self.source.get_content_scale(figure_id)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LayoutError {
-    UnknownFigure {
-        figure: FigureId,
-    },
     ConstraintTypeMismatch {
         container: FigureId,
         child: FigureId,
@@ -180,13 +198,70 @@ pub enum LayoutError {
     NonFiniteGeometry {
         figure: FigureId,
     },
+    Identity(crate::graph::TreeQueryError),
+    InvalidMeasurement {
+        figure: FigureId,
+        reason: MeasurementFailure,
+    },
+    Freeform(crate::graph::FreeformError),
+    Capability(crate::figure::CapabilityQueryError),
+}
+
+/// Failure at the measurement owner's admission boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeasurementFailure {
+    InvalidSize,
+    InvalidBaseline,
+    DerivedOverflow,
+}
+
+impl From<crate::graph::TreeQueryError> for LayoutError {
+    fn from(error: crate::graph::TreeQueryError) -> Self {
+        Self::Identity(error)
+    }
+}
+
+pub(crate) fn validate_measurement(
+    figure: FigureId,
+    measurement: FigureMeasurement,
+) -> Result<FigureMeasurement, LayoutError> {
+    validate_measurement_size(figure, measurement.size(), false)?;
+    if measurement.baseline.is_some_and(|baseline| {
+        !baseline.is_finite() || baseline < 0.0 || baseline > measurement.height
+    }) {
+        return Err(LayoutError::InvalidMeasurement {
+            figure,
+            reason: MeasurementFailure::InvalidBaseline,
+        });
+    }
+    Ok(measurement)
+}
+
+pub(crate) fn validate_measurement_size(
+    figure: FigureId,
+    size: Dimension,
+    maximum: bool,
+) -> Result<Dimension, LayoutError> {
+    if [size.width, size.height]
+        .into_iter()
+        .any(|axis| axis.is_nan() || axis < 0.0 || (!maximum && !axis.is_finite()))
+    {
+        return Err(LayoutError::InvalidMeasurement {
+            figure,
+            reason: MeasurementFailure::InvalidSize,
+        });
+    }
+    Ok(size)
 }
 
 impl fmt::Display for LayoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnknownFigure { figure } => {
-                write!(f, "unknown Figure ID: {figure:?}")
+            Self::Freeform(error) => error.fmt(f),
+            Self::Capability(error) => error.fmt(f),
+            Self::Identity(error) => error.fmt(f),
+            Self::InvalidMeasurement { figure, reason } => {
+                write!(f, "invalid measurement for {figure:?}: {reason:?}")
             }
             Self::ConstraintTypeMismatch {
                 container,
@@ -218,7 +293,16 @@ impl fmt::Display for LayoutError {
     }
 }
 
-impl Error for LayoutError {}
+impl Error for LayoutError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Identity(error) => Some(error),
+            Self::Freeform(error) => Some(error),
+            Self::Capability(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LayoutInvalidation {
@@ -332,7 +416,7 @@ pub trait LayoutManager {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement;
+    ) -> Result<FigureMeasurement, LayoutError>;
 
     /// 获取最小大小
     ///
@@ -342,7 +426,7 @@ pub trait LayoutManager {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension;
+    ) -> Result<Dimension, LayoutError>;
 
     /// 执行布局
     ///

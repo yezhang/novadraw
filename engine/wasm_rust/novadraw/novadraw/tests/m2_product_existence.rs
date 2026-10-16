@@ -233,9 +233,9 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     assert!(root_block.state().is_enabled());
     assert_eq!(root_block.layout_state().constraint_count(), 0);
 
-    assert_eq!(scene.child_order(root_id), Some(vec![bottom_id, top_id]));
-    assert_eq!(scene.child_z_index(root_id, bottom_id), Some(0));
-    assert_eq!(scene.child_z_index(root_id, top_id), Some(1));
+    assert_eq!(scene.child_order(root_id), Ok(vec![bottom_id, top_id]));
+    assert_eq!(scene.child_z_index(root_id, bottom_id), Ok(Some(0)));
+    assert_eq!(scene.child_z_index(root_id, top_id), Ok(Some(1)));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(top_id));
 
     assert!(
@@ -244,18 +244,18 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
             .send_child_to_back(root_id, top_id)
             .expect("valid FigureTree construction")
     );
-    assert_eq!(scene.child_order(root_id), Some(vec![top_id, bottom_id]));
+    assert_eq!(scene.child_order(root_id), Ok(vec![top_id, bottom_id]));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(bottom_id));
 
-    assert!(scene.is_visible(bottom_id));
-    assert!(scene.is_enabled(bottom_id));
+    assert!(scene.is_visible(bottom_id).unwrap());
+    assert!(scene.is_enabled(bottom_id).unwrap());
     assert!(
         scene
             .builder()
             .set_visible(root_id, false)
             .expect("valid FigureTree construction")
     );
-    assert!(!scene.is_effectively_visible(bottom_id));
+    assert!(!scene.is_effectively_visible(bottom_id).unwrap());
     assert!(
         scene
             .builder()
@@ -268,7 +268,7 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
             .set_enabled(root_id, false)
             .expect("valid FigureTree construction")
     );
-    assert!(!scene.is_effectively_enabled(bottom_id));
+    assert!(!scene.is_effectively_enabled(bottom_id).unwrap());
 }
 
 #[test]

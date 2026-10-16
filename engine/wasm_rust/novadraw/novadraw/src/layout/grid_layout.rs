@@ -135,7 +135,7 @@ impl GridLayout {
         let mut column = 0;
         let mut placements = Vec::new();
 
-        for (child, _) in snapshot.children(container) {
+        for (child, _) in snapshot.children(container)? {
             let constraint = Self::constraint(snapshot, container, child)?;
             let column_span = constraint.horizontal_span.max(1).min(self.columns);
             let row_span = constraint.vertical_span.max(1);
@@ -168,8 +168,8 @@ impl GridLayout {
             let constraints =
                 MeasureConstraints::new(constraint.width_hint, constraint.height_hint)
                     .expect("validated GridConstraint produces valid measurement constraints");
-            let mut preferred = snapshot.preferred_measurement(child, constraints).size();
-            let mut minimum = snapshot.minimum_size(child, constraints);
+            let mut preferred = snapshot.preferred_measurement(child, constraints)?.size();
+            let mut minimum = snapshot.minimum_size(child, constraints)?;
             if let Some(width) = constraint.width_hint {
                 preferred.width = width.max(0.0);
                 minimum.width = minimum.width.min(preferred.width);
@@ -279,17 +279,17 @@ impl GridLayout {
         container: FigureId,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
-        let placements = self.placements(container, snapshot).unwrap_or_default();
+    ) -> Result<(f64, f64), LayoutError> {
+        let placements = self.placements(container, snapshot)?;
         let (columns, rows, _, _) = self.track_sizes(&placements, minimum);
-        (
+        Ok((
             columns.iter().sum::<f64>()
                 + self.horizontal_spacing * columns.len().saturating_sub(1) as f64
                 + self.margin_width * 2.0,
             rows.iter().sum::<f64>()
                 + self.vertical_spacing * rows.len().saturating_sub(1) as f64
                 + self.margin_height * 2.0,
-        )
+        ))
     }
 }
 
@@ -327,9 +327,9 @@ impl LayoutManager for GridLayout {
         container: FigureId,
         _constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let (width, height) = self.measured_size(container, snapshot, false);
-        FigureMeasurement::new(width, height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let (width, height) = self.measured_size(container, snapshot, false)?;
+        Ok(FigureMeasurement::new(width, height, None))
     }
 
     fn minimum_size(
@@ -337,8 +337,8 @@ impl LayoutManager for GridLayout {
         container: FigureId,
         _constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.measured_size(container, snapshot, true).into()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self.measured_size(container, snapshot, true)?.into())
     }
 
     fn layout(
@@ -352,7 +352,7 @@ impl LayoutManager for GridLayout {
             return Ok(());
         }
         let (mut columns, mut rows, grab_columns, grab_rows) = self.track_sizes(&placements, false);
-        let client = snapshot.container_bounds(container);
+        let client = snapshot.container_bounds(container)?;
         let available_width = (client.width
             - self.margin_width * 2.0
             - self.horizontal_spacing * columns.len().saturating_sub(1) as f64)

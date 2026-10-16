@@ -122,7 +122,7 @@ where
             session: active.state.session(),
         });
         for figure in active.feedback {
-            if self.runtime.tree().is_attached(figure) {
+            if self.runtime.tree().is_attached(figure) == Ok(true) {
                 let _ = self.runtime.dispose_subtree(figure);
             }
             self.visual_registry.remove(&figure);
@@ -402,7 +402,7 @@ where
             .runtime
             .figure(self.root_layers.connection())?
             .add(behavior.create_figure(&self.model, descriptor.id())?)?;
-        if !self.runtime.tree().is_connection_figure(primary) {
+        if !self.runtime.tree().is_connection_figure(primary)? {
             self.runtime.dispose_subtree(primary)?;
             return Err(ViewerError::InvalidConnectionFigure {
                 connection: format!("{:?}", descriptor.id()),
@@ -852,7 +852,7 @@ where
             })
             .collect();
         for overlay in overlays {
-            if self.runtime.tree().is_attached(overlay) {
+            if self.runtime.tree().is_attached(overlay) == Ok(true) {
                 self.runtime.dispose_subtree(overlay)?;
             }
             self.visual_registry.remove(&overlay);
@@ -1026,7 +1026,7 @@ where
             })
             .collect();
         for overlay in overlays {
-            if self.runtime.tree().is_attached(overlay) {
+            if self.runtime.tree().is_attached(overlay) == Ok(true) {
                 self.runtime.dispose_subtree(overlay)?;
             }
             self.visual_registry.remove(&overlay);

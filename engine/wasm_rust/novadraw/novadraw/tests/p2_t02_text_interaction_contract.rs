@@ -501,7 +501,7 @@ fn runtime_text_queries_distinguish_unknown_and_wrong_capability() {
         Rectangle::new(0.0, 0.0, 220.0, 100.0),
         FlowPage::from_text("query"),
     );
-    let contents = runtime.tree().parent_id(flow).unwrap();
+    let contents = runtime.tree().parent_id(flow).unwrap().unwrap();
     let rectangle = runtime
         .figure(contents)
         .unwrap()

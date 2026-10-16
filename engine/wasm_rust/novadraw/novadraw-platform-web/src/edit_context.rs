@@ -129,8 +129,7 @@ impl WebEditContextHost {
         let bridge = Rc::new(RefCell::new(WebEditContextBridge::new()));
         let events = Rc::new(RefCell::new(Vec::new()));
         let event_ready: Rc<dyn Fn()> = Rc::new(event_ready);
-        let character_bounds: Rc<dyn Fn(Vec<Range<usize>>) -> Option<Vec<Rectangle>>> =
-            Rc::new(character_bounds);
+        let character_bounds = Rc::new(character_bounds);
         let surface_origin = Rc::new(Cell::new(Point::ORIGIN));
         let original_role = canvas.get_attribute("role");
         let original_aria_multiline = canvas.get_attribute("aria-multiline");

@@ -153,7 +153,7 @@ fn runtime_registers_layered_pane_used_as_contents() {
         )
         .expect("typed add should work");
 
-    assert_eq!(runtime.tree().parent_id(layer), Some(pane));
+    assert_eq!(runtime.tree().parent_id(layer), Ok(Some(pane)));
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn reparent_and_remove_update_both_membership_indexes() {
         runtime.figure(layer).unwrap().reparent(right),
         Err(RuntimeMutationError::LayeredParent(left))
     );
-    assert_eq!(runtime.tree().parent_id(layer), Some(left));
+    assert_eq!(runtime.tree().parent_id(layer), Ok(Some(left)));
 
     runtime
         .layers()
@@ -284,7 +284,10 @@ fn reparent_and_remove_update_both_membership_indexes() {
         .remove(right, &new_key)
         .expect("remove should succeed");
     assert_eq!(removed, layer);
-    assert_eq!(runtime.tree().parent_id(layer), None);
+    assert_eq!(
+        runtime.tree().parent_id(layer),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(layer))
+    );
 }
 
 #[test]

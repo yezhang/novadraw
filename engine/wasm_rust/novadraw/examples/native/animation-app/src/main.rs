@@ -301,7 +301,7 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
         .runtime
         .tree()
         .figure_bounds(example.bounds_figure)
-        .ok_or_else(|| "bounds Figure is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     let initial_presentation = example
         .runtime
         .animation()
@@ -317,7 +317,13 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
         .animation()
         .advance_time(duration_time(BOUNDS_DURATION))
         .map_err(|error| error.to_string())?;
-    if example.runtime.tree().figure_bounds(example.bounds_figure) != Some(committed) {
+    if example
+        .runtime
+        .tree()
+        .figure_bounds(example.bounds_figure)
+        .map_err(|error| error.to_string())?
+        != committed
+    {
         return Err("animation changed the committed final bounds".to_string());
     }
     if example
@@ -455,7 +461,7 @@ fn verify_trigger_and_layout_transaction() -> Result<VerificationMetrics, String
         .runtime
         .tree()
         .figure_bounds(example.layout_child)
-        .ok_or_else(|| "layout child is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     if layout_bounds.width != 146.0 || layout_bounds.height != 92.0 {
         return Err(format!(
             "layout transaction did not commit final bounds: {layout_bounds:?}"
@@ -521,6 +527,7 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
         .runtime
         .tree()
         .connection_route_points(example.connection_figure)
+        .map_err(|error| error.to_string())?
         .ok_or_else(|| "connection route is missing".to_string())?
         .len();
     if route_points != 4 {
@@ -584,6 +591,7 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
         .runtime
         .tree()
         .connection_route_points(example.connection_figure)
+        .map_err(|error| error.to_string())?
         .cloned()
         .ok_or_else(|| "connection route disappeared".to_string())?;
     let (_, compatible_start) = example
@@ -608,6 +616,7 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
         .runtime
         .tree()
         .connection_route_points(example.connection_figure)
+        .map_err(|error| error.to_string())?
         .cloned()
         .ok_or_else(|| "compatible route was not committed".to_string())?;
     if committed_route == before_route
@@ -718,19 +727,23 @@ fn verify_dashed_arrow_flow() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(example.arrow_decoration)
-        .ok_or_else(|| "arrow decoration is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     let connection_bounds = example
         .runtime
         .tree()
         .figure_bounds(example.arrow_connection_figure)
-        .ok_or_else(|| "connection Figure is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     let target_bounds = example
         .runtime
         .tree()
         .figure_bounds(example.arrow_target)
-        .ok_or_else(|| "arrow target is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     if arrow_bounds.is_empty()
-        || example.runtime.tree().parent_id(example.arrow_decoration)
+        || example
+            .runtime
+            .tree()
+            .parent_id(example.arrow_decoration)
+            .map_err(|error| error.to_string())?
             != Some(example.arrow_connection_figure)
     {
         return Err(format!(
@@ -1203,7 +1216,7 @@ fn verify_interaction_geometry_policy() -> Result<VerificationMetrics, String> {
         .runtime
         .tree()
         .figure_bounds(example.moving_hit_toggle)
-        .ok_or_else(|| "moving hit toggle is detached".to_string())?;
+        .map_err(|error| error.to_string())?;
     let presentation_offset = example
         .runtime
         .animation()

@@ -94,8 +94,12 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
         runtime.tree().figure_bounds(runtime_child)
     );
     assert_eq!(
-        builder_tree.layout_manager(builder_root).is_some(),
-        runtime.tree().layout_manager(runtime_root).is_some()
+        builder_tree.layout_manager(builder_root).unwrap().is_some(),
+        runtime
+            .tree()
+            .layout_manager(runtime_root)
+            .unwrap()
+            .is_some()
     );
     assert!(runtime.frames().has_pending_update());
 }

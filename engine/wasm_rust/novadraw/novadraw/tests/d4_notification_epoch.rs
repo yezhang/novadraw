@@ -17,7 +17,7 @@ struct ObservedMove {
     sequence: u64,
     event: FigureEvent,
     query_epoch: u64,
-    latest_bounds: Option<Rectangle>,
+    latest_bounds: Result<Rectangle, novadraw::tree::TreeQueryError>,
 }
 
 struct CaptureMoves {
@@ -139,7 +139,7 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         (stable.epoch(), stable.bounds(figure))
     };
     assert!(stable_epoch > baseline_epoch);
-    assert_eq!(stable_bounds, Some(second));
+    assert_eq!(stable_bounds, Ok(second));
 
     let records = records.lock().unwrap();
     assert_eq!(records.len(), 2);
@@ -148,8 +148,8 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     assert_eq!(records[1].source_epoch, stable_epoch);
     assert_eq!(records[0].query_epoch, stable_epoch);
     assert_eq!(records[1].query_epoch, stable_epoch);
-    assert_eq!(records[0].latest_bounds, Some(second));
-    assert_eq!(records[1].latest_bounds, Some(second));
+    assert_eq!(records[0].latest_bounds, Ok(second));
+    assert_eq!(records[1].latest_bounds, Ok(second));
     assert!(matches!(
         records[0].event,
         FigureEvent::FigureMoved {

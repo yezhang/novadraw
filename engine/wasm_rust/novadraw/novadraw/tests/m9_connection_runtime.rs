@@ -251,12 +251,13 @@ fn invalid_connection_geometry_never_commits_resolved_state() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(novadraw::geometry::Rectangle::ZERO)
+        Ok(novadraw::geometry::Rectangle::ZERO)
     );
     assert!(
         runtime
             .tree()
             .connection_route_points(connection_figure)
+            .unwrap()
             .unwrap()
             .is_empty()
     );
@@ -301,6 +302,7 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     let points = runtime
         .tree()
         .connection_route_points(connection_figure)
+        .unwrap()
         .unwrap();
     let start = points.get(0).unwrap();
     let expected = start + (points.get(1).unwrap() - start) / 2.0;
@@ -318,7 +320,7 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
             .expect("valid Runtime mutation")
     );
     prepare_next_submission(&mut runtime).expect("reroute and Locator layout");
-    assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
+    assert_ne!(runtime.tree().figure_bounds(label), Ok(old_label_bounds));
 }
 
 #[test]
@@ -680,11 +682,12 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
         .inflate(DEFAULT_STROKE_MITER_LIMIT, DEFAULT_STROKE_MITER_LIMIT);
     assert_eq!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(path_bounds)
+        Ok(path_bounds)
     );
     let local_points = runtime
         .tree()
         .connection_route_points(connection_figure)
+        .unwrap()
         .unwrap();
     assert_eq!(
         local_points.get(0),
@@ -835,7 +838,7 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
         .expect("frame completion");
     assert_ne!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(initial_bounds)
+        Ok(initial_bounds)
     );
     assert!(matches!(
         runtime.connections().state(connection).unwrap().resolution,
@@ -894,7 +897,7 @@ fn layout_output_geometry_automatically_invalidates_and_reroutes() {
 
     assert_ne!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(initial_bounds)
+        Ok(initial_bounds)
     );
     assert!(matches!(
         runtime.connections().state(connection).unwrap().resolution,
@@ -988,12 +991,13 @@ fn unresolved_transition_clears_previously_committed_geometry() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(novadraw::geometry::Rectangle::ZERO)
+        Ok(novadraw::geometry::Rectangle::ZERO)
     );
     assert!(
         runtime
             .tree()
             .connection_route_points(connection_figure)
+            .unwrap()
             .unwrap()
             .is_empty()
     );
@@ -1312,7 +1316,7 @@ fn reparenting_connection_with_unknown_constraint_is_rejected_atomically() {
     ));
     assert_eq!(
         runtime.tree().parent_id(connection_figure),
-        Some(old_parent)
+        Ok(Some(old_parent))
     );
     assert_eq!(runtime.connections().state(connection).unwrap(), before);
 }
@@ -1725,7 +1729,7 @@ fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(connection_figure),
-        Some(novadraw::geometry::Rectangle::ZERO)
+        Ok(novadraw::geometry::Rectangle::ZERO)
     );
 
     assert!(
@@ -1904,7 +1908,7 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
         );
         assert_eq!(
             runtime.tree().figure_bounds(figure),
-            Some(novadraw::geometry::Rectangle::ZERO)
+            Ok(novadraw::geometry::Rectangle::ZERO)
         );
     }
 
@@ -1926,7 +1930,7 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
         ));
         assert_ne!(
             runtime.tree().figure_bounds(figure),
-            Some(novadraw::geometry::Rectangle::ZERO)
+            Ok(novadraw::geometry::Rectangle::ZERO)
         );
     }
 }

@@ -56,15 +56,15 @@ impl FigureTreeSnapshot {
         let mut pending = vec![tree.root_id()];
 
         while let Some(id) = pending.pop() {
-            let Some(node) = tree.node(id) else {
-                continue;
-            };
-            let children = tree.child_order(id).unwrap_or_default();
+            let node = tree
+                .node(id)
+                .expect("snapshot traversal uses live tree identities");
+            let children = tree.child_order(id).expect("snapshot node is live");
             nodes.push(FigureSnapshot {
                 id,
-                parent: tree.parent_id(id),
+                parent: tree.parent_id(id).expect("snapshot node is live"),
                 child_count: children.len(),
-                depth: tree.depth(id).unwrap_or_default(),
+                depth: tree.depth(id).expect("snapshot node is live"),
                 figure_name: node.figure_name(),
                 bounds: node.figure_bounds(),
                 visible: node.is_visible(),

@@ -413,7 +413,7 @@ fn external_capability_supports_typed_query_and_shared_runtime_commit() {
     let (tree, _root, external) = tree_with_external_child();
     let capability = tree.capability(external, COUNTER).unwrap().unwrap();
     assert_eq!(capability.snapshot(), 1);
-    assert_eq!(tree.component_revision(external), Some(0));
+    assert_eq!(tree.component_revision(external), Ok(0));
 
     let mut runtime = Runtime::new(tree);
     let receipt = runtime
@@ -444,7 +444,7 @@ fn external_capability_supports_typed_query_and_shared_runtime_commit() {
         rejected,
         CapabilityUpdateError::Rejected("counter must be non-zero")
     );
-    assert_eq!(runtime.tree().component_revision(external), Some(1));
+    assert_eq!(runtime.tree().component_revision(external), Ok(1));
 
     runtime
         .input()
@@ -458,7 +458,7 @@ fn external_capability_supports_typed_query_and_shared_runtime_commit() {
             .snapshot(),
         9
     );
-    assert_eq!(runtime.tree().component_revision(external), Some(2));
+    assert_eq!(runtime.tree().component_revision(external), Ok(2));
     assert!(runtime.take_deferred_mutation_errors().is_empty());
 }
 
@@ -495,7 +495,7 @@ fn external_capability_effect_uses_validated_runtime_structural_commit() {
         })
         .unwrap();
 
-    assert_eq!(runtime.tree().parent_id(external), Some(right));
+    assert_eq!(runtime.tree().parent_id(external), Ok(Some(right)));
     assert_eq!(
         runtime
             .tree()
@@ -533,10 +533,10 @@ fn conflicting_effects_reject_before_component_or_structure_commit() {
     assert!(matches!(result.unwrap(), Err(CapabilityUpdateError::Effect(
         RuntimeMutationError::EffectTargetMismatch { target, requested }
     )) if target == external && requested == sibling));
-    assert_eq!(runtime.tree().parent_id(external), Some(root));
-    assert_eq!(runtime.tree().parent_id(sibling), Some(root));
+    assert_eq!(runtime.tree().parent_id(external), Ok(Some(root)));
+    assert_eq!(runtime.tree().parent_id(sibling), Ok(Some(root)));
     assert_eq!(runtime.tree().child_order(root).unwrap(), before_children);
-    assert_eq!(runtime.tree().component_revision(external), Some(0));
+    assert_eq!(runtime.tree().component_revision(external), Ok(0));
     assert!(!runtime.frames().has_pending_update());
     assert_eq!(
         runtime
@@ -589,9 +589,9 @@ fn target_effect_batch_validates_sequential_moves_and_rejects_late_failure() {
         ))
     );
     assert_eq!(runtime.tree().child_order(root).unwrap(), before);
-    assert_eq!(runtime.tree().parent_id(external), Some(root));
-    assert_eq!(runtime.tree().parent_id(descendant), Some(external));
-    assert_eq!(runtime.tree().component_revision(external), Some(0));
+    assert_eq!(runtime.tree().parent_id(external), Ok(Some(root)));
+    assert_eq!(runtime.tree().parent_id(descendant), Ok(Some(external)));
+    assert_eq!(runtime.tree().component_revision(external), Ok(0));
     assert_eq!(
         runtime
             .tree()
@@ -615,12 +615,12 @@ fn target_effect_batch_validates_sequential_moves_and_rejects_late_failure() {
             swallow_error: false,
         })
         .unwrap();
-    assert_eq!(runtime.tree().parent_id(external), Some(sibling));
+    assert_eq!(runtime.tree().parent_id(external), Ok(Some(sibling)));
     assert_eq!(
         runtime.tree().depth(descendant),
-        Some(runtime.tree().depth(external).unwrap() + 1)
+        Ok(runtime.tree().depth(external).unwrap() + 1)
     );
-    assert_eq!(runtime.tree().component_revision(external), Some(1));
+    assert_eq!(runtime.tree().component_revision(external), Ok(1));
     assert_eq!(
         runtime
             .tree()
@@ -667,9 +667,9 @@ fn late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged() {
                 })
                 .is_err()
         );
-        assert_eq!(runtime.tree().parent_id(external), Some(root));
-        assert_eq!(runtime.tree().figure_bounds(external), Some(bounds));
-        assert_eq!(runtime.tree().component_revision(external), Some(0));
+        assert_eq!(runtime.tree().parent_id(external), Ok(Some(root)));
+        assert_eq!(runtime.tree().figure_bounds(external), Ok(bounds));
+        assert_eq!(runtime.tree().component_revision(external), Ok(0));
         assert_eq!(
             runtime
                 .tree()
@@ -700,7 +700,7 @@ fn late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged() {
         .unwrap();
     assert!(!receipt.changed);
     assert!(!runtime.frames().has_pending_update());
-    assert_eq!(runtime.tree().component_revision(external), Some(0));
+    assert_eq!(runtime.tree().component_revision(external), Ok(0));
 }
 
 #[test]

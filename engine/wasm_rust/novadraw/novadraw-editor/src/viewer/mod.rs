@@ -451,6 +451,12 @@ impl ViewerInputOutcome {
 /// Failure while constructing or refreshing a [`GraphicalViewer`].
 #[derive(Debug)]
 pub enum ViewerError {
+    /// A committed tree identity query failed.
+    Identity(novadraw::tree::TreeQueryError),
+    /// A typed capability query failed.
+    Capability(novadraw::figure::CapabilityQueryError),
+    /// A Figure coordinate query failed while projecting or converting geometry.
+    Coordinate(novadraw::tree::CoordinateQueryError),
     /// The Viewer was faulted by an earlier partial extension failure.
     Faulted,
     /// The adapter exposed the same model identity more than once.
@@ -614,6 +620,9 @@ impl fmt::Display for ViewerError {
             Self::DirectTextEdit(error) => error.fmt(formatter),
             Self::InvalidPart(part) => write!(formatter, "invalid EditPart: {part:?}"),
             Self::InconsistentState => formatter.write_str("Viewer state is inconsistent"),
+            Self::Coordinate(error) => error.fmt(formatter),
+            Self::Identity(error) => error.fmt(formatter),
+            Self::Capability(error) => error.fmt(formatter),
         }
     }
 }
@@ -621,6 +630,9 @@ impl fmt::Display for ViewerError {
 impl Error for ViewerError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Coordinate(error) => Some(error),
+            Self::Identity(error) => Some(error),
+            Self::Capability(error) => Some(error),
             Self::EditPart(error) => Some(error),
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
@@ -640,6 +652,12 @@ impl Error for ViewerError {
 impl From<EditPartError> for ViewerError {
     fn from(value: EditPartError) -> Self {
         Self::EditPart(value)
+    }
+}
+
+impl From<novadraw::tree::TreeQueryError> for ViewerError {
+    fn from(error: novadraw::tree::TreeQueryError) -> Self {
+        Self::Identity(error)
     }
 }
 
@@ -1221,10 +1239,11 @@ where
         let scalable = runtime
             .tree()
             .scale_handle(root_layers.scalable())
+            .map_err(ViewerError::Capability)?
             .ok_or(ViewerError::InconsistentState)?;
         let viewport = runtime
             .tree()
-            .viewport_handle(root_layers.viewport())
+            .viewport_handle(root_layers.viewport())?
             .ok_or(ViewerError::InconsistentState)?;
         let mut zoom_manager = ZoomManager::new(scalable, viewport);
         zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
@@ -1520,6 +1539,7 @@ where
             .runtime
             .tree()
             .scale_handle(self.root_layers.scalable())
+            .map_err(ViewerError::Capability)?
             .ok_or(ViewerError::InconsistentState)?
             .scale())
     }
@@ -1527,16 +1547,12 @@ where
     /// Returns the root Viewport client rectangle in logical surface coordinates.
     pub fn viewport_bounds_in_surface(&self) -> Result<Rectangle, ViewerError> {
         let viewport = self.root_layers.viewport();
-        let bounds = self
-            .runtime
-            .tree()
-            .figure_bounds(viewport)
-            .ok_or(ViewerError::InconsistentState)?;
+        let bounds = self.runtime.tree().figure_bounds(viewport)?;
         let transform = self
             .runtime
             .tree()
             .local_to_surface_transform(viewport)
-            .ok_or(ViewerError::InconsistentState)?;
+            .map_err(ViewerError::Coordinate)?;
         let mut client = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         client.transform(transform);
         Ok(client)
@@ -1588,6 +1604,7 @@ where
                 self.runtime
                     .tree()
                     .surface_to_local_transform(self.root_layers.viewport())
+                    .map_err(ViewerError::Coordinate)?
                     .map(|transform| transform.transform_point(point))
                     .ok_or(ViewerError::InconsistentState)
             })
@@ -1606,7 +1623,8 @@ where
             .runtime
             .tree()
             .child_content_to_surface_transform(self.root_layers.scalable())
-            .and_then(|transform| transform.inverse())
+            .map_err(ViewerError::Coordinate)?
+            .inverse()
             .ok_or(ViewerError::InconsistentState)?;
         let delta = transform.transform_vector(delta);
         let viewport = self.viewport_handle()?;
@@ -1661,7 +1679,8 @@ where
             .runtime
             .tree()
             .child_content_to_surface_transform(figure)
-            .and_then(|transform| transform.inverse())
+            .map_err(ViewerError::Coordinate)?
+            .inverse()
             .ok_or(ViewerError::InconsistentState)?;
         let point = transform.transform_point(point);
         if !point.x().is_finite() || !point.y().is_finite() {
@@ -1673,7 +1692,7 @@ where
     fn viewport_handle(&self) -> Result<ViewportHandle, ViewerError> {
         self.runtime
             .tree()
-            .viewport_handle(self.root_layers.viewport())
+            .viewport_handle(self.root_layers.viewport())?
             .ok_or(ViewerError::InconsistentState)
     }
 
@@ -1778,8 +1797,12 @@ where
         let model = self.parts.get(connection.edit_part())?.model_id()?;
         let projection = self.connection_projections.get(&model)?;
         let figure = projection.connection.figure();
-        let points = self.runtime.tree().connection_route_points(figure)?;
-        let transform = self.runtime.tree().local_to_surface_transform(figure)?;
+        let points = self.runtime.tree().connection_route_points(figure).ok()??;
+        let transform = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(figure)
+            .ok()?;
         Some(
             points
                 .iter()
@@ -1826,7 +1849,7 @@ where
             .runtime
             .tree()
             .child_content_to_surface_transform(self.root_layers.connection())
-            .ok_or(ViewerError::InconsistentState)?;
+            .map_err(ViewerError::Coordinate)?;
         let bendpoints = self
             .connection_bendpoints(connection)?
             .into_iter()
@@ -1856,8 +1879,12 @@ where
     /// Returns the axis-aligned surface bounds of a part's primary Figure.
     pub fn part_bounds_in_surface(&self, part: EditPartId) -> Option<Rectangle> {
         let figure = self.parts.get(part)?.primary_figure();
-        let bounds = self.runtime.tree().figure_bounds(figure)?;
-        let transform = self.runtime.tree().local_to_surface_transform(figure)?;
+        let bounds = self.runtime.tree().figure_bounds(figure).ok()?;
+        let transform = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(figure)
+            .ok()?;
         let mut surface_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         surface_bounds.transform(transform);
         Some(surface_bounds)
@@ -2096,7 +2123,7 @@ where
                 .visual_registry
                 .get(&figure)
                 .is_none_or(|owner| !owner.is_overlay())
-                || !self.runtime.tree().is_attached(figure)
+                || self.runtime.tree().is_attached(figure) != Ok(true)
             {
                 return Err(ViewerError::InconsistentState);
             }
@@ -2411,10 +2438,10 @@ where
         let Some(active) = self.direct_text_edit.as_ref() else {
             return false;
         };
-        let Some(bounds) = self.runtime.tree().figure_bounds(active.text_feedback) else {
+        let Ok(bounds) = self.runtime.tree().figure_bounds(active.text_feedback) else {
             return false;
         };
-        let Some(transform) = self
+        let Ok(transform) = self
             .runtime
             .tree()
             .local_to_surface_transform(active.text_feedback)
@@ -2482,16 +2509,12 @@ where
         &self,
         text_feedback: FigureId,
     ) -> Result<Rectangle, ViewerError> {
-        let bounds = self
-            .runtime
-            .tree()
-            .figure_bounds(text_feedback)
-            .ok_or(ViewerError::InconsistentState)?;
+        let bounds = self.runtime.tree().figure_bounds(text_feedback)?;
         let transform = self
             .runtime
             .tree()
             .local_to_surface_transform(text_feedback)
-            .ok_or(ViewerError::InconsistentState)?;
+            .map_err(ViewerError::Coordinate)?;
         let mut viewport = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         viewport.transform(transform);
         Ok(viewport)
@@ -2771,7 +2794,7 @@ where
                 return Err(error.into());
             }
         };
-        let Some(text_bounds) = self.runtime.tree().figure_bounds(text_feedback) else {
+        let Ok(text_bounds) = self.runtime.tree().figure_bounds(text_feedback) else {
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
         };
@@ -2821,7 +2844,7 @@ where
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(direct_text_viewport_error(error));
         }
-        let Some(transform) = self
+        let Ok(transform) = self
             .runtime
             .tree()
             .local_to_surface_transform(text_feedback)
@@ -3024,7 +3047,7 @@ where
 
     fn visual_owner_or_ancestor(&self, figure: FigureId) -> Option<(FigureId, VisualOwner)> {
         if figure.namespace() != self.runtime.tree().namespace()
-            || !self.runtime.tree().is_attached(figure)
+            || self.runtime.tree().is_attached(figure) != Ok(true)
         {
             return None;
         }
@@ -3033,7 +3056,8 @@ where
         }
         self.runtime
             .tree()
-            .ancestor_ids(figure)?
+            .ancestor_ids(figure)
+            .ok()?
             .into_iter()
             .find_map(|ancestor| {
                 self.visual_registry

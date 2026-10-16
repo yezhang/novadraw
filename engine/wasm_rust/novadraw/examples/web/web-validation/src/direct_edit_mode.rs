@@ -447,7 +447,7 @@ impl DirectEditWebApp {
                     let app_slot = Rc::clone(&app_slot);
                     move |ranges: Vec<Range<usize>>| {
                         let app = app_slot.borrow().as_ref().and_then(Weak::upgrade)?;
-                        let app = app.borrow();
+                        let mut app = app.borrow_mut();
                         ranges
                             .into_iter()
                             .map(|range| app.viewer.direct_text_range_bounds(range).ok())

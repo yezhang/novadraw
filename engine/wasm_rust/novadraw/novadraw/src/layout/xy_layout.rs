@@ -84,46 +84,48 @@ impl XYLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
-        snapshot
-            .children(container)
-            .into_iter()
-            .filter_map(|(child, _)| {
-                let constraint = xy_constraint(snapshot, container, child).ok().flatten()?;
-                let child_constraints = MeasureConstraints::new(
-                    (constraint.width >= 0.0)
-                        .then_some(constraint.width)
-                        .or(constraints.max_width()),
-                    (constraint.height >= 0.0)
-                        .then_some(constraint.height)
-                        .or(constraints.max_height()),
-                )
-                .ok()?;
-                let intrinsic = if minimum {
-                    snapshot.minimum_size(child, child_constraints)
-                } else {
-                    snapshot
-                        .preferred_measurement(child, child_constraints)
-                        .size()
-                };
-                let width = if constraint.width < 0.0 {
-                    intrinsic.width
-                } else {
-                    constraint.width
-                };
-                let height = if constraint.height < 0.0 {
-                    intrinsic.height
-                } else {
-                    constraint.height
-                };
-                Some(Dimension::new(constraint.x + width, constraint.y + height))
-            })
-            .fold(Dimension::ZERO, |size, child_extent| {
-                Dimension::new(
-                    size.width.max(child_extent.width),
-                    size.height.max(child_extent.height),
-                )
-            })
+    ) -> Result<Dimension, LayoutError> {
+        let mut size = Dimension::ZERO;
+        for (child, _) in snapshot.children(container)? {
+            let Some(constraint) = xy_constraint(snapshot, container, child)? else {
+                continue;
+            };
+            let child_constraints = MeasureConstraints::new(
+                (constraint.width >= 0.0)
+                    .then_some(constraint.width)
+                    .or(constraints.max_width()),
+                (constraint.height >= 0.0)
+                    .then_some(constraint.height)
+                    .or(constraints.max_height()),
+            )
+            .map_err(|_| LayoutError::NonFiniteGeometry { figure: child })?;
+            let intrinsic = if minimum {
+                snapshot.minimum_size(child, child_constraints)?
+            } else {
+                snapshot
+                    .preferred_measurement(child, child_constraints)?
+                    .size()
+            };
+            let width = if constraint.width < 0.0 {
+                intrinsic.width
+            } else {
+                constraint.width
+            };
+            let height = if constraint.height < 0.0 {
+                intrinsic.height
+            } else {
+                constraint.height
+            };
+            let child_extent = Dimension::new(constraint.x + width, constraint.y + height);
+            if !child_extent.width.is_finite() || !child_extent.height.is_finite() {
+                return Err(LayoutError::NonFiniteGeometry { figure: child });
+            }
+            size = Dimension::new(
+                size.width.max(child_extent.width),
+                size.height.max(child_extent.height),
+            );
+        }
+        Ok(size)
     }
 }
 
@@ -173,9 +175,9 @@ impl LayoutManager for XYLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.measure(container, constraints, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.measure(container, constraints, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -183,7 +185,7 @@ impl LayoutManager for XYLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.measure(container, constraints, snapshot, true)
     }
 
@@ -193,13 +195,13 @@ impl LayoutManager for XYLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let children = snapshot.children(container);
+        let children = snapshot.children(container)?;
         if children.is_empty() {
             return Ok(());
         }
 
         // LayoutSceneQuery exposes the available rectangle in child-content coordinates.
-        let container_bounds = snapshot.container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container)?;
         let offset_x = container_bounds.x;
         let offset_y = container_bounds.y;
 
@@ -211,7 +213,7 @@ impl LayoutManager for XYLayout {
                 )
                 .expect("validated XYConstraint dimensions produce valid measurement constraints");
                 let preferred = snapshot
-                    .preferred_measurement(child_id, child_constraints)
+                    .preferred_measurement(child_id, child_constraints)?
                     .size();
                 let width = if constraint.width < 0.0 {
                     preferred.width
@@ -242,7 +244,7 @@ fn xy_constraint(
     container: FigureId,
     child_id: FigureId,
 ) -> Result<Option<Rectangle>, LayoutError> {
-    let Some(constraint) = snapshot.constraint(child_id) else {
+    let Some(constraint) = snapshot.constraint(child_id)? else {
         return Ok(None);
     };
     if let Some(rect) = constraint.as_any().downcast_ref::<Rectangle>() {

@@ -481,7 +481,12 @@ fn refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup() {
     );
     assert!(viewer.parts().get(old_two).is_none());
     assert_eq!(viewer.part_for_visual(removed_visual), None);
-    assert!(!viewer.runtime().tree().is_attached(removed_visual));
+    assert_eq!(
+        viewer.runtime().tree().is_attached(removed_visual),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(
+            removed_visual
+        ))
+    );
     assert_eq!(
         lifecycle.lock().unwrap().as_slice(),
         [
@@ -541,7 +546,7 @@ fn one_revision_may_carry_multiple_ordered_events() {
         .get(viewer.part_for_model(NodeId(3)).unwrap())
         .unwrap()
         .primary_figure();
-    assert_eq!(viewer.runtime().tree().figure_bounds(figure), Some(updated));
+    assert_eq!(viewer.runtime().tree().figure_bounds(figure), Ok(updated));
 }
 
 #[test]
@@ -603,10 +608,7 @@ fn refresh_panic_faults_viewer_after_partial_visual_mutation() {
     assert!(panic.is_err());
     assert!(viewer.is_faulted());
     assert_eq!(viewer.applied_revision(), applied_revision);
-    assert_eq!(
-        viewer.runtime().tree().figure_bounds(primary),
-        Some(updated)
-    );
+    assert_eq!(viewer.runtime().tree().figure_bounds(primary), Ok(updated));
     assert!(matches!(viewer.synchronize(), Err(ViewerError::Faulted)));
     assert!(matches!(
         viewer.synchronize_model(|_| {}),
@@ -638,7 +640,10 @@ fn removing_and_readding_a_model_rebuilds_runtime_identity() {
     assert_ne!(new_part, old_part);
     assert_ne!(new_figure, old_figure);
     assert!(viewer.parts().get(old_part).is_none());
-    assert!(!viewer.runtime().tree().is_attached(old_figure));
+    assert_eq!(
+        viewer.runtime().tree().is_attached(old_figure),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(old_figure))
+    );
 }
 
 #[test]

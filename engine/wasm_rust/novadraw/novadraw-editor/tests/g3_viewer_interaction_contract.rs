@@ -309,7 +309,10 @@ fn removing_parts_reconciles_selection_focus_and_owned_overlays() {
 
     assert!(viewer.selection().is_empty());
     assert_eq!(viewer.selection().focus(), None);
-    assert!(!viewer.runtime().tree().is_attached(handle));
+    assert_eq!(
+        viewer.runtime().tree().is_attached(handle),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(handle))
+    );
     assert!(viewer.visual_owner(handle).is_none());
 }
 

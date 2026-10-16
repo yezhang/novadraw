@@ -296,7 +296,7 @@ fn append_subtree_inner(
     if frame.depth > MAX_TREE_DEPTH {
         return Err(AccessibilityError::DepthLimit);
     }
-    let Some(block) = tree.node(frame.figure) else {
+    let Ok(block) = tree.node(frame.figure) else {
         return Ok(());
     };
     let visible = frame.parent_visible && block.state().is_visible();
@@ -350,7 +350,7 @@ fn append_subtree_inner(
         frame.accessible_parent
     };
 
-    if let Some(children) = tree.child_order(frame.figure) {
+    if let Ok(children) = tree.child_order(frame.figure) {
         for child in children {
             append_subtree(
                 tree,

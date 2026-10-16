@@ -68,12 +68,12 @@ impl LayoutManager for ConstrainedColumnLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         snapshot
-            .children(container)
+            .children(container)?
             .first()
             .map(|(child, _)| snapshot.preferred_measurement(*child, constraints))
-            .unwrap_or_default()
+            .unwrap_or(Ok(FigureMeasurement::default()))
     }
 
     fn minimum_size(
@@ -81,9 +81,10 @@ impl LayoutManager for ConstrainedColumnLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.preferred_measurement(container, constraints, snapshot)
-            .size()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(
@@ -92,10 +93,10 @@ impl LayoutManager for ConstrainedColumnLayout {
         snapshot: &LayoutSceneQuery<'_>,
         output: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let area = snapshot.container_bounds(container);
-        for (child, _) in snapshot.children(container) {
+        let area = snapshot.container_bounds(container)?;
+        for (child, _) in snapshot.children(container)? {
             let measured = snapshot
-                .preferred_measurement(child, MeasureConstraints::width(area.width).unwrap());
+                .preferred_measurement(child, MeasureConstraints::width(area.width).unwrap())?;
             output.set_child_bounds(
                 child,
                 Rectangle::new(area.x, area.y, area.width, measured.height),
@@ -251,7 +252,7 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
 
     assert_eq!(
         runtime.tree().figure_bounds(text_figure),
-        Some(Rectangle::new(
+        Ok(Rectangle::new(
             10.0,
             12.0,
             f64::from(WIDTH),

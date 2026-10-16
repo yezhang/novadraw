@@ -61,11 +61,11 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
     );
     assert_eq!(
         runtime.tree().figure_bounds(contents),
-        Some(Rectangle::new(0.0, 0.0, 640.0, 480.0))
+        Ok(Rectangle::new(0.0, 0.0, 640.0, 480.0))
     );
     assert_eq!(
         runtime.tree().figure_bounds(child),
-        Some(Rectangle::new(30.0, 40.0, 80.0, 60.0))
+        Ok(Rectangle::new(30.0, 40.0, 80.0, 60.0))
     );
 
     assert!(
@@ -99,7 +99,7 @@ fn replacing_contents_after_resize_uses_the_current_logical_viewport() {
 
     assert_eq!(
         runtime.tree().figure_bounds(contents),
-        Some(Rectangle::new(0.0, 0.0, 500.0, 360.0))
+        Ok(Rectangle::new(0.0, 0.0, 500.0, 360.0))
     );
 }
 

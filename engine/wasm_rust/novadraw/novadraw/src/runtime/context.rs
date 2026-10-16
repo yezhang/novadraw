@@ -30,11 +30,12 @@ impl<'a> EventSceneQuery<'a> {
         if figure.namespace() != self.tree.namespace() {
             return Err(EventSceneQueryError::ForeignFigure(figure));
         }
-        let node = self
+        let node = self.tree.node(figure).map_err(EventSceneQueryError::from)?;
+        if !self
             .tree
-            .node(figure)
-            .ok_or(EventSceneQueryError::UnknownOrDisposedFigure(figure))?;
-        if !self.tree.is_attached(figure) {
+            .is_attached(figure)
+            .map_err(EventSceneQueryError::from)?
+        {
             return Err(EventSceneQueryError::DetachedFigure(figure));
         }
         Ok(node)
@@ -43,7 +44,7 @@ impl<'a> EventSceneQuery<'a> {
     /// Returns the direct parent of an attached Figure.
     pub fn parent_id(&self, figure: FigureId) -> Result<Option<FigureId>, EventSceneQueryError> {
         self.node(figure)?;
-        Ok(self.tree.parent_id(figure))
+        self.tree.parent_id(figure).map_err(Into::into)
     }
 
     /// Returns the Figure border box in its parent child-content coordinate domain.
@@ -64,7 +65,7 @@ impl<'a> EventSceneQuery<'a> {
         self.node(container)?;
         self.tree
             .child_order(container)
-            .ok_or(EventSceneQueryError::UnknownOrDisposedFigure(container))
+            .map_err(EventSceneQueryError::from)
     }
 }
 
@@ -99,6 +100,15 @@ impl fmt::Display for EventSceneQueryError {
 }
 
 impl Error for EventSceneQueryError {}
+
+impl From<crate::tree::TreeQueryError> for EventSceneQueryError {
+    fn from(error: crate::tree::TreeQueryError) -> Self {
+        match error {
+            crate::tree::TreeQueryError::ForeignFigure(id) => Self::ForeignFigure(id),
+            crate::tree::TreeQueryError::UnknownFigure(id) => Self::UnknownOrDisposedFigure(id),
+        }
+    }
+}
 
 enum RuntimeEffect {
     Repaint {
@@ -174,10 +184,12 @@ impl<'a> EventContext<'a> {
             match effect {
                 RuntimeEffect::Mutation(mutation) => pending.enqueue(mutation),
                 RuntimeEffect::Notification(effect) => updates.enqueue_notification_effect(effect),
-                RuntimeEffect::Repaint { figure_id, rect } if tree.is_attached(figure_id) => {
+                RuntimeEffect::Repaint { figure_id, rect }
+                    if tree.is_attached(figure_id) == Ok(true) =>
+                {
                     updates.add_dirty_region(figure_id, rect);
                 }
-                RuntimeEffect::Invalidate(id) if tree.is_attached(id) => {
+                RuntimeEffect::Invalidate(id) if tree.is_attached(id) == Ok(true) => {
                     tree.mark_invalid(updates, id);
                 }
                 // Input state requests for a disposed target cannot revive it.
@@ -511,26 +523,34 @@ impl<'a> SceneDispatchContext<'a> {
 
     fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
         loop {
-            let block = self.scene.node(target_id)?;
-            if self.scene.scale_handle(target_id).is_some() {
+            let block = self.scene.node(target_id).ok()?;
+            if self
+                .scene
+                .scale_handle(target_id)
+                .is_ok_and(|handle| handle.is_some())
+            {
                 return Some(target_id);
             }
             if block.figure.as_any().is::<ViewportFigure>()
                 && let Some(contents) = self
                     .scene
                     .child_order(target_id)
+                    .ok()
                     .and_then(|children| children.first().copied())
-                && self.scene.scale_handle(contents).is_some()
+                && self
+                    .scene
+                    .scale_handle(contents)
+                    .is_ok_and(|handle| handle.is_some())
             {
                 return Some(contents);
             }
-            target_id = self.scene.parent_id(target_id)?;
+            target_id = self.scene.parent_id(target_id).ok()??;
         }
     }
 
     fn nearest_viewport_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
-        while let Some(parent_id) = self.scene.parent_id(figure_id) {
-            let parent = self.scene.node(parent_id)?;
+        while let Some(parent_id) = self.scene.parent_id(figure_id).ok()? {
+            let parent = self.scene.node(parent_id).ok()?;
             if parent.figure.as_any().is::<ViewportFigure>() {
                 return Some(parent_id);
             }
@@ -540,8 +560,8 @@ impl<'a> SceneDispatchContext<'a> {
     }
 
     fn nearest_scroll_pane_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
-        while let Some(parent_id) = self.scene.parent_id(figure_id) {
-            let parent = self.scene.node(parent_id)?;
+        while let Some(parent_id) = self.scene.parent_id(figure_id).ok()? {
+            let parent = self.scene.node(parent_id).ok()?;
             if parent.figure.as_any().is::<ScrollPaneFigure>() {
                 return Some(parent_id);
             }
@@ -586,18 +606,18 @@ impl<'a> SceneDispatchContext<'a> {
         let Some(viewport_id) = self.nearest_viewport_parent(scalable_id) else {
             return false;
         };
-        let Some(scalable) = self.scene.scale_handle(scalable_id) else {
+        let Ok(Some(scalable)) = self.scene.scale_handle(scalable_id) else {
             return false;
         };
-        let Some(viewport) = self.scene.viewport_handle(viewport_id) else {
+        let Ok(Some(viewport)) = self.scene.viewport_handle(viewport_id) else {
             return false;
         };
         let anchor = {
-            let Some(block) = self.scene.node(viewport_id) else {
+            let Ok(block) = self.scene.node(viewport_id) else {
                 return false;
             };
             let insets = block.state().insets();
-            let Some(transform) = self.scene.surface_to_local_transform(viewport_id) else {
+            let Ok(Some(transform)) = self.scene.surface_to_local_transform(viewport_id) else {
                 return false;
             };
             let point = transform.transform_point(event.entry_point());
@@ -661,13 +681,13 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn set_hovered(&mut self, id: FigureId, hovered: bool) {
-        if self.scene.node(id).is_some() {
+        if self.scene.contains(id) {
             self.interaction.set_hovered(id, hovered);
         }
     }
 
     fn set_pressed(&mut self, id: FigureId, pressed: bool) {
-        if self.scene.node(id).is_some() {
+        if self.scene.contains(id) {
             self.interaction.set_pressed(id, pressed);
         }
     }
@@ -681,7 +701,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn can_request_focus(&self, target_id: FigureId) -> bool {
-        self.scene.can_request_focus(target_id)
+        self.scene.can_request_focus(target_id) == Ok(true)
     }
 
     fn captured(&self) -> Option<FigureId> {
@@ -695,7 +715,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
     fn gesture_target(&self, session_id: GestureSessionId) -> Option<FigureId> {
         self.interaction
             .gesture_target(session_id)
-            .filter(|id| self.scene.node(*id).is_some())
+            .filter(|id| self.scene.contains(*id))
     }
 
     fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
@@ -703,7 +723,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<FigureId>) {
-        let target_id = target_id.filter(|id| self.scene.node(*id).is_some());
+        let target_id = target_id.filter(|id| self.scene.contains(*id));
         self.interaction.set_gesture_target(session_id, target_id);
     }
 
@@ -727,7 +747,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let Some(target_id) = target_id else {
             return false;
         };
-        let Some(block) = self.scene.node(target_id) else {
+        let Ok(block) = self.scene.node(target_id) else {
             return false;
         };
         let pointer_pressed = self.interaction.is_pointer_pressed(target_id);
@@ -752,7 +772,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
             match event {
                 Event::Mouse(mouse_event) => {
-                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
+                    else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(mouse_event.x, mouse_event.y));
@@ -773,7 +794,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     }
                 }
                 Event::Wheel(wheel_event) => {
-                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
+                    else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(wheel_event.x, wheel_event.y));
@@ -781,7 +803,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     handler.on_mouse_wheel(&local_event, &mut ctx)
                 }
                 Event::Zoom(zoom_event) => {
-                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
+                    else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(zoom_event.x, zoom_event.y));
@@ -1142,7 +1165,7 @@ mod tests {
             bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
         }));
         scene.revalidate(parent_id);
-        assert!(scene.is_valid(parent_id));
+        assert!(scene.is_valid(parent_id).unwrap());
         let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
@@ -1157,7 +1180,7 @@ mod tests {
         dispatcher.dispatch_mouse_pressed(&mut ctx, 10.0, 10.0, MouseButton::Left);
 
         assert_eq!(scene.node(parent_id).unwrap().children_count(), 0);
-        assert!(!scene.is_valid(parent_id));
+        assert!(!scene.is_valid(parent_id).unwrap());
         assert!(update_manager.has_pending_layout());
         assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
         assert_eq!(scene.node(parent_id).unwrap().children_count(), 1);

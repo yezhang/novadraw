@@ -32,12 +32,12 @@ impl LayoutManager for FillLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         snapshot
-            .children(container)
+            .children(container)?
             .first()
             .map(|(child, _)| snapshot.preferred_measurement(*child, constraints))
-            .unwrap_or_default()
+            .unwrap_or(Ok(FigureMeasurement::default()))
     }
 
     fn minimum_size(
@@ -45,12 +45,12 @@ impl LayoutManager for FillLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         snapshot
-            .children(container)
+            .children(container)?
             .first()
             .map(|(child, _)| snapshot.minimum_size(*child, constraints))
-            .unwrap_or_default()
+            .unwrap_or(Ok(Dimension::ZERO))
     }
 
     fn layout(
@@ -59,7 +59,7 @@ impl LayoutManager for FillLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let children = snapshot.children(container);
+        let children = snapshot.children(container)?;
         if children.is_empty() {
             return Ok(());
         }
@@ -67,7 +67,7 @@ impl LayoutManager for FillLayout {
         // 获取第一个子元素
         if let Some((first_child_id, _)) = children.first() {
             // FillLayout：第一个子元素填充容器的 client area
-            let bounds = snapshot.container_bounds(container);
+            let bounds = snapshot.container_bounds(container)?;
             out.set_child_bounds(*first_child_id, bounds);
         }
         Ok(())

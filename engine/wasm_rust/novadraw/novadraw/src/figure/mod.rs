@@ -605,6 +605,7 @@ pub trait BorderedFigure {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShapeMutationError {
     Faulted,
+    ForeignFigure(FigureId),
     UnknownFigure(FigureId),
     WrongCapability(FigureId),
     NonFiniteGeometry,
@@ -617,6 +618,7 @@ impl std::fmt::Display for ShapeMutationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::ForeignFigure(id) => write!(formatter, "foreign Figure: {id:?}"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure: {id:?}"),
             Self::WrongCapability(id) => {
                 write!(

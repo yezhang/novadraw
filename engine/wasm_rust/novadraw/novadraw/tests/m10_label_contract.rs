@@ -198,7 +198,7 @@ fn first_submission_shapes_label_after_parent_layout() {
 
     assert_eq!(
         runtime.tree().figure_bounds(label),
-        Some(Rectangle::new(0.0, 0.0, 320.0, 180.0))
+        Ok(Rectangle::new(0.0, 0.0, 320.0, 180.0))
     );
     let layout = runtime.text().label_layout(label).unwrap().clone();
     assert!(!layout.is_truncated());
@@ -369,7 +369,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }) })
     );
-    assert_eq!(runtime.tree().insets(label), Some(Insets::uniform(2.0)));
+    assert_eq!(runtime.tree().insets(label), Ok(Insets::uniform(2.0)));
     let Some(AnchorGeometry::Rectangle(icon_bounds)) = runtime
         .connections()
         .anchor_geometry(label, &AnchorGeometryKey::icon())
@@ -523,7 +523,7 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
     );
     assert_eq!(
         runtime.tree().border_is_effectively_opaque(root),
-        Some(true)
+        Ok(Some(true))
     );
 }
 
@@ -594,7 +594,7 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
                 .tree()
                 .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
                 .map(|measurement| measurement.size()),
-            Some(novadraw::geometry::Dimension::new(
+            Ok(novadraw::geometry::Dimension::new(
                 320.0 + insets.width(),
                 120.0 + insets.height(),
             ))

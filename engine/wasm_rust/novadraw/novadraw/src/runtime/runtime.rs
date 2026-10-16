@@ -273,6 +273,7 @@ impl std::error::Error for LogicalViewportResizeError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextFlowQueryError {
+    Coordinate(crate::tree::CoordinateQueryError),
     UnknownFigure(FigureId),
     WrongCapability(FigureId),
     NonInvertibleTransform(FigureId),
@@ -296,11 +297,20 @@ impl fmt::Display for TextFlowQueryError {
                 )
             }
             Self::Interaction(error) => error.fmt(formatter),
+            Self::Coordinate(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for TextFlowQueryError {}
+impl std::error::Error for TextFlowQueryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Coordinate(error) => Some(error),
+            Self::Interaction(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl From<TextInteractionError> for TextFlowQueryError {
     fn from(error: TextInteractionError) -> Self {
@@ -663,14 +673,14 @@ impl Runtime {
     pub(crate) fn cursor_icon(&self) -> CursorIcon {
         self.interaction
             .cursor_target()
-            .and_then(|id| self.tree.resolved_style(id))
+            .and_then(|id| self.tree.resolved_style(id).ok())
             .map_or(CursorIcon::Default, |style| style.cursor)
     }
 
     pub(crate) fn tooltip_text(&self) -> Option<String> {
         self.interaction
             .hover_source()
-            .and_then(|id| self.tree.resolved_style(id))
+            .and_then(|id| self.tree.resolved_style(id).ok())
             .and_then(|style| style.tooltip)
     }
 
@@ -914,13 +924,15 @@ impl Runtime {
             return Ok(false);
         };
         let mut figures = vec![contents];
-        figures.extend(self.tree.descendant_ids(contents).unwrap_or_default());
+        figures.extend(self.tree.descendant_ids(contents).expect("live contents"));
         let mut changed = false;
         for figure in figures {
             let has_owner_snapshot = self
                 .tree
                 .node(figure)
-                .and_then(|block| block.figure.get_border())
+                .expect("live descendant")
+                .figure
+                .get_border()
                 .is_some_and(Border::has_owner_snapshot);
             if !has_owner_snapshot {
                 continue;
@@ -934,7 +946,9 @@ impl Runtime {
             let Some(snapshot) = self
                 .tree
                 .node(figure)
-                .and_then(|block| block.figure.get_border())
+                .expect("live descendant")
+                .figure
+                .get_border()
                 .map(|border| {
                     border.resolve_owner_snapshot(previous.as_ref(), &font, self.text.as_mut())
                 })
@@ -1121,7 +1135,7 @@ impl Runtime {
     }
 
     fn validate_layered_pane_handle(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
-        if !self.tree.is_layered_pane(pane_id) || !self.tree.is_attached(pane_id) {
+        if !self.tree.is_layered_pane(pane_id) || self.tree.is_attached(pane_id) != Ok(true) {
             return Err(LayerError::UnknownPane);
         }
         self.layered_panes.entry(pane_id).or_default();
@@ -1204,7 +1218,7 @@ impl Runtime {
     ) -> Result<FigureId, LayerError> {
         self.ensure_layered_pane(pane_id)?;
         let child = self.layer(pane_id, key)?;
-        if self.tree.parent_id(child) != Some(pane_id) {
+        if self.tree.parent_id(child) != Ok(Some(pane_id)) {
             return Err(LayerError::InconsistentState);
         }
         self.dispose_subtree(child)
@@ -1237,7 +1251,11 @@ impl Runtime {
             .ok_or(LayerError::InconsistentState)?;
         let child = state.layer(key).ok_or(LayerError::UnknownKey)?;
         let target_index = self.resolve_layer_index(pane_id, state, &placement, Some(child))?;
-        let Some(old_index) = self.tree.child_z_index(pane_id, child) else {
+        let Some(old_index) = self
+            .tree
+            .child_z_index(pane_id, child)
+            .map_err(|_| LayerError::InconsistentState)?
+        else {
             return Err(LayerError::InconsistentState);
         };
         if old_index == target_index {
@@ -1288,6 +1306,7 @@ impl Runtime {
         let old_parent = self
             .tree
             .parent_id(child)
+            .map_err(|_| LayerError::InconsistentState)?
             .ok_or(LayerError::InconsistentState)?;
         if self.tree.is_layered_pane(old_parent)
             && self
@@ -1352,7 +1371,7 @@ impl Runtime {
         let order = self
             .tree
             .child_order(pane_id)
-            .ok_or(LayerError::UnknownPane)?;
+            .map_err(|_| LayerError::UnknownPane)?;
         if order.len() != state.len() || order.iter().any(|child| !state.contains_child(*child)) {
             return Err(LayerError::InconsistentState);
         }
@@ -1377,7 +1396,7 @@ impl Runtime {
         if self.tree.is_layered_pane(parent) {
             return Err(RuntimeMutationError::LayeredParent(parent));
         }
-        if self.tree.parent_id(child) != Some(parent) {
+        if self.tree.parent_id(child) != Ok(Some(parent)) {
             return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
         }
         self.dispose_subtree(child)?;
@@ -1397,6 +1416,7 @@ impl Runtime {
         let parent = self
             .tree
             .parent_id(root)
+            .expect("validated attached root")
             .ok_or(RuntimeMutationError::Graph(
                 crate::GraphMutationError::InvalidParentRelation,
             ))?;
@@ -1511,7 +1531,10 @@ impl Runtime {
     ) -> Result<bool, RuntimeMutationError> {
         self.validate_attached_figure(child)?;
         self.validate_attached_figure(new_parent)?;
-        let old_parent = self.tree.parent_id(child);
+        let old_parent = self
+            .tree
+            .parent_id(child)
+            .expect("validated attached child");
         if old_parent.is_some_and(|parent| self.tree.is_layered_pane(parent)) {
             return Err(RuntimeMutationError::LayeredParent(
                 old_parent.expect("checked parent"),
@@ -1531,6 +1554,7 @@ impl Runtime {
         let old_parent = self
             .tree
             .parent_id(child)
+            .expect("validated attached child")
             .ok_or(RuntimeMutationError::DetachedFigure(child))?;
         let prepared_constraint = if old_parent == new_parent {
             None
@@ -1629,8 +1653,9 @@ impl Runtime {
         let parent = self
             .tree
             .parent_id(child)
+            .expect("validated attached child")
             .ok_or(RuntimeMutationError::DetachedFigure(child))?;
-        if let Some(manager) = self.tree.layout_manager(parent) {
+        if let Some(manager) = self.tree.layout_manager(parent).expect("validated parent") {
             manager.validate_constraint(parent, child, constraint.as_ref())?;
         }
         if !self.tree.set_boxed_constraint(child, constraint) {
@@ -1655,6 +1680,7 @@ impl Runtime {
         let parent = self
             .tree
             .parent_id(child)
+            .expect("validated attached child")
             .ok_or(RuntimeMutationError::DetachedFigure(child))?;
         if !self.tree.remove_constraint(child) {
             return Ok(false);
@@ -1761,7 +1787,7 @@ impl Runtime {
         index: usize,
     ) -> Result<bool, RuntimeMutationError> {
         self.validate_child_order_mutation(parent, child, index)?;
-        if self.tree.child_z_index(parent, child) == Some(index) {
+        if self.tree.child_z_index(parent, child) == Ok(Some(index)) {
             return Ok(false);
         }
         if !self.tree.move_child_to_index(parent, child, index) {
@@ -1805,7 +1831,7 @@ impl Runtime {
         let mut seen = HashSet::with_capacity(order.len());
         for child in order {
             self.validate_attached_figure(*child)?;
-            if self.tree.parent_id(*child) != Some(parent) || !seen.insert(*child) {
+            if self.tree.parent_id(*child) != Ok(Some(parent)) || !seen.insert(*child) {
                 return Err(RuntimeMutationError::InvalidChildOrder { parent });
             }
         }
@@ -1829,7 +1855,7 @@ impl Runtime {
         let child_count = self
             .tree
             .child_order(parent)
-            .ok_or(RuntimeMutationError::UnknownOrDisposedFigure(parent))?
+            .expect("validated attached parent")
             .len();
         let index = child_count
             .checked_sub(1)
@@ -1872,10 +1898,14 @@ impl Runtime {
         if figure == self.tree.synthetic_root() {
             return Err(RuntimeMutationError::SyntheticRootOperation(figure));
         }
-        if self.tree.node(figure).is_none() {
+        if !self.tree.contains(figure) {
             return Err(RuntimeMutationError::UnknownOrDisposedFigure(figure));
         }
-        if !self.tree.is_attached(figure) {
+        if !self
+            .tree
+            .is_attached(figure)
+            .expect("identity checked above")
+        {
             return Err(RuntimeMutationError::DetachedFigure(figure));
         }
         Ok(())
@@ -2087,7 +2117,7 @@ impl Runtime {
     }
 
     pub(crate) fn text_flow_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
         self.tree
@@ -2105,6 +2135,7 @@ impl Runtime {
         let transform = self
             .tree
             .surface_to_local_transform(id)
+            .map_err(TextFlowQueryError::Coordinate)?
             .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
         flow.hit_test_text(transform.transform_point(surface_point))
             .map_err(Into::into)
@@ -2119,7 +2150,7 @@ impl Runtime {
         let transform = self
             .tree
             .local_to_surface_transform(id)
-            .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
+            .map_err(TextFlowQueryError::Coordinate)?;
         let mut bounds = geometry.bounds();
         bounds.transform(transform);
         geometry = CaretGeometry::new(bounds, geometry.line_index());
@@ -2146,7 +2177,7 @@ impl Runtime {
         let transform = self
             .tree
             .local_to_surface_transform(id)
-            .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
+            .map_err(TextFlowQueryError::Coordinate)?;
         flow.selection_geometry(range)?
             .into_iter()
             .map(|quad| {
@@ -2172,7 +2203,7 @@ impl Runtime {
         &self,
         id: FigureId,
     ) -> Result<&crate::TextFlowFigure, TextFlowQueryError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(TextFlowQueryError::UnknownFigure(id));
         }
         self.tree
@@ -2188,7 +2219,7 @@ impl Runtime {
         &self,
         id: FigureId,
     ) -> Result<&TextLayout, ShapeMutationError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
         self.tree
@@ -2198,7 +2229,7 @@ impl Runtime {
     }
 
     fn label_figure(&self, id: FigureId) -> Result<&LabelFigure, ShapeMutationError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
         self.tree
@@ -2247,7 +2278,7 @@ impl Runtime {
         let bounds = self
             .tree
             .figure_bounds(id)
-            .ok_or(RuntimeMutationError::UnknownOrDisposedFigure(id))?;
+            .map_err(|_| RuntimeMutationError::UnknownOrDisposedFigure(id))?;
         self.set_bounds(
             id,
             crate::geometry::Rectangle::new(
@@ -2431,7 +2462,7 @@ impl Runtime {
         &self,
         id: FigureId,
     ) -> Result<ClickableSnapshot, WidgetError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(WidgetError::UnknownFigure(id));
         }
         self.tree
@@ -2444,7 +2475,7 @@ impl Runtime {
     }
 
     fn do_click_inner(&mut self, id: FigureId) -> Result<bool, WidgetError> {
-        if self.tree.figure_bounds(id).is_none() {
+        if !self.tree.contains(id) {
             return Err(WidgetError::UnknownFigure(id));
         }
         if self.tree.clickable_snapshot(id).is_none() {
@@ -2736,8 +2767,8 @@ impl Runtime {
         let Some(candidate) = candidate else {
             return FocusTraversalOutcome::Boundary;
         };
-        let in_scope = candidate == scope || self.tree.is_ancestor_of(scope, candidate);
-        if !in_scope || !self.tree.can_traverse_focus(candidate) {
+        let in_scope = candidate == scope || self.tree.is_ancestor_of(scope, candidate) == Ok(true);
+        if !in_scope || self.tree.can_traverse_focus(candidate) != Ok(true) {
             return FocusTraversalOutcome::Boundary;
         }
 
@@ -2805,7 +2836,7 @@ impl Runtime {
     }
 
     fn ensure_layered_pane(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
-        if !self.tree.is_layered_pane(pane_id) || !self.tree.is_attached(pane_id) {
+        if !self.tree.is_layered_pane(pane_id) || self.tree.is_attached(pane_id) != Ok(true) {
             return Err(LayerError::UnknownPane);
         }
         self.layered_panes.entry(pane_id).or_default();
@@ -2914,7 +2945,12 @@ impl Runtime {
         if !self.tree.is_layered_pane(pane_id) {
             return;
         }
-        if self.tree.layout_manager(pane_id).is_none() {
+        if self
+            .tree
+            .layout_manager(pane_id)
+            .expect("live layered pane")
+            .is_none()
+        {
             self.tree
                 .replace_layout_manager(pane_id, Some(Box::new(StackLayout)));
         }
@@ -2931,7 +2967,7 @@ impl Runtime {
         let order = self
             .tree
             .child_order(pane_id)
-            .ok_or(LayerError::UnknownPane)?;
+            .map_err(|_| LayerError::UnknownPane)?;
         let filtered: Vec<_> = order
             .into_iter()
             .filter(|child| Some(*child) != moving)
@@ -2944,6 +2980,7 @@ impl Runtime {
                     return self
                         .tree
                         .child_z_index(pane_id, reference_child)
+                        .map_err(|_| LayerError::InconsistentState)?
                         .ok_or(LayerError::InconsistentState);
                 }
                 let index = filtered
@@ -2962,16 +2999,16 @@ impl Runtime {
     fn retain_runtime_state(&mut self) {
         let tree = &self.tree;
         self.layered_panes.retain(|pane, state| {
-            if !tree.is_attached(*pane) || !tree.is_layered_pane(*pane) {
+            if tree.is_attached(*pane) != Ok(true) || !tree.is_layered_pane(*pane) {
                 return false;
             }
-            state.retain_children(|child| tree.parent_id(child) == Some(*pane));
+            state.retain_children(|child| tree.parent_id(child) == Ok(Some(*pane)));
             true
         });
         self.connections
-            .retain_connections(|connection| tree.is_attached(connection));
+            .retain_connections(|connection| tree.is_attached(connection) == Ok(true));
         self.anchor_geometries
-            .retain(|(figure, _), _| tree.is_attached(*figure));
+            .retain(|(figure, _), _| tree.is_attached(*figure) == Ok(true));
     }
 
     fn invalidate_connection_figure_change(&mut self, figure: FigureId, topology_changed: bool) {
@@ -2987,7 +3024,7 @@ impl Runtime {
         self.retain_runtime_state();
         self.interaction.reconcile_non_focus(&self.tree);
         self.resources
-            .retain_dependencies(|id| self.tree.is_attached(id));
+            .retain_dependencies(|id| self.tree.is_attached(id) == Ok(true));
 
         let invalid_focus = self
             .interaction
@@ -3007,7 +3044,7 @@ impl Runtime {
             self.apply_runtime_mutations(mutations);
             self.interaction.reconcile_non_focus(&self.tree);
             self.resources
-                .retain_dependencies(|id| self.tree.is_attached(id));
+                .retain_dependencies(|id| self.tree.is_attached(id) == Ok(true));
             self.tooltip_controller.dismiss();
         }
         self.sync_tooltip();
@@ -3032,14 +3069,18 @@ impl Runtime {
         let cursor_target = self.interaction.cursor_target();
         let focus_owner = self.interaction.focus_owner();
         for id in self.tree.clickable_ids() {
-            let hovered = cursor_target
-                .is_some_and(|target| target == id || self.tree.is_ancestor_of(id, target));
+            let hovered = cursor_target.is_some_and(|target| {
+                target == id || self.tree.is_ancestor_of(id, target) == Ok(true)
+            });
             let visual = ClickableVisualState {
                 hovered,
                 pressed: self.interaction.is_keyboard_pressed(id)
                     || (hovered && self.interaction.is_pointer_pressed(id)),
                 focused: focus_owner == Some(id),
-                enabled: self.tree.is_effectively_enabled(id),
+                enabled: self
+                    .tree
+                    .is_effectively_enabled(id)
+                    .expect("live clickable"),
             };
             self.tree
                 .sync_clickable_visual(&mut self.updates, id, visual);
@@ -3047,19 +3088,16 @@ impl Runtime {
     }
 
     fn validate_direct_focus(&self, target: FigureId) -> Result<(), FocusError> {
-        if self.tree.node(target).is_none() {
-            return Err(FocusError::UnknownFigure(target));
-        }
-        if !self.tree.is_attached(target) {
+        if !self.tree.is_attached(target)? {
             return Err(FocusError::Detached(target));
         }
-        if !self.tree.is_effectively_visible(target) {
+        if !self.tree.is_effectively_visible(target)? {
             return Err(FocusError::Hidden(target));
         }
-        if !self.tree.is_effectively_enabled(target) {
+        if !self.tree.is_effectively_enabled(target)? {
             return Err(FocusError::Disabled(target));
         }
-        if !self.tree.is_focusable(target) {
+        if !self.tree.is_focusable(target)? {
             return Err(FocusError::NotFocusable(target));
         }
         Ok(())
@@ -3067,7 +3105,7 @@ impl Runtime {
 
     fn invalidate_resource_dependents(&mut self, dependents: Vec<FigureId>) {
         for figure in dependents {
-            if self.tree.is_attached(figure) {
+            if self.tree.is_attached(figure) == Ok(true) {
                 self.tree.mark_invalid(&mut self.updates, figure);
                 self.tree.repaint(&mut self.updates, figure, None);
             }
@@ -3232,13 +3270,13 @@ mod tests {
             .unwrap();
 
         let mut runtime = Runtime::new(tree);
-        assert!(!runtime.tree().is_valid(root));
+        assert!(!runtime.tree().is_valid(root).unwrap());
 
         assert!(runtime.prepare_frame().is_some());
-        assert!(runtime.tree().is_valid(root));
+        assert!(runtime.tree().is_valid(root).unwrap());
         assert_eq!(
             runtime.tree().figure_bounds(child),
-            Some(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+            Ok(Rectangle::new(0.0, 0.0, 100.0, 100.0))
         );
     }
 
@@ -3574,7 +3612,7 @@ mod tests {
 
         assert_eq!(
             runtime.request_focus(FigureId::null()),
-            Err(FocusError::UnknownFigure(FigureId::null()))
+            Err(FocusError::ForeignFigure(FigureId::null()))
         );
         assert_eq!(
             runtime.request_focus(target),
@@ -4554,7 +4592,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(runtime.tree.child_order(root).unwrap().len(), 1);
-        assert!(runtime.tree.is_valid(root));
+        assert!(runtime.tree.is_valid(root).unwrap());
         assert!(!submission.commands.is_empty());
     }
 }
@@ -4599,7 +4637,10 @@ mod adr014_tests {
         let (_first, foreign) = scene();
         let (mut second, local) = scene();
         let before = second.tree().figure_bounds(local);
-        assert!(second.tree().figure_bounds(foreign).is_none());
+        assert_eq!(
+            second.tree().figure_bounds(foreign),
+            Err(crate::tree::TreeQueryError::ForeignFigure(foreign))
+        );
         assert_eq!(
             second.set_bounds(foreign, Rectangle::new(1.0, 2.0, 3.0, 4.0)),
             Err(RuntimeMutationError::ForeignRuntime(foreign))
@@ -4675,8 +4716,8 @@ mod adr014_tests {
                 .expect("valid Runtime mutation")
         );
         assert_eq!(drops.get(), 2);
-        assert!(runtime.tree().node(child).is_none());
-        assert!(runtime.tree().node(grandchild).is_none());
+        assert!(runtime.tree().node(child).is_err());
+        assert!(runtime.tree().node(grandchild).is_err());
         assert_eq!(
             runtime.remove_figure(root, child),
             Err(RuntimeMutationError::UnknownOrDisposedFigure(child))
@@ -4692,7 +4733,7 @@ mod adr014_tests {
             deepest =
                 tree.add_child_to(deepest, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
         }
-        assert_eq!(tree.depth(deepest), Some(crate::MAX_TREE_DEPTH));
+        assert_eq!(tree.depth(deepest), Ok(crate::MAX_TREE_DEPTH));
 
         let mut runtime = Runtime::new(tree);
         runtime
@@ -4715,8 +4756,8 @@ mod adr014_tests {
         runtime.dispose_subtree(root).unwrap();
 
         assert!(runtime.tree().contents().is_none());
-        assert!(runtime.tree().node(root).is_none());
-        assert!(runtime.tree().node(deepest).is_none());
+        assert!(runtime.tree().node(root).is_err());
+        assert!(runtime.tree().node(deepest).is_err());
     }
 
     #[test]
@@ -4730,7 +4771,7 @@ mod adr014_tests {
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)))
             .expect("valid Runtime mutation");
         assert_eq!(drops.get(), 1);
-        assert!(runtime.tree().node(root).is_none());
+        assert!(runtime.tree().node(root).is_err());
         assert_ne!(root, replacement);
         assert_eq!(replacement.namespace(), root.namespace());
         assert_eq!(
@@ -4827,8 +4868,8 @@ mod adr014_tests {
         }));
         assert!(failure.is_err());
         assert!(runtime.is_faulted());
-        assert!(runtime.tree().node(child).is_none());
-        assert_eq!(runtime.tree().child_order(root), Some(vec![]));
+        assert!(runtime.tree().node(child).is_err());
+        assert_eq!(runtime.tree().child_order(root), Ok(vec![]));
         assert!(runtime.prepare_frame().is_none());
         assert!(matches!(
             runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
@@ -4879,7 +4920,7 @@ mod adr014_tests {
         let frozen = runtime.updates.frozen_surface_regions.first().unwrap();
         assert!(frozen.x <= 20.0 && frozen.y <= 20.0);
         assert!(frozen.x + frozen.width >= 30.0 && frozen.y + frozen.height >= 30.0);
-        assert!(runtime.tree().figure_bounds(child).is_none());
+        assert!(runtime.tree().figure_bounds(child).is_err());
     }
 
     #[test]
@@ -4899,7 +4940,7 @@ mod adr014_tests {
                 .reparent(child, right)
                 .expect("valid Runtime mutation")
         );
-        assert_eq!(runtime.tree().parent_id(child), Some(right));
+        assert_eq!(runtime.tree().parent_id(child), Ok(Some(right)));
         let (_, foreign) = scene();
         assert!(matches!(runtime.clear_preferred_size(foreign),
             Err(RuntimeMutationError::ForeignRuntime(id)) if id == foreign));

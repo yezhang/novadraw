@@ -235,17 +235,18 @@ impl Runtime {
                     crate::animation::AnimationError::DuplicateTarget,
                 ));
             }
-            let bounds =
+            let bounds = self
+                .tree
+                .figure_bounds(figure)
+                .map_err(|error| AnimationTransactionError::Capture(error.into()))?;
+            let local_to_surface =
                 self.tree
-                    .figure_bounds(figure)
-                    .ok_or(AnimationTransactionError::Capture(
-                        crate::animation::AnimationError::DisposedTarget,
-                    ))?;
-            let local_to_surface = self.tree.local_to_surface_transform(figure).ok_or(
-                AnimationTransactionError::Capture(
-                    crate::animation::AnimationError::DisposedTarget,
-                ),
-            )?;
+                    .local_to_surface_transform(figure)
+                    .map_err(|error| {
+                        AnimationTransactionError::Capture(
+                            crate::animation::AnimationError::Coordinate(error),
+                        )
+                    })?;
             let channel = self
                 .animations()
                 .bind_connection_route(figure)
@@ -285,6 +286,7 @@ impl Runtime {
                 let route = self
                     .tree
                     .connection_route_points(capture.figure)
+                    .map_err(|error| AnimationTransactionError::Transition(error.into()))?
                     .cloned()
                     .ok_or(AnimationTransactionError::Transition(
                         crate::animation::AnimationError::DisposedTarget,
@@ -305,13 +307,13 @@ impl Runtime {
             for capture in captured {
                 let after_points = self
                     .tree
-                    .connection_route_points(capture.figure)
+                    .connection_route_points(capture.figure)?
                     .cloned()
                     .ok_or(crate::animation::AnimationError::DisposedTarget)?;
                 let after_to_surface = self
                     .tree
                     .local_to_surface_transform(capture.figure)
-                    .ok_or(crate::animation::AnimationError::DisposedTarget)?;
+                    .map_err(crate::animation::AnimationError::Coordinate)?;
                 self.animations()
                     .set_connection_route_committed(capture.channel, after_points.clone())?;
                 if capture.points == after_points
@@ -415,19 +417,13 @@ impl Runtime {
         }
         let tree_viewport = self
             .tree
-            .viewport_handle(viewport_id)
+            .viewport_handle(viewport_id)?
             .ok_or(crate::animation::AnimationError::DisposedTarget)?;
         let contents = tree_viewport
-            .contents(&self.tree)
+            .contents(&self.tree)?
             .ok_or(crate::animation::AnimationError::MissingViewportContents)?;
-        let viewport_node = self
-            .tree
-            .node(viewport_id)
-            .ok_or(crate::animation::AnimationError::DisposedTarget)?;
-        let contents_node = self
-            .tree
-            .node(contents)
-            .ok_or(crate::animation::AnimationError::DisposedTarget)?;
+        let viewport_node = self.tree.node(viewport_id)?;
+        let contents_node = self.tree.node(contents)?;
         let bounds = contents_node.figure_bounds();
         let prefix = viewport_node.child_transform().affine()
             * Affine2D::from_translation(bounds.x, bounds.y);
@@ -472,7 +468,7 @@ impl Runtime {
             ) {
                 continue;
             }
-            let Some(parent) = self.tree.parent_id(connection.figure()) else {
+            let Ok(Some(parent)) = self.tree.parent_id(connection.figure()) else {
                 self.connection_error =
                     Some(ConnectionRuntimeError::UnknownFigure(connection.figure()));
                 continue;

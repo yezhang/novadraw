@@ -103,7 +103,7 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::tree::FigureTree {
     let mut absolute_bounds = Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height);
     absolute_bounds.transform(scene.local_to_surface_transform(child).unwrap());
     let mut roundtrip = absolute_bounds;
-    roundtrip.transform(scene.surface_to_local_transform(child).unwrap());
+    roundtrip.transform(scene.surface_to_local_transform(child).unwrap().unwrap());
     assert_eq!(
         roundtrip,
         Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height)

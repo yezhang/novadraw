@@ -175,7 +175,7 @@ fn dispose_removes_accessibility_identity_in_the_next_delta() {
     publish(&mut runtime);
     runtime.accessibility().take_updates();
 
-    let parent = runtime.tree().parent_id(button).unwrap();
+    let parent = runtime.tree().parent_id(button).unwrap().unwrap();
     assert!(
         runtime
             .figure(parent)

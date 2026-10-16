@@ -633,13 +633,13 @@ mod tests {
             .into_iter()
             .find(|child| {
                 runtime.tree().figure_bounds(*child)
-                    == Some(Rectangle::new(80.0, 100.0, 640.0, 300.0))
+                    == Ok(Rectangle::new(80.0, 100.0, 640.0, 300.0))
             })
             .expect("title bar panel");
 
         assert_eq!(
             runtime.tree().figure_bounds(root),
-            Some(Rectangle::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT))
+            Ok(Rectangle::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT))
         );
         assert_eq!(runtime.tree().child_order(panel).unwrap().len(), 1);
     }
@@ -653,7 +653,7 @@ mod tests {
             .child_order(root)
             .expect("root children")
             .into_iter()
-            .filter_map(|child| runtime.tree().figure_bounds(child))
+            .map(|child| runtime.tree().figure_bounds(child).expect("live card"))
             .filter(|bounds| bounds.y == 110.0 && bounds.height == 300.0)
             .collect::<Vec<_>>();
 

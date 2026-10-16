@@ -48,10 +48,12 @@ fn resolve_with_arrow(
         .tree()
         .connection_route_points(connection_figure)
         .unwrap()
+        .unwrap()
         .clone();
     let arrow_color = runtime
         .tree()
         .connection_stroke_color(connection_figure)
+        .unwrap()
         .unwrap();
     let placement = ConnectionLocator::Target.locate(&points).unwrap();
     let direction = placement.point - placement.reference;

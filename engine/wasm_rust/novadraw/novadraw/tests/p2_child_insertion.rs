@@ -63,8 +63,8 @@ impl LayoutManager for ExternalLayout {
         _: FigureId,
         _: MeasureConstraints,
         _: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        FigureMeasurement::new(100.0, 100.0, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::new(100.0, 100.0, None))
     }
 
     fn minimum_size(
@@ -72,8 +72,8 @@ impl LayoutManager for ExternalLayout {
         _: FigureId,
         _: MeasureConstraints,
         _: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        Dimension::new(100.0, 100.0)
+    ) -> Result<Dimension, LayoutError> {
+        Ok(Dimension::new(100.0, 100.0))
     }
 
     fn layout(
@@ -82,7 +82,7 @@ impl LayoutManager for ExternalLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        for (child, _) in snapshot.children(container) {
+        for (child, _) in snapshot.children(container)? {
             if let Some(placement) = snapshot.constraint_as::<Placement>(container, child)? {
                 out.set_child_bounds(child, placement.0);
             }
@@ -185,14 +185,17 @@ fn builder_and_runtime_insert_preserve_order_and_external_constraints() {
         }
         assert_eq!(
             runtime.tree().child_order(parent),
-            Some(vec![first, inserted, last])
+            Ok(vec![first, inserted, last])
         );
         assert_eq!(
-            runtime.tree().layout_constraint::<Placement>(inserted),
+            runtime
+                .tree()
+                .layout_constraint::<Placement>(inserted)
+                .unwrap(),
             Some(&placement)
         );
         prepare_next_submission(&mut runtime).unwrap();
-        assert_eq!(runtime.tree().figure_bounds(inserted), Some(placement.0));
+        assert_eq!(runtime.tree().figure_bounds(inserted), Ok(placement.0));
         assert_eq!(
             &*trace.borrow(),
             &[("validate", inserted), ("attached", inserted)]
@@ -218,8 +221,11 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
     else {
         panic!("expected layout rejection");
     };
-    assert!(tree.node(failed).is_none());
-    assert_eq!(tree.child_order(parent), Some(vec![]));
+    assert_eq!(
+        tree.node(failed).err(),
+        Some(novadraw::tree::TreeQueryError::UnknownFigure(failed))
+    );
+    assert_eq!(tree.child_order(parent), Ok(vec![]));
     let next = tree.builder().insert_child(parent, 0, rectangle()).unwrap();
     assert_ne!(next, failed);
     assert_eq!(&*trace.borrow(), &[("validate", failed)]);
@@ -271,8 +277,11 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
     else {
         panic!("expected layout rejection");
     };
-    assert!(runtime.tree().node(child).is_none());
-    assert_eq!(runtime.tree().child_order(parent), Some(vec![next]));
+    assert_eq!(
+        runtime.tree().node(child).err(),
+        Some(novadraw::tree::TreeQueryError::UnknownFigure(child))
+    );
+    assert_eq!(runtime.tree().child_order(parent), Ok(vec![next]));
     assert_eq!(
         runtime
             .tree()
@@ -359,7 +368,7 @@ fn index_boundaries_are_checked_before_constraint_validation() {
     );
     assert_eq!(
         runtime.tree().child_order(parent),
-        Some(vec![first, last, appended])
+        Ok(vec![first, last, appended])
     );
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(appended));
 }
@@ -381,7 +390,10 @@ fn constraint_without_manager_is_retained_and_checked_on_manager_installation() 
             .set_layout_manager(parent, Box::new(XYLayout::new()))
             .is_err()
     );
-    assert_eq!(tree.layout_constraint::<Placement>(child), Some(&placement));
+    assert_eq!(
+        tree.layout_constraint::<Placement>(child).unwrap(),
+        Some(&placement)
+    );
     let mut runtime = Runtime::new(tree);
     runtime
         .figure(parent)
@@ -389,7 +401,7 @@ fn constraint_without_manager_is_retained_and_checked_on_manager_installation() 
         .set_layout_manager(Box::new(ExternalLayout(Trace::default())))
         .unwrap();
     prepare_next_submission(&mut runtime).unwrap();
-    assert_eq!(runtime.tree().figure_bounds(child), Some(placement.0));
+    assert_eq!(runtime.tree().figure_bounds(child), Ok(placement.0));
 }
 
 struct AdmissionFigure(ChildPolicy);
@@ -452,7 +464,7 @@ fn initial_bounds_are_rejected_before_topology_publication() {
                 .add_child(parent, Box::new(InvalidInitialBoundsFigure(bounds))),
             Err(GraphMutationError::InvalidInitialBounds)
         );
-        assert_eq!(tree.child_order(parent), Some(vec![]));
+        assert_eq!(tree.child_order(parent), Ok(vec![]));
     }
 }
 
@@ -538,7 +550,7 @@ fn insertion_keeps_the_depth_limit() {
             limit: novadraw::tree::MAX_TREE_DEPTH
         })
     );
-    assert_eq!(tree.child_order(parent), Some(vec![]));
+    assert_eq!(tree.child_order(parent), Ok(vec![]));
 }
 
 #[test]
@@ -555,8 +567,11 @@ fn validator_panic_retires_unpublished_identity_and_faults_runtime() {
     }));
     assert!(result.is_err());
     let failed = trace.borrow()[0].1;
-    assert!(runtime.tree().node(failed).is_none());
-    assert_eq!(runtime.tree().child_order(parent), Some(vec![]));
+    assert_eq!(
+        runtime.tree().node(failed).err(),
+        Some(novadraw::tree::TreeQueryError::UnknownFigure(failed))
+    );
+    assert_eq!(runtime.tree().child_order(parent), Ok(vec![]));
     assert!(matches!(
         runtime.figure(parent),
         Err(RuntimeMutationError::Faulted)

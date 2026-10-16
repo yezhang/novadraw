@@ -22,6 +22,7 @@ fn valid_scale(scale: f64) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ScaleError {
     Graph(GraphMutationError),
+    Capability(crate::figure::CapabilityQueryError),
     MissingFigure,
     InvalidScale,
 }
@@ -30,6 +31,7 @@ impl fmt::Display for ScaleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Graph(error) => error.fmt(f),
+            Self::Capability(error) => error.fmt(f),
             Self::MissingFigure => write!(f, "scalable figure block does not exist"),
             Self::InvalidScale => write!(f, "scale must be finite and greater than zero"),
         }
@@ -131,7 +133,7 @@ impl ScaleHandle {
         if !valid_scale(scale) {
             return Err(ScaleError::InvalidScale);
         }
-        if graph.node(self.figure_id).is_none() {
+        if !graph.contains(self.figure_id) {
             return Err(ScaleError::MissingFigure);
         }
         let old_scale = {
@@ -494,9 +496,16 @@ impl FigureContainer for ScalableFreeformLayeredPane {
 }
 
 impl FigureTree {
-    pub fn scale_handle(&self, figure_id: FigureId) -> Option<ScaleHandle> {
-        let model = self.capability(figure_id, SCALE).ok()??.model().clone();
-        Some(ScaleHandle { figure_id, model })
+    pub fn scale_handle(
+        &self,
+        figure_id: FigureId,
+    ) -> Result<Option<ScaleHandle>, crate::figure::CapabilityQueryError> {
+        Ok(self
+            .capability(figure_id, SCALE)?
+            .map(|capability| ScaleHandle {
+                figure_id,
+                model: capability.model().clone(),
+            }))
     }
 
     pub(crate) fn add_scalable_layered_pane_to(
@@ -544,6 +553,7 @@ impl FigureTreeBuilder<'_> {
         let handle = self
             .tree_mut()
             .scale_handle(scalable)
+            .map_err(ScaleError::Capability)?
             .ok_or(ScaleError::MissingFigure)?;
         let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
         handle.set_scale(self.tree_mut(), &mut updates, scale)

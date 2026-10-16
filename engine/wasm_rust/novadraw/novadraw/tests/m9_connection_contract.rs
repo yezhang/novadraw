@@ -16,6 +16,26 @@ struct QueryFixture {
 }
 
 impl QueryFixture {
+    fn validate_identity(&self, figure: FigureId) -> Result<(), RouteSceneQueryError> {
+        if let Some(owner) = self.attached.keys().next()
+            && owner.namespace() != figure.namespace()
+        {
+            return Err(RouteSceneQueryError::ForeignFigure(figure));
+        }
+        if !self.attached.contains_key(&figure) {
+            return Err(RouteSceneQueryError::UnknownFigure(figure));
+        }
+        Ok(())
+    }
+
+    fn validate_space(&self, space: CoordinateSpace) -> Result<(), RouteSceneQueryError> {
+        match space {
+            CoordinateSpace::LogicalSurface => Ok(()),
+            CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
+                self.validate_identity(figure)
+            }
+        }
+    }
     fn insert(
         &mut self,
         figure: FigureId,
@@ -52,12 +72,19 @@ impl QueryFixture {
 }
 
 impl RouteSceneRead for QueryFixture {
-    fn is_attached(&self, figure: FigureId) -> bool {
-        self.attached.get(&figure).copied().unwrap_or(false)
+    fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
+        self.validate_identity(figure)?;
+        Ok(self.attached[&figure])
     }
 
-    fn parent_id(&self, _figure: FigureId) -> Option<FigureId> {
-        None
+    fn parent_id(&self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError> {
+        self.validate_identity(figure)?;
+        Ok(None)
+    }
+
+    fn is_viewport(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
+        self.validate_identity(figure)?;
+        Ok(false)
     }
 
     fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
@@ -73,7 +100,7 @@ impl RouteSceneRead for QueryFixture {
         figure: FigureId,
         key: &AnchorGeometryKey,
     ) -> Result<AnchorGeometry, RouteSceneQueryError> {
-        if !self.is_attached(figure) {
+        if !self.is_attached(figure)? {
             return Err(RouteSceneQueryError::DetachedFigure(figure));
         }
         self.geometry
@@ -91,6 +118,8 @@ impl RouteSceneRead for QueryFixture {
         from: CoordinateSpace,
         to: CoordinateSpace,
     ) -> Result<Point, RouteSceneQueryError> {
+        self.validate_space(from)?;
+        self.validate_space(to)?;
         Ok(self.map_from_surface(self.to_surface(point, from), to))
     }
 
@@ -112,15 +141,25 @@ impl RouteSceneRead for QueryFixture {
     fn map_normal(
         &self,
         normal: Vec2,
-        _from: CoordinateSpace,
-        _to: CoordinateSpace,
+        from: CoordinateSpace,
+        to: CoordinateSpace,
     ) -> Result<Vec2, RouteSceneQueryError> {
+        self.validate_space(from)?;
+        self.validate_space(to)?;
         Ok(normal)
     }
 
-    fn dependency_generation(&self, _subject: &DependencySubject) -> u64 {
+    fn dependency_generation(&self, subject: &DependencySubject) -> u64 {
         if !self.flapping_generation {
-            return 0;
+            return match subject {
+                DependencySubject::FigureGeometry(figure)
+                | DependencySubject::FigureVisibility(figure)
+                | DependencySubject::Topology(figure)
+                | DependencySubject::NamedAnchorRegion(figure, _) => {
+                    u64::from(self.attached.contains_key(figure))
+                }
+                DependencySubject::RelativeTransform(_, _) => 0,
+            };
         }
         let next = self.generation.get() + 1;
         self.generation.set(next);
@@ -146,6 +185,120 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
                 .expect("valid FigureTree construction")
         })
         .collect()
+}
+
+#[test]
+fn external_route_read_rejects_missing_facts_but_retains_dependency_observation() {
+    let ids = figure_ids(2);
+    let owner = ids[0];
+    let survivor = ids[1];
+    let foreign = figure_ids(1)[0];
+    let mut source = QueryFixture::default();
+    for id in [owner, survivor] {
+        source.insert(
+            id,
+            Point::ORIGIN,
+            AnchorGeometryKey::border_box(),
+            AnchorGeometry::Rectangle(Rectangle::ZERO),
+        );
+    }
+    let subject = DependencySubject::Topology(owner);
+    let generation = source.dependency_generation(&subject);
+    source.attached.remove(&owner);
+    source.origins.remove(&owner);
+    source.geometry.retain(|(figure, _), _| *figure != owner);
+    assert_ne!(source.dependency_generation(&subject), generation);
+    for (figure, error) in [
+        (owner, RouteSceneQueryError::UnknownFigure(owner)),
+        (foreign, RouteSceneQueryError::ForeignFigure(foreign)),
+    ] {
+        assert_eq!(source.is_attached(figure), Err(error.clone()));
+        assert_eq!(source.parent_id(figure), Err(error.clone()));
+        assert_eq!(source.is_viewport(figure), Err(error.clone()));
+        assert_eq!(source.border_box(figure), Err(error.clone()));
+        assert_eq!(
+            source.anchor_geometry(figure, &AnchorGeometryKey::icon()),
+            Err(error.clone())
+        );
+        assert_eq!(
+            source.map_point(
+                Point::ORIGIN,
+                CoordinateSpace::FigureLocal(figure),
+                CoordinateSpace::LogicalSurface
+            ),
+            Err(error.clone())
+        );
+        let mut query = source.tracked();
+        assert_eq!(query.is_attached(figure), Err(error));
+        assert_eq!(query.into_observations().len(), 1);
+    }
+    assert_eq!(source.parent_id(survivor), Ok(None));
+    assert_eq!(source.is_viewport(survivor), Ok(false));
+    source.attached.insert(survivor, false);
+    assert_eq!(source.is_attached(survivor), Ok(false));
+}
+
+#[test]
+fn external_route_read_tracks_retirement_and_recovers_with_a_new_binding() {
+    let ids = figure_ids(4);
+    let [connection_figure, source, target, replacement] = ids.as_slice() else {
+        panic!("four identities");
+    };
+    let connection = ConnectionId::from_figure(*connection_figure);
+    let mut scene = QueryFixture::default();
+    for figure in [*source, *target] {
+        scene.insert(
+            figure,
+            Point::ORIGIN,
+            AnchorGeometryKey::border_box(),
+            AnchorGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 50.0)),
+        );
+    }
+    let calculate = |scene: &QueryFixture, source| {
+        let source = ChopboxAnchor::new(source);
+        let target = ChopboxAnchor::new(*target);
+        let mut tracked = scene.tracked();
+        let result = DirectRouter.route(RouteRequest {
+            connection,
+            routing_space: CoordinateSpace::LogicalSurface,
+            source: &source,
+            target: &target,
+            constraint: None,
+            scene: &mut tracked,
+            group: None,
+        });
+        (result, tracked.into_observations())
+    };
+    let (initial, dependencies) = calculate(&scene, *source);
+    assert!(initial.is_ok());
+    scene.attached.remove(source);
+    scene.origins.remove(source);
+    scene.geometry.retain(|(figure, _), _| figure != source);
+    assert!(dependencies.iter().any(
+        |observation| scene.dependency_generation(&observation.subject) != observation.generation
+    ));
+    let (failure, failed_dependencies) = calculate(&scene, *source);
+    assert!(matches!(
+        failure,
+        Err(RouteError::Source(AnchorError::Scene(RouteSceneQueryError::UnknownFigure(id))))
+            if id == *source
+    ));
+    assert!(
+        failed_dependencies
+            .iter()
+            .any(|observation| observation.subject == DependencySubject::FigureGeometry(*source))
+    );
+    scene.insert(
+        *replacement,
+        Point::new(200.0, 0.0),
+        AnchorGeometryKey::border_box(),
+        AnchorGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 50.0)),
+    );
+    assert!(calculate(&scene, *replacement).0.is_ok());
+    assert_eq!(
+        scene.is_attached(*source),
+        Err(RouteSceneQueryError::UnknownFigure(*source))
+    );
 }
 
 #[test]
@@ -414,6 +567,7 @@ fn anchor_semantic_keys_group_equivalent_owner_geometry() {
 fn xy_anchor_maps_from_its_declared_space() {
     let owner = figure_ids(1)[0];
     let mut query = QueryFixture::default();
+    query.attached.insert(owner, true);
     query.origins.insert(owner, Point::new(30.0, 40.0));
     let anchor = XYAnchor::new(Point::new(5.0, 7.0), CoordinateSpace::FigureLocal(owner));
 

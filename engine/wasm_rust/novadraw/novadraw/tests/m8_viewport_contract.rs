@@ -167,14 +167,14 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
         .validate_subtree(viewport.figure_id())
         .expect("valid FigureTree construction");
 
-    assert_eq!(viewport.contents(&graph), Some(contents));
+    assert_eq!(viewport.contents(&graph), Ok(Some(contents)));
     assert_eq!(viewport.horizontal_range().extent, 300.0);
     assert_eq!(viewport.horizontal_range().maximum, 600.0);
     assert_eq!(viewport.vertical_range().extent, 200.0);
     assert_eq!(viewport.vertical_range().maximum, 450.0);
     assert_eq!(
         graph.figure_bounds(contents),
-        Some(Rectangle::new(0.0, 0.0, 600.0, 450.0))
+        Ok(Rectangle::new(0.0, 0.0, 600.0, 450.0))
     );
 }
 
@@ -205,11 +205,14 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
         )
         .unwrap();
 
-    assert_eq!(viewport.contents(runtime.tree()), Some(new_contents));
-    assert_eq!(runtime.tree().parent_id(old_contents), None);
+    assert_eq!(viewport.contents(runtime.tree()), Ok(Some(new_contents)));
+    assert_eq!(
+        runtime.tree().parent_id(old_contents),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(old_contents))
+    );
     assert_eq!(
         runtime.tree().child_order(viewport.figure_id()),
-        Some(vec![new_contents])
+        Ok(vec![new_contents])
     );
 }
 
@@ -327,7 +330,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     assert_eq!(point, Point::new(140.0, 140.0));
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        Ok(Rectangle::new(0.0, 0.0, 600.0, 400.0))
     );
     assert!(runtime.frames().has_pending_update());
     runtime.frames().request_full_redraw();
@@ -367,7 +370,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
+        Ok(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
     );
 }
 
@@ -403,6 +406,7 @@ fn external_figure_scale_capability_is_runtime_mutable_without_downcast() {
         .expect("valid FigureTree construction");
     let handle = graph
         .scale_handle(figure)
+        .unwrap()
         .expect("Figure capability must produce a scale handle");
     assert_eq!(handle.scale(), 1.0);
 
@@ -445,7 +449,7 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
 
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 1000.0, 600.0))
+        Ok(Rectangle::new(0.0, 0.0, 1000.0, 600.0))
     );
 }
 
@@ -525,11 +529,11 @@ fn large_scroll_pane_scene() -> (FigureTree, ScrollPaneHandle, UpdateManager) {
 fn scroll_pane_automatic_policy_reserves_both_scroll_bars() {
     let (graph, pane, _) = large_scroll_pane_scene();
 
-    assert!(graph.is_visible(pane.horizontal_scroll_bar()));
-    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert!(graph.is_visible(pane.horizontal_scroll_bar()).unwrap());
+    assert!(graph.is_visible(pane.vertical_scroll_bar()).unwrap());
     assert_eq!(
         graph.figure_bounds(pane.viewport().figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 306.0, 206.0))
+        Ok(Rectangle::new(0.0, 0.0, 306.0, 206.0))
     );
     assert_eq!(pane.viewport().horizontal_range().extent, 306.0);
     assert_eq!(pane.viewport().vertical_range().extent, 206.0);
@@ -552,11 +556,11 @@ fn scroll_pane_visibility_policy_controls_layout() {
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
 
-    assert!(!graph.is_visible(pane.horizontal_scroll_bar()));
-    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert!(!graph.is_visible(pane.horizontal_scroll_bar()).unwrap());
+    assert!(graph.is_visible(pane.vertical_scroll_bar()).unwrap());
     assert_eq!(
         graph.figure_bounds(pane.viewport().figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 306.0, 220.0))
+        Ok(Rectangle::new(0.0, 0.0, 306.0, 220.0))
     );
 }
 
@@ -572,8 +576,18 @@ fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
         .unwrap();
     prepare_next_submission(&mut runtime);
 
-    assert!(!runtime.tree().is_visible(pane.horizontal_scroll_bar()));
-    assert!(!runtime.tree().is_visible(pane.vertical_scroll_bar()));
+    assert!(
+        !runtime
+            .tree()
+            .is_visible(pane.horizontal_scroll_bar())
+            .unwrap()
+    );
+    assert!(
+        !runtime
+            .tree()
+            .is_visible(pane.vertical_scroll_bar())
+            .unwrap()
+    );
     assert_eq!(pane.viewport().horizontal_range().extent, 900.0);
     assert_eq!(pane.viewport().vertical_range().extent, 700.0);
 }

@@ -93,6 +93,8 @@ pub enum ConnectionRuntimeError {
     Faulted,
     /// Figure identity is not attached to the Runtime tree.
     UnknownFigure(FigureId),
+    /// Figure identity belongs to another Runtime.
+    ForeignFigure(FigureId),
     /// Figure does not provide Connection geometry behavior.
     NotConnectionFigure(FigureId),
     /// Named Anchor geometry is empty or non-finite.
@@ -148,6 +150,7 @@ impl fmt::Display for ConnectionRuntimeError {
         match self {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(figure) => write!(formatter, "unknown Figure {figure:?}"),
+            Self::ForeignFigure(figure) => write!(formatter, "foreign Figure {figure:?}"),
             Self::NotConnectionFigure(figure) => {
                 write!(
                     formatter,
@@ -193,6 +196,15 @@ impl fmt::Display for ConnectionRuntimeError {
 }
 
 impl Error for ConnectionRuntimeError {}
+
+impl From<crate::tree::TreeQueryError> for ConnectionRuntimeError {
+    fn from(error: crate::tree::TreeQueryError) -> Self {
+        match error {
+            crate::tree::TreeQueryError::ForeignFigure(id) => Self::ForeignFigure(id),
+            crate::tree::TreeQueryError::UnknownFigure(id) => Self::UnknownFigure(id),
+        }
+    }
+}
 
 struct ConnectionState {
     source: Option<AnchorId>,
@@ -872,6 +884,13 @@ impl ConnectionRuntime {
         }
         for connection in &affected {
             self.mark_dirty(*connection)?;
+            // Acknowledge the fingerprints observed by this invalidation pass.
+            // A failed route may stop before reading every retained dependency;
+            // leaving those generations stale would re-trigger the same missing
+            // input forever. This reads existence fingerprints, not Figure facts.
+            for (subject, generation) in &mut self.state_mut(*connection)?.dependencies {
+                *generation = source.dependency_generation(subject);
+            }
         }
         Ok(affected)
     }
@@ -1443,11 +1462,8 @@ fn build_obstacle_snapshot(
     for figure in obstacle_figures {
         let attached = match query.is_attached(*figure) {
             Ok(attached) => attached,
-            Err(_) => {
-                return Err((
-                    RouteError::InvalidObstacle(*figure),
-                    query.into_observations(),
-                ));
+            Err(error) => {
+                return Err((RouteError::Scene(error), query.into_observations()));
             }
         };
         if !attached || connections.iter().any(|member| member.figure() == *figure) {
@@ -1455,11 +1471,8 @@ fn build_obstacle_snapshot(
         }
         let visible = match query.is_visible(*figure) {
             Ok(visible) => visible,
-            Err(_) => {
-                return Err((
-                    RouteError::InvalidObstacle(*figure),
-                    query.into_observations(),
-                ));
+            Err(error) => {
+                return Err((RouteError::Scene(error), query.into_observations()));
             }
         };
         if !visible {
@@ -1467,11 +1480,8 @@ fn build_obstacle_snapshot(
         }
         let local_bounds = match query.border_box(*figure) {
             Ok(bounds) => bounds,
-            Err(_) => {
-                return Err((
-                    RouteError::InvalidObstacle(*figure),
-                    query.into_observations(),
-                ));
+            Err(error) => {
+                return Err((RouteError::Scene(error), query.into_observations()));
             }
         };
         let bounds = match query.map_rect(
@@ -1480,11 +1490,8 @@ fn build_obstacle_snapshot(
             routing_space,
         ) {
             Ok(bounds) => bounds,
-            Err(_) => {
-                return Err((
-                    RouteError::InvalidObstacle(*figure),
-                    query.into_observations(),
-                ));
+            Err(error) => {
+                return Err((RouteError::Scene(error), query.into_observations()));
             }
         };
         if !finite_obstacle(bounds) {
@@ -1519,13 +1526,29 @@ fn validate_viewport_topology(
     _routing_space: CoordinateSpace,
     scene: &dyn RouteSceneRead,
 ) -> Result<TopologyObservations, (RouteError, TopologyObservations)> {
-    let connection_parent = scene.parent_id(connection.figure()).ok_or_else(|| {
-        (
-            RouteError::UnsupportedViewportTopology,
-            Vec::<DependencyObservation>::new(),
-        )
-    })?;
+    let subject = DependencySubject::Topology(connection.figure());
+    let connection_observation = DependencyObservation {
+        generation: scene.dependency_generation(&subject),
+        subject,
+    };
+    let connection_parent = scene
+        .parent_id(connection.figure())
+        .map_err(|error| {
+            (
+                RouteError::Scene(error),
+                vec![connection_observation.clone()],
+            )
+        })?
+        .ok_or_else(|| {
+            (
+                RouteError::UnsupportedViewportTopology,
+                vec![connection_observation.clone()],
+            )
+        })?;
     let (connection_chain, mut observations) = viewport_chain(connection_parent, scene)?;
+    // Successful connection-parent admission is owner metadata. Adding the
+    // connection itself to route dependencies would create a false self cycle.
+    // Failed admission above retains its observation for the failure record.
     for owner in [source_owner, target_owner].into_iter().flatten() {
         let (owner_chain, owner_observations) = viewport_chain(owner, scene)?;
         observations.extend(owner_observations);
@@ -1552,13 +1575,21 @@ fn viewport_chain(figure: FigureId, scene: &dyn RouteSceneRead) -> ViewportChain
             generation: scene.dependency_generation(&subject),
             subject,
         });
-        if !scene.is_attached(candidate) {
+        let attached = scene
+            .is_attached(candidate)
+            .map_err(|error| (RouteError::Scene(error), observations.clone()))?;
+        if !attached {
             return Err((RouteError::UnsupportedViewportTopology, observations));
         }
-        if scene.is_viewport(candidate) {
+        if scene
+            .is_viewport(candidate)
+            .map_err(|error| (RouteError::Scene(error), observations.clone()))?
+        {
             chain.push(candidate);
         }
-        current = scene.parent_id(candidate);
+        current = scene
+            .parent_id(candidate)
+            .map_err(|error| (RouteError::Scene(error), observations.clone()))?;
     }
     Err((RouteError::UnsupportedViewportTopology, observations))
 }
@@ -1626,7 +1657,9 @@ fn is_self_or_descendant(
         if candidate == connection {
             return true;
         }
-        let Some(parent) = scene.parent_id(candidate) else {
+        // Failure observations may refer to a missing dependency. They do not
+        // establish ancestry, and must remain available for invalidation.
+        let Ok(Some(parent)) = scene.parent_id(candidate) else {
             return false;
         };
         candidate = parent;

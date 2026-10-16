@@ -98,7 +98,9 @@ impl Runtime {
                 node.figure_bounds(),
                 actual,
                 node.visual_bounds(),
-                self.tree.is_effectively_visible(figure),
+                self.tree
+                    .is_effectively_visible(figure)
+                    .expect("validated update target"),
             )
         };
         let context = FigureComponentContext {
@@ -169,6 +171,7 @@ impl Runtime {
             parent: self
                 .tree
                 .parent_id(figure)
+                .expect("validated update target")
                 .ok_or(RuntimeMutationError::DetachedFigure(figure))?,
             effects: Vec::new(),
             rejected: false,
@@ -334,7 +337,11 @@ impl Runtime {
                 }
             }
             ValidatedFigureEffect::Reparent { parent, constraint } => {
-                let old_parent = self.tree.parent_id(figure).expect("attached effect target");
+                let old_parent = self
+                    .tree
+                    .parent_id(figure)
+                    .expect("live effect target")
+                    .expect("attached effect target");
                 self.tree
                     .commit_effect_reparent(&mut self.updates, figure, parent);
                 if let Some(constraint) = constraint {

@@ -225,7 +225,7 @@ fn event_context_projects_scene_query_and_defers_effect_visibility() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(probe),
-        Some(Rectangle::new(100.0, 110.0, 40.0, 30.0))
+        Ok(Rectangle::new(100.0, 110.0, 40.0, 30.0))
     );
 }
 

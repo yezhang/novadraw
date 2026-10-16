@@ -43,8 +43,14 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
     let runtime = Runtime::new(graph);
-    if !runtime.tree().is_visible(pane.horizontal_scroll_bar())
-        || !runtime.tree().is_visible(pane.vertical_scroll_bar())
+    if !runtime
+        .tree()
+        .is_visible(pane.horizontal_scroll_bar())
+        .map_err(|error| error.to_string())?
+        || !runtime
+            .tree()
+            .is_visible(pane.vertical_scroll_bar())
+            .map_err(|error| error.to_string())?
     {
         return Err("automatic policy did not expose both scrollbars".to_string());
     }
@@ -136,7 +142,7 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     let point = runtime
         .tree()
         .local_to_surface_transform(child)
-        .ok_or("missing child transform")?
+        .map_err(|error| error.to_string())?
         .transform_point(novadraw::geometry::Point::new(0.0, 0.0));
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;
@@ -194,7 +200,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     let content_point = runtime
         .tree()
         .local_to_surface_transform(child)
-        .ok_or("missing child transform")?
+        .map_err(|error| error.to_string())?
         .transform_point(novadraw::geometry::Point::new(50.0, 40.0));
     if content_point != anchor {
         return Err(format!(

@@ -414,7 +414,7 @@ mod tests {
             .into_iter()
             .find(|child| {
                 runtime.tree().figure_bounds(*child)
-                    == Some(Rectangle::new(70.0, 125.0, 300.0, 150.0))
+                    == Ok(Rectangle::new(70.0, 125.0, 300.0, 150.0))
             })
             .expect("inherited tooltip panel");
 

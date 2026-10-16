@@ -95,16 +95,16 @@ impl FreeformLayout {
         container: FigureId,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         let mut extent = Rectangle::ZERO;
-        for (child, current) in snapshot.children(container) {
-            let bounds = match freeform_constraint(snapshot, container, child) {
-                Ok(Some(constraint)) => {
+        for (child, current) in snapshot.children(container)? {
+            let bounds = match freeform_constraint(snapshot, container, child)? {
+                Some(constraint) => {
                     let intrinsic = if minimum {
-                        snapshot.minimum_size(child, MeasureConstraints::UNBOUNDED)
+                        snapshot.minimum_size(child, MeasureConstraints::UNBOUNDED)?
                     } else {
                         snapshot
-                            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+                            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)?
                             .size()
                     };
                     Rectangle::new(
@@ -114,11 +114,11 @@ impl FreeformLayout {
                         constraint.height.unwrap_or(intrinsic.height),
                     )
                 }
-                Ok(None) | Err(_) => current,
+                None => current,
             };
             extent = extent.union(bounds);
         }
-        Dimension::new(extent.width, extent.height)
+        Ok(Dimension::new(extent.width, extent.height))
     }
 }
 
@@ -145,9 +145,9 @@ impl LayoutManager for FreeformLayout {
         container: FigureId,
         _constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.measure(container, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.measure(container, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -155,7 +155,7 @@ impl LayoutManager for FreeformLayout {
         container: FigureId,
         _constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.measure(container, snapshot, true)
     }
 
@@ -165,12 +165,12 @@ impl LayoutManager for FreeformLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        for (child, _) in snapshot.children(container) {
+        for (child, _) in snapshot.children(container)? {
             let Some(constraint) = freeform_constraint(snapshot, container, child)? else {
                 continue;
             };
             let intrinsic = snapshot
-                .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+                .preferred_measurement(child, MeasureConstraints::UNBOUNDED)?
                 .size();
             out.set_child_bounds(
                 child,

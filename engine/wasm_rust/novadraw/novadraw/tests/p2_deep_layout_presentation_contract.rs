@@ -91,9 +91,13 @@ impl LayoutManager for RecordingContentLayout {
         _container: FigureId,
         constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         self.constraints.lock().unwrap().push(constraints);
-        FigureMeasurement::new(CONTENT_WIDTH, CONTENT_HEIGHT, Some(CONTENT_BASELINE))
+        Ok(FigureMeasurement::new(
+            CONTENT_WIDTH,
+            CONTENT_HEIGHT,
+            Some(CONTENT_BASELINE),
+        ))
     }
 
     fn minimum_size(
@@ -101,9 +105,9 @@ impl LayoutManager for RecordingContentLayout {
         _container: FigureId,
         constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.constraints.lock().unwrap().push(constraints);
-        Dimension::new(CONTENT_WIDTH, CONTENT_HEIGHT)
+        Ok(Dimension::new(CONTENT_WIDTH, CONTENT_HEIGHT))
     }
 
     fn layout(

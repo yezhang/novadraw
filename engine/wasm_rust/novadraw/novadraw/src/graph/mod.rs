@@ -44,6 +44,8 @@ use crate::style::{FigureStyle, ResolvedStyle};
 mod layout_measurement;
 mod presentation;
 mod query;
+pub(crate) use query::checked_coordinate_inverse;
+pub use query::{CoordinateFailure, CoordinateQueryError};
 mod render_recursive;
 mod search;
 mod topology;
@@ -218,21 +220,36 @@ pub enum ValidationError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FreeformError {
     UnknownFigure(FigureId),
+    ForeignFigure(FigureId),
     NotFreeform(FigureId),
     Unvalidated(FigureId),
+    NonFiniteGeometry(FigureId),
 }
 
 impl fmt::Display for FreeformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
+            Self::ForeignFigure(id) => write!(formatter, "foreign Figure ID: {id:?}"),
             Self::NotFreeform(id) => write!(formatter, "Figure is not freeform: {id:?}"),
             Self::Unvalidated(id) => write!(formatter, "freeform extent is not validated: {id:?}"),
+            Self::NonFiniteGeometry(id) => {
+                write!(formatter, "freeform extent is non-finite: {id:?}")
+            }
         }
     }
 }
 
 impl Error for FreeformError {}
+
+impl From<TreeQueryError> for FreeformError {
+    fn from(error: TreeQueryError) -> Self {
+        match error {
+            TreeQueryError::ForeignFigure(id) => Self::ForeignFigure(id),
+            TreeQueryError::UnknownFigure(id) => Self::UnknownFigure(id),
+        }
+    }
+}
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -264,31 +281,43 @@ fn point_in_rect(point: Point, rect: &Rectangle) -> bool {
         && point.y() <= rect.y + rect.height
 }
 
-fn owner_scoped_border_size(content: Dimension, snapshot: Option<&BorderSnapshot>) -> Dimension {
-    let Some(snapshot) = snapshot else {
-        return content;
-    };
-    let insets = snapshot.insets();
-    let preferred = snapshot.preferred_size();
-    Dimension::new(
-        (content.width + insets.width()).max(preferred.width),
-        (content.height + insets.height()).max(preferred.height),
-    )
-}
-
 fn owner_scoped_border_measurement(
+    figure: FigureId,
     mut measurement: FigureMeasurement,
     snapshot: Option<&BorderSnapshot>,
-) -> FigureMeasurement {
+) -> Result<FigureMeasurement, LayoutError> {
     let Some(snapshot) = snapshot else {
-        return measurement;
+        return Ok(measurement);
     };
-    let insets = snapshot.insets();
+    let insets = checked_measurement_insets(figure, snapshot.insets())?;
     let preferred = snapshot.preferred_size();
-    measurement.width = (measurement.width + insets.width()).max(preferred.width);
-    measurement.height = (measurement.height + insets.height()).max(preferred.height);
+    crate::layout::validate_measurement_size(figure, preferred, false)?;
+    measurement.width += insets.width();
+    measurement.height += insets.height();
     measurement.baseline = measurement.baseline.map(|baseline| baseline + insets.top);
-    measurement
+    let mut measurement = layout_measurement::validate_projected_measurement(figure, measurement)?;
+    measurement.width = measurement.width.max(preferred.width);
+    measurement.height = measurement.height.max(preferred.height);
+    Ok(measurement)
+}
+
+fn checked_measurement_insets(figure: FigureId, insets: Insets) -> Result<Insets, LayoutError> {
+    if [insets.top, insets.left, insets.bottom, insets.right]
+        .into_iter()
+        .any(|value| !value.is_finite())
+    {
+        return Err(LayoutError::InvalidMeasurement {
+            figure,
+            reason: crate::layout::MeasurementFailure::InvalidSize,
+        });
+    }
+    if !insets.width().is_finite() || !insets.height().is_finite() {
+        return Err(LayoutError::InvalidMeasurement {
+            figure,
+            reason: crate::layout::MeasurementFailure::DerivedOverflow,
+        });
+    }
+    Ok(insets)
 }
 
 /// State shared by every Figure node.
@@ -809,8 +838,23 @@ impl FigureNode {
             .unwrap_or(constraints)
     }
 
-    fn layout_content_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
-        let insets = self.state.insets;
+    fn layout_content_constraints(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<MeasureConstraints, LayoutError> {
+        let insets = checked_measurement_insets(figure, self.state.insets)?;
+        for (limit, reduction) in [
+            (constraints.max_width(), insets.width()),
+            (constraints.max_height(), insets.height()),
+        ] {
+            if limit.is_some_and(|limit| !(limit - reduction).is_finite()) {
+                return Err(LayoutError::InvalidMeasurement {
+                    figure,
+                    reason: crate::layout::MeasurementFailure::DerivedOverflow,
+                });
+            }
+        }
         let content_constraints = MeasureConstraints::new(
             constraints
                 .max_width()
@@ -820,7 +864,7 @@ impl FigureNode {
                 .map(|height| (height - insets.height()).max(0.0)),
         )
         .expect("inset reduction preserves valid measurement constraints");
-        self.layout_constraints(content_constraints)
+        Ok(self.layout_constraints(content_constraints))
     }
 
     fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
@@ -831,13 +875,18 @@ impl FigureNode {
 
     fn project_layout_preferred_measurement(
         &self,
+        figure: FigureId,
         mut measurement: FigureMeasurement,
-    ) -> FigureMeasurement {
-        let insets = self.state.insets;
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let insets = checked_measurement_insets(figure, self.state.insets)?;
         measurement.width += insets.width();
         measurement.height += insets.height();
         measurement.baseline = measurement.baseline.map(|baseline| baseline + insets.top);
-        self.project_preferred_measurement(measurement)
+        let measurement = layout_measurement::validate_projected_measurement(figure, measurement)?;
+        layout_measurement::validate_projected_measurement(
+            figure,
+            self.project_preferred_measurement(measurement),
+        )
     }
 
     fn project_minimum_size(&self, size: Dimension) -> Dimension {
@@ -846,37 +895,17 @@ impl FigureNode {
             .unwrap_or(size)
     }
 
-    fn project_layout_minimum_size(&self, size: Dimension) -> Dimension {
-        let insets = self.state.insets;
-        self.project_minimum_size(Dimension::new(
-            size.width + insets.width(),
-            size.height + insets.height(),
-        ))
-    }
-
-    /// 获取首选尺寸
-    pub fn get_preferred_size(&self) -> Dimension {
-        if let Some(size) = self.preferred_size {
-            return size;
-        }
-        let bounds = self.state.bounds;
-        Dimension::new(bounds.width, bounds.height)
-    }
-
-    /// 获取最小尺寸
-    pub fn get_minimum_size(&self) -> Dimension {
-        if let Some(size) = self.minimum_size {
-            return size;
-        }
-        self.get_preferred_size()
-    }
-
-    /// 获取最大尺寸
-    pub fn get_maximum_size(&self) -> Dimension {
-        if let Some(size) = self.maximum_size {
-            return size;
-        }
-        Dimension::new(f64::INFINITY, f64::INFINITY)
+    fn project_layout_minimum_size(
+        &self,
+        figure: FigureId,
+        size: Dimension,
+    ) -> Result<Dimension, LayoutError> {
+        let insets = checked_measurement_insets(figure, self.state.insets)?;
+        let size = layout_measurement::validate_projected_size(
+            figure,
+            Dimension::new(size.width + insets.width(), size.height + insets.height()),
+        )?;
+        layout_measurement::validate_projected_size(figure, self.project_minimum_size(size))
     }
 }
 
@@ -1298,7 +1327,7 @@ impl FigureTree {
     }
 
     pub(crate) fn record_coordinate_system_changed(&mut self, figure_id: FigureId) {
-        let Some(bounds) = self.figure_bounds(figure_id) else {
+        let Ok(bounds) = self.figure_bounds(figure_id) else {
             return;
         };
         self.notify_block_changed(figure_id);
@@ -1350,7 +1379,7 @@ impl FigureTree {
         rect: Option<Rectangle>,
     ) {
         if let Some(block) = self.blocks.get(figure_id) {
-            if !self.is_effectively_visible(figure_id) {
+            if self.is_effectively_visible(figure_id) != Ok(true) {
                 return;
             }
 
@@ -1509,7 +1538,8 @@ impl FigureTree {
                         block.figure_bounds(),
                         block.visual_bounds(),
                         block.parent,
-                        self.is_effectively_visible(id),
+                        self.is_effectively_visible(id)
+                            .expect("node was resolved above"),
                     )
                 })
             })
@@ -1559,7 +1589,8 @@ impl FigureTree {
                         block.figure_bounds(),
                         block.visual_bounds(),
                         block.parent,
-                        self.is_effectively_visible(id),
+                        self.is_effectively_visible(id)
+                            .expect("node was resolved above"),
                     )
                 })
             })
@@ -1604,7 +1635,8 @@ impl FigureTree {
                         block.figure_bounds(),
                         block.visual_bounds(),
                         block.parent,
-                        self.is_effectively_visible(id),
+                        self.is_effectively_visible(id)
+                            .expect("node was resolved above"),
                     )
                 })
             })
@@ -1690,7 +1722,8 @@ impl FigureTree {
                 (
                     block.visual_bounds(),
                     block.parent,
-                    self.is_effectively_visible(id),
+                    self.is_effectively_visible(id)
+                        .expect("node was resolved above"),
                 )
             })
         else {
@@ -1889,7 +1922,9 @@ impl FigureTree {
         }
         let parent_id = block.parent;
         let freeform_ancestor = self.nearest_freeform_ancestor(figure_id);
-        let visible = self.is_effectively_visible(figure_id);
+        let visible = self
+            .is_effectively_visible(figure_id)
+            .expect("node was resolved above");
 
         if visible {
             self.erase(update_manager, figure_id, old_visual_bounds, parent_id);
@@ -2734,10 +2769,10 @@ mod tests {
             Box::new(RectangleFigure::new(30.0, 30.0, 50.0, 50.0)),
         );
 
-        assert_eq!(scene.child_order(root_id), Some(vec![first, second, third]));
-        assert_eq!(scene.child_z_index(root_id, first), Some(0));
-        assert_eq!(scene.child_z_index(root_id, second), Some(1));
-        assert_eq!(scene.child_z_index(root_id, third), Some(2));
+        assert_eq!(scene.child_order(root_id), Ok(vec![first, second, third]));
+        assert_eq!(scene.child_z_index(root_id, first), Ok(Some(0)));
+        assert_eq!(scene.child_z_index(root_id, second), Ok(Some(1)));
+        assert_eq!(scene.child_z_index(root_id, third), Ok(Some(2)));
     }
 
     #[test]
@@ -2853,11 +2888,11 @@ mod tests {
         assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(top));
 
         assert!(scene.bring_child_to_front(root_id, bottom));
-        assert_eq!(scene.child_order(root_id), Some(vec![middle, top, bottom]));
+        assert_eq!(scene.child_order(root_id), Ok(vec![middle, top, bottom]));
         assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(bottom));
 
         assert!(scene.send_child_to_back(root_id, bottom));
-        assert_eq!(scene.child_order(root_id), Some(vec![bottom, middle, top]));
+        assert_eq!(scene.child_order(root_id), Ok(vec![bottom, middle, top]));
         assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(top));
     }
 
@@ -3178,7 +3213,12 @@ mod tests {
             Box::new(TestCoordinateRootFigure::new(20.0, 30.0, 100.0, 100.0)),
         );
         let mut point = (30.0, 50.0);
-        point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
+        point.transform(
+            scene
+                .parent_to_local_transform(coord_root_id)
+                .unwrap()
+                .unwrap(),
+        );
         assert_eq!(point, (10.0, 20.0));
     }
 
@@ -3201,7 +3241,12 @@ mod tests {
             )),
         );
         let mut point = (35.0, 55.0);
-        point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
+        point.transform(
+            scene
+                .parent_to_local_transform(coord_root_id)
+                .unwrap()
+                .unwrap(),
+        );
         assert_eq!(point.0, 15.0);
         assert_eq!(point.1, 25.0);
     }
@@ -3229,7 +3274,7 @@ mod tests {
 
         // 绝对坐标位于 child 原点，转换后得到 node-local 原点。
         let mut point = (30.0, 40.0);
-        point.transform(scene.surface_to_local_transform(child_id).unwrap());
+        point.transform(scene.surface_to_local_transform(child_id).unwrap().unwrap());
         assert_eq!(point, (0.0, 0.0));
     }
 
@@ -3263,7 +3308,7 @@ mod tests {
         // 绝对坐标 = coord_root1 + coord_root2 + child = (20+10+15, 30+5+25) = (45, 60)
         // 该绝对坐标是 child 的 node-local 原点。
         let mut point = (45.0, 60.0);
-        point.transform(scene.surface_to_local_transform(child_id).unwrap());
+        point.transform(scene.surface_to_local_transform(child_id).unwrap().unwrap());
         assert_eq!(point, (0.0, 0.0));
     }
 
@@ -3293,7 +3338,12 @@ mod tests {
         point.transform(scene.local_to_surface_transform(coord_root2_id).unwrap());
         assert_eq!(point, (45.0, 60.0));
 
-        point.transform(scene.surface_to_local_transform(coord_root2_id).unwrap());
+        point.transform(
+            scene
+                .surface_to_local_transform(coord_root2_id)
+                .unwrap()
+                .unwrap(),
+        );
         assert_eq!(point, (15.0, 25.0));
     }
 
@@ -3320,7 +3370,7 @@ mod tests {
 
         // 绝对矩形从 child 原点开始。
         let mut rect = Rectangle::new(40.0, 60.0, 50.0, 50.0);
-        rect.transform(scene.surface_to_local_transform(child_id).unwrap());
+        rect.transform(scene.surface_to_local_transform(child_id).unwrap().unwrap());
         assert_eq!(rect.x, 0.0);
         assert_eq!(rect.y, 0.0);
     }
@@ -3853,7 +3903,7 @@ mod tests {
         assert_eq!(figure.bounds, Rectangle::new(0.0, 0.0, 20.0, 20.0));
         assert_eq!(
             scene.figure_bounds(id),
-            Some(Rectangle::new(0.0, 0.0, 80.0, 60.0))
+            Ok(Rectangle::new(0.0, 0.0, 80.0, 60.0))
         );
         assert!(
             render_signatures(&scene.render())
@@ -3868,10 +3918,13 @@ mod tests {
         let replacement =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
 
-        assert!(!scene.is_attached(previous));
-        assert!(scene.is_attached(replacement));
+        assert_eq!(
+            scene.is_attached(previous),
+            Err(crate::tree::TreeQueryError::UnknownFigure(previous))
+        );
+        assert_eq!(scene.is_attached(replacement), Ok(true));
         assert_eq!(scene.contents(), Some(replacement));
-        assert_eq!(scene.child_order(scene.root), Some(vec![replacement]));
+        assert_eq!(scene.child_order(scene.root), Ok(vec![replacement]));
     }
 
     #[test]
@@ -3908,7 +3961,7 @@ mod tests {
 
         assert_eq!(
             scene.resolved_style(child),
-            Some(ResolvedStyle {
+            Ok(ResolvedStyle {
                 foreground,
                 background,
                 alpha: 0.75,

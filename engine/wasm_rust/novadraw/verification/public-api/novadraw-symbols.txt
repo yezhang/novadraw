@@ -397,6 +397,7 @@ module.layout enum FreeformConstraintError
 module.layout enum GridAlignment
 module.layout enum LayoutError
 module.layout enum LayoutInvalidation
+module.layout enum MeasurementFailure
 module.layout enum MinorAlignment
 module.layout enum ToolbarOrientation
 module.layout struct BorderConstraint
@@ -635,6 +636,8 @@ module.tree constant DEFAULT_VALIDATION_BUDGET
 module.tree constant FREEFORM_EXTENT_PROPERTY
 module.tree constant MAX_TREE_DEPTH
 module.tree enum ChildInsertionError
+module.tree enum CoordinateFailure
+module.tree enum CoordinateQueryError
 module.tree enum FreeformError
 module.tree enum GraphMutationError
 module.tree enum TreeQueryError

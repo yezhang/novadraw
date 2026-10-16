@@ -225,7 +225,7 @@ impl ZoomManager {
 
         let block = graph
             .node(self.viewport.figure_id())
-            .ok_or(ZoomError::MissingViewport)?;
+            .map_err(|_| ZoomError::MissingViewport)?;
         let client_area = block.client_area();
         let old_location = self.viewport.view_location();
         let uses_content_domain = self.uses_content_domain(graph);
@@ -353,18 +353,17 @@ impl ZoomManager {
         let uses_content_domain = self.uses_content_domain(graph);
         let viewport = graph
             .node(self.viewport.figure_id())
-            .ok_or(ZoomError::MissingViewport)?
+            .map_err(|_| ZoomError::MissingViewport)?
             .client_area();
         let (content_width, content_height) = if uses_content_domain {
             let extent = graph.freeform_extent(self.scalable.figure_id())?;
             (extent.width, extent.height)
         } else {
             let preferred = graph
-                .preferred_measurement(self.scalable.figure_id(), MeasureConstraints::UNBOUNDED)
-                .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
+                .preferred_measurement(self.scalable.figure_id(), MeasureConstraints::UNBOUNDED)?;
             let scalable_block = graph
                 .node(self.scalable.figure_id())
-                .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
+                .map_err(|_| ZoomError::Scale(ScaleError::MissingFigure))?;
             let insets = scalable_block.state().insets();
             (
                 (preferred.width - insets.width()) / old_zoom,
@@ -409,7 +408,7 @@ impl ZoomManager {
     }
 
     fn uses_content_domain(&self, graph: &FigureTree) -> bool {
-        self.viewport.contents(graph) == Some(self.scalable.figure_id())
+        self.viewport.contents(graph) == Ok(Some(self.scalable.figure_id()))
             && graph
                 .capability(self.scalable.figure_id(), crate::FREEFORM)
                 .is_ok_and(|freeform| freeform.is_some())
@@ -436,7 +435,7 @@ impl ZoomManager {
             return;
         }
         graph.repaint(update_manager, self.viewport.figure_id(), None);
-        if let Some(parent) = graph.parent_id(self.viewport.figure_id()) {
+        if let Ok(Some(parent)) = graph.parent_id(self.viewport.figure_id()) {
             graph.repaint(update_manager, parent, None);
         }
     }

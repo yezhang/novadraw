@@ -155,15 +155,15 @@ mod tests {
 
         assert_eq!(
             tree.child_order(ids.root),
-            Some(vec![ids.a, ids.group, ids.d])
+            Ok(vec![ids.a, ids.group, ids.d])
         );
         assert_eq!(
             tree.child_order(ids.group),
-            Some(vec![ids.b, ids.skip, ids.c])
+            Ok(vec![ids.b, ids.skip, ids.c])
         );
-        assert!(!tree.is_focus_traversable(ids.group));
-        assert!(tree.is_focus_traversable(ids.skip));
-        assert!(!tree.is_effectively_enabled(ids.skip));
+        assert!(!tree.is_focus_traversable(ids.group).unwrap());
+        assert!(tree.is_focus_traversable(ids.skip).unwrap());
+        assert!(!tree.is_effectively_enabled(ids.skip).unwrap());
 
         let mut current = None;
         for expected in [ids.a, ids.b, ids.c, ids.d] {

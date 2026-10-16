@@ -64,7 +64,7 @@ fn m4_point_roundtrips_across_nested_coordinate_roots_with_insets() {
     point.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(point, Point::new(161.0, 125.0));
 
-    point.transform(graph.surface_to_local_transform(child).unwrap());
+    point.transform(graph.surface_to_local_transform(child).unwrap().unwrap());
     assert_eq!(point, original);
 }
 
@@ -77,7 +77,7 @@ fn m4_rectangle_roundtrip_preserves_extent_across_nested_coordinate_roots() {
     rect.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(rect, Rectangle::new(161.0, 125.0, 18.0, 12.0));
 
-    rect.transform(graph.surface_to_local_transform(child).unwrap());
+    rect.transform(graph.surface_to_local_transform(child).unwrap().unwrap());
     assert_eq!(rect, original);
 }
 
@@ -90,14 +90,28 @@ fn coordinate_transform_queries_reject_foreign_figures_without_mutating_geometry
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .expect("valid FigureTree construction");
 
-    assert!(graph.local_to_parent_transform(foreign_figure).is_none());
-    assert!(graph.parent_to_local_transform(foreign_figure).is_none());
-    assert!(graph.local_to_surface_transform(foreign_figure).is_none());
-    assert!(graph.surface_to_local_transform(foreign_figure).is_none());
-    assert!(
-        graph
-            .child_content_to_surface_transform(foreign_figure)
-            .is_none()
+    let expected = novadraw::tree::CoordinateQueryError::Identity(
+        novadraw::tree::TreeQueryError::ForeignFigure(foreign_figure),
+    );
+    assert_eq!(
+        graph.local_to_parent_transform(foreign_figure),
+        Err(expected)
+    );
+    assert_eq!(
+        graph.parent_to_local_transform(foreign_figure),
+        Err(expected)
+    );
+    assert_eq!(
+        graph.local_to_surface_transform(foreign_figure),
+        Err(expected)
+    );
+    assert_eq!(
+        graph.surface_to_local_transform(foreign_figure),
+        Err(expected)
+    );
+    assert_eq!(
+        graph.child_content_to_surface_transform(foreign_figure),
+        Err(expected)
     );
 }
 
@@ -332,7 +346,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
 
     assert_eq!(
         runtime.tree().figure_bounds(child),
-        Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
+        Ok(Rectangle::new(10.0, 15.0, 20.0, 10.0))
     );
     let canvas = prepare_next_submission(&mut runtime).unwrap();
     assert_eq!(

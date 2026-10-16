@@ -286,7 +286,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         .expect("valid Runtime mutation");
 
     assert_eq!(
-        runtime.tree().point_list_points(line).unwrap(),
+        runtime.tree().point_list_points(line).unwrap().unwrap(),
         vec![Point::new(10.0, 20.0), Point::new(110.0, 20.0)]
     );
     assert!(
@@ -299,10 +299,10 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert_eq!(
         runtime.tree().figure_bounds(line),
-        Some(Rectangle::new(6.0, 16.0, 208.0, 38.0))
+        Ok(Rectangle::new(6.0, 16.0, 208.0, 38.0))
     );
     assert_eq!(
-        runtime.tree().point_list_points(line).unwrap(),
+        runtime.tree().point_list_points(line).unwrap().unwrap(),
         vec![Point::new(10.0, 20.0), Point::new(210.0, 50.0)]
     );
     assert!(
@@ -367,8 +367,15 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
             .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert!(runtime.tree().point_list_points(line).unwrap().is_empty());
-    assert_eq!(runtime.tree().figure_bounds(line), Some(Rectangle::ZERO));
+    assert!(
+        runtime
+            .tree()
+            .point_list_points(line)
+            .unwrap()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(runtime.tree().figure_bounds(line), Ok(Rectangle::ZERO));
 }
 
 #[test]
@@ -389,7 +396,7 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
 
     assert_eq!(
         runtime.tree().figure_bounds(line),
-        Some(Rectangle::new(16.0, 26.0, 168.0, 10.0))
+        Ok(Rectangle::new(16.0, 26.0, 168.0, 10.0))
     );
     assert!(
         runtime
@@ -401,7 +408,7 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(line),
-        Some(Rectangle::new(19.0, 29.0, 162.0, 4.0))
+        Ok(Rectangle::new(19.0, 29.0, 162.0, 4.0))
     );
     assert!(
         runtime
@@ -413,7 +420,7 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(line),
-        Some(Rectangle::new(17.0, 27.0, 166.0, 8.0))
+        Ok(Rectangle::new(17.0, 27.0, 166.0, 8.0))
     );
 
     let stable_bounds = runtime.tree().figure_bounds(line);
@@ -554,7 +561,7 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
             .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert_eq!(runtime.tree().insets(rounded), Some(Insets::uniform(3.0)));
+    assert_eq!(runtime.tree().insets(rounded), Ok(Insets::uniform(3.0)));
     assert!(
         runtime
             .figure(rounded)
@@ -663,11 +670,11 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
             .tree()
             .preferred_measurement(bordered, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(106.0, 56.0))
+        Ok(Dimension::new(106.0, 56.0))
     );
     assert_eq!(
         runtime.tree().border_is_effectively_opaque(bordered),
-        Some(true)
+        Ok(Some(true))
     );
 
     let translucent_style = FigureStyle {
@@ -683,7 +690,7 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
     );
     assert_eq!(
         runtime.tree().border_is_effectively_opaque(bordered),
-        Some(false)
+        Ok(Some(false))
     );
 }
 

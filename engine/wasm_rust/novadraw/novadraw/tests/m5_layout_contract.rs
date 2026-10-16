@@ -17,8 +17,8 @@ use novadraw::{figure::RectangleFigure, runtime::Runtime, tree::FigureId, tree::
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-fn assert_rect(actual: Option<Rectangle>, expected: Rectangle) {
-    assert_eq!(actual, Some(expected));
+fn assert_rect(actual: Result<Rectangle, novadraw::tree::TreeQueryError>, expected: Rectangle) {
+    assert_eq!(actual, Ok(expected));
 }
 
 #[test]
@@ -411,11 +411,11 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
     runtime.figure(root).unwrap().revalidate().unwrap();
     let canvas = prepare_next_submission(&mut runtime).expect("queued update");
 
-    assert!(runtime.tree().is_valid(root));
+    assert!(runtime.tree().is_valid(root).unwrap());
     assert!(
         children
             .into_iter()
-            .all(|child| runtime.tree().is_valid(child))
+            .all(|child| runtime.tree().is_valid(child).unwrap())
     );
     assert!(prepare_next_submission(&mut runtime).is_none());
     assert!(!canvas.damage.is_empty());
@@ -439,8 +439,8 @@ impl LayoutManager for InvalidGeometryLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        FigureMeasurement::default()
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::default())
     }
 
     fn minimum_size(
@@ -448,9 +448,10 @@ impl LayoutManager for InvalidGeometryLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.preferred_measurement(container, constraints, snapshot)
-            .size()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(
@@ -471,8 +472,8 @@ impl LayoutManager for InvalidOutputLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        FigureMeasurement::default()
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::default())
     }
 
     fn minimum_size(
@@ -480,9 +481,10 @@ impl LayoutManager for InvalidOutputLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.preferred_measurement(container, constraints, snapshot)
-            .size()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(
@@ -535,7 +537,7 @@ fn layout_output_is_validated_before_any_change_is_committed() {
         graph.figure_bounds(child),
         Rectangle::new(10.0, 20.0, 30.0, 40.0),
     );
-    assert!(graph.layout_manager(root).is_some());
+    assert!(graph.layout_manager(root).unwrap().is_some());
 }
 
 #[test]
@@ -649,7 +651,12 @@ fn builder_rejects_wrong_constraint_type_without_mutating_layout_state() {
             ..
         } if container == root && error_child == child
     ));
-    assert!(graph.layout_constraint::<BorderConstraint>(child).is_none());
+    assert!(
+        graph
+            .layout_constraint::<BorderConstraint>(child)
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -682,9 +689,9 @@ fn builder_rejects_incompatible_manager_before_replacing_layout_state() {
             ..
         } if container == root && error_child == child
     ));
-    assert!(graph.layout_manager(root).is_none());
+    assert!(graph.layout_manager(root).unwrap().is_none());
     assert_eq!(
-        graph.layout_constraint::<XYConstraint>(child),
+        graph.layout_constraint::<XYConstraint>(child).unwrap(),
         Some(&constraint)
     );
 }
@@ -699,9 +706,9 @@ impl LayoutManager for CountingLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         self.measurements.fetch_add(1, Ordering::SeqCst);
-        FigureMeasurement::new(25.0, 35.0, None)
+        Ok(FigureMeasurement::new(25.0, 35.0, None))
     }
 
     fn minimum_size(
@@ -709,9 +716,10 @@ impl LayoutManager for CountingLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.preferred_measurement(container, constraints, snapshot)
-            .size()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(
@@ -750,13 +758,13 @@ fn layout_measurements_are_cached_until_generation_changes() {
         graph
             .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(
         graph
             .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(measurements.load(Ordering::SeqCst), 1);
 
@@ -771,7 +779,7 @@ fn layout_measurements_are_cached_until_generation_changes() {
         graph
             .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(measurements.load(Ordering::SeqCst), 2);
 
@@ -780,20 +788,20 @@ fn layout_measurements_are_cached_until_generation_changes() {
         graph
             .preferred_measurement(root, width_bounded)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(
         graph
             .preferred_measurement(root, width_bounded)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(measurements.load(Ordering::SeqCst), 3);
     assert_eq!(
         graph
             .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(25.0, 35.0))
+        Ok(Dimension::new(25.0, 35.0))
     );
     assert_eq!(measurements.load(Ordering::SeqCst), 4);
 
@@ -834,7 +842,7 @@ fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
         graph
             .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::ZERO)
+        Ok(Dimension::ZERO)
     );
     assert_eq!(measurements.load(Ordering::SeqCst), 0);
 }
@@ -849,8 +857,8 @@ impl LayoutManager for ReinvalidatingLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        FigureMeasurement::default()
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::default())
     }
 
     fn minimum_size(
@@ -858,9 +866,10 @@ impl LayoutManager for ReinvalidatingLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        self.preferred_measurement(container, constraints, snapshot)
-            .size()
+    ) -> Result<Dimension, LayoutError> {
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(

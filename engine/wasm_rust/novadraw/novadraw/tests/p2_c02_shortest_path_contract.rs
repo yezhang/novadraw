@@ -4,7 +4,7 @@ use support::prepare_next_submission;
 
 use novadraw::connection::{
     ChopboxAnchor, ConnectionFigure, ConnectionResolution, ConnectionRoutingStats,
-    ConnectionRuntimeError, CoordinateSpace, RouteError, RouterBinding,
+    ConnectionRuntimeError, CoordinateSpace, RouteError, RouteSceneQueryError, RouterBinding,
     ShortestPathConnectionRouter, UnresolvedConnection,
 };
 use novadraw::geometry::{Point, Rectangle};
@@ -17,6 +17,7 @@ fn parent_route(runtime: &Runtime, connection_figure: novadraw::tree::FigureId) 
     runtime
         .tree()
         .connection_route_points(connection_figure)
+        .unwrap()
         .unwrap()
         .iter()
         .map(|point| Point::new(point.x() + bounds.x, point.y() + bounds.y))
@@ -140,21 +141,78 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     runtime.figure(obstacle).unwrap().set_visible(true).unwrap();
     prepare_next_submission(&mut runtime).expect("restored obstacle reroutes");
     assert!(parent_route(&runtime, connection_figure).len() >= 4);
+    let before_retirement = runtime.connections().routing_stats();
     runtime
         .figure(root)
         .unwrap()
         .remove(obstacle)
         .expect("obstacle removal is a valid topology mutation");
     prepare_next_submission(&mut runtime).expect("obstacle removal reroutes");
-    assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
     assert_eq!(
-        runtime.connections().routing_stats(),
-        ConnectionRoutingStats {
-            route_calculations: 6,
-            routing_order_entries: 23,
-            obstacle_snapshot_builds: 6,
-        }
+        runtime.connections().state(connection).unwrap().resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::RouteFailed(RouteError::Scene(
+            RouteSceneQueryError::UnknownFigure(obstacle)
+        )))
     );
+    assert!(parent_route(&runtime, connection_figure).is_empty());
+    assert!(!runtime.is_faulted());
+    let failed = runtime.connections().routing_stats();
+    assert_eq!(
+        failed.route_calculations,
+        before_retirement.route_calculations
+    );
+    assert_eq!(
+        failed.obstacle_snapshot_builds,
+        before_retirement.obstacle_snapshot_builds
+    );
+    let mut other = Runtime::empty();
+    let foreign = other
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+    let foreign_router = runtime
+        .connections()
+        .register_router(Box::new(ShortestPathConnectionRouter::new([foreign])));
+    runtime
+        .connections()
+        .set_router_binding(
+            connection,
+            RouterBinding::Explicit {
+                router: foreign_router,
+            },
+        )
+        .unwrap();
+    prepare_next_submission(&mut runtime).expect("foreign obstacle is recoverable");
+    assert_eq!(
+        runtime.connections().state(connection).unwrap().resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::RouteFailed(RouteError::Scene(
+            RouteSceneQueryError::ForeignFigure(foreign)
+        )))
+    );
+    assert!(!runtime.is_faulted());
+    let replacement = runtime
+        .connections()
+        .register_router(Box::new(ShortestPathConnectionRouter::new([])));
+    runtime
+        .connections()
+        .set_router_binding(
+            connection,
+            RouterBinding::Explicit {
+                router: replacement,
+            },
+        )
+        .unwrap();
+    prepare_next_submission(&mut runtime).expect("new obstacle binding recovers");
+    assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
+    let recovered = runtime.connections().routing_stats();
+    assert_eq!(
+        recovered.route_calculations,
+        before_retirement.route_calculations + 1
+    );
+    assert_eq!(
+        recovered.obstacle_snapshot_builds,
+        before_retirement.obstacle_snapshot_builds
+    );
+    assert!(recovered.routing_order_entries > failed.routing_order_entries);
 }
 
 #[test]
@@ -229,6 +287,7 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
                 .tree()
                 .connection_route_points(*figure)
                 .unwrap()
+                .unwrap()
                 .is_empty()
         );
     }
@@ -242,6 +301,7 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
         ) && !runtime
             .tree()
             .connection_route_points(*figure)
+            .unwrap()
             .unwrap()
             .is_empty()
     }));

@@ -113,7 +113,7 @@ fn collect_parent_chain_steps(
     figure_id: FigureId,
 ) -> Option<Vec<DamagePropagationStep>> {
     let mut steps = Vec::new();
-    let current = graph.node(figure_id)?;
+    let current = graph.node(figure_id).ok()?;
     let contents_id = graph.contents();
     steps.push(DamagePropagationStep {
         transform: Affine2D::IDENTITY,
@@ -130,7 +130,7 @@ fn collect_parent_chain_steps(
     let mut walker_id = figure_id;
 
     loop {
-        let walker = graph.node(walker_id)?;
+        let walker = graph.node(walker_id).ok()?;
         let bounds = walker.figure_bounds();
         let Some(parent_id) = walker.parent else {
             steps.push(DamagePropagationStep {
@@ -139,7 +139,7 @@ fn collect_parent_chain_steps(
             });
             break;
         };
-        let parent = graph.node(parent_id)?;
+        let parent = graph.node(parent_id).ok()?;
         steps.push(DamagePropagationStep {
             transform: parent.child_transform().affine()
                 * Affine2D::from_translation(bounds.x, bounds.y),

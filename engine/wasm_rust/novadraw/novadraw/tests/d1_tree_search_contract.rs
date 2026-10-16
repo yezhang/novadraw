@@ -51,7 +51,7 @@ fn public_exclusion_search_prunes_by_figure_id() {
             .map(|(target, _)| target),
         Some(root)
     );
-    assert_eq!(tree.ancestor_ids(child), Some(vec![root]));
-    assert_eq!(tree.descendant_ids(root), Some(vec![child]));
-    assert!(tree.is_ancestor_of(root, child));
+    assert_eq!(tree.ancestor_ids(child), Ok(vec![root]));
+    assert_eq!(tree.descendant_ids(root), Ok(vec![child]));
+    assert!(tree.is_ancestor_of(root, child).unwrap());
 }

@@ -206,7 +206,7 @@ fn component_effect_failure_does_not_commit_value_revision_or_property_fact() {
             RuntimeMutationError::InvalidBounds { .. }
         ))
     ));
-    assert_eq!(runtime.tree().component_revision(badge), Some(0));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(0));
     assert!(!runtime.frames().has_pending_update());
     assert!(matches!(
         runtime.figure(badge).unwrap().update_component(ProbeBadge),
@@ -394,7 +394,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
             paint_snapshot: "badge:updated".to_owned(),
         })
     );
-    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(1));
 
     let pending_before = runtime.frames().has_pending_update();
     let rejected = runtime
@@ -406,7 +406,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         rejected,
         ComponentUpdateError::Rejected("badge text cannot be empty")
     );
-    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(1));
     assert_eq!(runtime.frames().has_pending_update(), pending_before);
 }
 
@@ -464,7 +464,7 @@ fn external_figure_callback_can_defer_a_typed_self_update() {
         .input()
         .dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
 
-    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(1));
     let snapshot = runtime
         .figure(badge)
         .unwrap()
@@ -493,7 +493,7 @@ fn deferred_component_rejection_is_reported_without_losing_fifo_suffix() {
         .input()
         .dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
 
-    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(1));
     assert_eq!(
         runtime.take_deferred_mutation_errors(),
         vec![RuntimeMutationError::ComponentUpdateRejected(badge)]
@@ -578,7 +578,7 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
-    assert_eq!(runtime.tree().component_revision(badge), Some(0));
+    assert_eq!(runtime.tree().component_revision(badge), Ok(0));
 }
 
 #[test]

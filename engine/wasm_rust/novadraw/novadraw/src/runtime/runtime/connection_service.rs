@@ -53,7 +53,7 @@ impl Runtime {
         key: AnchorGeometryKey,
         geometry: AnchorGeometry,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
-        if !self.tree.is_attached(figure) {
+        if !self.tree.is_attached(figure)? {
             return Err(ConnectionRuntimeError::UnknownFigure(figure));
         }
         let bounds = geometry.bounds();
@@ -120,7 +120,7 @@ impl Runtime {
         layer: FigureId,
         router: RouterId,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
-        if !self.tree.is_attached(layer) {
+        if !self.tree.is_attached(layer)? {
             return Err(ConnectionRuntimeError::UnknownFigure(layer));
         }
         self.connections.set_layer_router(layer, router)
@@ -147,10 +147,10 @@ impl Runtime {
         router: RouterBinding,
         constraint: Option<Box<dyn RoutingConstraint>>,
     ) -> Result<ConnectionId, ConnectionRuntimeError> {
-        if !self.tree.is_attached(figure) {
+        if !self.tree.is_attached(figure)? {
             return Err(ConnectionRuntimeError::UnknownFigure(figure));
         }
-        if !self.tree.is_connection_figure(figure) {
+        if !self.tree.is_connection_figure(figure)? {
             return Err(ConnectionRuntimeError::NotConnectionFigure(figure));
         }
         let connection = ConnectionId::from_figure(figure);
@@ -243,10 +243,10 @@ impl Runtime {
     ) -> Result<(), ConnectionRuntimeError> {
         self.guarded_connection_mutation(move |runtime| {
             runtime.connections.state(connection)?;
-            if !runtime.tree.is_attached(child) {
+            if !runtime.tree.is_attached(child)? {
                 return Err(ConnectionRuntimeError::UnknownFigure(child));
             }
-            if runtime.tree.parent_id(child) != Some(connection.figure()) {
+            if runtime.tree.parent_id(child)? != Some(connection.figure()) {
                 return Err(ConnectionRuntimeError::InvalidLocatorChild { connection, child });
             }
             runtime.connections.set_locator(connection, child, strategy)
@@ -259,7 +259,7 @@ impl Runtime {
         child: FigureId,
     ) -> Result<bool, ConnectionRuntimeError> {
         self.guarded_connection_mutation(|runtime| {
-            if !runtime.tree.is_attached(child) {
+            if !runtime.tree.is_attached(child)? {
                 return Err(ConnectionRuntimeError::UnknownFigure(child));
             }
             Ok(runtime.connections.remove_locator(child))
@@ -384,7 +384,7 @@ impl Runtime {
                                 child,
                                 error: crate::LocatorError::NonFinitePlacement,
                             })
-                        } else if self.tree.parent_id(child) != Some(candidate.figure()) {
+                        } else if self.tree.parent_id(child) != Ok(Some(candidate.figure())) {
                             Some(UnresolvedConnection::InvalidLocatorChild(child))
                         } else {
                             None

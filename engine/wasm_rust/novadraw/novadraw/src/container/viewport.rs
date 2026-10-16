@@ -164,6 +164,7 @@ fn record_range_changes(
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ViewportError {
     Graph(GraphMutationError),
+    Identity(crate::tree::TreeQueryError),
     Range(RangeModelError),
     MissingViewport,
     InvalidViewLocation,
@@ -173,6 +174,7 @@ impl fmt::Display for ViewportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Graph(error) => error.fmt(f),
+            Self::Identity(error) => error.fmt(f),
             Self::Range(error) => error.fmt(f),
             Self::MissingViewport => write!(f, "viewport block does not exist"),
             Self::InvalidViewLocation => write!(f, "view location must be finite"),
@@ -205,10 +207,11 @@ impl ViewportHandle {
         self.figure_id
     }
 
-    pub fn contents(&self, graph: &FigureTree) -> Option<FigureId> {
-        graph
-            .child_order(self.figure_id)
-            .and_then(|children| children.first().copied())
+    pub fn contents(
+        &self,
+        graph: &FigureTree,
+    ) -> Result<Option<FigureId>, crate::tree::TreeQueryError> {
+        Ok(graph.child_order(self.figure_id)?.first().copied())
     }
 
     pub fn horizontal_range(&self) -> RangeModelSnapshot {
@@ -234,7 +237,7 @@ impl ViewportHandle {
         if !x.is_finite() || !y.is_finite() {
             return Err(ViewportError::InvalidViewLocation);
         }
-        if graph.node(self.figure_id).is_none() {
+        if !graph.contains(self.figure_id) {
             return Err(ViewportError::MissingViewport);
         }
 
@@ -270,10 +273,10 @@ impl ViewportHandle {
         update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, ViewportError> {
-        if graph.node(self.figure_id).is_none() {
+        if !graph.contains(self.figure_id) {
             return Err(ViewportError::MissingViewport);
         }
-        if let Some(previous) = self.contents(graph) {
+        if let Some(previous) = self.contents(graph).map_err(ViewportError::Identity)? {
             graph.remove_child(update_manager, self.figure_id, previous);
         }
         let child = graph.try_add_child_to(self.figure_id, figure)?;
@@ -308,7 +311,7 @@ impl ViewportHandle {
         tracks_width: Option<bool>,
         tracks_height: Option<bool>,
     ) -> Result<bool, ViewportError> {
-        if graph.node(self.figure_id).is_none() {
+        if !graph.contains(self.figure_id) {
             return Err(ViewportError::MissingViewport);
         }
         let changed = {
@@ -353,9 +356,9 @@ impl LayoutManager for ViewportLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let Some((contents, _)) = snapshot.children(container).first().copied() else {
-            return FigureMeasurement::default();
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let Some((contents, _)) = snapshot.children(container)?.first().copied() else {
+            return Ok(FigureMeasurement::default());
         };
         let runtime = lock_unpoisoned(&self.runtime);
         let child_constraints = MeasureConstraints::new(
@@ -377,8 +380,8 @@ impl LayoutManager for ViewportLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        Dimension::ZERO
+    ) -> Result<Dimension, LayoutError> {
+        Ok(Dimension::ZERO)
     }
 
     fn layout(
@@ -387,12 +390,12 @@ impl LayoutManager for ViewportLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let Some((contents, _)) = snapshot.children(container).first().copied() else {
+        let Some((contents, _)) = snapshot.children(container)?.first().copied() else {
             return Ok(());
         };
-        let area = snapshot.container_bounds(container);
-        if let Some(freeform_extent) = snapshot.freeform_extent(contents) {
-            let scale = snapshot.content_scale(contents).unwrap_or(1.0);
+        let area = snapshot.container_bounds(container)?;
+        if let Some(freeform_extent) = snapshot.freeform_extent(contents)? {
+            let scale = snapshot.content_scale(contents)?.unwrap_or(1.0);
             if !scale.is_finite() || scale <= 0.0 {
                 return Err(LayoutError::NonFiniteGeometry { figure: contents });
             }
@@ -456,8 +459,10 @@ impl LayoutManager for ViewportLayout {
         };
         let constraints = MeasureConstraints::bounded(area.width, area.height)
             .expect("viewport client area is valid layout geometry");
-        let preferred = snapshot.preferred_measurement(contents, constraints).size();
-        let minimum = snapshot.minimum_size(contents, constraints);
+        let preferred = snapshot
+            .preferred_measurement(contents, constraints)?
+            .size();
+        let minimum = snapshot.minimum_size(contents, constraints)?;
         let width = if tracks_width {
             area.width.max(minimum.width)
         } else {
@@ -662,16 +667,19 @@ impl BorderedFigure for ViewportFigure {
 }
 
 impl FigureTree {
-    pub fn viewport_handle(&self, figure_id: FigureId) -> Option<ViewportHandle> {
+    pub fn viewport_handle(
+        &self,
+        figure_id: FigureId,
+    ) -> Result<Option<ViewportHandle>, crate::tree::TreeQueryError> {
         let viewport = self
             .node(figure_id)?
             .figure
             .as_any()
-            .downcast_ref::<ViewportFigure>()?;
-        Some(ViewportHandle {
+            .downcast_ref::<ViewportFigure>();
+        Ok(viewport.map(|viewport| ViewportHandle {
             figure_id,
             runtime: Arc::clone(&viewport.runtime),
-        })
+        }))
     }
 
     /// Adds a Viewport Figure and returns its typed transactional handle.
@@ -732,6 +740,7 @@ impl FigureTreeBuilder<'_> {
         let handle = self
             .tree_mut()
             .viewport_handle(viewport)
+            .map_err(ViewportError::Identity)?
             .ok_or(ViewportError::MissingViewport)?;
         let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
         handle.set_view_location(self.tree_mut(), &mut updates, x, y)
@@ -745,6 +754,7 @@ impl FigureTreeBuilder<'_> {
         let handle = self
             .tree_mut()
             .viewport_handle(viewport)
+            .map_err(ViewportError::Identity)?
             .ok_or(ViewportError::MissingViewport)?;
         let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
         handle.set_tracks_width(self.tree_mut(), &mut updates, tracks)
@@ -758,6 +768,7 @@ impl FigureTreeBuilder<'_> {
         let handle = self
             .tree_mut()
             .viewport_handle(viewport)
+            .map_err(ViewportError::Identity)?
             .ok_or(ViewportError::MissingViewport)?;
         let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
         handle.set_tracks_height(self.tree_mut(), &mut updates, tracks)
@@ -788,7 +799,7 @@ mod tests {
             container: FigureId,
             constraints: MeasureConstraints,
             snapshot: &LayoutSceneQuery<'_>,
-        ) -> FigureMeasurement {
+        ) -> Result<FigureMeasurement, LayoutError> {
             self.inner
                 .preferred_measurement(container, constraints, snapshot)
         }
@@ -798,7 +809,7 @@ mod tests {
             container: FigureId,
             constraints: MeasureConstraints,
             snapshot: &LayoutSceneQuery<'_>,
-        ) -> Dimension {
+        ) -> Result<Dimension, LayoutError> {
             self.inner.minimum_size(container, constraints, snapshot)
         }
 

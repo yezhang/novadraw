@@ -491,7 +491,7 @@ impl AnimationService {
             let content = figure_presentations.first().and_then(|channel| {
                 let (bound_figure, binding) = channel.binding.figure_presentation()?;
                 debug_assert_eq!(bound_figure, figure);
-                let node = tree.node(figure)?;
+                let node = tree.node(figure).ok()?;
                 let values: Vec<_> = figure_presentations
                     .iter()
                     .filter_map(|channel| {
@@ -679,7 +679,7 @@ impl AnimationService {
                     self.channels
                         .get(track.channel)
                         .and_then(|channel| channel.binding.figure())
-                        .is_some_and(|figure| !tree.is_effectively_visible(figure))
+                        .is_some_and(|figure| tree.is_effectively_visible(figure) != Ok(true))
                 })
             });
             changed |= self.set_suspension_reason(id, None, Some(target_hidden));
@@ -1520,7 +1520,7 @@ impl AnimationMut<'_> {
             if figure.namespace() != self.service.namespace {
                 return Err(AnimationError::ForeignTarget);
             }
-            if !self.tree.is_attached(figure) {
+            if !self.tree.is_attached(figure)? {
                 return Err(AnimationError::DisposedTarget);
             }
         }
@@ -1638,7 +1638,7 @@ impl AnimationMut<'_> {
         if figure.namespace() != self.service.namespace {
             return Err(AnimationError::ForeignTarget);
         }
-        if !self.tree.is_attached(figure) {
+        if !self.tree.is_attached(figure)? {
             return Err(AnimationError::DisposedTarget);
         }
         if let Some(channels) = self.service.figure_channels.get(&figure) {
@@ -1653,11 +1653,7 @@ impl AnimationMut<'_> {
                 AnimationBudgetKind::Channels,
             ));
         }
-        let opacity = self
-            .tree
-            .resolved_style(figure)
-            .ok_or(AnimationError::DisposedTarget)?
-            .alpha;
+        let opacity = self.tree.resolved_style(figure)?.alpha;
         let opacity = self.service.channels.insert(ChannelState::new_bound(
             Opacity::try_new(opacity)?,
             ChannelBinding::FigureOpacity(figure),
@@ -1693,10 +1689,7 @@ impl AnimationMut<'_> {
         if figure.namespace() != self.service.namespace {
             return Err(AnimationError::ForeignTarget);
         }
-        let node = self
-            .tree
-            .node(figure)
-            .ok_or(AnimationError::DisposedTarget)?;
+        let node = self.tree.node(figure)?;
         let binding = self
             .tree
             .capability(figure, key)
@@ -1754,10 +1747,7 @@ impl AnimationMut<'_> {
         key: CapabilityKey<PresentationBinding<V>>,
     ) -> Result<bool, AnimationError> {
         self.ensure_not_faulted()?;
-        let node = self
-            .tree
-            .node(figure)
-            .ok_or(AnimationError::DisposedTarget)?;
+        let node = self.tree.node(figure)?;
         let binding = self
             .tree
             .capability(figure, key)
@@ -1782,10 +1772,7 @@ impl AnimationMut<'_> {
         key: CapabilityKey<PresentationBinding<V>>,
         value: &V,
     ) -> Result<FigurePresentation, AnimationError> {
-        let node = self
-            .tree
-            .node(figure)
-            .ok_or(AnimationError::DisposedTarget)?;
+        let node = self.tree.node(figure)?;
         let binding = self
             .tree
             .capability(figure, key)
@@ -1886,8 +1873,8 @@ impl AnimationMut<'_> {
         }
         let connection = self
             .tree
-            .node(figure)
-            .and_then(crate::FigureNode::connection)
+            .node(figure)?
+            .connection()
             .ok_or(AnimationError::UnsupportedRoutePresentation)?;
         let period = connection.connection_dash_period();
         if !period.is_finite() || period <= 0.0 {
@@ -1924,10 +1911,10 @@ impl AnimationMut<'_> {
         let local_to_surface = self
             .tree
             .local_to_surface_transform(figure)
-            .ok_or(AnimationError::DisposedTarget)?;
+            .map_err(AnimationError::Coordinate)?;
         let route = self
             .tree
-            .connection_route_points(figure)
+            .connection_route_points(figure)?
             .ok_or(AnimationError::UnsupportedRoutePresentation)?;
         let points: Vec<_> = route
             .iter()
@@ -1950,7 +1937,7 @@ impl AnimationMut<'_> {
             return Err(AnimationError::InvalidValue);
         }
         if let Some((decoration, _)) = pulse.handoff
-            && !self.tree.is_attached(decoration)
+            && !self.tree.is_attached(decoration)?
         {
             return Err(AnimationError::DisposedTarget);
         }
@@ -2072,10 +2059,7 @@ impl AnimationMut<'_> {
             if !seen.insert(figure) {
                 return Err(AnimationError::DuplicateTarget);
             }
-            let bounds_value = self
-                .tree
-                .figure_bounds(figure)
-                .ok_or(AnimationError::DisposedTarget)?;
+            let bounds_value = self.tree.figure_bounds(figure)?;
             bounds.push((figure, bounds_value));
         }
         if bounds.is_empty() {
@@ -2109,10 +2093,7 @@ impl AnimationMut<'_> {
 
         let mut targets = Vec::new();
         for (figure, before) in capture.bounds {
-            let after = self
-                .tree
-                .figure_bounds(figure)
-                .ok_or(AnimationError::DisposedTarget)?;
+            let after = self.tree.figure_bounds(figure)?;
             if before == after {
                 continue;
             }

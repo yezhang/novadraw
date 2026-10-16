@@ -180,7 +180,7 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
         GraphicalViewer::new(model, BadgeFactory, Rectangle::new(0.0, 0.0, 320.0, 200.0)).unwrap();
     let part = viewer.part_for_model(ModelId).unwrap();
     let badge = viewer.parts().get(part).unwrap().visuals()[1];
-    assert_eq!(viewer.runtime().tree().component_revision(badge), Some(1));
+    assert_eq!(viewer.runtime().tree().component_revision(badge), Ok(1));
 
     assert!(
         viewer
@@ -188,7 +188,7 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
             .unwrap()
     );
 
-    assert_eq!(viewer.runtime().tree().component_revision(badge), Some(2));
+    assert_eq!(viewer.runtime().tree().component_revision(badge), Ok(2));
     let snapshot = viewer
         .update_visual_component(badge, ProbeBadge)
         .unwrap_err();

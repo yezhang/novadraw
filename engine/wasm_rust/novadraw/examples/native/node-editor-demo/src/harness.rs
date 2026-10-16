@@ -487,11 +487,13 @@ impl EditorHarness {
     pub(crate) fn handle_centers_in_surface(&self) -> Vec<Point> {
         self.handles
             .iter()
-            .filter_map(|figure| {
+            .map(|figure| {
                 let tree = self.viewer.runtime().tree();
-                let bounds = tree.figure_bounds(*figure)?;
-                let transform = tree.local_to_surface_transform(*figure)?;
-                Some(transform.transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0)))
+                let bounds = tree.figure_bounds(*figure).expect("live handle");
+                let transform = tree
+                    .local_to_surface_transform(*figure)
+                    .expect("valid handle transform");
+                transform.transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0))
             })
             .collect()
     }
@@ -546,9 +548,9 @@ impl EditorHarness {
     pub(crate) fn scaled_feedback_point_lists(&self) -> Vec<Vec<Point>> {
         let tree = self.viewer.runtime().tree();
         tree.child_order(self.viewer.root_layers().scaled_feedback())
-            .unwrap_or_default()
+            .expect("live feedback layer")
             .into_iter()
-            .filter_map(|figure| tree.point_list_points(figure))
+            .filter_map(|figure| tree.point_list_points(figure).expect("live feedback child"))
             .collect()
     }
 

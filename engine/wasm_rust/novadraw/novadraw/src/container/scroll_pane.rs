@@ -136,7 +136,7 @@ impl ScrollPaneHandle {
         horizontal: ScrollBarVisibility,
         vertical: ScrollBarVisibility,
     ) -> Result<bool, ScrollPaneError> {
-        if graph.node(self.pane_id).is_none() {
+        if !graph.contains(self.pane_id) {
             return Err(ScrollPaneError::MissingPane);
         }
         let changed = {
@@ -621,9 +621,9 @@ impl LayoutManager for ScrollPaneLayout {
         _container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         let viewport_size = snapshot
-            .preferred_measurement(self.viewport, constraints)
+            .preferred_measurement(self.viewport, constraints)?
             .size();
         let runtime = lock_unpoisoned(&self.runtime);
         let width = viewport_size.width
@@ -638,7 +638,7 @@ impl LayoutManager for ScrollPaneLayout {
             } else {
                 runtime.scroll_bar_thickness
             };
-        FigureMeasurement::new(width, height, None)
+        Ok(FigureMeasurement::new(width, height, None))
     }
 
     fn minimum_size(
@@ -646,8 +646,8 @@ impl LayoutManager for ScrollPaneLayout {
         _container: FigureId,
         _constraints: MeasureConstraints,
         _snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
-        Dimension::ZERO
+    ) -> Result<Dimension, LayoutError> {
+        Ok(Dimension::ZERO)
     }
 
     fn layout(
@@ -656,13 +656,13 @@ impl LayoutManager for ScrollPaneLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let area = snapshot.container_bounds(container);
+        let area = snapshot.container_bounds(container)?;
         let preferred = snapshot
             .preferred_measurement(
                 self.viewport,
                 MeasureConstraints::bounded(area.width, area.height)
                     .expect("scroll pane client area is valid layout geometry"),
-            )
+            )?
             .size();
         let (h_policy, v_policy, thickness) = {
             let runtime = lock_unpoisoned(&self.runtime);

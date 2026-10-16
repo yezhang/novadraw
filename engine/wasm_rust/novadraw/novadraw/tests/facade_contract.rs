@@ -24,7 +24,7 @@ fn explicit_domain_imports_support_a_backend_neutral_scene() {
 
     assert_eq!(
         runtime.tree().figure_bounds(root),
-        Some(Rectangle::new(0.0, 0.0, 320.0, 240.0))
+        Ok(Rectangle::new(0.0, 0.0, 320.0, 240.0))
     );
 }
 

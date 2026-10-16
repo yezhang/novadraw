@@ -77,7 +77,7 @@ fn captured_bounds_transition_keeps_committed_geometry_final() {
 
     assert_eq!(
         runtime.tree().figure_bounds(figure),
-        Some(Rectangle::new(50.0, 60.0, 40.0, 20.0))
+        Ok(Rectangle::new(50.0, 60.0, 40.0, 20.0))
     );
     assert!(contains_transform(
         &mut runtime,
@@ -180,7 +180,8 @@ fn capture_rejects_empty_duplicate_foreign_and_disposed_targets() {
             disposed_capture,
             BoundsTransition::new(Duration::from_millis(100))
         ),
-        Err(AnimationError::DisposedTarget)
+        Err(AnimationError::Identity(novadraw::tree::TreeQueryError::UnknownFigure(id)))
+            if id == figure
     ));
 }
 
@@ -260,11 +261,11 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(first),
-        Some(Rectangle::new(40.0, 0.0, 10.0, 10.0))
+        Ok(Rectangle::new(40.0, 0.0, 10.0, 10.0))
     );
     assert_eq!(
         runtime.tree().figure_bounds(second),
-        Some(Rectangle::new(60.0, 0.0, 10.0, 10.0))
+        Ok(Rectangle::new(60.0, 0.0, 10.0, 10.0))
     );
 }
 
@@ -294,7 +295,7 @@ fn nonzero_to_zero_bounds_transition_is_rejected_without_active_work() {
     assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
     assert_eq!(
         runtime.tree().figure_bounds(figure),
-        Some(Rectangle::new(20.0, 0.0, 0.0, 10.0))
+        Ok(Rectangle::new(20.0, 0.0, 0.0, 10.0))
     );
 }
 
@@ -332,7 +333,7 @@ fn runtime_transaction_stabilizes_layout_before_installing_presentation() {
     assert!(matches!(start, AnimationStart::Running(_)));
     assert_eq!(
         runtime.tree().figure_bounds(child),
-        Some(Rectangle::new(0.0, 0.0, 200.0, 160.0))
+        Ok(Rectangle::new(0.0, 0.0, 200.0, 160.0))
     );
     assert!(contains_transform(
         &mut runtime,
@@ -372,7 +373,7 @@ fn runtime_transaction_reports_capture_and_mutation_phases() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(figure),
-        Some(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+        Ok(Rectangle::new(0.0, 0.0, 10.0, 10.0))
     );
     assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }
@@ -500,6 +501,7 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
         .tree()
         .connection_route_points(figure)
         .unwrap()
+        .unwrap()
         .clone();
 
     let (_, start) = runtime
@@ -518,6 +520,7 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
     let committed = runtime
         .tree()
         .connection_route_points(figure)
+        .unwrap()
         .unwrap()
         .clone();
     assert_ne!(before, committed);
@@ -538,7 +541,7 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
     );
     assert_eq!(
         runtime.tree().connection_route_points(figure),
-        Some(&committed)
+        Ok(Some(&committed))
     );
 }
 
@@ -572,6 +575,7 @@ fn incompatible_connection_route_crossfades_and_retires_old_visual() {
             .tree()
             .connection_route_points(figure)
             .unwrap()
+            .unwrap()
             .len(),
         3
     );
@@ -583,6 +587,7 @@ fn incompatible_connection_route_crossfades_and_retires_old_visual() {
         runtime
             .tree()
             .connection_route_points(figure)
+            .unwrap()
             .unwrap()
             .len(),
         3

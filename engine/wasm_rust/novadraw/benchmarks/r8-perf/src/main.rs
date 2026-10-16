@@ -493,7 +493,10 @@ fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
             tree.builder()
                 .validate_subtree(*root)
                 .expect("validate deep tree");
-            ScenarioOutput::one("validated_leaf", usize::from(tree.is_valid(*leaf)))
+            ScenarioOutput::one(
+                "validated_leaf",
+                usize::from(tree.is_valid(*leaf).expect("live leaf")),
+            )
         },
         "Invalidates the deepest leaf and validates the complete path.",
     )

@@ -19,7 +19,7 @@ let runtime = Runtime::new(tree);
 
 assert_eq!(
     runtime.tree().figure_bounds(root),
-    Some(Rectangle::new(0.0, 0.0, 640.0, 480.0)),
+    Ok(Rectangle::new(0.0, 0.0, 640.0, 480.0)),
 );
 ```
 

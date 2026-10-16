@@ -85,22 +85,22 @@ impl ToolbarLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
-        let children = snapshot.children(container);
+    ) -> Result<Dimension, LayoutError> {
+        let children = snapshot.children(container)?;
         let mut main = 0.0_f64;
         let mut minor = 0.0_f64;
         for (child, _) in &children {
             let size = if minimum {
-                snapshot.minimum_size(*child, constraints)
+                snapshot.minimum_size(*child, constraints)?
             } else {
-                snapshot.preferred_measurement(*child, constraints).size()
+                snapshot.preferred_measurement(*child, constraints)?.size()
             };
             let size = self.oriented_size(size.into());
             main += size.0;
             minor = minor.max(size.1);
         }
         main += self.spacing * children.len().saturating_sub(1) as f64;
-        self.physical_size(main, minor).into()
+        Ok(self.physical_size(main, minor).into())
     }
 }
 
@@ -116,9 +116,9 @@ impl LayoutManager for ToolbarLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.aggregate_size(container, constraints, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.aggregate_size(container, constraints, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -126,7 +126,7 @@ impl LayoutManager for ToolbarLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.aggregate_size(container, constraints, snapshot, true)
     }
 
@@ -136,12 +136,12 @@ impl LayoutManager for ToolbarLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let children = snapshot.children(container);
+        let children = snapshot.children(container)?;
         if children.is_empty() {
             return Ok(());
         }
 
-        let client = snapshot.container_bounds(container);
+        let client = snapshot.container_bounds(container)?;
         let available = self.oriented_size((client.width, client.height));
         let origin = match self.orientation {
             ToolbarOrientation::Horizontal => (client.x, client.y),
@@ -155,7 +155,7 @@ impl LayoutManager for ToolbarLayout {
             preferred.push(
                 self.oriented_size(
                     snapshot
-                        .preferred_measurement(*child, MeasureConstraints::UNBOUNDED)
+                        .preferred_measurement(*child, MeasureConstraints::UNBOUNDED)?
                         .size()
                         .into(),
                 ),
@@ -163,11 +163,11 @@ impl LayoutManager for ToolbarLayout {
             minimum.push(
                 self.oriented_size(
                     snapshot
-                        .minimum_size(*child, MeasureConstraints::UNBOUNDED)
+                        .minimum_size(*child, MeasureConstraints::UNBOUNDED)?
                         .into(),
                 ),
             );
-            maximum.push(self.oriented_size(snapshot.maximum_size(*child).into()));
+            maximum.push(self.oriented_size(snapshot.maximum_size(*child)?.into()));
         }
 
         let spacing_total = self.spacing * children.len().saturating_sub(1) as f64;

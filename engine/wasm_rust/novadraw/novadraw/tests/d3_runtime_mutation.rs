@@ -73,7 +73,10 @@ fn runtime_replaces_layout_and_constraints_only_after_validation() {
         RuntimeMutationError::Layout(LayoutError::ConstraintTypeMismatch { .. })
     ));
     assert_eq!(
-        runtime.tree().layout_constraint::<XYConstraint>(child),
+        runtime
+            .tree()
+            .layout_constraint::<XYConstraint>(child)
+            .unwrap(),
         Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
     );
 
@@ -154,17 +157,17 @@ fn runtime_size_overrides_are_checked_and_clearable() {
             .tree()
             .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(50.0, 60.0))
+        Ok(Dimension::new(50.0, 60.0))
     );
     assert_eq!(
         runtime
             .tree()
             .minimum_size(child, MeasureConstraints::UNBOUNDED),
-        Some(Dimension::new(20.0, 30.0))
+        Ok(Dimension::new(20.0, 30.0))
     );
     assert_eq!(
         runtime.tree().maximum_size(child),
-        Some(Dimension::new(100.0, 120.0))
+        Ok(Dimension::new(100.0, 120.0))
     );
 
     let invalid = runtime
@@ -181,7 +184,7 @@ fn runtime_size_overrides_are_checked_and_clearable() {
             .tree()
             .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(50.0, 60.0))
+        Ok(Dimension::new(50.0, 60.0))
     );
 
     assert!(
@@ -198,17 +201,17 @@ fn runtime_size_overrides_are_checked_and_clearable() {
             .tree()
             .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(30.0, 40.0))
+        Ok(Dimension::new(30.0, 40.0))
     );
     assert_eq!(
         runtime
             .tree()
             .minimum_size(child, MeasureConstraints::UNBOUNDED),
-        Some(Dimension::new(30.0, 40.0))
+        Ok(Dimension::new(30.0, 40.0))
     );
     assert_eq!(
         runtime.tree().maximum_size(child),
-        Some(Dimension::new(f64::INFINITY, f64::INFINITY))
+        Ok(Dimension::new(f64::INFINITY, f64::INFINITY))
     );
 }
 
@@ -236,7 +239,7 @@ fn runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures() 
     assert_eq!(figure, root);
     assert_eq!((bounds.x, bounds.y, bounds.height), (0.0, 0.0, 10.0));
     assert!(bounds.width.is_nan());
-    assert_eq!(runtime.tree().figure_bounds(root), Some(original));
+    assert_eq!(runtime.tree().figure_bounds(root), Ok(original));
 }
 
 #[test]
@@ -291,7 +294,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
             .bring_child_to_front(bottom)
             .unwrap()
     );
-    assert_eq!(runtime.tree().child_order(root), Some(vec![top, bottom]));
+    assert_eq!(runtime.tree().child_order(root), Ok(vec![top, bottom]));
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(bottom));
     assert!(
         !runtime
@@ -334,7 +337,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
             .set_child_order(&[bottom, top])
             .unwrap()
     );
-    assert_eq!(runtime.tree().child_order(root), Some(vec![bottom, top]));
+    assert_eq!(runtime.tree().child_order(root), Ok(vec![bottom, top]));
     assert!(
         runtime
             .figure(root)
@@ -411,7 +414,7 @@ fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage()
     );
     assert_eq!(
         runtime.tree().child_clipping_strategy(root),
-        Some(ChildClippingStrategy::OverflowVisible)
+        Ok(ChildClippingStrategy::OverflowVisible)
     );
     assert_eq!(
         runtime
@@ -546,13 +549,13 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
             .tree()
             .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(60.0, 70.0))
+        Ok(Dimension::new(60.0, 70.0))
     );
     assert_eq!(
         runtime
             .tree()
             .minimum_size(child, MeasureConstraints::UNBOUNDED),
-        Some(Dimension::new(20.0, 30.0))
+        Ok(Dimension::new(20.0, 30.0))
     );
     assert_eq!(
         runtime.take_deferred_mutation_errors(),

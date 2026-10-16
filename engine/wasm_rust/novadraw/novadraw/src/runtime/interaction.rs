@@ -224,9 +224,9 @@ impl InteractionState {
 
     pub(crate) fn reconcile_non_focus(&mut self, tree: &FigureTree) {
         self.retain_non_focus_figures(|id| {
-            tree.is_attached(id)
-                && tree.is_effectively_visible(id)
-                && tree.is_effectively_enabled(id)
+            tree.is_attached(id) == Ok(true)
+                && tree.is_effectively_visible(id) == Ok(true)
+                && tree.is_effectively_enabled(id) == Ok(true)
         });
     }
 

@@ -128,22 +128,20 @@ impl BorderLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         let mut north = (0.0_f64, 0.0_f64);
         let mut south = (0.0_f64, 0.0_f64);
         let mut east = (0.0_f64, 0.0_f64);
         let mut west = (0.0_f64, 0.0_f64);
         let mut center = (0.0_f64, 0.0_f64);
 
-        for (child, _) in snapshot.children(container) {
+        for (child, _) in snapshot.children(container)? {
             let intrinsic = if minimum {
-                snapshot.minimum_size(child, constraints)
+                snapshot.minimum_size(child, constraints)?
             } else {
-                snapshot.preferred_measurement(child, constraints).size()
+                snapshot.preferred_measurement(child, constraints)?.size()
             };
-            let (region, requested) = border_constraint(snapshot, container, child)
-                .ok()
-                .flatten()
+            let (region, requested) = border_constraint(snapshot, container, child)?
                 .unwrap_or((BorderRegion::Center, None));
             let size = match region {
                 BorderRegion::North | BorderRegion::South => {
@@ -165,10 +163,10 @@ impl BorderLayout {
 
         let middle_width = west.0 + center.0 + east.0;
         let middle_height = west.1.max(center.1).max(east.1);
-        Dimension::new(
+        Ok(Dimension::new(
             north.0.max(south.0).max(middle_width),
             north.1 + middle_height + south.1,
-        )
+        ))
     }
 }
 
@@ -217,9 +215,9 @@ impl LayoutManager for BorderLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.measure(container, constraints, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.measure(container, constraints, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -227,7 +225,7 @@ impl LayoutManager for BorderLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.measure(container, constraints, snapshot, true)
     }
 
@@ -237,13 +235,13 @@ impl LayoutManager for BorderLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let children = snapshot.children(container);
+        let children = snapshot.children(container)?;
         if children.is_empty() {
             return Ok(());
         }
 
         // 获取容器的 bounds
-        let container_bounds = snapshot.container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container)?;
         let cx = container_bounds.x;
         let cy = container_bounds.y;
         let cw = container_bounds.width;
@@ -257,7 +255,7 @@ impl LayoutManager for BorderLayout {
             .expect("container bounds are valid layout geometry");
         for (child_id, _) in &children {
             let preferred = snapshot
-                .preferred_measurement(*child_id, constraints)
+                .preferred_measurement(*child_id, constraints)?
                 .size();
             if let Some((region, requested)) = border_constraint(snapshot, container, *child_id)? {
                 match region {
@@ -329,7 +327,7 @@ impl LayoutManager for BorderLayout {
         }
 
         for (child_id, _) in &children {
-            if snapshot.constraint(*child_id).is_none()
+            if snapshot.constraint(*child_id)?.is_none()
                 && let Some(region) = remaining_regions.pop()
             {
                 let (x, y, w, h) = match region {
@@ -351,7 +349,7 @@ fn border_constraint(
     container: FigureId,
     child_id: FigureId,
 ) -> Result<Option<(BorderRegion, Option<f64>)>, LayoutError> {
-    let Some(constraint) = snapshot.constraint(child_id) else {
+    let Some(constraint) = snapshot.constraint(child_id)? else {
         return Ok(None);
     };
     if let Some(constraint) = constraint.as_any().downcast_ref::<BorderConstraint>() {
@@ -397,24 +395,30 @@ impl MockLayoutSceneRead {
 
 #[cfg(test)]
 impl super::LayoutSceneRead for MockLayoutSceneRead {
-    fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
-        self.children.clone()
+    fn get_children(
+        &self,
+        _parent_id: FigureId,
+    ) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
+        Ok(self.children.clone())
     }
 
-    fn get_constraint(&self, _child_id: FigureId) -> Option<&dyn super::LayoutConstraint> {
-        None
+    fn get_constraint(
+        &self,
+        _child_id: FigureId,
+    ) -> Result<Option<&dyn super::LayoutConstraint>, LayoutError> {
+        Ok(None)
     }
 
     fn preferred_measurement(
         &self,
         _figure_id: FigureId,
         _constraints: MeasureConstraints,
-    ) -> FigureMeasurement {
-        FigureMeasurement::new(100.0, 100.0, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::new(100.0, 100.0, None))
     }
 
-    fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
-        self.container_bounds
+    fn get_container_bounds(&self, _container_id: FigureId) -> Result<Rectangle, LayoutError> {
+        Ok(self.container_bounds)
     }
 }
 
@@ -445,7 +449,7 @@ mod tests {
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
         );
-        assert_eq!(measured.size(), Dimension::ZERO);
+        assert_eq!(measured.unwrap().size(), Dimension::ZERO);
     }
 
     #[test]

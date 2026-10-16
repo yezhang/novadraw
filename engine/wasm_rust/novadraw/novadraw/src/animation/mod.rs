@@ -261,6 +261,10 @@ pub enum AnimationBudgetKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AnimationError {
+    /// A committed tree identity query failed.
+    Identity(crate::tree::TreeQueryError),
+    /// A transition coordinate query failed.
+    Coordinate(crate::tree::CoordinateQueryError),
     /// The owning Runtime crossed its panic boundary.
     RuntimeFaulted,
     /// A duration cannot be represented by the Runtime microsecond clock.
@@ -393,6 +397,8 @@ impl fmt::Display for AnimationError {
                 formatter.write_str("animation transition capture belongs to another Runtime")
             }
             Self::DisposedTarget => formatter.write_str("animation target is disposed"),
+            Self::Coordinate(error) => error.fmt(formatter),
+            Self::Identity(error) => error.fmt(formatter),
             Self::UnsupportedInteractionGeometry => {
                 formatter.write_str("animation interaction geometry policy is unsupported")
             }
@@ -448,7 +454,21 @@ impl fmt::Display for AnimationError {
     }
 }
 
-impl std::error::Error for AnimationError {}
+impl std::error::Error for AnimationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Coordinate(error) => Some(error),
+            Self::Identity(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl From<crate::tree::TreeQueryError> for AnimationError {
+    fn from(error: crate::tree::TreeQueryError) -> Self {
+        Self::Identity(error)
+    }
+}
 
 /// Failure phase for one Runtime-orchestrated bounds transition transaction.
 #[derive(Debug, PartialEq)]

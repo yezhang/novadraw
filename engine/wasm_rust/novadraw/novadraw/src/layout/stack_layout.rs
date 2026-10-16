@@ -18,20 +18,17 @@ impl StackLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
-        snapshot
-            .children(container)
-            .into_iter()
-            .map(|(child, _)| {
-                if minimum {
-                    snapshot.minimum_size(child, constraints)
-                } else {
-                    snapshot.preferred_measurement(child, constraints).size()
-                }
-            })
-            .fold(Dimension::ZERO, |size, child| {
-                Dimension::new(size.width.max(child.width), size.height.max(child.height))
-            })
+    ) -> Result<Dimension, LayoutError> {
+        let mut size = Dimension::ZERO;
+        for (child, _) in snapshot.children(container)? {
+            let child = if minimum {
+                snapshot.minimum_size(child, constraints)?
+            } else {
+                snapshot.preferred_measurement(child, constraints)?.size()
+            };
+            size = Dimension::new(size.width.max(child.width), size.height.max(child.height));
+        }
+        Ok(size)
     }
 }
 
@@ -41,9 +38,9 @@ impl LayoutManager for StackLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.aggregate_size(container, constraints, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.aggregate_size(container, constraints, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -51,7 +48,7 @@ impl LayoutManager for StackLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.aggregate_size(container, constraints, snapshot, true)
     }
 
@@ -61,8 +58,8 @@ impl LayoutManager for StackLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let client_area = snapshot.container_bounds(container);
-        for (child, _) in snapshot.children(container) {
+        let client_area = snapshot.container_bounds(container)?;
+        for (child, _) in snapshot.children(container)? {
             out.set_child_bounds(child, client_area);
         }
         Ok(())

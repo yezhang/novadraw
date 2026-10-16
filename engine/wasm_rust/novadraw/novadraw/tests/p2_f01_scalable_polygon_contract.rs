@@ -187,7 +187,7 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     );
     assert_eq!(
         runtime.tree().figure_bounds(polygon),
-        Some(Rectangle::new(20.0, 20.0, 200.0, 100.0))
+        Ok(Rectangle::new(20.0, 20.0, 200.0, 100.0))
     );
 
     let stable_frame = record_full_submission(&mut runtime);

@@ -71,19 +71,21 @@ impl FlowLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         let sizes = snapshot
-            .children(container)
+            .children(container)?
             .into_iter()
             .map(|(child, _)| {
                 if minimum {
                     snapshot.minimum_size(child, constraints)
                 } else {
-                    snapshot.preferred_measurement(child, constraints).size()
+                    snapshot
+                        .preferred_measurement(child, constraints)
+                        .map(|measurement| measurement.size())
                 }
             })
-            .collect::<Vec<_>>();
-        match self.direction {
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(match self.direction {
             FlowDirection::Horizontal => measure_wrapped(
                 &sizes,
                 constraints.max_width(),
@@ -103,7 +105,7 @@ impl FlowLayout {
                 );
                 Dimension::new(measured.height, measured.width)
             }
-        }
+        })
     }
 
     /// 布局计算（内部方法）
@@ -112,22 +114,23 @@ impl FlowLayout {
         container: FigureId,
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
-    ) {
-        let children = snapshot.children(container);
+    ) -> Result<(), LayoutError> {
+        let children = snapshot.children(container)?;
         if children.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let container_bounds = snapshot.container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container)?;
 
         match self.direction {
             FlowDirection::Horizontal => {
-                self.layout_horizontal(container_bounds, &children, snapshot, out);
+                self.layout_horizontal(container_bounds, &children, snapshot, out)?;
             }
             FlowDirection::Vertical => {
-                self.layout_vertical(container_bounds, &children, snapshot, out);
+                self.layout_vertical(container_bounds, &children, snapshot, out)?;
             }
         }
+        Ok(())
     }
 
     fn layout_horizontal(
@@ -136,7 +139,7 @@ impl FlowLayout {
         children: &[(FigureId, Rectangle)],
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
-    ) {
+    ) -> Result<(), LayoutError> {
         let mut x: f64 = area.x;
         let mut y: f64 = area.y;
         let mut row_height: f64 = 0.0;
@@ -146,7 +149,7 @@ impl FlowLayout {
                 *child_id,
                 MeasureConstraints::width(area.width)
                     .expect("container width is valid layout geometry"),
-            );
+            )?;
             let (child_w, child_h) = (measured.width, measured.height);
 
             // 检查是否需要换行
@@ -165,6 +168,7 @@ impl FlowLayout {
             x += child_w + self.spacing;
             row_height = row_height.max(child_h);
         }
+        Ok(())
     }
 
     fn layout_vertical(
@@ -173,7 +177,7 @@ impl FlowLayout {
         children: &[(FigureId, Rectangle)],
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
-    ) {
+    ) -> Result<(), LayoutError> {
         let mut x: f64 = area.x;
         let mut y: f64 = area.y;
         let mut col_width: f64 = 0.0;
@@ -183,7 +187,7 @@ impl FlowLayout {
                 *child_id,
                 MeasureConstraints::height(area.height)
                     .expect("container height is valid layout geometry"),
-            );
+            )?;
             let (child_w, child_h) = (measured.width, measured.height);
 
             // 检查是否需要换列
@@ -202,6 +206,7 @@ impl FlowLayout {
             y += child_h + self.spacing;
             col_width = col_width.max(child_w);
         }
+        Ok(())
     }
 }
 
@@ -217,9 +222,9 @@ impl LayoutManager for FlowLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> FigureMeasurement {
-        let size = self.measure(container, constraints, snapshot, false);
-        FigureMeasurement::new(size.width, size.height, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let size = self.measure(container, constraints, snapshot, false)?;
+        Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
     fn minimum_size(
@@ -227,7 +232,7 @@ impl LayoutManager for FlowLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-    ) -> Dimension {
+    ) -> Result<Dimension, LayoutError> {
         self.measure(container, constraints, snapshot, true)
     }
 
@@ -237,8 +242,7 @@ impl LayoutManager for FlowLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        self.perform_layout(container, snapshot, out);
-        Ok(())
+        self.perform_layout(container, snapshot, out)
     }
 }
 
@@ -298,24 +302,30 @@ impl MockLayoutSceneRead {
 
 #[cfg(test)]
 impl super::LayoutSceneRead for MockLayoutSceneRead {
-    fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
-        self.children.clone()
+    fn get_children(
+        &self,
+        _parent_id: FigureId,
+    ) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
+        Ok(self.children.clone())
     }
 
-    fn get_constraint(&self, _child_id: FigureId) -> Option<&dyn super::LayoutConstraint> {
-        None
+    fn get_constraint(
+        &self,
+        _child_id: FigureId,
+    ) -> Result<Option<&dyn super::LayoutConstraint>, LayoutError> {
+        Ok(None)
     }
 
     fn preferred_measurement(
         &self,
         _figure_id: FigureId,
         _constraints: MeasureConstraints,
-    ) -> FigureMeasurement {
-        FigureMeasurement::new(100.0, 100.0, None)
+    ) -> Result<FigureMeasurement, LayoutError> {
+        Ok(FigureMeasurement::new(100.0, 100.0, None))
     }
 
-    fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
-        self.container_bounds
+    fn get_container_bounds(&self, _container_id: FigureId) -> Result<Rectangle, LayoutError> {
+        Ok(self.container_bounds)
     }
 }
 
@@ -331,7 +341,7 @@ mod tests {
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
         );
-        assert_eq!(measured.size(), Dimension::ZERO);
+        assert_eq!(measured.unwrap().size(), Dimension::ZERO);
     }
 
     #[test]

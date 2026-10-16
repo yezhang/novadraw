@@ -325,7 +325,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
         .unwrap()[0];
     assert_eq!(
         viewer.runtime().tree().figure_style(text_feedback),
-        Some(&FigureStyle {
+        Ok(&FigureStyle {
             foreground: Some(Color::WHITE),
             font: Some("16px Inter Variable".to_owned()),
             ..FigureStyle::default()
@@ -344,7 +344,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     assert_eq!(caret_visual.y, caret.y);
     assert_eq!(caret_visual.height, caret.height);
     assert!(caret_visual.width >= 1.0);
-    assert!(viewer.runtime().tree().is_visible(caret_figure));
+    assert!(viewer.runtime().tree().is_visible(caret_figure).unwrap());
     let frame = prepare_next_submission(&mut viewer).unwrap();
     assert!(frame.commands.iter().any(|command| matches!(
         command.kind,
@@ -355,10 +355,10 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     )));
     let blink_off_at = viewer.drive().next_wake_deadline().unwrap();
     assert!(viewer.drive().advance_time(blink_off_at).unwrap());
-    assert!(!viewer.runtime().tree().is_visible(caret_figure));
+    assert!(!viewer.runtime().tree().is_visible(caret_figure).unwrap());
     let blink_on_at = viewer.drive().next_wake_deadline().unwrap();
     assert!(viewer.drive().advance_time(blink_on_at).unwrap());
-    assert!(viewer.runtime().tree().is_visible(caret_figure));
+    assert!(viewer.runtime().tree().is_visible(caret_figure).unwrap());
     domain.insert_direct_text(&mut viewer, " beta").unwrap();
 
     assert_eq!(viewer.model().text, "alpha");
@@ -527,10 +527,13 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
         .child_order(viewer.root_layers().scaled_feedback())
         .unwrap()[0];
     assert_ne!(new_feedback, old_feedback);
-    assert!(!viewer.runtime().tree().is_attached(old_feedback));
+    assert_eq!(
+        viewer.runtime().tree().is_attached(old_feedback),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(old_feedback))
+    );
     assert_eq!(
         viewer.runtime().tree().figure_bounds(new_feedback),
-        Some(new_bounds)
+        Ok(new_bounds)
     );
     let caret = viewer.direct_text_caret_geometry().unwrap().bounds();
     assert!(caret.x >= new_bounds.x);

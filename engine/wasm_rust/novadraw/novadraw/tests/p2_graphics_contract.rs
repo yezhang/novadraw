@@ -781,7 +781,7 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
     prepare_next_submission(&mut runtime).unwrap();
     let small = Rectangle::new(38.0, 58.0, 124.0, 6.0);
     let large = Rectangle::new(28.0, 48.0, 144.0, 26.0);
-    assert_eq!(runtime.tree().figure_bounds(line), Some(small));
+    assert_eq!(runtime.tree().figure_bounds(line), Ok(small));
 
     for (miter, expected) in [(12.0, large), (2.0, small)] {
         assert!(
@@ -792,13 +792,20 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
                 .map(|receipt| receipt.changed)
                 .unwrap()
         );
-        assert_eq!(runtime.tree().figure_bounds(line), Some(expected));
-        assert_eq!(runtime.tree().point_list_points(line).unwrap(), points);
+        assert_eq!(runtime.tree().figure_bounds(line), Ok(expected));
+        assert_eq!(
+            runtime.tree().point_list_points(line).unwrap().unwrap(),
+            points
+        );
         let submission = prepare_next_submission(&mut runtime).unwrap();
         assert_eq!(submission.damage.union(), Some(large));
     }
     assert!(prepare_next_submission(&mut runtime).is_none());
-    let original = runtime.tree().point_list_stroke_style(line).unwrap();
+    let original = runtime
+        .tree()
+        .point_list_stroke_style(line)
+        .unwrap()
+        .unwrap();
     assert_eq!(
         runtime
             .figure(line)
@@ -809,10 +816,14 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
         ))
     );
     assert_eq!(
-        runtime.tree().point_list_stroke_style(line).unwrap(),
+        runtime
+            .tree()
+            .point_list_stroke_style(line)
+            .unwrap()
+            .unwrap(),
         original
     );
-    assert_eq!(runtime.tree().figure_bounds(line), Some(small));
+    assert_eq!(runtime.tree().figure_bounds(line), Ok(small));
     assert!(prepare_next_submission(&mut runtime).is_none());
     assert!(
         !runtime
@@ -857,11 +868,11 @@ fn runtime_dash_changes_repaint_without_moving_geometry() {
     );
     assert_eq!(runtime.tree().figure_bounds(line), bounds);
     assert_eq!(
-        runtime.tree().point_list_points(line).unwrap(),
+        runtime.tree().point_list_points(line).unwrap().unwrap(),
         vec![Point::new(40.0, 60.0), Point::new(160.0, 62.0)]
     );
     let submission = prepare_next_submission(&mut runtime).unwrap();
-    assert_eq!(submission.damage.union(), bounds);
+    assert_eq!(submission.damage.union(), Some(bounds.unwrap()));
     assert!(submission.commands.iter().any(|command|
         matches!(&command.kind, RenderCommandKind::StrokePath { stroke, .. } if stroke == &style)));
 }

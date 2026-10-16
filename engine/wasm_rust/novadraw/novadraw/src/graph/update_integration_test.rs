@@ -93,16 +93,16 @@ fn test_effective_visibility_follows_parent_chain() {
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
-    assert!(scene.is_visible(child_id));
-    assert!(scene.is_effectively_visible(child_id));
+    assert!(scene.is_visible(child_id).unwrap());
+    assert!(scene.is_effectively_visible(child_id).unwrap());
 
     assert!(scene.set_visible(parent_id, false));
-    assert!(scene.is_visible(child_id));
-    assert!(!scene.is_effectively_visible(child_id));
+    assert!(scene.is_visible(child_id).unwrap());
+    assert!(!scene.is_effectively_visible(child_id).unwrap());
     assert!(!scene.set_visible(parent_id, false));
 
     assert!(scene.set_visible(parent_id, true));
-    assert!(scene.is_effectively_visible(child_id));
+    assert!(scene.is_effectively_visible(child_id).unwrap());
 }
 
 #[test]
@@ -114,16 +114,16 @@ fn test_effective_enabled_follows_parent_chain() {
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
-    assert!(scene.is_enabled(child_id));
-    assert!(scene.is_effectively_enabled(child_id));
+    assert!(scene.is_enabled(child_id).unwrap());
+    assert!(scene.is_effectively_enabled(child_id).unwrap());
 
     assert!(scene.set_enabled(parent_id, false));
-    assert!(scene.is_enabled(child_id));
-    assert!(!scene.is_effectively_enabled(child_id));
+    assert!(scene.is_enabled(child_id).unwrap());
+    assert!(!scene.is_effectively_enabled(child_id).unwrap());
     assert!(!scene.set_enabled(parent_id, false));
 
     assert!(scene.set_enabled(parent_id, true));
-    assert!(scene.is_effectively_enabled(child_id));
+    assert!(scene.is_effectively_enabled(child_id).unwrap());
 }
 
 #[test]
@@ -189,13 +189,13 @@ fn test_showing_hidden_subtree_requeues_deferred_validation() {
     scene.set_visible(parent_id, false);
     scene.mark_invalid(&mut update_manager, child_id);
     scene.perform_update(&mut update_manager);
-    assert!(!scene.is_valid(child_id));
+    assert!(!scene.is_valid(child_id).unwrap());
 
     assert!(scene.set_visible_with_update(&mut update_manager, parent_id, true));
     scene.perform_update(&mut update_manager);
 
-    assert!(scene.is_valid(parent_id));
-    assert!(scene.is_valid(child_id));
+    assert!(scene.is_valid(parent_id).unwrap());
+    assert!(scene.is_valid(child_id).unwrap());
     assert!(!update_manager.is_update_queued());
 }
 
@@ -210,13 +210,13 @@ fn enabling_disabled_subtree_starts_a_new_validation_transaction() {
     scene.set_enabled(parent_id, false);
     scene.mark_invalid(&mut update_manager, child_id);
     scene.perform_update(&mut update_manager);
-    assert!(scene.is_valid(child_id));
+    assert!(scene.is_valid(child_id).unwrap());
 
     assert!(scene.set_enabled_with_update(&mut update_manager, parent_id, true));
     scene.perform_update(&mut update_manager);
 
-    assert!(scene.is_valid(parent_id));
-    assert!(scene.is_valid(child_id));
+    assert!(scene.is_valid(parent_id).unwrap());
+    assert!(scene.is_valid(child_id).unwrap());
     assert!(!update_manager.is_update_queued());
 }
 
@@ -461,9 +461,11 @@ fn test_layout_constraint_is_owned_by_parent_and_typed() {
     );
     assert_eq!(
         scene.layout_constraint::<XYConstraint>(child),
-        Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
+        Ok(Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)))
     );
-    assert!(scene.layout_constraint::<BorderConstraint>(child).is_none());
+    assert!(
+        matches!(scene.layout_constraint::<BorderConstraint>(child), Err(crate::layout::LayoutError::ConstraintTypeMismatch { container, child: actual, .. }) if container == parent && actual == child)
+    );
 }
 
 #[test]
@@ -492,7 +494,12 @@ fn test_reparent_removes_constraint_owned_by_old_parent() {
     );
 
     assert!(changed);
-    assert!(scene.layout_constraint::<BorderConstraint>(child).is_none());
+    assert!(
+        scene
+            .layout_constraint::<BorderConstraint>(child)
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -565,11 +572,11 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
 
     assert_eq!(
         scene.figure_bounds(child),
-        Some(Rectangle::new(30.0, 40.0, 50.0, 60.0))
+        Ok(Rectangle::new(30.0, 40.0, 50.0, 60.0))
     );
-    assert!(scene.is_valid(root));
-    assert!(scene.is_valid(container));
-    assert!(scene.is_valid(child));
+    assert!(scene.is_valid(root).unwrap());
+    assert!(scene.is_valid(container).unwrap());
+    assert!(scene.is_valid(child).unwrap());
     assert_eq!(
         canvas.damage().union(),
         Some(Rectangle::new(60.0, 70.0, 70.0, 80.0))
@@ -585,11 +592,11 @@ fn test_explicit_size_overrides_take_precedence() {
         scene
             .preferred_measurement(block, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(30.0, 40.0))
+        Ok(Dimension::new(30.0, 40.0))
     );
     assert_eq!(
         scene.minimum_size(block, MeasureConstraints::UNBOUNDED),
-        Some(Dimension::new(30.0, 40.0))
+        Ok(Dimension::new(30.0, 40.0))
     );
     let maximum = scene.maximum_size(block).expect("default maximum size");
     assert!(maximum.width > 30.0);
@@ -602,16 +609,13 @@ fn test_explicit_size_overrides_take_precedence() {
         scene
             .preferred_measurement(block, MeasureConstraints::UNBOUNDED)
             .map(|measurement| measurement.size()),
-        Some(Dimension::new(50.0, 60.0))
+        Ok(Dimension::new(50.0, 60.0))
     );
     assert_eq!(
         scene.minimum_size(block, MeasureConstraints::UNBOUNDED),
-        Some(Dimension::new(10.0, 20.0))
+        Ok(Dimension::new(10.0, 20.0))
     );
-    assert_eq!(
-        scene.maximum_size(block),
-        Some(Dimension::new(100.0, 120.0))
-    );
+    assert_eq!(scene.maximum_size(block), Ok(Dimension::new(100.0, 120.0)));
 }
 
 #[test]
@@ -815,7 +819,7 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
         parent = scene
             .try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
             .expect("depth at the configured boundary must be accepted");
-        assert_eq!(scene.depth(parent), Some(expected_depth));
+        assert_eq!(scene.depth(parent), Ok(expected_depth));
     }
 
     let canvas = scene.render();
@@ -856,7 +860,7 @@ fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effe
             Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
         );
     }
-    assert_eq!(scene.depth(deep_parent), Some(MAX_TREE_DEPTH - 1));
+    assert_eq!(scene.depth(deep_parent), Ok(MAX_TREE_DEPTH - 1));
 
     let old_parent = scene.node(subtree).unwrap().parent;
     let old_subtree_depth = scene.depth(subtree);
@@ -1122,5 +1126,5 @@ fn pending_mutations_preserve_fifo_causality() {
     pending.enqueue(PendingMutation::remove_child(old_parent, child));
 
     assert!(scene.apply_pending_mutations(&mut update_manager, pending.drain()));
-    assert_eq!(scene.parent_id(child), Some(new_parent));
+    assert_eq!(scene.parent_id(child), Ok(Some(new_parent)));
 }

@@ -758,8 +758,8 @@ mod tests {
             _container: FigureId,
             _constraints: MeasureConstraints,
             _snapshot: &LayoutSceneQuery<'_>,
-        ) -> FigureMeasurement {
-            FigureMeasurement::default()
+        ) -> Result<FigureMeasurement, LayoutError> {
+            Ok(FigureMeasurement::default())
         }
 
         fn minimum_size(
@@ -767,9 +767,10 @@ mod tests {
             container: FigureId,
             constraints: MeasureConstraints,
             snapshot: &LayoutSceneQuery<'_>,
-        ) -> Dimension {
-            self.preferred_measurement(container, constraints, snapshot)
-                .size()
+        ) -> Result<Dimension, LayoutError> {
+            Ok(self
+                .preferred_measurement(container, constraints, snapshot)?
+                .size())
         }
 
         fn layout(
@@ -1131,12 +1132,12 @@ mod tests {
         let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
-        assert!(graph.is_valid(root_id));
+        assert!(graph.is_valid(root_id).unwrap());
 
         manager.add_invalid_figure(root_id);
         manager.perform_update(&mut graph, &mut NdCanvas::new());
 
-        assert!(graph.is_valid(root_id));
+        assert!(graph.is_valid(root_id).unwrap());
         assert!(!manager.is_update_queued());
     }
 
@@ -1164,7 +1165,7 @@ mod tests {
         assert!(manager.is_update_queued());
 
         manager.perform_update(&mut graph, &mut NdCanvas::new());
-        assert!(graph.is_valid(root_id));
+        assert!(graph.is_valid(root_id).unwrap());
         assert!(!manager.is_update_queued());
     }
 

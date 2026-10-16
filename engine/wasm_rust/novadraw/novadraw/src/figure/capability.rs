@@ -571,3 +571,28 @@ impl FigureCapabilitySet {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_descriptor_remains_a_type_error() {
+        // Typed registration cannot construct this mismatch. Exercise the
+        // defensive erased lookup internally without adding an injection API.
+        let set = FigureCapabilitySet {
+            entries: HashMap::from([(
+                TypeId::of::<ScaleCapability>(),
+                CapabilityEntry {
+                    name: SCALE.name,
+                    descriptor: Box::new(()),
+                },
+            )]),
+        };
+        assert!(matches!(
+            set.get(SCALE),
+            Err(CapabilityQueryError::DescriptorTypeMismatch { capability })
+                if capability == SCALE.name
+        ));
+    }
+}

@@ -41,7 +41,7 @@ impl FigureTree {
             });
             let old_visual = node.visual_bounds();
             let parent = node.parent;
-            let visible = self.is_effectively_visible(id);
+            let visible = self.is_effectively_visible(id).expect("prepared live node");
             if visible {
                 self.erase(updates, id, old_visual, parent);
             }
@@ -74,10 +74,11 @@ impl FigureTree {
         true
     }
 
-    pub fn child_clipping_strategy(&self, figure_id: FigureId) -> Option<ChildClippingStrategy> {
-        self.blocks
-            .get(figure_id)
-            .map(FigureNode::child_clipping_strategy)
+    pub fn child_clipping_strategy(
+        &self,
+        figure_id: FigureId,
+    ) -> Result<ChildClippingStrategy, TreeQueryError> {
+        Ok(self.node(figure_id)?.child_clipping_strategy())
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -173,7 +174,7 @@ impl FigureTree {
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
             if label.refresh_presentation(text, bounds)? {
-                if self.is_effectively_visible(id) {
+                if self.is_effectively_visible(id).expect("live label") {
                     self.erase(updates, id, old_visual, parent);
                 }
                 self.mark_freeform_ancestor_extents_dirty(id);
@@ -213,7 +214,7 @@ impl FigureTree {
                 .text_flow_mut()
                 .expect("TextFlow type checked before refresh");
             if flow.refresh_layout(text, &font, bounds)? {
-                if self.is_effectively_visible(id) {
+                if self.is_effectively_visible(id).expect("live text flow") {
                     self.erase(updates, id, old_visual, parent);
                 }
                 self.mark_freeform_ancestor_extents_dirty(id);
@@ -269,7 +270,7 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         id: FigureId,
     ) -> bool {
-        if !self.is_effectively_enabled(id) {
+        if self.is_effectively_enabled(id) != Ok(true) {
             return false;
         }
         let Some(clickable) = self.blocks.get_mut(id).and_then(FigureNode::clickable_mut) else {

@@ -78,14 +78,16 @@ impl TreeSearch for ExclusionSearch {
 }
 
 /// Failure to start a structural Figure tree query.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TreeQueryError {
+    ForeignFigure(FigureId),
     UnknownFigure(FigureId),
 }
 
 impl fmt::Display for TreeQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ForeignFigure(id) => write!(formatter, "foreign Figure ID: {id:?}"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
         }
     }
@@ -104,6 +106,16 @@ impl TreeSearch for MouseEventTargetSearch {
 }
 
 impl FigureTree {
+    pub(crate) fn validate_identity(&self, id: FigureId) -> Result<(), TreeQueryError> {
+        if id.namespace() != self.namespace() {
+            return Err(TreeQueryError::ForeignFigure(id));
+        }
+        if !self.blocks.contains_key(id) {
+            return Err(TreeQueryError::UnknownFigure(id));
+        }
+        Ok(())
+    }
+
     /// Returns the topmost deepest Figure at a logical surface point.
     pub fn hit_test(&self, point: (f64, f64)) -> Option<(FigureId, Vec<FigureId>)> {
         self.hit_test_with(point, &mut IdentitySearch)
@@ -140,8 +152,8 @@ impl FigureTree {
     }
 
     /// Returns ancestor IDs from the direct parent towards the public contents root.
-    pub fn ancestor_ids(&self, id: FigureId) -> Option<Vec<FigureId>> {
-        self.blocks.get(id)?;
+    pub fn ancestor_ids(&self, id: FigureId) -> Result<Vec<FigureId>, TreeQueryError> {
+        self.validate_identity(id)?;
         let mut ancestors = Vec::new();
         let mut current = self.blocks[id].parent;
         while let Some(parent) = current {
@@ -151,12 +163,12 @@ impl FigureTree {
             ancestors.push(parent);
             current = self.blocks.get(parent).and_then(|node| node.parent);
         }
-        Some(ancestors)
+        Ok(ancestors)
     }
 
     /// Returns descendants in stable pre-order, excluding the supplied root.
-    pub fn descendant_ids(&self, root: FigureId) -> Option<Vec<FigureId>> {
-        let root = self.blocks.get(root)?;
+    pub fn descendant_ids(&self, root: FigureId) -> Result<Vec<FigureId>, TreeQueryError> {
+        let root = self.node(root)?;
         let mut descendants = Vec::new();
         let mut stack: Vec<_> = root.children.iter().rev().copied().collect();
         while let Some(id) = stack.pop() {
@@ -167,22 +179,28 @@ impl FigureTree {
             descendants.push(id);
             stack.extend(node.children.iter().rev().copied());
         }
-        Some(descendants)
+        Ok(descendants)
     }
 
     /// Returns whether `ancestor` is a strict ancestor of `candidate`.
-    pub fn is_ancestor_of(&self, ancestor: FigureId, candidate: FigureId) -> bool {
-        if ancestor == candidate || !self.blocks.contains_key(ancestor) {
-            return false;
+    pub fn is_ancestor_of(
+        &self,
+        ancestor: FigureId,
+        candidate: FigureId,
+    ) -> Result<bool, TreeQueryError> {
+        self.validate_identity(ancestor)?;
+        self.validate_identity(candidate)?;
+        if ancestor == candidate {
+            return Ok(false);
         }
         let mut current = self.blocks.get(candidate).and_then(|node| node.parent);
         while let Some(id) = current {
             if id == ancestor {
-                return true;
+                return Ok(true);
             }
             current = self.blocks.get(id).and_then(|node| node.parent);
         }
-        false
+        Ok(false)
     }
 
     /// Finds the first accepted node in stable pre-order, including `root`.
@@ -191,9 +209,7 @@ impl FigureTree {
         root: FigureId,
         search: &mut dyn TreeSearch,
     ) -> Result<Option<FigureId>, TreeQueryError> {
-        if !self.blocks.contains_key(root) {
-            return Err(TreeQueryError::UnknownFigure(root));
-        }
+        self.validate_identity(root)?;
 
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
@@ -239,7 +255,8 @@ impl FigureTree {
         }
 
         let local_point = self
-            .parent_to_local_transform(id)?
+            .parent_to_local_transform(id)
+            .ok()??
             .transform_point(Point::new(point.0, point.1));
         let self_hit =
             node.figure
@@ -289,6 +306,7 @@ mod tests {
 
     use super::*;
     use crate::RectangleFigure;
+    use crate::identity::RuntimeHandle;
 
     #[derive(Default)]
     struct RecordingSearch {
@@ -355,12 +373,12 @@ mod tests {
         let nested = tree.add_child_to(first, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let second = tree.add_child_to(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
 
-        assert_eq!(tree.ancestor_ids(root), Some(Vec::new()));
-        assert_eq!(tree.ancestor_ids(nested), Some(vec![first, root]));
-        assert_eq!(tree.descendant_ids(root), Some(vec![first, nested, second]));
-        assert!(tree.is_ancestor_of(root, nested));
-        assert!(!tree.is_ancestor_of(nested, root));
-        assert!(!tree.is_ancestor_of(root, root));
+        assert_eq!(tree.ancestor_ids(root), Ok(Vec::new()));
+        assert_eq!(tree.ancestor_ids(nested), Ok(vec![first, root]));
+        assert_eq!(tree.descendant_ids(root), Ok(vec![first, nested, second]));
+        assert_eq!(tree.is_ancestor_of(root, nested), Ok(true));
+        assert_eq!(tree.is_ancestor_of(nested, root), Ok(false));
+        assert_eq!(tree.is_ancestor_of(root, root), Ok(false));
     }
 
     #[test]
@@ -373,7 +391,7 @@ mod tests {
             pruned: Some(child),
             ..RecordingSearch::default()
         };
-        let stale = FigureId::from(KeyData::from_ffi(u64::MAX));
+        let stale = FigureId::from_local(root.namespace(), KeyData::from_ffi(u64::MAX));
 
         assert_eq!(tree.find_in_subtree(root, &mut no_match), Ok(None));
         assert_eq!(

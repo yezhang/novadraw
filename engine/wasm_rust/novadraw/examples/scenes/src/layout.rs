@@ -899,15 +899,15 @@ mod tests {
 
         assert_eq!(
             runtime.tree().figure_bounds(contents),
-            Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
+            Ok(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(north),
-            Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
+            Ok(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(center),
-            Some(novadraw::geometry::Rectangle::new(
+            Ok(novadraw::geometry::Rectangle::new(
                 120.0, 72.0, 760.0, 572.0
             ))
         );

@@ -806,9 +806,9 @@ impl WebValidationApp {
 
     fn replace_scene(&mut self) {
         self.advance_runtime_time();
-        self.runtime.pointer_exited();
+        self.runtime.input().pointer_exited();
         self.sync_platform_effects();
-        self.runtime.release_focus();
+        self.runtime.focus().release();
         self.runtime = create_scene(&mut self.themes, self.current_theme, self.current_scene);
         self.advance_runtime_time();
         self.apply_scene_size();
@@ -863,7 +863,7 @@ impl WebValidationApp {
             self.sync_platform_effects();
             return;
         }
-        self.host.set_cursor(self.runtime.cursor_icon());
+        self.host.set_cursor(self.runtime.focus().cursor_icon());
         self.host.request_redraw();
         if !self.redraw_pending.replace(false) {
             self.sync_platform_effects();
@@ -980,18 +980,19 @@ impl WebValidationApp {
 
     fn advance_runtime_time(&mut self) {
         let now = web_monotonic_time(&self.window, self.clock_origin_millis);
-        let _ = self.runtime.advance_time(now);
+        let _ = self.runtime.animation().advance_time(now);
     }
 
     fn sync_platform_effects(&mut self) {
-        self.host.set_cursor(self.runtime.cursor_icon());
-        for update in self.runtime.take_tooltip_updates() {
+        self.host.set_cursor(self.runtime.focus().cursor_icon());
+        for update in self.runtime.tooltip().take_updates() {
             self.host.update_tooltip(update);
         }
-        for update in self.runtime.take_accessibility_updates() {
+        for update in self.runtime.accessibility().take_updates() {
             self.host.update_accessibility(update);
         }
-        self.host.schedule_wake(self.runtime.next_wake_deadline());
+        self.host
+            .schedule_wake(self.runtime.animation().next_wake_deadline());
     }
 
     fn on_runtime_wake(&mut self) {
@@ -1061,7 +1062,9 @@ impl WebValidationApp {
     fn on_pointer_move(&mut self, event: PointerEvent) {
         self.advance_runtime_time();
         if let Some(point) = self.pointer_input(&event).logical_position() {
-            self.runtime.dispatch_mouse_moved(point.x(), point.y());
+            self.runtime
+                .input()
+                .dispatch_mouse_moved(point.x(), point.y());
             self.request_and_render();
         }
     }
@@ -1074,8 +1077,11 @@ impl WebValidationApp {
         let _ = self.canvas.focus();
         let _ = self.canvas.set_pointer_capture(event.pointer_id());
         if let Some(point) = self.pointer_input(&event).logical_position() {
-            self.runtime.dispatch_mouse_moved(point.x(), point.y());
             self.runtime
+                .input()
+                .dispatch_mouse_moved(point.x(), point.y());
+            self.runtime
+                .input()
                 .dispatch_mouse_pressed(point.x(), point.y(), button);
             self.request_and_render();
         }
@@ -1087,6 +1093,7 @@ impl WebValidationApp {
             && let Some(point) = self.pointer_input(&event).logical_position()
         {
             self.runtime
+                .input()
                 .dispatch_mouse_released(point.x(), point.y(), button);
         }
         let _ = self.canvas.release_pointer_capture(event.pointer_id());
@@ -1095,7 +1102,7 @@ impl WebValidationApp {
 
     fn on_pointer_leave(&mut self) {
         self.advance_runtime_time();
-        self.runtime.pointer_exited();
+        self.runtime.input().pointer_exited();
         self.request_and_render();
     }
 
@@ -1129,8 +1136,8 @@ impl WebValidationApp {
             ),
         ) {
             match gesture {
-                AdaptedGesture::Scroll(wheel) => self.runtime.dispatch_scroll(wheel),
-                AdaptedGesture::Zoom(zoom) => self.runtime.dispatch_zoom(zoom),
+                AdaptedGesture::Scroll(wheel) => self.runtime.input().dispatch_scroll(wheel),
+                AdaptedGesture::Zoom(zoom) => self.runtime.input().dispatch_zoom(zoom),
             };
             self.request_and_render();
         }
@@ -1150,7 +1157,7 @@ impl WebValidationApp {
         match adapt_key_input(key, pressed, modifiers) {
             AdaptedKeyInput::FocusTraversal(direction) => {
                 if matches!(
-                    self.runtime.traverse_focus(direction),
+                    self.runtime.focus().traverse(direction),
                     FocusTraversalOutcome::Moved(_)
                 ) {
                     event.prevent_default();
@@ -1163,9 +1170,9 @@ impl WebValidationApp {
                 modifiers,
             } => {
                 if pressed {
-                    self.runtime.dispatch_key_pressed(key, modifiers);
+                    self.runtime.input().dispatch_key_pressed(key, modifiers);
                 } else {
-                    self.runtime.dispatch_key_released(key, modifiers);
+                    self.runtime.input().dispatch_key_released(key, modifiers);
                 }
                 self.request_and_render();
             }
@@ -1498,8 +1505,8 @@ async fn start_async() -> Result<(), JsValue> {
     })?;
     register_event(target, "blur", &app, |app, _event| {
         app.advance_runtime_time();
-        app.runtime.pointer_exited();
-        app.runtime.release_focus();
+        app.runtime.input().pointer_exited();
+        app.runtime.focus().release();
         app.request_and_render();
     })?;
 

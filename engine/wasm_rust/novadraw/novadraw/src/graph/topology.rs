@@ -15,7 +15,7 @@ impl FigureTree {
             return Err(GraphMutationError::LayerKeyRequired);
         }
         self.ensure_figure(child)?;
-        if self.parent_id(child) != Some(parent) {
+        if self.parent_id(child) != Ok(Some(parent)) {
             return Err(GraphMutationError::InvalidParentRelation);
         }
         Ok(parent_node.children.len())
@@ -364,8 +364,8 @@ impl FigureTree {
             return Vec::new();
         };
         let mut ids = vec![(contents, self.root)];
-        for id in self.descendant_ids(contents).unwrap_or_default() {
-            if let Some(parent) = self.parent_id(id) {
+        for id in self.descendant_ids(contents).expect("live contents") {
+            if let Some(parent) = self.parent_id(id).expect("live descendant") {
                 ids.push((id, parent));
             }
         }
@@ -373,18 +373,19 @@ impl FigureTree {
     }
 
     pub(crate) fn designate_contents(&mut self, id: FigureId) {
-        assert_eq!(self.parent_id(id), Some(self.root));
+        assert_eq!(self.parent_id(id), Ok(Some(self.root)));
         self.contents = Some(id);
     }
 
     pub(crate) fn disposal_ids(&self, root: FigureId) -> Result<Vec<FigureId>, GraphMutationError> {
-        if root == self.root || !self.is_attached(root) {
+        self.ensure_figure(root)?;
+        if root == self.root || !self.is_attached(root).expect("validated disposal root") {
             return Err(GraphMutationError::InvalidParentRelation);
         }
         let mut ids = vec![root];
         ids.extend(
             self.descendant_ids(root)
-                .ok_or(GraphMutationError::ChildNotFound)?,
+                .map_err(|_| GraphMutationError::ChildNotFound)?,
         );
         Ok(ids)
     }
@@ -510,7 +511,7 @@ impl FigureTree {
         constraint: Box<dyn LayoutConstraint>,
     ) -> Result<FigureId, ChildInsertionError> {
         self.insert_child_prepared(figure, parent, false, Some(index), |tree, child| {
-            if let Some(manager) = tree.layout_manager(parent) {
+            if let Some(manager) = tree.layout_manager(parent).map_err(LayoutError::from)? {
                 manager.validate_constraint(parent, child, constraint.as_ref())?;
             }
             Ok(Some(constraint))

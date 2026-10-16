@@ -33,7 +33,9 @@ impl Runtime {
                 node.component_revision,
                 node.figure_bounds(),
                 node.visual_bounds(),
-                self.tree.is_effectively_visible(figure),
+                self.tree
+                    .is_effectively_visible(figure)
+                    .expect("validated update target"),
             )
         };
         let context = FigureCapabilityContext {

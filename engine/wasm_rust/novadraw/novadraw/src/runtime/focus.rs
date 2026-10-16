@@ -27,6 +27,7 @@ pub enum FocusTraversalOutcome {
 pub enum FocusError {
     Faulted,
     UnknownFigure(FigureId),
+    ForeignFigure(FigureId),
     Detached(FigureId),
     Hidden(FigureId),
     Disabled(FigureId),
@@ -38,6 +39,7 @@ impl fmt::Display for FocusError {
         match self {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
+            Self::ForeignFigure(id) => write!(formatter, "foreign Figure ID: {id:?}"),
             Self::Detached(id) => write!(formatter, "Figure is detached: {id:?}"),
             Self::Hidden(id) => write!(formatter, "Figure is not effectively visible: {id:?}"),
             Self::Disabled(id) => write!(formatter, "Figure is not effectively enabled: {id:?}"),
@@ -49,6 +51,15 @@ impl fmt::Display for FocusError {
 }
 
 impl Error for FocusError {}
+
+impl From<crate::tree::TreeQueryError> for FocusError {
+    fn from(error: crate::tree::TreeQueryError) -> Self {
+        match error {
+            crate::tree::TreeQueryError::ForeignFigure(id) => Self::ForeignFigure(id),
+            crate::tree::TreeQueryError::UnknownFigure(id) => Self::UnknownFigure(id),
+        }
+    }
+}
 
 pub trait FocusTraversalPolicy {
     fn traverse(
@@ -71,7 +82,7 @@ impl FocusTraversalPolicy for TreeOrderFocusTraversal {
         current: Option<FigureId>,
         direction: FocusTraversalDirection,
     ) -> Option<FigureId> {
-        let order = tree.descendant_ids(scope)?;
+        let order = tree.descendant_ids(scope).ok()?;
         let current_index =
             current.and_then(|id| order.iter().position(|candidate| *candidate == id));
 
@@ -79,19 +90,19 @@ impl FocusTraversalPolicy for TreeOrderFocusTraversal {
             (FocusTraversalDirection::Forward, Some(index)) => order[index + 1..]
                 .iter()
                 .copied()
-                .find(|id| tree.can_traverse_focus(*id)),
+                .find(|id| tree.can_traverse_focus(*id).expect("immutable descendant")),
             (FocusTraversalDirection::Backward, Some(index)) => order[..index]
                 .iter()
                 .rev()
                 .copied()
-                .find(|id| tree.can_traverse_focus(*id)),
-            (FocusTraversalDirection::Forward, None) => {
-                order.into_iter().find(|id| tree.can_traverse_focus(*id))
-            }
+                .find(|id| tree.can_traverse_focus(*id).expect("immutable descendant")),
+            (FocusTraversalDirection::Forward, None) => order
+                .into_iter()
+                .find(|id| tree.can_traverse_focus(*id).expect("immutable descendant")),
             (FocusTraversalDirection::Backward, None) => order
                 .into_iter()
                 .rev()
-                .find(|id| tree.can_traverse_focus(*id)),
+                .find(|id| tree.can_traverse_focus(*id).expect("immutable descendant")),
         }
     }
 }
@@ -110,8 +121,8 @@ mod tests {
 
         assert!(tree.set_focusable(root, true));
         assert!(tree.set_focus_traversable(root, true));
-        assert!(tree.is_focusable(root));
-        assert!(tree.is_focus_traversable(root));
+        assert!(tree.is_focusable(root).unwrap());
+        assert!(tree.is_focus_traversable(root).unwrap());
 
         let properties: Vec<_> = tree
             .drain_notification_effects()
@@ -179,7 +190,7 @@ mod tests {
             policy.traverse(&tree, root, Some(first), FocusTraversalDirection::Backward),
             None
         );
-        assert!(!tree.can_traverse_focus(skipped));
+        assert!(!tree.can_traverse_focus(skipped).unwrap());
     }
 
     #[test]

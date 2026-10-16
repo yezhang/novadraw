@@ -28,6 +28,7 @@ impl<'a> RuntimeViewports<'a> {
         self.runtime
             .tree
             .viewport_handle(viewport)
+            .map_err(|_| RuntimeMutationError::Rejected)?
             .ok_or(RuntimeMutationError::WrongCapability {
                 figure: viewport,
                 capability: "viewport mutation",
@@ -39,6 +40,7 @@ impl<'a> RuntimeViewports<'a> {
         self.runtime
             .tree
             .scale_handle(figure)
+            .map_err(|_| RuntimeMutationError::Rejected)?
             .ok_or(RuntimeMutationError::WrongCapability {
                 figure,
                 capability: "scale mutation",
@@ -90,7 +92,10 @@ impl<'a> RuntimeViewports<'a> {
     ) -> Result<FigureId, RuntimeMutationError> {
         let handle = self.handle(viewport)?;
         self.runtime.guarded_runtime_mutation(move |runtime| {
-            if let Some(previous) = handle.contents(&runtime.tree) {
+            if let Some(previous) = handle
+                .contents(&runtime.tree)
+                .map_err(|_| RuntimeMutationError::Rejected)?
+            {
                 runtime.dispose_subtree(previous)?;
             }
             runtime.add_figure_inner(viewport, figure)

@@ -348,7 +348,7 @@ fn ordered_snapshot_projects_one_connection_part_outside_containment() {
             .runtime()
             .tree()
             .child_order(viewer.root_layers().connection()),
-        Some(vec![figure])
+        Ok(vec![figure])
     );
     assert!(matches!(
         viewer
@@ -425,7 +425,7 @@ fn model_order_drives_layer_and_relation_order_without_recreating_parts() {
             .runtime()
             .tree()
             .child_order(viewer.root_layers().connection()),
-        Some(vec![second_figure, first_figure])
+        Ok(vec![second_figure, first_figure])
     );
     assert_eq!(
         viewer
@@ -633,7 +633,10 @@ fn connection_add_and_remove_preserve_unrelated_part_identity() {
 
     assert_eq!(viewer.part_for_model(FIRST), Some(first));
     assert!(viewer.parts().get(connection.edit_part()).is_none());
-    assert!(!viewer.runtime().tree().is_attached(figure));
+    assert_eq!(
+        viewer.runtime().tree().is_attached(figure),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(figure))
+    );
 }
 
 #[test]
@@ -746,7 +749,7 @@ fn dangling_endpoint_faults_before_existing_projection_changes() {
     ));
     assert!(viewer.is_faulted());
     assert!(viewer.parts().get(node).is_some());
-    assert!(viewer.runtime().tree().is_attached(figure));
+    assert!(viewer.runtime().tree().is_attached(figure).unwrap());
 }
 
 #[test]
@@ -805,7 +808,7 @@ fn endpoint_geometry_change_is_rerouted_by_runtime() {
         .unwrap();
     prepare_next_submission(&mut viewer).unwrap();
 
-    assert_ne!(viewer.runtime().tree().figure_bounds(figure), Some(before));
+    assert_ne!(viewer.runtime().tree().figure_bounds(figure), Ok(before));
     assert!(matches!(
         viewer
             .connection_state(ConnectionId::from_figure(figure))
@@ -849,7 +852,7 @@ fn rejected_incremental_connection_creation_leaves_no_registration() {
             .runtime()
             .tree()
             .child_order(viewer.root_layers().connection()),
-        Some(layer_before)
+        Ok(layer_before)
     );
 }
 
@@ -888,6 +891,6 @@ fn failed_connection_activation_rolls_back_all_registrations() {
             .runtime()
             .tree()
             .child_order(viewer.root_layers().connection()),
-        Some(layer_before)
+        Ok(layer_before)
     );
 }

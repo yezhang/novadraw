@@ -2,6 +2,7 @@ use super::*;
 
 impl FigureTree {
     pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Rectangle, FreeformError> {
+        self.validate_identity(figure_id)?;
         let block = self
             .blocks
             .get(figure_id)
@@ -26,6 +27,10 @@ impl FigureTree {
         figure_id: FigureId,
         excluded: &[FigureId],
     ) -> Result<Rectangle, FreeformError> {
+        self.validate_identity(figure_id)?;
+        for &id in excluded {
+            self.validate_identity(id)?;
+        }
         let block = self
             .blocks
             .get(figure_id)
@@ -39,7 +44,7 @@ impl FigureTree {
             return Err(FreeformError::Unvalidated(figure_id));
         }
         Ok(self
-            .derive_freeform_extent_excluding(figure_id, excluded)
+            .derive_freeform_extent_excluding(figure_id, excluded)?
             .unwrap_or(Rectangle::ZERO))
     }
 
@@ -47,8 +52,8 @@ impl FigureTree {
         &self,
         figure_id: FigureId,
         excluded: &[FigureId],
-    ) -> Option<Rectangle> {
-        let block = self.blocks.get(figure_id)?;
+    ) -> Result<Option<Rectangle>, FreeformError> {
+        let block = self.node(figure_id)?;
         let mut extent: Option<Rectangle> = None;
         for child_id in block.children.iter().copied() {
             if excluded.contains(&child_id) {
@@ -57,21 +62,29 @@ impl FigureTree {
             let child = &self.blocks[child_id];
             let contribution = if child.layout.freeform.is_some() {
                 let child_extent = self
-                    .derive_freeform_extent_excluding(child_id, excluded)
+                    .derive_freeform_extent_excluding(child_id, excluded)?
                     .unwrap_or(Rectangle::ZERO);
                 let bounds = child.figure_bounds();
                 let transform = Affine2D::from_translation(bounds.x, bounds.y)
                     * child.child_transform().affine();
-                transform_rectangle(transform, child_extent)?
+                transform_rectangle(transform, child_extent)
+                    .ok_or(FreeformError::NonFiniteGeometry(child_id))?
             } else {
                 child.figure_bounds()
             };
-            extent = Some(match extent {
+            if !finite_rectangle(contribution) {
+                return Err(FreeformError::NonFiniteGeometry(child_id));
+            }
+            let combined = match extent {
                 Some(current) => current.union(contribution),
                 None => contribution,
-            });
+            };
+            if !finite_rectangle(combined) {
+                return Err(FreeformError::NonFiniteGeometry(figure_id));
+            }
+            extent = Some(combined);
         }
-        extent
+        Ok(extent)
     }
 
     fn recompute_freeform_extent(&mut self, figure_id: FigureId) -> Result<(), LayoutError> {
@@ -111,6 +124,9 @@ impl FigureTree {
         }
 
         let new_extent = extent.unwrap_or(Rectangle::ZERO);
+        if !finite_rectangle(new_extent) {
+            return Err(LayoutError::NonFiniteGeometry { figure: figure_id });
+        }
         let (old_extent, changed) = {
             let block = &mut self.blocks[figure_id];
             let generation = block.layout.generation();
@@ -213,9 +229,10 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         container_id: FigureId,
     ) -> Result<(), LayoutError> {
-        let ancestors_visible = self
-            .parent_id(container_id)
-            .is_none_or(|parent| self.is_effectively_visible(parent));
+        let ancestors_visible = match self.parent_id(container_id)? {
+            Some(parent) => self.is_effectively_visible(parent)?,
+            None => true,
+        };
         self.revalidate_with_update_inner(update_manager, container_id, ancestors_visible, 0)
     }
 
@@ -345,9 +362,10 @@ impl FigureTree {
     }
 
     pub(crate) fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
-        let ancestors_visible = self
-            .parent_id(container_id)
-            .is_none_or(|parent| self.is_effectively_visible(parent));
+        let ancestors_visible = match self.parent_id(container_id)? {
+            Some(parent) => self.is_effectively_visible(parent)?,
+            None => true,
+        };
         self.try_revalidate_inner(container_id, ancestors_visible, 0)
     }
 
@@ -542,7 +560,7 @@ impl FigureTree {
                     self.repaint(update_manager, figure, None);
                 }
                 LayoutChange::RepaintParent(figure) => {
-                    if let Some(parent) = self.parent_id(figure) {
+                    if let Some(parent) = self.parent_id(figure)? {
                         self.repaint(update_manager, parent, None);
                     }
                 }
@@ -564,7 +582,7 @@ impl FigureTree {
                     let old_bounds = self.figure_bounds(child_id);
                     self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
                     if old_bounds
-                        .is_some_and(|old| old.width != bounds.width || old.height != bounds.height)
+                        .is_ok_and(|old| old.width != bounds.width || old.height != bounds.height)
                         && let Some(child) = self.blocks.get_mut(child_id)
                     {
                         child.is_valid = false;
@@ -596,43 +614,47 @@ impl FigureTree {
             .unwrap_or(true)
     }
 
-    pub fn is_valid(&self, figure_id: FigureId) -> bool {
-        self.blocks
-            .get(figure_id)
-            .is_some_and(|block| block.is_valid)
+    pub fn is_valid(&self, figure_id: FigureId) -> Result<bool, TreeQueryError> {
+        Ok(self.node(figure_id)?.is_valid)
     }
 
     pub fn preferred_measurement(
         &self,
         figure_id: FigureId,
         constraints: MeasureConstraints,
-    ) -> Option<FigureMeasurement> {
-        let block = self.blocks.get(figure_id)?;
+    ) -> Result<FigureMeasurement, LayoutError> {
+        self.validate_identity(figure_id)?;
+        let block = &self.blocks[figure_id];
         if let Some(size) = block.preferred_size {
-            return Some(block.project_preferred_measurement(FigureMeasurement::new(
-                size.width,
-                size.height,
-                None,
-            )));
+            let raw = crate::layout::validate_measurement(
+                figure_id,
+                FigureMeasurement::new(size.width, size.height, None),
+            )?;
+            return validate_projected_measurement(
+                figure_id,
+                block.project_preferred_measurement(raw),
+            );
         }
         if let Some(layout) = block.layout.manager.as_deref() {
-            let constraints = block.layout_content_constraints(constraints);
+            let constraints = block.layout_content_constraints(figure_id, constraints)?;
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().preferred
                 && cached.matches(generation, constraints)
             {
-                return Some(cached.measurement);
+                return Ok(cached.measurement);
             }
             let snapshot = LayoutSceneQuery::new(self);
-            let measurement = block.project_layout_preferred_measurement(
-                layout.preferred_measurement(figure_id, constraints, &snapshot),
-            );
+            let raw = crate::layout::validate_measurement(
+                figure_id,
+                layout.preferred_measurement(figure_id, constraints, &snapshot)?,
+            )?;
+            let measurement = block.project_layout_preferred_measurement(figure_id, raw)?;
             block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
                 generation,
                 constraints,
                 measurement,
             });
-            return Some(measurement);
+            return Ok(measurement);
         }
         let constraints = block.layout_constraints(constraints);
         let measurement = if let Some(prepared) = &block.prepared {
@@ -642,68 +664,79 @@ impl FigureTree {
         } else {
             block.figure.intrinsic_measurement(constraints)
         };
-        Some(owner_scoped_border_measurement(
-            measurement,
-            block.border_snapshot.as_ref(),
-        ))
+        let measurement = crate::layout::validate_measurement(figure_id, measurement)?;
+        validate_projected_measurement(
+            figure_id,
+            owner_scoped_border_measurement(
+                figure_id,
+                measurement,
+                block.border_snapshot.as_ref(),
+            )?,
+        )
     }
 
     pub fn minimum_size(
         &self,
         figure_id: FigureId,
         constraints: MeasureConstraints,
-    ) -> Option<Dimension> {
-        let block = self.blocks.get(figure_id)?;
+    ) -> Result<Dimension, LayoutError> {
+        self.validate_identity(figure_id)?;
+        let block = &self.blocks[figure_id];
         if let Some(size) = block.minimum_size {
-            return Some(block.project_minimum_size(size));
+            crate::layout::validate_measurement_size(figure_id, size, false)?;
+            return validate_projected_size(figure_id, block.project_minimum_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
-            let constraints = block.layout_content_constraints(constraints);
+            let constraints = block.layout_content_constraints(figure_id, constraints)?;
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().minimum
                 && cached.matches(generation, constraints)
             {
-                return Some(cached.measurement.size());
+                return Ok(cached.measurement.size());
             }
             let snapshot = LayoutSceneQuery::new(self);
-            let size = block.project_layout_minimum_size(layout.minimum_size(
-                figure_id,
-                constraints,
-                &snapshot,
-            ));
+            let raw = layout.minimum_size(figure_id, constraints, &snapshot)?;
+            crate::layout::validate_measurement_size(figure_id, raw, false)?;
+            let size = block.project_layout_minimum_size(figure_id, raw)?;
             block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
                 generation,
                 constraints,
                 measurement: FigureMeasurement::new(size.width, size.height, None),
             });
-            return Some(size);
+            return Ok(size);
         }
         let constraints = block.layout_constraints(constraints);
-        let content = if let Some(prepared) = &block.prepared {
-            prepared.presentation.minimum_size()
+        let measurement = if let Some(prepared) = &block.prepared {
+            let size = prepared.presentation.minimum_size();
+            FigureMeasurement::new(size.width, size.height, None)
         } else if block.border_snapshot.is_some() {
             block
                 .figure
                 .intrinsic_content_minimum_measurement(constraints)
-                .size()
         } else {
-            block
-                .figure
-                .intrinsic_minimum_measurement(constraints)
-                .size()
+            block.figure.intrinsic_minimum_measurement(constraints)
         };
-        Some(owner_scoped_border_size(
-            content,
-            block.border_snapshot.as_ref(),
-        ))
+        let measurement = crate::layout::validate_measurement(figure_id, measurement)?;
+        let projected = validate_projected_measurement(
+            figure_id,
+            owner_scoped_border_measurement(
+                figure_id,
+                measurement,
+                block.border_snapshot.as_ref(),
+            )?,
+        )?;
+        Ok(projected.size())
     }
 
-    pub fn maximum_size(&self, figure_id: FigureId) -> Option<Dimension> {
-        let block = self.blocks.get(figure_id)?;
-        Some(
+    pub fn maximum_size(&self, figure_id: FigureId) -> Result<Dimension, LayoutError> {
+        self.validate_identity(figure_id)?;
+        let block = &self.blocks[figure_id];
+        crate::layout::validate_measurement_size(
+            figure_id,
             block
                 .maximum_size
                 .unwrap_or(Dimension::new(f64::INFINITY, f64::INFINITY)),
+            true,
         )
     }
 
@@ -776,30 +809,28 @@ impl FigureTree {
         container: FigureId,
         layout_manager: &dyn LayoutManager,
     ) -> Result<(), LayoutError> {
-        let block = self
-            .blocks
-            .get(container)
-            .ok_or(LayoutError::UnknownFigure { figure: container })?;
+        self.validate_identity(container)?;
+        let block = &self.blocks[container];
         for (child, constraint) in &block.layout.constraints {
             layout_manager.validate_constraint(container, *child, constraint.as_ref())?;
         }
         Ok(())
     }
 
-    pub fn layout_manager(&self, container: FigureId) -> Option<&dyn LayoutManager> {
-        self.blocks
-            .get(container)
-            .and_then(|block| block.layout.manager.as_deref())
+    pub fn layout_manager(
+        &self,
+        container: FigureId,
+    ) -> Result<Option<&dyn LayoutManager>, TreeQueryError> {
+        Ok(self.node(container)?.layout.manager.as_deref())
     }
 
     pub(super) fn validate_layout_child(&self, child: FigureId) -> Result<FigureId, LayoutError> {
-        let child_node = self
-            .blocks
-            .get(child)
-            .ok_or(LayoutError::UnknownFigure { figure: child })?;
-        child_node
-            .parent
-            .ok_or(LayoutError::UnknownFigure { figure: child })
+        self.validate_identity(child)?;
+        let child_node = &self.blocks[child];
+        child_node.parent.ok_or(LayoutError::InvalidChild {
+            container: self.root,
+            child,
+        })
     }
 
     pub(super) fn validate_layout_constraint(
@@ -808,7 +839,7 @@ impl FigureTree {
         constraint: &dyn LayoutConstraint,
     ) -> Result<(), LayoutError> {
         let parent = self.validate_layout_child(child)?;
-        if let Some(manager) = self.layout_manager(parent) {
+        if let Some(manager) = self.layout_manager(parent)? {
             manager.validate_constraint(parent, child, constraint)?;
         }
         Ok(())
@@ -835,11 +866,24 @@ impl FigureTree {
         true
     }
 
-    pub fn layout_constraint<C>(&self, child_id: FigureId) -> Option<&C>
+    pub fn layout_constraint<C>(&self, child_id: FigureId) -> Result<Option<&C>, LayoutError>
     where
         C: LayoutConstraint,
     {
-        self.constraint(child_id)?.as_any().downcast_ref::<C>()
+        self.validate_identity(child_id)?;
+        let Some(constraint) = self.constraint(child_id) else {
+            return Ok(None);
+        };
+        constraint.as_any().downcast_ref::<C>().map(Some).ok_or(
+            LayoutError::ConstraintTypeMismatch {
+                container: self.blocks[child_id]
+                    .parent
+                    .expect("stored constraint has a parent"),
+                child: child_id,
+                expected: std::any::type_name::<C>(),
+                actual: constraint.type_name(),
+            },
+        )
     }
 
     pub(crate) fn remove_constraint(&mut self, child_id: FigureId) -> bool {
@@ -961,60 +1005,413 @@ impl FigureTree {
 }
 
 impl crate::layout::LayoutSceneRead for FigureTree {
-    fn get_children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
-        if let Some(block) = self.blocks.get(parent_id) {
-            block
-                .children
-                .iter()
-                .filter_map(|&child_id| {
-                    self.blocks
-                        .get(child_id)
-                        .map(|child| (child_id, child.figure_bounds()))
-                })
-                .collect()
-        } else {
-            Vec::new()
-        }
+    fn get_children(&self, parent_id: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
+        self.validate_identity(parent_id)?;
+        let block = &self.blocks[parent_id];
+        Ok(block
+            .children
+            .iter()
+            .map(|&child_id| (child_id, self.blocks[child_id].figure_bounds()))
+            .collect())
     }
 
-    fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint> {
-        self.constraint(child_id)
+    fn get_constraint(
+        &self,
+        child_id: FigureId,
+    ) -> Result<Option<&dyn LayoutConstraint>, LayoutError> {
+        self.validate_identity(child_id)?;
+        Ok(self.constraint(child_id))
     }
 
     fn preferred_measurement(
         &self,
         figure_id: FigureId,
         constraints: MeasureConstraints,
-    ) -> FigureMeasurement {
+    ) -> Result<FigureMeasurement, LayoutError> {
         self.preferred_measurement(figure_id, constraints)
-            .unwrap_or_default()
     }
 
-    fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
+    fn minimum_size(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<Dimension, LayoutError> {
         self.minimum_size(figure_id, constraints)
-            .unwrap_or(Dimension::ZERO)
     }
 
-    fn maximum_size(&self, figure_id: FigureId) -> Dimension {
+    fn maximum_size(&self, figure_id: FigureId) -> Result<Dimension, LayoutError> {
         self.maximum_size(figure_id)
-            .unwrap_or(Dimension::new(f64::INFINITY, f64::INFINITY))
     }
 
-    fn get_container_bounds(&self, container_id: FigureId) -> Rectangle {
-        if let Some(block) = self.blocks.get(container_id) {
-            block.child_layout_area()
-        } else {
-            Rectangle::ZERO
+    fn get_container_bounds(&self, container_id: FigureId) -> Result<Rectangle, LayoutError> {
+        self.validate_identity(container_id)?;
+        let area = self.blocks[container_id].child_layout_area();
+        if !finite_rectangle(area) {
+            return Err(LayoutError::NonFiniteGeometry {
+                figure: container_id,
+            });
+        }
+        Ok(area)
+    }
+
+    fn get_freeform_extent(&self, figure_id: FigureId) -> Result<Option<Rectangle>, LayoutError> {
+        self.validate_identity(figure_id)?;
+        match self.freeform_extent(figure_id) {
+            Ok(extent) => Ok(Some(extent)),
+            Err(FreeformError::NotFreeform(_)) => Ok(None),
+            Err(error) => Err(LayoutError::Freeform(error)),
         }
     }
 
-    fn get_freeform_extent(&self, figure_id: FigureId) -> Option<Rectangle> {
-        self.freeform_extent(figure_id).ok()
+    fn get_content_scale(&self, figure_id: FigureId) -> Result<Option<f64>, LayoutError> {
+        self.validate_identity(figure_id)?;
+        Ok(self
+            .capability(figure_id, SCALE)
+            .map_err(LayoutError::Capability)?
+            .map(|capability| capability.model().scale()))
+    }
+}
+
+pub(super) fn validate_projected_measurement(
+    figure: FigureId,
+    measurement: FigureMeasurement,
+) -> Result<FigureMeasurement, LayoutError> {
+    if !measurement.width.is_finite()
+        || !measurement.height.is_finite()
+        || measurement
+            .baseline
+            .is_some_and(|baseline| !baseline.is_finite())
+    {
+        return Err(LayoutError::InvalidMeasurement {
+            figure,
+            reason: crate::layout::MeasurementFailure::DerivedOverflow,
+        });
+    }
+    crate::layout::validate_measurement(figure, measurement)
+}
+
+pub(super) fn validate_projected_size(
+    figure: FigureId,
+    size: Dimension,
+) -> Result<Dimension, LayoutError> {
+    validate_projected_measurement(
+        figure,
+        FigureMeasurement::new(size.width, size.height, None),
+    )
+    .map(FigureMeasurement::size)
+}
+
+#[cfg(test)]
+mod s07_query_failure_tests {
+    use super::*;
+    use crate::RectangleFigure;
+    use crate::identity::RuntimeHandle;
+    use crate::layout::MeasurementFailure;
+
+    fn subject() -> (FigureTree, FigureId) {
+        let mut tree = FigureTree::new();
+        let id = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        (tree, id)
     }
 
-    fn get_content_scale(&self, figure_id: FigureId) -> Option<f64> {
-        self.capability(figure_id, SCALE)
-            .ok()?
-            .map(|capability| capability.model().scale())
+    #[test]
+    fn same_namespace_missing_identity_is_rejected_by_every_layout_query() {
+        let (tree, root) = subject();
+        let missing = FigureId::from_local(root.namespace(), slotmap::KeyData::from_ffi(u64::MAX));
+        let error = LayoutError::Identity(TreeQueryError::UnknownFigure(missing));
+        let query = LayoutSceneQuery::new(&tree);
+        assert_eq!(query.children(missing), Err(error));
+        assert_eq!(query.constraint(missing).err(), Some(error));
+        assert_eq!(query.container_bounds(missing), Err(error));
+        assert_eq!(
+            query.preferred_measurement(missing, MeasureConstraints::UNBOUNDED),
+            Err(error)
+        );
+        assert_eq!(
+            query.minimum_size(missing, MeasureConstraints::UNBOUNDED),
+            Err(error)
+        );
+        assert_eq!(query.maximum_size(missing), Err(error));
+        assert_eq!(query.freeform_extent(missing), Err(error));
+        assert_eq!(query.content_scale(missing), Err(error));
+    }
+
+    #[test]
+    fn override_admission_distinguishes_bounded_and_unbounded_measurement() {
+        let (mut tree, root) = subject();
+        for axis in [f64::NAN, -1.0, f64::INFINITY, f64::NEG_INFINITY] {
+            for size in [Dimension::new(axis, 0.0), Dimension::new(0.0, axis)] {
+                tree.set_preferred_size(root, Some(size));
+                tree.set_minimum_size(root, Some(size));
+                let error = LayoutError::InvalidMeasurement {
+                    figure: root,
+                    reason: MeasurementFailure::InvalidSize,
+                };
+                assert_eq!(
+                    tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+                    Err(error)
+                );
+                assert_eq!(
+                    tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+                    Err(error)
+                );
+                tree.set_maximum_size(root, Some(size));
+                if axis == f64::INFINITY {
+                    assert_eq!(tree.maximum_size(root), Ok(size));
+                } else {
+                    assert_eq!(tree.maximum_size(root), Err(error));
+                }
+            }
+        }
+        tree.set_preferred_size(root, Some(Dimension::ZERO));
+        tree.set_minimum_size(root, Some(Dimension::ZERO));
+        tree.set_maximum_size(root, Some(Dimension::ZERO));
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+            Ok(FigureMeasurement::default())
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+            Ok(Dimension::ZERO)
+        );
+        assert_eq!(tree.maximum_size(root), Ok(Dimension::ZERO));
+    }
+
+    #[test]
+    fn layout_relationship_and_optional_absence_have_separate_results() {
+        let (mut tree, root) = subject();
+        let child = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        let query = LayoutSceneQuery::new(&tree);
+        assert_eq!(query.children(child), Ok(Vec::new()));
+        assert!(query.constraint(child).unwrap().is_none());
+        assert_eq!(query.constraint_as::<Rectangle>(root, child), Ok(None));
+        assert_eq!(
+            query.constraint_as::<Rectangle>(child, root),
+            Err(LayoutError::InvalidChild {
+                container: child,
+                child: root
+            })
+        );
+        assert_eq!(query.freeform_extent(child), Ok(None));
+        assert_eq!(query.content_scale(child), Ok(None));
+    }
+
+    #[test]
+    fn layout_constraint_type_and_unvalidated_freeform_are_not_absence() {
+        let (mut tree, root) = subject();
+        let child = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        tree.set_boxed_constraint(child, Box::new(Rectangle::ZERO));
+        let query = LayoutSceneQuery::new(&tree);
+        assert_eq!(
+            query.constraint_as::<Rectangle>(root, child),
+            Ok(Some(&Rectangle::ZERO))
+        );
+        assert!(matches!(
+            query.constraint_as::<crate::layout::XYConstraint>(root, child),
+            Err(LayoutError::ConstraintTypeMismatch { container, child: subject, .. })
+                if container == root && subject == child
+        ));
+        let mut freeform_tree = FigureTree::new();
+        let freeform = freeform_tree.set_contents(Box::new(
+            crate::container::FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0),
+        ));
+        assert_eq!(
+            LayoutSceneQuery::new(&freeform_tree).freeform_extent(freeform),
+            Err(LayoutError::Freeform(FreeformError::Unvalidated(freeform)))
+        );
+        let mut other = FigureTree::new();
+        let foreign = other.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        assert_eq!(
+            query.constraint_as::<Rectangle>(foreign, child),
+            Err(LayoutError::Identity(TreeQueryError::ForeignFigure(
+                foreign
+            )))
+        );
+    }
+
+    #[test]
+    fn inset_overflow_fails_before_constraint_reduction_and_retries_after_invalidation() {
+        let (mut tree, root) = subject();
+        tree.replace_layout_manager(root, Some(Box::new(crate::layout::StackLayout::new())));
+        tree.blocks[root].state.insets = Insets::uniform(f64::MAX);
+        let error = LayoutError::InvalidMeasurement {
+            figure: root,
+            reason: MeasurementFailure::DerivedOverflow,
+        };
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+            Err(error)
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+            Err(error)
+        );
+        assert!(tree.blocks[root].layout.cache.borrow().preferred.is_none());
+        assert!(tree.blocks[root].layout.cache.borrow().minimum.is_none());
+        tree.blocks[root].state.insets = Insets::uniform(1.0);
+        tree.mark_validation_path_invalid(root);
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+                .unwrap()
+                .size(),
+            Dimension::new(2.0, 2.0)
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+            Ok(Dimension::new(2.0, 2.0))
+        );
+    }
+
+    #[test]
+    fn prepared_and_border_composition_checks_each_selected_stage() {
+        use crate::figure::preparation::{PreparationKey, PreparedFigure};
+        struct Drawing;
+        impl crate::figure::FigureDrawing for Drawing {
+            fn paint(
+                &self,
+                _: &mut crate::graphics::PaintContext<'_>,
+            ) -> Result<(), crate::graphics::GraphicsError> {
+                Ok(())
+            }
+        }
+        let drawing = std::sync::Arc::new(Drawing);
+        for measurement in [
+            FigureMeasurement::new(f64::NAN, 1.0, None),
+            FigureMeasurement::new(1.0, 1.0, Some(2.0)),
+            FigureMeasurement::new(1.0, 1.0, Some(f64::INFINITY)),
+        ] {
+            assert!(matches!(
+                crate::figure::FigurePresentation::new(
+                    measurement,
+                    Dimension::ZERO,
+                    Rectangle::ZERO,
+                    drawing.clone()
+                ),
+                Err(TextError::InvalidMetric)
+            ));
+        }
+        let (mut tree, root) = subject();
+        tree.blocks[root].prepared = Some(PreparedFigure {
+            key: PreparationKey {
+                component: 0,
+                provider: 0,
+                text: 0,
+                font: String::new(),
+                bounds: Rectangle::ZERO,
+            },
+            presentation: crate::figure::FigurePresentation::new(
+                FigureMeasurement::new(4.0, 8.0, Some(6.0)),
+                Dimension::new(2.0, 3.0),
+                Rectangle::ZERO,
+                drawing,
+            )
+            .unwrap(),
+        });
+        tree.blocks[root].border_snapshot = Some(BorderSnapshot::compound(
+            None,
+            None,
+            Insets::uniform(1.0),
+            Dimension::ZERO,
+        ));
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+            Ok(FigureMeasurement::new(6.0, 10.0, Some(7.0)))
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+            Ok(Dimension::new(4.0, 5.0))
+        );
+        // A finite negative top inset makes the composed baseline invalid.
+        tree.blocks[root].border_snapshot = Some(BorderSnapshot::compound(
+            None,
+            None,
+            Insets::new(-7.0, 0.0, 7.0, 0.0),
+            Dimension::ZERO,
+        ));
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+            Err(LayoutError::InvalidMeasurement {
+                figure: root,
+                reason: MeasurementFailure::InvalidBaseline
+            })
+        );
+        tree.blocks[root].border_snapshot = Some(BorderSnapshot::compound(
+            None,
+            None,
+            Insets::uniform(f64::MAX),
+            Dimension::ZERO,
+        ));
+        let overflow = LayoutError::InvalidMeasurement {
+            figure: root,
+            reason: MeasurementFailure::DerivedOverflow,
+        };
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
+            Err(overflow)
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
+            Err(overflow)
+        );
+    }
+
+    #[test]
+    fn failed_candidate_publishes_no_geometry_notifications_or_damage() {
+        struct FailingLayout {
+            survivor: FigureId,
+            missing: FigureId,
+        }
+        impl LayoutManager for FailingLayout {
+            fn preferred_measurement(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<FigureMeasurement, LayoutError> {
+                Ok(FigureMeasurement::default())
+            }
+            fn minimum_size(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<Dimension, LayoutError> {
+                Ok(Dimension::ZERO)
+            }
+            fn layout(
+                &mut self,
+                _: FigureId,
+                query: &LayoutSceneQuery<'_>,
+                output: &mut LayoutOutput,
+            ) -> Result<(), LayoutError> {
+                output.set_child_bounds(self.survivor, Rectangle::new(100.0, 200.0, 30.0, 40.0));
+                output.repaint(self.survivor);
+                query.container_bounds(self.missing)?;
+                Ok(())
+            }
+        }
+        let (mut tree, root) = subject();
+        let survivor = tree.add_child_to(root, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
+        let missing = FigureId::from_local(root.namespace(), slotmap::KeyData::from_ffi(u64::MAX));
+        tree.replace_layout_manager(root, Some(Box::new(FailingLayout { survivor, missing })));
+        tree.drain_notification_effects();
+        let before = tree.figure_bounds(survivor);
+        let mut updates = UpdateManager::with_namespace(tree.namespace());
+        updates.add_invalid_figure(root);
+        assert_eq!(
+            tree.perform_validation_cycle(&mut updates),
+            Err(ValidationError::Layout(LayoutError::Identity(
+                TreeQueryError::UnknownFigure(missing)
+            )))
+        );
+        assert_eq!(tree.figure_bounds(survivor), before);
+        assert!(updates.dirty_regions.is_empty());
+        assert!(tree.notification_effects().iter().all(|effect| matches!(
+            effect,
+            NotificationEffect::EmitLayout(LayoutEvent {
+                kind: LayoutEventKind::Started,
+                ..
+            })
+        )));
     }
 }

@@ -676,6 +676,8 @@ fn nearest_available_lane(
 /// Failure produced by a Router calculation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RouteError {
+    /// A checked scene fact or coordinate query failed.
+    Scene(super::RouteSceneQueryError),
     /// Source Anchor resolution failed.
     Source(AnchorError),
     /// Target Anchor resolution failed.
@@ -724,6 +726,7 @@ pub enum RouteError {
 impl fmt::Display for RouteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Scene(error) => write!(formatter, "route scene query failed: {error}"),
             Self::Source(error) => write!(formatter, "source Anchor failed: {error}"),
             Self::Target(error) => write!(formatter, "target Anchor failed: {error}"),
             Self::ConstraintTypeMismatch { expected, actual } => match expected {
@@ -790,6 +793,7 @@ fn finite_vector(vector: Vec2) -> bool {
 impl Error for RouteError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Scene(error) => Some(error),
             Self::Source(error) | Self::Target(error) => Some(error),
             _ => None,
         }
