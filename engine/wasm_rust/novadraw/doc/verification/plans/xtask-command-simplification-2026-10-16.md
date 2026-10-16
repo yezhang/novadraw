@@ -47,6 +47,7 @@ fmt、check、Clippy、test 和 run 能力直接使用，不再增加同义别�
 
 | Suite | 必要性 |
 |---|---|
+| `core.query-contracts` | 组合 P2-S07 的内部和外部查询失败语义 |
 | `core.facade` | 组合公开 API、依赖边界、Host/Wasm rustdoc 和 backend feature |
 | `core.resources` | 组合 Core、Native、Web 和 Vello 资源合同 |
 | `core.render-failure` | 组合 Core/Vello 失败恢复及 Native/Web host 编译 |
@@ -75,7 +76,7 @@ fmt、check、Clippy、test 和 run 能力直接使用，不再增加同义别�
 - 只作说明、不参与执行的 paths、layers、platforms 和 artifacts；
 - command 引用计数和 manifest schema 校验。
 
-12 个 suite 以静态数据定义在 xtask 内。每个 suite 只保留：
+13 个 suite 以静态数据定义在 xtask 内。每个 suite 只保留：
 
 - 稳定 ID；
 - 一行说明；
@@ -164,7 +165,7 @@ xtask 只校验当前工作流文档中的命令引用，不再把历史记录�
 ## 验收标准
 
 - xtask 仅暴露三个顶层入口；
-- suite 数量为 12；
+- suite 数量为 13；
 - 不存在全局 command 注册表和 profile；
 - `tools/xtask` 不依赖 serde/toml；
 - 文档门禁不启动 rustdoc/doctest；
@@ -180,12 +181,13 @@ xtask 只校验当前工作流文档中的命令引用，不再把历史记录�
 2026-10-16 完成：
 
 - 顶层入口从 7 类收口为 `list`、`docs`、`verify`；
-- 60 个 suite 收口为 12 个跨边界 suite；
+- 60 个 suite 收口为 13 个跨边界 suite；
 - 删除 109 个 command alias、2 个 profile 和 `verification/suites.toml`；
 - xtask 删除 serde/toml，只保留 anyhow；
 - 六个架构脚本合并为 `scripts/check_architecture.sh`；
 - Host rustdoc 由两次降为一次，取消 `cargo clean --doc`；
 - 六个 Editor replay 由六次进程启动合并为一次 `all`；
+- 三个 P2-S07 suite 的十个 command 收口为一个 suite 的两个 Cargo 进程；
 - 删除无阈值的 binary-size 报告脚本；
 - 当前规范、贡献指南、用户指南、roadmap 和 manual 已迁移。
 
@@ -194,6 +196,7 @@ xtask 只校验当前工作流文档中的命令引用，不再把历史记录�
 - `cargo test -p xtask`：5 项通过；
 - `cargo xtask docs`：325 份 Markdown 通过；
 - `scripts/check_architecture.sh`：通过；
+- `core.query-contracts`：外部 39 项、内部 13 项通过；
 - `editor.replay`：6 组通过；
 - Core doctest/compile-fail：32 项通过；
 - Native/Web Vello feature check：通过。

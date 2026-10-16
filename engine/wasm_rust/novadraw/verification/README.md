@@ -15,6 +15,7 @@ cargo xtask verify <suite-id>
 
 | Suite | 覆盖范围 |
 |---|---|
+| `core.query-contracts` | Query identity、数值失败与恢复 |
 | `core.facade` | 公开 API、依赖、热路径和 backend feature |
 | `core.resources` | Core token、Native/Web provider 与 Vello image lowering |
 | `core.render-failure` | 后端失败恢复与 Native/Web host |

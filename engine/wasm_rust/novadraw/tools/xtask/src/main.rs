@@ -19,6 +19,36 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "core.query-contracts",
+        description: "Checked query identity, numerical failure, and recovery contracts",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_coordinate_query_failure",
+                    "--test",
+                    "p2_route_dependency_recovery",
+                    "--test",
+                    "m4_coordinate_contract",
+                    "--test",
+                    "m9_connection_contract",
+                    "--test",
+                    "p2_query_failure_semantics",
+                    "--test",
+                    "p2_tree_query_identity",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw", "--lib", "s07_"],
+            },
+        ],
+    },
+    Suite {
         id: "core.facade",
         description: "Public API, dependency, hot-path, and backend feature boundaries",
         steps: &[
