@@ -332,3 +332,241 @@ fn callback_layer_mutations_commit_in_fifo_order() {
         vec![second, first]
     );
 }
+
+struct ResourceLayer {
+    resource: novadraw::render::ResourceId,
+    attached: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl Figure for ResourceLayer {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::ZERO
+    }
+
+    fn name(&self) -> &'static str {
+        "ExternalResourceLayer"
+    }
+
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        use novadraw::figure::{
+            LAYER, LIFECYCLE, LayerCapability, LifecycleCapability, RESOURCE_DEPENDENCIES,
+            ResourceDependenciesCapability,
+        };
+        out.register(LAYER, LayerCapability)?;
+        out.register(
+            RESOURCE_DEPENDENCIES,
+            ResourceDependenciesCapability::of::<Self>(),
+        )?;
+        out.register(LIFECYCLE, LifecycleCapability::of::<Self>())
+    }
+}
+
+impl novadraw::figure::FigureResourceDependencies for ResourceLayer {
+    fn resource_dependencies(&self) -> Vec<novadraw::render::ResourceId> {
+        vec![self.resource, self.resource]
+    }
+}
+
+impl novadraw::figure::FigureLifecycle for ResourceLayer {
+    fn on_attached(&mut self, _: novadraw::figure::FigureLifecycleContext) {
+        self.attached
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn keyed_layer_resource_rejection_preserves_keys_topology_and_lifecycle() {
+    use novadraw::runtime::ResourceError;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    for retired in [false, true] {
+        let mut runtime = Runtime::empty();
+        let pane = runtime
+            .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 100.0, 80.0)))
+            .unwrap();
+        let existing = runtime
+            .layers()
+            .add(
+                pane,
+                Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+                key("existing"),
+                LayerPlacement::Last,
+            )
+            .unwrap();
+        let mut other = Runtime::empty();
+        let resource = if retired {
+            let resource = runtime.resources().register_image().unwrap().resource_id();
+            runtime.resources().remove(resource).unwrap();
+            resource
+        } else {
+            other.resources().register_image().unwrap().resource_id()
+        };
+        let attached = Arc::new(AtomicUsize::new(0));
+        let candidate = key("candidate");
+        assert_eq!(
+            runtime.layers().add(
+                pane,
+                Box::new(ResourceLayer {
+                    resource,
+                    attached: attached.clone()
+                }),
+                candidate.clone(),
+                LayerPlacement::Before(key("existing")),
+            ),
+            Err(LayerError::Resource(if retired {
+                ResourceError::UnknownResource
+            } else {
+                ResourceError::WrongNamespace
+            })),
+        );
+        assert_eq!(runtime.layers().ids(pane).unwrap(), [existing]);
+        assert_eq!(runtime.tree().child_order(pane).unwrap(), [existing]);
+        assert_eq!(
+            runtime.layers().layer(pane, &candidate),
+            Err(LayerError::UnknownKey)
+        );
+        assert_eq!(attached.load(Ordering::SeqCst), 0);
+        assert!(!runtime.is_faulted());
+        runtime
+            .layers()
+            .add(
+                pane,
+                Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+                candidate,
+                LayerPlacement::Before(key("existing")),
+            )
+            .unwrap();
+        assert_eq!(runtime.layers().ids(pane).unwrap()[1], existing);
+    }
+}
+
+#[test]
+fn keyed_layer_pending_resource_registration_is_deduplicated_and_released() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let mut runtime = Runtime::empty();
+    let pane = runtime
+        .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 100.0, 80.0)))
+        .unwrap();
+    let resource = runtime.resources().register_image().unwrap().resource_id();
+    let attached = Arc::new(AtomicUsize::new(0));
+    let layer = runtime
+        .layers()
+        .add(
+            pane,
+            Box::new(ResourceLayer {
+                resource,
+                attached: attached.clone(),
+            }),
+            key("resource"),
+            LayerPlacement::Last,
+        )
+        .unwrap();
+    assert_eq!(attached.load(Ordering::SeqCst), 1);
+    assert!(
+        runtime
+            .resources()
+            .remove_dependency(resource, layer)
+            .unwrap()
+    );
+    assert!(
+        !runtime
+            .resources()
+            .remove_dependency(resource, layer)
+            .unwrap()
+    );
+    runtime.resources().add_dependency(resource, layer).unwrap();
+    runtime.layers().remove(pane, &key("resource")).unwrap();
+    assert!(
+        !runtime
+            .resources()
+            .remove_dependency(resource, layer)
+            .unwrap()
+    );
+}
+
+struct EnqueueResourceLayer {
+    pane: novadraw::tree::FigureId,
+    resource: novadraw::render::ResourceId,
+    attached: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl Figure for EnqueueResourceLayer {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 20.0, 20.0)
+    }
+    fn name(&self) -> &'static str {
+        "EnqueueResourceLayer"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
+    }
+}
+
+impl FigureEventHandler for EnqueueResourceLayer {
+    fn on_mouse_pressed(&self, _: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+        ctx.effects().add_layer_later(
+            self.pane,
+            Box::new(ResourceLayer {
+                resource: self.resource,
+                attached: self.attached.clone(),
+            }),
+            key("queued"),
+            LayerPlacement::Last,
+        );
+        ctx.effects().add_layer_later(
+            self.pane,
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            key("queued"),
+            LayerPlacement::Last,
+        );
+        true
+    }
+}
+
+#[test]
+fn deferred_layer_resource_rejection_keeps_error_and_allows_next_request() {
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 80.0)))
+        .unwrap();
+    let pane = runtime
+        .layers()
+        .add_pane(root, Rectangle::new(100.0, 0.0, 100.0, 80.0))
+        .unwrap();
+    let mut other = Runtime::empty();
+    let resource = other.resources().register_image().unwrap().resource_id();
+    let attached = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(EnqueueResourceLayer {
+            pane,
+            resource,
+            attached: attached.clone(),
+        }))
+        .unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+    assert!(matches!(
+        runtime.take_deferred_mutation_errors().as_slice(),
+        [RuntimeMutationError::Resource(
+            novadraw::runtime::ResourceError::WrongNamespace
+        )]
+    ));
+    assert_eq!(runtime.layers().ids(pane).unwrap().len(), 1);
+    assert!(runtime.layers().layer(pane, &key("queued")).is_ok());
+    assert_eq!(attached.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert!(!runtime.is_faulted());
+}

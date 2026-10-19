@@ -641,12 +641,15 @@ fn late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged() {
         .unwrap();
     let mut runtime = Runtime::new(tree);
     let resource = runtime.resources().register_image().unwrap().resource_id();
+    let retired_resource = runtime.resources().register_image().unwrap().resource_id();
+    runtime.resources().remove(retired_resource).unwrap();
     let mut foreign = Runtime::new(FigureTree::new());
     let foreign_resource = foreign.resources().register_image().unwrap().resource_id();
     record_full_submission(&mut runtime);
     let bounds = runtime.tree().figure_bounds(external).unwrap();
     for (new_resource, invalid_bounds, swallow_error) in [
         (foreign_resource, None, false),
+        (retired_resource, None, false),
         (resource, Some(Rectangle::new(0.0, 0.0, -1.0, 10.0)), false),
         (
             resource,

@@ -963,20 +963,6 @@ impl FigureTree {
         id
     }
 
-    pub(crate) fn add_layer_child(
-        &mut self,
-        update_manager: &mut UpdateManager,
-        parent_id: FigureId,
-        figure: Box<dyn Figure>,
-    ) -> Result<FigureId, GraphMutationError> {
-        let child_id = self.new_block_with_parent_admission(figure, parent_id, true)?;
-        let visual_bounds = self.blocks[child_id].visual_bounds();
-        self.mark_invalid(update_manager, parent_id);
-        update_manager.add_dirty_region(child_id, visual_bounds);
-        self.mark_invalid(update_manager, child_id);
-        Ok(child_id)
-    }
-
     fn apply_remove_mutation(
         &mut self,
         update_manager: &mut UpdateManager,

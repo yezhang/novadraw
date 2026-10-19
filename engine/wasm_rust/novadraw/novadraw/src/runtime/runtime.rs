@@ -563,13 +563,45 @@ impl FigureMut<'_> {
 }
 
 impl Runtime {
+    /// Constructs a Runtime, panicking if the tree declares unavailable resources.
+    /// Use [`Self::try_new`] to handle admission errors.
     pub fn new(tree: FigureTree) -> Self {
         Self::with_text_layout_engine(tree, Box::new(crate::render::ParleyTextEngine::new()))
     }
 
+    /// Validates every attached Figure before activating any lifecycle callback.
+    ///
+    /// The construction registry starts empty. Runtime-owned resource IDs must be
+    /// registered after construction and consumed through Runtime mutation APIs.
+    pub fn try_new(tree: FigureTree) -> Result<Self, RuntimeMutationError> {
+        Self::try_with_text_layout_engine(tree, Box::new(crate::render::ParleyTextEngine::new()))
+    }
+
+    /// Constructs a Runtime, panicking if the tree declares unavailable resources.
+    /// Use [`Self::try_with_text_layout_engine`] to handle admission errors.
     pub fn with_text_layout_engine(tree: FigureTree, text: Box<dyn TextLayoutEngine>) -> Self {
+        Self::try_with_text_layout_engine(tree, text)
+            .expect("FigureTree resources must pass Runtime admission")
+    }
+
+    /// Uses the same whole-tree admission as [`Self::try_new`] with an external text engine.
+    pub fn try_with_text_layout_engine(
+        tree: FigureTree,
+        text: Box<dyn TextLayoutEngine>,
+    ) -> Result<Self, RuntimeMutationError> {
         let namespace = tree.namespace();
         let resources = ResourceRegistry::with_namespace(namespace.as_uuid());
+        let mut dependencies = Vec::new();
+        for (index, (id, _)) in tree.attached_ids_parent_first().into_iter().enumerate() {
+            let node = tree.node(id).expect("attached construction node");
+            let admitted =
+                Self::admit_resources(&resources, node.figure.as_ref(), &node.capabilities, &[])
+                    .map_err(|source| RuntimeMutationError::FigureBatch {
+                        index,
+                        source: Box::new(source),
+                    })?;
+            dependencies.push((id, admitted));
+        }
         let backend_session_id = BackendSessionId::initial(resources.namespace());
         let mut updates = UpdateManager::with_namespace(namespace);
         for root in tree.invalid_validation_roots() {
@@ -606,9 +638,12 @@ impl Runtime {
             last_stabilization_error: None,
             faulted: false,
         };
+        for (id, resources) in dependencies {
+            runtime.publish_figure_resources(id, resources);
+        }
         runtime.initialize_layered_panes();
         runtime.activate_attached_figures();
-        runtime
+        Ok(runtime)
     }
 
     pub fn empty() -> Self {
@@ -1417,9 +1452,9 @@ impl Runtime {
             return Err(LayerError::DuplicateKey);
         }
         let target_index = self.resolve_layer_index(pane_id, state, &placement, None)?;
-        let child = self
+        let prepared = self
             .tree
-            .add_layer_child(&mut self.updates, pane_id, figure)
+            .prepare_child(figure, pane_id, true, 0, None)
             .map_err(|error| {
                 if error == crate::GraphMutationError::LayerChildRequired {
                     LayerError::NotLayer
@@ -1427,7 +1462,15 @@ impl Runtime {
                     LayerError::Graph(error)
                 }
             })?;
-        let child_is_layered_pane = self.tree.is_layered_pane(child);
+        let resources = self
+            .admit_figure_resources(prepared.figure.as_ref(), &prepared.capabilities, &[])
+            .map_err(|error| match error {
+                RuntimeMutationError::Resource(error) => LayerError::Resource(error),
+                _ => LayerError::Rejected,
+            })?;
+        let child = self
+            .tree
+            .attach_prepared_child(&mut self.updates, pane_id, prepared);
         let last_index = self
             .tree
             .child_order(pane_id)
@@ -1439,10 +1482,7 @@ impl Runtime {
             .get_mut(&pane_id)
             .expect("validated layered pane state must exist")
             .insert(key, child);
-        if child_is_layered_pane {
-            self.register_layered_pane(child);
-        }
-        self.tree.complete_attachment(child, pane_id);
+        self.complete_figure_insertion(pane_id, child, resources);
         Ok(child)
     }
 
@@ -3135,7 +3175,11 @@ impl Runtime {
             } => self
                 .add_layer(pane, figure, key, placement)
                 .map(|_| true)
-                .map_err(|_| RuntimeMutationError::Rejected),
+                .map_err(|error| match error {
+                    LayerError::Resource(error) => RuntimeMutationError::Resource(error),
+                    LayerError::Graph(error) => error.into(),
+                    _ => RuntimeMutationError::Rejected,
+                }),
             PendingMutationKind::RemoveLayer { pane, key } => self
                 .remove_layer(pane, &key)
                 .map(|_| true)
@@ -5339,6 +5383,64 @@ mod adr014_tests {
                 .unwrap()
                 .is_empty()
         );
+        assert!(!runtime.is_faulted());
+    }
+
+    #[test]
+    fn layer_resource_refusal_preserves_damage_and_all_notification_queues() {
+        struct ResourceLayer(crate::render::ResourceId);
+        impl Figure for ResourceLayer {
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::ZERO
+            }
+            fn name(&self) -> &'static str {
+                "ResourceLayer"
+            }
+            fn register_capabilities(
+                &self,
+                out: &mut crate::figure::FigureCapabilityBuilder,
+            ) -> Result<(), crate::figure::FigureCapabilityRegistrationError> {
+                out.register(crate::figure::LAYER, crate::figure::LayerCapability)?;
+                out.register(
+                    crate::figure::RESOURCE_DEPENDENCIES,
+                    crate::figure::ResourceDependenciesCapability::of::<Self>(),
+                )
+            }
+        }
+        impl crate::figure::FigureResourceDependencies for ResourceLayer {
+            fn resource_dependencies(&self) -> Vec<crate::render::ResourceId> {
+                vec![self.0]
+            }
+        }
+        let (mut runtime, root) = scene();
+        let pane = runtime.layers().add_pane(root, Rectangle::ZERO).unwrap();
+        runtime.record_full_frame();
+        let mut foreign = Runtime::empty();
+        let resource = foreign.resources().register_image().unwrap().resource_id();
+        let children = runtime.tree.child_order(pane);
+        let damage = runtime.updates.dirty_regions.clone();
+        let tree_notifications = runtime.tree.notification_effects().len();
+        let update_notifications = runtime.updates.notification_effects().len();
+        assert_eq!(
+            runtime.layers().add(
+                pane,
+                Box::new(ResourceLayer(resource)),
+                LayerKey::new("rejected").unwrap(),
+                LayerPlacement::Last,
+            ),
+            Err(LayerError::Resource(ResourceError::WrongNamespace)),
+        );
+        assert_eq!(runtime.tree.child_order(pane), children);
+        assert_eq!(runtime.updates.dirty_regions, damage);
+        assert_eq!(
+            runtime.tree.notification_effects().len(),
+            tree_notifications
+        );
+        assert_eq!(
+            runtime.updates.notification_effects().len(),
+            update_notifications
+        );
+        assert!(runtime.layers().ids(pane).unwrap().is_empty());
         assert!(!runtime.is_faulted());
     }
 

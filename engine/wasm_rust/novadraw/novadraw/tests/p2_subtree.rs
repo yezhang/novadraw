@@ -555,6 +555,103 @@ impl novadraw::figure::FigureResourceDependencies for ExternalResource {
 }
 
 #[test]
+fn builder_runtime_admission_rejects_last_resource_before_any_activation() {
+    use novadraw::{
+        runtime::{ResourceError, ResourceRegistry},
+        tree::FigureTree,
+    };
+    for same_namespace in [false, true] {
+        for constructor in 0..3 {
+            let mut tree = FigureTree::new();
+            let mut registry = if same_namespace {
+                ResourceRegistry::with_namespace(tree.namespace().as_uuid())
+            } else {
+                ResourceRegistry::new()
+            };
+            let image = registry.register_image();
+            let events = Arc::new(Mutex::new(Vec::new()));
+            let root = tree
+                .builder()
+                .set_contents(Box::new(LifecycleRecord {
+                    name: "root",
+                    events: events.clone(),
+                    panic_on_detach: false,
+                }))
+                .unwrap();
+            tree.builder()
+                .add_child(
+                    root,
+                    Box::new(LifecycleRecord {
+                        name: "child",
+                        events: events.clone(),
+                        panic_on_detach: false,
+                    }),
+                )
+                .unwrap();
+            tree.builder()
+                .add_child(root, Box::new(ExternalResource(image.resource_id())))
+                .unwrap();
+            if constructor == 2 {
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        Runtime::new(tree)
+                    }))
+                    .is_err()
+                );
+            } else {
+                let result = if constructor == 0 {
+                    Runtime::try_new(tree)
+                } else {
+                    Runtime::try_with_text_layout_engine(
+                        tree,
+                        Box::new(novadraw::text::shaping::ParleyTextEngine::new()),
+                    )
+                };
+                assert!(matches!(
+                    result,
+                    Err(RuntimeMutationError::FigureBatch { index: 2, source })
+                        if matches!(*source, RuntimeMutationError::Resource(ref error)
+                            if *error == if same_namespace {
+                                ResourceError::UnknownResource
+                            } else {
+                                ResourceError::WrongNamespace
+                            })
+                ));
+            }
+            assert!(events.lock().unwrap().is_empty());
+        }
+    }
+}
+
+#[test]
+fn checked_builder_runtime_activates_parent_first_and_accepts_resource_free_figures() {
+    let mut tree = novadraw::tree::FigureTree::new();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let root = tree
+        .builder()
+        .set_contents(Box::new(LifecycleRecord {
+            name: "root",
+            events: events.clone(),
+            panic_on_detach: false,
+        }))
+        .unwrap();
+    tree.builder()
+        .add_child(
+            root,
+            Box::new(LifecycleRecord {
+                name: "child",
+                events: events.clone(),
+                panic_on_detach: false,
+            }),
+        )
+        .unwrap();
+    let runtime = Runtime::try_new(tree).unwrap();
+    assert_eq!(*events.lock().unwrap(), ["attach root", "attach child"]);
+    assert_eq!(runtime.tree().contents(), Some(root));
+    assert!(!runtime.is_faulted());
+}
+
+#[test]
 fn single_insertion_paths_reject_invalid_resources_for_all_figure_providers() {
     use novadraw::figure::{ButtonFigure, ImageFigure, ToggleFigure};
     for retired in [false, true] {

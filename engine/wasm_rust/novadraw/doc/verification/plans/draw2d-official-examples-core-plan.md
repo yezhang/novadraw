@@ -39,8 +39,10 @@ Runtime / Viewport 的同步与事件期完整 contents 替换已接入同一子
 同一路径支持外部 Anchor/Router，并接入 ConnectionAndAnchor 两组端点。
 旧 add/indexed/constraint/batch 插入已复用 typed resource 准入；
 同一 dispatch 的 enter/press/focus 前缀、FIFO 回执及另一 Runtime 嵌套 dispatch
-隔离已验证。Builder、keyed Layer 与 attached 资源更新仍待核对，
-K00/K01 均保留未完成。契约见
+隔离已验证。keyed Layer 已复用资源准入，拒绝保留 key、拓扑与通知，事件期保留
+资源错误并继续 FIFO；Builder → Runtime 增加整树受检构造，原构造器委托并对非法
+资源明确 panic。attached 资源 effect 已核对整批预检，并补齐 retired 反例。
+K00/K01 均保留未完成，下一步补事件 oracle 和剩余示例的动态构造消费。契约见
 [ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 
 ### K00 全入口基线与预检

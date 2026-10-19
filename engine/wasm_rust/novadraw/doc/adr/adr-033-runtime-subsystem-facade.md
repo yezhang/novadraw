@@ -70,8 +70,14 @@ impl Runtime {
 }
 ```
 
-Runtime 本体公开方法预算为 **不超过 25 个**。新增方法必须先证明其属于组合根，而不是
+Runtime 本体公开方法预算为 **不超过 27 个**。新增方法必须先证明其属于组合根，而不是
 既有子系统或具体内置类型。
+
+2026-10-19 按已批准的官方示例 K01 资源准入契约增加 `try_new` 与
+`try_with_text_layout_engine`：二者接收尚无 Runtime owner 的整棵树，必须在任何
+attachment callback 前完成资源预检，因此属于组合根。原构造器保持返回 Self 并
+委托受检入口。预算仅为这两个受检构造方法从 25 调整至 27；不增加子系统业务方法。
+实现与外部消费者证据见 [ADR-009](adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 
 ### 2. 子系统 facade 是无状态短借用窗口
 
@@ -185,7 +191,7 @@ ADR-032 的 `ViewerDrive` 继续是 Editor 对宿主暴露的受限能力集。�
 
 ## 验证
 
-1. API snapshot：Runtime 本体公开方法数不超过 25；
+1. API snapshot：Runtime 本体公开方法数不超过 27；
 2. API snapshot：每个子 facade 独立冻结，root 不平铺这些类型；
 3. compile-fail：`runtime.prepare_submission(...)` 等旧入口不可用；
 4. compile-fail：`runtime.label(id)` 等 concrete facade 不可用；

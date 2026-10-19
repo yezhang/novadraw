@@ -76,8 +76,9 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 typed resource 准入、Runtime / Viewport 同步与事件期完整 contents 替换，
 以及配对 Connection binding 的整批准入与 owned Anchor 释放切片。
 旧 add/indexed/constraint/batch 资源准入和事件重入边界已有测试证据；
-Builder、keyed Layer 与 attached 资源更新的核对仍在当前链上；不以这些切片
-完成关闭整个 K01，也不启动 Editor 改进批次。
+keyed Layer 已统一资源准入，Builder → Runtime 已增加整树受检构造，
+attached 资源 effect 已核对整批预检并补齐 retired 反例。下一步补事件 oracle
+和剩余示例的动态构造消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
@@ -87,7 +88,7 @@ Builder、keyed Layer 与 attached 资源更新的核对仍在当前链上；不
 | 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
 |---|---|---|---|---|---|
 | 1 | P2-S02 | 删除库级 Prelude、显式领域导入与 Crate Root 收口 | `complete` | ADR-021 | ADR-035、module-only root、领域导入 consumer 与 API snapshot 已验证 |
-| 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法 ≤ 25、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
+| 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法按其预算门禁（K01 两个受检构造器后 ≤ 27）、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
 | 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
 | 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |

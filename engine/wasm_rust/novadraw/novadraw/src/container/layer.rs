@@ -43,10 +43,12 @@ pub enum LayerPlacement {
     After(LayerKey),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LayerError {
     Faulted,
     Graph(GraphMutationError),
+    Resource(crate::runtime::ResourceError),
+    Rejected,
     UnknownPane,
     NotLayer,
     DuplicateKey,
@@ -60,6 +62,8 @@ impl fmt::Display for LayerError {
         match self {
             Self::Faulted => write!(formatter, "Runtime is faulted"),
             Self::Graph(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
+            Self::Rejected => write!(formatter, "layer capability provider rejected admission"),
             Self::UnknownPane => write!(formatter, "layered pane does not exist"),
             Self::NotLayer => write!(formatter, "figure does not provide the Layer capability"),
             Self::DuplicateKey => write!(formatter, "layer key already exists in this pane"),
@@ -70,7 +74,15 @@ impl fmt::Display for LayerError {
     }
 }
 
-impl Error for LayerError {}
+impl Error for LayerError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Graph(error) => Some(error),
+            Self::Resource(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl From<GraphMutationError> for LayerError {
     fn from(value: GraphMutationError) -> Self {

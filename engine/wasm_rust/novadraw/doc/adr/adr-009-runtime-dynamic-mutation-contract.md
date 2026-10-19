@@ -270,7 +270,29 @@ Graph 只承载构造与发布，资源检查和错误归因由 Runtime 提供�
 资源准入与登记函数。每个输入只构建一次 capability registry；批量 append 在分配
 身份前检查全部资源。indexed insertion 继续在发布前校验 index 和 constraint，
 拒绝不登记依赖。资源依赖在 attachment callback 前登记，释放复用原统一清理。
-Builder、keyed Layer insertion 与 attached 资源更新的统一准入仍需核对。
+keyed Layer insertion 先完成 pane/key/placement 和 typed Layer 准入，再复用资源预检；
+资源拒绝不分配 child 身份、不登记 key、不发布通知或 damage。成功后先登记 key、
+资源和 pane 状态，再执行 attachment callback。`LayerError::Resource` 保留具体原因；
+事件期添加也将该原因写入 `RuntimeMutationError::Resource`，拒绝后继续 FIFO。
+外部 Layer 使用同一 `LAYER` 与 `RESOURCE_DEPENDENCIES` 注册模型。
+
+Builder 到 Runtime 的入口增加 `try_new` / `try_with_text_layout_engine`，按父先子后
+检查整棵 attached 树的资源，末项失败返回带序号的 `FigureBatch`，不执行任何
+attachment callback。registry 在此边界为空；同 namespace 但未注册的资源也拒绝，
+资源 Figure 应在 Runtime 注册资源后经 mutation 挂载。原 `new` /
+`with_text_layout_engine` 保持返回 Self，委托受检入口，非法输入明确 panic。
+这是对非法输入的行为收紧；资源为空的已有构建调用保持原行为。
+
+attached 资源更新沿 `FigureUpdateEffectContext::resource_dependency_change` 预检旧值
+和新值，再提交 validated effects。foreign/retired 新值及后续非法 bounds 都不提交
+组件 revision、reparent、dependency 或 damage；该路径已有整批拒绝机制，本次仅补
+retired 反例，不另建提交机制。自定义组件必须如实声明资源 effect；Core 无法推断
+其未声明的私有引用。
+
+外部消费者证据：`d2_layer_contract` 覆盖同步/延迟拒绝、key 复用、pending 去重与
+移除释放；内部 Layer 测试核对 tree/update 两个通知队列与 damage。
+`p2_subtree` 覆盖两种受检构造器、原构造器拒绝、末项资源失败时零 activation 和
+资源为空时父先子后 activation；`p2_figure_capability_contract` 覆盖 attached 资源拒绝。
 
 同步返回 `SubtreeReceipt`；延迟入口回调接收
 `Result<SubtreeReceipt, &RuntimeMutationError>`。成功映射在全部 attachment callback
