@@ -10,15 +10,15 @@ use novadraw::{
     event::{EventContext, FigureEventHandler, MouseButton, MouseEvent},
     figure::{
         CONTAINER, ChildClippingStrategy, ContainerCapability, CursorIcon, EllipseFigure, Figure,
-        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer, FigureStyle,
-        INPUT, InputCapability, LabelFigure, RectangleFigure, RoundedRectangleFigure,
-        TriangleFigure,
+        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer,
+        FigureLifecycle, FigureLifecycleContext, FigureStyle, INPUT, InputCapability, LIFECYCLE,
+        LabelFigure, LifecycleCapability, RectangleFigure, RoundedRectangleFigure, TriangleFigure,
     },
     geometry::{Dimension, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
     layout::{GridAlignment, GridConstraint, GridLayout},
     runtime::Runtime,
-    tree::FigureId,
+    tree::{FigureId, FigureSubtree},
 };
 
 use crate::controls::{
@@ -415,7 +415,18 @@ impl Figure for SelectableShapeFigure {
         &self,
         out: &mut FigureCapabilityBuilder,
     ) -> Result<(), FigureCapabilityRegistrationError> {
-        out.register(INPUT, InputCapability::of::<Self>())
+        out.register(INPUT, InputCapability::of::<Self>())?;
+        out.register(LIFECYCLE, LifecycleCapability::of::<Self>())
+    }
+}
+
+impl FigureLifecycle for SelectableShapeFigure {
+    fn on_detached(&mut self, context: FigureLifecycleContext) {
+        self.state
+            .constraints
+            .lock()
+            .expect("GridData constraints")
+            .remove(&context.figure_id);
     }
 }
 
@@ -650,7 +661,20 @@ fn fixture() -> Fixture {
                     .lock()
                     .expect("official shape sequence")
                     .next(state.clone());
-                context.effects().add_child_later(content, Box::new(figure));
+                let state = state.clone();
+                context.effects().add_subtree_later(
+                    content,
+                    FigureSubtree::new(Box::new(figure)),
+                    move |result| {
+                        if let Ok(receipt) = result {
+                            state
+                                .constraints
+                                .lock()
+                                .expect("GridData constraints")
+                                .insert(receipt.root(), GridConstraint::default());
+                        }
+                    },
+                );
             }
         },
     );
@@ -1197,6 +1221,41 @@ mod tests {
     }
 
     #[test]
+    fn width_hint_focus_out_and_invalid_return_match_java_callback_evidence() {
+        let mut fixture = fixture();
+        click_at(&mut fixture.runtime, CONTENT_X + 35.0, CONTENT_Y + 35.0);
+        let selected = fixture.state.selected.lock().unwrap().as_ref().unwrap().id;
+        click(&mut fixture.runtime, fixture.controls.width_hint.id);
+        for character in "91".chars() {
+            fixture
+                .runtime
+                .input()
+                .dispatch_key_pressed(Key::Character(character), KeyModifiers::default());
+        }
+        click(&mut fixture.runtime, fixture.controls.height_hint.id);
+        assert_eq!(
+            fixture.state.constraints.lock().unwrap()[&selected].width_hint,
+            Some(91.0)
+        );
+        click(&mut fixture.runtime, fixture.controls.width_hint.id);
+        for character in "invalid".chars() {
+            fixture
+                .runtime
+                .input()
+                .dispatch_key_pressed(Key::Character(character), KeyModifiers::default());
+        }
+        fixture
+            .runtime
+            .input()
+            .dispatch_key_pressed(Key::Enter, KeyModifiers::default());
+        assert_eq!(
+            fixture.state.constraints.lock().unwrap()[&selected].width_hint,
+            Some(1.0)
+        );
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
     fn add_and_clear_buttons_mutate_the_official_shape_collection() {
         let mut fixture = fixture();
         click(&mut fixture.runtime, fixture.add_button);
@@ -1220,6 +1279,69 @@ mod tests {
                 .is_empty()
         );
         assert!(!fixture.controls.width_hint.enabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn clear_releases_grid_data_and_preserves_the_official_creation_cycle() {
+        let mut fixture = fixture();
+        click_at(&mut fixture.runtime, CONTENT_X + 35.0, CONTENT_Y + 35.0);
+        assert_eq!(fixture.state.constraints.lock().unwrap().len(), 1);
+        click(&mut fixture.runtime, fixture.clear_button);
+        assert!(fixture.state.constraints.lock().unwrap().is_empty());
+        assert!(fixture.state.selected.lock().unwrap().is_none());
+
+        let mut names = Vec::new();
+        for _ in 0..OFFICIAL_SHAPE_KINDS.len() {
+            click(&mut fixture.runtime, fixture.add_button);
+            let children = fixture.runtime.tree().child_order(fixture.content).unwrap();
+            let child = *children.last().unwrap();
+            names.push(fixture.runtime.tree().node(child).unwrap().figure_name());
+            assert_eq!(
+                fixture.state.constraints.lock().unwrap()[&child],
+                GridConstraint::default()
+            );
+            assert_eq!(
+                fixture.state.constraints.lock().unwrap().len(),
+                children.len()
+            );
+        }
+        assert_eq!(
+            names,
+            [
+                "RoundedRectangle",
+                "RectangleFigure",
+                "Ellipse",
+                "Triangle",
+                "RoundedRectangle",
+                "Triangle",
+                "RoundedRectangle",
+                "Ellipse",
+                "RectangleFigure",
+            ]
+        );
+        click(&mut fixture.runtime, fixture.clear_button);
+        assert!(fixture.state.constraints.lock().unwrap().is_empty());
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
+    fn rejected_add_does_not_publish_grid_data_for_an_unmounted_shape() {
+        let mut fixture = fixture();
+        let parent = fixture
+            .runtime
+            .tree()
+            .parent_id(fixture.content)
+            .unwrap()
+            .unwrap();
+        fixture
+            .runtime
+            .figure(parent)
+            .unwrap()
+            .remove(fixture.content)
+            .unwrap();
+        click(&mut fixture.runtime, fixture.add_button);
+        assert!(fixture.state.constraints.lock().unwrap().is_empty());
+        assert_eq!(fixture.runtime.take_deferred_mutation_errors().len(), 1);
     }
 
     fn click(runtime: &mut Runtime, figure: FigureId) {
