@@ -685,6 +685,10 @@ pub(crate) enum PendingMutationKind {
         figure: FigureId,
         scale: f64,
     },
+    SetStyle {
+        figure: FigureId,
+        style: crate::FigureStyle,
+    },
     MoveChildToIndex {
         parent: FigureId,
         child: FigureId,
@@ -789,6 +793,12 @@ impl PendingMutation {
     pub(crate) fn set_scale(figure: FigureId, scale: f64) -> Self {
         Self {
             kind: PendingMutationKind::SetScale { figure, scale },
+        }
+    }
+
+    pub(crate) fn set_style(figure: FigureId, style: crate::FigureStyle) -> Self {
+        Self {
+            kind: PendingMutationKind::SetStyle { figure, style },
         }
     }
 
@@ -973,6 +983,10 @@ pub(crate) trait MutationContext {
 
     fn set_scale_later(&mut self, figure: FigureId, scale: f64) {
         self.enqueue_mutation(PendingMutation::set_scale(figure, scale));
+    }
+
+    fn set_style_later(&mut self, figure: FigureId, style: crate::FigureStyle) {
+        self.enqueue_mutation(PendingMutation::set_style(figure, style));
     }
 
     fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {

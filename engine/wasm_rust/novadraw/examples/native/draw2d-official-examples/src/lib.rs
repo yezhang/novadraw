@@ -193,7 +193,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ScrollPaneExample",
             "org/eclipse/draw2d/examples/scrollpane/ScrollPaneExample.java",
             &[
-                "InternalFrame drag/resize, GroupBoxBorder and official ExampleUtil composition are ported; dynamic directional cursors remain unavailable",
+                "InternalFrame drag/resize, GroupBoxBorder, ExampleUtil composition and dynamic resize cursor transitions are ported",
                 "Core ScrollBar child composition/theme and upstream visual comparison remain pending",
             ],
             examples::scroll_pane_example,

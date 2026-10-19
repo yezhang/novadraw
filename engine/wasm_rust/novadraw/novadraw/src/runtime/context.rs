@@ -52,6 +52,14 @@ impl<'a> EventSceneQuery<'a> {
         Ok(self.node(figure)?.figure_bounds())
     }
 
+    /// Returns a copy of the target's local overrides, before deferred writes.
+    pub fn figure_style(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::FigureStyle, EventSceneQueryError> {
+        Ok(self.node(figure)?.state().style().clone())
+    }
+
     /// Returns the area in which a container lays out direct children.
     pub fn child_content_bounds(
         &self,
@@ -443,6 +451,13 @@ impl EventEffects<'_> {
     /// Enqueues a scale-capability update after the callback releases its immutable borrows.
     pub fn set_scale_later(&mut self, figure: FigureId, scale: f64) {
         MutationContext::set_scale_later(self, figure, scale);
+    }
+
+    /// Replaces a target's local style after dispatch, using the same validation,
+    /// inheritance, property notifications and damage as `FigureMut::set_style`.
+    /// `None` fields resume ancestor inheritance.
+    pub fn set_style_later(&mut self, figure: FigureId, style: crate::FigureStyle) {
+        MutationContext::set_style_later(self, figure, style);
     }
 
     pub fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {

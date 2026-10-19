@@ -2137,6 +2137,9 @@ impl Runtime {
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(move |runtime| {
             runtime.validate_attached_figure(id)?;
+            if style.alpha.is_some_and(|alpha| !alpha.is_finite()) {
+                return Err(crate::GraphMutationError::InvalidInitialStyle.into());
+            }
             Ok(runtime.set_figure_style_inner(id, style))
         })
     }
@@ -2919,6 +2922,7 @@ impl Runtime {
             PendingMutationKind::SetScale { figure, scale } => {
                 self.viewports().set_scale(figure, scale)
             }
+            PendingMutationKind::SetStyle { figure, style } => self.set_figure_style(figure, style),
             PendingMutationKind::MoveChildToIndex {
                 parent,
                 child,

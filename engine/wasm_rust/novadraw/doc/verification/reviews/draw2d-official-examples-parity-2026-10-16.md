@@ -46,7 +46,7 @@ Draw2D 基础类为准。[官方源码](https://github.com/eclipse-gef/gef-class
 | CompoundGraphDemo · `graph/CompoundGraphDemo.java` | blocked | CompoundGraphTests 的嵌套模型、padding/insets、跨组边；官方 subgraph/node/edge 图元平铺于 Panel | P2-L01 CompoundDirectedGraph 模型和布局未实现；10 fixture × 两方向，不能将模型嵌套改为官方未使用的图元嵌套 |
 | PathExample · `path/PathExample.java` | blocked | 45° 旋转闭合 Path、旋转 bounds、ScrollBar 缩放、自定义 ZoomFigure | PathFigure 每次 fill/outline 还绘制部分下划线、选择背景的 SWT TextLayout；fragment 装饰和原 ScrollBar 完整协议缺失 |
 | ZoomExample · `zoom/ZoomExample.java` | in_progress | `zoom_example.rs`；Table/Column 三段式类、字段/方法图标、XYLayout、StackLayout、带文字 thumb、步进/翻页/拖动 | ScrollBar 的五子节点构成、SchemeBorder、REPEAT_FIRING 未移植；SVG 当前使用上游 PNG 替代资源，不能证明缩放对等 |
-| ScrollPaneExample · `scrollpane/ScrollPaneExample.java` | in_progress | `scroll_pane_example.rs`；两个重叠 InternalFrame、组合标题边框、Toolbar/两个 FlowPanel、十八个 George Label、固定 100×100 内容、tracksWidth、自动滚动条、标题移动和八方向 resize | 动态方向光标缺少事件期更新接口；Core ScrollBar 子节点构成和主题仍与官方不同；GroupBoxBorder 与字体仍须双侧视觉核对 |
+| ScrollPaneExample · `scrollpane/ScrollPaneExample.java` | in_progress | `scroll_pane_example.rs`；两个重叠 InternalFrame、组合标题边框、Toolbar/两个 FlowPanel、十八个 George Label、固定 100×100 内容、tracksWidth、自动滚动条、标题移动、八方向 resize 和动态 cursor | cursor 通过事件期 style replacement 接入；Core ScrollBar 子节点构成和主题仍与官方不同；GroupBoxBorder 与字体仍须双侧视觉核对 |
 | ThumbnailExample · `thumbnail/ThumbnailExample.java` | blocked | 主窗口拥有可变 source Figure 树，overview Thumbnail 通过瓦片图像更新保持纵横比、拖动实时反映 | 只读 live snapshot/资源 epoch/订阅和双窗口生命周期待设计；不要求第二棵 editable 树，静态截图或复制场景不等价 |
 | BidiBlockExample · `text/BidiBlockExample.java` | blocked | 两侧 LTR/RTL Canvas、每侧十段、相对/绝对对齐、共享纵向 range | per-block base direction、ALWAYS_LEFT/RIGHT、双 Canvas 共享 RangeModel 的公开组合接口缺失 |
 | CaretExample · `text/CaretExample.java` | blocked | 混合脚本、offset/trailing、原生 Caret、Hit info、fragment TestBorder；源码传 selection(offset,offset+1) | TextFlow selection 是闭区间，先前“单字符”判断撤回，需 Java oracle；Core 提供文字几何/绘制，示例控制器持有临时高亮，平台执行 native Caret；UTF-16/UTF-8 与 trailing 适配未闭合 |
@@ -60,6 +60,17 @@ Draw2D 基础类为准。[官方源码](https://github.com/eclipse-gef/gef-class
 | PrintExample · `printing/PrintExample.java` | blocked | 多字体/图元/Button/Image/Connection 预览、PrintDialog/Printer/PrintFigureOperation | P2-O01 输出目标和打印资源生命周期 deferred；截图不等价于打印 |
 
 ## 本批实现证据
+
+2026-10-19 方案提交 `d35397a` 后开始 K00/K01。新增 `source-contracts.tsv` 与可执行
+测试，对照 catalog/全量计划，并实际验证上游 25 main、helper/resource、16 Directed
+与 10 Compound fixture。该测试尚不代表全 feature 运行取证。
+K01 新增 committed style 查询和延迟 replacement，复用同步 Runtime 路径；四项
+外部测试验证 callback 不立即写入、FIFO/清除继承、foreign 和非有限 alpha 拒绝。
+InternalFrame 接入边缘/角落 cursor 与 pointer exit 清除，真实鼠标测试通过。
+完整 subtree/receipt 和其余 K01 内容仍未完成。
+本切片最终 workspace Clippy、fmt 和 test 通过：1,080 项 passed、2 项 ignored；
+其中需本地上游检出的源码清单测试已通过独立显式执行，不由 ignored 自动计为通过。
+原始执行日志位于本地 `/tmp/novadraw-k01-tests.log`；不将临时日志写入产品目录。
 
 TreeExample 保留官方 19 个节点，根子序列为 Normal Style、Child、Normal Style、
 Child、Normal Style；两个 hanging 分支及三个/两个 child 子组逐一对应 Java fixture。
@@ -165,7 +176,7 @@ workspace fmt、Clippy 和 test 已通过；官方功能差额仍未闭合，不
 [Core 实施计划](../plans/draw2d-official-examples-core-plan.md)。
 官方行为直接由 Draw2D/SWT 提供，额外推导的 Editor 改进计划已撤回；
 剩余任务由 Core、扩展实现、示例控制器和平台/backend 按职责承担。
-这些是待评审方案，不代表新的 API 已实施，不改变本页既有状态数量。
+方案已于 2026-10-19 获准实施；当前仅开始 K00/K01 切片，不改变本页既有状态数量。
 
 继续关闭九个独立移植条目的实际差额，并移植尚未实现的 ObstructionExample。对十三个 blocked
 条目，应分别确定公开 API 或平台增量；不得为了增加完成数绑定近似业务场景。

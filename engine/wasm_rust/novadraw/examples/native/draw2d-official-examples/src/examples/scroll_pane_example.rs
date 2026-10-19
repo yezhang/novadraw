@@ -5,9 +5,9 @@ use novadraw::{
     container::ScrollPaneHandle,
     event::{EventContext, FigureEventHandler, MouseEvent},
     figure::{
-        BORDER, Border, BorderCapability, BorderedFigure, CONTAINER, ContainerCapability, Figure,
-        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer, FigureStyle,
-        INPUT, InputCapability, LabelFigure, RectangleFigure,
+        BORDER, Border, BorderCapability, BorderedFigure, CONTAINER, ContainerCapability,
+        CursorIcon, Figure, FigureCapabilityBuilder, FigureCapabilityRegistrationError,
+        FigureContainer, FigureStyle, INPUT, InputCapability, LabelFigure, RectangleFigure,
         border::{BevelBorder, BevelStyle, CompoundBorder, EtchedBorder, LineBorder},
     },
     geometry::{Dimension, Insets, Point, Rectangle},
@@ -193,6 +193,32 @@ impl FigureEventHandler for InternalFrame {
         let mut tracker = self.tracker.lock().expect("frame tracker");
         tracker.position = position;
         tracker.moving = position == NORTH && event.y > insets.left;
+        let cursor = if tracker.moving {
+            None
+        } else {
+            match position {
+                EAST | WEST => Some(CursorIcon::EastWestResize),
+                NORTH | SOUTH => Some(CursorIcon::NorthSouthResize),
+                value if value == (NORTH | EAST) || value == (SOUTH | WEST) => {
+                    Some(CursorIcon::NorthEastSouthWestResize)
+                }
+                value if value == (NORTH | WEST) || value == (SOUTH | EAST) => {
+                    Some(CursorIcon::NorthWestSouthEastResize)
+                }
+                _ => None,
+            }
+        };
+        let target = ctx.target_id();
+        let mut style = ctx.scene().figure_style(target).expect("frame style");
+        style.cursor = cursor;
+        ctx.effects().set_style_later(target, style);
+        false
+    }
+    fn on_mouse_exited(&self, _: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+        let target = ctx.target_id();
+        let mut style = ctx.scene().figure_style(target).expect("frame style");
+        style.cursor = None;
+        ctx.effects().set_style_later(target, style);
         false
     }
     fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
@@ -515,6 +541,24 @@ mod tests {
                 )
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn frame_cursor_follows_edges_corners_and_pointer_exit() {
+        let mut fixture = fixture();
+        prepare(&mut fixture.runtime);
+        for (x, y, expected) in [
+            (219.0, 90.0, CursorIcon::EastWestResize),
+            (100.0, 159.0, CursorIcon::NorthSouthResize),
+            (219.0, 159.0, CursorIcon::NorthWestSouthEastResize),
+            (21.0, 159.0, CursorIcon::NorthEastSouthWestResize),
+        ] {
+            fixture.runtime.input().dispatch_mouse_moved(x, y);
+            assert_eq!(fixture.runtime.focus().cursor_icon(), expected);
+        }
+        fixture.runtime.input().pointer_exited();
+        assert_eq!(fixture.runtime.focus().cursor_icon(), CursorIcon::Default);
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
     }
 
     #[test]

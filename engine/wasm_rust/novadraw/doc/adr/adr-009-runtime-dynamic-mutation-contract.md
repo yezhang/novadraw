@@ -227,3 +227,23 @@ pointer capture 下的轻量 Figure 直接操纵；需要 Command/undo、policy 
 ## 日期
 
 2026-09-08
+
+## K01 事件期样式写入增量
+
+2026-10-19 按用户接受的官方示例 Core 计划实施。`EventSceneQuery::figure_style`
+返回当前 committed 局部样式副本；`EventEffects::set_style_later` 记录目标身份和完整
+`FigureStyle`，复用 `FigureMut::set_style` 的 Runtime 提交路径。外部实现和内置 Figure
+均使用同一入口，无具体 Figure 分支。
+
+`None` 属性恢复父级继承，cursor 清除与 foreground 清除同样适用。事件内查询仍看不到
+待提交写入；多个 replacement 按 FIFO 应用。非法身份或非有限 alpha 结构化拒绝，
+失败不写样式，也不使健康 Runtime fault；有限 alpha 继续沿既有范围收敛语义。
+属性通知、字体失效与 descendant repaint 由现有 update-aware style mutation 处理。
+
+外部消费者证据：`novadraw/tests/p2_deferred_style.rs` 使用第三方 Figure 验证延迟写入、
+清除继承、FIFO、foreign 目标、同步/延迟非法 alpha 拒绝；官方 InternalFrame 通过同一
+入口更新边缘/角落 resize cursor，并在 pointer exit 清除。本切片不关闭完整 K01
+subtree 构造或事件结果 receipt，也不引入 Editor API。
+
+`api_semantics`：`figure.properties`、`event.input_listeners`、`runtime.identity`、
+`damage.repaint`。
