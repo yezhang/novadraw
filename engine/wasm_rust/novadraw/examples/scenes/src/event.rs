@@ -17,6 +17,7 @@ use crate::{DemoSuite, SceneSpec, ValidationKind};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
+const HOVER_BORDER_WIDTH: f64 = 4.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ProbeEvent {
@@ -37,6 +38,7 @@ pub struct ProbeState {
 struct EventProbeFigure {
     bounds: Rectangle,
     disabled_visual: bool,
+    hover_border_visual: bool,
     state: Arc<Mutex<ProbeState>>,
 }
 
@@ -45,6 +47,7 @@ impl EventProbeFigure {
         Self {
             bounds,
             disabled_visual: false,
+            hover_border_visual: false,
             state,
         }
     }
@@ -53,6 +56,7 @@ impl EventProbeFigure {
         Self {
             bounds: spec.bounds,
             disabled_visual: !spec.enabled,
+            hover_border_visual: false,
             state,
         }
     }
@@ -106,7 +110,9 @@ impl Figure for EventProbeFigure {
         bounds: Rectangle,
     ) -> Result<(), GraphicsError> {
         let state = self.state.lock().unwrap();
-        let color = if self.disabled_visual {
+        let color = if self.hover_border_visual {
+            Color::from_hex("#eaf4ff").expect("valid color literal")
+        } else if self.disabled_visual {
             Color::from_hex("#95a5a6").expect("valid color literal")
         } else if state.pressed {
             Color::from_hex("#e74c3c").expect("valid color literal")
@@ -118,7 +124,20 @@ impl Figure for EventProbeFigure {
             Color::from_hex("#3498db").expect("valid color literal")
         };
         context.set_fill_paint(color);
-        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
+        if self.hover_border_visual && state.hovered {
+            // Keep the complete stroke inside the Figure's repaint bounds.
+            let inset = HOVER_BORDER_WIDTH / 2.0;
+            context.set_stroke_paint(Color::from_hex("#0984e3").expect("valid color literal"));
+            context.set_stroke_width(HOVER_BORDER_WIDTH)?;
+            context.stroke_rect(Rectangle::new(
+                inset,
+                inset,
+                bounds.width - HOVER_BORDER_WIDTH,
+                bounds.height - HOVER_BORDER_WIDTH,
+            ))?;
+        }
+        Ok(())
     }
 
     fn register_capabilities(
@@ -219,6 +238,17 @@ impl FigureEventHandler for EventProbeFigure {
 }
 
 pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState>>) {
+    build_probe_scene(local_coordinates, false)
+}
+
+pub fn hover_probe_scene() -> (FigureTree, Arc<Mutex<ProbeState>>) {
+    build_probe_scene(false, true)
+}
+
+fn build_probe_scene(
+    local_coordinates: bool,
+    hover_border_visual: bool,
+) -> (FigureTree, Arc<Mutex<ProbeState>>) {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
@@ -248,19 +278,18 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
         root
     };
     let state = Arc::new(Mutex::new(ProbeState::default()));
+    let mut figure = EventProbeFigure::new(
+        if local_coordinates {
+            Rectangle::new(40.0, 50.0, 220.0, 140.0)
+        } else {
+            Rectangle::new(250.0, 180.0, 300.0, 200.0)
+        },
+        state.clone(),
+    );
+    figure.hover_border_visual = hover_border_visual;
     let probe = graph
         .builder()
-        .add_child(
-            parent,
-            Box::new(EventProbeFigure::new(
-                if local_coordinates {
-                    Rectangle::new(40.0, 50.0, 220.0, 140.0)
-                } else {
-                    Rectangle::new(250.0, 180.0, 300.0, 200.0)
-                },
-                state.clone(),
-            )),
-        )
+        .add_child(parent, Box::new(figure))
         .expect("valid FigureTree construction");
     graph
         .builder()
@@ -279,6 +308,10 @@ fn pointer_scene() -> FigureTree {
 
 fn coordinate_scene() -> FigureTree {
     probe_scene(true).0
+}
+
+fn hover_highlight_scene() -> FigureTree {
+    hover_probe_scene().0
 }
 
 fn focus_traversal_scene() -> FigureTree {
@@ -324,6 +357,13 @@ pub fn suite() -> DemoSuite {
                 size,
                 ValidationKind::Interactive,
                 coordinate_scene,
+            ),
+            SceneSpec::new(
+                "hover-highlight",
+                "hover_highlight",
+                size,
+                ValidationKind::Interactive,
+                hover_highlight_scene,
             ),
         ],
     )

@@ -19,8 +19,13 @@ cargo run -p event-app -- --screenshot-all
 | 1 | `focus_keyboard` | 点击取得焦点、键盘投递、焦点释放 |
 | 2 | `wheel_hover_double` | wheel、hover、double-click |
 | 3 | `coordinate_root` | 嵌套坐标根命中和 target-domain 事件点 |
+| 4 | `hover_highlight` | 鼠标进入卡片后显示蓝色高亮边框，移开后恢复 |
 
-窗口中按 `Home` 回到场景 0，按数字键 `0`-`3` 切换场景，按 `Esc` 退出。
+窗口中按 `Home` 回到场景 0，按数字键 `0`-`4` 切换场景，按 `Esc` 退出。
+
+按 `4` 后，将鼠标移入中央的浅蓝色卡片。卡片会显示 4 像素宽的蓝色边框；
+移出卡片或窗口后，边框消失。边框由 `Entered` / `Exited` 事件切换，
+通过 repaint 更新，不需要点击。
 
 ## Verification
 
@@ -33,9 +38,11 @@ cargo run -p event-app -- --verify \
 
 ```text
 PASS pointer_capture
+PASS pointer_leave_cleanup
 PASS focus_keyboard
 PASS wheel_hover_double
 PASS coordinate_root
+PASS hover_highlight
 ```
 
 完整的人工动作、颜色状态和通过标准见

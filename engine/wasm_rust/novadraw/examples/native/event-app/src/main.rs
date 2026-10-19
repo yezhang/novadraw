@@ -1,8 +1,10 @@
 use novadraw::event::{
     FocusEventKind, Key, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, WheelEvent,
 };
+use novadraw::render::command::RenderCommandKind;
+use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::Runtime;
-use novadraw_example_scenes::event::{ProbeEvent, probe_scene};
+use novadraw_example_scenes::event::{ProbeEvent, hover_probe_scene, probe_scene};
 use novadraw_example_support::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,
@@ -151,6 +153,64 @@ fn verify_coordinate_reduction() -> Result<VerificationMetrics, String> {
     ]))
 }
 
+fn verify_hover_highlight() -> Result<VerificationMetrics, String> {
+    let (graph, state) = hover_probe_scene();
+    let mut runtime = Runtime::new(graph);
+    let surface = SurfaceInfo {
+        logical_width: 800.0,
+        logical_height: 600.0,
+        pixel_width: 800,
+        pixel_height: 600,
+        scale_factor: 1.0,
+    };
+    let check_border = |runtime: &mut Runtime, expected: bool| -> Result<(), String> {
+        let submission = runtime
+            .frames()
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
+            .map_err(|state| format!("hover repaint was not ready: {state:?}"))?;
+        let has_border = submission
+            .commands
+            .iter()
+            .any(|command| matches!(command.kind, RenderCommandKind::StrokeRect { .. }));
+        let _ = runtime
+            .frames()
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .map_err(|error| error.to_string())?;
+        if has_border != expected {
+            return Err(format!(
+                "hover border mismatch: expected {expected}, got {has_border}"
+            ));
+        }
+        Ok(())
+    };
+
+    check_border(&mut runtime, false)?;
+    runtime.input().dispatch_mouse_moved(300.0, 220.0);
+    check_border(&mut runtime, true)?;
+    runtime.input().dispatch_mouse_moved(700.0, 500.0);
+    check_border(&mut runtime, false)?;
+    runtime.input().dispatch_mouse_moved(300.0, 220.0);
+    check_border(&mut runtime, true)?;
+    runtime.input().pointer_exited();
+    check_border(&mut runtime, false)?;
+    let events = &state.lock().unwrap().events;
+    assert_event_order(
+        events,
+        &[
+            MouseEventKind::Entered,
+            MouseEventKind::Exited,
+            MouseEventKind::Entered,
+            MouseEventKind::Exited,
+        ],
+    )?;
+    Ok(metrics([("border_transitions", "4".to_string())]))
+}
+
 fn assert_event_order(events: &[ProbeEvent], kinds: &[MouseEventKind]) -> Result<(), String> {
     let actual = events
         .iter()
@@ -178,7 +238,7 @@ fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics 
         .collect()
 }
 
-fn verification_cases() -> [VerificationCase; 5] {
+fn verification_cases() -> [VerificationCase; 6] {
     [
         VerificationCase {
             name: "pointer_capture",
@@ -199,6 +259,10 @@ fn verification_cases() -> [VerificationCase; 5] {
         VerificationCase {
             name: "coordinate_root",
             run: verify_coordinate_reduction,
+        },
+        VerificationCase {
+            name: "hover_highlight",
+            run: verify_hover_highlight,
         },
     ]
 }
