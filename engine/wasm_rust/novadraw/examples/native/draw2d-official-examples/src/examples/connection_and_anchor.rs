@@ -14,7 +14,7 @@ use novadraw::{
     geometry::{Point, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
     runtime::Runtime,
-    tree::FigureId,
+    tree::{FigureId, FigureSubtree, SubtreeBindingNodes, SubtreeConnection},
 };
 
 use super::runtime_with_fonts;
@@ -212,38 +212,17 @@ fn fixture() -> Fixture {
         )))
         .expect("ConnectionAndAnchorExample root");
 
-    let midpoint_panel = add_group(
-        &mut runtime,
-        root,
-        Rectangle::new(0.0, 0.0, PANEL_WIDTH, PANEL_HEIGHT),
-        "Midpoint Locator",
-    );
-    let first_node = add_node(
-        &mut runtime,
-        midpoint_panel,
-        Rectangle::new(40.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
-        Color::rgba(1.0, 0.0, 0.0, 1.0),
-    );
-    let second_node = add_node(
-        &mut runtime,
-        midpoint_panel,
-        Rectangle::new(200.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
-        Color::rgba(0.0, 0.0, 1.0, 1.0),
-    );
-    let first_connection_figure = runtime
-        .figure(midpoint_panel)
-        .expect("midpoint panel")
-        .add(Box::new(
-            ConnectionFigure::new().with_stroke(Color::BLACK, 1.0),
-        ))
-        .expect("midpoint connection Figure");
-    let first_connection = register_connection(
-        &mut runtime,
-        midpoint_panel,
-        first_connection_figure,
-        first_node,
-        second_node,
-    );
+    let (midpoint_panel, first_node, first_connection_figure, first_connection) =
+        add_connected_group(
+            &mut runtime,
+            root,
+            Rectangle::new(0.0, 0.0, PANEL_WIDTH, PANEL_HEIGHT),
+            "Midpoint Locator",
+            Rectangle::new(40.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
+            Color::rgba(1.0, 0.0, 0.0, 1.0),
+            Rectangle::new(200.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
+            Color::rgba(0.0, 0.0, 1.0, 1.0),
+        );
     let midpoint_label =
         add_connection_label(&mut runtime, first_connection_figure, "Midpoint", 72.0);
     runtime
@@ -263,37 +242,15 @@ fn fixture() -> Fixture {
         )
         .expect("midpoint route");
 
-    let endpoint_panel = add_group(
+    let (endpoint_panel, _, second_connection_figure, second_connection) = add_connected_group(
         &mut runtime,
         root,
         Rectangle::new(SECOND_PANEL_X, 0.0, PANEL_WIDTH, PANEL_HEIGHT),
         "Connection endpoint Locator",
-    );
-    let third_node = add_node(
-        &mut runtime,
-        endpoint_panel,
         Rectangle::new(60.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
         Color::rgba(0.0, 1.0, 0.0, 1.0),
-    );
-    let fourth_node = add_node(
-        &mut runtime,
-        endpoint_panel,
         Rectangle::new(60.0, 230.0, NODE_WIDTH, NODE_HEIGHT),
         Color::BLACK,
-    );
-    let second_connection_figure = runtime
-        .figure(endpoint_panel)
-        .expect("endpoint panel")
-        .add(Box::new(
-            ConnectionFigure::new().with_stroke(Color::BLACK, 1.0),
-        ))
-        .expect("endpoint connection Figure");
-    let second_connection = register_connection(
-        &mut runtime,
-        endpoint_panel,
-        second_connection_figure,
-        third_node,
-        fourth_node,
     );
     let target_label =
         add_connection_label(&mut runtime, second_connection_figure, "Endpoint", 72.0);
@@ -351,70 +308,93 @@ fn fixture() -> Fixture {
     }
 }
 
-fn add_group(runtime: &mut Runtime, parent: FigureId, bounds: Rectangle, title: &str) -> FigureId {
-    let group = runtime
-        .figure(parent)
-        .expect("group parent")
-        .add(Box::new(GroupBoxFigure::new(bounds)))
-        .expect("GroupBox");
-    let title_width = title.len() as f64 * 7.5 + 12.0;
-    let label = runtime
-        .figure(group)
-        .expect("GroupBox")
-        .add(Box::new(
-            LabelFigure::new(title).with_bounds(Rectangle::new(8.0, 0.0, title_width, 20.0)),
-        ))
-        .expect("GroupBox title");
-    runtime
-        .figure(label)
-        .expect("GroupBox title")
-        .set_style(FigureStyle {
-            foreground: Some(Color::BLACK),
-            background: Some(Color::WHITE),
-            font: Some("13px Inter Variable".to_owned()),
-            ..FigureStyle::default()
-        })
-        .expect("GroupBox title style");
-    group
-}
-
-fn add_node(runtime: &mut Runtime, parent: FigureId, bounds: Rectangle, fill: Color) -> FigureId {
-    runtime
-        .figure(parent)
-        .expect("node parent")
-        .add(Box::new(DraggableRectangle::new(bounds, fill)))
-        .expect("draggable node")
-}
-
-fn register_connection(
+#[allow(clippy::too_many_arguments)]
+fn add_connected_group(
     runtime: &mut Runtime,
     parent: FigureId,
-    figure: FigureId,
-    source: FigureId,
-    target: FigureId,
-) -> ConnectionId {
-    let source_anchor = runtime
-        .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime
-        .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
-    let router = runtime.connections().direct_router();
-    let connection = runtime
-        .connections()
-        .register_state(
-            figure,
-            Some(source_anchor),
-            Some(target_anchor),
-            RouterBinding::Explicit { router },
-            None,
+    bounds: Rectangle,
+    title: &str,
+    source_bounds: Rectangle,
+    source_fill: Color,
+    target_bounds: Rectangle,
+    target_fill: Color,
+) -> (FigureId, FigureId, FigureId, ConnectionId) {
+    let mut subtree = FigureSubtree::new(Box::new(GroupBoxFigure::new(bounds)));
+    let group = subtree.root();
+    let title_width = title.len() as f64 * 7.5 + 12.0;
+    let label = subtree
+        .add(
+            group,
+            Box::new(LabelFigure::new(title).with_bounds(Rectangle::new(
+                8.0,
+                0.0,
+                title_width,
+                20.0,
+            ))),
         )
-        .expect("connection state");
+        .expect("GroupBox title");
+    subtree
+        .set_style(
+            label,
+            FigureStyle {
+                foreground: Some(Color::BLACK),
+                background: Some(Color::WHITE),
+                font: Some("13px Inter Variable".to_owned()),
+                ..FigureStyle::default()
+            },
+        )
+        .expect("GroupBox title style");
+    let source = subtree
+        .add(
+            group,
+            Box::new(DraggableRectangle::new(source_bounds, source_fill)),
+        )
+        .expect("source node");
+    let target = subtree
+        .add(
+            group,
+            Box::new(DraggableRectangle::new(target_bounds, target_fill)),
+        )
+        .expect("target node");
+    let figure = subtree
+        .add(
+            group,
+            Box::new(ConnectionFigure::new().with_stroke(Color::BLACK, 1.0)),
+        )
+        .expect("connection Figure");
+    let router = runtime.connections().direct_router();
+    subtree
+        .set_connection_binding(figure, move |nodes: &SubtreeBindingNodes| {
+            Ok(SubtreeConnection {
+                source: Some(Box::new(ChopboxAnchor::new(
+                    nodes.figure(source).expect("source mapping"),
+                ))),
+                target: Some(Box::new(ChopboxAnchor::new(
+                    nodes.figure(target).expect("target mapping"),
+                ))),
+                router: RouterBinding::Explicit { router },
+                constraint: None,
+            })
+        })
+        .expect("construction binding");
+    let receipt = runtime
+        .figure(parent)
+        .expect("group parent")
+        .add_subtree(subtree)
+        .expect("complete connected group");
+    let group = receipt.root();
+    let figure = receipt.figure(figure).expect("connection mapping");
+    let connection = ConnectionId::from_figure(figure);
     runtime
         .connections()
-        .resolve_route(connection, CoordinateSpace::ChildContent(parent))
+        .resolve_route(connection, CoordinateSpace::ChildContent(group))
         .expect("initial route");
-    connection
+    (
+        group,
+        receipt.figure(source).expect("source mapping"),
+        figure,
+        connection,
+    )
 }
 
 fn add_connection_label(
