@@ -1,6 +1,13 @@
 use super::*;
 use crate::figure::Figure;
 
+pub(crate) struct PreparedChild {
+    figure: Box<dyn Figure>,
+    state: NodeState,
+    capabilities: FigureCapabilitySet,
+    depth: usize,
+}
+
 impl FigureTree {
     pub(super) fn validate_direct_child(
         &self,
@@ -664,6 +671,18 @@ impl FigureTree {
         index: Option<usize>,
         prepare: impl FnOnce(&Self, FigureId) -> Result<Option<Box<dyn LayoutConstraint>>, E>,
     ) -> Result<FigureId, E> {
+        let child = self.prepare_child(figure, parent_id, layer_admission, 0, None)?;
+        self.insert_prepared_child(child, parent_id, index, prepare)
+    }
+
+    pub(crate) fn prepare_child(
+        &self,
+        figure: Box<dyn Figure>,
+        parent_id: FigureId,
+        layer_admission: bool,
+        pending_children: usize,
+        style: Option<FigureStyle>,
+    ) -> Result<PreparedChild, GraphMutationError> {
         let bounds = figure.initial_bounds();
         if !bounds.x.is_finite()
             || !bounds.y.is_finite()
@@ -672,15 +691,17 @@ impl FigureTree {
             || bounds.width < 0.0
             || bounds.height < 0.0
         {
-            return Err(GraphMutationError::InvalidInitialBounds.into());
+            return Err(GraphMutationError::InvalidInitialBounds);
         }
         let insets = figure.initial_insets();
-        let style = figure.initial_style();
+        let style = style.unwrap_or_else(|| figure.initial_style());
+        if style.alpha.is_some_and(|alpha| !alpha.is_finite()) {
+            return Err(GraphMutationError::InvalidInitialStyle);
+        }
         let is_focusable = figure.initial_focusable();
         let is_focus_traversable = figure.initial_focus_traversable();
         let capabilities = FigureCapabilitySet::build(figure.as_ref())
-            .map_err(|error| E::from(GraphMutationError::CapabilityRegistration(error)))?;
-        let layout = LayoutState::for_capabilities(&capabilities);
+            .map_err(GraphMutationError::CapabilityRegistration)?;
         let parent_depth = self
             .blocks
             .get(parent_id)
@@ -688,11 +709,11 @@ impl FigureTree {
             .ok_or(GraphMutationError::ParentNotFound)?;
         let parent = &self.blocks[parent_id];
         match parent.child_policy() {
-            ChildPolicy::Single if !parent.children.is_empty() => {
-                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 }.into());
+            ChildPolicy::Single if !parent.children.is_empty() || pending_children > 0 => {
+                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
             }
             ChildPolicy::Layered if !layer_admission => {
-                return Err(GraphMutationError::LayerKeyRequired.into());
+                return Err(GraphMutationError::LayerKeyRequired);
             }
             ChildPolicy::Layered
                 if capabilities
@@ -700,18 +721,9 @@ impl FigureTree {
                     .expect("typed marker descriptors must match their key")
                     .is_none() =>
             {
-                return Err(GraphMutationError::LayerChildRequired.into());
+                return Err(GraphMutationError::LayerChildRequired);
             }
             _ => {}
-        }
-        let index = index.unwrap_or(parent.children.len());
-        if index > parent.children.len() {
-            return Err(GraphMutationError::InvalidChildIndex {
-                parent: parent_id,
-                index,
-                child_count: parent.children.len(),
-            }
-            .into());
         }
         let depth = parent_depth
             .checked_add(1)
@@ -719,7 +731,44 @@ impl FigureTree {
             .ok_or(GraphMutationError::DepthLimitExceeded {
                 limit: MAX_TREE_DEPTH,
             })?;
+        Ok(PreparedChild {
+            figure,
+            capabilities,
+            depth,
+            state: NodeState {
+                bounds,
+                insets,
+                is_focusable,
+                is_focus_traversable,
+                style,
+                ..NodeState::default()
+            },
+        })
+    }
 
+    fn insert_prepared_child<E: From<GraphMutationError>>(
+        &mut self,
+        child: PreparedChild,
+        parent_id: FigureId,
+        index: Option<usize>,
+        prepare: impl FnOnce(&Self, FigureId) -> Result<Option<Box<dyn LayoutConstraint>>, E>,
+    ) -> Result<FigureId, E> {
+        let index = index.unwrap_or(self.blocks[parent_id].children.len());
+        if index > self.blocks[parent_id].children.len() {
+            return Err(GraphMutationError::InvalidChildIndex {
+                parent: parent_id,
+                index,
+                child_count: self.blocks[parent_id].children.len(),
+            }
+            .into());
+        }
+        let PreparedChild {
+            figure,
+            state,
+            capabilities,
+            depth,
+        } = child;
+        let layout = LayoutState::for_capabilities(&capabilities);
         let uuid = Uuid::new_v4();
         let id = self.blocks.insert_with_key(|key| FigureNode {
             id: key,
@@ -732,14 +781,7 @@ impl FigureTree {
             capabilities,
             prepared: None,
             layout,
-            state: NodeState {
-                bounds,
-                insets,
-                is_focusable,
-                is_focus_traversable,
-                style,
-                ..NodeState::default()
-            },
+            state,
         });
         // Reserve an identity without publishing topology, UUID lookup or effects. Retiring a
         // rejected reservation ensures that an ID seen by a validator never aliases a later child.
@@ -779,6 +821,19 @@ impl FigureTree {
         }
         self.mark_validation_path_invalid(parent_id);
         Ok(id)
+    }
+
+    pub(crate) fn attach_prepared_child(
+        &mut self,
+        updates: &mut UpdateManager,
+        parent: FigureId,
+        child: PreparedChild,
+    ) -> FigureId {
+        let id = self
+            .insert_prepared_child::<GraphMutationError>(child, parent, None, |_, _| Ok(None))
+            .expect("prepared append has no remaining admission step");
+        self.invalidate_child_insertion(updates, parent, id);
+        id
     }
 
     pub(crate) fn add_layer_child(

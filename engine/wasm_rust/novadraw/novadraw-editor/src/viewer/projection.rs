@@ -13,11 +13,11 @@ where
         match catch_unwind(AssertUnwindSafe(|| self.synchronize_projection())) {
             Ok(Ok(changed)) => Ok(changed),
             Ok(Err(error)) => {
-                self.mark_faulted();
+                self.mark_faulted_with_cause(&error.to_string());
                 Err(error)
             }
             Err(payload) => {
-                self.mark_faulted();
+                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
                 resume_unwind(payload)
             }
         }
@@ -54,8 +54,8 @@ where
         });
         match result {
             Ok(()) => {
-                self.applied_revision = final_revision;
                 self.synchronize_direct_text_input_area()?;
+                self.applied_revision = final_revision;
                 Ok(true)
             }
             Err(error) => self.fail(error),
@@ -108,12 +108,23 @@ where
     }
 
     fn fail<T>(&mut self, error: ViewerError) -> Result<T, ViewerError> {
-        self.force_drop_direct_text_edit();
-        self.faulted = true;
+        self.mark_faulted_with_cause(&error.to_string());
         Err(error)
     }
 
-    pub(super) fn force_drop_direct_text_edit(&mut self) {
+    pub(super) fn force_drop_direct_text_edit(&mut self, original: &str) {
+        if self.direct_text_edit.is_none() {
+            return;
+        }
+        let mut report = ProjectionCleanup {
+            original: original.to_owned(),
+            ..Default::default()
+        };
+        self.drop_direct_text_edit_into(&mut report);
+        self.last_cleanup = Some(Arc::new(report));
+    }
+
+    pub(super) fn drop_direct_text_edit_into(&mut self, report: &mut ProjectionCleanup) {
         self.direct_text_blink_deadline = None;
         let Some(active) = self.direct_text_edit.take() else {
             return;
@@ -121,16 +132,13 @@ where
         self.text_input_effects.push(TextInputEffect::Release {
             session: active.state.session(),
         });
-        for figure in active.feedback {
-            if self.runtime.tree().is_attached(figure) == Ok(true) {
-                let _ = self.runtime.dispose_subtree(figure);
-            }
-            self.visual_registry.remove(&figure);
-        }
+        let figures = self.collect_creation_figures(&active.feedback);
+        self.cleanup_created_figures(&active.feedback, report);
+        self.record_figure_progress(&figures, report);
     }
 
     pub(super) fn ensure_ready(&self) -> Result<(), ViewerError> {
-        if self.faulted {
+        if self.faulted || self.runtime.is_faulted() {
             return Err(ViewerError::Faulted);
         }
         Ok(())
@@ -141,58 +149,20 @@ where
             .get_mut(part)
             .ok_or(ViewerError::InconsistentState)?
             .activate(&self.model, model_id)?;
-        let host = match self.policy_host(part) {
-            Ok(host) => host,
-            Err(error) => {
-                self.behaviors
-                    .get_mut(part)
-                    .expect("behavior remains installed during activation")
-                    .deactivate(&self.model, model_id);
-                return Err(error);
+        self.active_behaviors.insert(part);
+        let host = self.policy_host(part)?;
+        if let Some(entries) = self.policies.entries_mut(part) {
+            for policy in entries.values_mut() {
+                policy.activate(host, &self.model)?;
             }
-        };
-        let policy_error = self.policies.entries_mut(part).and_then(|entries| {
-            let mut activated = 0;
-            let error = entries.values_mut().find_map(|policy| {
-                policy
-                    .activate(host, &self.model)
-                    .map(|()| {
-                        activated += 1;
-                    })
-                    .err()
-            });
-            if error.is_some() {
-                for policy in entries.values_mut().take(activated).rev() {
-                    policy.deactivate(host, &self.model);
-                }
-            }
-            error
-        });
-        if let Some(error) = policy_error {
-            self.behaviors
-                .get_mut(part)
-                .expect("behavior remains installed during activation rollback")
-                .deactivate(&self.model, model_id);
-            return Err(error.into());
         }
-        if let Err(error) = self.parts.set_active(part, true) {
-            if let Some(entries) = self.policies.entries_mut(part) {
-                for policy in entries.values_mut().rev() {
-                    policy.deactivate(host, &self.model);
-                }
-            }
-            self.behaviors
-                .get_mut(part)
-                .expect("behavior remains installed during activation rollback")
-                .deactivate(&self.model, model_id);
-            return Err(error.into());
-        }
+        self.parts.set_active(part, true)?;
         Ok(())
     }
 
     fn deactivate_part(&mut self, part: EditPartId) -> Result<(), ViewerError> {
         let node = self.parts.get(part).ok_or(ViewerError::InconsistentState)?;
-        if !node.is_active() {
+        if !node.is_active() && !self.active_behaviors.contains(&part) {
             return Ok(());
         }
         let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
@@ -208,10 +178,12 @@ where
                 policy.deactivate(host, &self.model);
             }
         }
-        self.behaviors
-            .get_mut(part)
-            .ok_or(ViewerError::InconsistentState)?
-            .deactivate(&self.model, model_id);
+        if self.active_behaviors.remove(&part) {
+            self.behaviors
+                .get_mut(part)
+                .ok_or(ViewerError::InconsistentState)?
+                .deactivate(&self.model, model_id);
+        }
         Ok(())
     }
 
@@ -221,7 +193,26 @@ where
         model_id: A::ModelId,
         snapshot: &ModelSnapshot<A::ModelId>,
     ) -> Result<EditPartId, ViewerError> {
-        self.create_subtree_at(parent, model_id, snapshot, 0)
+        self.create_subtree_scoped_at(parent, model_id, snapshot, 0)
+    }
+
+    fn create_subtree_scoped_at(
+        &mut self,
+        parent: EditPartId,
+        model_id: A::ModelId,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        depth: usize,
+    ) -> Result<EditPartId, ViewerError> {
+        let parent_figure = self
+            .parts
+            .get(parent)
+            .ok_or(ViewerError::InconsistentState)?
+            .content_pane();
+        let before = self.creation_baseline(parent_figure, parent);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            self.create_subtree_at(parent, model_id, snapshot, depth)
+        }));
+        self.finish_creation(result, parent_figure, parent, before, &[])
     }
 
     fn create_subtree_at(
@@ -266,17 +257,13 @@ where
             .figure(parent_figure)?
             .add(behavior.create_figure(&self.model, model_id)?)?;
         let mut build = VisualBuildContext::new(&mut self.runtime, primary);
-        if let Err(error) = behavior.configure_visual(&self.model, model_id, &mut build) {
-            let _ = self.runtime.dispose_subtree(primary);
-            return Err(error.into());
-        }
+        behavior.configure_visual(&self.model, model_id, &mut build)?;
         let (content_pane, visuals) = build.finish();
         validate_runtime_namespace(self.runtime.tree().namespace(), primary)?;
         if visuals
             .iter()
             .any(|visual| self.visual_registry.contains_key(visual))
         {
-            let _ = self.runtime.dispose_subtree(primary);
             return Err(ViewerError::DuplicateVisual);
         }
 
@@ -365,6 +352,21 @@ where
         &mut self,
         descriptor: ModelConnection<A::ModelId>,
     ) -> Result<ConnectionPartId, ViewerError> {
+        let parent_figure = self.root_layers.connection();
+        let parent = self.root();
+        let before = self.creation_baseline(parent_figure, parent);
+        let mut anchors = Vec::new();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            self.create_connection_part_inner(descriptor, &mut anchors)
+        }));
+        self.finish_creation(result, parent_figure, parent, before, &anchors)
+    }
+
+    fn create_connection_part_inner(
+        &mut self,
+        descriptor: ModelConnection<A::ModelId>,
+        acquired_anchors: &mut Vec<AnchorId>,
+    ) -> Result<ConnectionPartId, ViewerError> {
         if self.model_registry.contains_key(&descriptor.id()) {
             return Err(ViewerError::DuplicateModel);
         }
@@ -403,79 +405,48 @@ where
             .figure(self.root_layers.connection())?
             .add(behavior.create_figure(&self.model, descriptor.id())?)?;
         if !self.runtime.tree().is_connection_figure(primary)? {
-            self.runtime.dispose_subtree(primary)?;
             return Err(ViewerError::InvalidConnectionFigure {
                 connection: format!("{:?}", descriptor.id()),
             });
         }
         let mut build = VisualBuildContext::new(&mut self.runtime, primary);
-        if let Err(error) = behavior.configure_visual(&self.model, descriptor.id(), &mut build) {
-            let _ = self.runtime.dispose_subtree(primary);
-            return Err(error.into());
-        }
+        behavior.configure_visual(&self.model, descriptor.id(), &mut build)?;
         let (content_pane, visuals) = build.finish();
         if visuals
             .iter()
             .any(|visual| self.visual_registry.contains_key(visual))
         {
-            self.runtime.dispose_subtree(primary)?;
             return Err(ViewerError::DuplicateVisual);
         }
-        let (source_anchor_key, source_anchor_strategy) = match self.build_connection_anchor(
+        let (source_anchor_key, source_anchor_strategy) = self.build_connection_anchor(
             ConnectionEndpoint::Source,
             source_part,
             descriptor,
             primary,
-        ) {
-            Ok(anchor) => anchor,
-            Err(error) => {
-                let _ = self.runtime.dispose_subtree(primary);
-                return Err(error);
-            }
-        };
-        let (target_anchor_key, target_anchor_strategy) = match self.build_connection_anchor(
-            ConnectionEndpoint::Target,
-            target_part,
-            descriptor,
-            primary,
-        ) {
-            Ok(anchor) => anchor,
-            Err(error) => {
-                let _ = self.runtime.dispose_subtree(primary);
-                return Err(error);
-            }
-        };
+        )?;
         let source_anchor = self
             .runtime
             .connections()
             .try_register_anchor(source_anchor_strategy)?;
-        let target_anchor = match self
+        acquired_anchors.push(source_anchor);
+        let (target_anchor_key, target_anchor_strategy) = self.build_connection_anchor(
+            ConnectionEndpoint::Target,
+            target_part,
+            descriptor,
+            primary,
+        )?;
+        let target_anchor = self
             .runtime
             .connections()
-            .try_register_anchor(target_anchor_strategy)
-        {
-            Ok(anchor) => anchor,
-            Err(error) => {
-                let _ = self.runtime.connections().remove_anchor(source_anchor);
-                let _ = self.runtime.dispose_subtree(primary);
-                return Err(error.into());
-            }
-        };
-        let connection = match self.runtime.connections().register_state(
+            .try_register_anchor(target_anchor_strategy)?;
+        acquired_anchors.push(target_anchor);
+        let connection = self.runtime.connections().register_state(
             primary,
             Some(source_anchor),
             Some(target_anchor),
             router,
             constraint,
-        ) {
-            Ok(connection) => connection,
-            Err(error) => {
-                let _ = self.runtime.connections().remove_anchor(source_anchor);
-                let _ = self.runtime.connections().remove_anchor(target_anchor);
-                let _ = self.runtime.dispose_subtree(primary);
-                return Err(error.into());
-            }
-        };
+        )?;
 
         let part = self.parts.insert_connection(
             descriptor.id(),
@@ -512,10 +483,7 @@ where
             self.activate_part(part.edit_part(), descriptor.id())?;
             self.resolve_connection(connection)
         })();
-        if let Err(error) = initialization {
-            self.remove_connection_part(part)?;
-            return Err(error);
-        }
+        initialization?;
         Ok(part)
     }
 
@@ -942,7 +910,7 @@ where
             let child = match self.model_registry.get(&child_model).copied() {
                 Some(existing) if self.parts.parent(existing) == Some(part) => existing,
                 Some(_) => return Err(ViewerError::DuplicateModel),
-                None => self.create_subtree_at(part, child_model, snapshot, depth + 1)?,
+                None => self.create_subtree_scoped_at(part, child_model, snapshot, depth + 1)?,
             };
             let primary = self
                 .parts
@@ -994,10 +962,20 @@ where
             node.content_pane(),
             node.visuals(),
         );
-        self.behaviors
-            .get_mut(part)
-            .ok_or(ViewerError::InconsistentState)?
-            .refresh_visuals(&self.model, model_id, &mut context)?;
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            self.behaviors
+                .get_mut(part)
+                .ok_or(ViewerError::InconsistentState)?
+                .refresh_visuals(&self.model, model_id, &mut context)
+                .map_err(ViewerError::from)
+        }));
+        match result {
+            Ok(result) => result?,
+            Err(payload) => {
+                self.active_behaviors.remove(&part);
+                resume_unwind(payload);
+            }
+        }
         Ok(())
     }
 
@@ -1058,6 +1036,9 @@ where
     F: EditPartFactory<A>,
 {
     fn drop(&mut self) {
+        if self.runtime.is_faulted() {
+            return;
+        }
         for connection in self.parts.connection_parts().to_vec() {
             let part = connection.edit_part();
             let Some(node) = self.parts.get(part) else {
@@ -1073,11 +1054,15 @@ where
             let host = PolicyHost::new(part, model_id, None);
             if let Some(entries) = self.policies.entries_mut(part) {
                 for policy in entries.values_mut() {
-                    policy.deactivate(host, &self.model);
+                    let _ = catch_unwind(AssertUnwindSafe(|| policy.deactivate(host, &self.model)));
                 }
             }
-            if let Some(behavior) = self.behaviors.get_mut(part) {
-                behavior.deactivate(&self.model, model_id);
+            if self.active_behaviors.remove(&part)
+                && let Some(behavior) = self.behaviors.get_mut(part)
+            {
+                let _ = catch_unwind(AssertUnwindSafe(|| {
+                    behavior.deactivate(&self.model, model_id)
+                }));
             }
         }
         let Ok(ids) = self.parts.subtree_ids(self.parts.root()) else {
@@ -1102,11 +1087,15 @@ where
             let host = PolicyHost::new(id, model_id, parent_model);
             if let Some(entries) = self.policies.entries_mut(id) {
                 for policy in entries.values_mut() {
-                    policy.deactivate(host, &self.model);
+                    let _ = catch_unwind(AssertUnwindSafe(|| policy.deactivate(host, &self.model)));
                 }
             }
-            if let Some(behavior) = self.behaviors.get_mut(id) {
-                behavior.deactivate(&self.model, model_id);
+            if self.active_behaviors.remove(&id)
+                && let Some(behavior) = self.behaviors.get_mut(id)
+            {
+                let _ = catch_unwind(AssertUnwindSafe(|| {
+                    behavior.deactivate(&self.model, model_id)
+                }));
             }
         }
     }

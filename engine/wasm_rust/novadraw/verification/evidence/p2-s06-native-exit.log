@@ -1,0 +1,6 @@
+xtask: failed to parse /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/verification/suites.toml: TOML parse error at line 1484, column 11
+     |
+1484 | layers = ["application"]
+     |           ^^^^^^^^^^^^^
+unknown variant `application`, expected one of `static`, `contract`, `headless`, `visual`, `platform`
+

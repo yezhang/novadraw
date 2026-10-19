@@ -368,7 +368,7 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
         Ok(self.host.set_focus(part)?)
     }
 
-    /// Removes an atomic batch of Tool-owned overlay visuals.
+    /// Preflights the whole batch, then disposes Tool-owned overlays in input order.
     pub fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ToolError> {
         Ok(self.host.remove_overlay_visuals(figures)?)
     }

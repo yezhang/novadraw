@@ -1,0 +1,460 @@
+Suite editor.p2-s06-failure-isolation (P2-S06)
+
+==> test.core-s06-admission: Run S06 whole-batch Figure admission contracts
+    $ cargo test -p novadraw --lib s06_
+warning: multiple methods are never used
+   --> novadraw/src/render/context.rs:223:8
+    |
+ 64 | impl NdCanvas {
+    | ------------- methods in this implementation
+...
+223 |     fn color_with_global_alpha(&self, color: Color) -> Color {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+307 |     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+    |            ^^^^^^^^^^
+...
+483 |     pub fn draw_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+498 |     pub fn fill_polygon(&mut self, points: &[Point]) {
+    |            ^^^^^^^^^^^^
+...
+519 |     pub fn close_path(&mut self) {
+    |            ^^^^^^^^^^
+...
+543 |     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^^
+...
+567 |     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+575 |     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^
+...
+584 |     pub fn fill(&mut self) {
+    |            ^^^^
+...
+618 |     pub fn fill_and_stroke(&mut self) {
+    |            ^^^^^^^^^^^^^^^
+...
+655 |     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    |            ^^^^^^^^
+...
+667 |     pub fn clear_commands(&mut self) {
+    |            ^^^^^^^^^^^^^^
+...
+684 |     pub fn to_submission(&self) -> RenderSubmission {
+    |            ^^^^^^^^^^^^^
+...
+689 |     pub fn to_submission_for_surface(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+701 |     pub fn to_submission_for_frame(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+766 |     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^
+...
+771 |     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+777 |     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+    |            ^^^^^^^^^^^^^^^
+...
+783 |     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+    |            ^^^^^^^^^^^^^^^^
+...
+788 |     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+    |            ^^^^^^^^
+...
+798 |     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^
+...
+803 |     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+    |            ^^^^^^^^^^^^^^
+...
+812 |     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+    |            ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3849:9
+     |
+3849 | /         runtime
+3850 | |             .complete_submission(
+3851 | |                 initial.session_id,
+3852 | |                 initial.frame_id,
+...    |
+3855 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+     = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+     |
+3849 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3892:9
+     |
+3892 | /         runtime
+3893 | |             .complete_submission(
+3894 | |                 initial.session_id,
+3895 | |                 initial.frame_id,
+...    |
+3898 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3892 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3943:9
+     |
+3943 | /         runtime
+3944 | |             .complete_submission(
+3945 | |                 initial.session_id,
+3946 | |                 initial.frame_id,
+...    |
+3949 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3943 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3958:9
+     |
+3958 | /         runtime
+3959 | |             .complete_submission(
+3960 | |                 replacement.session_id,
+3961 | |                 replacement.frame_id,
+...    |
+3964 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3958 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:3989:9
+     |
+3989 | /         runtime
+3990 | |             .complete_submission(
+3991 | |                 initial.session_id,
+3992 | |                 initial.frame_id,
+...    |
+3995 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+3989 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4008:9
+     |
+4008 | /         runtime
+4009 | |             .complete_submission(
+4010 | |                 partial.session_id,
+4011 | |                 partial.frame_id,
+...    |
+4014 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4008 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4039:9
+     |
+4039 | /         runtime
+4040 | |             .complete_submission(
+4041 | |                 initial.session_id,
+4042 | |                 initial.frame_id,
+...    |
+4045 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4039 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4098:9
+     |
+4098 | /         runtime
+4099 | |             .complete_submission(
+4100 | |                 retry.session_id,
+4101 | |                 retry.frame_id,
+...    |
+4104 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4098 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4127:9
+     |
+4127 | /         runtime
+4128 | |             .complete_submission(
+4129 | |                 initial.session_id,
+4130 | |                 initial.frame_id,
+...    |
+4133 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4127 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4146:9
+     |
+4146 | /         runtime
+4147 | |             .complete_submission(
+4148 | |                 first_update.session_id,
+4149 | |                 first_update.frame_id,
+...    |
+4152 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4146 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4183:9
+     |
+4183 | /         runtime
+4184 | |             .complete_submission(
+4185 | |                 initial.session_id,
+4186 | |                 initial.frame_id,
+...    |
+4189 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4183 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4398:9
+     |
+4398 | /         runtime
+4399 | |             .complete_submission(
+4400 | |                 initial.session_id,
+4401 | |                 initial.frame_id,
+...    |
+4404 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4398 |         let _ = runtime
+     |         +++++++
+
+warning: unused `SubmissionAcknowledgement` that must be used
+    --> novadraw/src/runtime/runtime.rs:4538:9
+     |
+4538 | /         runtime
+4539 | |             .complete_submission(
+4540 | |                 submission.session_id,
+4541 | |                 submission.frame_id,
+...    |
+4544 | |             .expect("frame completion");
+     | |_______________________________________^
+     |
+     = note: the host must apply the Runtime's render recovery decision
+help: use `let _ = ...` to ignore the resulting value
+     |
+4538 |         let _ = runtime
+     |         +++++++
+
+warning: `novadraw` (lib test) generated 14 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running unittests src/lib.rs (target/debug/deps/novadraw-9fe91b6be2f3f609)
+
+running 1 test
+test runtime::runtime::adr014_tests::s06_figure_batch_preflight_preserves_topology_damage_and_capability_registration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 356 filtered out; finished in 0.00s
+
+
+==> test.editor-s06-failure: Run S06 internal failure and Overlay lifecycle contracts
+    $ cargo test -p novadraw-editor --lib s06_
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.07s
+     Running unittests src/lib.rs (target/debug/deps/novadraw_editor-bff779f143058c33)
+
+running 7 tests
+test viewer::failure::tests::s06_overlay_topology_is_checked_before_any_disposal ... ok
+test viewer::failure::tests::s06_feedback_batch_preflights_both_layers_and_styles ... ok
+test viewer::failure::tests::s06_cleanup_panic_reports_retired_structure_and_never_repeats_callback ... ok
+test viewer::failure::tests::s06_overlay_late_lifecycle_panic_records_retired_prefix_and_item ... ok
+test viewer::failure::tests::s06_core_attach_panic_preserves_live_identity_for_isolated_exit ... ok
+test viewer::failure::tests::s06_creation_failures_clear_all_acquired_registries ... ok
+test viewer::failure::tests::s06_faulted_viewer_only_completes_an_existing_healthy_runtime_submission ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+
+==> test.editor-g2: Run the G2 viewer projection contract
+    $ cargo test -p novadraw-editor --test g2_viewer_projection_contract
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.04s
+     Running tests/g2_viewer_projection_contract.rs (target/debug/deps/g2_viewer_projection_contract-16250fdb8567397e)
+
+running 24 tests
+test duplicate_model_identity_is_rejected_during_initial_projection ... ok
+test initial_projection_failure_deactivates_every_activated_part_once ... ok
+test duplicate_overlay_batch_rejects_before_disposing_the_first_figure ... ok
+test late_initial_projection_failure_deactivates_the_complete_live_prefix_once ... ok
+test one_revision_may_carry_multiple_ordered_events ... ok
+test duplicate_model_identity_faults_refresh_before_projection_changes ... ok
+test initial_projection_absorbs_events_already_represented_by_the_snapshot ... ok
+test dropping_viewer_deactivates_every_live_part_in_preorder ... ok
+test failed_incremental_subtree_clears_new_parent_and_preserves_successful_sibling ... ok
+test overlay_foreign_and_stale_batches_leave_valid_prefix_alive ... ok
+test policy_activation_failure_rolls_back_only_the_active_prefix_once ... ok
+test refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup ... ok
+test part_ids_are_namespaced_and_rejected_by_another_viewer ... ok
+test reparenting_is_order_independent_and_rebuilds_the_moved_part ... ok
+test revision_gap_faults_viewer_before_projection_changes ... ok
+test removing_and_readding_a_model_rebuilds_runtime_identity ... ok
+test refresh_panic_faults_viewer_after_partial_visual_mutation ... ok
+test stale_notification_faults_viewer_without_changing_projection ... ok
+test root_part_is_not_a_model_part ... ok
+test unregistered_internal_visual_resolves_through_its_registered_ancestor ... ok
+test viewer_retains_zoom_manager_policy_and_levels_across_zoom_operations ... ok
+test unknown_and_foreign_visuals_do_not_resolve_to_parts ... ok
+test viewer_projects_model_tree_and_registers_model_and_visual_identity ... ok
+test model_snapshot_rejects_depth_above_ten_thousand_without_stack_overflow ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+==> test.editor-g3-interaction: Run the G3 viewer interaction contract
+    $ cargo test -p novadraw-editor --test g3_viewer_interaction_contract
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.76s
+     Running tests/g3_viewer_interaction_contract.rs (target/debug/deps/g3_viewer_interaction_contract-0443352bf8015964)
+
+running 8 tests
+test removing_parts_reconciles_selection_focus_and_owned_overlays ... ok
+test root_layers_have_stable_scaled_and_unscaled_z_order ... ok
+test background_click_clears_visual_selection_to_contents_fallback ... ok
+test widget_consumption_blocks_editor_selection_fallback ... ok
+test pointer_selection_preserves_order_primary_and_focus ... ok
+test handles_win_targeting_and_feedback_is_transparent ... ok
+test figure_capture_owns_the_complete_pointer_gesture ... ok
+test viewport_scroll_changes_targeting_through_the_shared_transform_chain ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+==> test.editor-g4: Run the G4 editing loop contract
+    $ cargo test -p novadraw-editor --test g4_editing_loop_contract
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.46s
+     Running tests/g4_editing_loop_contract.rs (target/debug/deps/g4_editing_loop_contract-fd6101e370b7ed12)
+
+running 18 tests
+test policy_target_rejects_foreign_and_stale_parts ... ok
+test policy_rejection_is_distinct_from_no_command_contribution ... ok
+test connection_extension_panic_faults_viewer ... ok
+test policy_command_panic_faults_viewer_and_rejects_follow_up_operations ... ok
+test create_and_delete_round_trip_through_policy_command_and_projection ... ok
+test policy_target_routes_command_and_feedback_to_the_resolved_part_once ... ok
+test domain_executes_compound_move_and_refreshes_then_undoes_and_redoes ... ok
+test recoverable_command_error_that_changes_model_faults_viewer ... ok
+test policy_feedback_panic_faults_viewer_before_attaching_feedback ... ok
+test autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta ... ok
+test autoexpose_corner_scrolls_both_available_viewport_axes ... ok
+test typed_change_bounds_request_preserves_operation_and_transforms_bounds ... ok
+test resize_handle_commits_resize_request_without_changing_selection ... ok
+test unknown_command_state_faults_stack_and_viewer_without_projection ... ok
+test selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup ... ok
+test transient_feedback_expands_freeform_range_before_edge_scroll ... ok
+test selection_tool_preserves_multi_selection_for_drag_and_collapses_on_click ... ok
+test zoom_during_drag_preserves_the_content_point_under_the_pointer ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+==> test.editor-g5-projection: Run the G5 connection projection contract
+    $ cargo test -p novadraw-editor --test g5_connection_projection_contract
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.55s
+     Running tests/g5_connection_projection_contract.rs (target/debug/deps/g5_connection_projection_contract-1f93b27d0742d276)
+
+running 19 tests
+test duplicate_and_missing_endpoint_snapshots_are_rejected ... ok
+test connection_and_containment_model_identity_collision_is_rejected ... ok
+test connection_factory_must_create_a_connection_figure ... ok
+test ordered_snapshot_projects_one_connection_part_outside_containment ... ok
+test connection_part_id_is_a_checked_view_of_edit_part_identity ... ok
+test dangling_endpoint_faults_before_existing_projection_changes ... ok
+test connection_add_and_remove_preserve_unrelated_part_identity ... ok
+test node_and_connection_can_be_removed_in_one_model_revision ... ok
+test failed_connection_activation_rolls_back_all_registrations ... FAILED
+test model_order_drives_layer_and_relation_order_without_recreating_parts ... ok
+test revision_drift_during_snapshot_is_rejected ... ok
+test rejected_incremental_connection_creation_leaves_no_registration ... ok
+test self_loop_is_indexed_once_at_both_ends ... ok
+test unresolved_route_keeps_a_live_recoverable_connection_part ... ok
+test endpoint_geometry_change_is_rerouted_by_runtime ... ok
+test reconnect_preserves_part_figure_order_and_unchanged_anchor ... ok
+test viewer_drop_deactivates_connections_before_endpoint_parts ... ok
+test endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end ... ok
+test unchanged_connection_projection_does_not_reroute_each_connection ... ok
+
+failures:
+
+---- failed_connection_activation_rolls_back_all_registrations stdout ----
+
+thread 'failed_connection_activation_rolls_back_all_registrations' (132286253) panicked at novadraw-editor/tests/g5_connection_projection_contract.rs:876:5:
+assertion failed: matches!(viewer.synchronize_model(|model|
+    {
+        model.connections.push(edge(EDGE_B, SECOND, THIRD)); model.publish();
+    }), Err(ViewerError::EditPart(_)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    failed_connection_activation_rolls_back_all_registrations
+
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p novadraw-editor --test g5_connection_projection_contract`
+xtask: command `test.editor-g5-projection` failed with exit status: 101

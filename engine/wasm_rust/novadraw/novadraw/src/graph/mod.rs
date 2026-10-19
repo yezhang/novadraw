@@ -115,6 +115,7 @@ fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rect
 pub enum GraphMutationError {
     FigureNotFound(FigureId),
     InvalidInitialBounds,
+    InvalidInitialStyle,
     CapabilityRegistration(FigureCapabilityRegistrationError),
     ParentNotFound,
     ChildNotFound,
@@ -143,6 +144,7 @@ impl fmt::Display for GraphMutationError {
             Self::InvalidInitialBounds => {
                 write!(f, "Figure initial bounds must be finite and non-negative")
             }
+            Self::InvalidInitialStyle => write!(f, "Figure alpha must be finite"),
             Self::CapabilityRegistration(error) => error.fmt(f),
             Self::ParentNotFound => write!(f, "parent Figure does not exist"),
             Self::ChildNotFound => write!(f, "child Figure does not exist"),

@@ -11,6 +11,7 @@ mod tests {
         event::{DispatchOutcome, KeyModifiers, MouseButton},
         figure::{Figure, RectangleFigure, RootFigure},
         geometry::{Point, Rectangle},
+        tree::FigureId,
     };
     use novadraw_editor::overlay::{HandleActionKey, HandleActionProtocol};
     use novadraw_editor::{
@@ -18,7 +19,8 @@ mod tests {
         GraphicalViewer, InteractionRevision, ModelAdapter, ModelEvent, ModelRevision,
         PartFactoryContext, PolicyError, PolicyHandlerBuilder, PolicyHost, PolicyInstallation,
         PolicyKey, PolicySlot, RequestKey, RequestMetadata, RequestProtocol, RequestResolution,
-        Tool, ToolContext, ToolDirective, ToolError, ToolKey, ToolMouseEvent, ViewerInputOutcome,
+        Tool, ToolContext, ToolDirective, ToolError, ToolKey, ToolMouseEvent, ViewerError,
+        ViewerInputOutcome,
     };
 
     const ROOT: ModelId = ModelId(1);
@@ -197,6 +199,109 @@ mod tests {
         coordinate: f64,
         state: Rc<RefCell<ToolState>>,
         panic_on_press: bool,
+    }
+
+    struct OverlayProbeTool {
+        figures: Vec<FigureId>,
+    }
+
+    impl Tool<Model> for OverlayProbeTool {
+        fn key(&self) -> novadraw_editor::ErasedToolKey {
+            ToolKey::<Self>::new("external-overlay-probe").erase()
+        }
+
+        fn activate(&mut self, context: &mut ToolContext<'_, Model>) -> Result<(), ToolError> {
+            assert!(matches!(
+                context.remove_overlay_visuals(&[self.figures[0], self.figures[0]]),
+                Err(ToolError::Viewer(ViewerError::InvalidOverlayBatch {
+                    index: 1,
+                    ..
+                }))
+            ));
+            context.remove_overlay_visuals(&self.figures)
+        }
+
+        fn cancel(&mut self, _: &mut ToolContext<'_, Model>) -> Result<(), ToolError> {
+            Ok(())
+        }
+
+        fn mouse_pressed(
+            &mut self,
+            context: &mut ToolContext<'_, Model>,
+            event: ToolMouseEvent,
+        ) -> Result<(ToolDirective, ViewerInputOutcome), ToolError> {
+            Ok((
+                ToolDirective::Continue,
+                context.dispatch_pressed(event, false)?,
+            ))
+        }
+
+        fn mouse_moved(
+            &mut self,
+            context: &mut ToolContext<'_, Model>,
+            event: ToolMouseEvent,
+        ) -> Result<(ToolDirective, DispatchOutcome), ToolError> {
+            Ok((
+                ToolDirective::Continue,
+                context.dispatch_moved(event.location()),
+            ))
+        }
+
+        fn mouse_released(
+            &mut self,
+            context: &mut ToolContext<'_, Model>,
+            event: ToolMouseEvent,
+        ) -> Result<(ToolDirective, DispatchOutcome), ToolError> {
+            Ok((
+                ToolDirective::Deactivate,
+                context.dispatch_released(event.location(), event.button()),
+            ))
+        }
+    }
+
+    #[test]
+    fn external_typed_handle_and_tool_use_overlay_batch_admission() {
+        let mut viewer = GraphicalViewer::new(
+            Model,
+            Factory {
+                handled: Rc::new(Cell::new(0)),
+                duplicate_slot: false,
+            },
+            Rectangle::new(0.0, 0.0, 200.0, 120.0),
+        )
+        .unwrap();
+        let owner = viewer.part_for_model(NODE).unwrap();
+        let mut figures = Vec::new();
+        for coordinate in [32.0, 64.0] {
+            figures.push(
+                viewer
+                    .add_handle_visual_with_action::<GuideHandle>(
+                        owner,
+                        coordinate,
+                        Box::new(RectangleFigure::new(coordinate, 30.0, 16.0, 16.0)),
+                    )
+                    .unwrap()
+                    .1,
+            );
+        }
+        let node = viewer.parts().get(owner).unwrap().primary_figure();
+        let mut domain = EditorDomain::new();
+        domain
+            .set_active_tool(
+                &mut viewer,
+                OverlayProbeTool {
+                    figures: figures.clone(),
+                },
+            )
+            .unwrap();
+        assert!(
+            figures
+                .iter()
+                .all(|figure| viewer.runtime().tree().is_attached(*figure)
+                    == Err(novadraw::tree::TreeQueryError::UnknownFigure(*figure)))
+        );
+        assert!(viewer.runtime().tree().is_attached(node).unwrap());
+        assert!(!viewer.is_faulted());
     }
 
     impl Tool<Model> for MarqueeTool {

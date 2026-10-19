@@ -308,6 +308,16 @@ impl ConnectionRuntime {
         Ok(())
     }
 
+    #[cfg(test)]
+    pub(crate) fn exhaust_dirty_revision_for_test(&mut self, connection: ConnectionId) {
+        self.set_dirty_revision_for_test(connection, u64::MAX);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_dirty_revision_for_test(&mut self, connection: ConnectionId, revision: u64) {
+        self.states.get_mut(&connection).unwrap().dirty_revision = revision;
+    }
+
     pub(crate) fn retire_figures(
         &mut self,
         ids: &std::collections::HashSet<FigureId>,
@@ -472,6 +482,10 @@ impl ConnectionRuntime {
         self.validate_anchor(target)?;
         let resolved_router = self.resolve_router_binding(router)?;
         self.validate_constraint(resolved_router, constraint.as_deref())?;
+        // Admission must reject before acquiring a binding or changing dirty state.
+        for existing in &self.order {
+            self.next_dirty_revision(*existing)?;
+        }
         let state = ConnectionState {
             source,
             target,

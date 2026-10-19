@@ -682,6 +682,136 @@ fn duplicate_model_identity_is_rejected_during_initial_projection() {
 }
 
 #[test]
+fn failed_incremental_subtree_clears_new_parent_and_preserves_successful_sibling() {
+    let lifecycle = Arc::new(Mutex::new(Vec::new()));
+    let mut viewer = GraphicalViewer::new(
+        DiagramModel::initial(),
+        FailingChildFactory {
+            lifecycle: Arc::clone(&lifecycle),
+            fail_on: NodeId(6),
+        },
+        Rectangle::new(0.0, 0.0, 800.0, 600.0),
+    )
+    .unwrap();
+    let old_part = viewer.part_for_model(NodeId(3)).unwrap();
+    let revision = viewer.model().revision();
+    let error = viewer
+        .synchronize_model(|model| {
+            model
+                .children
+                .insert(NodeId(2), vec![NodeId(4), NodeId(7), NodeId(5)]);
+            model.children.insert(NodeId(5), vec![NodeId(6)]);
+            for id in [5, 6, 7] {
+                model
+                    .bounds
+                    .insert(NodeId(id), Rectangle::new(1.0, 1.0, 20.0, 20.0));
+            }
+            model.publish(NodeId(1));
+        })
+        .unwrap_err();
+    assert!(matches!(error, ViewerError::EditPart(_)));
+    assert!(viewer.is_faulted());
+    assert!(!viewer.runtime().is_faulted());
+    assert_eq!(viewer.part_for_model(NodeId(3)), Some(old_part));
+    assert!(viewer.part_for_model(NodeId(7)).is_some());
+    assert_eq!(viewer.applied_revision(), revision);
+    assert!(viewer.part_for_model(NodeId(5)).is_none());
+    assert!(viewer.part_for_model(NodeId(6)).is_none());
+    assert_eq!(viewer.model().revision(), revision.next().unwrap());
+    let cleanup = viewer.last_projection_cleanup().unwrap();
+    assert!(cleanup.live_figures.is_empty());
+    assert!(!cleanup.retired_figures.is_empty());
+    assert!(
+        cleanup
+            .retired_figures
+            .iter()
+            .all(|figure| viewer.part_for_visual(*figure).is_none())
+    );
+    assert_eq!(
+        lifecycle
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| *event == "deactivate:5")
+            .count(),
+        1
+    );
+    drop(viewer);
+    assert_eq!(
+        lifecycle
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| *event == "deactivate:5")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn duplicate_overlay_batch_rejects_before_disposing_the_first_figure() {
+    let (mut viewer, _) = viewer();
+    let (_, figure) = viewer
+        .add_feedback_visual(
+            None,
+            false,
+            Box::new(RectangleFigure::new(1.0, 1.0, 20.0, 20.0)),
+        )
+        .unwrap();
+    assert!(viewer.remove_overlay_visuals(&[figure, figure]).is_err());
+    assert!(viewer.runtime().tree().is_attached(figure).unwrap());
+    assert!(!viewer.is_faulted());
+}
+
+#[test]
+fn overlay_foreign_and_stale_batches_leave_valid_prefix_alive() {
+    let (mut viewer, _) = viewer();
+    let (_, a) = viewer
+        .add_feedback_visual(
+            None,
+            false,
+            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+        )
+        .unwrap();
+    let (_, b) = viewer
+        .add_feedback_visual(
+            None,
+            false,
+            Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)),
+        )
+        .unwrap();
+    assert!(
+        viewer
+            .remove_overlay_visuals(&[a, FigureId::null()])
+            .is_err()
+    );
+    assert!(viewer.runtime().tree().is_attached(a).unwrap());
+    assert!(!viewer.is_faulted());
+    let (foreign, _) = self::viewer();
+    let other = foreign
+        .parts()
+        .get(foreign.contents())
+        .unwrap()
+        .primary_figure();
+    assert!(viewer.remove_overlay_visuals(&[a, other]).is_err());
+    viewer.remove_overlay_visuals(&[]).unwrap();
+    viewer.remove_overlay_visuals(&[a, b]).unwrap();
+    assert_eq!(
+        viewer.runtime().tree().is_attached(a),
+        Err(novadraw::tree::TreeQueryError::UnknownFigure(a))
+    );
+    let (_, replacement) = viewer
+        .add_feedback_visual(
+            None,
+            false,
+            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+        )
+        .unwrap();
+    assert!(viewer.remove_overlay_visuals(&[replacement, a]).is_err());
+    assert!(viewer.runtime().tree().is_attached(replacement).unwrap());
+}
+
+#[test]
 fn initial_projection_failure_deactivates_every_activated_part_once() {
     let lifecycle = Arc::new(Mutex::new(Vec::new()));
     let result = GraphicalViewer::new(

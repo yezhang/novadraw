@@ -385,6 +385,11 @@ impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
 pub enum RuntimeMutationError {
     ForeignRuntime(FigureId),
     Faulted,
+    /// Input rejected by whole-batch validation before allocating any Figure identity.
+    FigureBatch {
+        index: usize,
+        source: Box<RuntimeMutationError>,
+    },
     UnknownOrDisposedFigure(FigureId),
     DetachedFigure(FigureId),
     EffectTargetMismatch {
@@ -438,6 +443,9 @@ impl fmt::Display for RuntimeMutationError {
         match self {
             Self::ForeignRuntime(figure) => write!(formatter, "foreign Runtime Figure: {figure:?}"),
             Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::FigureBatch { index, source } => {
+                write!(formatter, "Figure input {index}: {source}")
+            }
             Self::UnknownOrDisposedFigure(figure) => {
                 write!(formatter, "unknown or disposed Figure ID: {figure:?}")
             }
@@ -515,7 +523,14 @@ impl fmt::Display for RuntimeMutationError {
     }
 }
 
-impl Error for RuntimeMutationError {}
+impl Error for RuntimeMutationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::FigureBatch { source, .. } => Some(source.as_ref()),
+            _ => None,
+        }
+    }
+}
 
 impl From<LayoutError> for RuntimeMutationError {
     fn from(value: LayoutError) -> Self {

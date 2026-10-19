@@ -1,6 +1,8 @@
 //! Viewer contents, registries, and model-to-Figure projection.
 
+mod failure;
 mod projection;
+pub use failure::{ProjectionCleanup, ProjectionCleanupFailure};
 
 use std::{
     any::Any,
@@ -254,6 +256,13 @@ where
     }
 }
 
+type FeedbackInstallInput = (
+    Option<EditPartId>,
+    FigureId,
+    Box<dyn Figure>,
+    Option<FigureStyle>,
+);
+
 struct AttachedDirectTextFeedback {
     figures: Vec<FigureId>,
     text_feedback: FigureId,
@@ -457,6 +466,22 @@ pub enum ViewerError {
     Capability(novadraw::figure::CapabilityQueryError),
     /// A Figure coordinate query failed while projecting or converting geometry.
     Coordinate(novadraw::tree::CoordinateQueryError),
+    /// Creation failed and cleanup could not complete all steps.
+    ProjectionCleanup {
+        /// Original error, independent of subsequent cleanup failures.
+        original: Box<ViewerError>,
+        /// Actual cleanup progress, also available through Viewer diagnostics.
+        report: Arc<ProjectionCleanup>,
+    },
+    /// An Overlay batch was rejected before any write.
+    InvalidOverlayBatch {
+        /// First invalid input position in caller order.
+        index: usize,
+        /// Figure at that position.
+        figure: FigureId,
+        /// Domain reason for rejection.
+        reason: &'static str,
+    },
     /// The Viewer was faulted by an earlier partial extension failure.
     Faulted,
     /// The adapter exposed the same model identity more than once.
@@ -545,6 +570,17 @@ pub enum ViewerError {
 impl fmt::Display for ViewerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ProjectionCleanup { original, report } => write!(
+                formatter,
+                "{original}; cleanup has {} failed steps and {} live Figures",
+                report.failures.len(),
+                report.live_figures.len()
+            ),
+            Self::InvalidOverlayBatch {
+                index,
+                figure,
+                reason,
+            } => write!(formatter, "Overlay input {index} ({figure:?}): {reason}"),
             Self::Faulted => formatter.write_str("Viewer is faulted"),
             Self::DuplicateModel => formatter.write_str("duplicate model identity"),
             Self::DuplicateVisual => formatter.write_str("duplicate visual registration"),
@@ -633,6 +669,7 @@ impl Error for ViewerError {
             Self::Coordinate(error) => Some(error),
             Self::Identity(error) => Some(error),
             Self::Capability(error) => Some(error),
+            Self::ProjectionCleanup { original, .. } => Some(original.as_ref()),
             Self::EditPart(error) => Some(error),
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
@@ -1069,6 +1106,8 @@ where
     applied_revision: ModelRevision,
     model_root: A::ModelId,
     faulted: bool,
+    active_behaviors: HashSet<EditPartId>,
+    last_cleanup: Option<Arc<ProjectionCleanup>>,
 }
 
 pub(crate) struct ViewerEditSession<'a, A, F>
@@ -1141,6 +1180,9 @@ where
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
     ) -> FramePreparation {
+        if self.viewer.ensure_ready().is_err() {
+            return FramePreparation::Error(FramePreparationError::Faulted);
+        }
         self.viewer
             .runtime
             .frames()
@@ -1171,6 +1213,9 @@ where
         width: f64,
         height: f64,
     ) -> Result<bool, LogicalViewportResizeError> {
+        if self.viewer.ensure_ready().is_err() {
+            return Err(LogicalViewportResizeError::Faulted);
+        }
         self.viewer
             .runtime
             .frames()
@@ -1179,6 +1224,9 @@ where
 
     /// Requests a complete redraw from the Viewer-owned Runtime.
     pub fn request_full_redraw(&mut self) {
+        if self.viewer.ensure_ready().is_err() {
+            return;
+        }
         self.viewer.runtime.frames().request_full_redraw();
     }
 
@@ -1202,11 +1250,15 @@ where
         &mut self,
         font: novadraw::render::BuiltinFont,
     ) -> Result<FontId, ResourceError> {
+        if self.viewer.ensure_ready().is_err() {
+            return Err(ResourceError::Faulted);
+        }
         self.viewer.runtime.resources().register_builtin_font(font)
     }
 
     /// Advances Runtime timers and the active direct-edit caret blink from host time.
     pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
+        self.viewer.ensure_ready()?;
         self.viewer.advance_time_inner(now)
     }
 
@@ -1281,6 +1333,8 @@ where
             applied_revision,
             model_root: snapshot.root,
             faulted: false,
+            active_behaviors: HashSet::new(),
+            last_cleanup: None,
         };
         let contents = viewer.create_subtree(root_part, snapshot.root, &snapshot)?;
         viewer.parts.designate_contents(contents)?;
@@ -1326,7 +1380,7 @@ where
         match catch_unwind(AssertUnwindSafe(|| update(&mut self.model))) {
             Ok(()) => Ok(self.synchronize()? || changed_before_update),
             Err(payload) => {
-                self.mark_faulted();
+                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
                 resume_unwind(payload)
             }
         }
@@ -1400,6 +1454,7 @@ where
 
     /// Converges pending layout and derived state without exposing Runtime mutation.
     pub fn stabilize_for_query(&mut self) -> Result<(), ViewerError> {
+        self.ensure_ready()?;
         Ok(self.runtime.frames().stabilize_for_query()?)
     }
 
@@ -1408,6 +1463,9 @@ where
         &mut self,
         style: FigureStyle,
     ) -> Result<bool, RuntimeMutationError> {
+        if self.ensure_ready().is_err() {
+            return Err(RuntimeMutationError::Faulted);
+        }
         self.runtime
             .figure(self.root_layers.viewport())?
             .set_style(style)
@@ -1418,6 +1476,7 @@ where
         &mut self,
         border: impl Border + 'static,
     ) -> Result<bool, ViewerError> {
+        self.ensure_ready()?;
         self.runtime
             .figure(self.root_layers.viewport())?
             .update_capability(ReplaceFigureBorder::set(border))
@@ -1430,6 +1489,9 @@ where
         &mut self,
         router: Box<dyn ConnectionRouter>,
     ) -> Result<RouterId, ConnectionRuntimeError> {
+        if self.ensure_ready().is_err() {
+            return Err(ConnectionRuntimeError::Faulted);
+        }
         self.runtime.connections().try_register_router(router)
     }
 
@@ -1438,6 +1500,9 @@ where
         &mut self,
         router: RouterId,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        if self.ensure_ready().is_err() {
+            return Err(ConnectionRuntimeError::Faulted);
+        }
         self.runtime
             .connections()
             .set_layer_router(self.root_layers.connection(), router)
@@ -1452,6 +1517,9 @@ where
     where
         U: FigureComponentUpdate,
     {
+        if self.ensure_ready().is_err() {
+            return Err(ComponentUpdateError::Runtime(RuntimeMutationError::Faulted));
+        }
         if self
             .visual_registry
             .get(&figure)
@@ -1472,6 +1540,7 @@ where
         owner: EditPartId,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, ViewerError> {
+        self.ensure_ready()?;
         let pane = self
             .parts
             .get(owner)
@@ -1955,6 +2024,7 @@ where
         button: MouseButton,
         modifiers: KeyModifiers,
     ) -> Result<ViewerInputOutcome, ViewerError> {
+        self.ensure_ready()?;
         let dispatch = self.runtime.input().dispatch_mouse_pressed(x, y, button);
         let target = self.target_at(x, y);
         let selection = if dispatch.is_handled() || button != MouseButton::Left {
@@ -1997,6 +2067,13 @@ where
         y: f64,
         button: MouseButton,
     ) -> ViewerInputOutcome {
+        if self.ensure_ready().is_err() {
+            return ViewerInputOutcome {
+                dispatch: DispatchOutcome::default(),
+                target: ViewerTarget::Contents(self.contents()),
+                selection: None,
+            };
+        }
         ViewerInputOutcome {
             dispatch: self.runtime.input().dispatch_mouse_pressed(x, y, button),
             target: self.target_at(x, y),
@@ -2006,6 +2083,9 @@ where
 
     /// Dispatches pointer movement while preserving any Figure-owned capture.
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> DispatchOutcome {
+        if self.ensure_ready().is_err() {
+            return DispatchOutcome::default();
+        }
         self.runtime.input().dispatch_mouse_moved(x, y)
     }
 
@@ -2016,11 +2096,17 @@ where
         y: f64,
         button: MouseButton,
     ) -> DispatchOutcome {
+        if self.ensure_ready().is_err() {
+            return DispatchOutcome::default();
+        }
         self.runtime.input().dispatch_mouse_released(x, y, button)
     }
 
     /// Clears hover and pointer targeting after the pointer leaves the surface.
     pub fn pointer_exited(&mut self) {
+        if self.ensure_ready().is_err() {
+            return;
+        }
         self.runtime.input().pointer_exited();
     }
 
@@ -2052,11 +2138,10 @@ where
         action: HandleAction,
         figure: Box<dyn Figure>,
     ) -> Result<(HandleId, FigureId), ViewerError> {
+        self.ensure_ready()?;
         self.validate_selectable(owner)?;
-        let figure = self
-            .runtime
-            .figure(self.root_layers.handles())?
-            .add(figure)?;
+        let figure =
+            self.install_overlay_figures(vec![(self.root_layers.handles(), figure, None)])?[0];
         let id = HandleId::new(self.namespace());
         self.visual_registry
             .insert(figure, VisualOwner::handle(id, owner, action));
@@ -2070,6 +2155,7 @@ where
         scaled: bool,
         figure: Box<dyn Figure>,
     ) -> Result<(FeedbackId, FigureId), ViewerError> {
+        self.ensure_ready()?;
         if let Some(owner) = owner {
             self.validate_selectable(owner)?;
         }
@@ -2078,38 +2164,21 @@ where
         } else {
             self.root_layers.feedback()
         };
-        let figure = self.runtime.figure(parent)?.add(figure)?;
-        let id = FeedbackId::new(self.namespace());
-        self.visual_registry
-            .insert(figure, VisualOwner::feedback(id, owner));
-        Ok((id, figure))
-    }
-
-    fn add_feedback_contribution(
-        &mut self,
-        owner: Option<EditPartId>,
-        feedback: FeedbackVisual,
-    ) -> Result<(FeedbackId, FigureId), ViewerError> {
-        let (figure, scaled, style) = feedback.into_parts();
-        let attached = self.add_feedback_visual(owner, scaled, figure)?;
-        if let Some(style) = style
-            && let Err(error) = self
-                .runtime
-                .figure(attached.1)
-                .and_then(|mut figure| figure.set_style(style))
-        {
-            let _ = self.remove_overlay_visual(attached.1);
-            return Err(error.into());
-        }
-        Ok(attached)
+        let figure = self.install_feedback(vec![(owner, parent, figure, None)])?[0];
+        Ok((
+            self.visual_registry[&figure]
+                .feedback_id()
+                .expect("feedback ownership"),
+            figure,
+        ))
     }
 
     /// Removes a registered handle or feedback subtree.
     pub fn remove_overlay_visual(&mut self, figure: FigureId) -> Result<bool, ViewerError> {
+        self.ensure_ready()?;
         match self.visual_registry.get(&figure) {
             Some(owner) if owner.is_overlay() => {
-                self.runtime.dispose_subtree(figure)?;
-                self.visual_registry.remove(&figure);
+                self.remove_overlay_visuals(&[figure])?;
                 Ok(true)
             }
             Some(_) | None => Ok(false),
@@ -2118,22 +2187,71 @@ where
 
     /// Removes a complete overlay batch after validating ownership up front.
     pub fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
-        for figure in figures.iter().copied() {
-            if self
+        self.ensure_ready()?;
+        let mut seen = HashSet::new();
+        for (index, figure) in figures.iter().copied().enumerate() {
+            let reject = |reason| ViewerError::InvalidOverlayBatch {
+                index,
+                figure,
+                reason,
+            };
+            if !seen.insert(figure) {
+                return Err(reject("duplicate Figure identity"));
+            }
+            let Some(owner) = self
                 .visual_registry
                 .get(&figure)
-                .is_none_or(|owner| !owner.is_overlay())
-                || self.runtime.tree().is_attached(figure) != Ok(true)
-            {
-                return Err(ViewerError::InconsistentState);
+                .filter(|owner| owner.is_overlay())
+            else {
+                return Err(reject("Figure is not owned Overlay"));
+            };
+            if self.runtime.tree().is_attached(figure) != Ok(true) {
+                return Err(reject("foreign or retired Figure identity"));
+            }
+            if figures[..index].iter().copied().any(|other| {
+                self.runtime.tree().is_ancestor_of(other, figure) == Ok(true)
+                    || self.runtime.tree().is_ancestor_of(figure, other) == Ok(true)
+            }) {
+                return Err(reject("ancestor and descendant overlap"));
+            }
+            for descendant in self.collect_creation_figures(&[figure]).into_iter().skip(1) {
+                if self
+                    .visual_registry
+                    .get(&descendant)
+                    .is_some_and(|child_owner| {
+                        !child_owner.is_overlay() || child_owner.owner_part() != owner.owner_part()
+                    })
+                {
+                    return Err(reject("subtree contains resources of another owner"));
+                }
             }
         }
+        let acquired = self.collect_creation_figures(figures);
         for figure in figures.iter().copied() {
-            if let Err(error) = self.runtime.dispose_subtree(figure) {
+            let result = catch_unwind(AssertUnwindSafe(|| self.runtime.dispose_subtree(figure)));
+            if !matches!(result, Ok(Ok(()))) {
+                let mut report = ProjectionCleanup {
+                    original: match &result {
+                        Ok(Err(error)) => error.to_string(),
+                        Err(_) => "Figure disposal panic".to_owned(),
+                        _ => unreachable!(),
+                    },
+                    ..Default::default()
+                };
+                self.record_figure_progress(&acquired, &mut report);
+                self.visual_registry
+                    .retain(|id, _| self.runtime.tree().is_attached(*id) == Ok(true));
                 self.faulted = true;
-                return Err(error.into());
+                self.drop_direct_text_edit_into(&mut report);
+                self.last_cleanup = Some(Arc::new(report));
+                return match result {
+                    Ok(Err(error)) => Err(error.into()),
+                    Err(payload) => resume_unwind(payload),
+                    _ => unreachable!(),
+                };
             }
-            self.visual_registry.remove(&figure);
+            self.visual_registry
+                .retain(|id, _| self.runtime.tree().is_attached(*id) == Ok(true));
         }
         Ok(())
     }
@@ -2142,19 +2260,91 @@ where
         &mut self,
         contributions: Vec<(Option<EditPartId>, FeedbackVisual)>,
     ) -> Result<Vec<FigureId>, ViewerError> {
-        let mut figures = Vec::with_capacity(contributions.len());
+        self.ensure_ready()?;
+        let mut inputs = Vec::with_capacity(contributions.len());
         for (owner, feedback) in contributions {
-            match self.add_feedback_contribution(owner, feedback) {
-                Ok((_, figure)) => figures.push(figure),
-                Err(error) => {
-                    if self.remove_overlay_visuals(&figures).is_err() {
-                        self.faulted = true;
-                    }
-                    return Err(error);
+            if let Some(owner) = owner {
+                self.validate_selectable(owner)?;
+            }
+            let (figure, scaled, style) = feedback.into_parts();
+            let parent = if scaled {
+                self.root_layers.scaled_feedback()
+            } else {
+                self.root_layers.feedback()
+            };
+            inputs.push((owner, parent, figure, style));
+        }
+        self.install_feedback(inputs)
+    }
+
+    fn install_feedback(
+        &mut self,
+        inputs: Vec<FeedbackInstallInput>,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let owners: Vec<_> = inputs.iter().map(|(owner, _, _, _)| *owner).collect();
+        let figures = self.install_overlay_figures(
+            inputs
+                .into_iter()
+                .map(|(_, parent, figure, style)| (parent, figure, style))
+                .collect(),
+        )?;
+        for (figure, owner) in figures.iter().copied().zip(owners) {
+            let id = FeedbackId::new(self.namespace());
+            self.visual_registry
+                .insert(figure, VisualOwner::feedback(id, owner));
+        }
+        Ok(figures)
+    }
+
+    fn install_overlay_figures(
+        &mut self,
+        inputs: Vec<(FigureId, Box<dyn Figure>, Option<FigureStyle>)>,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let parents: HashSet<_> = inputs.iter().map(|(parent, _, _)| *parent).collect();
+        let before: HashSet<_> = parents
+            .iter()
+            .flat_map(|parent| self.runtime.tree().child_order(*parent).unwrap_or_default())
+            .collect();
+        let result = catch_unwind(AssertUnwindSafe(|| self.runtime.add_figures(inputs)));
+        match result {
+            Ok(Ok(figures)) => Ok(figures),
+            failed => {
+                let roots: Vec<_> = parents
+                    .iter()
+                    .flat_map(|parent| self.runtime.tree().child_order(*parent).unwrap_or_default())
+                    .filter(|figure| !before.contains(figure))
+                    .collect();
+                if roots.is_empty()
+                    && !self.runtime.is_faulted()
+                    && let Ok(Err(error)) = failed
+                {
+                    return Err(error.into());
+                }
+                let acquired = self.collect_creation_figures(&roots);
+                let mut report = ProjectionCleanup {
+                    original: match &failed {
+                        Ok(Err(error)) => error.to_string(),
+                        Err(_) => "Overlay installation panic".to_owned(),
+                        _ => unreachable!(),
+                    },
+                    ..Default::default()
+                };
+                self.cleanup_created_figures(&roots, &mut report);
+                self.record_figure_progress(&acquired, &mut report);
+                self.faulted = true;
+                self.drop_direct_text_edit_into(&mut report);
+                let report = Arc::new(report);
+                self.last_cleanup = Some(Arc::clone(&report));
+                match failed {
+                    Ok(Err(error)) => Err(ViewerError::ProjectionCleanup {
+                        original: Box::new(error.into()),
+                        report,
+                    }),
+                    Err(payload) => resume_unwind(payload),
+                    _ => unreachable!(),
                 }
             }
         }
-        Ok(figures)
     }
 
     /// Returns a snapshot of the active direct text edit session.
@@ -3275,16 +3465,19 @@ where
         match catch_unwind(AssertUnwindSafe(|| operation(self))) {
             Ok(result) => result,
             Err(payload) => {
-                self.force_drop_direct_text_edit();
-                self.faulted = true;
+                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
                 resume_unwind(payload)
             }
         }
     }
 
     fn mark_faulted(&mut self) {
-        self.force_drop_direct_text_edit();
+        self.mark_faulted_with_cause("Viewer extension fault");
+    }
+
+    fn mark_faulted_with_cause(&mut self, original: &str) {
         self.faulted = true;
+        self.force_drop_direct_text_edit(original);
     }
 
     pub(crate) fn fault_extension(&mut self) {

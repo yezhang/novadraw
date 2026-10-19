@@ -2109,6 +2109,10 @@ impl ApplicationHandler<()> for DemoApp {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().any(|argument| argument == "--verify-s06-host-exit") {
+        harness::failure_host::run()?;
+        return Ok(());
+    }
     if let Some(options) = replay::ReplayOptions::parse()? {
         replay::run(options)?;
         return Ok(());

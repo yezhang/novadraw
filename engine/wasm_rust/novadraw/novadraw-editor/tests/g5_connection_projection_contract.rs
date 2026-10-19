@@ -8,7 +8,7 @@ use std::{
     convert::Infallible,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
 
@@ -17,10 +17,11 @@ use novadraw::connection::{
     ConnectionRouter, ConnectionRuntimeError, DirectRouter, RouteError, RouteOutput, RouteRequest,
 };
 use novadraw::figure::RootFigure;
-use novadraw::geometry::Rectangle;
+use novadraw::geometry::{Point, PointList, Rectangle};
 use novadraw::{figure::Figure, figure::RectangleFigure};
 use novadraw_editor::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionPartFactoryContext,
+    ConnectionRouterKey, ConnectionRouterRegistration, ConnectionRoutingDescriptor,
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter,
     ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PartKind, ViewerError,
     VisualUpdateContext,
@@ -36,6 +37,37 @@ const LINEAR_REFRESH_CONNECTION_COUNT: u64 = 64;
 
 struct CountingRouter {
     route_count: Arc<AtomicUsize>,
+}
+
+struct AdmissionProbeRouter;
+
+impl ConnectionRouter for AdmissionProbeRouter {
+    fn route(&self, request: RouteRequest<'_>) -> Result<RouteOutput, RouteError> {
+        let invalid = request
+            .constraint
+            .and_then(|value| value.as_any().downcast_ref::<Arc<AtomicBool>>())
+            .is_some_and(|value| value.load(Ordering::SeqCst));
+        let output = DirectRouter.route(RouteRequest {
+            constraint: None,
+            ..request
+        })?;
+        if invalid {
+            RouteOutput::new(
+                PointList::from_points(vec![
+                    output.metadata().source.site.point,
+                    Point::new(-f64::MAX, 0.0),
+                    Point::new(f64::MAX, 0.0),
+                    output.metadata().target.site.point,
+                ]),
+                *output.metadata(),
+            )
+        } else {
+            Ok(output)
+        }
+    }
+    fn constraint_type(&self) -> Option<std::any::TypeId> {
+        Some(std::any::TypeId::of::<Arc<AtomicBool>>())
+    }
 }
 
 impl ConnectionRouter for CountingRouter {
@@ -61,6 +93,17 @@ struct DiagramModel {
     events: Vec<ModelEvent<ModelId, DiagramEvent>>,
     drift_during_connections: Cell<bool>,
     anchor_versions: HashMap<ModelId, u64>,
+    failure: Option<ConnectionFailure>,
+    cleanup_callbacks: Arc<AtomicUsize>,
+    invalid_route: Arc<AtomicBool>,
+}
+
+#[derive(Clone, Copy)]
+enum ConnectionFailure {
+    TargetProvider,
+    BindingConstraint,
+    ActivationPanic,
+    CleanupPanic,
 }
 
 impl DiagramModel {
@@ -78,6 +121,9 @@ impl DiagramModel {
             events: Vec::new(),
             drift_during_connections: Cell::new(false),
             anchor_versions: HashMap::new(),
+            failure: None,
+            cleanup_callbacks: Arc::new(AtomicUsize::new(0)),
+            invalid_route: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -190,6 +236,20 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
         Ok(())
     }
 
+    fn target_connection_anchor(
+        &mut self,
+        model: &DiagramModel,
+        _model_id: ModelId,
+        context: ConnectionAnchorContext<ModelId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        if matches!(model.failure, Some(ConnectionFailure::TargetProvider))
+            && context.connection_model() == Some(EDGE_B)
+        {
+            return Err(EditPartError::operation("target provider refused"));
+        }
+        Ok(None)
+    }
+
     fn deactivate(&mut self, _model: &DiagramModel, model_id: ModelId) {
         self.lifecycle
             .lock()
@@ -203,7 +263,47 @@ struct ConnectionPart {
     reject_activation: bool,
 }
 
+struct ConnectionCleanupProbe(Arc<AtomicUsize>);
+
+impl Figure for ConnectionCleanupProbe {
+    fn name(&self) -> &'static str {
+        "connection cleanup probe"
+    }
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 1.0, 1.0)
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::figure::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::figure::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::LIFECYCLE,
+            novadraw::figure::LifecycleCapability::of::<Self>(),
+        )
+    }
+}
+impl novadraw::figure::FigureLifecycle for ConnectionCleanupProbe {
+    fn on_detached(&mut self, _: novadraw::figure::FigureLifecycleContext) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        panic!("connection cleanup lifecycle panic");
+    }
+}
+
 impl EditPartBehavior<DiagramModel> for ConnectionPart {
+    fn configure_visual(
+        &mut self,
+        model: &DiagramModel,
+        model_id: ModelId,
+        context: &mut novadraw_editor::VisualBuildContext<'_>,
+    ) -> Result<(), EditPartError> {
+        if model_id == EDGE_B && matches!(model.failure, Some(ConnectionFailure::CleanupPanic)) {
+            context.add_child(
+                context.primary(),
+                Box::new(ConnectionCleanupProbe(Arc::clone(&model.cleanup_callbacks))),
+            )?;
+        }
+        Ok(())
+    }
     fn create_figure(
         &mut self,
         _model: &DiagramModel,
@@ -212,8 +312,14 @@ impl EditPartBehavior<DiagramModel> for ConnectionPart {
         Ok(Box::new(ConnectionFigure::new()))
     }
 
-    fn activate(&mut self, _model: &DiagramModel, model_id: ModelId) -> Result<(), EditPartError> {
-        if self.reject_activation {
+    fn activate(&mut self, model: &DiagramModel, model_id: ModelId) -> Result<(), EditPartError> {
+        if model_id == EDGE_B && matches!(model.failure, Some(ConnectionFailure::ActivationPanic)) {
+            panic!("connection activation panic");
+        }
+        if self.reject_activation
+            || (model_id == EDGE_B
+                && matches!(model.failure, Some(ConnectionFailure::CleanupPanic)))
+        {
             return Err(EditPartError::operation(
                 "connection activation rejected model",
             ));
@@ -223,6 +329,31 @@ impl EditPartBehavior<DiagramModel> for ConnectionPart {
             .unwrap()
             .push(Lifecycle::Activate(model_id));
         Ok(())
+    }
+
+    fn connection_routing(
+        &mut self,
+        model: &DiagramModel,
+        model_id: ModelId,
+    ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
+        if !model.invalid_route.load(Ordering::SeqCst)
+            && !(model_id == EDGE_B
+                && matches!(model.failure, Some(ConnectionFailure::BindingConstraint)))
+        {
+            return Ok(ConnectionRoutingDescriptor::inherited());
+        }
+        Ok(ConnectionRoutingDescriptor::registered(
+            ConnectionRouterKey::new("admission-probe")?,
+            Some(
+                if model_id == EDGE_B
+                    && matches!(model.failure, Some(ConnectionFailure::BindingConstraint))
+                {
+                    Box::new(())
+                } else {
+                    Box::new(Arc::clone(&model.invalid_route))
+                },
+            ),
+        ))
     }
 
     fn deactivate(&mut self, _model: &DiagramModel, model_id: ModelId) {
@@ -253,6 +384,12 @@ struct DiagramFactory {
 }
 
 impl EditPartFactory<DiagramModel> for DiagramFactory {
+    fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
+        Ok(vec![ConnectionRouterRegistration::new(
+            ConnectionRouterKey::new("admission-probe")?,
+            Box::new(AdmissionProbeRouter),
+        )])
+    }
     fn create(
         &mut self,
         _context: PartFactoryContext<ModelId>,
@@ -705,6 +842,29 @@ fn unresolved_route_keeps_a_live_recoverable_connection_part() {
         ConnectionResolution::Unresolved(_)
     ));
     assert!(!viewer.is_faulted());
+    let before = viewer
+        .connection_state(ConnectionId::from_figure(figure))
+        .unwrap();
+    viewer
+        .synchronize_model(|model| {
+            model
+                .bounds
+                .insert(SECOND, Rectangle::new(240.0, 60.0, 100.0, 80.0));
+            model.publish();
+        })
+        .unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
+    let after = viewer
+        .connection_state(ConnectionId::from_figure(figure))
+        .unwrap();
+    assert!(matches!(
+        after.resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    assert_eq!(before.source, after.source);
+    assert_eq!(before.target, after.target);
+    assert_eq!(viewer.connection_part_for_model(EDGE_A), Some(connection));
+    assert!(!viewer.is_faulted());
 }
 
 #[test]
@@ -838,13 +998,14 @@ fn rejected_incremental_connection_creation_leaves_no_registration() {
         .child_order(viewer.root_layers().connection())
         .unwrap();
 
-    assert!(matches!(
-        viewer.synchronize_model(|model| {
-            model.connections.push(edge(EDGE_B, SECOND, THIRD));
-            model.publish();
-        }),
-        Err(ViewerError::EditPart(_))
-    ));
+    let result = viewer.synchronize_model(|model| {
+        model.connections.push(edge(EDGE_B, SECOND, THIRD));
+        model.publish();
+    });
+    assert!(
+        matches!(result, Err(ViewerError::EditPart(_))),
+        "{result:?}"
+    );
     assert!(viewer.is_faulted());
     assert_eq!(viewer.part_for_model(EDGE_B), None);
     assert_eq!(
@@ -893,4 +1054,153 @@ fn failed_connection_activation_rolls_back_all_registrations() {
             .child_order(viewer.root_layers().connection()),
         Ok(layer_before)
     );
+}
+
+#[test]
+fn late_connection_refusals_and_panic_preserve_existing_projection() {
+    for failure in [
+        ConnectionFailure::TargetProvider,
+        ConnectionFailure::BindingConstraint,
+        ConnectionFailure::ActivationPanic,
+    ] {
+        for target in [THIRD, SECOND] {
+            let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
+            let existing = viewer.connection_part_for_model(EDGE_A).unwrap();
+            let existing_figure = viewer
+                .parts()
+                .get(existing.edit_part())
+                .unwrap()
+                .primary_figure();
+            let existing_state = viewer
+                .connection_state(ConnectionId::from_figure(existing_figure))
+                .unwrap();
+            let before = viewer
+                .runtime()
+                .tree()
+                .child_order(viewer.root_layers().connection());
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                viewer.synchronize_model(|model| {
+                    model.failure = Some(failure);
+                    model.connections.push(edge(EDGE_B, SECOND, target));
+                    model.publish();
+                })
+            }));
+            assert!(!matches!(result, Ok(Ok(_))));
+            assert!(viewer.is_faulted());
+            assert!(!viewer.runtime().is_faulted());
+            assert_eq!(viewer.connection_part_for_model(EDGE_B), None);
+            assert_eq!(
+                viewer
+                    .runtime()
+                    .tree()
+                    .child_order(viewer.root_layers().connection()),
+                before
+            );
+            assert_eq!(viewer.connection_part_for_model(EDGE_A), Some(existing));
+            let after = viewer
+                .connection_state(ConnectionId::from_figure(existing_figure))
+                .unwrap();
+            assert_eq!(after.source, existing_state.source);
+            assert_eq!(after.target, existing_state.target);
+            let cleanup = viewer.last_projection_cleanup().unwrap();
+            assert!(cleanup.failures.is_empty(), "{cleanup:?}");
+            assert!(cleanup.live_figures.is_empty());
+            assert!(cleanup.live_anchors.is_empty());
+            assert!(cleanup.live_parts.is_empty());
+            assert!(!cleanup.retired_figures.is_empty());
+        }
+    }
+}
+
+#[test]
+fn connection_cleanup_lifecycle_panic_preserves_original_error_and_retired_ids() {
+    let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
+    let callbacks = Arc::clone(&viewer.model().cleanup_callbacks);
+    let existing = viewer.connection_part_for_model(EDGE_A).unwrap();
+    let error = viewer
+        .synchronize_model(|model| {
+            model.failure = Some(ConnectionFailure::CleanupPanic);
+            model.connections.push(edge(EDGE_B, SECOND, SECOND));
+            model.publish();
+        })
+        .unwrap_err();
+    let ViewerError::ProjectionCleanup { original, report } = error else {
+        panic!("missing cleanup report");
+    };
+    assert!(
+        original
+            .to_string()
+            .contains("connection activation rejected")
+    );
+    assert!(report.runtime_faulted);
+    assert!(report.live_figures.is_empty());
+    assert!(report.live_parts.is_empty());
+    assert!(report.live_anchors.is_empty());
+    assert_eq!(report.retired_figures.len(), 2);
+    assert_eq!(report.retired_anchors.len(), 2);
+    assert!(
+        report
+            .retired_figures
+            .iter()
+            .all(|id| viewer.runtime().tree().is_attached(*id)
+                == Err(novadraw::tree::TreeQueryError::UnknownFigure(*id)))
+    );
+    assert_eq!(viewer.connection_part_for_model(EDGE_A), Some(existing));
+    assert!(viewer.synchronize().is_err());
+    drop(viewer);
+    assert_eq!(callbacks.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn invalid_route_output_clears_geometry_and_recovers_without_recreating_resources() {
+    let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
+    let part = viewer.connection_part_for_model(EDGE_A).unwrap();
+    let figure = viewer
+        .parts()
+        .get(part.edit_part())
+        .unwrap()
+        .primary_figure();
+    let connection = ConnectionId::from_figure(figure);
+    let before = viewer.connection_state(connection).unwrap();
+    viewer
+        .synchronize_model(|model| {
+            model.invalid_route.store(true, Ordering::SeqCst);
+            model
+                .bounds
+                .insert(FIRST, Rectangle::new(60.0, 60.0, 100.0, 80.0));
+            model.publish();
+        })
+        .unwrap();
+    let unresolved = viewer.connection_state(connection).unwrap();
+    assert!(
+        matches!(unresolved.resolution, ConnectionResolution::Unresolved(
+        novadraw::connection::UnresolvedConnection::InvalidGeometry(id)
+    ) if id == figure)
+    );
+    assert_eq!(
+        viewer.runtime().tree().figure_bounds(figure),
+        Ok(Rectangle::ZERO)
+    );
+    assert_eq!(unresolved.source, before.source);
+    assert_eq!(unresolved.target, before.target);
+    assert!(unresolved.dependency_count > 0);
+    assert!(!viewer.is_faulted());
+    viewer
+        .synchronize_model(|model| {
+            model.invalid_route.store(false, Ordering::SeqCst);
+            model
+                .bounds
+                .insert(FIRST, Rectangle::new(80.0, 60.0, 100.0, 80.0));
+            model.publish();
+        })
+        .unwrap();
+    let recovered = viewer.connection_state(connection).unwrap();
+    assert!(matches!(
+        recovered.resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    assert_eq!(recovered.source, before.source);
+    assert_eq!(recovered.target, before.target);
+    assert_eq!(viewer.connection_part_for_model(EDGE_A), Some(part));
+    assert!(!viewer.is_faulted());
 }

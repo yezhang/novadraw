@@ -222,7 +222,7 @@ impl FeedbackVisual {
         }
     }
 
-    /// Applies a local Figure style after the feedback is attached.
+    /// Supplies the local Figure style validated before feedback installation.
     pub fn with_style(mut self, style: FigureStyle) -> Self {
         self.style = Some(style);
         self
@@ -536,6 +536,7 @@ pub(crate) struct PolicyEntry<A: ModelAdapter> {
     handlers: BTreeMap<ErasedRequestKey, Box<dyn ErasedPolicyHandler<A>>>,
     activate: PolicyActivate<A>,
     deactivate: PolicyDeactivate<A>,
+    active: bool,
 }
 
 impl<A: ModelAdapter> PolicyEntry<A> {
@@ -544,11 +545,15 @@ impl<A: ModelAdapter> PolicyEntry<A> {
         host: PolicyHost<A::ModelId>,
         model: &A,
     ) -> Result<(), PolicyError> {
-        (self.activate)(self.policy.as_mut(), host, model)
+        (self.activate)(self.policy.as_mut(), host, model)?;
+        self.active = true;
+        Ok(())
     }
 
     pub(crate) fn deactivate(&mut self, host: PolicyHost<A::ModelId>, model: &A) {
-        (self.deactivate)(self.policy.as_mut(), host, model);
+        if std::mem::replace(&mut self.active, false) {
+            (self.deactivate)(self.policy.as_mut(), host, model);
+        }
     }
 }
 
@@ -572,6 +577,7 @@ impl<A: ModelAdapter + 'static> PolicyInstallation<A> {
             entry: PolicyEntry {
                 policy: Box::new(policy),
                 handlers: builder.finish()?,
+                active: false,
                 activate: |policy, host, model| {
                     policy
                         .downcast_mut::<P>()

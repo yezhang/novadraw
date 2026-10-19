@@ -1023,6 +1023,50 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| runtime.add_figure_checked(parent, figure))
     }
 
+    /// Appends Figures after validating every input without allocating identities.
+    ///
+    /// Each tuple supplies an attached parent, a detached Figure and an optional local style.
+    /// Capability descriptors are registered once and retained privately for this call.
+    /// Installation callbacks run after validation; a callback panic faults the Runtime and
+    /// may leave an attached prefix. This operation does not roll back callbacks or topology.
+    pub fn add_figures(
+        &mut self,
+        figures: Vec<(FigureId, Box<dyn Figure>, Option<FigureStyle>)>,
+    ) -> Result<Vec<FigureId>, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            let mut pending = std::collections::HashMap::<FigureId, usize>::new();
+            let mut prepared = Vec::with_capacity(figures.len());
+            for (index, (parent, figure, style)) in figures.into_iter().enumerate() {
+                let result = (|| {
+                    runtime.validate_attached_figure(parent)?;
+                    if runtime.tree.is_layered_pane(parent) {
+                        return Err(RuntimeMutationError::LayeredParent(parent));
+                    }
+                    let count = pending.entry(parent).or_default();
+                    let child = runtime
+                        .tree
+                        .prepare_child(figure, parent, false, *count, style)?;
+                    *count += 1;
+                    Ok(child)
+                })();
+                let child = result.map_err(|source| RuntimeMutationError::FigureBatch {
+                    index,
+                    source: Box::new(source),
+                })?;
+                prepared.push((parent, child));
+            }
+            let mut ids = Vec::with_capacity(prepared.len());
+            for (parent, child) in prepared {
+                let id = runtime
+                    .tree
+                    .attach_prepared_child(&mut runtime.updates, parent, child);
+                ids.push(id);
+                runtime.complete_figure_insertion(parent, id);
+            }
+            Ok(ids)
+        })
+    }
+
     fn insert_figure(
         &mut self,
         parent: FigureId,
@@ -4921,6 +4965,253 @@ mod adr014_tests {
         assert!(frozen.x <= 20.0 && frozen.y <= 20.0);
         assert!(frozen.x + frozen.width >= 30.0 && frozen.y + frozen.height >= 30.0);
         assert!(runtime.tree().figure_bounds(child).is_err());
+    }
+
+    #[test]
+    fn s06_figure_batch_preflight_preserves_topology_damage_and_capability_registration() {
+        struct RegistrationProbe(Rc<Cell<usize>>);
+        impl Figure for RegistrationProbe {
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::new(0.0, 0.0, 10.0, 10.0)
+            }
+            fn name(&self) -> &'static str {
+                "registration probe"
+            }
+            fn register_capabilities(
+                &self,
+                _: &mut crate::FigureCapabilityBuilder,
+            ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+                self.0.set(self.0.get() + 1);
+                Ok(())
+            }
+        }
+        let (mut runtime, root) = scene();
+        runtime.record_full_frame();
+        let before_children = runtime.tree.child_order(root);
+        let before_damage = runtime.updates.dirty_regions.clone();
+        let calls = Rc::new(Cell::new(0));
+        let error = runtime
+            .add_figures(vec![
+                (root, Box::new(RegistrationProbe(Rc::clone(&calls))), None),
+                (
+                    root,
+                    Box::new(RectangleFigure::new(0.0, 0.0, -1.0, 1.0)),
+                    None,
+                ),
+            ])
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            RuntimeMutationError::FigureBatch { index: 1, .. }
+        ));
+        assert_eq!(runtime.tree.child_order(root), before_children);
+        assert_eq!(runtime.updates.dirty_regions, before_damage);
+        assert!(!runtime.is_faulted());
+        assert_eq!(calls.get(), 1);
+        let ids = runtime
+            .add_figures(vec![(
+                root,
+                Box::new(RegistrationProbe(Rc::clone(&calls))),
+                None,
+            )])
+            .unwrap();
+        assert_eq!(ids.len(), 1);
+        assert_eq!(
+            calls.get(),
+            2,
+            "descriptor registration runs once per input"
+        );
+    }
+
+    #[test]
+    fn s06_connection_admission_and_disposal_refuse_before_revision_overflow_writes() {
+        use crate::connection::{ConnectionFigure, ConnectionId, RouterBinding};
+        let (mut runtime, root) = scene();
+        let existing = runtime
+            .add_figure(root, Box::new(ConnectionFigure::new()))
+            .unwrap();
+        let candidate = runtime
+            .add_figure(root, Box::new(ConnectionFigure::new()))
+            .unwrap();
+        let router = RouterBinding::Explicit {
+            router: runtime.connections.direct_router(),
+        };
+        runtime
+            .connections
+            .register_connection(
+                ConnectionId::from_figure(existing),
+                None,
+                None,
+                router,
+                None,
+            )
+            .unwrap();
+        runtime.record_full_frame();
+        runtime
+            .connections
+            .exhaust_dirty_revision_for_test(ConnectionId::from_figure(existing));
+        let before_children = runtime.tree.child_order(root);
+        let before_dirty = runtime.updates.dirty_regions.clone();
+        let before_frozen = runtime.updates.frozen_surface_regions.clone();
+        let before_state = runtime
+            .connections
+            .state(ConnectionId::from_figure(existing))
+            .unwrap();
+        assert!(
+            runtime
+                .connections
+                .register_connection(
+                    ConnectionId::from_figure(candidate),
+                    None,
+                    None,
+                    router,
+                    None,
+                )
+                .is_err()
+        );
+        assert!(
+            runtime
+                .connections
+                .state(ConnectionId::from_figure(candidate))
+                .is_err()
+        );
+        assert_eq!(
+            runtime
+                .connections
+                .state(ConnectionId::from_figure(existing))
+                .unwrap(),
+            before_state
+        );
+        assert!(runtime.dispose_subtree(candidate).is_err());
+        assert!(!runtime.is_faulted());
+        assert_eq!(runtime.tree.is_attached(candidate), Ok(true));
+        assert_eq!(runtime.tree.child_order(root), before_children);
+        assert_eq!(runtime.updates.dirty_regions, before_dirty);
+        assert_eq!(runtime.updates.frozen_surface_regions, before_frozen);
+    }
+
+    #[test]
+    fn s06_late_disposal_prepare_rejection_keeps_retired_prefix_and_live_suffix() {
+        use crate::connection::{ConnectionFigure, ConnectionId, RouterBinding};
+        let (mut runtime, root) = scene();
+        let connection = runtime
+            .add_figure(root, Box::new(ConnectionFigure::new()))
+            .unwrap();
+        let first = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .unwrap();
+        let second = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)))
+            .unwrap();
+        let connection_id = ConnectionId::from_figure(connection);
+        runtime
+            .connections
+            .register_connection(
+                connection_id,
+                None,
+                None,
+                RouterBinding::Explicit {
+                    router: runtime.connections.direct_router(),
+                },
+                None,
+            )
+            .unwrap();
+        runtime.record_full_frame();
+        runtime
+            .connections
+            .set_dirty_revision_for_test(connection_id, u64::MAX - 1);
+        runtime.dispose_subtree(first).unwrap();
+        assert_eq!(
+            runtime.tree.is_attached(first),
+            Err(crate::tree::TreeQueryError::UnknownFigure(first))
+        );
+        let before_children = runtime.tree.child_order(root);
+        let before_dirty = runtime.updates.dirty_regions.clone();
+        let before_frozen = runtime.updates.frozen_surface_regions.clone();
+        let before_state = runtime.connections.state(connection_id).unwrap();
+        assert_eq!(
+            runtime.dispose_subtree(second),
+            Err(RuntimeMutationError::Rejected)
+        );
+        assert_eq!(runtime.tree.is_attached(second), Ok(true));
+        assert_eq!(runtime.tree.is_attached(connection), Ok(true));
+        assert!(!runtime.is_faulted());
+        assert_eq!(runtime.tree.child_order(root), before_children);
+        assert_eq!(runtime.updates.dirty_regions, before_dirty);
+        assert_eq!(runtime.updates.frozen_surface_regions, before_frozen);
+        assert_eq!(
+            runtime.connections.state(connection_id).unwrap(),
+            before_state
+        );
+        // All disposals consult the same exhausted revision, even independent Figures.
+        // The valid prefix stays retired; no second structural commit has occurred.
+        assert_eq!(
+            runtime.dispose_subtree(connection),
+            Err(RuntimeMutationError::Rejected)
+        );
+        assert_eq!(
+            runtime.tree.is_attached(first),
+            Err(crate::tree::TreeQueryError::UnknownFigure(first))
+        );
+    }
+
+    #[test]
+    fn s06_explicit_cleanup_keeps_real_notifications_damage_and_retires_subscriptions() {
+        use std::sync::{Arc, Mutex};
+        struct Capture(Arc<Mutex<Vec<crate::AncestorEvent>>>);
+        impl crate::AncestorListener for Capture {
+            fn ancestor_changed(&self, event: crate::AncestorEvent) -> crate::ListenerDirective {
+                self.0.lock().unwrap().push(event);
+                crate::ListenerDirective::Keep
+            }
+        }
+        let (mut runtime, root) = scene();
+        runtime.record_full_frame();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        runtime.add_ancestor_listener(Box::new(Capture(Arc::clone(&events))));
+        let figure = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 10.0, 10.0)))
+            .unwrap();
+        let scoped = Arc::new(Mutex::new(Vec::new()));
+        let subscription = runtime
+            .add_ancestor_listener_scoped(
+                crate::ListenerScope::Figure(figure),
+                Box::new(Capture(Arc::clone(&scoped))),
+            )
+            .unwrap();
+        runtime.dispose_subtree(figure).unwrap();
+        assert!(!runtime.remove_listener(subscription));
+        assert_eq!(
+            runtime.tree.is_attached(figure),
+            Err(crate::tree::TreeQueryError::UnknownFigure(figure))
+        );
+        assert!(
+            runtime
+                .updates
+                .frozen_surface_regions
+                .iter()
+                .any(|damage| damage.x <= 20.0
+                    && damage.y <= 30.0
+                    && damage.x + damage.width >= 30.0
+                    && damage.y + damage.height >= 40.0)
+        );
+        runtime.record_full_frame();
+        assert!(scoped.lock().unwrap().is_empty());
+        let events: Vec<_> = events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event.figure_id == figure)
+            .map(|event| event.kind)
+            .collect();
+        assert_eq!(
+            events,
+            vec![
+                crate::AncestorEventKind::Added,
+                crate::AncestorEventKind::Removed
+            ]
+        );
+        assert!(runtime.dispose_subtree(figure).is_err());
     }
 
     #[test]

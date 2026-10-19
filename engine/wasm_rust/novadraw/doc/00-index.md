@@ -17,7 +17,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   Kurbo 版本与渲染依赖门禁。
 - Core P2 delta：P2-R02 image source rectangle 已完成，状态见
   [`roadmap/p2-delta-backlog.md`](roadmap/p2-delta-backlog.md)。
-- API 整改：P2-S07 的 [ADR-038](adr/adr-038-query-identity-and-failure-semantics.md)与
+- API 整改：S06 已按矩阵修订 2 关闭；S07 的
+  [ADR-038](adr/adr-038-query-identity-and-failure-semantics.md)与
   [验证矩阵](verification/plans/p2-s07-query-identity-and-failure-semantics.md)
   已完成实现与验收，见[完成核验](verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 - Draw2D Core 之后的动画与表现平面、图布局、内置组件、概览和输出能力建议顺序见
@@ -99,6 +100,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-035-explicit-domain-imports-and-root-boundary.md`](adr/adr-035-explicit-domain-imports-and-root-boundary.md)
 - Context 阶段权限投影与 Query 命名：
   [`adr/adr-036-context-phase-authority-projection.md`](adr/adr-036-context-phase-authority-projection.md)
+- Editor 增量视图失败隔离与 Overlay 批量校验（已接受）：
+  [`adr/adr-037-editor-incremental-failure-isolation.md`](adr/adr-037-editor-incremental-failure-isolation.md)
 - Figure Capability 统一扩展模型：
   [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：

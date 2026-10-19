@@ -1,0 +1,7 @@
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+    Checking novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+    Checking novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+    Checking node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.56s

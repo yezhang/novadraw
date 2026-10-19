@@ -1,0 +1,121 @@
+Suite editor.p2-s06-failure-isolation (P2-S06)
+
+==> test.core-s06-admission: Run S06 whole-batch Figure admission contracts
+    $ cargo test -p novadraw --lib s06_
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+error[E0425]: cannot find type `Arc` in this scope
+    --> novadraw/src/runtime/runtime.rs:5054:24
+     |
+5054 |         struct Capture(Arc<Mutex<Vec<crate::AncestorEvent>>>);
+     |                        ^^^ not found in this scope
+     |
+     = note: struct `crate::text::outline::preparation::Arc` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Arc;
+     |
+4608 +     use kurbo::Arc;
+     |
+
+error[E0425]: cannot find type `Mutex` in this scope
+    --> novadraw/src/runtime/runtime.rs:5054:28
+     |
+5054 |         struct Capture(Arc<Mutex<Vec<crate::AncestorEvent>>>);
+     |                            ^^^^^ not found in this scope
+     |
+     = note: struct `crate::viewport::tests::Mutex` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Mutex;
+     |
+4608 +     use std::sync::nonpoison::Mutex;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Arc`
+    --> novadraw/src/runtime/runtime.rs:5063:22
+     |
+5063 |         let events = Arc::new(Mutex::new(Vec::new()));
+     |                      ^^^ use of undeclared type `Arc`
+     |
+     = note: struct `crate::text::outline::preparation::Arc` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Arc;
+     |
+4608 +     use kurbo::Arc;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Mutex`
+    --> novadraw/src/runtime/runtime.rs:5063:31
+     |
+5063 |         let events = Arc::new(Mutex::new(Vec::new()));
+     |                               ^^^^^ use of undeclared type `Mutex`
+     |
+     = note: struct `crate::viewport::tests::Mutex` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Mutex;
+     |
+4608 +     use std::sync::nonpoison::Mutex;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Arc`
+    --> novadraw/src/runtime/runtime.rs:5064:56
+     |
+5064 |         runtime.add_ancestor_listener(Box::new(Capture(Arc::clone(&events))));
+     |                                                        ^^^ use of undeclared type `Arc`
+     |
+     = note: struct `crate::text::outline::preparation::Arc` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Arc;
+     |
+4608 +     use kurbo::Arc;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Arc`
+    --> novadraw/src/runtime/runtime.rs:5068:22
+     |
+5068 |         let scoped = Arc::new(Mutex::new(Vec::new()));
+     |                      ^^^ use of undeclared type `Arc`
+     |
+     = note: struct `crate::text::outline::preparation::Arc` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Arc;
+     |
+4608 +     use kurbo::Arc;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Mutex`
+    --> novadraw/src/runtime/runtime.rs:5068:31
+     |
+5068 |         let scoped = Arc::new(Mutex::new(Vec::new()));
+     |                               ^^^^^ use of undeclared type `Mutex`
+     |
+     = note: struct `crate::viewport::tests::Mutex` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Mutex;
+     |
+4608 +     use std::sync::nonpoison::Mutex;
+     |
+
+error[E0433]: failed to resolve: use of undeclared type `Arc`
+    --> novadraw/src/runtime/runtime.rs:5072:34
+     |
+5072 |                 Box::new(Capture(Arc::clone(&scoped))),
+     |                                  ^^^ use of undeclared type `Arc`
+     |
+     = note: struct `crate::text::outline::preparation::Arc` exists but is inaccessible
+help: consider importing one of these structs
+     |
+4608 +     use std::sync::Arc;
+     |
+4608 +     use kurbo::Arc;
+     |
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `novadraw` (lib test) due to 8 previous errors
+xtask: command `test.core-s06-admission` failed with exit status: 101

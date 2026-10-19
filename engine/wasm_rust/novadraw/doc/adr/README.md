@@ -54,6 +54,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [034](adr-034-editor-tool-request-handle-protocol.md) | Editor Tool / Request / Handle 统一开放协议 | 已接受，已验证 | 2026-10-12 |
 | [035](adr-035-explicit-domain-imports-and-root-boundary.md) | 显式领域导入与 Crate Root 收口 | 已接受，已验证 | 2026-10-09 |
 | [036](adr-036-context-phase-authority-projection.md) | Context 阶段权限投影与 Query 命名 | 已接受，已验证 | 2026-10-13 |
+| [037](adr-037-editor-incremental-failure-isolation.md) | Editor 增量投影失败隔离 | 已接受，按矩阵修订 2 验证 | 2026-10-15 |
 | [038](adr-038-query-identity-and-failure-semantics.md) | 查询身份、合法缺失与失败传播 | 已接受，修订 1 | 2026-10-16 |
 
 ## 现行与历史隔离

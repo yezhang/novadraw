@@ -255,7 +255,7 @@ reorder。端点和路由配置均未变化时，不得主动 resolve；无 cons
 Novadraw 差异：
 
 - 不允许刷新顺序产生可观察的半连接状态；
-- 先构造全局稳定快照，再原子协调；
+- 先构造全局稳定快照，再按单项候选校验、关系更新和 Runtime route batch 提交协调；
 - 用单一有序 connection snapshot 代替两侧重复枚举；
 - 使用 namespaced generational identity，不使用对象地址；
 - `ConnectionPartId` 只是 `EditPartId` 的受检角色包装，不建立第二身份域；
@@ -264,6 +264,11 @@ Novadraw 差异：
   Chopbox fallback；
 - route 和依赖由现有 ConnectionRuntime 原子提交；
 - 确定性视觉顺序由模型 connection snapshot 显式定义。
+
+“原子协调”限于上述单项关系更新与 Runtime 候选提交，不保证完整 synchronize
+全局回滚。新建 Connection 的失败清理、binding admission 与已提交 unresolved
+的分类，以及 Core fault 后退出，遵循
+[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
 
 ## 12. 验证门禁
 

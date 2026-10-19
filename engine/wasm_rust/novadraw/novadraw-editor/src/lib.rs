@@ -74,6 +74,6 @@ pub use tool::{
     SelectionTool, Tool, ToolContext, ToolDirective, ToolError, ToolKey, ToolMouseEvent,
 };
 pub use viewer::{
-    GraphicalViewer, RootLayers, SelectionMode, ViewerDrive, ViewerError, ViewerInputOutcome,
-    ViewerTarget,
+    GraphicalViewer, ProjectionCleanup, ProjectionCleanupFailure, RootLayers, SelectionMode,
+    ViewerDrive, ViewerError, ViewerInputOutcome, ViewerTarget,
 };

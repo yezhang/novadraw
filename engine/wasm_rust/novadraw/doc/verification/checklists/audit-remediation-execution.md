@@ -42,7 +42,7 @@
 | 2 | P2-S03 Runtime 子系统 Facade | P0 | `complete` | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
 | 3 | P2-S04 Editor 开放协议 | P0 | `complete` | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
 | 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
-| 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `not_started` | R06、TC-08 | [机制必要性复核](../reviews/p2-s06-mechanism-necessity-2026-10-14.md)，实现前确认最小契约 |
+| 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `complete` | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
 | 6 | P2-S07 查询身份与失败语义 | P1 | `complete` | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md)，ADR-038 已实现 |
 | 7 | P2-S08 Detached 输入不变量 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR/规范，先复用已有受检值 |
 | 8 | P2-S09 服务失败与 Inspector | P1 | `not_started` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 待补 ADR |
@@ -51,7 +51,8 @@
 调整必须先更新 Backlog。
 
 本表为 Backlog 的执行映射；G01/M01/GA-2/GA-3 的 `in_progress` 表示仍待交付证据，
-不表示它们与本表同时 Execute。当前 S06 的必要性复核已完成，代码尚未实施。
+不表示它们与本表同时 Execute。S06 已于 2026-10-15 按矩阵修订 2 完成，
+S07 已完成，下一批为 S08 Design。
 本轮校准记录见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)。
 
 ## 3. P2-S02：显式领域导入与 Root 收口
@@ -169,16 +170,27 @@
 来源：R06、TC-08。
 
 - [x] 先复核机制必要性，撤销三个具名类型的强制建设要求；见复核报告。
-- [ ] 冻结单次新建子树失败隔离、完整同步前缀和 callback/fault 的保证边界。
-- [ ] 新建子树可恢复拒绝时清除本次新增 Figure、Part、registry、behavior/policy 登记；成功激活前缀只撤销一次。
-- [ ] Connection 复用已有清理路径，补齐晚期 route/binding/activation 拒绝与清理失败证据；不为已有能力再造 Plan。
-- [ ] Overlay 批量预检覆盖重复 ID、祖孙重叠、foreign/stale/owner、Figure/style 拒绝；写入前拒绝，或明确规范化重复输入。
-- [ ] 清理错误不得静默丢弃；callback panic 或清理失败进入 fault，不宣称完整回滚。
-- [ ] 不承诺 Drop 能回滚 Runtime；只有未发布 owned 候选可以靠正常释放撤销。
-- [ ] fault injection 按上述边界验证新增结构、registry、anchor、overlay 和通知/damage；不要求完整 synchronize 任意失败前后完全相同。
-- [ ] 模型/history 已提交事实与视觉投影失败分别报告，不以视觉失败伪装模型回滚。
-- [ ] 与 P2-S04 的 typed Tool/Handle ownership 集成。
-- [ ] completion record 关闭 TC-08/R06。
+- [x] 形成 ADR-037 草案：所有权范围、activation 前缀、清理错误、通知/damage、模型/history 与恢复。
+- [x] 形成[逐阶段验证矩阵](../plans/p2-s06-incremental-failure-isolation.md)，映射既有 G2/G3/G5.1 suite；实施进度见证据记录。
+- [x] 按[首轮评审](../reviews/adr-037-draft-review-2026-10-14.md) S06-DR01–DR05 修订 ADR 与矩阵。
+- [x] 复核 dispose 阶段、fault 权限、unresolved 分类、分领域生命周期和旧提交退出。
+- [x] 评审并接受 ADR-037，回写 Editor architecture/G5.1 的保证范围。
+- [x] 冻结单次新建子树失败隔离、完整同步前缀和 callback/fault 的保证边界。
+- [x] 新建子树可恢复拒绝时清除本次新增 Figure、Part、registry、behavior/policy 登记；成功激活前缀只撤销一次。
+- [x] Connection 复用已有清理路径，分别覆盖 binding/activation 拒绝清理、route 失败转稳定 unresolved 和 lifecycle panic；prepare 拒绝按修订 2 组合证明，不为已有能力再造 Plan。
+- [x] Overlay 批量预检覆盖重复 ID、祖孙重叠、foreign/stale/owner、Figure/style；按草案拒绝重复和重叠，不隐式规范化。
+- [x] 清理错误不得静默丢弃；callback panic 或清理失败进入 fault，不宣称完整回滚。
+- [x] 不承诺 Drop 能回滚 Runtime；只有未发布 owned 候选可以靠正常释放撤销。
+- [x] fault injection 与修订 2 组合证明按上述边界验证新增结构、registry、anchor、overlay 和通知/damage；不要求完整 synchronize 任意失败前后完全相同。
+- [x] 模型/history 已提交事实与视觉投影失败分别报告，不以视觉失败伪装模型回滚。
+- [x] 与 P2-S04 的 typed Tool/Handle ownership 集成。
+- [x] [completion record](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md) 按修订 2 关闭 TC-08/R06，最终 full 通过。
+
+已通过用例及未验收边界见[实施证据](../reviews/p2-s06-implementation-evidence-2026-10-15.md)。
+后续已补充真实 Native GPU 队列退出和两层拒绝证据；
+用户已接受[剩余验收复核](../reviews/p2-s06-remaining-evidence-review-2026-10-15.md)的
+组合证明和 Native GPU 队列宿主范围；完整 prepare 拒绝集成未执行的限制保留，
+不以 retained texture 结果勾选完整平台验收。Web fault 退出见 `S06-PL02`。
 
 ## 8. P2-S07：结构查询身份与失败语义
 
@@ -286,6 +298,17 @@
 - [ ] 裁决 `textformatupdate` 样式映射范围与 fallback；如增加反馈协议，
   先登记独立平台切片，不默认为 P2-E02 旧完成范围。
 
+### Web Editor fault 退出
+
+- [ ] `S06-PL02`：真实 Web/Vello 异步提交期间 Core fault 后停止旧 RAF/输入生产者，
+  等待或撤销旧 GPU work，释放旧 Viewer/Runtime，再由新 Runtime 以
+  Snapshot + Full 接管；迟到旧 completion 拒绝，基线完成后恢复编辑。
+  承接 S06 修订 2 保留的独立平台证据，不能由 Native retained texture 或
+  Web 编译回归替代。依据见
+  [已接受的验收调整](../reviews/p2-s06-remaining-evidence-review-2026-10-15.md)。
+- Native surface `Skipped` 继续由 P2-G01 定向复核；
+  S06 的 Native GPU 队列退出通过不改变其状态。
+
 ## 13. Hold / 待定向复核
 
 以下条目有历史证据，但尚不足以直接进入实现：
@@ -325,7 +348,8 @@ FigureUpdateEffect 越权与整批末项拒绝的预检整改已由 `b6a34b1`/`e
 | TC-12 | RenderBackend 结构化运行失败 |
 | TC-13 / TC-14 | 分层 API snapshot 与热路径日志门禁 |
 | ADR-036 | Event/Layout/Route 阶段权限与 Query 命名迁移，见独立完成记录 |
-| FigureUpdateEffect（2026-10-14） | Runtime 整批顺序预检与授权目标限制；不代表 Editor S06 完成 |
+| P2-S06 / R06 / TC-08 | 新建失败作用域清理、Overlay 批量预检及 fault 退出；按修订 2 组合证明和 Native 队列范围关闭，限制见完成记录 |
+| FigureUpdateEffect（2026-10-14） | Runtime 整批顺序预检与授权目标限制；其证据独立于 Editor S06 |
 | P2-C01 connection.locator | decoration orientation/reference 与 locator 已验证 |
 | M1-M10 / G0-G5 | 既定 Core 与 Editor milestone 已完成 |
 

@@ -480,14 +480,18 @@ impl RoutingPolicy {
 #[derive(Default)]
 struct DiagramFactory {
     policy_routing: Option<Rc<RefCell<PolicyRoutingState>>>,
+    reject_new_part: bool,
 }
 
 impl EditPartFactory<DiagramModel> for DiagramFactory {
     fn create(
         &mut self,
-        _context: PartFactoryContext<NodeId>,
+        context: PartFactoryContext<NodeId>,
         _model: &DiagramModel,
     ) -> Result<Box<dyn EditPartBehavior<DiagramModel>>, EditPartError> {
+        if self.reject_new_part && context.model_id() == NodeId(4) {
+            return Err(EditPartError::operation("new projection refused"));
+        }
         Ok(if let Some(state) = &self.policy_routing {
             Box::new(RoutingPart {
                 state: Rc::clone(state),
@@ -544,6 +548,7 @@ fn routing_viewer(
         DiagramModel::new(),
         DiagramFactory {
             policy_routing: Some(state),
+            reject_new_part: false,
         },
         Rectangle::new(0.0, 0.0, 640.0, 480.0),
     )
@@ -642,6 +647,44 @@ fn create_and_delete_round_trip_through_policy_command_and_projection() {
     assert!(viewer.part_for_model(created).is_none());
     domain.undo(&mut viewer).unwrap();
     assert!(viewer.part_for_model(created).is_some());
+}
+
+#[test]
+fn successful_command_history_survives_projection_failure() {
+    let mut viewer = GraphicalViewer::new(
+        DiagramModel::new(),
+        DiagramFactory {
+            reject_new_part: true,
+            ..Default::default()
+        },
+        Rectangle::new(0.0, 0.0, 640.0, 480.0),
+    )
+    .unwrap();
+    let mut domain = EditorDomain::new();
+    let applied = viewer.applied_revision();
+    let first = viewer.part_for_model(FIRST).unwrap();
+    let request = CreateRequest::new(
+        viewer.contents(),
+        CreationType::new("node").unwrap(),
+        Rectangle::new(360.0, 220.0, 90.0, 70.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    );
+    let metadata = RequestMetadata::new(request.revision(), vec![request.parent()]);
+    assert!(matches!(
+        domain.execute::<CreateChild, _>(&mut viewer, &metadata, &request),
+        Err(EditorDomainError::Viewer(ViewerError::EditPart(_)))
+    ));
+    assert!(viewer.is_faulted());
+    assert!(!viewer.runtime().is_faulted());
+    assert!(viewer.model().nodes.contains_key(&NodeId(4)));
+    assert!(viewer.model().revision() > applied);
+    assert_eq!(viewer.applied_revision(), applied);
+    assert_eq!(viewer.part_for_model(FIRST), Some(first));
+    assert_eq!(viewer.part_for_model(NodeId(4)), None);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+    assert!(domain.command_stack().is_dirty());
+    assert!(!domain.command_stack().is_faulted());
 }
 
 #[test]

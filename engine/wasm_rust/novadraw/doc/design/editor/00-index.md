@@ -16,6 +16,11 @@ Viewport 协作。
 | 6 | [g5-viewport-autoexpose.md](g5-viewport-autoexpose.md) | 缩放反馈与双轴 auto-expose |
 | 7 | [p2-direct-text-edit.md](p2-direct-text-edit.md) | TextFlow 交互几何、直接编辑与 IME |
 
+已接受的失败隔离契约：
+
+- [ADR-037：增量视图失败隔离与 Overlay 批量校验](../../adr/adr-037-editor-incremental-failure-isolation.md)；
+- [P2-S06 验证矩阵](../../verification/plans/p2-s06-incremental-failure-isolation.md)。
+
 相关入口：
 
 - GEF 外部事实：[`../../reference/gef/`](../../reference/gef/00-index.md)

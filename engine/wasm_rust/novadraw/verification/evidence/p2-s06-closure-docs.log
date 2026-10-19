@@ -1,0 +1,49 @@
+
+==> test.facade-doc: Verify positive and negative facade import examples independently
+    $ cargo test -p novadraw --doc
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
+   Doc-tests novadraw
+
+running 4 tests
+test novadraw/src/color.rs - color::Color::from_hex (line 97) ... ok
+test novadraw/src/../README.md - (line 172) ... ok
+test novadraw/src/../README.md - (line 7) ... ok
+test novadraw/src/graph/mod.rs - graph::FigureTree (line 891) ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 28 tests
+test novadraw/src/../README.md - (line 127) - compile fail ... ok
+test novadraw/src/../README.md - (line 123) - compile fail ... ok
+test novadraw/src/../README.md - (line 119) - compile fail ... ok
+test novadraw/src/../README.md - (line 115) - compile fail ... ok
+test novadraw/src/../README.md - (line 101) - compile fail ... ok
+test novadraw/src/../README.md - (line 111) - compile fail ... ok
+test novadraw/src/../README.md - (line 105) - compile fail ... ok
+test novadraw/src/../README.md - (line 133) - compile fail ... ok
+test novadraw/src/../README.md - (line 138) - compile fail ... ok
+test novadraw/src/../README.md - (line 143) - compile fail ... ok
+test novadraw/src/../README.md - (line 148) - compile fail ... ok
+test novadraw/src/../README.md - (line 153) - compile fail ... ok
+test novadraw/src/../README.md - (line 159) - compile fail ... ok
+test novadraw/src/../README.md - (line 45) - compile fail ... ok
+test novadraw/src/../README.md - (line 41) - compile fail ... ok
+test novadraw/src/../README.md - (line 57) - compile fail ... ok
+test novadraw/src/../README.md - (line 49) - compile fail ... ok
+test novadraw/src/../README.md - (line 61) - compile fail ... ok
+test novadraw/src/../README.md - (line 53) - compile fail ... ok
+test novadraw/src/../README.md - (line 65) - compile fail ... ok
+test novadraw/src/../README.md - (line 69) - compile fail ... ok
+test novadraw/src/../README.md - (line 73) - compile fail ... ok
+test novadraw/src/../README.md - (line 77) - compile fail ... ok
+test novadraw/src/../README.md - (line 85) - compile fail ... ok
+test novadraw/src/../README.md - (line 81) - compile fail ... ok
+test novadraw/src/../README.md - (line 97) - compile fail ... ok
+test novadraw/src/../README.md - (line 89) - compile fail ... ok
+test novadraw/src/../README.md - (line 93) - compile fail ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.93s
+
+all doctests ran in 15.30s; merged doctests compilation took 3.89s
+PASS verification/suites.toml: 100 commands, 2 profiles, 57 suites; documentation metadata, links, xtask references, index classification, and public API probes are valid

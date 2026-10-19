@@ -396,6 +396,13 @@ Viewer selection 与 session 内 text selection 不共享状态。完整契约�
 发生结构一致性破坏或扩展 panic 后，Editor 进入 faulted；不得只清理 updating 标志后
 继续接受命令。
 
+[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)进一步规定：
+新建 Part 子树或 Connection 失败时，按实际取得资源和生命周期进度清理；
+不回滚完整 synchronize 的成功前缀，也不撤销成功的模型命令或 history。
+Overlay 在写入前校验完整输入批次。Core fault 后停止普通 mutation，保留结构退休
+与未完成 callback 的事实，沿既有宿主退出协议隔离旧 Runtime。
+Viewer fault 阻止新帧准备；Runtime 健康时仍可结清已有 submission。
+
 ## 13. 验证入口
 
 - Headless：模型投影、生命周期、registry、selection、command history；

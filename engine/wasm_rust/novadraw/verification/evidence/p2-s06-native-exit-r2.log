@@ -1,0 +1,15 @@
+Suite editor.p2-s06-native-exit (P2-S06)
+
+==> verify.editor-s06-native-exit: Verify real macOS GPU drain and Editor Runtime replacement after lifecycle fault
+    $ cargo run -p node-editor-demo -- --verify-s06-host-exit
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-backend-vello)
+   Compiling novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-platform-winit)
+   Compiling novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/support)
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 35.12s
+     Running `target/debug/node-editor-demo --verify-s06-host-exit`
+S06 adapter: VelloAdapterInfo { name: "Apple M1 Pro", vendor: 0, device: 0, device_type: "IntegratedGpu", backend: "Metal", driver: "", driver_info: "" }
+Error: "old real GPU submission was not presented"
+xtask: command `verify.editor-s06-native-exit` failed with exit status: 1

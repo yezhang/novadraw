@@ -80,7 +80,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法 ≤ 25、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
 | 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
-| 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `not_started` | P2-S04、TC-08 | 新建 Part 子树失败不遗留登记；Connection 清理覆盖晚期失败；Overlay 非法批次在写入前拒绝；模型/history 与投影 fault 分离 |
+| 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |
 | 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
 | 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `not_started` | ADR-020/024、TC-03 | 复用已有受检值；构造/更新拒绝非法输入；保留合法几何适配与范围收敛 |
 | 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `not_started` | P2-S03、TC-10 | fault 与幂等分离；Inspector 错误及 detach 所有权；消除残余 panic 注册入口；保留可追溯错误 |
@@ -90,7 +90,8 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 [normative design](../design/architecture/deep-layout-presentation-convergence.md)、
 实现与验证证据见
 [completion record](../verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)。
-下一批按队列进入 P2-S06 Design。
+P2-S06 已于 2026-10-15 按用户接受的矩阵修订 2 完成，
+证据见[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)。
 
 P2-S07 已形成
 [ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)、
@@ -107,7 +108,7 @@ Route 存在性指纹及 SSOT 同步清单。继续复用 tree identity 与领�
 
 ### 当前推进顺序（2026-10-14 校准）
 
-1. **审计整改主链**：P2-S06 → P2-S07（已完成）→ P2-S08 → P2-S09。每批先核对当前
+1. **审计整改主链**：P2-S06/S07 已完成，下一批 P2-S08 Design → P2-S09；两批尚未启动。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
 2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
    消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。
@@ -128,7 +129,37 @@ Route 存在性指纹及 SSOT 同步清单。继续复用 tree identity 与领�
 补齐故障覆盖，再完善现有 Overlay 批量入口的完整预检和清理失败报告。
 具体内部候选或操作日志只有在现有所有者无法满足验收时才设计，不增加公共 Plan/lease
 语言。外部 callback panic 和清理失败进入 fault；不承诺回滚完整 synchronize 前缀、
-外部副作用或已成功提交的模型命令。本次仅完成范围复核，实施状态保持 `not_started`。
+外部副作用或已成功提交的模型命令。
+
+2026-10-14 已形成
+[ADR-037 草案](../adr/adr-037-editor-incremental-failure-isolation.md) 与
+[验证矩阵](../verification/plans/p2-s06-incremental-failure-isolation.md)，状态为
+`design-draft`。草案选择拒绝 Overlay 重复 ID 和祖孙重叠，区分预检零写入与挂载后
+失败清理，并定义 activation 前缀、清理错误、通知/damage 和 Viewer 重建边界。
+该草案形成时尚未接受或修改引擎实现；R06/TC-08 当时保持开放。
+
+首轮评审记录见
+[ADR-037 草案评审](../verification/reviews/adr-037-draft-review-2026-10-14.md)。
+ADR 与矩阵已按 S06-DR01–DR05 形成修订 1：区分 dispose 预检与结构退休、
+健康清理与 Core fault 退出，以及 binding admission 拒绝与已提交 unresolved。
+补充关闭时不重复 callback 和旧 in-flight submission 退出要求。
+2026-10-15 [修订 1 复核](../verification/reviews/adr-037-revision-1-review-2026-10-15.md)
+通过，当时状态转为 `in_progress`；R06/TC-08 等待实现与验证闭合。
+
+同日已实施单次 Part/Connection 创建清理、Overlay 整批准入、分阶段清理诊断与
+fault 驱动隔离，并补充模型/history、非法 route 恢复和独立 typed consumer。
+该实施切片的执行结果及当时尚未满足的 prepare 拒绝集成、真实宿主退出边界见
+[实施证据](../verification/reviews/p2-s06-implementation-evidence-2026-10-15.md)。
+该切片不能单独关闭 R06/TC-08。
+
+后续补充 Core 晚期 prepare 拒绝、Editor 真实拒绝分派和真实 Native GPU 队列
+退出证据。完整 prepare 拒绝集成、Web 异步退出及 surface 呈现仍未验收；
+已接受的证据组合与关闭范围见
+[剩余验收复核](../verification/reviews/p2-s06-remaining-evidence-review-2026-10-15.md)。
+用户于 2026-10-15 接受该调整，矩阵修订 2 已回写；最终 full 门禁通过，
+S06/R06/TC-08 按[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)关闭。
+Web 异步 fault 退出登记为 `S06-PL02` 平台待验收项，Native surface 继续归 P2-G01。
+S07 已完成，下一批为 S08 Design；S08/S09 尚未获准进入 Execute。
 
 ## Figure capability
 

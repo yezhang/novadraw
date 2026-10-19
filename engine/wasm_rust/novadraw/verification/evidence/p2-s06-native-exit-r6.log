@@ -1,0 +1,13 @@
+Suite editor.p2-s06-native-exit (P2-S06)
+
+==> verify.editor-s06-native-exit: Verify real macOS GPU drain and Editor Runtime replacement after lifecycle fault
+    $ cargo run -p node-editor-demo -- --verify-s06-host-exit
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/examples/native/node-editor-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.54s
+     Running `target/debug/node-editor-demo --verify-s06-host-exit`
+S06 surface: SurfaceInfo { logical_width: 820.0, logical_height: 560.0, pixel_width: 1640, pixel_height: 1120, scale_factor: 2.0 }
+S06 adapter: VelloAdapterInfo { name: "Apple M1 Pro", vendor: 0, device: 0, device_type: "IntegratedGpu", backend: "Metal", driver: "", driver_info: "" }
+S06 old frame damage: DamageSet { mode: Full, union: None, regions: [] }
+S06 old GPU result: Ok(Skipped)
+Error: "old real GPU submission was not presented"
+xtask: command `verify.editor-s06-native-exit` failed with exit status: 1

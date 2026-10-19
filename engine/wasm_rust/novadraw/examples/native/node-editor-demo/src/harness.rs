@@ -31,6 +31,8 @@ use super::{
 
 pub(crate) type HarnessResult<T> = Result<T, String>;
 
+pub(crate) mod failure_host;
+
 /// Platform-neutral owner of one complete demo editor session.
 pub(crate) struct EditorHarness {
     viewer: DemoViewer,
@@ -40,12 +42,13 @@ pub(crate) struct EditorHarness {
 
 impl EditorHarness {
     pub(crate) fn new() -> HarnessResult<Self> {
-        let mut viewer = DemoViewer::new(
-            DemoModel::new(),
-            DemoFactory,
-            Rectangle::new(0.0, 0.0, WIDTH, HEIGHT),
-        )
-        .map_err(|error| error.to_string())?;
+        Self::with_model(DemoModel::new())
+    }
+
+    fn with_model(model: DemoModel) -> HarnessResult<Self> {
+        let mut viewer =
+            DemoViewer::new(model, DemoFactory, Rectangle::new(0.0, 0.0, WIDTH, HEIGHT))
+                .map_err(|error| error.to_string())?;
         viewer
             .drive()
             .register_builtin_font(BuiltinFont::Inter)
