@@ -271,6 +271,7 @@ module.figure constant INPUT
 module.figure constant LAYER
 module.figure constant LIFECYCLE
 module.figure constant PREPARATION
+module.figure constant RESOURCE_DEPENDENCIES
 module.figure constant SCALE
 module.figure enum Alignment
 module.figure enum CapabilityQueryError
@@ -326,6 +327,7 @@ module.figure struct PolylineFigure
 module.figure struct PreparationCapability
 module.figure struct RectangleFigure
 module.figure struct ResolvedStyle
+module.figure struct ResourceDependenciesCapability
 module.figure struct RootFigure
 module.figure struct RoundedRectangleFigure
 module.figure struct ScalablePolygonFigure
@@ -346,6 +348,7 @@ module.figure trait FigureDrawing
 module.figure trait FigureEventHandler
 module.figure trait FigureLifecycle
 module.figure trait FigurePreparation
+module.figure trait FigureResourceDependencies
 module.figure trait Shape
 module.geometry constant DEFAULT_EPSILON
 module.geometry mod point
@@ -392,6 +395,7 @@ module.host struct HeadlessHost
 module.host struct ImeState
 module.host trait PlatformHost
 module.layout enum BorderRegion
+module.layout enum FlowAlignment
 module.layout enum FlowDirection
 module.layout enum FreeformConstraintError
 module.layout enum GridAlignment
@@ -644,10 +648,14 @@ module.tree enum TreeQueryError
 module.tree enum ValidationError
 module.tree struct ExclusionSearch
 module.tree struct FigureId
+module.tree struct FigureSubtree
 module.tree struct FigureTree
 module.tree struct FigureTreeBuilder
 module.tree struct FreeformState
 module.tree struct IdentitySearch
+module.tree struct SubtreeNodeError
+module.tree struct SubtreeNodeId
+module.tree struct SubtreeReceipt
 module.tree struct TreeSearchContext
 module.tree trait TreeSearch
 root mod advanced

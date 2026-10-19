@@ -984,33 +984,38 @@ impl Runtime {
         &mut self,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
-        self.guarded_runtime_mutation(move |runtime| runtime.set_contents_inner(figure))
+        self.set_contents_subtree(crate::tree::FigureSubtree::new(figure))
+            .map(|receipt| receipt.root())
+            .map_err(|error| match error {
+                RuntimeMutationError::FigureBatch { index: 0, source } => *source,
+                error => error,
+            })
     }
 
-    fn set_contents_inner(
+    /// Replaces contents with a complete description after whole-branch admission.
+    ///
+    /// Rejection preserves old contents. Lifecycle panic faults Runtime and retains
+    /// the actual published scene; the receipt is returned only after callbacks finish.
+    pub fn set_contents_subtree(
         &mut self,
-        figure: Box<dyn Figure>,
-    ) -> Result<FigureId, RuntimeMutationError> {
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| runtime.set_contents_subtree_inner(subtree))
+    }
+
+    fn set_contents_subtree_inner(
+        &mut self,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
         self.connections
             .validate_disposal()
             .map_err(|_| RuntimeMutationError::Rejected)?;
         let previous = self.tree.contents();
-        let id = self
-            .tree
-            .try_add_child_to(self.tree.synthetic_root(), figure)
-            .map_err(RuntimeMutationError::Graph)?;
-        if let Some(previous) = previous {
-            self.dispose_subtree(previous)?;
-        }
+        let owner = subtree.owner;
+        let inserted = self.publish_subtree(self.tree.synthetic_root(), subtree, previous)?;
+        let id = inserted[0].0;
         self.tree.designate_contents(id);
         self.accessibility.reset();
-        self.register_label_icon_dependency(id);
-        self.register_image_figure_dependency(id);
-        if let Err(error) = self.connections.invalidate_all() {
-            self.connection_error = Some(error);
-        }
-        self.register_layered_pane(id);
-        self.retain_interactive_figures();
         self.full_redraw_pending = true;
         let validation_root = if self.logical_viewport.is_some() {
             self.tree.synthetic_root()
@@ -1019,9 +1024,18 @@ impl Runtime {
         };
         self.tree.mark_invalid(&mut self.updates, validation_root);
         self.tree.repaint(&mut self.updates, id, None);
-        self.tree
-            .complete_attachment(id, self.tree.synthetic_root());
-        Ok(id)
+        if let Some(previous) = previous {
+            self.dispose_subtree(previous)?;
+        }
+        if let Err(error) = self.connections.invalidate_all() {
+            self.connection_error = Some(error);
+        }
+        self.retain_interactive_figures();
+        self.complete_subtree_attachment(&inserted);
+        Ok(crate::tree::SubtreeReceipt::new(
+            owner,
+            inserted.into_iter().map(|(id, _)| id).collect(),
+        ))
     }
 
     pub(crate) fn add_figure(
@@ -1173,54 +1187,72 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| {
             runtime.validate_container_figure(parent)?;
             let owner = subtree.owner;
-            let mut dependencies = Vec::with_capacity(subtree.nodes.len());
-            let inserted = runtime.tree.insert_subtree(
-                parent,
-                subtree.nodes,
-                |figure, capabilities, explicit| {
-                    let mut resources = explicit.to_vec();
-                    if let Some(capability) = capabilities
-                        .get(crate::figure::RESOURCE_DEPENDENCIES)
-                        .expect("typed resource descriptor")
-                    {
-                        let provider = capability
-                            .resolve(figure)
-                            .ok_or(RuntimeMutationError::Rejected)?;
-                        resources.extend(provider.resource_dependencies());
-                    }
-                    resources.sort_unstable();
-                    resources.dedup();
-                    for resource in &resources {
-                        runtime.resources.status(*resource)?;
-                    }
-                    dependencies.push(resources);
-                    Ok::<_, RuntimeMutationError>(())
-                },
-                |index, source| RuntimeMutationError::FigureBatch {
-                    index,
-                    source: Box::new(source),
-                },
-            )?;
-            for ((id, parent), resources) in inserted.iter().zip(dependencies) {
-                for resource in resources {
-                    runtime
-                        .resources
-                        .add_dependency(resource, *id)
-                        .expect("resource dependency passed admission");
-                }
-                runtime
-                    .tree
-                    .invalidate_child_insertion(&mut runtime.updates, *parent, *id);
-            }
-            for (id, parent) in &inserted {
-                runtime.register_layered_pane(*id);
-                runtime.tree.complete_attachment(*id, *parent);
-            }
+            let inserted = runtime.publish_subtree(parent, subtree, None)?;
+            runtime.complete_subtree_attachment(&inserted);
             Ok(crate::tree::SubtreeReceipt::new(
                 owner,
                 inserted.into_iter().map(|(id, _)| id).collect(),
             ))
         })
+    }
+
+    fn publish_subtree(
+        &mut self,
+        parent: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        replacing: Option<FigureId>,
+    ) -> Result<Vec<(FigureId, FigureId)>, RuntimeMutationError> {
+        let runtime = self;
+        let mut dependencies = Vec::with_capacity(subtree.nodes.len());
+        let inserted = runtime.tree.insert_subtree(
+            parent,
+            subtree.nodes,
+            replacing,
+            |figure, capabilities, explicit| {
+                let mut resources = explicit.to_vec();
+                if let Some(capability) = capabilities
+                    .get(crate::figure::RESOURCE_DEPENDENCIES)
+                    .expect("typed resource descriptor")
+                {
+                    let provider = capability
+                        .resolve(figure)
+                        .ok_or(RuntimeMutationError::Rejected)?;
+                    resources.extend(provider.resource_dependencies());
+                }
+                resources.sort_unstable();
+                resources.dedup();
+                for resource in &resources {
+                    runtime.resources.status(*resource)?;
+                }
+                dependencies.push(resources);
+                Ok::<_, RuntimeMutationError>(())
+            },
+            |index, source| RuntimeMutationError::FigureBatch {
+                index,
+                source: Box::new(source),
+            },
+        )?;
+        for ((id, parent), resources) in inserted.iter().zip(dependencies) {
+            for resource in resources {
+                runtime
+                    .resources
+                    .add_dependency(resource, *id)
+                    .expect("resource dependency passed admission");
+            }
+            runtime
+                .tree
+                .invalidate_child_insertion(&mut runtime.updates, *parent, *id);
+        }
+        for (id, _) in &inserted {
+            runtime.register_layered_pane(*id);
+        }
+        Ok(inserted)
+    }
+
+    fn complete_subtree_attachment(&mut self, inserted: &[(FigureId, FigureId)]) {
+        for (id, parent) in inserted {
+            self.tree.complete_attachment(*id, *parent);
+        }
     }
 
     fn add_layered_pane_inner(
@@ -3037,6 +3069,29 @@ impl Runtime {
             PendingMutationKind::AddChildFigure { parent, figure } => {
                 self.add_figure(parent, figure).map(|_| true)
             }
+            PendingMutationKind::SetContentsSubtree {
+                viewport,
+                subtree,
+                completed,
+            } => self.guarded(|runtime| {
+                match match viewport {
+                    Some(viewport) => runtime.viewports().set_contents_subtree(viewport, subtree),
+                    None => runtime.set_contents_subtree(subtree),
+                } {
+                    Ok(receipt) => {
+                        completed(Ok(receipt));
+                        Ok(true)
+                    }
+                    Err(error) => {
+                        runtime.deferred_mutation_errors.push_back(error);
+                        completed(Err(runtime
+                            .deferred_mutation_errors
+                            .back()
+                            .expect("rejection recorded before completion")));
+                        Ok(false)
+                    }
+                }
+            }),
             PendingMutationKind::AddSubtree {
                 parent,
                 subtree,
@@ -5042,6 +5097,32 @@ mod adr014_tests {
         assert_eq!(
             runtime.resources.remove(image.resource_id()).unwrap(),
             vec![ids[1]]
+        );
+    }
+
+    #[test]
+    fn contents_retirement_fault_keeps_new_scene_resource_dependencies() {
+        let (mut runtime, root) = scene();
+        runtime.add_figure(root, Box::new(PanicOnDetach)).unwrap();
+        let image = runtime.resources().register_image().unwrap();
+        let mut subtree =
+            crate::tree::FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        subtree
+            .add(subtree.root(), Box::new(ImageFigure::new(image)))
+            .unwrap();
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                runtime.set_contents_subtree(subtree)
+            }))
+            .is_err()
+        );
+        assert!(runtime.is_faulted());
+        let new = runtime.tree.contents().unwrap();
+        assert_ne!(new, root);
+        let child = runtime.tree.child_order(new).unwrap()[0];
+        assert_eq!(
+            runtime.resources.remove(image.resource_id()).unwrap(),
+            vec![child]
         );
     }
 

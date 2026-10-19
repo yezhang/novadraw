@@ -541,3 +541,338 @@ fn result_callback_panic_faults_runtime_and_stops_later_requests() {
         );
     }
 }
+
+#[test]
+fn scene_replacement_preserves_old_tree_on_last_node_rejection() {
+    let (mut runtime, old) = runtime();
+    let child = runtime.figure(old).unwrap().add(Box::new(Single)).unwrap();
+    let (mut other, _) = self::runtime();
+    let foreign = other.resources().register_image().unwrap().resource_id();
+    let mut subtree = FigureSubtree::new(Box::new(Single));
+    subtree.add(subtree.root(), Box::new(Single)).unwrap();
+    subtree
+        .add(subtree.root(), Box::new(ExternalResource(foreign)))
+        .unwrap();
+    assert!(matches!(
+        runtime.set_contents_subtree(subtree),
+        Err(RuntimeMutationError::FigureBatch { index: 2, .. })
+    ));
+    assert_eq!(runtime.tree().contents(), Some(old));
+    assert_eq!(runtime.tree().child_order(old).unwrap(), [child]);
+    assert!(!runtime.is_faulted());
+}
+
+struct LifecycleRecord {
+    name: &'static str,
+    events: Arc<Mutex<Vec<String>>>,
+    panic_on_detach: bool,
+}
+impl Figure for LifecycleRecord {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::ZERO
+    }
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::LIFECYCLE,
+            novadraw::figure::LifecycleCapability::of::<Self>(),
+        )
+    }
+}
+impl novadraw::figure::FigureLifecycle for LifecycleRecord {
+    fn on_attached(&mut self, _: novadraw::figure::FigureLifecycleContext) {
+        self.events
+            .lock()
+            .unwrap()
+            .push(format!("attach {}", self.name));
+    }
+    fn on_detached(&mut self, _: novadraw::figure::FigureLifecycleContext) {
+        self.events
+            .lock()
+            .unwrap()
+            .push(format!("detach {}", self.name));
+        assert!(!self.panic_on_detach, "retirement fault");
+    }
+}
+
+#[test]
+fn replacement_retires_old_tree_before_new_attachment_and_returns_complete_mapping() {
+    let (mut runtime, old) = runtime();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let old_child = runtime
+        .figure(old)
+        .unwrap()
+        .add(Box::new(LifecycleRecord {
+            name: "old",
+            events: events.clone(),
+            panic_on_detach: false,
+        }))
+        .unwrap();
+    events.lock().unwrap().clear();
+    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+    let root = subtree.root();
+    let child = subtree
+        .add(
+            root,
+            Box::new(LifecycleRecord {
+                name: "new",
+                events: events.clone(),
+                panic_on_detach: false,
+            }),
+        )
+        .unwrap();
+    subtree
+        .set_layout_manager(root, Box::new(StackLayout::new()))
+        .unwrap();
+    subtree
+        .set_style(
+            root,
+            FigureStyle {
+                foreground: Some(Color::WHITE),
+                ..FigureStyle::default()
+            },
+        )
+        .unwrap();
+    let receipt = runtime.set_contents_subtree(subtree).unwrap();
+    assert_eq!(runtime.tree().contents(), Some(receipt.root()));
+    assert_eq!(
+        runtime.tree().child_order(receipt.root()).unwrap(),
+        [receipt.figure(child).unwrap()]
+    );
+    assert!(runtime.tree().figure_bounds(old).is_err());
+    assert!(runtime.tree().figure_bounds(old_child).is_err());
+    assert_eq!(*events.lock().unwrap(), ["detach old", "attach new"]);
+    assert_eq!(
+        runtime
+            .tree()
+            .resolved_style(receipt.figure(child).unwrap())
+            .unwrap()
+            .foreground,
+        Color::WHITE
+    );
+}
+
+#[test]
+fn replacement_retirement_panic_keeps_new_contents_and_blocks_further_mutation() {
+    let (mut runtime, old) = runtime();
+    runtime
+        .figure(old)
+        .unwrap()
+        .add(Box::new(LifecycleRecord {
+            name: "old",
+            events: Arc::new(Mutex::new(Vec::new())),
+            panic_on_detach: true,
+        }))
+        .unwrap();
+    let image = runtime.resources().register_image().unwrap();
+    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+    subtree
+        .add(
+            subtree.root(),
+            Box::new(ExternalResource(image.resource_id())),
+        )
+        .unwrap();
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime.set_contents_subtree(subtree)
+        }))
+        .is_err()
+    );
+    assert!(runtime.is_faulted());
+    let new = runtime.tree().contents().unwrap();
+    assert_ne!(new, old);
+    assert!(runtime.tree().figure_bounds(old).is_err());
+    let child = runtime.tree().child_order(new).unwrap()[0];
+    assert!(matches!(
+        runtime
+            .resources()
+            .remove_dependency(image.resource_id(), child),
+        Err(novadraw::runtime::ResourceError::Faulted)
+    ));
+}
+
+struct ReplaceTrigger {
+    old: FigureId,
+    viewport: Option<FigureId>,
+    outcomes: Arc<Mutex<Vec<bool>>>,
+    receipt: Arc<Mutex<Option<SubtreeReceipt>>>,
+}
+impl Figure for ReplaceTrigger {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 20.0, 20.0)
+    }
+    fn name(&self) -> &'static str {
+        "ReplaceTrigger"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
+    }
+}
+impl FigureEventHandler for ReplaceTrigger {
+    fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
+        for valid in [false, true] {
+            let mut subtree =
+                FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+            subtree
+                .add(
+                    subtree.root(),
+                    Box::new(RectangleFigure::new(
+                        0.0,
+                        0.0,
+                        if valid { 1.0 } else { f64::NAN },
+                        1.0,
+                    )),
+                )
+                .unwrap();
+            let outcomes = self.outcomes.clone();
+            let receipt = self.receipt.clone();
+            let completed = move |result: Result<SubtreeReceipt, &RuntimeMutationError>| {
+                outcomes.lock().unwrap().push(result.is_ok());
+                if let Ok(value) = result {
+                    *receipt.lock().unwrap() = Some(value);
+                }
+            };
+            if let Some(viewport) = self.viewport {
+                context
+                    .effects()
+                    .set_viewport_contents_subtree_later(viewport, subtree, completed);
+            } else {
+                context
+                    .effects()
+                    .set_contents_subtree_later(subtree, completed);
+            }
+        }
+        // This follows the replacement and must reject its now-retired parent.
+        let outcomes = self.outcomes.clone();
+        context.effects().add_subtree_later(
+            self.old,
+            FigureSubtree::new(Box::new(Single)),
+            move |result| outcomes.lock().unwrap().push(result.is_ok()),
+        );
+        assert!(context.scene().children(self.old).is_ok());
+        assert!(self.outcomes.lock().unwrap().is_empty());
+        true
+    }
+}
+
+#[test]
+fn event_replacement_commits_after_dispatch_and_later_old_target_rejects_in_fifo_order() {
+    let (mut runtime, old) = runtime();
+    let outcomes = Arc::new(Mutex::new(Vec::new()));
+    let receipt = Arc::new(Mutex::new(None));
+    runtime
+        .figure(old)
+        .unwrap()
+        .add(Box::new(ReplaceTrigger {
+            old,
+            viewport: None,
+            outcomes: outcomes.clone(),
+            receipt: receipt.clone(),
+        }))
+        .unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+    assert_eq!(*outcomes.lock().unwrap(), [false, true, false]);
+    assert_eq!(runtime.take_deferred_mutation_errors().len(), 2);
+    let receipt = receipt.lock().unwrap();
+    let new = receipt.as_ref().unwrap().root();
+    assert_eq!(runtime.tree().contents(), Some(new));
+    assert!(runtime.tree().figure_bounds(old).is_err());
+    assert_eq!(runtime.tree().child_order(new).unwrap().len(), 1);
+    assert!(!runtime.is_faulted());
+}
+
+#[test]
+fn single_figure_contents_uses_the_same_resource_admission() {
+    let (mut runtime, old) = runtime();
+    let (mut other, _) = self::runtime();
+    let foreign = other.resources().register_image().unwrap();
+    assert!(matches!(
+        runtime.set_contents(Box::new(LabelFigure::new("foreign").with_icon(foreign))),
+        Err(RuntimeMutationError::Resource(_))
+    ));
+    assert_eq!(runtime.tree().contents(), Some(old));
+}
+
+#[test]
+fn viewport_replacement_admits_new_branch_without_removing_old_contents_first() {
+    let (mut runtime, root) = runtime();
+    let viewport = runtime
+        .viewports()
+        .add(root, Rectangle::new(0.0, 0.0, 100.0, 100.0))
+        .unwrap();
+    let id = viewport.figure_id();
+    let old = runtime
+        .viewports()
+        .set_contents(id, Box::new(Single))
+        .unwrap();
+    assert!(
+        runtime
+            .viewports()
+            .set_contents(id, Box::new(RectangleFigure::new(0.0, 0.0, f64::NAN, 1.0)))
+            .is_err()
+    );
+    assert_eq!(viewport.contents(runtime.tree()), Ok(Some(old)));
+    let mut subtree = FigureSubtree::new(Box::new(Single));
+    let child = subtree
+        .add(subtree.root(), Box::new(LabelFigure::new("new")))
+        .unwrap();
+    let receipt = runtime
+        .viewports()
+        .set_contents_subtree(id, subtree)
+        .unwrap();
+    assert_eq!(viewport.contents(runtime.tree()), Ok(Some(receipt.root())));
+    assert_eq!(runtime.tree().child_order(id).unwrap(), [receipt.root()]);
+    assert_eq!(
+        runtime.tree().child_order(receipt.root()).unwrap(),
+        [receipt.figure(child).unwrap()]
+    );
+    assert!(runtime.tree().figure_bounds(old).is_err());
+}
+
+#[test]
+fn event_viewport_replacement_preserves_outer_scene_and_rejects_retired_targets() {
+    let (mut runtime, root) = runtime();
+    let viewport = runtime
+        .viewports()
+        .add(root, Rectangle::new(0.0, 0.0, 100.0, 100.0))
+        .unwrap();
+    let id = viewport.figure_id();
+    let old = runtime
+        .viewports()
+        .set_contents(id, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .unwrap();
+    let outcomes = Arc::new(Mutex::new(Vec::new()));
+    let receipt = Arc::new(Mutex::new(None));
+    runtime
+        .figure(old)
+        .unwrap()
+        .add(Box::new(ReplaceTrigger {
+            old,
+            viewport: Some(id),
+            outcomes: outcomes.clone(),
+            receipt: receipt.clone(),
+        }))
+        .unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+    assert_eq!(*outcomes.lock().unwrap(), [false, true, false]);
+    assert_eq!(runtime.tree().contents(), Some(root));
+    let receipt = receipt.lock().unwrap();
+    assert_eq!(
+        viewport.contents(runtime.tree()),
+        Ok(Some(receipt.as_ref().unwrap().root()))
+    );
+    assert!(runtime.tree().figure_bounds(old).is_err());
+    assert_eq!(runtime.take_deferred_mutation_errors().len(), 2);
+}

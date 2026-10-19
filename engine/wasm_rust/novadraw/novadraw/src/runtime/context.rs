@@ -385,6 +385,31 @@ impl EventEffects<'_> {
             )));
     }
 
+    /// Replaces Runtime contents after top-level dispatch using whole-subtree admission.
+    ///
+    /// The completion has the same error retention and panic semantics as `add_subtree_later`.
+    pub fn set_contents_subtree_later(
+        &mut self,
+        subtree: crate::tree::FigureSubtree,
+        completed: impl FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>) + 'static,
+    ) {
+        self.effects.push(RuntimeEffect::Mutation(
+            PendingMutation::set_contents_subtree(None, subtree, Box::new(completed)),
+        ));
+    }
+
+    /// Replaces the addressed viewport contents after top-level dispatch.
+    pub fn set_viewport_contents_subtree_later(
+        &mut self,
+        viewport: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        completed: impl FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>) + 'static,
+    ) {
+        self.effects.push(RuntimeEffect::Mutation(
+            PendingMutation::set_contents_subtree(Some(viewport), subtree, Box::new(completed)),
+        ));
+    }
+
     /// Enqueues a structural mutation for application after top-level dispatch.
     pub fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
         MutationContext::add_child_later(self, parent, figure);

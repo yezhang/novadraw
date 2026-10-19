@@ -286,9 +286,35 @@ fault，后续请求停止，保留真实已发布拓扑和外部副作用。att
 官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
 在成功回调更新 TreeModel，并保留父分支样式。
 
-本切片未关闭 K01 的通用配对 binding、整场景替换和重入验收。
+本切片未关闭 K01 的通用配对 binding 和重入验收。
 新增 binding 描述需要独立验证身份映射与 registry 准入，不能以成功回调内写外部模型
 替代 Core binding 的原子预检。
+
+### 完整 contents 替换
+
+`Runtime::set_contents_subtree` 与 `RuntimeViewports::set_contents_subtree` 接收同一
+`FigureSubtree`，返回同一 `SubtreeReceipt`。原单 Figure `set_contents` 也复用整树准入，
+保留单项错误的原有类型。`EventEffects::set_contents_subtree_later` 在事件分发结束后
+替换 Runtime contents，沿已有 FIFO、结果回调与错误队列提交。
+`set_viewport_contents_subtree_later` 使用同一请求与回执机制替换指定 Viewport 的 contents。
+
+替换先验证旧树释放的 connection revision 预算，再预检整棵新树。Single child policy
+只排除本次即将替换的直接 child，普通 append 仍拒绝第二个 child。末项 bounds、资源、
+capability 或 constraint 拒绝时，新节点不发布，旧树保留。通过后先发布新拓扑与全部
+资源、失效和 pane 状态；Runtime 先切换 contents，再释放旧树，最后激活新树。
+旧树的 Focus、Animation、Connection、资源依赖和订阅沿原统一释放路径退休。
+
+生命周期 callback panic 会 fault：旧树释放回调 panic 时，新 Runtime contents 已
+指定、资源已登记，不返回成功回执；新树 attachment panic 同样保留真实发布状态。
+不承诺扩展副作用回滚，也不允许 fault 后继续公共资源写入。
+
+外部消费者证据：`p2_subtree` 验证末项资源拒绝保留旧树、布局与样式映射、旧树先释放、
+释放 panic、单 Figure 资源准入，以及事件内不可见和替换后旧目标请求按 FIFO 拒绝。
+Viewport 测试证明非法输入不清空旧视图，成功替换后只有一个 contents child；
+事件期替换保留外层场景，并按 FIFO 拒绝已退休的旧目标。
+内部 `contents_retirement_fault_keeps_new_scene_resource_dependencies` 检查 fault 后
+registry 中的新树依赖，公共写入入口继续按 fault 契约拒绝。
+此入口提供 graph fixture 场景重建的 Core 基础；尚未移植的 graph 算法不因此关闭差额。
 
 `api_semantics`：`figure.tree`、`figure.properties`、`layout.manager`、
 `runtime.identity`、`validation.protocol`、`damage.repaint`。

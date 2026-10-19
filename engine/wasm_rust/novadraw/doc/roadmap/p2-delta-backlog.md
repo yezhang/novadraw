@@ -69,6 +69,14 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-19 按用户批准的
+[官方示例 Core 计划](../verification/plans/draw2d-official-examples-core-plan.md)
+推进 K00 → K01，S08/S09 尚未启动。K00 已提交 25 入口 source/helper/resource
+基线，事件与 Java oracle 仍待补齐；K01 已完成延迟 style/cursor、owned subtree、
+typed resource 准入和 Runtime / Viewport 同步与事件期完整 contents 替换切片。
+K01 的配对 binding、其他单节点资源准入与重入验收仍在当前链上；不以这些切片
+完成关闭整个 K01，也不启动 Editor 改进批次。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的

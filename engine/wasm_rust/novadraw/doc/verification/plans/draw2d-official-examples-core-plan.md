@@ -33,7 +33,9 @@ Winit/Web/native control、Vello栅格和Printer留在对应adapter。
 本切片增加 owned subtree、完整准入与成功/失败回调，并接入 TreeExample More Children
 和选中 Label 白字/取消继承；已验证拒绝消费、FIFO 和结果回调 panic。
 资源准入已覆盖内置与外部 Figure 的 typed 声明，拒绝 foreign/retired 并允许 pending；
-配对 binding、整场景替换、旧单节点资源准入及重入测试
+Runtime / Viewport 的同步与事件期完整 contents 替换已接入同一子树预检和回执，
+单 Figure contents 同步复用资源准入，非法新输入保留旧场景。
+配对 binding、其他旧单节点资源准入及重入测试
 仍待推进，K00/K01 均保留未完成。契约见
 [ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 

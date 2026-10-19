@@ -652,6 +652,11 @@ type SubtreeCompletion =
     Box<dyn FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>)>;
 
 pub(crate) enum PendingMutationKind {
+    SetContentsSubtree {
+        viewport: Option<FigureId>,
+        subtree: crate::tree::FigureSubtree,
+        completed: SubtreeCompletion,
+    },
     AddSubtree {
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
@@ -740,6 +745,20 @@ pub(crate) enum PendingMutationKind {
 }
 
 impl PendingMutation {
+    pub(crate) fn set_contents_subtree(
+        viewport: Option<FigureId>,
+        subtree: crate::tree::FigureSubtree,
+        completed: SubtreeCompletion,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::SetContentsSubtree {
+                viewport,
+                subtree,
+                completed,
+            },
+        }
+    }
+
     pub(crate) fn add_subtree(
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,

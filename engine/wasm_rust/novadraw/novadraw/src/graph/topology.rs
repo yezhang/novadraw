@@ -581,7 +581,8 @@ impl FigureTree {
                 kind @ PendingMutationKind::AddChildFigure { .. } => {
                     self.apply_add_mutation(update_manager, kind)
                 }
-                PendingMutationKind::AddSubtree { .. }
+                PendingMutationKind::SetContentsSubtree { .. }
+                | PendingMutationKind::AddSubtree { .. }
                 | PendingMutationKind::AddLayerFigure { .. }
                 | PendingMutationKind::RemoveLayer { .. }
                 | PendingMutationKind::MoveLayer { .. }
@@ -686,6 +687,25 @@ impl FigureTree {
         pending_children: usize,
         style: Option<FigureStyle>,
     ) -> Result<PreparedChild, GraphMutationError> {
+        self.prepare_child_replacing(
+            figure,
+            parent_id,
+            layer_admission,
+            pending_children,
+            style,
+            None,
+        )
+    }
+
+    fn prepare_child_replacing(
+        &self,
+        figure: Box<dyn Figure>,
+        parent_id: FigureId,
+        layer_admission: bool,
+        pending_children: usize,
+        style: Option<FigureStyle>,
+        replacing: Option<FigureId>,
+    ) -> Result<PreparedChild, GraphMutationError> {
         let bounds = figure.initial_bounds();
         if !bounds.x.is_finite()
             || !bounds.y.is_finite()
@@ -712,7 +732,10 @@ impl FigureTree {
             .ok_or(GraphMutationError::ParentNotFound)?;
         let parent = &self.blocks[parent_id];
         match parent.child_policy() {
-            ChildPolicy::Single if !parent.children.is_empty() || pending_children > 0 => {
+            ChildPolicy::Single
+                if parent.children.iter().any(|id| Some(*id) != replacing)
+                    || pending_children > 0 =>
+            {
                 return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
             }
             ChildPolicy::Layered if !layer_admission => {
@@ -846,6 +869,7 @@ impl FigureTree {
         &mut self,
         parent: FigureId,
         nodes: Vec<crate::tree::SubtreeNode>,
+        replacing: Option<FigureId>,
         mut admit: impl FnMut(
             &dyn Figure,
             &FigureCapabilitySet,
@@ -865,8 +889,14 @@ impl FigureTree {
                 let result = (|| {
                     let target = node.parent.map(|index| ids[index]).unwrap_or(parent);
                     let count = pending.entry(target).or_default();
-                    let prepared =
-                        self.prepare_child(node.figure, target, false, *count, node.style)?;
+                    let prepared = self.prepare_child_replacing(
+                        node.figure,
+                        target,
+                        false,
+                        *count,
+                        node.style,
+                        replacing,
+                    )?;
                     admit(
                         prepared.figure.as_ref(),
                         &prepared.capabilities,

@@ -90,15 +90,39 @@ impl<'a> RuntimeViewports<'a> {
         viewport: FigureId,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
+        self.set_contents_subtree(viewport, crate::tree::FigureSubtree::new(figure))
+            .map(|receipt| receipt.root())
+            .map_err(|error| match error {
+                RuntimeMutationError::FigureBatch { index: 0, source } => *source,
+                error => error,
+            })
+    }
+
+    /// Replaces a viewport's complete contents only after every new node passes admission.
+    pub fn set_contents_subtree(
+        &mut self,
+        viewport: FigureId,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
         let handle = self.handle(viewport)?;
         self.runtime.guarded_runtime_mutation(move |runtime| {
-            if let Some(previous) = handle
+            let previous = handle
                 .contents(&runtime.tree)
-                .map_err(|_| RuntimeMutationError::Rejected)?
-            {
+                .map_err(|_| RuntimeMutationError::Rejected)?;
+            runtime
+                .connections
+                .validate_disposal()
+                .map_err(|_| RuntimeMutationError::Rejected)?;
+            let owner = subtree.owner;
+            let inserted = runtime.publish_subtree(viewport, subtree, previous)?;
+            if let Some(previous) = previous {
                 runtime.dispose_subtree(previous)?;
             }
-            runtime.add_figure_inner(viewport, figure)
+            runtime.complete_subtree_attachment(&inserted);
+            Ok(crate::tree::SubtreeReceipt::new(
+                owner,
+                inserted.into_iter().map(|(id, _)| id).collect(),
+            ))
         })
     }
 
