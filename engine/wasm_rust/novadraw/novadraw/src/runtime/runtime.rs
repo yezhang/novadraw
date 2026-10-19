@@ -2916,6 +2916,9 @@ impl Runtime {
                 self.set_size_override(figure, kind, size)
             }
             PendingMutationKind::SetBounds { figure, bounds } => self.set_bounds(figure, bounds),
+            PendingMutationKind::SetScale { figure, scale } => {
+                self.viewports().set_scale(figure, scale)
+            }
             PendingMutationKind::MoveChildToIndex {
                 parent,
                 child,

@@ -36,6 +36,7 @@
 | Native | `advanced-figures-app` | 连接装饰与路由、可缩放多边形、TextFlow | `cargo run -p advanced-figures-app` |
 | Native | `animation-app` | 正交模型、Motion/Composition、Trigger、运行期控制与领域动画 | `cargo run -p animation-app` |
 | Native | `uml-demo` | 可拖拽复合 Figure、嵌套布局与 UML 关系自动重路由 | `cargo run -p uml-demo` |
+| Native | `draw2d-official-examples` | Draw2D 官方 25 个示例入口的对等实现与缺口目录 | `cargo run -p draw2d-official-examples` |
 | Native | `node-editor-demo` | Editor 交互与命令历史 | `cargo run -p node-editor-demo` |
 | Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | Native | `vello-app` | Vello 原始 API | `cargo run -p vello-app` |
@@ -88,8 +89,20 @@ cargo xtask verify example.animation-orthogonality
 完整工作区门禁：
 
 ```sh
-cargo xtask check --full
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
+
+Draw2D 官方示例应用按上游源码顺序运行所有可构造场景，并通过 `--list` 输出 25 个
+入口的 `complete`、`in_progress`、`not_implemented` 或 `blocked` 状态及具体缺口：
+
+```sh
+cargo run -p draw2d-official-examples -- --list
+```
+
+逐项源码行为、实现映射和能力差额见
+[`draw2d-official-examples-parity-2026-10-16.md`](../doc/verification/reviews/draw2d-official-examples-parity-2026-10-16.md)。
 
 ## 添加示例
 

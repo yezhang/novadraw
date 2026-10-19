@@ -440,6 +440,11 @@ impl EventEffects<'_> {
         MutationContext::set_bounds_later(self, figure, bounds);
     }
 
+    /// Enqueues a scale-capability update after the callback releases its immutable borrows.
+    pub fn set_scale_later(&mut self, figure: FigureId, scale: f64) {
+        MutationContext::set_scale_later(self, figure, scale);
+    }
+
     pub fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
         MutationContext::move_child_to_index_later(self, parent, child, index);
     }

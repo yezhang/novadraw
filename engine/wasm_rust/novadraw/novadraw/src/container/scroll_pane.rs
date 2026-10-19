@@ -3,10 +3,10 @@ use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::Color;
-use crate::geometry::{Dimension, Point, Rectangle};
+use crate::geometry::{Dimension, Insets, Point, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 
-use crate::figure::{Bounded, Figure, FigureEventHandler};
+use crate::figure::{Border, BorderedFigure, Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::runtime::update::property::standard as property;
 use crate::{
@@ -184,11 +184,16 @@ impl ScrollPaneHandle {
 pub struct ScrollPaneFigure {
     bounds: Rectangle,
     runtime: Arc<Mutex<ScrollPaneRuntime>>,
+    border: Option<Arc<dyn Border>>,
 }
 
 impl ScrollPaneFigure {
     fn new(bounds: Rectangle, runtime: Arc<Mutex<ScrollPaneRuntime>>) -> Self {
-        Self { bounds, runtime }
+        Self {
+            bounds,
+            runtime,
+            border: None,
+        }
     }
 
     fn scroll_model(model: &dyn RangeModel, delta: f64, delta_kind: ScrollDeltaKind) -> bool {
@@ -260,6 +265,17 @@ impl Figure for ScrollPaneFigure {
         "ScrollPaneFigure"
     }
 
+    fn initial_insets(&self) -> Insets {
+        self.border
+            .as_deref()
+            .map(Border::get_insets)
+            .unwrap_or_default()
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        self.border.as_deref()
+    }
+
     fn paint(
         &self,
         context: &mut PaintContext<'_>,
@@ -273,7 +289,18 @@ impl Figure for ScrollPaneFigure {
         &self,
         out: &mut crate::FigureCapabilityBuilder,
     ) -> Result<(), crate::FigureCapabilityRegistrationError> {
-        out.register(crate::INPUT, crate::InputCapability::of::<Self>())
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
+    }
+}
+
+impl BorderedFigure for ScrollPaneFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
     }
 }
 

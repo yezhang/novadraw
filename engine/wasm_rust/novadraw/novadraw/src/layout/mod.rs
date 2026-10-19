@@ -13,7 +13,7 @@ mod xy_layout;
 
 pub use border_layout::{BorderConstraint, BorderLayout, BorderRegion};
 pub use fill_layout::FillLayout;
-pub use flow_layout::{FlowDirection, FlowLayout};
+pub use flow_layout::{FlowAlignment, FlowDirection, FlowLayout};
 pub use freeform_layout::{FreeformConstraint, FreeformConstraintError, FreeformLayout};
 pub use grid_layout::{GridAlignment, GridConstraint, GridLayout};
 pub use stack_layout::StackLayout;

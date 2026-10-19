@@ -1,0 +1,9 @@
+[package]
+name = "draw2d-official-examples"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw = { path = "../../../novadraw", default-features = false }
+novadraw-example-support = { path = "../../support" }

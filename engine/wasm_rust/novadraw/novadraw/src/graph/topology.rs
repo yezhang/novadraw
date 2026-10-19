@@ -590,6 +590,7 @@ impl FigureTree {
                 | PendingMutationKind::RemoveLayoutConstraint { .. }
                 | PendingMutationKind::SetSizeOverride { .. }
                 | PendingMutationKind::SetBounds { .. }
+                | PendingMutationKind::SetScale { .. }
                 | PendingMutationKind::MoveChildToIndex { .. }
                 | PendingMutationKind::BringChildToFront { .. }
                 | PendingMutationKind::SendChildToBack { .. }

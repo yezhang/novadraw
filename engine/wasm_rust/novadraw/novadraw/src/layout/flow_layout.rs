@@ -17,6 +17,18 @@ pub enum FlowDirection {
     Vertical,
 }
 
+/// Alignment used by Draw2D FlowLayout on its major and minor axes.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum FlowAlignment {
+    /// Top or left edge.
+    #[default]
+    Start,
+    /// Center of the available axis.
+    Center,
+    /// Bottom or right edge.
+    End,
+}
+
 /// Flow 布局器
 ///
 /// 按顺序排列子元素，自动换行。
@@ -32,6 +44,9 @@ pub struct FlowLayout {
     spacing: f64,
     /// 行间距
     row_spacing: f64,
+    major_alignment: FlowAlignment,
+    minor_alignment: FlowAlignment,
+    stretch_minor_axis: bool,
 }
 
 impl FlowLayout {
@@ -39,8 +54,11 @@ impl FlowLayout {
     pub fn new() -> Self {
         Self {
             direction: FlowDirection::Horizontal,
-            spacing: 10.0,
-            row_spacing: 10.0,
+            spacing: 5.0,
+            row_spacing: 5.0,
+            major_alignment: FlowAlignment::Start,
+            minor_alignment: FlowAlignment::Start,
+            stretch_minor_axis: false,
         }
     }
 
@@ -48,8 +66,7 @@ impl FlowLayout {
     pub fn with_direction(direction: FlowDirection) -> Self {
         Self {
             direction,
-            spacing: 10.0,
-            row_spacing: 10.0,
+            ..Self::new()
         }
     }
 
@@ -62,6 +79,24 @@ impl FlowLayout {
     /// 设置行间距
     pub fn with_row_spacing(mut self, row_spacing: f64) -> Self {
         self.row_spacing = row_spacing;
+        self
+    }
+
+    /// Aligns each wrapped row or column on the major axis.
+    pub fn with_major_alignment(mut self, alignment: FlowAlignment) -> Self {
+        self.major_alignment = alignment;
+        self
+    }
+
+    /// Aligns children within each wrapped row or column.
+    pub fn with_minor_alignment(mut self, alignment: FlowAlignment) -> Self {
+        self.minor_alignment = alignment;
+        self
+    }
+
+    /// Stretches children to the row height or column width.
+    pub fn with_stretch_minor_axis(mut self, stretch: bool) -> Self {
+        self.stretch_minor_axis = stretch;
         self
     }
 
@@ -122,91 +157,104 @@ impl FlowLayout {
 
         let container_bounds = snapshot.container_bounds(container)?;
 
-        match self.direction {
-            FlowDirection::Horizontal => {
-                self.layout_horizontal(container_bounds, &children, snapshot, out)?;
-            }
-            FlowDirection::Vertical => {
-                self.layout_vertical(container_bounds, &children, snapshot, out)?;
-            }
-        }
-        Ok(())
+        self.layout_oriented(container_bounds, &children, snapshot, out)
     }
 
-    fn layout_horizontal(
+    fn layout_oriented(
         &self,
         area: Rectangle,
         children: &[(FigureId, Rectangle)],
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let mut x: f64 = area.x;
-        let mut y: f64 = area.y;
-        let mut row_height: f64 = 0.0;
+        let horizontal = self.direction == FlowDirection::Horizontal;
+        let available_main = if horizontal { area.width } else { area.height };
+        let main_origin = if horizontal { area.x } else { area.y };
+        let minor_origin = if horizontal { area.y } else { area.x };
+        let measurement_constraints = if horizontal {
+            MeasureConstraints::width(area.width)
+        } else {
+            MeasureConstraints::height(area.height)
+        }
+        .expect("container extent is valid layout geometry");
 
-        for (child_id, _) in children {
-            let measured = snapshot.preferred_measurement(
-                *child_id,
-                MeasureConstraints::width(area.width)
-                    .expect("container width is valid layout geometry"),
-            )?;
-            let (child_w, child_h) = (measured.width, measured.height);
-
-            // 检查是否需要换行
-            if x + child_w > area.x + area.width && x > area.x {
-                // 换行
-                y += row_height + self.row_spacing;
-                x = area.x;
-                row_height = 0.0;
+        let mut lines = Vec::<FlowLine>::new();
+        let mut line = FlowLine::default();
+        for (child, _) in children {
+            let measured = snapshot.preferred_measurement(*child, measurement_constraints)?;
+            let (main, minor) = if horizontal {
+                (measured.width, measured.height)
+            } else {
+                (measured.height, measured.width)
+            };
+            let required = if line.items.is_empty() {
+                main
+            } else {
+                line.main + self.spacing + main
+            };
+            if !line.items.is_empty() && required > available_main {
+                lines.push(line);
+                line = FlowLine::default();
             }
+            if !line.items.is_empty() {
+                line.main += self.spacing;
+            }
+            line.items.push(FlowItem {
+                figure: *child,
+                main,
+                minor,
+            });
+            line.main += main;
+            line.minor = line.minor.max(minor);
+        }
+        if !line.items.is_empty() {
+            lines.push(line);
+        }
 
-            // 设置子元素位置
-            let new_bounds = Rectangle::new(x, y, child_w, child_h);
-            out.set_child_bounds(*child_id, new_bounds);
-
-            // 更新位置和行高
-            x += child_w + self.spacing;
-            row_height = row_height.max(child_h);
+        let mut line_minor = minor_origin;
+        for line in lines {
+            let major_offset = aligned_offset(available_main, line.main, self.major_alignment);
+            let mut item_main = main_origin + major_offset;
+            for item in line.items {
+                let item_minor = if self.stretch_minor_axis {
+                    line.minor
+                } else {
+                    item.minor
+                };
+                let minor_offset = aligned_offset(line.minor, item_minor, self.minor_alignment);
+                let bounds = if horizontal {
+                    Rectangle::new(item_main, line_minor + minor_offset, item.main, item_minor)
+                } else {
+                    Rectangle::new(line_minor + minor_offset, item_main, item_minor, item.main)
+                };
+                out.set_child_bounds(item.figure, bounds);
+                item_main += item.main + self.spacing;
+            }
+            line_minor += line.minor + self.row_spacing;
         }
         Ok(())
     }
+}
 
-    fn layout_vertical(
-        &self,
-        area: Rectangle,
-        children: &[(FigureId, Rectangle)],
-        snapshot: &LayoutSceneQuery<'_>,
-        out: &mut LayoutOutput,
-    ) -> Result<(), LayoutError> {
-        let mut x: f64 = area.x;
-        let mut y: f64 = area.y;
-        let mut col_width: f64 = 0.0;
+#[derive(Clone, Copy)]
+struct FlowItem {
+    figure: FigureId,
+    main: f64,
+    minor: f64,
+}
 
-        for (child_id, _) in children {
-            let measured = snapshot.preferred_measurement(
-                *child_id,
-                MeasureConstraints::height(area.height)
-                    .expect("container height is valid layout geometry"),
-            )?;
-            let (child_w, child_h) = (measured.width, measured.height);
+#[derive(Default)]
+struct FlowLine {
+    items: Vec<FlowItem>,
+    main: f64,
+    minor: f64,
+}
 
-            // 检查是否需要换列
-            if y + child_h > area.y + area.height && y > area.y {
-                // 换列
-                x += col_width + self.row_spacing;
-                y = area.y;
-                col_width = 0.0;
-            }
-
-            // 设置子元素位置
-            let new_bounds = Rectangle::new(x, y, child_w, child_h);
-            out.set_child_bounds(*child_id, new_bounds);
-
-            // 更新位置和列宽
-            y += child_h + self.spacing;
-            col_width = col_width.max(child_w);
-        }
-        Ok(())
+fn aligned_offset(available: f64, used: f64, alignment: FlowAlignment) -> f64 {
+    match alignment {
+        FlowAlignment::Start => 0.0,
+        FlowAlignment::Center => (available - used).max(0.0) / 2.0,
+        FlowAlignment::End => (available - used).max(0.0),
     }
 }
 
@@ -318,10 +366,15 @@ impl super::LayoutSceneRead for MockLayoutSceneRead {
 
     fn preferred_measurement(
         &self,
-        _figure_id: FigureId,
+        figure_id: FigureId,
         _constraints: MeasureConstraints,
     ) -> Result<FigureMeasurement, LayoutError> {
-        Ok(FigureMeasurement::new(100.0, 100.0, None))
+        let bounds = self
+            .children
+            .iter()
+            .find_map(|(child, bounds)| (*child == figure_id).then_some(*bounds))
+            .unwrap_or(Rectangle::new(0.0, 0.0, 100.0, 100.0));
+        Ok(FigureMeasurement::new(bounds.width, bounds.height, None))
     }
 
     fn get_container_bounds(&self, _container_id: FigureId) -> Result<Rectangle, LayoutError> {
@@ -358,6 +411,64 @@ mod tests {
             FigureId::from(slotmap::KeyData::from_ffi(0)),
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
+        );
+    }
+
+    #[test]
+    fn major_and_minor_alignment_match_draw2d_ordered_layout_semantics() {
+        let container = FigureId::from(slotmap::KeyData::from_ffi(1));
+        let first = FigureId::from(slotmap::KeyData::from_ffi(2));
+        let second = FigureId::from(slotmap::KeyData::from_ffi(3));
+        let scene = MockLayoutSceneRead {
+            children: vec![
+                (first, Rectangle::new(0.0, 0.0, 50.0, 20.0)),
+                (second, Rectangle::new(0.0, 0.0, 50.0, 40.0)),
+            ],
+            container_bounds: Rectangle::new(0.0, 0.0, 300.0, 120.0),
+        };
+        let mut layout = FlowLayout::new()
+            .with_major_alignment(FlowAlignment::End)
+            .with_minor_alignment(FlowAlignment::End);
+        let mut output = LayoutOutput::new();
+
+        layout
+            .layout(container, &LayoutSceneQuery::new(&scene), &mut output)
+            .unwrap();
+
+        assert_eq!(
+            output.changes,
+            vec![
+                super::super::LayoutChange::Bounds(first, Rectangle::new(195.0, 20.0, 50.0, 20.0)),
+                super::super::LayoutChange::Bounds(second, Rectangle::new(250.0, 0.0, 50.0, 40.0)),
+            ]
+        );
+    }
+
+    #[test]
+    fn stretch_minor_axis_uses_the_wrapped_line_extent() {
+        let container = FigureId::from(slotmap::KeyData::from_ffi(11));
+        let first = FigureId::from(slotmap::KeyData::from_ffi(12));
+        let second = FigureId::from(slotmap::KeyData::from_ffi(13));
+        let scene = MockLayoutSceneRead {
+            children: vec![
+                (first, Rectangle::new(0.0, 0.0, 50.0, 20.0)),
+                (second, Rectangle::new(0.0, 0.0, 50.0, 40.0)),
+            ],
+            container_bounds: Rectangle::new(0.0, 0.0, 300.0, 120.0),
+        };
+        let mut layout = FlowLayout::new().with_stretch_minor_axis(true);
+        let mut output = LayoutOutput::new();
+
+        layout
+            .layout(container, &LayoutSceneQuery::new(&scene), &mut output)
+            .unwrap();
+
+        assert_eq!(
+            output.changes,
+            vec![
+                super::super::LayoutChange::Bounds(first, Rectangle::new(0.0, 0.0, 50.0, 40.0)),
+                super::super::LayoutChange::Bounds(second, Rectangle::new(55.0, 0.0, 50.0, 40.0)),
+            ]
         );
     }
 }

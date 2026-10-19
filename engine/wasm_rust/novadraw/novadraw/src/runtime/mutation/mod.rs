@@ -681,6 +681,10 @@ pub(crate) enum PendingMutationKind {
         figure: FigureId,
         bounds: crate::Rectangle,
     },
+    SetScale {
+        figure: FigureId,
+        scale: f64,
+    },
     MoveChildToIndex {
         parent: FigureId,
         child: FigureId,
@@ -779,6 +783,12 @@ impl PendingMutation {
     pub(crate) fn set_bounds(figure: FigureId, bounds: crate::Rectangle) -> Self {
         Self {
             kind: PendingMutationKind::SetBounds { figure, bounds },
+        }
+    }
+
+    pub(crate) fn set_scale(figure: FigureId, scale: f64) -> Self {
+        Self {
+            kind: PendingMutationKind::SetScale { figure, scale },
         }
     }
 
@@ -959,6 +969,10 @@ pub(crate) trait MutationContext {
 
     fn set_bounds_later(&mut self, figure: FigureId, bounds: crate::Rectangle) {
         self.enqueue_mutation(PendingMutation::set_bounds(figure, bounds));
+    }
+
+    fn set_scale_later(&mut self, figure: FigureId, scale: f64) {
+        self.enqueue_mutation(PendingMutation::set_scale(figure, scale));
     }
 
     fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
