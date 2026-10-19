@@ -385,7 +385,7 @@ impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
 pub enum RuntimeMutationError {
     ForeignRuntime(FigureId),
     Faulted,
-    /// Input rejected by whole-batch validation before allocating any Figure identity.
+    /// Input rejected by whole-batch validation before publishing any Figure.
     FigureBatch {
         index: usize,
         source: Box<RuntimeMutationError>,
@@ -648,11 +648,14 @@ where
     }
 }
 
+type SubtreeCompletion =
+    Box<dyn FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>)>;
+
 pub(crate) enum PendingMutationKind {
     AddSubtree {
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
-        committed: Box<dyn FnOnce(crate::tree::SubtreeReceipt)>,
+        completed: SubtreeCompletion,
     },
     AddChildFigure {
         parent: FigureId,
@@ -740,13 +743,13 @@ impl PendingMutation {
     pub(crate) fn add_subtree(
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
-        committed: Box<dyn FnOnce(crate::tree::SubtreeReceipt)>,
+        completed: SubtreeCompletion,
     ) -> Self {
         Self {
             kind: PendingMutationKind::AddSubtree {
                 parent,
                 subtree,
-                committed,
+                completed,
             },
         }
     }

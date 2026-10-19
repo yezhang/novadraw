@@ -333,6 +333,9 @@ fn fixture() -> Fixture {
             context
                 .effects()
                 .add_subtree_later(parent_figure, subtree, move |receipt| {
+                    let Ok(receipt) = receipt else {
+                        return;
+                    };
                     let mut model = committed_model.lock().unwrap();
                     model.branches.push(Branch {
                         figure: receipt.root(),

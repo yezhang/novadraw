@@ -3025,12 +3025,21 @@ impl Runtime {
             PendingMutationKind::AddSubtree {
                 parent,
                 subtree,
-                committed,
-            } => {
-                let receipt = self.add_subtree(parent, subtree)?;
-                committed(receipt);
-                Ok(true)
-            }
+                completed,
+            } => self.guarded(|runtime| match runtime.add_subtree(parent, subtree) {
+                Ok(receipt) => {
+                    completed(Ok(receipt));
+                    Ok(true)
+                }
+                Err(error) => {
+                    runtime.deferred_mutation_errors.push_back(error);
+                    completed(Err(runtime
+                        .deferred_mutation_errors
+                        .back()
+                        .expect("rejection recorded before completion")));
+                    Ok(false)
+                }
+            }),
             PendingMutationKind::UpdateComponent(update) => update.apply(self),
             PendingMutationKind::UpdateCapability(update) => update.apply(self),
         }

@@ -261,18 +261,24 @@ child policy、深度和全部布局 constraint。保留节点尚未进入父级
 全部通过后发布拓扑，再按父先子后处理依赖、失效和 attachment callback。
 callback panic 沿既有边界 fault，不回滚真实发布状态或外部副作用。
 
-同步返回 `SubtreeReceipt`；延迟入口的成功回调在全部 attachment callback 完成后接收
-同一映射。成功回调只获得 owned receipt，没有 Runtime、FigureTree 或同步写权限。
-拒绝时跳过成功回调，仍通过 deferred mutation errors 返回来源。receipt 表示 source
-挂载成功，不表示布局稳定或帧已呈现。
+同步返回 `SubtreeReceipt`；延迟入口回调接收
+`Result<SubtreeReceipt, &RuntimeMutationError>`。成功映射在全部 attachment callback
+完成后返回；拒绝先写入 deferred mutation errors，再借用同一错误调用回调。即使拒绝
+回调 panic，原错误仍可读取。回调没有 Runtime、FigureTree 或同步写权限；外部 model
+只在成功后发布节点。receipt 表示 source 挂载成功，不表示布局稳定或帧已呈现。
+
+请求与回调按 FIFO 执行，普通拒绝不阻止后续请求。成功或拒绝回调 panic 时 Runtime
+fault，后续请求停止，保留真实已发布拓扑和外部副作用。attachment panic 沿原生命周期
+异常通道传播，不伪造完整子树成功回执。
 
 外部消费者证据：`novadraw/tests/p2_subtree.rs` 验证外部 Figure、Label/Border/Layout、
 顺序与继承、foreign 构造身份、末项失败、Single child policy、constraint 拒绝与身份
-退休、事件内不可见、foreign Runtime、资源、10,000 深度限制和 attachment panic。
+退休、事件内不可见、foreign Runtime、资源、10,000 深度限制和 attachment panic；
+同时验证主动消费拒绝、错误队列保留、FIFO 继续提交和两种结果回调 panic。
 官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
 在成功回调更新 TreeModel，并保留父分支样式。
 
-本切片未关闭 K01 的通用配对 binding、整场景替换、失败回执主动消费和重入验收。
+本切片未关闭 K01 的通用配对 binding、整场景替换和重入验收。
 新增 binding 描述需要独立验证身份映射与 registry 准入，不能以成功回调内写外部模型
 替代 Core binding 的原子预检。
 

@@ -211,6 +211,7 @@ fn rejected_constraint_retires_reserved_ids_and_keeps_existing_topology() {
 struct Trigger {
     parent: FigureId,
     receipt: Arc<Mutex<Option<SubtreeReceipt>>>,
+    rejection: Arc<Mutex<Option<String>>>,
     observed: Arc<Mutex<usize>>,
 }
 impl Figure for Trigger {
@@ -231,10 +232,12 @@ impl FigureEventHandler for Trigger {
     fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         let subtree = FigureSubtree::new(Box::new(LabelFigure::new("deferred")));
         let receipt = self.receipt.clone();
+        let rejection = self.rejection.clone();
         context
             .effects()
-            .add_subtree_later(self.parent, subtree, move |value| {
-                *receipt.lock().unwrap() = Some(value)
+            .add_subtree_later(self.parent, subtree, move |result| match result {
+                Ok(value) => *receipt.lock().unwrap() = Some(value),
+                Err(error) => *rejection.lock().unwrap() = Some(error.to_string()),
             });
         *self.observed.lock().unwrap() =
             context.scene().children(context.target_id()).unwrap().len();
@@ -249,6 +252,7 @@ fn deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publis
         let (mut runtime, root) = runtime();
         let (_other, other_root) = self::runtime();
         let receipt = Arc::new(Mutex::new(None));
+        let rejection = Arc::new(Mutex::new(None));
         let observed = Arc::new(Mutex::new(usize::MAX));
         runtime
             .figure(root)
@@ -256,6 +260,7 @@ fn deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publis
             .add(Box::new(Trigger {
                 parent: if foreign { other_root } else { root },
                 receipt: receipt.clone(),
+                rejection: rejection.clone(),
                 observed: observed.clone(),
             }))
             .unwrap();
@@ -264,9 +269,15 @@ fn deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publis
             .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
         assert_eq!(*observed.lock().unwrap(), 0);
         assert_eq!(receipt.lock().unwrap().is_some(), !foreign);
+        let errors = runtime.take_deferred_mutation_errors();
+        assert_eq!(errors.len(), usize::from(foreign));
         assert_eq!(
-            runtime.take_deferred_mutation_errors().len(),
-            usize::from(foreign)
+            rejection.lock().unwrap().as_deref(),
+            errors.first().map(|error| error.to_string()).as_deref()
+        );
+        assert_eq!(
+            runtime.tree().descendant_ids(root).unwrap().len(),
+            if foreign { 1 } else { 2 }
         );
         if let Some(receipt) = receipt.lock().unwrap().as_ref() {
             assert!(runtime.tree().figure_bounds(receipt.root()).is_ok());
@@ -340,4 +351,106 @@ fn attachment_panic_faults_runtime_and_retains_truthful_published_topology() {
     assert!(result.is_err());
     assert!(runtime.is_faulted());
     assert_eq!(runtime.tree().descendant_ids(root).unwrap().len(), 2);
+}
+
+struct OrderedTrigger {
+    parent: FigureId,
+    foreign: FigureId,
+    outcomes: Arc<Mutex<Vec<bool>>>,
+    panic_on_result: bool,
+}
+impl Figure for OrderedTrigger {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 20.0, 20.0)
+    }
+    fn name(&self) -> &'static str {
+        "ExternalOrderedTrigger"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
+    }
+}
+impl FigureEventHandler for OrderedTrigger {
+    fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
+        let before = context.scene().children(self.parent).unwrap();
+        for parent in [self.foreign, self.parent, self.parent] {
+            let outcomes = self.outcomes.clone();
+            let panic_on_result = self.panic_on_result;
+            context.effects().add_subtree_later(
+                parent,
+                FigureSubtree::new(Box::new(LabelFigure::new("queued"))),
+                move |result| {
+                    outcomes.lock().unwrap().push(result.is_ok());
+                    assert!(!panic_on_result, "completion fault");
+                },
+            );
+        }
+        assert_eq!(context.scene().children(self.parent).unwrap(), before);
+        assert!(self.outcomes.lock().unwrap().is_empty());
+        true
+    }
+}
+
+#[test]
+fn deferred_rejection_preserves_fifo_and_later_requests_still_commit() {
+    let (mut runtime, root) = runtime();
+    let (_other, foreign) = self::runtime();
+    let outcomes = Arc::new(Mutex::new(Vec::new()));
+    runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(OrderedTrigger {
+            parent: root,
+            foreign,
+            outcomes: outcomes.clone(),
+            panic_on_result: false,
+        }))
+        .unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+    assert_eq!(*outcomes.lock().unwrap(), [false, true, true]);
+    assert_eq!(runtime.take_deferred_mutation_errors().len(), 1);
+    assert_eq!(runtime.tree().child_order(root).unwrap().len(), 3);
+    assert!(!runtime.is_faulted());
+}
+
+#[test]
+fn result_callback_panic_faults_runtime_and_stops_later_requests() {
+    for reject in [false, true] {
+        let (mut runtime, root) = runtime();
+        let (_other, other_root) = self::runtime();
+        let outcomes = Arc::new(Mutex::new(Vec::new()));
+        runtime
+            .figure(root)
+            .unwrap()
+            .add(Box::new(OrderedTrigger {
+                parent: root,
+                foreign: if reject { other_root } else { root },
+                outcomes: outcomes.clone(),
+                panic_on_result: true,
+            }))
+            .unwrap();
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                runtime
+                    .input()
+                    .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left)
+            }))
+            .is_err()
+        );
+        assert!(runtime.is_faulted());
+        assert_eq!(*outcomes.lock().unwrap(), [!reject]);
+        assert_eq!(
+            runtime.take_deferred_mutation_errors().len(),
+            usize::from(reject)
+        );
+        assert_eq!(
+            runtime.tree().child_order(root).unwrap().len(),
+            if reject { 1 } else { 2 }
+        );
+    }
 }

@@ -1,5 +1,6 @@
 use std::{error::Error, fmt, sync::Arc};
 
+use super::RuntimeMutationError;
 use crate::geometry::{Dimension, Point};
 
 use crate::{
@@ -367,20 +368,20 @@ impl EventEffects<'_> {
 
     /// Enqueues a structural mutation for application after top-level dispatch.
     ///
-    /// The success callback receives only the committed identity mapping, never Runtime authority.
-    /// Rejection skips the callback and uses `Runtime::take_deferred_mutation_errors`.
-    /// A lifecycle or success callback panic faults Runtime without rolling back external effects.
+    /// The callback receives the committed mapping or a borrowed rejection, never Runtime authority.
+    /// Rejections also remain available through `Runtime::take_deferred_mutation_errors`.
+    /// A lifecycle or result callback panic faults Runtime without rolling back external effects.
     pub fn add_subtree_later(
         &mut self,
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
-        committed: impl FnOnce(crate::tree::SubtreeReceipt) + 'static,
+        completed: impl FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>) + 'static,
     ) {
         self.effects
             .push(RuntimeEffect::Mutation(PendingMutation::add_subtree(
                 parent,
                 subtree,
-                Box::new(committed),
+                Box::new(completed),
             )));
     }
 
