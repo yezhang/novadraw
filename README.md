@@ -1,69 +1,156 @@
-# PaintBox-UML绘图引擎
+# Novadraw
 
-Why：在阅读代码过程中经常会遇到代码逻辑绘制的诉求，使用现有的UML工具经常会遇到无法支持大图、无法多设备共享等问题。
-为此，本项目旨在设计一个可以在线运行的UML绘图工具。
-本项目采用 C++ 语言编写，利用 WebAssembly 实现图形绘制。
+Novadraw 是一个使用 Rust 构建的跨平台二维 Figure 运行时与图形编辑框架。它保留
+Eclipse Draw2D / GEF 中经过验证的轻量 Figure、布局、连接、事件和编辑语义，同时将
+核心运行时、编辑框架、平台适配与渲染后端拆成可独立组合的边界。
 
-a port of eclipse draw2d
+> **项目状态：积极开发中。** 当前工作区版本为 `0.1.0`，公共 API 尚未承诺
+> 1.0 兼容性。现阶段项目以源码工作区交付，请以仓库内的文档、示例和验证套件为准。
 
-本项目构建可以运行在浏览器端的图形编辑框架。实现基于 `<canvas/>` 标签的 [GEF 框架](https://www.eclipse.org/gef/)。
+## 特性
 
-由于 GEF 框架最新版 GEF5，主要目的平台是 JavaFX，无法方便应用于Web技术上。
-因此，本项目采用 [GEF-legacy](https://github.com/eclipse/gef-legacy) 项目的代码框架。
+- 轻量 Figure 树、代际节点身份、Z-order 与统一盒模型；
+- 布局、坐标变换、裁剪、增量失效与 damage repair；
+- Pointer、键盘、焦点、capture、tooltip 与 accessibility 快照；
+- Viewport、滚动、缩放、连接锚点、路由与装饰；
+- 文本、图像、边框、常用 Figure 与动画表现层；
+- 模型驱动的 Editor：选择、工具、请求、策略、命令和撤销重做；
+- 后端无关的渲染提交协议，以及 Vello、Winit 和 Web 适配包；
+- Headless 契约测试、Native/Web 示例和分层验证套件。
 
+完整能力与验证状态见
+[产品交付清单](engine/wasm_rust/novadraw/doc/roadmap/product-deliverables.md)和
+[平台支持矩阵](engine/wasm_rust/novadraw/doc/roadmap/platform-support-matrix.md)。
 
-## 设计
+## 快速开始
 
-对于 `<canvas/>` 标签做一个抽象封装，可以支持后续替换为 2D 或 3D。
+需要支持 Rust 2024 edition 的稳定工具链。运行 Native 示例还需要当前平台可用的
+图形驱动；已验证的平台范围以平台支持矩阵为准。
 
-- 支持无限滚动。
-- 缩放快速。
-- 拖拽快速。
-- 支持海量复杂图形的高性能绘制。（百万级别数量图形）
-  - 计算机图形学（2D/3D）中的裁剪算法。
+```bash
+git clone https://github.com/yezhang/novadraw.git
+cd novadraw/engine/wasm_rust/novadraw
 
-需支持不同的渲染器（WebGLRender、WebGPURender等），渲染器的设计可以参考 ThreeJS 中的渲染器设计。
+cargo check -p novadraw --lib
+cargo run -p shape-app
+```
 
-## 进一步阅读
+最小 Core 用法：
 
-- [GEF4 wiki](https://wiki.eclipse.org/GEF/GEF4)
-- [GEF4 + 1 = GEF5](http://nyssen.blogspot.com/2017/02/gef4-1-gef-5.html#Merger%20of%20MVC%20and%20MVC.FX)
-- [GEF4 MVC (0.1.0) 用于替换 GEF (MVC) 3.x](https://github.com/eclipse/gef/blob/master/CHANGELOG.md#gef4-mvc-010)
-- [GEF4 FX (0.1.0)用于替换 Draw2D](https://github.com/eclipse/gef/blob/master/CHANGELOG.md#gef4-fx-010)
-- [The Draw2d Examples - A Hidden Treasure](http://nyssen.blogspot.com/2010/12/draw2d-examples-hidden-treasure.html)
-- [Display a UML Diagram using Draw2D](https://www.eclipse.org/articles/Article-GEF-Draw2d/GEF-Draw2d.html)
-- Alexander Nyßen（[GEF Leader](https://projects.eclipse.org/projects/tools.gef/who)）的其他博客[文章](http://nyssen.blogspot.com)
-- draw2d 源码位置在[这里](https://download.eclipse.org/oomph/archive/simrel/gef.aggrcon/index/org.eclipse.draw2d.source_3.10.100.201606061308.html)
-- [GEF 官方文章](https://www.eclipse.org/gef/reference/articles.html)
-- [Graphiti](https://www.eclipse.org/graphiti/documentation/overview.php)
+```rust
+use novadraw::figure::RectangleFigure;
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::Runtime;
+use novadraw::tree::FigureTree;
 
-### Web 绘图技术
+let mut tree = FigureTree::new();
+let root = tree
+    .builder()
+    .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)))
+    .expect("valid FigureTree construction");
+let runtime = Runtime::new(tree);
 
-- 操作 Canvas 的 [3 种方法](https://compile.fi/canvas-filled-three-ways-js-webassembly-and-webgl/)
-- Canvas API 相关的[库](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API#libraries)
-- Camera 技术的使用：[html5-canvas-camera-viewport-how-to-actually-do-it](https://stackoverflow.com/questions/16919601/html5-canvas-camera-viewport-how-to-actually-do-it)
-- [WebAssembly](https://webassembly.org/)
+assert_eq!(
+    runtime.tree().figure_bounds(root),
+    Ok(Rectangle::new(0.0, 0.0, 640.0, 480.0)),
+);
+```
 
-### SWT 相关
+更多可运行场景见[示例目录](engine/wasm_rust/novadraw/examples/README.md)。
 
-- [SWT 中的 TraverseEvent](https://cloud.tencent.com/developer/article/1433531)
-- [SWT 中的 Graphics Context](https://www.eclipse.org/articles/Article-SWT-graphics/SWT_graphics.html)
+## 架构
 
-### WebAssembly 技术
+```mermaid
+flowchart TD
+    App[应用模型与产品逻辑]
+    Editor[novadraw-editor<br/>可选的模型驱动编辑框架]
+    Core[novadraw<br/>Figure / Runtime / Layout / Input]
+    Submission[RenderSubmission]
+    Backend[novadraw-backend-vello<br/>可替换渲染后端]
+    Winit[novadraw-platform-winit]
+    Web[novadraw-platform-web]
+    Host[窗口、Canvas、输入法与平台服务]
 
-使用 WebAssembly 操作 WebGL，参考[OpenGL-support](https://emscripten.org/docs/porting/multimedia_and_graphics/OpenGL-support.html)
-使用 WebAssembly 操作 WebGPU，参考[ISSUE:webgpu.h-on-WebGPU](https://github.com/emscripten-core/emscripten/pull/10218)
+    App --> Editor
+    App --> Core
+    Editor --> Core
+    Core --> Submission --> Backend
+    Winit --> Core
+    Web --> Core
+    Winit --> Host
+    Web --> Host
+    Backend --> Host
+```
 
-emscripten + webgpu 样例：
-[hello-webgpu](https://github.com/cwoffenden/hello-webgpu)
-[WebGPU-Cpp-WASM](https://www.nanovis.org/WebGPU-Cpp-WASM.html)
+Core 不依赖窗口系统或具体 GPU 后端；Editor 也不是使用 Figure 树的前置条件。
+平台适配器负责规范化输入和宿主生命周期，渲染后端只消费稳定的提交包。
 
-### WebGPU 技术
+顶层 `client/` 与 `engine/` 来自早期仓库结构，不代表当前运行时必须采用
+“主线程 Client + Web Worker Engine”。Web Worker 是 Web 宿主可选择的部署策略，
+不是 Core/Platform/Backend 分层成立的原因。详细说明见
+[仓库结构与线程边界](docs/repository-layout.md)。
 
-Edge 对于 WebGPU 的支持情况，打开 `edge://gpu/` 查看。
-WebGPU 在浏览器中的打开方式：[caniuse-webgpu](https://caniuse.com/webgpu)
+## 工作区
 
-- Can be enabled in Firefox with the `dom.webgpu.enabled` flag.
-- Can be enabled in Safari on MacOS with the `WebGPU` experimental feature.
-- Can be enabled in some Chromium browsers (on Windows, MacOS, Linux) with the
-  `enable-unsafe-webgpu` flag.
+当前有效的 Rust workspace 位于 `engine/wasm_rust/novadraw/`。
+
+| Package | 职责 |
+|---|---|
+| `novadraw` | 平台无关的 Figure、Runtime、布局、输入、连接与渲染协议 |
+| `novadraw-editor` | 模型驱动的图形编辑框架 |
+| `novadraw-inspector` | 只读诊断与运行时观测 |
+| `novadraw-backend-vello` | Native/Web Vello 渲染后端 |
+| `novadraw-platform-winit` | macOS、Windows、Linux 宿主适配 |
+| `novadraw-platform-web` | 浏览器输入、文本编辑与资源桥接 |
+
+## 文档
+
+| 读者或目的 | 入口 |
+|---|---|
+| 应用开发与扩展 | [《Novadraw 应用开发与扩展指南》](engine/wasm_rust/novadraw/book/user/src/README.md) |
+| 原理、模型与算法 | [《深入理解 Novadraw》](engine/wasm_rust/novadraw/book/internals/src/README.md) |
+| 参与项目开发 | [《Novadraw 贡献者指南》](engine/wasm_rust/novadraw/book/contributor/src/README.md) |
+| 规范、ADR、路线图与验证证据 | [工程文档入口](engine/wasm_rust/novadraw/doc/00-index.md) |
+| 仓库历史与目录边界 | [根文档入口](docs/README.md) |
+
+规范性设计、当前状态和历史材料具有不同事实层级。修改架构前请先阅读工程文档入口，
+不要从归档方案、旧实验目录或单个示例反推现行契约。
+
+## 开发与验证
+
+在 Rust workspace 目录执行：
+
+```bash
+cargo fmt --all -- --check
+cargo check --workspace
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+```
+
+跨工具验证套件通过以下命令发现和运行：
+
+```bash
+cargo xtask list
+cargo xtask verify <suite-id>
+```
+
+纯文档修改至少运行：
+
+```bash
+cargo xtask docs
+git diff --check
+```
+
+## 贡献
+
+提交 Issue 或 Pull Request 前，请先阅读
+[贡献工作流](engine/wasm_rust/novadraw/book/contributor/src/01-contribution-workflow.md)。
+项目要求行为契约、状态所有权和失败模型先于实现细节；共享协议变化需要相应的负向
+测试和验证证据。
+
+## 来源与许可
+
+Novadraw 借鉴 Eclipse Draw2D / GEF 的行为语义，但不是 Java API 的逐行翻译，也不隶属
+Eclipse Foundation。仓库中的第三方参考材料保留其各自版权和许可证。
+
+Novadraw 自有代码使用 [MIT License](LICENSE)。
