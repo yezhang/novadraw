@@ -33,3 +33,17 @@ cargo run -p draw2d-official-examples -- --screenshot=HelloWorld
 ```sh
 cargo run -p draw2d-official-examples -- --screenshot-all
 ```
+
+K00 源码清单位于 `source-contracts.tsv`，普通测试核对它与 catalog、全量方案的对应关系：
+
+```sh
+cargo test -p draw2d-official-examples --test source_contracts
+```
+
+使用本地上游检出校验全部 main、helper、资源和 graph fixture：
+
+```sh
+DRAW2D_REFERENCE_ROOT=/Users/bytedance/Documents/code/GitHub/gef-classic cargo test -p draw2d-official-examples --test source_contracts upstream_main_helpers_and_resources_match_the_inventory -- --ignored
+```
+
+源码清单通过不等于结构/视觉/全交互验收；K00 仍需补齐逐 feature 的运行证据。

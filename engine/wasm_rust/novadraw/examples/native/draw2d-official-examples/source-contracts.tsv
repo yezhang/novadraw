@@ -1,0 +1,27 @@
+# K00 source inventory; paths relative to org/eclipse/draw2d/examples.
+# name	main	helpers	resources	steps
+HelloWorld	HelloWorld.java	-	-	K00,H01,H04
+EllipseHitting	hittest/EllipseHitting.java	-	-	K00,K02,H04
+ConnectionAndAnchorExample	connections/ConnectionAndAnchorExample.java	AbstractExample.java	-	K01,K02,K03,H01,H04
+ObstructionExample	cg/ObstructionExample.java	AbstractExample.java	-	K01,K02,K03,H04
+FlowLayoutExample	layouts/FlowLayoutExample.java	AbstractExample.java	-	K01,K02,K04,H01,H04
+GridLayoutExample	layouts/GridLayoutExample.java	AbstractExample.java	-	K01,K02,K04,H01,H04
+ToolbarLayoutExample	layouts/ToolbarLayoutExample.java	AbstractExample.java	-	K01,K02,K04,H01,H04
+ShapeStylesExample	swt/ShapeStylesExample.java	-	-	K01,K02,K08,H01,H02,H04
+InheritBackgroundExample	swt/InheritBackgroundExample.java	-	-	K07,H01,H02,H04
+DirectedGraphDemo	graph/DirectedGraphDemo.java	graph/AbstractGraphDemo.java,graph/GraphTests.java	-	K01,K03,K06,H01,H04
+CompoundGraphDemo	graph/CompoundGraphDemo.java	graph/AbstractGraphDemo.java,graph/CompoundGraphTests.java	-	K01,K03,K06,H01,H04
+PathExample	path/PathExample.java	path/PathFigure.java,path/ZoomFigure.java	-	K02,K04,K05,K08,H01,H02,H04
+PrintExample	printing/PrintExample.java	-	printing/brazil.ico	K02,K09,H01,H03,H04
+ScrollPaneExample	scrollpane/ScrollPaneExample.java	AbstractExample.java,scrollpane/InternalFrame.java,ExampleUtil.java,ExampleImages.java	images/george.gif	K01,K02,K04,H01,H04
+ZoomExample	zoom/ZoomExample.java	zoom/ZoomContainer.java,zoom/UMLClassFigure.java,zoom/CompartmentFigure.java	zoom/images/class_obj.svg,zoom/images/field_private_obj.svg,zoom/images/methpub_obj.svg	K02,K04,K08,H01,H02,H04
+ThumbnailExample	thumbnail/ThumbnailExample.java	-	-	K01,K02,K07,H01,H04
+BidiBlockExample	text/BidiBlockExample.java	-	-	K05,K07,H01,H04
+CaretExample	text/CaretExample.java	AbstractExample.java,text/TestBorder.java	-	K02,K05,H01,H04
+MultiLineLabelExample	text/MultiLineLabelExample.java	-	-	K02,K04,K05,H01,H04
+TextFlowExample	text/TextFlowExample.java	AbstractExample.java	-	K05,H01,H04
+TextFlowLargeExample	text/TextFlowLargeExample.java	text/TextFlowFactory.java	-	K01,K04,K05,H01,H04
+TextSurroundingFigureExample	text/TextSurroundingFigureExample.java	-	-	K01,K05,H01,H04
+SimpleTreeExample	tree/SimpleTreeExample.java	AbstractExample.java,tree/TreeRoot.java,tree/TreeBranch.java,tree/PageNode.java,tree/AbstractBranchLayout.java,tree/NormalLayout.java,tree/HangingLayout.java,tree/TreeLayout.java,tree/Animation.java	-	K02,K06,H01,H04
+TreeExample	tree/TreeExample.java	AbstractExample.java,tree/TreeRoot.java,tree/TreeBranch.java,tree/PageNode.java,tree/AbstractBranchLayout.java,tree/NormalLayout.java,tree/HangingLayout.java,tree/TreeLayout.java,tree/Animation.java	-	K01,K02,K04,K06,K07,H01,H04
+UMLClassDiagram	uml/UMLClassDiagram.java	uml/UMLClassFigure.java,uml/StickyNote.java	uml/class_obj.gif	K02,K03,K05,H01,H04
