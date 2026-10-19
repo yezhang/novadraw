@@ -842,12 +842,20 @@ impl FigureTree {
     }
 
     /// Reserves identities for validators, then publishes only after the whole branch passes.
-    pub(crate) fn insert_subtree(
+    pub(crate) fn insert_subtree<E>(
         &mut self,
         parent: FigureId,
         nodes: Vec<crate::tree::SubtreeNode>,
-    ) -> Result<Vec<(FigureId, FigureId)>, crate::runtime::RuntimeMutationError> {
-        use crate::runtime::RuntimeMutationError;
+        mut admit: impl FnMut(
+            &dyn Figure,
+            &FigureCapabilitySet,
+            &[crate::render::ResourceId],
+        ) -> Result<(), E>,
+        reject: impl Fn(usize, E) -> E,
+    ) -> Result<Vec<(FigureId, FigureId)>, E>
+    where
+        E: From<GraphMutationError> + From<LayoutError>,
+    {
         let mut ids = Vec::with_capacity(nodes.len());
         let mut parents = Vec::with_capacity(nodes.len());
         let mut constraints = Vec::with_capacity(nodes.len());
@@ -859,6 +867,11 @@ impl FigureTree {
                     let count = pending.entry(target).or_default();
                     let prepared =
                         self.prepare_child(node.figure, target, false, *count, node.style)?;
+                    admit(
+                        prepared.figure.as_ref(),
+                        &prepared.capabilities,
+                        &node.resources,
+                    )?;
                     let id = self.reserve_prepared_child(prepared);
                     ids.push(id);
                     parents.push(target);
@@ -867,12 +880,9 @@ impl FigureTree {
                         self.blocks[id].layout.manager = Some(layout);
                     }
                     constraints.push(node.constraint);
-                    Ok::<_, RuntimeMutationError>(())
+                    Ok::<_, E>(())
                 })();
-                result.map_err(|source| RuntimeMutationError::FigureBatch {
-                    index,
-                    source: Box::new(source),
-                })?;
+                result.map_err(|source| reject(index, source))?;
             }
             for (index, ((id, target), constraint)) in
                 ids.iter().zip(&parents).zip(&constraints).enumerate()
@@ -882,13 +892,10 @@ impl FigureTree {
                 {
                     manager
                         .validate_constraint(*target, *id, constraint.as_ref())
-                        .map_err(|error| RuntimeMutationError::FigureBatch {
-                            index,
-                            source: Box::new(RuntimeMutationError::Layout(error)),
-                        })?;
+                        .map_err(|error| reject(index, error.into()))?;
                 }
             }
-            Ok::<_, RuntimeMutationError>(())
+            Ok::<_, E>(())
         }));
         match preparation {
             Ok(Ok(())) => {}

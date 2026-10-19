@@ -255,11 +255,18 @@ subtree 构造或事件结果 receipt，也不引入 Editor API。
 `SubtreeNodeId` 使用描述实例身份与序号，不能作为 `FigureId` 使用。
 `FigureMut::add_subtree` 与 `EventEffects::add_subtree_later` 复用同一 Runtime 提交机制。
 
-准入先验证目标与资源，再按父先子后保留节点身份，验证 bounds、style、capability、
-child policy、深度和全部布局 constraint。保留节点尚未进入父级 children、UUID lookup、
+准入先验证目标，再按父先子后验证 bounds、style、capability、资源、child policy 和
+深度，并保留节点身份；最后验证全部布局 constraint。保留节点尚未进入父级 children、UUID lookup、
 通知和 damage。验证拒绝或 panic 时清理保留节点；验证器见过的 FigureId 永久退休。
-全部通过后发布拓扑，再按父先子后处理依赖、失效和 attachment callback。
+全部通过后发布拓扑，注册全部节点依赖和失效，再按父先子后执行 attachment callback。
 callback panic 沿既有边界 fault，不回滚真实发布状态或外部副作用。
+
+资源由 `RESOURCE_DEPENDENCIES` typed capability 和显式依赖共同声明。Label、Image、
+Button、Toggle 与外部 Figure 均使用 `FigureResourceDependencies`，不按具体 Figure
+类型分支。准入消费本次已构建的 capability registry，不重复注册；外部或已删除的资源
+以带节点序号的 `Resource` 错误拒绝，pending 资源允许挂载，重复声明只注册一次。
+Graph 只承载构造与发布，资源检查和错误归因由 Runtime 提供，不依赖 Runtime 错误类型。
+本增量覆盖完整子树入口；旧单节点、Builder 与 attached 资源更新的统一准入仍需核对。
 
 同步返回 `SubtreeReceipt`；延迟入口回调接收
 `Result<SubtreeReceipt, &RuntimeMutationError>`。成功映射在全部 attachment callback
@@ -275,6 +282,7 @@ fault，后续请求停止，保留真实已发布拓扑和外部副作用。att
 顺序与继承、foreign 构造身份、末项失败、Single child policy、constraint 拒绝与身份
 退休、事件内不可见、foreign Runtime、资源、10,000 深度限制和 attachment panic；
 同时验证主动消费拒绝、错误队列保留、FIFO 继续提交和两种结果回调 panic。
+资源测试覆盖内置图元、复合按钮和外部实现的 foreign/retired 资源，以及 pending 与重复依赖。
 官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
 在成功回调更新 TreeModel，并保留父分支样式。
 

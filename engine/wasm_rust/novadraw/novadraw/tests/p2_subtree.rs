@@ -314,6 +314,93 @@ fn resource_preflight_rejects_foreign_dependency_without_publication() {
     assert!(runtime.tree().descendant_ids(root).unwrap().is_empty());
 }
 
+struct ExternalResource(novadraw::render::ResourceId);
+impl Figure for ExternalResource {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::ZERO
+    }
+    fn name(&self) -> &'static str {
+        "ExternalResource"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::RESOURCE_DEPENDENCIES,
+            novadraw::figure::ResourceDependenciesCapability::of::<Self>(),
+        )
+    }
+}
+impl novadraw::figure::FigureResourceDependencies for ExternalResource {
+    fn resource_dependencies(&self) -> Vec<novadraw::render::ResourceId> {
+        vec![self.0, self.0]
+    }
+}
+
+#[test]
+fn implicit_resources_reject_foreign_and_retired_ids_for_builtin_and_external_figures() {
+    use novadraw::figure::{ButtonFigure, ImageFigure, ToggleFigure};
+    for retired in [false, true] {
+        let (mut runtime, root) = runtime();
+        let (mut other, _) = self::runtime();
+        let image = if retired {
+            let image = runtime.resources().register_image().unwrap();
+            runtime.resources().remove(image.resource_id()).unwrap();
+            image
+        } else {
+            other.resources().register_image().unwrap()
+        };
+        let figures: Vec<Box<dyn Figure>> = vec![
+            Box::new(LabelFigure::new("icon").with_icon(image)),
+            Box::new(ImageFigure::new(image)),
+            Box::new(ButtonFigure::new("button").with_icon(image)),
+            Box::new(ToggleFigure::new("toggle").with_icon(image)),
+            Box::new(ExternalResource(image.resource_id())),
+        ];
+        for figure in figures {
+            let mut subtree = FigureSubtree::new(Box::new(Single));
+            subtree.add(subtree.root(), figure).unwrap();
+            assert!(matches!(
+                runtime.figure(root).unwrap().add_subtree(subtree),
+                Err(RuntimeMutationError::FigureBatch { index: 1, source })
+                    if matches!(*source, RuntimeMutationError::Resource(_))
+            ));
+            assert!(runtime.tree().descendant_ids(root).unwrap().is_empty());
+            assert!(!runtime.is_faulted());
+        }
+    }
+}
+
+#[test]
+fn pending_resource_is_admitted_and_duplicate_dependencies_register_once() {
+    let (mut runtime, root) = runtime();
+    let image = runtime.resources().register_image().unwrap();
+    let mut subtree = FigureSubtree::new(Box::new(Single));
+    let child = subtree
+        .add(
+            subtree.root(),
+            Box::new(ExternalResource(image.resource_id())),
+        )
+        .unwrap();
+    subtree
+        .add_resource_dependency(child, image.resource_id())
+        .unwrap();
+    let receipt = runtime.figure(root).unwrap().add_subtree(subtree).unwrap();
+    assert!(
+        runtime
+            .resources()
+            .remove_dependency(image.resource_id(), receipt.figure(child).unwrap())
+            .unwrap()
+    );
+    assert!(
+        !runtime
+            .resources()
+            .remove_dependency(image.resource_id(), receipt.figure(child).unwrap())
+            .unwrap()
+    );
+}
+
 struct PanicAttach;
 impl Figure for PanicAttach {
     fn initial_bounds(&self) -> Rectangle {

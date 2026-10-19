@@ -109,6 +109,12 @@ impl Bounded for ImageFigure {
     }
 }
 
+impl super::FigureResourceDependencies for ImageFigure {
+    fn resource_dependencies(&self) -> Vec<crate::render::ResourceId> {
+        vec![self.image.resource_id()]
+    }
+}
+
 impl Figure for ImageFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -116,6 +122,16 @@ impl Figure for ImageFigure {
 
     fn name(&self) -> &'static str {
         "ImageFigure"
+    }
+
+    fn register_capabilities(
+        &self,
+        out: &mut super::FigureCapabilityBuilder,
+    ) -> Result<(), super::FigureCapabilityRegistrationError> {
+        out.register(
+            super::RESOURCE_DEPENDENCIES,
+            super::ResourceDependenciesCapability::of::<Self>(),
+        )
     }
 
     fn intrinsic_size(&self) -> Dimension {

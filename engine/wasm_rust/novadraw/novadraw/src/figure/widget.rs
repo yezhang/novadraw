@@ -444,6 +444,12 @@ impl ButtonFigure {
     }
 }
 
+impl super::FigureResourceDependencies for ButtonFigure {
+    fn resource_dependencies(&self) -> Vec<crate::render::ResourceId> {
+        super::FigureResourceDependencies::resource_dependencies(&self.label)
+    }
+}
+
 impl Figure for ButtonFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -508,7 +514,11 @@ impl Figure for ButtonFigure {
             crate::ACCESSIBILITY,
             crate::AccessibilityCapability::of::<Self>(),
         )?;
-        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())
+        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())?;
+        out.register(
+            super::RESOURCE_DEPENDENCIES,
+            super::ResourceDependenciesCapability::of::<Self>(),
+        )
     }
 }
 
@@ -598,6 +608,12 @@ impl ToggleFigure {
     }
 }
 
+impl super::FigureResourceDependencies for ToggleFigure {
+    fn resource_dependencies(&self) -> Vec<crate::render::ResourceId> {
+        super::FigureResourceDependencies::resource_dependencies(&self.label)
+    }
+}
+
 impl Figure for ToggleFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -662,7 +678,11 @@ impl Figure for ToggleFigure {
             crate::ACCESSIBILITY,
             crate::AccessibilityCapability::of::<Self>(),
         )?;
-        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())
+        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())?;
+        out.register(
+            super::RESOURCE_DEPENDENCIES,
+            super::ResourceDependenciesCapability::of::<Self>(),
+        )
     }
 }
 

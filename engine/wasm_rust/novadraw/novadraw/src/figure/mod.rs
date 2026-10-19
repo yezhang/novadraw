@@ -37,9 +37,10 @@ pub use capability::{
     ACCESSIBILITY, AccessibilityCapability, BORDER, BorderCapability, CLICKABLE, CONNECTION,
     CONNECTION_DECORATION, CONTAINER, CapabilityKey, CapabilityQueryError, ClickableCapability,
     ConnectionCapability, ConnectionDecorationCapability, ContainerCapability, FREEFORM,
-    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FreeformCapability, INPUT,
-    InputCapability, LAYER, LIFECYCLE, LayerCapability, LifecycleCapability, PREPARATION,
-    PreparationCapability, SCALE, ScaleCapability,
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureResourceDependencies,
+    FreeformCapability, INPUT, InputCapability, LAYER, LIFECYCLE, LayerCapability,
+    LifecycleCapability, PREPARATION, PreparationCapability, RESOURCE_DEPENDENCIES,
+    ResourceDependenciesCapability, SCALE, ScaleCapability,
 };
 pub use ellipse::EllipseFigure;
 pub use image::{ImageDisplayState, ImageFigure};

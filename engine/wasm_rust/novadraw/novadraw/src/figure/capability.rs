@@ -64,6 +64,39 @@ where
         .map(|figure| figure as &dyn FigurePreparation)
 }
 
+/// Resource references held by a Figure, including dependencies in composed components.
+pub trait FigureResourceDependencies {
+    fn resource_dependencies(&self) -> Vec<crate::render::ResourceId>;
+}
+
+fn resources_of<T>(figure: &dyn Figure) -> Option<&dyn FigureResourceDependencies>
+where
+    T: Figure + FigureResourceDependencies + 'static,
+{
+    figure
+        .as_any()
+        .downcast_ref::<T>()
+        .map(|figure| figure as &dyn FigureResourceDependencies)
+}
+
+/// Adapter for resource admission and dependency registration.
+#[derive(Clone, Copy)]
+pub struct ResourceDependenciesCapability {
+    resolve: for<'a> fn(&'a dyn Figure) -> Option<&'a dyn FigureResourceDependencies>,
+}
+
+impl ResourceDependenciesCapability {
+    pub fn of<T: Figure + FigureResourceDependencies + 'static>() -> Self {
+        Self {
+            resolve: resources_of::<T>,
+        }
+    }
+
+    pub(crate) fn resolve(self, figure: &dyn Figure) -> Option<&dyn FigureResourceDependencies> {
+        (self.resolve)(figure)
+    }
+}
+
 fn border_of<T>(figure: &dyn Figure) -> Option<&dyn BorderedFigure>
 where
     T: Figure + BorderedFigure + 'static,
@@ -397,6 +430,8 @@ pub const ACCESSIBILITY: CapabilityKey<AccessibilityCapability> =
     CapabilityKey::new("novadraw.accessibility");
 pub const PREPARATION: CapabilityKey<PreparationCapability> =
     CapabilityKey::new("novadraw.preparation");
+pub const RESOURCE_DEPENDENCIES: CapabilityKey<ResourceDependenciesCapability> =
+    CapabilityKey::new("novadraw.resource-dependencies");
 pub const BORDER: CapabilityKey<BorderCapability> = CapabilityKey::new("novadraw.border");
 pub const CLICKABLE: CapabilityKey<ClickableCapability> = CapabilityKey::new("novadraw.clickable");
 pub const CONNECTION: CapabilityKey<ConnectionCapability> =

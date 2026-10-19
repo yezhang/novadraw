@@ -1173,22 +1173,34 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| {
             runtime.validate_container_figure(parent)?;
             let owner = subtree.owner;
-            for (index, node) in subtree.nodes.iter().enumerate() {
-                for resource in &node.resources {
-                    runtime.resources.status(*resource).map_err(|error| {
-                        RuntimeMutationError::FigureBatch {
-                            index,
-                            source: Box::new(RuntimeMutationError::Resource(error)),
-                        }
-                    })?;
-                }
-            }
-            let dependencies: Vec<_> = subtree
-                .nodes
-                .iter()
-                .map(|node| node.resources.clone())
-                .collect();
-            let inserted = runtime.tree.insert_subtree(parent, subtree.nodes)?;
+            let mut dependencies = Vec::with_capacity(subtree.nodes.len());
+            let inserted = runtime.tree.insert_subtree(
+                parent,
+                subtree.nodes,
+                |figure, capabilities, explicit| {
+                    let mut resources = explicit.to_vec();
+                    if let Some(capability) = capabilities
+                        .get(crate::figure::RESOURCE_DEPENDENCIES)
+                        .expect("typed resource descriptor")
+                    {
+                        let provider = capability
+                            .resolve(figure)
+                            .ok_or(RuntimeMutationError::Rejected)?;
+                        resources.extend(provider.resource_dependencies());
+                    }
+                    resources.sort_unstable();
+                    resources.dedup();
+                    for resource in &resources {
+                        runtime.resources.status(*resource)?;
+                    }
+                    dependencies.push(resources);
+                    Ok::<_, RuntimeMutationError>(())
+                },
+                |index, source| RuntimeMutationError::FigureBatch {
+                    index,
+                    source: Box::new(source),
+                },
+            )?;
             for ((id, parent), resources) in inserted.iter().zip(dependencies) {
                 for resource in resources {
                     runtime
@@ -1199,7 +1211,10 @@ impl Runtime {
                 runtime
                     .tree
                     .invalidate_child_insertion(&mut runtime.updates, *parent, *id);
-                runtime.complete_figure_insertion(*parent, *id);
+            }
+            for (id, parent) in &inserted {
+                runtime.register_layered_pane(*id);
+                runtime.tree.complete_attachment(*id, *parent);
             }
             Ok(crate::tree::SubtreeReceipt::new(
                 owner,
@@ -5004,6 +5019,30 @@ mod adr014_tests {
             runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
             Err(RuntimeMutationError::Faulted)
         ));
+    }
+
+    #[test]
+    fn subtree_attachment_fault_keeps_all_published_resource_dependencies() {
+        let (mut runtime, root) = scene();
+        let image = runtime.resources().register_image().unwrap();
+        let mut subtree = crate::tree::FigureSubtree::new(Box::new(PanicOnAttachLayer));
+        subtree
+            .add(subtree.root(), Box::new(ImageFigure::new(image)))
+            .unwrap();
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                runtime.add_subtree(root, subtree)
+            }))
+            .is_err()
+        );
+        assert!(runtime.is_faulted());
+        let ids = runtime.tree.descendant_ids(root).unwrap();
+        assert_eq!(ids.len(), 2);
+        // Inspect the registry directly: public mutation correctly rejects a faulted Runtime.
+        assert_eq!(
+            runtime.resources.remove(image.resource_id()).unwrap(),
+            vec![ids[1]]
+        );
     }
 
     #[test]

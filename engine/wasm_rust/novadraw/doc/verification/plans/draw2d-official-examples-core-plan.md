@@ -32,7 +32,8 @@ Winit/Web/native control、Vello栅格和Printer留在对应adapter。
 全事件/platform manifest 与 Java 运行取证尚未完成。K01 已提交延迟 style/cursor；
 本切片增加 owned subtree、完整准入与成功/失败回调，并接入 TreeExample More Children
 和选中 Label 白字/取消继承；已验证拒绝消费、FIFO 和结果回调 panic。
-配对 binding、整场景替换及重入测试
+资源准入已覆盖内置与外部 Figure 的 typed 声明，拒绝 foreign/retired 并允许 pending；
+配对 binding、整场景替换、旧单节点资源准入及重入测试
 仍待推进，K00/K01 均保留未完成。契约见
 [ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 

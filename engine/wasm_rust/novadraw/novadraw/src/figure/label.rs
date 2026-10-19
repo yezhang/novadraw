@@ -378,6 +378,15 @@ impl Bounded for LabelFigure {
     }
 }
 
+impl super::FigureResourceDependencies for LabelFigure {
+    fn resource_dependencies(&self) -> Vec<crate::render::ResourceId> {
+        self.icon
+            .into_iter()
+            .map(|icon| icon.resource_id())
+            .collect()
+    }
+}
+
 impl Figure for LabelFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -447,7 +456,11 @@ impl Figure for LabelFigure {
             crate::ACCESSIBILITY,
             crate::AccessibilityCapability::of::<Self>(),
         )?;
-        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())?;
+        out.register(
+            super::RESOURCE_DEPENDENCIES,
+            super::ResourceDependenciesCapability::of::<Self>(),
+        )
     }
 }
 
