@@ -75,7 +75,8 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 基线，事件与 Java oracle 仍待补齐；K01 已完成延迟 style/cursor、owned subtree、
 typed resource 准入、Runtime / Viewport 同步与事件期完整 contents 替换，
 以及配对 Connection binding 的整批准入与 owned Anchor 释放切片。
-K01 的其他单节点资源准入与重入验收仍在当前链上；不以这些切片
+旧 add/indexed/constraint/batch 资源准入和事件重入边界已有测试证据；
+Builder、keyed Layer 与 attached 资源更新的核对仍在当前链上；不以这些切片
 完成关闭整个 K01，也不启动 Editor 改进批次。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)

@@ -266,7 +266,11 @@ Button、Toggle 与外部 Figure 均使用 `FigureResourceDependencies`，不按
 类型分支。准入消费本次已构建的 capability registry，不重复注册；外部或已删除的资源
 以带节点序号的 `Resource` 错误拒绝，pending 资源允许挂载，重复声明只注册一次。
 Graph 只承载构造与发布，资源检查和错误归因由 Runtime 提供，不依赖 Runtime 错误类型。
-本增量覆盖完整子树入口；旧单节点、Builder 与 attached 资源更新的统一准入仍需核对。
+`FigureMut::add/insert/insert_with_constraint` 与 `Runtime::add_figures` 也使用同一
+资源准入与登记函数。每个输入只构建一次 capability registry；批量 append 在分配
+身份前检查全部资源。indexed insertion 继续在发布前校验 index 和 constraint，
+拒绝不登记依赖。资源依赖在 attachment callback 前登记，释放复用原统一清理。
+Builder、keyed Layer insertion 与 attached 资源更新的统一准入仍需核对。
 
 同步返回 `SubtreeReceipt`；延迟入口回调接收
 `Result<SubtreeReceipt, &RuntimeMutationError>`。成功映射在全部 attachment callback
@@ -286,7 +290,17 @@ fault，后续请求停止，保留真实已发布拓扑和外部副作用。att
 官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
 在成功回调更新 TreeModel，并保留父分支样式。
 
-配对 Connection binding 的准入与发布见下节；K01 重入验收仍待完成。
+单节点外部消费者证据：`p2_subtree` 覆盖四种插入入口与五种内置/外部 provider 的
+foreign/retired 拒绝、pending 接纳、重复依赖及释放，末项批量拒绝不激活前缀。
+内部测试检查资源拒绝前后 topology、damage、notification 数量和 dependency registry
+不变；`p2_child_insertion` 保留 index/constraint 原子拒绝与 validator panic 门禁。
+
+事件重入证据：同一 top-level dispatch 的 enter → press → focus callback 均观察
+已提交前缀，三个 subtree 回执在 dispatch 完成后按 FIFO 返回。callback 可触发另一
+Runtime 的 dispatch，其 mutations、错误队列与回执独立；同一 Runtime 的同步重入由
+Rust 独占借用约束阻止，测试用 `RefCell::try_borrow_mut` 验证失败且不 fault。
+该证据不覆盖 K06 动画重入，也不新增 callback 同步 dispatch 权限。
+配对 Connection binding 的准入与发布见下节。
 
 ### 完整 contents 替换
 

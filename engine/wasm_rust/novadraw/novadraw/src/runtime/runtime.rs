@@ -34,11 +34,11 @@ use crate::{
     CoordinateListener, CoordinateSpace, CursorIcon, DirectRouter, EventDispatcher, Figure,
     FigureCapabilityUpdate, FigureId, FigureListener, FigureStyle, FigureTree, FlowTextPosition,
     FlowTextRange, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
-    FocusTraversalPolicy, FontId, ImageFigure, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayoutConstraint, LayoutListener,
-    LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton, ObservationListener,
-    PendingMutations, PropertyChangeListener, Rectangle, ResourceError, RouteError, RouterBinding,
-    RouterId, RoutingConstraint, RoutingGroupScope, SceneDispatchContext, ShapeMutationError,
+    FocusTraversalPolicy, FontId, InteractionState, Key, KeyModifiers, LabelFigure, LayerError,
+    LayerKey, LayerPlacement, LayeredPane, LayoutConstraint, LayoutListener, LayoutManager,
+    ListenerId, ListenerScope, MonotonicTime, MouseButton, ObservationListener, PendingMutations,
+    PropertyChangeListener, Rectangle, ResourceError, RouteError, RouterBinding, RouterId,
+    RoutingConstraint, RoutingGroupScope, SceneDispatchContext, ShapeMutationError,
     StableQueryError, StableSceneQuery, StackLayout, TimeError, TooltipSnapshot, TooltipTiming,
     TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
     ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
@@ -1069,22 +1069,27 @@ impl Runtime {
                     let child = runtime
                         .tree
                         .prepare_child(figure, parent, false, *count, style)?;
+                    let resources = runtime.admit_figure_resources(
+                        child.figure.as_ref(),
+                        &child.capabilities,
+                        &[],
+                    )?;
                     *count += 1;
-                    Ok(child)
+                    Ok((child, resources))
                 })();
                 let child = result.map_err(|source| RuntimeMutationError::FigureBatch {
                     index,
                     source: Box::new(source),
                 })?;
-                prepared.push((parent, child));
+                prepared.push((parent, child.0, child.1));
             }
             let mut ids = Vec::with_capacity(prepared.len());
-            for (parent, child) in prepared {
+            for (parent, child, resources) in prepared {
                 let id = runtime
                     .tree
                     .attach_prepared_child(&mut runtime.updates, parent, child);
                 ids.push(id);
-                runtime.complete_figure_insertion(parent, id);
+                runtime.complete_figure_insertion(parent, id, resources);
             }
             Ok(ids)
         })
@@ -1102,24 +1107,26 @@ impl Runtime {
             if runtime.tree.is_layered_pane(parent) {
                 return Err(RuntimeMutationError::LayeredParent(parent));
             }
-            let id = match constraint {
-                Some(constraint) => runtime
+            let child = runtime.tree.prepare_child(figure, parent, false, 0, None)?;
+            let resources =
+                runtime.admit_figure_resources(child.figure.as_ref(), &child.capabilities, &[])?;
+            let id =
+                runtime
                     .tree
-                    .insert_child_with_constraint_at(parent, index, figure, constraint)
-                    .map_err(|error| match error {
-                        crate::tree::ChildInsertionError::Graph(error) => {
-                            RuntimeMutationError::Graph(error)
+                    .insert_prepared_child(child, parent, Some(index), |tree, child| {
+                        if let Some(constraint) = constraint.as_deref()
+                            && let Some(manager) = tree
+                                .layout_manager(parent)
+                                .map_err(crate::LayoutError::from)?
+                        {
+                            manager.validate_constraint(parent, child, constraint)?;
                         }
-                        crate::tree::ChildInsertionError::Layout(error) => {
-                            RuntimeMutationError::Layout(error)
-                        }
-                    })?,
-                None => runtime.tree.insert_child_at(parent, index, figure)?,
-            };
+                        Ok::<_, RuntimeMutationError>(constraint)
+                    })?;
             runtime
                 .tree
                 .invalidate_child_insertion(&mut runtime.updates, parent, id);
-            runtime.complete_figure_insertion(parent, id);
+            runtime.complete_figure_insertion(parent, id, resources);
             Ok(id)
         })
     }
@@ -1167,16 +1174,70 @@ impl Runtime {
         parent: FigureId,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
-        let id = self.tree.try_add_child(&mut self.updates, parent, figure)?;
-        self.complete_figure_insertion(parent, id);
+        let child = self.tree.prepare_child(figure, parent, false, 0, None)?;
+        let resources =
+            self.admit_figure_resources(child.figure.as_ref(), &child.capabilities, &[])?;
+        let id = self
+            .tree
+            .attach_prepared_child(&mut self.updates, parent, child);
+        self.complete_figure_insertion(parent, id, resources);
         Ok(id)
     }
 
-    fn complete_figure_insertion(&mut self, parent: FigureId, id: FigureId) {
+    fn complete_figure_insertion(
+        &mut self,
+        parent: FigureId,
+        id: FigureId,
+        resources: Vec<crate::render::ResourceId>,
+    ) {
+        self.publish_figure_resources(id, resources);
         self.register_layered_pane(id);
-        self.register_label_icon_dependency(id);
-        self.register_image_figure_dependency(id);
         self.tree.complete_attachment(id, parent);
+    }
+
+    fn admit_figure_resources(
+        &self,
+        figure: &dyn Figure,
+        capabilities: &crate::figure::capability::FigureCapabilitySet,
+        explicit: &[crate::render::ResourceId],
+    ) -> Result<Vec<crate::render::ResourceId>, RuntimeMutationError> {
+        Self::admit_resources(&self.resources, figure, capabilities, explicit)
+    }
+
+    fn admit_resources(
+        registry: &ResourceRegistry,
+        figure: &dyn Figure,
+        capabilities: &crate::figure::capability::FigureCapabilitySet,
+        explicit: &[crate::render::ResourceId],
+    ) -> Result<Vec<crate::render::ResourceId>, RuntimeMutationError> {
+        let mut resources = explicit.to_vec();
+        if let Some(capability) = capabilities
+            .get(crate::figure::RESOURCE_DEPENDENCIES)
+            .expect("typed resource descriptor")
+        {
+            let provider = capability
+                .resolve(figure)
+                .ok_or(RuntimeMutationError::Rejected)?;
+            resources.extend(provider.resource_dependencies());
+        }
+        resources.sort_unstable();
+        resources.dedup();
+        for resource in &resources {
+            registry.status(*resource)?;
+        }
+        Ok(resources)
+    }
+
+    fn publish_figure_resources(
+        &mut self,
+        id: FigureId,
+        resources: Vec<crate::render::ResourceId>,
+    ) {
+        for resource in resources {
+            self.resources
+                .add_dependency(resource, id)
+                .expect("resource dependency passed admission");
+        }
     }
 
     pub(crate) fn add_subtree(
@@ -1214,21 +1275,8 @@ impl Runtime {
             subtree.nodes,
             replacing,
             |figure, capabilities, explicit| {
-                let mut resources = explicit.to_vec();
-                if let Some(capability) = capabilities
-                    .get(crate::figure::RESOURCE_DEPENDENCIES)
-                    .expect("typed resource descriptor")
-                {
-                    let provider = capability
-                        .resolve(figure)
-                        .ok_or(RuntimeMutationError::Rejected)?;
-                    resources.extend(provider.resource_dependencies());
-                }
-                resources.sort_unstable();
-                resources.dedup();
-                for resource in &resources {
-                    runtime.resources.status(*resource)?;
-                }
+                let resources =
+                    Self::admit_resources(&runtime.resources, figure, capabilities, explicit)?;
                 dependencies.push(resources);
                 Ok::<_, RuntimeMutationError>(())
             },
@@ -1293,12 +1341,7 @@ impl Runtime {
             .connections
             .publish_subtree_connections(prepared_bindings);
         for ((id, parent), resources) in inserted.iter().zip(dependencies) {
-            for resource in resources {
-                runtime
-                    .resources
-                    .add_dependency(resource, *id)
-                    .expect("resource dependency passed admission");
-            }
+            runtime.publish_figure_resources(*id, resources);
             runtime
                 .tree
                 .invalidate_child_insertion(&mut runtime.updates, *parent, *id);
@@ -2441,18 +2484,6 @@ impl Runtime {
         self.tree
             .label(id)
             .ok_or(ShapeMutationError::WrongCapability(id))
-    }
-
-    fn register_label_icon_dependency(&mut self, id: FigureId) {
-        if let Some(icon) = self.tree.label(id).and_then(LabelFigure::icon) {
-            let _ = self.resources.add_dependency(icon.resource_id(), id);
-        }
-    }
-
-    fn register_image_figure_dependency(&mut self, id: FigureId) {
-        if let Some(image) = self.tree.image_figure(id).map(ImageFigure::image) {
-            let _ = self.resources.add_dependency(image.resource_id(), id);
-        }
     }
 
     pub(crate) fn set_opaque(
@@ -4851,7 +4882,7 @@ mod tests {
 #[cfg(test)]
 mod adr014_tests {
     use super::*;
-    use crate::{ChopboxAnchor, DirectRouter, RectangleFigure, ResourceStatus};
+    use crate::{ChopboxAnchor, DirectRouter, ImageFigure, RectangleFigure, ResourceStatus};
     use std::{cell::Cell, rc::Rc};
 
     fn scene() -> (Runtime, FigureId) {
@@ -5278,6 +5309,37 @@ mod adr014_tests {
             2,
             "descriptor registration runs once per input"
         );
+    }
+
+    #[test]
+    fn resource_refusal_preserves_damage_notifications_and_dependency_registry() {
+        let (mut runtime, root) = scene();
+        runtime.record_full_frame();
+        let image = runtime.resources().register_image().unwrap();
+        let mut foreign = Runtime::empty();
+        let foreign_image = foreign.resources().register_image().unwrap();
+        let children = runtime.tree.child_order(root);
+        let damage = runtime.updates.dirty_regions.clone();
+        let notifications = runtime.updates.notification_effects().len();
+        let result = runtime.add_figures(vec![
+            (root, Box::new(ImageFigure::new(image)), None),
+            (root, Box::new(ImageFigure::new(foreign_image)), None),
+        ]);
+        assert!(matches!(
+            result,
+            Err(RuntimeMutationError::FigureBatch { index: 1, .. })
+        ));
+        assert_eq!(runtime.tree.child_order(root), children);
+        assert_eq!(runtime.updates.dirty_regions, damage);
+        assert_eq!(runtime.updates.notification_effects().len(), notifications);
+        assert!(
+            runtime
+                .resources
+                .remove(image.resource_id())
+                .unwrap()
+                .is_empty()
+        );
+        assert!(!runtime.is_faulted());
     }
 
     #[test]

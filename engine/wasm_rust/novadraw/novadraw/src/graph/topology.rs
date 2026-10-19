@@ -2,9 +2,9 @@ use super::*;
 use crate::figure::Figure;
 
 pub(crate) struct PreparedChild {
-    figure: Box<dyn Figure>,
+    pub(crate) figure: Box<dyn Figure>,
     state: NodeState,
-    capabilities: FigureCapabilitySet,
+    pub(crate) capabilities: FigureCapabilitySet,
     depth: usize,
 }
 
@@ -536,6 +536,7 @@ impl FigureTree {
             .unwrap_or_else(|_| FigureId::null())
     }
 
+    #[cfg(test)]
     pub(crate) fn try_add_child(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -772,7 +773,7 @@ impl FigureTree {
         })
     }
 
-    fn insert_prepared_child<E: From<GraphMutationError>>(
+    pub(crate) fn insert_prepared_child<E: From<GraphMutationError>>(
         &mut self,
         child: PreparedChild,
         parent_id: FigureId,

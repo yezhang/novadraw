@@ -37,8 +37,10 @@ Runtime / Viewport 的同步与事件期完整 contents 替换已接入同一子
 单 Figure contents 同步复用资源准入，非法新输入保留旧场景。
 配对 Connection binding 已接入整树预检和发布，保留构造身份与成功回执分离，
 同一路径支持外部 Anchor/Router，并接入 ConnectionAndAnchor 两组端点。
-其他旧单节点资源准入及重入测试
-仍待推进，K00/K01 均保留未完成。契约见
+旧 add/indexed/constraint/batch 插入已复用 typed resource 准入；
+同一 dispatch 的 enter/press/focus 前缀、FIFO 回执及另一 Runtime 嵌套 dispatch
+隔离已验证。Builder、keyed Layer 与 attached 资源更新仍待核对，
+K00/K01 均保留未完成。契约见
 [ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 
 ### K00 全入口基线与预检

@@ -555,6 +555,245 @@ impl novadraw::figure::FigureResourceDependencies for ExternalResource {
 }
 
 #[test]
+fn single_insertion_paths_reject_invalid_resources_for_all_figure_providers() {
+    use novadraw::figure::{ButtonFigure, ImageFigure, ToggleFigure};
+    for retired in [false, true] {
+        let (mut runtime, root) = runtime();
+        let (mut other, _) = self::runtime();
+        let image = if retired {
+            let image = runtime.resources().register_image().unwrap();
+            runtime.resources().remove(image.resource_id()).unwrap();
+            image
+        } else {
+            other.resources().register_image().unwrap()
+        };
+        for path in 0..4 {
+            let figures: Vec<Box<dyn Figure>> = vec![
+                Box::new(LabelFigure::new("icon").with_icon(image)),
+                Box::new(ImageFigure::new(image)),
+                Box::new(ButtonFigure::new("button").with_icon(image)),
+                Box::new(ToggleFigure::new("toggle").with_icon(image)),
+                Box::new(ExternalResource(image.resource_id())),
+            ];
+            for figure in figures {
+                let result = match path {
+                    0 => runtime.figure(root).unwrap().add(figure),
+                    1 => runtime.figure(root).unwrap().insert(0, figure),
+                    2 => runtime.figure(root).unwrap().insert_with_constraint(
+                        0,
+                        figure,
+                        Rectangle::ZERO,
+                    ),
+                    _ => runtime
+                        .add_figures(vec![(root, figure, None)])
+                        .map(|ids| ids[0]),
+                };
+                assert!(matches!(
+                    result,
+                    Err(RuntimeMutationError::Resource(_))
+                        | Err(RuntimeMutationError::FigureBatch { .. })
+                ));
+                assert!(runtime.tree().child_order(root).unwrap().is_empty());
+                assert!(!runtime.is_faulted());
+            }
+        }
+    }
+}
+
+#[test]
+fn last_batch_resource_rejection_publishes_no_prefix_or_dependencies() {
+    let (mut runtime, root) = runtime();
+    let (mut other, _) = self::runtime();
+    let image = runtime.resources().register_image().unwrap();
+    let foreign = other.resources().register_image().unwrap();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    assert!(matches!(
+        runtime.add_figures(vec![
+            (root, Box::new(LifecycleRecord {
+                name: "unpublished", events: events.clone(), panic_on_detach: false,
+            }), None),
+            (root, Box::new(ExternalResource(image.resource_id())), None),
+            (root, Box::new(ExternalResource(foreign.resource_id())), None),
+        ]),
+        Err(RuntimeMutationError::FigureBatch { index: 2, source })
+            if matches!(*source, RuntimeMutationError::Resource(_))
+    ));
+    assert!(runtime.tree().child_order(root).unwrap().is_empty());
+    assert!(events.lock().unwrap().is_empty());
+    assert!(!runtime.is_faulted());
+}
+
+#[test]
+fn single_and_batch_pending_resources_share_dependency_registration_and_retirement() {
+    for path in 0..4 {
+        let (mut runtime, root) = runtime();
+        let image = runtime.resources().register_image().unwrap();
+        let figure = Box::new(ExternalResource(image.resource_id()));
+        let id = match path {
+            0 => runtime.figure(root).unwrap().add(figure).unwrap(),
+            1 => runtime.figure(root).unwrap().insert(0, figure).unwrap(),
+            2 => runtime
+                .figure(root)
+                .unwrap()
+                .insert_with_constraint(0, figure, Rectangle::ZERO)
+                .unwrap(),
+            _ => runtime.add_figures(vec![(root, figure, None)]).unwrap()[0],
+        };
+        assert!(
+            runtime
+                .resources()
+                .remove_dependency(image.resource_id(), id)
+                .unwrap()
+        );
+        assert!(
+            !runtime
+                .resources()
+                .remove_dependency(image.resource_id(), id)
+                .unwrap()
+        );
+        runtime
+            .resources()
+            .add_dependency(image.resource_id(), id)
+            .unwrap();
+        runtime.dispose_subtree(id).unwrap();
+        assert!(
+            !runtime
+                .resources()
+                .remove_dependency(image.resource_id(), id)
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn event_chain_keeps_uncommitted_subtrees_invisible_and_isolates_nested_runtime_dispatch() {
+    use std::{
+        cell::RefCell,
+        rc::{Rc, Weak},
+    };
+    type Trace = Rc<RefCell<Vec<&'static str>>>;
+    struct Trigger {
+        parent: FigureId,
+        runtime: Weak<RefCell<Runtime>>,
+        nested: Rc<RefCell<Runtime>>,
+        trace: Trace,
+    }
+    impl Trigger {
+        fn queue(&self, name: &'static str, ctx: &mut EventContext<'_>) {
+            // Enter, press and focus share one top-level dispatch. None of their
+            // queued branches may become visible to a later callback in that dispatch.
+            assert_eq!(ctx.scene().children(self.parent).unwrap().len(), 1);
+            self.trace.borrow_mut().push(name);
+            let trace = self.trace.clone();
+            ctx.effects().add_subtree_later(
+                self.parent,
+                FigureSubtree::new(Box::new(LabelFigure::new(name))),
+                move |result| {
+                    assert!(result.is_ok());
+                    trace.borrow_mut().push("receipt");
+                },
+            );
+        }
+    }
+    impl Figure for Trigger {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 20.0, 20.0)
+        }
+        fn initial_focusable(&self) -> bool {
+            true
+        }
+        fn name(&self) -> &'static str {
+            "ReentrancyTrigger"
+        }
+        fn register_capabilities(
+            &self,
+            out: &mut FigureCapabilityBuilder,
+        ) -> Result<(), FigureCapabilityRegistrationError> {
+            out.register(INPUT, InputCapability::of::<Self>())
+        }
+    }
+    impl FigureEventHandler for Trigger {
+        fn on_mouse_entered(&self, _: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+            self.queue("enter", ctx);
+            false
+        }
+        fn on_mouse_pressed(&self, _: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+            self.queue("press", ctx);
+            assert!(self.runtime.upgrade().unwrap().try_borrow_mut().is_err());
+            self.nested
+                .borrow_mut()
+                .input()
+                .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+            assert_eq!(ctx.scene().children(self.parent).unwrap().len(), 1);
+            self.trace.borrow_mut().push("nested returned");
+            true
+        }
+        fn on_focus_gained(
+            &self,
+            _: &novadraw::event::FocusEvent,
+            ctx: &mut EventContext<'_>,
+        ) -> bool {
+            self.queue("focus", ctx);
+            false
+        }
+    }
+    let (outer, root) = runtime();
+    let outer = Rc::new(RefCell::new(outer));
+    let (mut nested, nested_root) = runtime();
+    let outcomes = Arc::new(Mutex::new(Vec::new()));
+    nested
+        .figure(nested_root)
+        .unwrap()
+        .add(Box::new(OrderedTrigger {
+            parent: nested_root,
+            foreign: root,
+            outcomes: outcomes.clone(),
+            panic_on_result: false,
+        }))
+        .unwrap();
+    let nested = Rc::new(RefCell::new(nested));
+    let trace = Rc::new(RefCell::new(Vec::new()));
+    outer
+        .borrow_mut()
+        .figure(root)
+        .unwrap()
+        .add(Box::new(Trigger {
+            parent: root,
+            runtime: Rc::downgrade(&outer),
+            nested: nested.clone(),
+            trace: trace.clone(),
+        }))
+        .unwrap();
+    outer
+        .borrow_mut()
+        .input()
+        .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
+    assert_eq!(
+        *trace.borrow(),
+        [
+            "enter",
+            "press",
+            "nested returned",
+            "focus",
+            "receipt",
+            "receipt",
+            "receipt",
+        ]
+    );
+    assert_eq!(outer.borrow().tree().child_order(root).unwrap().len(), 4);
+    assert_eq!(*outcomes.lock().unwrap(), [false, true, true]);
+    assert_eq!(nested.borrow_mut().take_deferred_mutation_errors().len(), 1);
+    assert!(
+        outer
+            .borrow_mut()
+            .take_deferred_mutation_errors()
+            .is_empty()
+    );
+    assert!(!outer.borrow().is_faulted());
+    assert!(!nested.borrow().is_faulted());
+}
+
+#[test]
 fn implicit_resources_reject_foreign_and_retired_ids_for_builtin_and_external_figures() {
     use novadraw::figure::{ButtonFigure, ImageFigure, ToggleFigure};
     for retired in [false, true] {
