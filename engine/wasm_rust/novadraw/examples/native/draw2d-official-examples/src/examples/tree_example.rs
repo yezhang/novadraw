@@ -12,7 +12,7 @@ use novadraw::{
 
 use super::{
     runtime_with_fonts,
-    simple_tree_example::{EnablePageSelection, add_branch_with_root},
+    simple_tree_example::{EnablePageSelection, add_branch_with_root, branch_subtree},
     tree_layout::{Branch, BranchLayout, BranchStyle, ContentsLayout, Lines, TreeModel},
 };
 use crate::controls::{ScaleFigure, add_button, add_checkbox, replace_text_value_later};
@@ -171,8 +171,7 @@ fn fixture() -> Fixture {
             },
         ));
     }
-    // Use Animation and child insertion need event-time Runtime transactions.
-    // They remain explicit catalog gaps, rather than buttons with substitute behavior.
+    // Animation remains a separate presentation/viewport contract.
     for (text, label_y, scale_y, setter) in [
         (
             "Major Spacing: 10",
@@ -310,6 +309,43 @@ fn fixture() -> Fixture {
                 drop(locked);
                 invalidate_tree(&delete_model, context);
             }
+        },
+    ));
+    let add_model = model.clone();
+    let add_selection = selection.clone();
+    controls.push(add_button(
+        &mut runtime,
+        host,
+        Rectangle::new(PANEL_X, 335.0, 150.0, CONTROL_HEIGHT),
+        "More Children",
+        move |context| {
+            let Some(parent) = *add_selection.lock().unwrap() else {
+                return;
+            };
+            let locked = add_model.lock().unwrap();
+            let index = locked.branches.len();
+            let parent_figure = locked.branches[parent].contents;
+            let style = locked.branches[parent].style;
+            drop(locked);
+            let (subtree, contents, title, _) =
+                branch_subtree("child", index, add_selection.clone(), add_model.clone());
+            let committed_model = add_model.clone();
+            context
+                .effects()
+                .add_subtree_later(parent_figure, subtree, move |receipt| {
+                    let mut model = committed_model.lock().unwrap();
+                    model.branches.push(Branch {
+                        figure: receipt.root(),
+                        contents: receipt.figure(contents).unwrap(),
+                        title: receipt.figure(title).unwrap(),
+                        children: Vec::new(),
+                        style,
+                        centered: true,
+                        expanded: true,
+                        active: true,
+                    });
+                    model.branches[parent].children.push(index);
+                });
         },
     ));
     Fixture {
@@ -473,6 +509,63 @@ mod tests {
         let after = fixture.runtime.tree().descendant_ids(host).unwrap();
         assert_eq!(before.len(), after.len());
         assert_eq!(after.iter().filter(|id| !before.contains(id)).count(), 1);
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
+    fn more_children_mounts_full_official_branch_and_inherits_parent_style() {
+        let mut fixture = fixture();
+        prepare(&mut fixture.runtime);
+        let parent_title = fixture.model.lock().unwrap().branches[11].title;
+        click(&mut fixture.runtime, parent_title);
+        click(&mut fixture.runtime, fixture.controls[10]);
+        prepare(&mut fixture.runtime);
+        let child_title = {
+            let model = fixture.model.lock().unwrap();
+            assert_eq!(model.branches.len(), 20);
+            assert_eq!(model.branches[11].children, [19]);
+            let child = &model.branches[19];
+            assert_eq!(child.style, BranchStyle::Hanging);
+            assert_eq!(
+                fixture.runtime.tree().child_order(child.figure).unwrap(),
+                [child.contents, child.title]
+            );
+            assert_eq!(
+                fixture
+                    .runtime
+                    .tree()
+                    .child_order(child.title)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            child.title
+        };
+        click(&mut fixture.runtime, child_title);
+        assert_eq!(*fixture.selection.lock().unwrap(), Some(19));
+        let previous_label = fixture.runtime.tree().child_order(parent_title).unwrap()[0];
+        let selected_label = fixture.runtime.tree().child_order(child_title).unwrap()[0];
+        assert_eq!(
+            fixture
+                .runtime
+                .tree()
+                .figure_style(previous_label)
+                .unwrap()
+                .foreground,
+            None
+        );
+        assert_eq!(
+            fixture
+                .runtime
+                .tree()
+                .figure_style(selected_label)
+                .unwrap()
+                .foreground,
+            Some(Color::WHITE)
+        );
+        click(&mut fixture.runtime, fixture.controls[10]);
+        prepare(&mut fixture.runtime);
+        assert_eq!(fixture.model.lock().unwrap().branches[19].children, [20]);
         assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
     }
 }

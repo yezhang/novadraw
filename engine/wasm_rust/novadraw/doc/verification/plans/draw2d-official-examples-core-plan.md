@@ -28,6 +28,13 @@ Winit/Web/native control、Vello栅格和Printer留在对应adapter。
 
 ## 实施步骤与退出条件
 
+2026-10-19 实施进度：K00 已提交 25 入口源码/helper/resource 清单及固定基线验证，
+全事件/platform manifest 与 Java 运行取证尚未完成。K01 已提交延迟 style/cursor；
+本切片增加 owned subtree、完整准入与成功 receipt，并接入 TreeExample More Children
+和选中 Label 白字/取消继承。配对 binding、整场景替换、失败回执主动消费及重入测试
+仍待推进，K00/K01 均保留未完成。契约见
+[ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
+
 ### K00 全入口基线与预检
 
 交付：验证manifest记录25个main、helper、初始树、全部控件/fixture、资源、

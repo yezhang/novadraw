@@ -13,7 +13,7 @@ use novadraw::{
     graphics::{Color, GradientStop, GraphicsError, LinearGradient, PaintContext, Path},
     layout::StackLayout,
     runtime::Runtime,
-    tree::FigureId,
+    tree::{FigureId, FigureSubtree, SubtreeNodeId},
 };
 
 use super::{
@@ -154,10 +154,35 @@ impl Figure for PageNode {
 impl FigureContainer for PageNode {}
 impl FigureEventHandler for PageNode {
     fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        let Some((index, selection, _)) = &self.selection else {
+        let Some((index, selection, model)) = &self.selection else {
             return false;
         };
-        *selection.lock().expect("tree selection") = Some(*index);
+        let previous = selection.lock().expect("tree selection").replace(*index);
+        let model = model.lock().expect("tree model");
+        if let Some(previous) = previous {
+            let title = model.branches[previous].title;
+            for label in context.scene().children(title).expect("PageNode children") {
+                let mut style = context.scene().figure_style(label).expect("Label style");
+                style.foreground = None;
+                context.effects().set_style_later(label, style);
+            }
+            let bounds = context
+                .scene()
+                .figure_bounds(title)
+                .expect("PageNode bounds");
+            context
+                .effects()
+                .repaint_figure(title, Rectangle::new(0.0, 0.0, bounds.width, bounds.height));
+        }
+        for label in context
+            .scene()
+            .children(model.branches[*index].title)
+            .expect("PageNode children")
+        {
+            let mut style = context.scene().figure_style(label).expect("Label style");
+            style.foreground = Some(Color::WHITE);
+            context.effects().set_style_later(label, style);
+        }
         context.effects().repaint(None);
         true
     }
@@ -318,6 +343,44 @@ pub(super) fn add_branch_with_root(
         .add(Box::new(LabelFigure::new(text)))
         .expect("Label");
     (branch, contents, title, lines)
+}
+
+pub(super) fn branch_subtree(
+    text: &str,
+    index: usize,
+    selection: Arc<Mutex<Option<usize>>>,
+    model: Arc<Mutex<TreeModel>>,
+) -> (FigureSubtree, SubtreeNodeId, SubtreeNodeId, Lines) {
+    let lines: Lines = Arc::new(Mutex::new(Vec::new()));
+    let mut subtree = FigureSubtree::new(Box::new(TreeBranchFigure {
+        root: false,
+        lines: lines.clone(),
+    }));
+    let branch = subtree.root();
+    let contents = subtree.add(branch, Box::new(AnimatingLayer)).unwrap();
+    let mut page = PageNode::new();
+    page.selection = Some((index, selection, model.clone()));
+    let title = subtree.add(branch, Box::new(page)).unwrap();
+    subtree
+        .add(title, Box::new(LabelFigure::new(text)))
+        .unwrap();
+    subtree
+        .set_layout_manager(title, Box::new(StackLayout::new()))
+        .unwrap();
+    subtree
+        .set_layout_manager(
+            branch,
+            Box::new(BranchLayout {
+                model: model.clone(),
+                index,
+                lines: lines.clone(),
+            }),
+        )
+        .unwrap();
+    subtree
+        .set_layout_manager(contents, Box::new(ContentsLayout { model, index }))
+        .unwrap();
+    (subtree, contents, title, lines)
 }
 
 fn fixture(horizontal: bool) -> Fixture {

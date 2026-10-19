@@ -82,7 +82,7 @@ backend/宿主切片；编号是本文任务身份，不是新增 M/G/P2 milesto
 | TextFlowLargeExample · `text/TextFlowLargeExample.java`、`TextFlowFactory.java` | 20 BlockFlow+20 centered字体block；每字体block 5..24共20 fragment、nested四句；首target reparent+Tooltip；只字母/空格追加 | fragment identity 与 mutation/reparent、tooltip、ALWAYS vertical bar、增量布局/性能未闭合；声明但未使用的regular/boldFont不造新样式 | K01、K04、K05、H01、H04 |
 | TextSurroundingFigureExample · `text/TextSurroundingFigureExample.java` | 外LTR FlowPage；proxy1 Toolbar/三Shape、orange border；proxy2 Stack/innerRTL FlowPage；text在两侧 | FlowAdapter 的真实子树、分段占行/包围与baseline/换行/clip/hit/damage；不能换成object image或固定空格 | K01、K05、H01、H04 |
 | SimpleTreeExample · `tree/SimpleTreeExample.java`、tree helpers | 四分支、root LEFT、normal/hanging、AnimatingLayer先于PageNode、Stack/Label/折页 Border、white Canvas | 行高/轮廓已初验；叶子/hanging空pane、shape边框、字体/背景/窗口resize及命中需要Java对照 | K02、K06、H01、H04 |
-| TreeExample · `tree/TreeExample.java`、`Animation.java` | 19分支、完整Root/Selected组；More/Fewer/align/style/spacing、选中渐变/Label白字、doubleclickexpand、210ms reset/reverse/tracking | More Children与完整面板、统一style mutation、中心origin/动画连线/视口跟踪、取消/隐藏/重入待闭合 | K01、K02、K04、K06、K07、H01、H04 |
+| TreeExample · `tree/TreeExample.java`、`Animation.java` | 19分支、完整Root/Selected组；More/Fewer/align/style/spacing、选中渐变/Label白字、doubleclickexpand、210ms reset/reverse/tracking | More Children完整子树/父样式/成功回执、Label白字及取消继承已通过定向验证；完整native面板、theme渐变、中心origin/动画连线/视口跟踪、取消/隐藏/重入待闭合 | K01、K02、K04、K06、K07、H01、H04 |
 | UMLClassDiagram · `uml/UMLClassDiagram.java`、`UMLClassFigure.java`、`StickyNote.java` | 两类/三段结构、association diamond、end1/connection Label、90px便笺、whiteCanvas500×300 | EndpointLocator u=8与默认v=4、Label/border测量、DogEar、宽度驱动wrap、资源/字体等尚待对等 | K02、K03、K05、H01、H04 |
 ## 共享缺口与所有权
 

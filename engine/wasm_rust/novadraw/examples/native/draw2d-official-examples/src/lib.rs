@@ -272,8 +272,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "TreeExample",
             "org/eclipse/draw2d/examples/tree/TreeExample.java",
             &[
-                "official nineteen-node fixture, alignment/style/spacing, deletion and nonanimated collapse are ported",
-                "child insertion, selected gradient/label colors, animation viewport tracking and native panel layout remain incomplete; Scale uses integer values and increment=5",
+                "official nineteen-node fixture, full branch insertion with parent style and commit receipt, selected label white/inherited reset, alignment/style/spacing, deletion and nonanimated collapse are ported",
+                "selected theme gradient, animation viewport tracking and native panel layout remain incomplete; Scale uses integer values and increment=5",
             ],
             examples::tree_example,
         ),
