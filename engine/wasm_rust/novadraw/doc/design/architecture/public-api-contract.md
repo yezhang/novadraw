@@ -7,8 +7,7 @@
 实现状态：既有入口以 ADR-031/033/035 和完成记录为准；本次补充契约的验证边界见
 [修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
 
-本文是公共 API 的当前规范入口，取代
-[历史综合提案](public-api-experience-proposal.md) 的导航职责。本文定义角色、权限和
+本文是公共 API 的当前规范入口。本文定义角色、权限和
 组合规则，不冻结全部 Rust 签名；具体方法由领域规范和公开 API snapshot 维护。
 
 ## 1. 模块、所有者与发布包
@@ -175,3 +174,15 @@ RecordedDrawing，不分配 Runtime frame/session 身份。
 
 现有 suite 只证明其已覆盖的合同；新增要求须先冻结对应契约测试再实施。
 规范效力和执行状态分别维护，本文不把这些要求全部标记为已验收。
+
+## owned 与 scoped
+
+owned 表示值具有自己的所有者和转交边界，不依赖外部借用生命周期；不表示必须
+堆分配、绝对独占、不可 Clone 或永远可变。owned value 内部可共享不可变资源。
+值移入 Builder/Runtime 后，authority 随所有权转移；修改其他 clone 不能反向改变
+已录制命令或 attached state。
+
+scoped facade 的有效范围受一次 Runtime 借用限制。它只持有受限权限，
+不能比 Runtime 活得更久，不能保存第二份树或更新队列；获取及 Drop 都不提交操作。
+借用结束后状态仍归 Runtime。具体组件提交顺序见
+[组件更新协议](component-update.md)，生命周期见 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)。

@@ -2,7 +2,9 @@
 
 类型：`migration-guide`
 
-> Java 与 Rust 语法对比，一对一实现方案
+本文对照语言机制，不能将所有 Java 特性按一对一语法迁移。
+完整迁移流程见 [语义迁移指南](migration-guide.md)。以下片段是局部语言示例，
+不定义 Novadraw API；其中 Singleton 仅用于识别旧模式，本项目禁止使用全局单例。
 
 ---
 
@@ -52,7 +54,7 @@ fn say_hello(p: &dyn Greeter) {
 
 - Java 用 `extends` 实现继承
 - Rust 用 `trait` + `impl` 实现
-- `&dyn Trait` 等价于 Java 的父类引用
+- `&dyn Trait` 提供动态分发，不复制 Java 父类字段、对象布局或继承关系
 
 ---
 
@@ -198,24 +200,21 @@ Child c = (Child) p;     // 向下转型
 ### Rust 等价
 
 ```rust
-// Rust 不支持这种转换，用 trait 对象代替
+use std::any::Any;
 
-// 静态分发
-let parent: Parent = Child;  // 类型转换
-
-// 动态分发
-let parent: &dyn Trait = &child;  // 转为 trait 对象
-
-// 尝试向下转型
-if let Some(c) = parent.downcast_ref::<Child>() {
-    // c 是 &Child
+struct Child;
+let child = Child;
+let erased: &dyn Any = &child;
+if let Some(c) = erased.downcast_ref::<Child>() {
+    let _: &Child = c;
 }
 ```
 
 **关键点**：
 
 - Rust 没有继承，用 trait 对象实现多态
-- 用 `Any` + `downcast_ref` 实现类似向下转型
+- `Any::downcast_ref` 只恢复实际 concrete type；普通 `dyn Trait` 不自动提供该方法
+- `let parent: Parent = Child` 不是合法 Rust 转型；泛型约束也不转换 concrete type
 
 ---
 
@@ -372,6 +371,9 @@ impl ShapeFactory for CircleFactory {
 ---
 
 ## 11. 单例模式
+
+以下展示语言机制，不能用于本项目实现。Novadraw 的服务由每个 Runtime 或应用组合根
+显式拥有；全局 `static`、Mutex 和 OnceLock 不构成项目允许的替代方案。
 
 ### Java 实现
 
@@ -722,18 +724,18 @@ impl<T: std::fmt::Debug> Printable for T {
 
 | Java 特性 | Rust 等价实现 |
 |-----------|---------------|
-| `extends` 继承 | `trait` + `impl` |
+| `extends` 继承 | 行为用 trait/impl；字段和实现复用另用组合 |
 | `implements` | `impl Trait for Type` |
-| `@Override` | `impl Trait` 自动覆盖 |
+| `@Override` | concrete impl 可覆盖 trait 默认方法；不能覆盖重叠 blanket impl |
 | `abstract class` | `trait` + 默认方法 |
 | `interface` | `trait` |
 | 多继承 | `trait + trait` |
-| `super.method()` | 调用默认实现 |
+| `super.method()` | 无通用等价语法；用 helper 或显式组合复用算法 |
 | 泛型 `<T>` | 泛型 `<T>` |
-| `? extends T` | `T: Trait` |
-| `? super T` | `&mut T` |
+| `? extends T` | Java 泛型通配符；需按消费者重新设计 Rust 泛型与借用 |
+| `? super T` | Java 下界通配符；不等价于 `&mut T` |
 | `instanceof` | `Any::downcast_ref` |
-| 反射 | `Any` |
+| 反射 | `Any` 只提供运行期类型识别，不提供通用字段/方法反射 |
 | 静态方法 | 关联函数 |
 | 单例 | `static` / `OnceLock` |
 | 泛型方法 | `impl Trait` |
@@ -748,10 +750,10 @@ impl<T: std::fmt::Debug> Printable for T {
 | 维度 | Java | Rust |
 |------|------|------|
 | 类型系统 | 编译时确定类型 | 静态分发 (`impl Trait`) 或动态 (`dyn Trait`) |
-| 继承语义 | trait 是继承 | trait 是协议，不是继承 |
-| 多态成本 | 有运行成本 | 静态分发零成本 |
+| 继承语义 | 类继承复用字段与实现，并形成子类型 | supertrait 表达协议要求，不继承字段 |
+| 多态成本 | 可由 JIT 优化动态调用 | 泛型可单态化；实际成本仍需测量 |
 | 扩展方式 | 类继承 | 为类型实现 trait |
-| 对象创建 | `new` | `Box::new()` / 构造器模式 |
+| 对象创建 | `new` | struct 值或关联构造函数；Box 仅在需要堆存储时使用 |
 
 ---
 

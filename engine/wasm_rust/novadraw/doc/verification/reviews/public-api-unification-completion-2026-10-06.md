@@ -9,7 +9,7 @@
 ## 1. 范围
 
 本记录对应
-[公共 API 统一设计与迁移提案](../../design/architecture/public-api-experience-proposal.md)
+[公共 API 统一设计与迁移提案](../../archive/knowledge-revision-2026-10-19/original/doc/design/architecture/public-api-experience-proposal.md.txt)
 中 P2-G02 之外获准实施的跨领域候选。迁移保持 Runtime、FigureTree、Editor Viewer
 和 backend 的既有状态所有权，不借改名引入第二套 mutation 或 submission 协议。
 

@@ -1,11 +1,12 @@
 # 产品与商业策略
 
-类型：`product-strategy`
+类型：`documentation-index`
 
 本目录承载 Novadraw 的产品定位、市场判断、商业模式和商业验证方法。
 
 此处内容是决策输入，不定义运行时架构、API 契约或里程碑状态。相关权威内容分别以
 `design/`、`parity/`、`adr/` 和 `roadmap/` 为准。
+调查与成熟度判断按各文档标注日期读取；`current` 不表示市场事实已重新验证。
 
 ## 文档列表
 

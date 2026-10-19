@@ -71,6 +71,24 @@
 | 2026-10-16 | [P2-S07 查询身份与失败语义完成核验](p2-s07-query-identity-completion-2026-10-16.md) |
 | 2026-10-16 | [xtask 命令体系价值评估](xtask-command-system-value-assessment-2026-10-16.md) |
 | 2026-10-16 | [suites 配置与单元测试的职责边界](suite-configuration-and-unit-test-boundary-2026-10-16.md) |
+| 2026-10-19 | [全量文档知识修正](documentation-knowledge-revision-2026-10-19.md) |
+
+## 专题核验
+
+以下报告保留各自快照与限制，不能根据标题把剩余平台证据推定为完成。
+
+| 日期 | 报告 |
+|---|---|
+| 2026-09-29 | [Direct Edit Session](p2-direct-text-edit-session-2026-09-29.md) |
+| 2026-09-29 | [Text Input Bridge](p2-text-input-bridge-2026-09-29.md) |
+| 2026-10-01 | [GA-3 四平台资格](ga3-platform-qualification-2026-10-01.md) |
+| 2026-10-05 | [Graphics 与像素证据](p2-g01-graphics-evidence.md) |
+| 2026-10-08 | [临时概念与长期演进审计](temporary-concept-design-audit-2026-10-08.md) |
+| 2026-10-08 | [RenderBackend Failure](tc12-render-backend-failure-completion-2026-10-08.md) |
+| 2026-10-09 | [Graphics Cutover](tc01-graphics-cutover-completion-2026-10-09.md) |
+| 2026-10-09 | [Viewer 编辑与驱动](tc07-viewer-edit-boundary-completion-2026-10-09.md) |
+| 2026-10-09 | [ResourceProvider](tc11-resource-provider-completion-2026-10-09.md) |
+| 2026-10-16 | [Draw2D 官方示例对等审计](draw2d-official-examples-parity-2026-10-16.md) |
 
 ## 平台与产品验收
 

@@ -314,76 +314,14 @@ Zed 的通知则更偏现代 Rust/响应式风格：
 - `notify` / `emit` 分流
 - effect queue 统一结算
 
-### 8.3 对 Novadraw 的建议
+## Novadraw 采用边界
 
-Novadraw 不应机械复制 draw2d 的 Java 监听器接口，也不应机械复制 Zed 的 API 形式。
-
-更好的路径是：
-
-1. 保留 draw2d 的语义分层
-2. 借鉴 Zed 的事务和生命周期设计
-3. 用 Rust 方式重写协议边界
-
----
-
-## 9. 面向 Novadraw 的最小借鉴方案
-
-如果未来要在本项目实现 draw2d 等价通知机制，建议最少拆成三层，而不是先做一个大而全的 listener 框架。
-
-### 9.1 第 1 层：状态失效通知
-
-建议引入类似 `notify(block_id)` 的无 payload 机制，用于：
-
-- 观察某个 figure/runtime object 状态变化
-- 触发局部刷新或派生状态更新
-- 承接视图失效或编辑器 UI 同步
-
-它不承担领域语义，只承担“这个对象已经变化”。
-
-### 9.2 第 2 层：typed 语义事件
-
-建议引入类似 `emit(Event)` 的 typed event 机制，用于：
-
-- `FigureMoved`
-- `CoordinateSystemChanged`
-- `ChildAdded`
-- `ChildRemoved`
-- `LayoutInvalidated`
-
-这里需要注意：不是所有 draw2d 的 fire 方法都应该被压成一个枚举，但 typed event 这一层必须存在。
-
-### 9.3 第 3 层：更新事务 effect 队列
-
-建议不要在 figure 操作里直接同步广播，而是进入 UpdateManager / SceneHost 控制的 effect 队列。
-
-这层负责保证：
-
-- Validation 先于 Repair
-- 通知不会重入破坏坐标闭包
-- dirty / invalid / event 的落点稳定
-
----
-
-## 10. draw2d 等价通知机制应如何映射
-
-下面是一个更接近本项目未来设计的语义拆分建议。
-
-| draw2d 语义 | Novadraw 建议机制 | 是否需要 payload |
-|---|---|---|
-| `figureMoved` | typed event | 需要 |
-| `coordinateSystemChanged` | typed event | 需要 |
-| `propertyChange` | typed event 或属性通道 | 需要 |
-| `repaint/addDirtyRegion` | effect queue 中的 render invalidation | 通常不直接暴露给业务 listener |
-| `addInvalidFigure/revalidate` | effect queue 中的 validation invalidation | 通常不直接暴露给业务 listener |
-| “对象状态变了” | notify | 不需要 |
-
-这个拆分和 Zed 很接近：
-
-- `notify` 对应“状态变化但不关心业务语义”
-- `emit` 对应“有类型的语义事件”
-- effect queue 对应“副作用统一结算”
-
----
+可借鉴的是状态失效、typed event 与 effect flush 的区分，以及订阅生命周期。
+这不要求 Novadraw 复制 Entity、Context、notify/emit API 或视图依赖跟踪。
+项目采用关系集中于 [通知映射](../../parity/draw2d/notification-mapping.md)，
+实际 owner、发布和观察合同见
+[收敛事务](../../design/architecture/derived-state-convergence.md)。
+本页保留 Zed 源码分析，不再提供另一份 Novadraw 未来通知方案。
 
 ## 11. 不应直接照搬的部分
 

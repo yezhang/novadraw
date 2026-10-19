@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`target`
+规范效力：`accepted`；实施与验收状态见 [Editor 路线图](../../roadmap/editor/00-index.md)。
 
 适用范围：两阶段连接创建的 Request、Tool、Policy、Command、feedback 与取消语义。
 已有连接的模型投影和 Runtime binding 由

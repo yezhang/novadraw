@@ -188,7 +188,7 @@ transform，但 extent、paint、hit-test、event point 和 damage 都必须映�
 
 Viewport 只查询 direct contents 的 capability，因此 scale 不能通过一个不转发
 Freeform capability 的外层 wrapper 接入。`ScalableFreeformLayeredPane` 是同一节点
-同时暴露 LayeredPane、Freeform 与 `Figure::scale_model` capability 的便利类型；它复用
+通过 typed descriptor registry 暴露 LayeredPane、Freeform 与 Scale capability；它复用
 共享 `ScaleModel` 和统一 child transform，不保存第二份 scale 或 extent。
 
 ## 4. Freeform Extent
@@ -685,7 +685,7 @@ viewport_point = (content_point - origin) * scale
 **Draw2D：**通过 Java 继承
 `FreeformLayeredPane` 并实现 `IScalablePane`，对象自身保存 scale。
 
-**Novadraw：**同一节点组合 LayeredPane、Freeform 和 `Figure::scale_model`
+**Novadraw：**同一节点通过 typed descriptor registry 组合 LayeredPane、Freeform 和 Scale
 capability，共享可克隆 `ScaleModel`，不通过不透明 wrapper 查找后代 extent，也不
 downcast 具体 Scalable pane 类型。
 

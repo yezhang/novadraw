@@ -49,8 +49,8 @@ let behavior = AnimationBehavior::new(
 .scoped_to(figure)
 .with_reduced_motion(move |context| Ok(build_short_fade(context)?));
 
-let id = runtime.animations().install_behavior(behavior)?;
-runtime.animations().remove_behavior(id)?;
+let id = runtime.animation().timeline().install_behavior(behavior)?;
+runtime.animation().timeline().remove_behavior(id)?;
 ```
 
 - `AnimationBehaviorId` 是 Runtime-scoped、generational、opaque handle；

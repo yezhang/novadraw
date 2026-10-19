@@ -40,7 +40,9 @@ BackendSessionId 标识一组 backend-local resource cache 与 retained surface 
 namespace 防止复用同一 backend 的两个 Runtime 被误认为同一 session；generation 只在
 同一 Runtime namespace 内比较。切换 namespace 无时间顺序，必须先由 Host 停止
 旧 producer 并排空/撤销旧提交，再替换 cache；不能仅凭不同 namespace 防止迟到包。
-2026-09-10 新接管契约见 ADR-014，尚需 D4.4 验证。
+接管契约见 [ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)，
+D4.4 基线验证见
+[完成记录](../../verification/reviews/adr014-d4.4-increment-2026-09-10.md)。
 
 ## 3. Registry 状态机
 
@@ -319,8 +321,10 @@ complete(token, payload) / fail(token, diagnostic)
 
 ### 新资源类型
 
-新增 payload variant、Registry kind 和 backend Upsert adapter；ResourceOp、snapshot、
-session 与 retry 协议不变。
+现有 Image/Font 标准资源的 provider 可替换；backend-local atlas/grid/shader 数据
+仍由后端拥有。新增跨 Core/backend 资源类型需要真实消费者、设计评审及所有启用
+后端的消费或拒绝证据，不能仅新增 enum variant 就声称资源扩展已开放。
+ResourceOp、snapshot、session 与 retry 的现行合同继续保持。
 
 ### 新 RenderBackend
 

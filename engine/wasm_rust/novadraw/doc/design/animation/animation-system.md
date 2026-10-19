@@ -1,4 +1,4 @@
-# Animation / Presentation Plane 设计提案
+# Animation / Presentation Plane 契约
 
 类型：`normative-design`
 
@@ -168,7 +168,7 @@ Runtime
     └── next wakeup
 ```
 
-Host 继续使用现有 `Runtime::advance_time(MonotonicTime)` 时间入口：
+Host 经 `runtime.animation().advance_time(MonotonicTime)` 注入时间：
 
 - 同一 Runtime 的时间单调不减；
 - Tooltip、caret blink、auto-expose 与 animation 共享 host 时间来源；
@@ -195,18 +195,18 @@ advance monotonic time
 ## 7. 公开调用面方向
 
 详细调用合同、时间锚点、before/after capture、错误枚举与 M01-A 门禁见
-[Animation 公开 API 合同提案](public-api-contract.md)。
+[Animation 公开 API 契约](public-api-contract.md)。
 
 目标调用形状为：
 
 ```rust,ignore
-let capture = runtime.animations().capture(targets)?;
+let capture = runtime.animation().timeline().capture(targets)?;
 runtime.figure(figure)?.set_bounds(final_bounds)?;
-let outcome = runtime.animations().transition(capture, spec)?;
+let outcome = runtime.animation().timeline().transition(capture, spec)?;
 
-let outcome = runtime.animations().start(plan)?;
-runtime.animations().retarget(id, replacement)?;
-runtime.animations().cancel(id)?;
+let outcome = runtime.animation().timeline().start(plan)?;
+runtime.animation().timeline().retarget(id, replacement)?;
+runtime.animation().timeline().cancel(id)?;
 ```
 
 约束：
@@ -359,8 +359,8 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ## 15. 验证与实施切片
 
-目标 suite：`core.p2-m01-animation`，在实现开始前登记到
-`verification/README.md`。
+当前 suite 见 [验证定义](../../../verification/README.md)，切片状态与完成证据见
+[P2 backlog](../../roadmap/p2-delta-backlog.md#p2-m01-animation-timeline-与-presentation-plane)。
 公开合同门禁详见
 [Animation 公开 API 合同提案 §12](public-api-contract.md#12-m01-a-公开合同门禁)。
 领域消费者与后续能力接入门禁见
@@ -368,7 +368,7 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ### M01-A：Clock / Timeline / optionality
 
-状态：`complete`。证据见
+该切片的历史证据见
 [P2-M01A 实现记录](../../verification/reviews/p2-m01a-animation-evidence.md)。
 
 - deterministic time、Tween/Keyframes、Parallel/Sequence/Stagger；
@@ -379,7 +379,7 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ### M01-B：Presentation / damage
 
-状态：`complete`。证据见
+该切片的历史证据见
 [P2-M01B 实现记录](../../verification/reviews/p2-m01b-animation-presentation-evidence.md)。
 
 - source 与 presentation 分离；
@@ -390,8 +390,8 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ### M01-C：领域消费者
 
-状态：`complete`。transaction/layout、Connection route、Viewport、continuous
-procedural、dash flow 与 pulse/handoff 已完成，证据见
+transaction/layout、Connection route、Viewport、continuous procedural、dash flow
+与 pulse/handoff 的历史证据见
 [P2-M01C 实现记录](../../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
 
 - property；

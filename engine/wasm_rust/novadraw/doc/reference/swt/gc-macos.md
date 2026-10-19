@@ -6,7 +6,8 @@
 
 ## 概述
 
-SWT GC (Graphics Context) 是 Eclipse SWT 的核心绘制抽象。分析 macOS (Cocoa) 平台的实现，可为设计 NdCanvas 提供参考。
+SWT GC (Graphics Context) 是 Eclipse SWT 的核心绘制抽象。
+本文记录 macOS (Cocoa) 平台机制，不定义 Novadraw 的录制 API。
 
 ## 源码位置
 
@@ -283,60 +284,13 @@ handle.saveGraphicsState();     // 创建新状态
 | **平台抽象** | `GCData` 隔离平台差异 |
 | **统一 Path 抽象** | 所有图形都使用 NSBezierPath |
 
-## 对 NdCanvas 设计的启示
+## 项目采用边界
 
-### 1. 统一 Path 抽象
-
-```text
-NdCanvas.rect(x, y, w, h)     → Path.rect() + fill/stroke
-NdCanvas.ellipse(cx, cy, rx, ry) → Path.ellipse() + fill/stroke
-NdCanvas.line(p1, p2)         → Path.moveTo() + lineTo() + stroke
-NdCanvas.polyline(points)     → Path.moveTo() + lineTo()... + stroke
-```
-
-**优势**：
-
-- 统一的底层表示
-- 便于实现裁剪、渐变等高级功能
-- 易于扩展（贝塞尔曲线、路径组合等）
-
-### 2. 命令队列模式
-
-可以收集绘制命令，最后批量执行：
-
-```rust
-struct NdCanvas {
-    commands: Vec<RenderCommand>,
-}
-```
-
-### 3. 状态跟踪
-
-使用状态位跟踪变化的属性：
-
-```rust
-struct CanvasState {
-    foreground: Color,
-    background: Color,
-    line_width: f64,
-    // 脏标记
-    dirty: u32,
-}
-```
-
-### 4. 延迟初始化
-
-只初始化需要的平台资源，避免不必要的开销。
-
-### 5. 对象池
-
-复用路径、变换等对象减少分配：
-
-```rust
-struct PathPool {
-    paths: Vec<Path>,
-}
-```
+路径复用、延迟初始化和状态跟踪可以作为实现输入，但不能仅凭 SWT 机制证明
+Novadraw 的性能收益。项目的公开 Graphics、录制与出版分别见
+[文字/图形契约](../../design/rendering/text-graphics-integration.md)和
+[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)；
+本页不再维护 NdCanvas 候选结构或另一套命令队列设计。
 
 ## 参考
 

@@ -412,10 +412,10 @@ add_listener(event_kind, callback)
 
 这是最不能丢的一层。
 
-因为当前 Novadraw 正在收口的主线，正是：
+坐标通知需要覆盖：
 
 - 坐标域分段
-- `prim_translate`
+- 节点及坐标变换
 - damage repair
 - `translate*` 协议
 
@@ -468,18 +468,20 @@ Zed 与 Draw2D 的机制形式不同，但它们在核心原则上是接近的�
 - Figure input callbacks
 - UpdateManager 级 `UpdateListener` / `ValidatingListener`
 
-监听器注册返回 `ListenerId`，由 `UpdateManager::remove_listener()` 统一解除，
-不依赖全局状态。所有变化先写入 `NotificationQueue`，再在更新事务末尾按发生顺序
-flush；validation 中产生的 Figure/Layout effect 位于 `Validating` 和 `Validated`
-之间。
+监听器经 `runtime.observations()` 注册和统一解除，返回 `ListenerId`；
+Runtime/Figure owner scope 与 namespace 隔离遵循 ADR-014/033。
+通知保存带 source epoch、sequence 和 typed payload 的有序历史事实，
+`StableSceneQuery` 只读最新稳定场景，不能拿最新查询替代事件发生时的 old/new。
 
-上述描述是原 D3.3 记录，不证明 2026-09-10 修订已经实现。按 ADR-014：
-延迟 Validating/Painting 是历史记录而非事前 hook；历史 payload 携带 revision/epoch，
-当前查询只读最新 stable scene；新增 Runtime/Figure owner scope 和 namespace 隔离
-仍待 D4 验证。内部失效、绑定清理和必要 lifecycle 不能依赖这些外部 observer。
-
-兼容入口 `UpdateListener::{on_figure_event,on_notify}` 暂时保留，但新增能力应优先
-使用对应 typed listener，避免重新形成单一总线。
+延迟 Validating/Painting 是阶段历史记录，不是事前 veto hook。
+内部失效、绑定清理和必要 lifecycle 不依赖外部 observer。
+属性行为身份使用 `PropertyKey<V>`，字符串仅用于诊断。
+完整提交及 flush 语义由
+[派生状态收敛](../../design/architecture/derived-state-convergence.md)和
+[UpdateManager](../../design/rendering/update-manager.md)维护，
+身份及属性决策见 [ADR-028](../../adr/adr-028-typed-property-identity.md)。
+历史 D3/D4 实施证据保留于 [审计索引](../../verification/reviews/00-index.md)，
+后续服务错误和订阅整改状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
 ---
 

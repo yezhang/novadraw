@@ -10,7 +10,7 @@ P2-G02 的统一字体指标/文字测量/绘制 API、glyph 轮廓与后端预�
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md) 和
 [文字与图形整合设计](../rendering/text-graphics-integration.md) 为准。
 本页保留已交付切片的布局语义。P2-G02 与 ADR-031 已将公开调用形式收口为
-Graphics/PaintContext、CommandRecorder 和 Runtime::prepare_submission。
+Graphics/PaintContext、CommandRecorder 和 `runtime.frames().prepare_submission`。
 
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)。

@@ -14,7 +14,7 @@ framework 使用 `G0-G5`；原 G6 产品毕业范围已移交独立产品包。�
 | `doc/parity/draw2d/api-coverage.md` | **语义账本**：draw2d API family、Novadraw 对照方向、覆盖状态与 milestone 映射 | 人读，架构与实现对齐入口 | 按语义收敛持续更新 |
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
-| `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G5 引擎里程碑与下游产品边界 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
+| [Editor 路线图](editor/00-index.md) | G0-G5 引擎里程碑与下游产品边界 | Editor 里程碑唯一入口 | milestone 状态变化时 |
 | `doc/roadmap/p2-delta-backlog.md` | **P2 delta**：Core 1.0 之后已确认能力的统一状态 | 人读，后续能力入口 | 每项状态变化时 |
 | `doc/roadmap/draw2d-capability-enrichment-plan-2026-10-05.md` | **能力丰富度规划**：动画与表现平面、图布局、内置组件、概览和输出能力的价值分组与建议顺序 | 人读，不维护 delta 状态 | 能力优先级或分组变化时 |
 | `doc/roadmap/platform-support-matrix.md` | **平台支持**：Web/macOS/Windows/Linux 的证据等级 | 人读，平台声明唯一入口 | 平台证据变化时 |
@@ -69,9 +69,8 @@ direct-edit session、Winit bridge、Web DOM host、Native/Web 场景与 2026-09
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发按
 [`目标一致性调整计划`](goal-alignment-adjustment-plan-2026-09-30.md)
-的核心架构与 API 优先级推进：GA-1/GA-4、P2-S01、P2-F02、P2-G02 与
-P2-S02–S05 已完成；当前按 P2-S06 → S07 → S08 → S09 收口失败与 API 边界，
-随后进入 P2-L01 外部图布局 Design。唯一执行队列见
+的核心架构与 API 优先级推进。后续失败与 API 收口、外部图布局和平台采证
+的唯一执行队列见
 [P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准)。
 P2-G01 尚待 Native surface 验收；P2-M01 A/B/C 已完成，M01-D 待平台/视觉采证。
 GA-2/GA-3 剩余环境采证后置到发布准备，
@@ -108,7 +107,6 @@ Core 机制之后的动画与表现平面、图布局、内置组件、Thumbnail
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
 | `editor/00-index.md` | Editor G0-G5 编号、状态和验收检查点 |
-| `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |
 | `p2-delta-backlog.md` | P2 delta 状态、当前单链与待采证/长期候选 |
 | `draw2d-capability-enrichment-plan-2026-10-05.md` | Draw2D 内置能力丰富度分组、优先级与建议执行顺序 |
 | `platform-support-matrix.md` | 平台支持等级、环境边界和证据缺口 |

@@ -2,15 +2,17 @@
 
 类型：`proposal`
 
+状态：休眠候选；协议与实验门禁合并于本页，不建立独立执行队列。
+
 本文讨论可选的序列化 DisplayList。它不是 Novadraw 核心架构前提，不是 Draw2D
 语义，也不代表已经承诺二进制 ABI。
 
 核心规范只要求：
 
 ```text
-Figure paint
-→ RecordingCanvas
-→ in-process CommandStream
+Figure paint / PaintContext
+→ 内部命令录制
+→ 进程内命令流
 → RenderSubmission
 → RenderBackend
 ```
@@ -215,3 +217,25 @@ optional capability missing → defined fallback
 8. 明确维护和发布责任。
 
 在此之前，核心架构不得依赖固定二进制布局。
+
+## 探索顺序
+
+只有出现真实消费者并满足上述晋级条件的前置要求，才启动以下实验。
+本节承接原探索计划的有效内容；实验不得成为 Runtime 或 Figure 的依赖。
+
+| 阶段 | 输出与验证 |
+|---|---|
+| E1 语义覆盖 | state push/pop、Affine2D、矩形/路径 clip、fill/stroke、image、glyph、alpha/blend 与资源操作的语义表；direct/playback 像素对照及 unsupported 清单 |
+| E2 受检编码 | length-delimited encoder/decoder、endian/alignment/version/limits、checked offset/length、可跳过的 optional records；property tests、fuzz target 与 malformed corpus |
+| E3 资源协议 | pending、乱序完成、替换、stale generation、cache eviction、release 与 missing fallback |
+| E4 Chunk/Patch | immutable chunk 的 insert/replace/delete/reorder；明确 base version，拒绝 mismatch；比较实际增量成本 |
+| E5 消费者 | Vello 与 software/reference renderer、remote consumer 或独立 inspection tool；同一个 Vello 后端的另一条路径不足以证明跨后端价值 |
+| E6 2.5D | 显式 capability/version、变换精度、projected clip 与 unsupported fallback；Scene3D 保持独立协议 |
+
+性能比较使用 direct 进程内 adapter 作基线，计入 encode、decode、playback、索引和
+资源成本。场景包括简单图元、深层 transform/clip、文字、图像、90% 静态/10% 动态、
+全场变化和 Web/WASM；记录 p95、allocation、峰值内存与 patch miss。
+
+协议稳定前不创建独立发布包。新增 crate 还须证明 semver/version policy、兼容测试、
+格式规范、安全策略和发布责任；不预先承诺 C/C++/Swift ABI 或 crates.io 发布。
+当前绘图与出版边界见 [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)。

@@ -1,0 +1,311 @@
+{
+  "baseline": "44373f248644ef6b57e1d445e253cfef1d7b7d67",
+  "records": [
+    {
+      "source": "doc/design/architecture/public-api-experience-proposal.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/public-api-experience-proposal.md.txt",
+      "bytes": 42253,
+      "sha256": "5ae8e3cfe555c50128e6b5ff8c35286570e87516d8481d28f735f47dda7a6890"
+    },
+    {
+      "source": "doc/migration/draw2d-gef-semantic-migration-plan-2026-09-15.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/migration/draw2d-gef-semantic-migration-plan-2026-09-15.md.txt",
+      "bytes": 12456,
+      "sha256": "24baefc377093d44935150d49254356fa0fd023f95e595011e0300234b06149e"
+    },
+    {
+      "source": "doc/roadmap/editor/implementation-plan.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/roadmap/editor/implementation-plan.md.txt",
+      "bytes": 7673,
+      "sha256": "58c47c35fec12f9593acb2eda5d8cab05d4936abe1324a1de5b3bb6220d96c10"
+    },
+    {
+      "source": "doc/adr/adr-021-public-facade-and-feature-boundary.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt",
+      "bytes": 7535,
+      "sha256": "6c1f9c9405e98b49763d6ad22aac25dc93779484e5823af6e8f0873938597e7e"
+    },
+    {
+      "source": "doc/design/rendering/displaylist-implementation-plan.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/rendering/displaylist-implementation-plan.md.txt",
+      "bytes": 4607,
+      "sha256": "1a1d02151b4c1302df0b79d614f1f1269a7d1b9a46bfcee4e5348890e929f9b4"
+    },
+    {
+      "source": "doc/migration/java-rust/migration-guide.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/migration/java-rust/migration-guide.md.txt",
+      "bytes": 17182,
+      "sha256": "c3e5b2230d558d0905f2e37e542ccf6463fce27b78518bbdfb7aa717e77898ab"
+    },
+    {
+      "source": "doc/migration/java-rust/oo-mapping.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/migration/java-rust/oo-mapping.md.txt",
+      "bytes": 12281,
+      "sha256": "aea7e2261228711320a3433bbdf75ede62a9d8d6086506d2393a8d2a280f7f50"
+    },
+    {
+      "source": "doc/reference/draw2d/figure/core-concepts.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/draw2d/figure/core-concepts.md.txt",
+      "bytes": 24383,
+      "sha256": "250fd4ed69564366d480722734a1c9942a2a6b01e8f29388baf0ade53861df6f"
+    },
+    {
+      "source": "doc/reference/draw2d/figure/bounds.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/draw2d/figure/bounds.md.txt",
+      "bytes": 12487,
+      "sha256": "9b259e6520e30a677b9ac45ff340190e6bfb31dadf756d644e28bd31d3de3f79"
+    },
+    {
+      "source": "doc/reference/draw2d/rendering/update-manager.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/draw2d/rendering/update-manager.md.txt",
+      "bytes": 40763,
+      "sha256": "29b32b90ab132dc3e7ba5176d498dee09d93d65e5d5cb4492d96f2c9c47b4103"
+    },
+    {
+      "source": "doc/reference/draw2d/figure/scalable-zoom.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/draw2d/figure/scalable-zoom.md.txt",
+      "bytes": 9943,
+      "sha256": "cc4ba83b1371c3d2c28b5ed0009aaeefe356ca205c0bc410abe929f094d1b667"
+    },
+    {
+      "source": "doc/roadmap/draw2d-capability-enrichment-plan-2026-10-05.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/roadmap/draw2d-capability-enrichment-plan-2026-10-05.md.txt",
+      "bytes": 29481,
+      "sha256": "351c9b84f9b1bca3028d2a42f29a261d5f7968c98c40b0779e815561e1b571f0"
+    },
+    {
+      "source": "doc/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/00-index.md.txt",
+      "bytes": 17205,
+      "sha256": "3be4572f2e7c238ac74c35feb5c0f1e1acffe0a049375060ca3776556dac79ed"
+    },
+    {
+      "source": "doc/adr/README.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/adr/README.md.txt",
+      "bytes": 6456,
+      "sha256": "6775593270560c1959e972971ec9c791213db5c714c1f9197a2fa346779b6008"
+    },
+    {
+      "source": "doc/design/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/00-index.md.txt",
+      "bytes": 5155,
+      "sha256": "cd8e15e24b82eb26edc37050bd287a7f6a5f590a6f02c16c76a260140b576753"
+    },
+    {
+      "source": "doc/design/animation/animation-system.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/animation/animation-system.md.txt",
+      "bytes": 15978,
+      "sha256": "6bfe0575076aeeaf1490025cc0bf17ee6744a7a199b4c7aaf7abda1a746e9c59"
+    },
+    {
+      "source": "doc/design/animation/behavior-trigger-contract.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/animation/behavior-trigger-contract.md.txt",
+      "bytes": 7874,
+      "sha256": "7e458ed2a54b84f15609bf3261680eca98972310d61dbd80aab1cd6c90256a88"
+    },
+    {
+      "source": "doc/design/animation/capability-integration.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/animation/capability-integration.md.txt",
+      "bytes": 14817,
+      "sha256": "5b8a4d42112eec2bdf14712f658dd5fe9490839a73af9fb91677abbc0e1fafe0"
+    },
+    {
+      "source": "doc/design/animation/public-api-contract.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/animation/public-api-contract.md.txt",
+      "bytes": 13610,
+      "sha256": "72c906849faba73bf73150561f3c5cfadc355446a4356d274ba14cba276a048d"
+    },
+    {
+      "source": "doc/design/architecture/connection-routing.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/connection-routing.md.txt",
+      "bytes": 30333,
+      "sha256": "3220c613c0b009f6dc953635f9c0c2d7643c44e2e39005d6d560dc85c7220a62"
+    },
+    {
+      "source": "doc/design/architecture/deep-layout-presentation-convergence.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/deep-layout-presentation-convergence.md.txt",
+      "bytes": 7332,
+      "sha256": "a99098802e86bb9ee845c0f26b6f8a0327c54b50a2b69b82d3d184273a1a6548"
+    },
+    {
+      "source": "doc/design/architecture/directory-structure.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/directory-structure.md.txt",
+      "bytes": 6576,
+      "sha256": "6a29964d9e1f62190c7164699e949108f9ae39d79f600c11fc2fbb09c8e71865"
+    },
+    {
+      "source": "doc/design/architecture/layer-and-freeform.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/layer-and-freeform.md.txt",
+      "bytes": 32745,
+      "sha256": "d485866e6819dcfa8e413ae79e4abf2613f7cf1ca17373bf5230ff6f4c269008"
+    },
+    {
+      "source": "doc/design/architecture/public-api-contract.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/public-api-contract.md.txt",
+      "bytes": 11852,
+      "sha256": "29ad8791eb707f221e55d368b88aebab11b94e32446a68fc96dac28280c09807"
+    },
+    {
+      "source": "doc/design/architecture/resource-lifecycle.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/resource-lifecycle.md.txt",
+      "bytes": 10970,
+      "sha256": "54ceb2c33f05598978313d16ecab69aa131ec44245063bfa2534ef7d235c1281"
+    },
+    {
+      "source": "doc/design/architecture/reusable-shape-border.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/reusable-shape-border.md.txt",
+      "bytes": 18307,
+      "sha256": "e4e1621691de9c63f444fc891df061ca84f23fb525d8dd4563c75e32db5b0464"
+    },
+    {
+      "source": "doc/design/architecture/runtime-ownership-and-module-boundaries.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/runtime-ownership-and-module-boundaries.md.txt",
+      "bytes": 6974,
+      "sha256": "1a93d101f0f0e39ec84d49acc8aa72bc99e09ff649c1524d6fb2fe47e1396409"
+    },
+    {
+      "source": "doc/design/architecture/static-architecture.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/static-architecture.md.txt",
+      "bytes": 14829,
+      "sha256": "436574da10ca61b484a6ee30ce7777a52ca936a8b4d36e840f07b6800409ee1a"
+    },
+    {
+      "source": "doc/design/architecture/text-layout.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/architecture/text-layout.md.txt",
+      "bytes": 16275,
+      "sha256": "fac61000c851f025f063529ff86c4bbfd22ce10a668451862e51c77c79b4d718"
+    },
+    {
+      "source": "doc/design/editor/architecture.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/editor/architecture.md.txt",
+      "bytes": 15546,
+      "sha256": "9596dbd9abbb13aaa1d0c4c7cac8bb3039a7b3b878a0729c91e64150edcad4b0"
+    },
+    {
+      "source": "doc/design/editor/g5-connection-creation.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/editor/g5-connection-creation.md.txt",
+      "bytes": 6811,
+      "sha256": "6f2f94bb6bb09ac41a55b19959411096f6fd62846242a0555790ed78f3dab341"
+    },
+    {
+      "source": "doc/design/editor/p2-direct-text-edit.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/editor/p2-direct-text-edit.md.txt",
+      "bytes": 16220,
+      "sha256": "9e90c67eb14b3803a4cc762ecb9ef99dc6fecfb8c917b48d206fab490aebdfbf"
+    },
+    {
+      "source": "doc/design/rendering/display-list-protocol.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/rendering/display-list-protocol.md.txt",
+      "bytes": 5797,
+      "sha256": "35565ba73a34a8dc40e89cf7a1feb3e2fc8519a714b04339f74bc98261908bc2"
+    },
+    {
+      "source": "doc/design/rendering/text-graphics-integration.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/design/rendering/text-graphics-integration.md.txt",
+      "bytes": 29271,
+      "sha256": "f53fed61cdbf39ff148eadbf780eb4250e19b5489a7d03645387aacc79faeffa"
+    },
+    {
+      "source": "doc/migration/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/migration/00-index.md.txt",
+      "bytes": 784,
+      "sha256": "52f604f00b4d2f1a83c3a2b5fbc63b1c9d67bd58cc43b7825cd5b6e7dd3aed77"
+    },
+    {
+      "source": "doc/parity/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/parity/00-index.md.txt",
+      "bytes": 964,
+      "sha256": "b48cf8d52114affa5390f27f8abe1eb270f2fef6ad4edc72d83b1230644e5432"
+    },
+    {
+      "source": "doc/parity/draw2d/api-coverage.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/parity/draw2d/api-coverage.md.txt",
+      "bytes": 71171,
+      "sha256": "81ff4c03c156265ce2c467191b113f3c360c0fc3f2f30a92fe1e72f9a20c636b"
+    },
+    {
+      "source": "doc/parity/draw2d/notification-mapping.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/parity/draw2d/notification-mapping.md.txt",
+      "bytes": 15599,
+      "sha256": "fd2ffeb4ada0e905da8ddc3e1d5cf46551b131ed02f7f7c3161942885b85088a"
+    },
+    {
+      "source": "doc/reference/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/00-index.md.txt",
+      "bytes": 621,
+      "sha256": "17e1ced4cf4c708f5379988712cb63e6c5bb65f9ce9a65b62d1611b9ac64f260"
+    },
+    {
+      "source": "doc/reference/draw2d/figure/figure-implementation.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/draw2d/figure/figure-implementation.md.txt",
+      "bytes": 15007,
+      "sha256": "4ea930a6afa2b0ae6908b29014780d3e8245609294da026eff5fe9bceb4ce861"
+    },
+    {
+      "source": "doc/reference/gef/core-principles.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/gef/core-principles.md.txt",
+      "bytes": 12217,
+      "sha256": "1c8859d9f7541ca56b09d222b2861e2edb04858d97cce6c731d0522438e6d714"
+    },
+    {
+      "source": "doc/reference/swt/gc-macos.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/swt/gc-macos.md.txt",
+      "bytes": 9261,
+      "sha256": "a426f8230b6ab1a723e4f44ad22da2f0dfefac8aa24e7d756d0ac7a612568356"
+    },
+    {
+      "source": "doc/reference/zed/reactive-design.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/reference/zed/reactive-design.md.txt",
+      "bytes": 12422,
+      "sha256": "4da6eb0df90ac36ba0139e802aa6dfff6cb18a12bdbb6cf7f3501f841253c524"
+    },
+    {
+      "source": "doc/roadmap/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/roadmap/00-index.md.txt",
+      "bytes": 8380,
+      "sha256": "2db2f929bb965c83b23127dbd6e575c944416f5c8bf94d4c7f2aa4ed7c9e7541"
+    },
+    {
+      "source": "doc/roadmap/editor/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/roadmap/editor/00-index.md.txt",
+      "bytes": 14409,
+      "sha256": "87ef1edd661c654e52fdc775a601025d8877794d5acf841f911fc3d343445eb3"
+    },
+    {
+      "source": "doc/roadmap/p2-delta-backlog.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/roadmap/p2-delta-backlog.md.txt",
+      "bytes": 47104,
+      "sha256": "79b55a7e253decdbddb78b211b2bde6c82a4686f84ffd3be4bc6486a325ce925"
+    },
+    {
+      "source": "doc/strategy/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/strategy/00-index.md.txt",
+      "bytes": 1416,
+      "sha256": "4f6c22377aa478e5ebe651f9470943c4cd9a9e74c9409a4cec5954b3115bba47"
+    },
+    {
+      "source": "doc/verification/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/verification/00-index.md.txt",
+      "bytes": 2215,
+      "sha256": "8b66fac63d1f46ff1c292ea63465234b670400cd50f48de04bc8efd91947a9de"
+    },
+    {
+      "source": "doc/verification/plans/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/verification/plans/00-index.md.txt",
+      "bytes": 1442,
+      "sha256": "dfdd75fbdfef0cc85ebb4683c0cc1f8f4fefe426afe4fcac44683b37b44d22ae"
+    },
+    {
+      "source": "doc/verification/reviews/00-index.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/verification/reviews/00-index.md.txt",
+      "bytes": 8227,
+      "sha256": "135562512232af9768aa9008cb19ccfe8af7affbf9d885354447f1ab3406beef"
+    },
+    {
+      "source": "doc/verification/reviews/public-api-unification-completion-2026-10-06.md",
+      "snapshot": "doc/archive/knowledge-revision-2026-10-19/original/doc/verification/reviews/public-api-unification-completion-2026-10-06.md.txt",
+      "bytes": 3854,
+      "sha256": "d7adbc6a28e4c0a12d461f12be789a44eb18969f4f36b2d3c25725876eea6b38"
+    }
+  ]
+}

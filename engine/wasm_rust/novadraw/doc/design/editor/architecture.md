@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`target`
+规范效力：`accepted`；依据 ADR-015 及后续 ADR-032/034/037。
 
 本文件定义 `novadraw-editor` 的目标架构。GEF Classic 源码事实见
 [`../../reference/gef/core-principles.md`](../../reference/gef/core-principles.md)，
@@ -343,7 +343,7 @@ Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Too
 6. release/cancel 清理 feedback 和 capture；
 7. 执行 Command 前先清除临时视觉。
 
-`Runtime::dispatch_*` 通过最小、平台无关的 `DispatchOutcome` 返回 target、handled
+`runtime.input()` 的 dispatch 入口通过平台无关的 `DispatchOutcome` 返回 target、handled
 与 dispatch 后 capture；Editor 不得在 app 层根据 hover 或 repaint 猜测消费结果。
 
 ### 10.1 Direct Text Edit

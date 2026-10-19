@@ -49,20 +49,9 @@ FigureTree、UpdateManager 或 Viewer 状态。
 - 用 identity handle 建立第二套 `FigureTree + UpdateManager` 提交入口。
 
 因此 `graph` 与 `runtime::update` 是同一 Core 事务内的协作模块，不是可独立发布的
-package。GA-4 已在不改变所有权的前提下完成以下内部拆分：
-
-| 职责 | 实现位置 |
-|---|---|
-| Figure 拓扑原语与事务 | `novadraw/src/graph/topology.rs` |
-| Figure 查询 | `novadraw/src/graph/query.rs` |
-| 布局与测量 | `novadraw/src/graph/layout_measurement.rs` |
-| 呈现能力与渲染入口 | `novadraw/src/graph/presentation.rs`、`render_recursive.rs` |
-| typed component update | `novadraw/src/runtime/runtime/component_update.rs` |
-| Connection service | `novadraw/src/runtime/runtime/connection_service.rs` |
-| 帧资源与提交事务 | `novadraw/src/runtime/runtime/frame_resource.rs`、`frame_submission.rs` |
-| Viewer 模型投影 | `novadraw-editor/src/viewer/projection.rs` |
-
-这些文件只形成内部职责边界。`Runtime` 仍是 Core 可变服务的唯一 owner，
+package。实现模块划分及当时验证结果见
+[GA-4 完成记录](../../verification/reviews/ga4-module-extension-completion-2026-10-01.md)。
+内部职责划分不产生新的提交者。`Runtime` 仍是 Core 可变服务的唯一 owner，
 `GraphicalViewer` 仍拥有单一 Runtime 与 Part/Policy 状态，没有新增共享可变服务。
 
 ## 3. 扩展组件更新
@@ -133,13 +122,8 @@ GA-4 至少保留两个独立外部消费者：
 
 消费者只能依赖公开 package API，不得使用 `pub(crate)`、测试 helper 或修改 Core 枚举。
 
-实现验证：
-
-- `cargo xtask verify ga4.extension-consumers`：PASS；
-- `cargo xtask verify g2.viewer-projection`：PASS；
-- `cargo xtask verify g5.1.connection-projection`：PASS；
-- `cargo xtask verify core.performance`：PASS；
-- `cargo xtask check --quick`：PASS。
+当前可执行 suite 见
+[验证入口](../../../verification/README.md)；定向消费者和契约使用精确 Cargo target。
 
 完成证据见
 [GA-4 模块与扩展表面完成记录](../../verification/reviews/ga4-module-extension-completion-2026-10-01.md)。

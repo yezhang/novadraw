@@ -48,6 +48,7 @@
 ### 文档入口
 
 - 项目文档总入口：`doc/00-index.md`
+- 文档知识归属、替代与原始证据保护：`doc/knowledge-maintenance.md`
 - 完整项目规则：`CLAUDE.md`
 - **Draw2D API 语义覆盖账本**：`doc/parity/draw2d/api-coverage.md`
 - **产品交付清单 / Demo 矩阵**：`doc/roadmap/`
@@ -78,7 +79,8 @@
 ### 当前执行门禁
 
 - 2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
-  GA-1/GA-4 为基础，先推进 P2-S01，再评审 Graphics 与外部布局算法扩展。
+  GA-1/GA-4 为基础，已完成 S01–S07 的既定切片；下一批为 S08 Design → S09，
+  随后评审外部图布局。当前执行队列只在 `doc/roadmap/p2-delta-backlog.md` 维护。
   WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
   保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
   `doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` 为准。
@@ -95,8 +97,9 @@
   Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
   调用面已按 ADR-019 收口；Color、Render IR 与 Geometry 基础值已按 ADR-020 收口；
   公开 API 分层已按 ADR-021 收口；Core、Editor、Inspector、Vello backend 与平台
-  adapter 的 package 边界已按 ADR-023 收口。Graphics 双方言与 Figure capability
-  属于后续 P1/P2；P2-R02 image source rectangle 已完成。
+  adapter 的 package 边界已按 ADR-023 收口。Graphics 已按 ADR-025/031 统一，
+  Figure capability 已按 ADR-027 收口；公开路径、统一 mutation 和查询失败分别由
+  ADR-033/035/038 细化。P2-R02 image source rectangle 已完成。
   原 G6 的 schema、serializer 和产品级 Native/Web 场景已移交独立产品包，不再作为
   本仓库引擎门禁。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1

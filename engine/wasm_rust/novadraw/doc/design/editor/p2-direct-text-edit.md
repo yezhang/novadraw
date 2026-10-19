@@ -2,7 +2,8 @@
 
 类型：`normative-design`
 
-状态：`target`
+规范效力：`accepted`；P2-T02/E02 的实施与验收状态见
+[P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
 范围：P2-T02、P2-E02
 

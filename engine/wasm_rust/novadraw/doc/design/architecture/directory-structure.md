@@ -34,7 +34,7 @@ scene3d         → render-protocol
 
 平台无关的二维几何：
 
-- Point、Size、Rect、Insets；
+- Point、Vec2、Dimension、Rectangle、Insets；
 - Affine2D；
 - path 和精度策略；
 - 相交、包含和投影后的二维 bounds。
@@ -89,10 +89,16 @@ Tree 不包含交互 session、frame scheduling 或平台对象。
 - surface 生命周期；
 - cursor、clipboard、IME 和 accessibility bridge。
 
+### Graphics、Text 与 Animation
+
+- Graphics/MeasureContext/PaintContext 提供阶段受限的图文操作；
+- TextLayout、文字指标、排版与轮廓 provider 保持后端无关；
+- Animation 拥有计划和可丢弃表现，不修改 committed source。
+
 ### Render
 
-- RecordingCanvas；
-- CommandStream；
+- CommandRecorder 与资源闭合的 RecordedDrawing；
+- 内部命令流；
 - RenderSubmission；
 - RenderBackend；
 - Vello、软件或测试后端；
@@ -231,3 +237,16 @@ Editor、Inspector、Vello backend 和 Winit/Web platform adapter 是独立 pack
 - release 二进制体积生成独立趋势报告，不与无后端 facade 门禁混为一项。
 
 3D 继续保留独立 Scene3D/Projective3D 扩展方向，但真实用例出现前不创建空 crate。
+
+## Editor 拆分判据
+
+Editor 当前使用单个 `novadraw-editor` package。后续评估拆分须同时证明：
+
+- 至少两个独立产品入口复用；
+- 公共 API 跨两个 milestone 稳定；
+- 无依赖环，模块可独立测试；
+- 有实际编译、feature 或发布收益；
+- 不依赖大量 facade 转发或共享可变状态。
+
+这些判据承接已完成的 G0–G5 实施计划。历史阶段步骤不作为新的执行队列，
+当前范围与状态见 [Editor 路线图](../../roadmap/editor/00-index.md)。

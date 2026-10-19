@@ -110,7 +110,7 @@ paint(Graphics)
     │       │
     │       └── fillShape() / outlineShape()
     │
-    ├── 4. restoreState()       ── 恢复颜色（保留变换）
+    ├── 4. restoreState()       ── 恢复完整已保存状态，不弹栈
     │
     ├── 5. paintClientArea()   ── 绘制子元素
     │       ├── translate(bounds + insets)
@@ -432,7 +432,7 @@ Figure (基类, ~2000行)
     │   └── prefSize, minSize, maxSize
     │
     ├── 模板方法
-    │   ├── paint(Graphics)            // 固定流程
+    │   ├── paint(Graphics)            // 可覆盖的默认模板
     │   ├── paintFigure()              // 子类覆盖
     │   ├── paintClientArea()          // 绘制子节点
     │   └── paintBorder()              // 绘制边框
@@ -528,16 +528,11 @@ class MyFigure extends Figure {
 }
 ```
 
-## 与 Novadraw 对比
+## 采用关系
 
-| 方面 | g2 Figure | Novadraw 实现 |
-|------|-----------|--------------|
-| 接口 | IFigure 宽接口 | Figure trait |
-| 实现 | Figure 基类 | 多个 struct + impl |
-| 继承 | extends | Trait |
-| 状态 | 位标志 | 布尔字段 |
-| 事件 | 观察者模式 | 简化实现 |
-| 布局 | LayoutManager | 基础实现 |
+Novadraw 的采用与差异见 [语义账本](../../../parity/draw2d/api-coverage.md)，
+当前行为模型见 [Figure Capability](../../../design/architecture/figure-capability-model.md)。
+本源码分析不维护项目实现状态，也不把 trait 当作 Java 字段继承的等价机制。
 
 ## 参考
 

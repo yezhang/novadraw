@@ -1,4 +1,4 @@
-# Connection / Anchor / Router 候选契约
+# Connection / Anchor / Router 契约
 
 类型：`normative-design`
 

@@ -11,8 +11,8 @@
 实现状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)，规范接受不代表已经实现。
 
 本专题定义统一公共 API 设计中的文字/图形详细合同；
-[公共 API 总设计](../architecture/public-api-experience-proposal.md) 负责跨领域角色、
-命名、模块与迁移。两者共用 ADR-025 的边界，本页独占文字方法、资源和 glyph 链路语义，
+[公共 API 契约](../architecture/public-api-contract.md) 负责跨领域角色、
+命名、模块与权限。两者共用 ADR-025 的边界，本页独占文字方法、资源和 glyph 链路语义，
 不把普通 API 调用者带入后端预处理细节。
 以下代码用于说明已落地接口的合同形态，不保证片段可脱离上下文直接编译，
 也不定义后端 GPU buffer ABI。
@@ -205,8 +205,7 @@ MeasureContext 不借用 recorder，PaintContext 不取得可变排版服务。
 推荐以具体类型限制 paint 阶段没有 raw-text 排版入口，不使用一个万能上下文在运行时
 返回“当前阶段不能测量”的错误；也不要求用户理解一组复杂 phase 泛型。
 
-因此上一提案中直接把 Figure 的 NdCanvas 改成完整 Graphics 尚不够精确：
-完整 Graphics 是独立准备/录制 facade，Figure 得到的是受限 PaintContext。
+完整 Graphics 是独立准备/录制 facade，Figure paint 得到受限 PaintContext。
 这些名称表达接口角色，实施时可细化借用签名，但必须保留同一 API 集合中的
 字体指标、文字测量、文字绘制和图形绘制能力。
 
@@ -234,8 +233,9 @@ PaintContext 将错误交回帧录制调用链，禁止由自定义 Figure 吞�
 
 文本命令所引用字体必须由当前 Registry/资源快照保活。独立录制不能只携带
 FontFaceRef 就宣称脱离 TextSystem 可重放；需要命令与匹配版本资源共同组成结果。
-公共 API 总设计提出的 RecordedDrawing 是该资源闭合的候选表示，
-不改变现有 ResourceSync/RenderSubmission 的确认协议。
+RecordedDrawing 是资源闭合的独立录制结果，合同由
+[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)承接；
+它不改变 ResourceSync/RenderSubmission 的确认协议，也不取得 Runtime 帧出版权限。
 
 ## 4. 度量与像素不应混成一种 bounds
 

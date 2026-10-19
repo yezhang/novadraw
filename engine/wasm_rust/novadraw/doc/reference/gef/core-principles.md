@@ -344,21 +344,7 @@ public class ConnectionEditPart extends AbstractConnectionEditPart {
 1. 在源节点的 `getModelSourceConnections()` 中
 2. 在目标节点的 `getModelTargetConnections()` 中
 
-## 8. Novadraw 设计映射
-
-### 8.1 架构对应
-
-| GEF                | Novadraw         | 说明                     |
-|--------------------|------------------|--------------------------|
-| Model              | Model / Scene    | 数据模型                  |
-| Figure             | Figure           | 渲染对象                  |
-| EditPart           | SceneNode        | 控制器                   |
-| EditPolicy         | OperationHandler | 操作处理                 |
-| Command            | Operation        | 命令模式                 |
-| EditDomain         | EditorContext    | 编辑上下文               |
-| Tool               | InteractionTool  | 交互工具                 |
-
-### 8.2 关键设计决策
+## GEF 的扩展与更新边界
 
 1. **模型纯化**：模型不依赖任何视图组件
 2. **单向绑定**：模型变化驱动视图更新，而非反向
@@ -369,13 +355,9 @@ public class ConnectionEditPart extends AbstractConnectionEditPart {
    与现有 EditPart children，复用、重排、新建或移除直接子节点；整个 EditPart
    层次仍通过父子调用逐层构建和刷新
 
-### 8.3 架构优势
-
-- **关注点分离**：模型、视图、控制器各司其职
-- **可测试性**：各组件可独立测试
-- **可扩展性**：通过 Command、EditPolicy 扩展
-- **可复用性**：模型可在不同视图/应用中复用
-- **一致性**：统一的交互模式
+Novadraw 的采用关系由 [GEF 语义账本](../../parity/gef/api-coverage.md)维护，
+项目类型和所有权由 [Editor 规范](../../design/editor/architecture.md)定义。
+本页不再维护 SceneNode、OperationHandler 等旧映射名称。
 
 ## 参考
 

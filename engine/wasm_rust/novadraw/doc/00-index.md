@@ -1,261 +1,49 @@
-# Novadraw 文档索引
+# Novadraw 文档入口
 
 类型：`documentation-index`
 
-本目录按文档的**知识来源与规范效力**组织。技术主题是第二层分类，不能再把
-Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录。
+先按要解决的问题选择入口。本文只负责导航；契约、决策、执行状态和历史证据各有
+独立真源，文档规则见 [知识维护](knowledge-maintenance.md)。
 
-## 当前状态
+## 从任务进入
 
-- Draw2D Core：M1-M10 已完成；后续能力进入明确的 P2 delta。
-- Editor framework：G0-G5 已完成，检查点 C 已通过人工验收；原 G6 的产品 schema、
-  serializer 和产品级 Native/Web 场景移交独立产品包，不再作为引擎完成门禁。
-- Core 公开 API：ADR-017 的 P0 Batch A/B 已完成；ADR-018 已完成 Runtime
-  驱动、坐标查询与结构化测量收口；ADR-019 已完成 detached 构造与挂载后 scoped
-  editor 调用面收口；ADR-020 已完成 Graphics、Geometry 与基础值契约整改；
-  ADR-021 已完成聚合 facade 与 backend feature 边界收口；ADR-022 已完成第三方类型、
-  Kurbo 版本与渲染依赖门禁。
-- Core P2 delta：P2-R02 image source rectangle 已完成，状态见
-  [`roadmap/p2-delta-backlog.md`](roadmap/p2-delta-backlog.md)。
-- API 整改：S06 已按矩阵修订 2 关闭；S07 的
-  [ADR-038](adr/adr-038-query-identity-and-failure-semantics.md)与
-  [验证矩阵](verification/plans/p2-s07-query-identity-and-failure-semantics.md)
-  已完成实现与验收，见[完成核验](verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
-- Draw2D Core 之后的动画与表现平面、图布局、内置组件、概览和输出能力建议顺序见
-  [`roadmap/draw2d-capability-enrichment-plan-2026-10-05.md`](roadmap/draw2d-capability-enrichment-plan-2026-10-05.md)；
-  该计划不替代 P2 backlog 的状态真源。
-- 统一 Graphics API 与 glyph 预处理：ADR-025 已接受，P2-G02 已实现并通过验证门禁；
-  字体指标、文字测量与图文绘制使用同一 API 集合，自研后端预处理格式保持独立。
-- Figure capability：ADR-027 已接受并验证，开放的 attach-time typed descriptor registry
-  已登记为 [`P2-F02`](roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry)
-  并完成；它关闭
-  [临时概念设计审计 TC-02 与 TC-05](verification/reviews/temporary-concept-design-audit-2026-10-08.md)，
-  后续 TC-13/TC-14、TC-04、TC-12 与 TC-11 亦已关闭。
-- 动画正交模型已登记为
-  [`P2-M01`](roadmap/p2-delta-backlog.md)，当前为 `in_progress`；
-  [Animation / Presentation Plane 设计](design/animation/animation-system.md)、
-  [公开 API 合同](design/animation/public-api-contract.md)、
-  [Behavior / Trigger 合同](design/animation/behavior-trigger-contract.md)、
-  [领域能力集成矩阵](design/animation/capability-integration.md)与
-  [ADR-026](adr/adr-026-animation-and-presentation-plane.md)已接受；M01-A、M01-B、
-  M01-C 已完成，M01-D 平台与视觉证据待发布阶段补齐。
-- 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
-  [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
-- 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
-  [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md) 维护。
-- 可执行验证入口见 [`../verification/README.md`](../verification/README.md) 和
-  `cargo xtask list`。
+| 任务 | 阅读顺序 |
+|---|---|
+| 理解 Core | [架构概览](design/architecture/overview.md) → [静态结构](design/architecture/static-architecture.md) → [动态协议](design/architecture/dynamic-architecture.md) |
+| 编写应用或扩展 | [公共 API 契约](design/architecture/public-api-contract.md) → [Figure 能力](design/architecture/figure-capability-model.md) → [组件更新](design/architecture/component-update.md) |
+| 修改几何、布局或渲染 | [坐标](design/coordinates/coordinate-system.md) → [收敛事务](design/architecture/derived-state-convergence.md) → [渲染专题](design/rendering/00-index.md) |
+| 开发输入与动画 | [Scroll/Zoom 输入](design/input/scroll-zoom-gesture-contract.md) → [动画专题](design/animation/00-index.md) |
+| 开发 Editor | [Editor 规范](design/editor/00-index.md) → [GEF 采用账本](parity/gef/api-coverage.md) → [Editor 路线图](roadmap/editor/00-index.md) |
+| 核对 Draw2D/GEF 行为 | [参考分析](reference/00-index.md) → [源码审计基线](verification/reference/00-index.md) → [语义账本](parity/00-index.md) |
+| 确定下一批工作 | [P2 backlog](roadmap/p2-delta-backlog.md#当前推进顺序2026-10-14-校准) → [整改执行清单](verification/checklists/audit-remediation-execution.md) |
+| 验证实现 | [可执行 suite](../verification/README.md) → [人工手册](verification/manual/00-index.md) → [历史核验](verification/reviews/00-index.md) |
+| 评估产品或迁移 | [产品策略](strategy/00-index.md)、[Java/Rust 迁移](migration/00-index.md) |
 
-## 权威边界
+## 知识归属
 
-| 目录 | 回答的问题 | 规范效力 |
-|---|---|---|
-| [`reference/`](reference/00-index.md) | Draw2D、GEF、SWT、Zed 实际如何工作？ | 外部事实；不直接约束 Novadraw |
-| [`design/`](design/00-index.md) | Novadraw 应该如何工作？ | Novadraw 设计 SSOT |
-| [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
-| [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
-| [`roadmap/`](roadmap/00-index.md) | Core 与 Editor 何时交付、当前到哪里？ | M1-M10 与 G0-G5 引擎状态，不定义架构 |
-| [`strategy/`](strategy/00-index.md) | 为谁创造价值、如何验证？ | 产品与商业决策输入，不定义架构 |
-| [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
-| [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
-| [`archive/`](archive/00-index.md) | 哪些内容已失效或仅保留历史？ | 非当前契约 |
+| 入口 | 维护内容 |
+|---|---|
+| [design](design/00-index.md) | 当前行为、所有权、权限、失败和扩展契约 |
+| [ADR](adr/README.md) | 决策原因、取舍、后果和替代关系 |
+| [reference](reference/00-index.md) | 外部源码事实及其基线 |
+| [parity](parity/00-index.md) | 外部行为的采用、调整、收窄和验证映射 |
+| [roadmap](roadmap/00-index.md) | M1–M10 编号与状态、P2/GA 队列；Editor 状态由其子入口维护 |
+| [verification](verification/00-index.md) | 回归矩阵、验收方法和基线报告 |
+| [strategy](strategy/00-index.md) | 产品假设、市场调查和决策输入 |
+| [migration](migration/00-index.md) | 可复用迁移方法 |
+| [archive](archive/00-index.md) | 退出当前使用的方案、原稿与校验值；历史追溯时显式进入 |
 
-## 核心 SSOT
+## 状态与证据入口
 
-- 当前公共 API 契约（领域路径、owner、权限、单位、失败与组合）：
-  [`design/architecture/public-api-contract.md`](design/architecture/public-api-contract.md)
-- 2026-09-10 架构修订裁决：
-  [`adr/adr-014-extensibility-and-lifecycle-boundaries.md`](adr/adr-014-extensibility-and-lifecycle-boundaries.md)
-- Core 构建期/运行期公开 API 边界：
-  [`adr/adr-017-core-public-api-boundary.md`](adr/adr-017-core-public-api-boundary.md)
-- Runtime 驱动、坐标查询与结构化测量：
-  [`adr/adr-018-runtime-driving-and-measurement-api.md`](adr/adr-018-runtime-driving-and-measurement-api.md)
-- 可组装构造与挂载后 scoped mutable facade：
-  [`adr/adr-019-composable-api-and-scoped-editors.md`](adr/adr-019-composable-api-and-scoped-editors.md)
-- 引擎基础值与公开渲染契约：
-  [`adr/adr-020-engine-value-and-render-contract.md`](adr/adr-020-engine-value-and-render-contract.md)
-- 公开 Facade 与 Feature 边界：
-  [`adr/adr-021-public-facade-and-feature-boundary.md`](adr/adr-021-public-facade-and-feature-boundary.md)
-- 第三方类型与渲染依赖边界：
-  [`adr/adr-022-third-party-type-and-render-dependency-boundary.md`](adr/adr-022-third-party-type-and-render-dependency-boundary.md)
-- 统一 Graphics API 与 glyph 预处理边界：
-  [`adr/adr-025-unified-graphics-and-glyph-preparation.md`](adr/adr-025-unified-graphics-and-glyph-preparation.md)
-- 开放的 Figure Capability Registry：
-  [`adr/adr-027-open-figure-capability-registry.md`](adr/adr-027-open-figure-capability-registry.md)
-- 类型化属性身份与异构通知日志：
-  [`adr/adr-028-typed-property-identity.md`](adr/adr-028-typed-property-identity.md)
-- 结构化 RenderBackend 失败与恢复确认：
-  [`adr/adr-029-structured-render-backend-failure.md`](adr/adr-029-structured-render-backend-failure.md)
-- ResourceProvider 与资源请求 Token 边界：
-  [`adr/adr-030-resource-provider-and-request-token-boundary.md`](adr/adr-030-resource-provider-and-request-token-boundary.md)
-- Graphics 录制与帧出版边界：
-  [`adr/adr-031-graphics-recording-and-publication-boundary.md`](adr/adr-031-graphics-recording-and-publication-boundary.md)
-- Viewer 编辑会话与宿主驱动边界：
-  [`adr/adr-032-viewer-edit-session-and-drive-boundary.md`](adr/adr-032-viewer-edit-session-and-drive-boundary.md)
-- Runtime 子系统 Facade 与统一 Figure Mutation（已验证）：
-  [`adr/adr-033-runtime-subsystem-facade.md`](adr/adr-033-runtime-subsystem-facade.md)
-- Editor Tool / Request / Handle 统一开放协议（已验证）：
-  [`adr/adr-034-editor-tool-request-handle-protocol.md`](adr/adr-034-editor-tool-request-handle-protocol.md)
-- 显式领域导入与 Crate Root 收口（已验证）：
-  [`adr/adr-035-explicit-domain-imports-and-root-boundary.md`](adr/adr-035-explicit-domain-imports-and-root-boundary.md)
-- Context 阶段权限投影与 Query 命名：
-  [`adr/adr-036-context-phase-authority-projection.md`](adr/adr-036-context-phase-authority-projection.md)
-- Editor 增量视图失败隔离与 Overlay 批量校验（已接受）：
-  [`adr/adr-037-editor-incremental-failure-isolation.md`](adr/adr-037-editor-incremental-failure-isolation.md)
-- Figure Capability 统一扩展模型：
-  [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
-- Core 公开 API 审计与整改状态：
-  [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
-- 框架公共 API 命名、语义与职责复审：
-  [`verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md`](verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md)
-- 临时概念设计与长期演进审计：
-  [`verification/reviews/temporary-concept-design-audit-2026-10-08.md`](verification/reviews/temporary-concept-design-audit-2026-10-08.md)
-- API 与架构 Review（2026-10-09）：
-  [`verification/reviews/api-architecture-review-2026-10-09.md`](verification/reviews/api-architecture-review-2026-10-09.md)
-- 审计—收口持续闭环工作流：
-  [`verification/audit-remediation-workflow.md`](verification/audit-remediation-workflow.md)
-- 审计整改执行总清单：
-  [`verification/checklists/audit-remediation-execution.md`](verification/checklists/audit-remediation-execution.md)
-- ADR-001 至 ADR-013 审计与替代关系：
-  [`verification/reviews/adr-audit-2026-09-10.md`](verification/reviews/adr-audit-2026-09-10.md)
-- Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)
-- 静态结构：[`design/architecture/static-architecture.md`](design/architecture/static-architecture.md)
-- 动态时序：[`design/architecture/dynamic-architecture.md`](design/architecture/dynamic-architecture.md)
-- 坐标协议：[`design/coordinates/coordinate-system.md`](design/coordinates/coordinate-system.md)
-- Scroll/Zoom 输入协议：[`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
-- UpdateManager：[`design/rendering/update-manager.md`](design/rendering/update-manager.md)
-- Connection / Anchor / Router：
-  [`design/architecture/connection-routing.md`](design/architecture/connection-routing.md)
-- Reusable Shape 与 Border：
-  [`design/architecture/reusable-shape-border.md`](design/architecture/reusable-shape-border.md)
-- Text Layout、Label 与 TitleBarBorder：
-  [`design/architecture/text-layout.md`](design/architecture/text-layout.md)
-- 统一文字测量/图形绘制与自研字体后端输入：
-  [`design/rendering/text-graphics-integration.md`](design/rendering/text-graphics-integration.md)
-- Clickable、Button 与 Toggle：
-  [`design/architecture/basic-widgets.md`](design/architecture/basic-widgets.md)
-- Tooltip 与 Accessibility Bridge：
-  [`design/architecture/tooltip-accessibility.md`](design/architecture/tooltip-accessibility.md)
-- Runtime 派生状态收敛事务：
-  [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
-- 深层布局盒模型与文字 Presentation 收敛：
-  [`design/architecture/deep-layout-presentation-convergence.md`](design/architecture/deep-layout-presentation-convergence.md)
-- 资源因果与 Backend Session：
-  [`design/architecture/resource-lifecycle.md`](design/architecture/resource-lifecycle.md)
-- Figure 生命周期与 Runtime 身份域：
-  [`design/architecture/figure-lifecycle.md`](design/architecture/figure-lifecycle.md)
-- Editor 框架边界：
-  [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
-- Editor 规范架构：[`design/editor/architecture.md`](design/editor/architecture.md)
-- Editor Viewport/Auto-expose：
-  [`design/editor/g5-viewport-autoexpose.md`](design/editor/g5-viewport-autoexpose.md)
-- GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
-- G0-G5 唯一编号与状态：[`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
-- 可执行验证 suite 与命令：[`../verification/README.md`](../verification/README.md)
-- Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
-- M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
+M1–M10、G0–G5、P2、GA 和平台资格分别在以下文件维护，不从 accepted ADR、
+已存在 package、测试数量或某个 demo 推断完成：
 
-候选方案不属于核心 SSOT：
+- [Core 里程碑](roadmap/00-index.md)；
+- [Editor 里程碑](roadmap/editor/00-index.md)；
+- [P2 增量及唯一执行队列](roadmap/p2-delta-backlog.md)；
+- [目标调整与 GA 门禁](roadmap/goal-alignment-adjustment-plan-2026-09-30.md)；
+- [平台支持等级](roadmap/platform-support-matrix.md)。
 
-- DisplayList 候选协议：[`design/rendering/display-list-protocol.md`](design/rendering/display-list-protocol.md)
-- DisplayList 探索计划：[`design/rendering/displaylist-implementation-plan.md`](design/rendering/displaylist-implementation-plan.md)
-
-## 冲突处理
-
-出现文档冲突时按以下顺序判断：
-
-1. 当前已接受 ADR 决定关键取舍；明确的替代关系优先，ADR-013 已由 ADR-014 替换。
-   设计决策可经有证据的修订取代，不把历史批准视为不可更改。
-2. `design/` 下标记为 `normative-design` 且范围更窄的专题契约优先于架构总览；
-   `proposal` 不具有覆盖效力。
-3. `parity/` 只解释外部语义到 Novadraw 的映射，不覆盖 Novadraw 设计契约。
-4. `reference/` 必须服从参考源码事实，但不能据此推导 Novadraw 必须照搬。
-5. `roadmap/`、`verification/`、`migration/` 和 `archive/` 不定义运行时架构。
-
-发现设计与代码不一致时，不允许直接把文档改成代码现状。先判断：
-
-- 设计仍合理：补充设计依据、测试契约，再调整代码。
-- 实现形成了更合理的新约束：先修改设计或新增 ADR，再调整测试与索引。
-- 只是实施未完成：在设计文档中明确 `target` 状态，并在 roadmap 记录进度。
-
-## 文档类型
-
-新增或大幅修改文档时，应在标题后的说明中明确以下类型之一：
-
-- `documentation-index`
-- `reference-analysis`
-- `normative-design`
-- `parity-contract`
-- `architecture-decision`
-- `verification`
-- `roadmap`
-- `product-strategy`
-- `migration-guide`
-- `archive`
-- `proposal`
-
-每篇参考分析应给出仓库、基线提交以及稳定的 class/method 证据；行号仅用于辅助
-阅读。每篇设计文档应明确适用范围、失败模式、扩展点和验证入口。
-
-## 阅读路径
-
-### 理解 Novadraw
-
-1. [`design/architecture/overview.md`](design/architecture/overview.md)
-2. [`reference/draw2d/architecture/design-axioms.md`](reference/draw2d/architecture/design-axioms.md)
-3. [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
-4. [`design/coordinates/coordinate-system.md`](design/coordinates/coordinate-system.md)
-5. [`design/rendering/update-manager.md`](design/rendering/update-manager.md)
-
-编写应用或外部扩展时，继续阅读
-[`design/architecture/public-api-contract.md`](design/architecture/public-api-contract.md)。
-五项架构规范修订及其新增验证边界见
-[`verification/reviews/framework-architecture-contract-revision-2026-10-12.md`](verification/reviews/framework-architecture-contract-revision-2026-10-12.md)；
-该记录不改变 P2 backlog 的执行状态。
-
-### 开发 Viewport / Scroll / Zoom
-
-1. [`reference/draw2d/figure/scalable-zoom.md`](reference/draw2d/figure/scalable-zoom.md)
-2. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
-3. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
-
-### 验证 Web 平台
-
-1. [`adr/adr-001-webgpu-rust-stack.md`](adr/adr-001-webgpu-rust-stack.md)
-2. [`verification/manual/web-platform.md`](verification/manual/web-platform.md)
-3. [`verification/reviews/m10-web-equivalence-2026-09-13.md`](verification/reviews/m10-web-equivalence-2026-09-13.md)
-
-### 修改 Draw2D 对标语义
-
-1. 核对 `reference/` 中对应源码分析。
-2. 更新 [`verification/reference/draw2d-source-audit.md`](verification/reference/draw2d-source-audit.md) 的审计基线或结论。
-3. 在 [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md) 更新受影响 family。
-4. 若改变 Novadraw 行为，先更新 `design/` 或 ADR，再修改测试和代码。
-
-### 开发 Editor / GEF 层
-
-1. [`verification/reviews/gef-readiness-analysis-2026-09-13.md`](verification/reviews/gef-readiness-analysis-2026-09-13.md)
-2. [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
-3. [`design/editor/architecture.md`](design/editor/architecture.md)
-4. [`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
-5. [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
-
-### 理解产品与商业价值
-
-1. [`strategy/commercial-value-analysis.md`](strategy/commercial-value-analysis.md)
-2. [`strategy/ai-era-relationship-editor-research.md`](strategy/ai-era-relationship-editor-research.md)
-3. [`strategy/ai-graphical-editor-generator.md`](strategy/ai-graphical-editor-generator.md)
-4. [`strategy/html-in-canvas-api-evaluation-2026-10-09.md`](strategy/html-in-canvas-api-evaluation-2026-10-09.md)
-5. [`roadmap/00-index.md`](roadmap/00-index.md)
-6. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
-
-## 命名与维护
-
-- 文件和目录使用小写 kebab-case；固定入口保留 `00-index.md`。
-- 移动文档后必须更新仓库内所有 Markdown 链接和 `AGENTS.md`、`CLAUDE.md`。
-- 已失效内容移入 `archive/`，不得继续被设计文档作为当前契约引用。
-- 默认检索排除 `doc/archive/`；只有历史追溯才显式读取。
-- 原始日志、JSON、探针和审计中间产物放在 `verification/evidence/`，不混入
-  `doc/` 的人读信息架构。
-- 原始快照、SHA-256 和旧新映射保留在归档入口；不得将新设计写成已有实现证据。
-- 设计、路线图和审计报告分别维护，不在一篇文档中重复保存三套状态。
+原始日志、JSON 和探针见 [verification/evidence](../verification/evidence/README.md)。
+本次全量修正的处置、保留范围和验证结果见
+[知识修正记录](verification/reviews/documentation-knowledge-revision-2026-10-19.md)。

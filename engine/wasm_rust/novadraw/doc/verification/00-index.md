@@ -1,6 +1,6 @@
 # 验证与审计
 
-类型：`verification`
+类型：`documentation-index`
 
 本目录保存人读的验证方法和历史结论，不定义架构或里程碑状态。
 
@@ -9,8 +9,8 @@
 | `reference/` | 外部参考源码基线与纠错依据 | [索引](reference/00-index.md) |
 | `reviews/` | 阶段审计和实现验证报告 | [索引](reviews/00-index.md) |
 | `manual/` | 窗口、交互和视觉验收步骤 | [索引](manual/00-index.md) |
-| `plans/` | 尚未进入实现的验证矩阵与完成门禁 | [索引](plans/00-index.md) |
-| `performance/` | 可重复的性能基线 | [GA-2 方法](performance/ga2-methodology.md)、[Novadraw CPU 基线](performance/ga2-novadraw-cpu-2026-10-01.md)、[R8 历史基线](performance/r8-baseline-2026-09-02.md) |
+| `plans/` | 设计矩阵、实施门禁及已完成切片的回归矩阵 | [索引](plans/00-index.md) |
+| `performance/` | 测量方法与指定环境的历史基线 | [索引](performance/00-index.md) |
 | `checklists/` | 开发与验证检查清单 | [审计整改执行总清单](checklists/audit-remediation-execution.md)、[渲染管线](checklists/rendering-pipeline.md) |
 
 ## 工作流

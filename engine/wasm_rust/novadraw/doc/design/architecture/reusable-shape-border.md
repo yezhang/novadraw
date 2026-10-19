@@ -77,7 +77,7 @@ RoundedRectangleFigure 当前可由 path 表达，因此
 
 不得为方便绘制复制第二份可独立修改的 bounds、颜色或 inherited style。
 
-### 3.3 运行期修改经过 Runtime-backed editor
+### 3.3 运行期修改经过 FigureMut
 
 pre-Runtime 构建可使用 Figure 构造器和 FigureTreeBuilder。Figure 进入 Runtime 后：
 

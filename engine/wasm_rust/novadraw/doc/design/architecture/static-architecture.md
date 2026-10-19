@@ -24,7 +24,7 @@ Runtime
 ├── LayeredPaneStates
 └── MutationQueue
     │
-    ├── RecordingCanvas ──> RenderSubmission ──> RenderBackend
+    ├── 内部录制 ──> RenderSubmission ──> RenderBackend
     └── FrameRequest ──────────────────────────> PlatformHost
 ```
 
@@ -108,7 +108,7 @@ pub struct FigureNode {
 
 ```rust
 pub struct NodeState {
-    bounds: Rect,
+    bounds: Rectangle,
     insets: Insets,
     visible: bool,
     enabled: bool,
@@ -167,7 +167,7 @@ Figure
 ### 3.3 盒模型
 
 ```text
-border_box = Rect(origin = 0, size = bounds.size)
+border_box = Rectangle(origin = 0, size = bounds.size)
 client_box = border_box.inset(insets)
 ```
 
@@ -234,7 +234,7 @@ explicit override
 → current bounds size
 ```
 
-`None` 表示“没有结果”；`Size::ZERO` 是合法尺寸，不能被当作 fallback sentinel。
+`None` 表示“没有结果”；`Dimension::ZERO` 是合法尺寸，不能被当作 fallback sentinel。
 
 ## 5. 交互状态
 

@@ -1,6 +1,6 @@
 # 架构决策记录 (ADR)
 
-类型：`architecture-decision`
+类型：`documentation-index`
 
 ## 什么是 ADR
 
@@ -38,7 +38,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [018](adr-018-runtime-driving-and-measurement-api.md) | Runtime 驱动与结构化测量 API | 已接受 | 2026-09-24 |
 | [019](adr-019-composable-api-and-scoped-editors.md) | 可组装 API 与 Scoped Editor | 已接受，已验证 | 2026-09-28 |
 | [020](adr-020-engine-value-and-render-contract.md) | 引擎基础值与公开渲染契约 | 已接受，已验证 | 2026-09-28 |
-| [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 部分由 023 替代 | 2026-09-28 |
+| [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 已由 023/031/035 承接，原位置保留指引 | 2026-09-28 |
 | [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 部分由 023 替代 | 2026-09-29 |
 | [023](adr-023-crate-consolidation-and-extension-boundaries.md) | Crate 收口与扩展边界 | 已接受，已验证 | 2026-09-29 |
 | [024](adr-024-graphics-paint-stroke-and-clipping.md) | Graphics Paint、Stroke 与路径裁剪 | 已接受 | 2026-10-02 |
@@ -62,6 +62,8 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 本目录正文只包含现行决策或替代指引。失效全文移至 `doc/archive/`，不在当前正文
 保留“历史候选仍可选”的叙述。追溯旧方案时显式进入归档，不默认检索归档。
 “已通过”表示设计效力；实现与验收状态只以 roadmap/verification 为准。
+表中既有“已验证/实施中”是决策接受时的记录，当前增量状态从
+[P2 backlog](../roadmap/p2-delta-backlog.md)查阅，不在本索引重复更新。
 
 ## ADR 模板
 

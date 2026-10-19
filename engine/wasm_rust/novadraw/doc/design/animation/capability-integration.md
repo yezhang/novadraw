@@ -252,6 +252,41 @@ Sequence
 - zero-length route、缺失 decoration、dispose 和 cancel 均清理 temporary visual；
 - 多 pulse 用 Stagger，共享 clock，并受 active-track/temporary-visual 预算限制。
 
+### Reveal、Activity 与连续性
+
+Reveal 用于首次出现：最终 arrow 已提交，首帧录制前安装表现覆盖，随 pulse 到达显现。
+Activity 用于已有 Connection：arrow 全程可见，到达只做短时强调。
+视觉结束不代表消息送达或业务任务成功。
+
+```text
+route_length = arc_length(route)
+head_distance(t) = clamp(speed * elapsed, 0, route_length)
+head = sample_by_arc_length(route, head_distance)
+trail = route_interval(max(0, head_distance - trail_length), head_distance)
+handoff = ease(saturate(
+    (head_distance - (route_length - handoff_length)) / handoff_length
+))
+```
+
+speed、trail/handoff 使用逻辑长度，handoff 距离按 route 与 decoration envelope 受检
+收敛。拖尾来自当前时间及路径区间，不保存逐帧历史点。
+source/target 决定方向；不能按 path command 顺序猜测。
+
+route 更新先尝试把当前 head 投影到方向一致的新路径，再按剩余弧长继续；
+超过显式连续性预算时执行声明的 crossfade/restart/cancel，不回到旧 committed route。
+缺少 decoration 时依次采用端口强调、端点淡出或静态 Connection。
+temporary pulse/trail/halo 默认 NonInteractive，不改变 hit、AT、通知或 history。
+damage 覆盖它们及 arrow/halo 的旧新 envelope。
+
+密集或低缩放场景可关闭 halo、缩短/关闭 trail、降级 dash 或静态 arrow。
+Disabled 直接显示 committed arrow；ReducedMotion 使用短 fade/emphasis 或完全静态，
+不执行沿线位移。不得新增 Connection timer、route cache 或第二套清理协议。
+
+回归需覆盖弧长匀速、Reveal 首帧、Activity 持续 arrow、handoff 像素连续、
+route 更新、缺失/退化/取消/预算、nested transform/clip/DPI、
+三种模式及多 pulse 的共享时钟。dash flow 还需证明时间采样不依赖刷新间隔、
+route/dash 更新保持规范化相位，且不触发 reroute、layout、FigureMoved 或全树扫描。
+
 ## 11. 图自动布局的协作边界
 
 P2-L01 分为算法平面和表现平面：

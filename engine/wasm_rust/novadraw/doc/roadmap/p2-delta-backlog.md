@@ -93,18 +93,10 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 P2-S06 已于 2026-10-15 按用户接受的矩阵修订 2 完成，
 证据见[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)。
 
-P2-S07 已形成
-[ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)、
-[验证矩阵](../verification/plans/p2-s07-query-identity-and-failure-semantics.md)与
-[当前反例盘点](../verification/reviews/p2-s07-query-design-inventory-2026-10-15.md)。
-草案修订 1（2026-10-16）已按首轮评审补齐求逆数值分类、测量成功值与缓存准入、
-Route 存在性指纹及 SSOT 同步清单。继续复用 tree identity 与领域错误，
-不重复 ADR-036，不强制万能 QueryError。修订 1 已于 2026-10-16
-[复核通过](../verification/reviews/adr-038-revision-1-review-2026-10-16.md)并接受。
-实施与行为验收已于同日完成，R04/TC-09/API-F06/API-07 由
-[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)关闭。
-记录合并 Core 全部目标与其余 workspace 消费者的 1,033 项通过结果，以及
-最后 33 项 Route 回归、wasm consumer、API snapshot、Clippy 和文档门禁。
+P2-S07 的契约见 [ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)，
+回归范围见 [验证矩阵](../verification/plans/p2-s07-query-identity-and-failure-semantics.md)。
+2026-10-16 实施与验收闭合，R04/TC-09/API-F06/API-07 的关闭依据及各阶段结果见
+[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 
 ### 当前推进顺序（2026-10-14 校准）
 
@@ -123,43 +115,12 @@ Route 存在性指纹及 SSOT 同步清单。继续复用 tree identity 与领�
 候选类型名、统一错误枚举、所有字段私有化或新 guard 均不能单独成为毕业条件。
 校准依据见[路线图复核](../verification/reviews/roadmap-calibration-2026-10-14.md)。
 
-2026-10-14 按[机制必要性复核](../verification/reviews/p2-s06-mechanism-necessity-2026-10-14.md)
-调整 S06 范围：不再要求创建 `PartProjectionPlan`、`ConnectionProjectionPlan` 或
-`OverlayBatch`。先收口单次新建子树及其登记的失败清理、保留已有 Connection 清理路径并
-补齐故障覆盖，再完善现有 Overlay 批量入口的完整预检和清理失败报告。
-具体内部候选或操作日志只有在现有所有者无法满足验收时才设计，不增加公共 Plan/lease
-语言。外部 callback panic 和清理失败进入 fault；不承诺回滚完整 synchronize 前缀、
-外部副作用或已成功提交的模型命令。
-
-2026-10-14 已形成
-[ADR-037 草案](../adr/adr-037-editor-incremental-failure-isolation.md) 与
-[验证矩阵](../verification/plans/p2-s06-incremental-failure-isolation.md)，状态为
-`design-draft`。草案选择拒绝 Overlay 重复 ID 和祖孙重叠，区分预检零写入与挂载后
-失败清理，并定义 activation 前缀、清理错误、通知/damage 和 Viewer 重建边界。
-该草案形成时尚未接受或修改引擎实现；R06/TC-08 当时保持开放。
-
-首轮评审记录见
-[ADR-037 草案评审](../verification/reviews/adr-037-draft-review-2026-10-14.md)。
-ADR 与矩阵已按 S06-DR01–DR05 形成修订 1：区分 dispose 预检与结构退休、
-健康清理与 Core fault 退出，以及 binding admission 拒绝与已提交 unresolved。
-补充关闭时不重复 callback 和旧 in-flight submission 退出要求。
-2026-10-15 [修订 1 复核](../verification/reviews/adr-037-revision-1-review-2026-10-15.md)
-通过，当时状态转为 `in_progress`；R06/TC-08 等待实现与验证闭合。
-
-同日已实施单次 Part/Connection 创建清理、Overlay 整批准入、分阶段清理诊断与
-fault 驱动隔离，并补充模型/history、非法 route 恢复和独立 typed consumer。
-该实施切片的执行结果及当时尚未满足的 prepare 拒绝集成、真实宿主退出边界见
-[实施证据](../verification/reviews/p2-s06-implementation-evidence-2026-10-15.md)。
-该切片不能单独关闭 R06/TC-08。
-
-后续补充 Core 晚期 prepare 拒绝、Editor 真实拒绝分派和真实 Native GPU 队列
-退出证据。完整 prepare 拒绝集成、Web 异步退出及 surface 呈现仍未验收；
-已接受的证据组合与关闭范围见
-[剩余验收复核](../verification/reviews/p2-s06-remaining-evidence-review-2026-10-15.md)。
-用户于 2026-10-15 接受该调整，矩阵修订 2 已回写；最终 full 门禁通过，
-S06/R06/TC-08 按[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)关闭。
-Web 异步 fault 退出登记为 `S06-PL02` 平台待验收项，Native surface 继续归 P2-G01。
-S07 已完成，下一批为 S08 Design；S08/S09 尚未获准进入 Execute。
+P2-S06 已按 [ADR-037](../adr/adr-037-editor-incremental-failure-isolation.md)与
+[矩阵修订 2](../verification/plans/p2-s06-incremental-failure-isolation.md)关闭。
+永久限制：采用已接受的组合证明，不承诺完整 synchronize 前缀、扩展副作用或成功
+模型命令回滚；Web 异步 fault 退出保留 `S06-PL02`，Native surface 仍归 P2-G01。
+机制必要性、草案、实现和剩余证据的时间线由
+[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)导航。
 
 ## Figure capability
 
@@ -181,16 +142,9 @@ S07 已完成，下一批为 S08 Design；S08/S09 尚未获准进入 Execute。
 - [ADR-027](../adr/adr-027-open-figure-capability-registry.md)；
 - [Figure Capability 统一扩展模型](../design/architecture/figure-capability-model.md)。
 
-实施切片：
-
-1. attach-time owned descriptor registry、typed key、query/mutation error 与外部 consumer；
-2. Scale、Layer、Freeform、Container、Input、Lifecycle、Accessibility；
-3. PointList、ScalablePolygon、TextFlow、Label、Viewport、Image 收口为 concrete
-   model/type、typed component update 与专用 facade；
-4. Border、Clickable、Connection、Decoration 等真实跨类型 capability；
-5. 删除 `Figure` 领域 accessor、伪 behavior trait、横切能力 concrete 分支和旧 root
-   导出；类型专用 facade 的受控闭合 adapter 保留；
-6. P2-M01 使用开放 `PresentationBinding<V>`。
+有效交付范围：attach-time owned descriptor、typed discovery/mutation、标准与外部
+capability，以及开放 `PresentationBinding<V>`。后续 ADR-033 已取消 concrete facade
+例外；内置与外部 Figure 统一从 FigureMut 提交 component/capability update。
 
 最低毕业证据：
 
@@ -203,29 +157,11 @@ S07 已完成，下一批为 S08 Design；S08/S09 尚未获准进入 Execute。
 5. render、layout、event、connection、Native/Web 编译及外部消费者门禁通过；
 6. 工作量基线无未解释回退，最终 quick/full 按项目分层门禁执行。
 
-实现与验证证据（2026-10-08）：
-
-- attach-time owned registry、typed query、同步/deferred capability update 与共享 prepared
-  commit 原语已落地；
-- Preparation、Input、Lifecycle、Accessibility、Container、Layer、Freeform、Scale、
-  Border、Clickable、Connection、Decoration 已使用标准 descriptor；
-- `PointListFigureBehavior`、`ScalablePolygonBehavior`、`TextFlowBehavior` 及对应
-  `Figure` accessor 已删除；PointList 使用 Polyline/Polygon crate-private 闭合 adapter，
-  ScalablePolygon/TextFlow/Image/Viewport 使用 concrete type、typed handle 或专用 facade；
-- Label/Button/Toggle 的共享 Label 内容使用闭合 concrete subcomponent adapter，不对外
-  声称开放 capability；
-- `PresentationBinding<V>` 已通过 attach-time registry 开放；外部 Figure 可提供
-  committed value 与 immutable content presentation，不修改 `ChannelBinding` 或 renderer；
-- Connection route/dash 已迁移到标准 binding，递归主循环删除领域特判；同 Figure
-  同 family channel 可组合，不同 family 的冲突、Replace、dispose 与 cancel 复用统一
-  Animation 语义；
-- capability/animation 基础设施未进入 prelude，旧伪 behavior 已退出 root；完整
-  root/prelude allowlist 归 TC-13；
-- `core.p2-f02-figure-capability` 覆盖 6 项专用外部契约及 120 项关联回归；
-  Core Clippy、docs、quick 与 diff check 均通过；full 的 fmt、Facade、Native/Web 和
-  workspace Clippy 通过，最终 workspace test 被并行中的 Builder `Result` 测试迁移阻断；
-- 完整记录见
-  [P2-F02 Figure Capability 实现记录](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。
+实施快照与当时门禁结果见
+[P2-F02 实现记录](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)；
+公开路径及统一更新的后续修订见
+[P2-S02](../verification/reviews/p2-s02-explicit-domain-imports-completion-2026-10-09.md)与
+[P2-S03](../verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md)。
 
 ## Figure 树 API
 
@@ -259,8 +195,8 @@ S07 已完成，下一批为 S08 Design；S08/S09 尚未获准进入 Execute。
   自定义 Placement constraint，验证 Builder/Runtime 得到相同顺序与布局；
 - `core.p2-s01-child-insertion`：8 项通过，覆盖原子拒绝、失败 ID 作废、通知、
   admission、10,000 层深度及 validator panic 隔离；
-- `cargo xtask check --quick`：通过，包含 Native/Web 编译与第三方类型边界检查；
-- `cargo xtask check --full`：通过，包含 Clippy 与 workspace 单元、集成、文档测试；
+- 当时 quick/full 质量门禁通过；当前直接 Cargo 与跨边界 suite 的分工见
+  [验证入口](../../verification/README.md)；
 - 本项不改变 callback FIFO、已有 Figure reparent 或 keyed Layer 协议。
 
 ## Graphics

@@ -2,316 +2,58 @@
 
 类型：`roadmap`
 
-状态：`complete`
-
-本目录承载 Draw2D Core 1.0 之后的独立 Editor 框架路线图。引擎交付范围为
-`G0-G5`，不得与 Draw2D `M1-M10` 或历史 architecture delta `D0-D4` 混用。
-原 G6 产品毕业范围已移交独立产品包，不再作为本仓库引擎完成门禁。
-
-## 文档边界
-
-- 外部 GEF 源码事实：[`../../reference/gef/`](../../reference/gef/00-index.md)
-- Novadraw Editor 规范：[`../../design/editor/`](../../design/editor/00-index.md)
-- 采用与差异：[`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)
-- 关键架构决策：
-  [`../../adr/adr-015-editor-framework-boundary.md`](../../adr/adr-015-editor-framework-boundary.md)
-- 实施顺序和状态：本目录
-- 可执行验证定义：[`../../../verification/README.md`](../../../verification/README.md)
-- 阶段验证：[`../../verification/`](../../verification/00-index.md)
-
-## 状态
-
-| 状态 | 含义 |
-|---|---|
-| `not_started` | 尚未进入当前开发主线 |
-| `in_progress` | 正在补契约、实现或验证 |
-| `contract_aligned` | 公开契约稳定，行为验证未闭合 |
-| `behavior_verified` | 自动契约和 headless 行为闭合 |
-| `complete` | 引擎契约、自动验证、要求的人工检查点和文档全部闭合 |
-| `external` | 已移交独立产品包，不属于本仓库引擎门禁 |
+本页是 G0–G5 编号、状态和人工检查点的唯一入口。Core 使用 M1–M10；
+后续 Editor 能力使用 [P2 backlog](../p2-delta-backlog.md)，不重开既有里程碑。
+原 G6 产品 schema、serializer、保存加载及产品级 Native/Web 场景由独立产品包负责。
 
 ## 里程碑
 
-| Milestone | 标题 | 状态 | 完成门禁 | 人工验收 |
-|---|---|---|---|---|
-| G0 | 架构与工程启动 | `complete` | ADR、规范、语义账本、单 crate 骨架、workspace 门禁 | 不需要 |
-| G1 | Model Adapter 与 CommandStack | `complete` | 16 项契约覆盖 identity/revision、execute/undo/redo、compound、dirty/save 与 fault | 不需要 |
-| G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 | 不需要 |
-| G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
-| G4 | Tool / Request / EditPolicy 编辑闭环 | `complete` | create、move、resize、delete、feedback、undo/redo | **检查点 B：PASS** |
-| G5 | Connection 编辑与 Viewport 协作 | `complete` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：PASS** |
-| G6 | 下游产品毕业 | `external` | 产品 schema、保存加载和产品级 Native/Web 场景由独立产品包负责 | 不属于引擎验收 |
-
-G0-G5 基线保持 complete。后续 Editor 增量使用 P2 delta，不重开或改写既有 G
-milestone：
-
-| Delta | 标题 | 状态 | 依赖 |
-|---|---|---|---|
-| P2-E02 | Direct text edit 与 IME | `complete` | P2-T02、G1-G5 |
-
-当前开放协议已由 P2-S04 完成；增量投影失败隔离与 Overlay 批量校验归 P2-S06。
-本页不另建 Editor 待办队列，状态与优先级见 [P2 backlog](../p2-delta-backlog.md)。
-
-人工验收只在对应 milestone 的自动门禁通过后进行：
-
-- 检查点 A：验证单选、多选、primary/focus、空白区回退和 widget 输入隔离；
-- 检查点 B：验证 create/move/resize/delete、feedback 与 undo/redo 完整闭环；
-- 检查点 C：验证连接创建/重连、bendpoint、zoom/scroll 与 auto-expose；
-- 产品最终验收：保存加载及产品级 Native/Web/Headless 等价由独立产品包负责，
-  不作为 G0-G5 的未完成门禁。
-
-## 固定执行顺序
-
-```text
-G0 architecture and evidence
--> G1 model transaction
--> G2 model-view projection
--> G3 interaction ownership
--> G4 basic editing
--> G5 connection editing
-```
-
-不得先做拖拽 demo，再从 app 代码反推 Command、PartTree 或 Viewer 契约。
-
-产品持久化、业务 document schema 和产品级跨平台入口在 G5 之后消费引擎能力，
-但不反向定义 Editor framework 的模型所有权、Command 或投影契约。
-
-## G0 门禁
-
-- [x] 记录 Draw2D/GEF 源码分析和当前实现证据；
-- [x] 接受独立 Editor crate 与所有权边界；
-- [x] 定义目标模块、身份域、生命周期和输入仲裁；
-- [x] 建立 GEF API family 覆盖账本；
-- [x] 创建 `novadraw-editor` 单 crate 目录骨架；
-- [x] 通过 workspace fmt/check/clippy/test；
-- [x] 完成差异复核并记录验证结果。
-
-G0 验证结果：
-
-```text
-cargo fmt --all -- --check: PASS
-cargo check --workspace: PASS
-cargo clippy --workspace -- -D warnings: PASS
-cargo test --workspace: PASS
-new-document local link check: PASS
-git diff --check: PASS
-```
-
-## G1 完成记录
-
-- [x] `ModelId` 由应用定义，要求 Copy/Eq/Hash/Debug，不使用 FigureId；
-- [x] `ModelRevision` 非零、单调且不回绕；
-- [x] `ModelEvent` 保存 revision、subject 和 typed payload；
-- [x] `ModelAdapter` 提供 root、稳定 child order 和 ordered event drain；
-- [x] `Command` 只操作应用模型，支持 canExecute/canUndo/canRedo 及显式拒绝；
-- [x] `CompoundCommand` 固定执行顺序、逆序 undo 和可恢复补偿；
-- [x] `CommandStack` 支持 execute/undo/redo、redo flush、undo limit、event journal；
-- [x] dirty/save 使用历史状态身份，不使用栈长度推断；
-- [x] rejected/recoverable failure 保留 history，未知状态、补偿失败和 panic 使 stack faulted；
-- [x] faulted stack 拒绝后续编辑、flush 和 save marking。
-
-验证入口：
-
-- `novadraw-editor/tests/g1_model_contract.rs`；
-- `novadraw-editor/tests/g1_command_stack_contract.rs`；
-- `doc/verification/reviews/g1-model-command-completion-2026-09-13.md`。
-
-## G2 完成记录
-
-- [x] `ModelAdapter::revision` 与有序批次固定 gap、stale 和同 revision 多事件边界；
-- [x] `EditPartId` 使用 Viewer namespace + generational key，跨 Viewer 与退休句柄失效；
-- [x] `PartTree` 独立维护 controller containment，不复用 ModelId 或 FigureId；
-- [x] `EditPartBehavior` / `EditPartFactory` 固定对象安全扩展边界；
-- [x] `GraphicalViewer` 拥有 model、factory、PartTree、registry 与 Runtime；
-- [x] 初始递归投影和增量 reuse/reorder/create/remove/reparent 已闭合；
-- [x] primary Figure、content pane 和 ancestor visual owner 查询已闭合；
-- [x] duplicate model、revision gap/stale 与扩展失败进入结构化拒绝或 fault；
-- [x] remove、Viewer drop 与重建身份生命周期已验证。
-
-连接模型的 source/target 双向发现、connection part 去重和 connection layer 挂载统一在
-G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
-
-验证入口：
-
-- `novadraw-editor/tests/g2_viewer_projection_contract.rs`；
-- `doc/verification/reviews/g2-viewer-projection-completion-2026-09-13.md`。
-
-## G3 自动门禁记录
-
-- [x] `SelectionModel` 支持 replace/append/toggle/remove/clear、primary 与 typed delta；
-- [x] EditPart focus 与 Figure keyboard focus 分离；
-- [x] visual registry 区分 Part、Handle 与 Feedback；
-- [x] targeting 支持 handle 优先、feedback 穿透、part ancestor 与 contents fallback；
-- [x] root/scalable/printable/primary/connection/handle/feedback layer 顺序固定；
-- [x] part 删除同步 reconcile selection、focus 和 owned overlay；
-- [x] `DispatchOutcome` 公开 target、handled 与 capture；
-- [x] Figure widget consumed/capture 阻止 Editor selection fallback；
-- [x] `node-editor-demo` Native 窗口启动并完成截图级非空验证；
-- [x] 检查点 A 人工验收；
-- [x] 修复 selection overlay 暴露的 Vello retained partial background 回归。
-
-自动验证入口：
-
-- `novadraw/tests/p2_dispatch_outcome_contract.rs`；
-- `novadraw-editor/tests/g3_selection_contract.rs`；
-- `novadraw-editor/tests/g3_viewer_interaction_contract.rs`；
-- `doc/verification/reviews/g3-selection-targeting-behavior-2026-09-13.md`。
-
-人工验收入口：
-
-- `cargo run -p node-editor-demo`；
-- `doc/verification/manual/g3-selection-targeting.md`。
-
-## G4 自动门禁记录
-
-- [x] typed `ChangeBoundsRequest`、`CreateRequest`、`DeleteRequest` 与 interaction revision；
-- [x] role-keyed `EditPolicy` 安装、target、显式拒绝、无贡献与 deterministic contribution；
-- [x] `EditorDomain` 统一持有 active `SelectionTool` 与 `CommandStack`；
-- [x] drag tracker 在 press 时固定 source/operation set，release/cancel 前清理 feedback；
-- [x] move/resize/create/delete 只生成模型 Command，不直接修改 Figure；
-- [x] 模型通知驱动 Part refresh，undo/redo 复用相同投影链路；
-- [x] 多选 move 使用 `CompoundCommand`，单击不拖才折叠 selection；
-- [x] Native demo 支持 move、corner resize、N create、Delete 与 undo/redo；
-- [x] 检查点 B 人工验收；
-- [x] 修复 Native feedback 帧调度与 retained partial 像素边界描边回归。
-
-自动验证入口：
-
-- `novadraw-editor/tests/g4_editing_loop_contract.rs`；
-- `doc/verification/reviews/g4-editing-loop-behavior-2026-09-14.md`。
-
-人工验收入口：
-
-- `cargo run -p node-editor-demo`；
-- `doc/verification/manual/g4-editing-loop.md`。
-
-## G5 当前记录
-
-- [x] 对标 GEF source/target relation、registry 去重、ConnectionEditPart 生命周期；
-- [x] 形成 G5.1 Connection Projection 契约；
-- [x] 完成 G5.1 身份、顺序、事务、失败与生命周期设计复核；
-- [x] 用户批准并冻结 G5.1 契约；
-- [x] 实现 existing connection projection 与 17 项自动契约；
-- [x] 实现 G5.2 两阶段 connection create 与 10 项自动契约；
-- [x] 实现 G5.3 reconnect 与 endpoint handle；
-- [x] 实现 G5.4 bendpoint、typed constraint 与双折点正交 self-loop；
-- [x] 实现 G5.5 viewport/zoom feedback 与 drag auto-expose；
-- [x] 检查点 C 人工验收。
-
-设计评审入口：
-
-- `doc/reference/gef/connection-editing.md`；
-- `doc/design/editor/g5-connection-projection.md`；
-- `doc/design/editor/g5-connection-creation.md`。
-- `doc/design/editor/g5-connection-reconnect.md`。
-
-G5.1 自动验证入口：
-
-- `cargo xtask verify editor.contracts`；
-- `novadraw-editor/tests/g5_connection_projection_contract.rs`；
-- `doc/verification/reviews/g5-connection-projection-design-2026-09-14.md`。
-
-G5.2 自动与人工验证入口：
-
-- `cargo xtask verify editor.contracts`；
-- `cargo xtask verify editor.replay`；
-- `cargo run -p node-editor-demo`；
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md`；
-- `doc/verification/manual/g5-connection-creation.md`。
-
-G5.3 自动与人工验证入口：
-
-- `cargo xtask verify editor.contracts`；
-- `cargo xtask verify editor.replay`；
-- `cargo run -p node-editor-demo`；
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `novadraw/tests/m9_connection_contract.rs`；
-- `doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md`；
-- `doc/verification/manual/g5-connection-reconnect.md`。
-
-G5.4 自动与人工验证入口：
-
-- `cargo xtask verify editor.contracts`；
-- `cargo xtask verify editor.replay`；
-- `cargo run -p node-editor-demo`；
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `novadraw/tests/m9_connection_contract.rs`；
-- `doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md`；
-- `doc/verification/manual/g5-connection-bendpoint.md`。
-
-G5.5 自动与人工验证入口：
-
-- `cargo xtask verify editor.contracts`；
-- `cargo xtask verify editor.replay`；
-- `cargo run -p node-editor-demo`；
-- `novadraw-editor/tests/g4_editing_loop_contract.rs`；
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `doc/design/editor/g5-viewport-autoexpose.md`；
-- `doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md`；
-- `doc/verification/manual/g5-viewport-autoexpose.md`。
-
-## P2-E02 规划
-
-P2-E02 分两步执行：
-
-1. `P2-E02a`：typed feature/request/policy、单一 direct-edit session、draft、
-   text selection、feedback、accept/cancel、Command 与 headless replay；
-2. `P2-E02b`：platform-neutral text-input lease、Winit IME、Web DOM composition
-   bridge、candidate area 与 Native/Web 人工验收。
-
-P2-E02a 已于 2026-09-29 完成，当前由 `cargo xtask verify editor.contracts` 验证。
-P2-E02b 的平台协议、Winit
-bridge、Web DOM host、Native 示例与 Web validation direct-edit 场景已完成；
-2026-09-30 后续人工复验发现首帧背景、编辑文本定位与 caret 可见性回归。修正版已通过
-Web Vello 自动视觉复核，以及 Native macOS/Vello 与 Web Chrome/Vello 系统输入法
-用户人工复验，P2-E02 已收口。
-
-状态所有权：
-
-- application model 拥有已提交文本；
-- Editor session 拥有 draft、text selection 与 preedit；
-- Core P2-T02 提供 immutable layout 的位置和几何查询；
-- platform adapter 只拥有 IME/focus/candidate-window 绑定。
-
-规范与计划：
-
-- `doc/reference/gef/direct-editing.md`；
-- `doc/design/editor/p2-direct-text-edit.md`；
-- `doc/verification/plans/p2-text-direct-edit.md`；
-- `doc/roadmap/p2-delta-backlog.md`。
-
-## 下游产品参考场景
-
-`examples/native/node-editor-demo` 是引擎验证入口，不是架构真源，也不是产品交付物。
-独立产品包可基于 `novadraw-editor` 公共 API 覆盖：
-
-1. 加载一个带节点和连接的模型；
-2. 单选、多选和 primary selection；
-3. 创建、移动、resize 和删除节点；
-4. 创建与重连连接；
-5. 每项操作 undo/redo；
-6. Viewport 滚动、缩放和拖拽 auto-expose；
-7. 保存、加载并验证业务模型等价；
-8. Native、Web、Headless 使用同一编辑事务。
-
-其中 7、8 的产品 schema、serializer 和应用入口由独立产品包负责；只有暴露出的
-引擎契约缺口才回流为新的 Editor delta。
-
-## 明确后置
-
-- Palette UI；
-- clipboard 与系统 DnD；
-- ruler、guide、snap-to-geometry；
-- TreeViewer；
-- Eclipse Workbench/JFace 兼容；
-- 协同编辑和分布式 history；
-- 稳定公共 crate 发布承诺。
-
-## 变更规则
-
-- 新增或修改 GEF 能力时先更新 `api-coverage.md` 的 Family ID。
-- 涉及身份、Command 原子性、输入仲裁或模型所有权时，必须先评审设计。
-- 若发现 Draw2D Core 缺口，建立独立 P2 delta 和 contract probe，不重开 M1-M10。
-- 每个里程碑状态只在本文更新。
-- 详细步骤见 [`implementation-plan.md`](implementation-plan.md)。
+| 顺序 | 阶段 | 状态 | 毕业范围 | 证据 |
+|---:|---|---|---|---|
+| 0 | G0 架构与工程启动 | `complete` | 独立 Editor、身份/所有权、语义账本、crate 与文档门禁 | [ADR-015](../../adr/adr-015-editor-framework-boundary.md)、[启动核验](../../verification/reviews/gef-readiness-analysis-2026-09-13.md) |
+| 1 | G1 Model Adapter / CommandStack | `complete` | model identity/revision、execute/undo/redo、compound、dirty/save 与 fault | [G1 完成](../../verification/reviews/g1-model-command-completion-2026-09-13.md) |
+| 2 | G2 EditPart / Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment | [G2 完成](../../verification/reviews/g2-viewer-projection-completion-2026-09-13.md) |
+| 3 | G3 Selection / Targeting / 输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor 消费与 capture；检查点 A PASS | [G3 核验](../../verification/reviews/g3-selection-targeting-behavior-2026-09-13.md)、[人工手册](../../verification/manual/g3-selection-targeting.md) |
+| 4 | G4 Tool / Request / Policy | `complete` | create/move/resize/delete、feedback、undo/redo；检查点 B PASS | [G4 核验](../../verification/reviews/g4-editing-loop-behavior-2026-09-14.md)、[人工手册](../../verification/manual/g4-editing-loop.md) |
+| 5 | G5 Connection / Viewport | `complete` | create/reconnect/bendpoint、auto-expose、scroll/zoom 反馈；检查点 C PASS | [连接与视口设计](../../design/editor/00-index.md)、下表阶段证据 |
+| 6 | G6 下游产品毕业 | `external` | 独立产品包的持久化、业务 schema 和跨平台应用 | 不属于引擎门禁 |
+
+`complete` 表示对应基线的引擎契约、自动验证、要求的人工检查点和文档已闭合，
+不表示后续全部语义或平台能力已交付。P2 状态只在 backlog 维护。
+
+## G5 阶段证据
+
+| 顺序 | 阶段 | 固定边界与核验 |
+|---:|---|---|
+| 1 | G5.1 Connection Projection | source/target 双向发现、单 Part 去重、关系和 binding 生命周期；[核验](../../verification/reviews/g5-connection-projection-design-2026-09-14.md) |
+| 2 | G5.2 Creation | 两阶段请求、反馈、Command 与取消；[核验](../../verification/reviews/g5-connection-creation-behavior-2026-09-14.md) |
+| 3 | G5.3 Reconnect | 两个独立 endpoint handle、身份保持、重连事务；[核验](../../verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md) |
+| 4 | G5.4 Bendpoint | 模型约束、create/move/delete、自环；[核验](../../verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md) |
+| 5 | G5.5 Viewport / Auto-expose | 同一坐标真源、双轴滚动、固定手势目标与反馈；[核验](../../verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md) |
+
+## 当前开发入口
+
+规范从 [Editor 设计](../../design/editor/00-index.md)进入，外部事实见
+[GEF 分析](../../reference/gef/00-index.md)，采用关系见
+[GEF 语义账本](../../parity/gef/api-coverage.md)。
+模型写入与 Viewer 驱动、开放 Tool/Request/Handle、增量失败隔离分别由
+[ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)、
+[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)和
+[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)细化。
+
+Direct text edit/IME 的回归范围见
+[设计](../../design/editor/p2-direct-text-edit.md)与
+[矩阵](../../verification/plans/p2-text-direct-edit.md)。
+后续失败、输入不变量和服务整改顺序只在
+[P2 backlog](../p2-delta-backlog.md#当前推进顺序2026-10-14-校准)维护。
+
+## 下游产品与变更规则
+
+`node-editor-demo` 是引擎验证入口。产品可消费模型加载、选择、节点编辑、连接编辑、
+undo/redo 和视口能力；业务持久化不得反向定义 Runtime 或 Command 所有权。
+产品验证发现的通用缺口以独立 delta 回流。
+
+新增能力先更新 GEF family；涉及身份、Command 原子性、输入仲裁或模型所有权时
+先评审契约。Draw2D Core 缺口进入 P2，不重开 M1–M10。
+可执行验证见 [suite 入口](../../../verification/README.md)，不在本页复制命令定义。
+crate 拆分判据见 [目录与发布边界](../../design/architecture/directory-structure.md#editor-拆分判据)。

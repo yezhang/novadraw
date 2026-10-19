@@ -8,8 +8,8 @@ Draw2D 源码事实基线：eclipse/gef-classic commit `4463d9d0c`（2026-01-01�
 Novadraw 覆盖状态随本仓库演进单独更新。
 
 它不是 Java API 迁移待办，也不是进度管理或任务编排文件。
-当前核心收口与功能迁移顺序见
-`doc/archive/core-completion-and-draw2d-migration-plan.md`。
+当前增量及执行顺序见 [P2 backlog](../../roadmap/p2-delta-backlog.md)；
+已完成 Core 基线见 [M1–M10](../../roadmap/00-index.md)。
 
 ## 使用原则
 
@@ -64,7 +64,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P0 | Figure 生命周期 | `addNotify/removeNotify` | 节点挂载/卸载 hook | 子树 attach/detach、资源初始化、事件解绑 |
 | P0 | Bounds 几何 | `getBounds/setBounds/getLocation/setLocation/getSize/setSize/translate` | `Bounded` / `FigureTree` bounds API | bounds 改变后的 repaint、layout invalidation、子坐标影响 |
 | P0 | ClientArea / Insets | `getClientArea/getInsets` | border-inset 后的内容区 | paint clip、layout area、hit-test descent 共用同一 inset 逻辑 |
-| P0 | Paint 主协议 | `paint(Graphics)` | `Runtime::prepare_submission` / 内部递归 traversal + `Figure::paint(PaintContext, bounds)` | 背景、border、client area、children paint 顺序与绘制失败传播 |
+| P0 | Paint 主协议 | `paint(Graphics)` | `runtime.frames().prepare_submission` / 内部递归 traversal + `Figure::paint(PaintContext, bounds)` | 背景、border、client area、children paint 顺序与绘制失败传播 |
 | P0 | Graphics 绘制上下文 | `Graphics.draw*/fill*/clip*/translate/pushState/popState` | `Graphics` / `PaintContext` / Vello backend | 状态栈、clip、坐标平移、线宽、颜色、文本、路径 |
 | P0 | 坐标转换 | `translateToAbsolute/Relative/Parent/FromParent` | graph 坐标域转换 API | parent/local/root 坐标互转、嵌套偏移、clip 下命中 |
 | P0 | Hit-test | `containsPoint/findFigureAt/findMouseEventTargetAt` | hit-test traversal | 可见性、启用状态、逆 child 顺序、client area、event target |
@@ -284,7 +284,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `paint.protocol` | `IFigure.paint(Graphics)` | `Runtime::prepare_submission` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)；TC-01 移除未出版帧旁路 |
+| `paint.protocol` | `IFigure.paint(Graphics)` | `runtime.frames().prepare_submission` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)；TC-01 移除未出版帧旁路 |
 | `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint,paint_border}` 接收受限 `PaintContext` 并返回 `GraphicsError`；client-area 与 child traversal 只由递归 renderer固定执行 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`ContainerMut::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `PaintContext` | verified | Rust trait 不复制 Draw2D owner object 参数；绘制失败进入帧错误通道 |
@@ -356,7 +356,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 | `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportHandle::contents` 只读查询；`ViewportMut::set_contents` 提交替换；`ChildPolicy::Single` 在 add/reparent 入口强制单 contents | verified | `m8_viewport_contract` 覆盖替换与原子拒绝 |
 | `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | `RangeModel` / `DefaultRangeModel`；Viewport 与 ScrollBar 在私有 runtime 中共享模型，公开 handle 提供 snapshot | verified | ViewportLayout 通过 sealed typed effect 在完整 LayoutOutput 校验后提交 range/content scale |
 | `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `ViewportHandle::view_location` 只读查询；`ViewportMut::{set_view_location,set_horizontal_location,set_vertical_location,scroll_by}` 提交 mutation | verified | clamp、property/coordinate effect 与 repaint 已覆盖 |
-| `viewport.scroll_zoom` | `ScalableFigure`、`AbstractZoomManager`、`IZoomScrollPolicy`、zoom levels、fit | `Figure::scale_model`、`ScaleModel`、`ScaleHandle`、`ZoomManager`、`ZoomScrollPolicy`、`DefaultScrollPolicy`、`MouseLocationZoomScrollPolicy` | verified | capability 不依赖具体 Figure downcast；`setScale` 只失效；manager 在写入前校验 policy location，再执行 scale → validate → scroll；Viewport 不保存 zoom |
+| `viewport.scroll_zoom` | `ScalableFigure`、`AbstractZoomManager`、`IZoomScrollPolicy`、zoom levels、fit | typed `SCALE` / `ScaleCapability`、`ScaleModel`、`ScaleHandle`、`ZoomManager`、`ZoomScrollPolicy`、`DefaultScrollPolicy`、`MouseLocationZoomScrollPolicy` | verified | capability 不依赖具体 Figure downcast；`setScale` 只失效；manager 在写入前校验 policy location，再执行 scale → validate → scroll；Viewport 不保存 zoom |
 | `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height}` 只读查询；`ViewportMut::{set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
 | `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::viewport` 只读查询；`ScrollPaneMut::{set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
 | `border.protocol`, `viewport.scroll_zoom` | `ScrollPane.setBorder` 与 client area 布局 | `ScrollPaneFigure` 注册通用 `BORDER` capability，使用 `ReplaceFigureBorder`；`ScrollPaneLayout` 消费扣除 border insets 后的容器区域 | verified | 官方示例外部 crate 挂载 GroupBoxBorder，并验证缩小后自动显示滚动条、增高后隐藏；不增加特殊容器节点 |

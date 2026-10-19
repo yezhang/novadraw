@@ -1,4 +1,4 @@
-# Animation 公开 API 合同提案
+# Animation 公开 API 契约
 
 类型：`normative-design`
 
@@ -30,12 +30,13 @@
 动画沿用 scoped mutable facade 模式：
 
 ```rust,ignore
-let animations = runtime.animations();
+let mut animation = runtime.animation();
+let mut animations = animation.timeline();
 let outcome = animations.start(plan)?;
 ```
 
-`Runtime::animations(&mut self) -> AnimationMut<'_>` 不返回全局对象，不泄露
-`AnimationService` 所有权，也不需要调用方先安装 service。
+`Runtime::animation()` 返回短借用 RuntimeAnimation，`timeline()` 提供 AnimationMut。
+它们不返回全局对象，不泄露 AnimationService 所有权，也不需要调用方先安装 service。
 
 - `AnimationMut` 只是 Runtime 可变借用，不因访问而分配 timeline；
 - Runtime 默认模式为 `Enabled`，但 Core 默认不安装任何隐式 Trigger；只有显式
@@ -60,8 +61,8 @@ let behavior = AnimationBehavior::new(
 .scoped_to(figure)
 .with_reduced_motion(move |context| Ok(build_selection_fade(context)?));
 
-let behavior_id = runtime.animations().install_behavior(behavior)?;
-runtime.animations().remove_behavior(behavior_id)?;
+let behavior_id = runtime.animation().timeline().install_behavior(behavior)?;
+runtime.animation().timeline().remove_behavior(behavior_id)?;
 ```
 
 - Behavior = Scope + Trigger + PlanFactory + optional reduced-motion factory；
@@ -75,7 +76,7 @@ runtime.animations().remove_behavior(behavior_id)?;
 
 ## 3. 身份、状态与启动结果
 
-候选公开类型：
+公开协议角色如下；准确签名与字段以公开 API snapshot/rustdoc 为准：
 
 ```rust,ignore
 pub struct AnimationId { /* opaque Runtime namespace + generation */ }
@@ -198,13 +199,15 @@ Runtime 只接受 `MonotonicTime`：
 
 ```rust,ignore
 let capture = runtime
-    .animations()
+    .animation()
+    .timeline()
     .capture(TransitionTargets::figures([figure]))?;
 
 runtime.figure(figure)?.set_bounds(final_bounds)?;
 
 let result = runtime
-    .animations()
+    .animation()
+    .timeline()
     .transition(capture, transition_spec)?;
 ```
 
@@ -279,7 +282,7 @@ effectively hidden target 使用同一 policy，不发明 Figure 私有 timer。
 
 ## 10. 错误模型与失败原子性
 
-候选错误边界：
+错误边界：
 
 | Error | 边界 |
 |---|---|
@@ -332,5 +335,5 @@ completion callback。需要业务回调时，由 Host 在提交后稳定边界�
 9. active set 为空时 Runtime 不扫描树、不请求 redraw、不提交空帧；
 10. Disabled/ReducedMotion/Enabled 模式切换的原子清理。
 
-实现测试存在后，才把 `core.p2-m01-animation` 写入
-`verification/README.md`。
+当前执行入口见 [验证定义](../../../verification/README.md)；
+M01 各阶段实现和平台毕业状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
