@@ -35,21 +35,21 @@ Draw2D 基础类为准。[官方源码](https://github.com/eclipse-gef/gef-class
 |---|---|---|---|
 | HelloWorld · `HelloWorld.java` | complete | `hello_world.rs`；单个 Hello World Label | 无已知业务差额；统一浏览宿主尺寸与原 Shell 不同 |
 | EllipseHitting · `hittest/EllipseHitting.java` | complete | `ellipse_hitting.rs`；四个椭圆、FlowLayout、精确命中、进入变黄和离开变白 | 结构及指针测试通过；跨平台字体和栅格差异未逐像素断言 |
-| ConnectionAndAnchorExample · `connections/ConnectionAndAnchorExample.java` | in_progress | `connection_and_anchor.rs`；两组 GroupBox、四个可拖动节点、ChopboxAnchor、Midpoint/Endpoint Locator、目标 Decoration | 已测试拖动和重路由；官方双侧截图对照、完整 Locator 几何仍待验证 |
+| ConnectionAndAnchorExample · `connections/ConnectionAndAnchorExample.java` | in_progress | `connection_and_anchor.rs`；两组 GroupBox、四个可拖动节点、ChopboxAnchor、Midpoint/Endpoint Locator、目标 Decoration | 已测试拖动和重路由；与 UML 共享 owner-side/child-size EndpointLocator 差额，默认 u=14/v=4 和 override、双侧视觉待闭合 |
 | ObstructionExample · `cg/ObstructionExample.java` | not_implemented | Java 固定随机初始障碍、左键拖出新障碍、右键成对创建端点、拖动重建 Path、删除清理 | 已核对：官方 visibility graph 允许斜线，按共享拐角计数分配路径间距；Core 的 Hanan grid 正交路由不是相同算法。官方算法、生命周期和交互仍待移植 |
 | FlowLayoutExample · `layouts/FlowLayoutExample.java` | in_progress | `flow_layout_example.rs`；11 个官方 Shape、方向、主次轴对齐、拉伸、两组间距控件 | 已补黑色描边和官方 RGB；Scale 键盘语义、原生控件外观、窗口 resize 后布局仍待验证 |
 | GridLayoutExample · `layouts/GridLayoutExample.java` | in_progress | `grid_layout_example.rs`；初始两个 Shape、九项形状/颜色循环、Add/Clear、选中线宽、列数/等宽/边距/间距、九项 GridData | 下拉选择已补；SWT 可编辑 Combo、Text 光标/选择/删除、FocusOut 与 Shell.pack 的完整行为尚未对等；Grid 算法边界仍须对照 |
 | ToolbarLayoutExample · `layouts/ToolbarLayoutExample.java` | in_progress | `toolbar_layout_example.rs`；五个官方 Shape、方向、拉伸、对齐、spacing | 描边已补；stretch/resetShapes、Scale 键盘和窗口布局待验证 |
-| ShapeStylesExample · `swt/ShapeStylesExample.java` | blocked | 官方两轴矩阵含八轴、五种 Shape、默认线宽；先应用 X 再应用 Y | Render IR/Vello 没有逐 Shape 的 ON/OFF/DEFAULT 抗锯齿模式；不能把固定样式展示当完整矩阵 |
+| ShapeStylesExample · `swt/ShapeStylesExample.java` | blocked | 官方两轴矩阵含八轴、五种 Shape、默认线宽；先应用 X 再应用 Y，每 cell 独立 Canvas | 逐 Shape AA ON/OFF/DEFAULT 缺口已记录；hairline width0、miter0/0.5/1、alpha/disabled、合法值映射与 native Canvas 重建/pack 还须验证 |
 | InheritBackgroundExample · `swt/InheritBackgroundExample.java` | blocked | 两个 FigureCanvas 对比自绘背景与继承 SWT 父渐变 | Winit 宿主无原生 Composite 背景继承契约 |
 | DirectedGraphDemo · `graph/DirectedGraphDemo.java` | blocked | GraphTests fixture 选择、两方向、rank、虚拟节点和边路径 | P2-L01 DirectedGraph 布局未实现；固定坐标不等价 |
-| CompoundGraphDemo · `graph/CompoundGraphDemo.java` | blocked | CompoundGraphTests、嵌套组、padding/insets、跨组边 | P2-L01 CompoundDirectedGraph 模型和布局未实现 |
+| CompoundGraphDemo · `graph/CompoundGraphDemo.java` | blocked | CompoundGraphTests 的嵌套模型、padding/insets、跨组边；官方 subgraph/node/edge 图元平铺于 Panel | P2-L01 CompoundDirectedGraph 模型和布局未实现；10 fixture × 两方向，不能将模型嵌套改为官方未使用的图元嵌套 |
 | PathExample · `path/PathExample.java` | blocked | 45° 旋转闭合 Path、旋转 bounds、ScrollBar 缩放、自定义 ZoomFigure | PathFigure 每次 fill/outline 还绘制部分下划线、选择背景的 SWT TextLayout；fragment 装饰和原 ScrollBar 完整协议缺失 |
 | ZoomExample · `zoom/ZoomExample.java` | in_progress | `zoom_example.rs`；Table/Column 三段式类、字段/方法图标、XYLayout、StackLayout、带文字 thumb、步进/翻页/拖动 | ScrollBar 的五子节点构成、SchemeBorder、REPEAT_FIRING 未移植；SVG 当前使用上游 PNG 替代资源，不能证明缩放对等 |
 | ScrollPaneExample · `scrollpane/ScrollPaneExample.java` | in_progress | `scroll_pane_example.rs`；两个重叠 InternalFrame、组合标题边框、Toolbar/两个 FlowPanel、十八个 George Label、固定 100×100 内容、tracksWidth、自动滚动条、标题移动和八方向 resize | 动态方向光标缺少事件期更新接口；Core ScrollBar 子节点构成和主题仍与官方不同；GroupBoxBorder 与字体仍须双侧视觉核对 |
-| ThumbnailExample · `thumbnail/ThumbnailExample.java` | blocked | 主窗口与 overview 共享同一可变 Figure 树，拖动实时反映 | 第二实时投影及双窗口生命周期契约缺失；复制场景不等价 |
+| ThumbnailExample · `thumbnail/ThumbnailExample.java` | blocked | 主窗口拥有可变 source Figure 树，overview Thumbnail 通过瓦片图像更新保持纵横比、拖动实时反映 | 只读 live snapshot/资源 epoch/订阅和双窗口生命周期待设计；不要求第二棵 editable 树，静态截图或复制场景不等价 |
 | BidiBlockExample · `text/BidiBlockExample.java` | blocked | 两侧 LTR/RTL Canvas、每侧十段、相对/绝对对齐、共享纵向 range | per-block base direction、ALWAYS_LEFT/RIGHT、双 Canvas 共享 RangeModel 的公开组合接口缺失 |
-| CaretExample · `text/CaretExample.java` | blocked | 混合脚本、offset/trailing 查询、单字符 selection、原生 Caret、Hit info | Core 已有文本交互几何；原生 caret overlay 和事件期查询/高亮链路尚无完整宿主实现 |
+| CaretExample · `text/CaretExample.java` | blocked | 混合脚本、offset/trailing、原生 Caret、Hit info、fragment TestBorder；源码传 selection(offset,offset+1) | TextFlow selection 是闭区间，先前“单字符”判断撤回，需 Java oracle；Core 提供文字几何/绘制，示例控制器持有临时高亮，平台执行 native Caret；UTF-16/UTF-8 与 trailing 适配未闭合 |
 | MultiLineLabelExample · `text/MultiLineLabelExample.java` | blocked | MultiLineLabel 与只读 SWT Text 对照、换行及必要滚动条 | MultiLineLabel widget 和原生多行 Text 比较宿主缺失 |
 | TextFlowExample · `text/TextFlowExample.java` | blocked | 六段结构、源码只按换行断行、嵌套 InlineFlow、继承颜色、粗斜体和不同字号 baseline | P2-T03 fragment 字体/颜色及嵌套 InlineFlow 缺失 |
 | TextFlowLargeExample · `text/TextFlowLargeExample.java` | blocked | 20 组 nested inline/block、混合字体、仅字母/空格 fake typing | fragment 字体和官方嵌套流结构缺失；整体文本可变不等价于 fragment 级 mutation |
@@ -159,6 +159,13 @@ quadrant、child preferred size 与默认 vDistance=4。该 API 差异已补到�
 workspace fmt、Clippy 和 test 已通过；官方功能差额仍未闭合，不能据此升级全部示例状态。
 
 ## 继续推进的顺序
+
+2026-10-19 全量复查后的计划以修订 3 为准：
+[25 入口责任矩阵](../plans/draw2d-official-examples-remaining-contracts.md)、
+[Core 实施计划](../plans/draw2d-official-examples-core-plan.md)。
+官方行为直接由 Draw2D/SWT 提供，额外推导的 Editor 改进计划已撤回；
+剩余任务由 Core、扩展实现、示例控制器和平台/backend 按职责承担。
+这些是待评审方案，不代表新的 API 已实施，不改变本页既有状态数量。
 
 继续关闭九个独立移植条目的实际差额，并移植尚未实现的 ObstructionExample。对十三个 blocked
 条目，应分别确定公开 API 或平台增量；不得为了增加完成数绑定近似业务场景。
