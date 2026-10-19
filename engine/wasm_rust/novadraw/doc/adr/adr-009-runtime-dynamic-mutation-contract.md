@@ -286,9 +286,7 @@ fault，后续请求停止，保留真实已发布拓扑和外部副作用。att
 官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
 在成功回调更新 TreeModel，并保留父分支样式。
 
-本切片未关闭 K01 的通用配对 binding 和重入验收。
-新增 binding 描述需要独立验证身份映射与 registry 准入，不能以成功回调内写外部模型
-替代 Core binding 的原子预检。
+配对 Connection binding 的准入与发布见下节；K01 重入验收仍待完成。
 
 ### 完整 contents 替换
 
@@ -316,5 +314,45 @@ Viewport 测试证明非法输入不清空旧视图，成功替换后只有一�
 registry 中的新树依赖，公共写入入口继续按 fault 契约拒绝。
 此入口提供 graph fixture 场景重建的 Core 基础；尚未移植的 graph 算法不因此关闭差额。
 
+### 构造期 Connection binding
+
+`FigureSubtree::set_connection_binding` 以 scoped `SubtreeNodeId` 标识连接节点，
+持有公开 `SubtreeConnectionBinding` payload。外部 struct 或 owned closure 都使用同一
+入口，返回 `SubtreeConnection`，不匹配具体 Figure、Anchor 或 Router 类型。
+`SubtreeBindingNodes` 只提供保留身份映射，与挂载成功的 `SubtreeReceipt` 分开；
+prepare 不获得 Runtime 或可变树，也不能把保留身份当成成功回执发布外部模型。
+
+拓扑发布前先检查所有布局约束，再依次 prepare binding：目标必须提供 Connection
+capability；owner-backed Anchor 的主 owner 和 inherited Router 的 layer 必须属于
+同一构造描述；显式 Router 必须已在接收 Runtime 注册，constraint 使用原 registry
+受检类型协议。此入口的 owned Anchor 不支持引用描述外节点；已有跨树连接仍使用原
+attached Connection facade。Anchor 的坐标几何和其他依赖继续在 route query 中受检，
+挂载准入不承诺路由一定成功。
+
+全部 binding 通过后，一次检查现有连接的 revision 预算，覆盖批量注册、旧场景释放
+和 Runtime contents 的后续失效次数。普通拒绝不写 topology、Anchor registry、
+Connection state 或 dirty revision；prepare panic 清理保留节点并 fault。随后先发布
+全部拓扑，再注册 owned Anchor 和 Connection state、资源及失效，最后执行 attachment
+callback。单节点注册保持原行为；新批量注册仅使原有连接失效一次，不重复运行扩展
+constraint validator。同步与延迟 add/contents/viewport replacement 共用这一路径。
+
+构造 binding 创建的 Anchor 由 Connection registry 追踪；最后一个绑定释放后，删除
+Anchor 身份并释放 payload。手工注册的 Anchor 保留原显式释放语义。如果用户通过
+attached facade 共享构造 Anchor，则一直保留到最后一个 source/target 引用消失。
+Router 由接收 Runtime 原 registry 持有，不随子树释放。
+
+外部消费者证据：`p2_subtree` 使用第三方 Anchor、公开 closure payload 和内置 Chopbox
+验证配对挂载、结果回执后可查 Connection state、释放 owned Anchor、末项 foreign
+Router 拒绝与保留身份退休、错误 capability/owner/constraint 保留旧场景和 prepare
+panic。内部测试注入 `u64::MAX - 2` revision，验证 Runtime replacement 的三次预算
+在写入前拒绝。ConnectionAndAnchorExample 的两组端点和连接使用同一整树构造入口，
+保留已移植的 child 顺序、拖动、locator 与 route 行为；其 GroupBox/EndpointLocator
+差额仍由 K02/K03 跟踪，不因此宣称与官方完全对等。
+
+性能边界：身份反查、Anchor owner 检查与未引用 owned Anchor 清理使用 HashMap/
+HashSet，避免逐 binding 扫描全部节点或逐 Anchor 扫描全部 Connection。
+没有变更渲染主循环，也没有在热路径增加日志。
+
 `api_semantics`：`figure.tree`、`figure.properties`、`layout.manager`、
-`runtime.identity`、`validation.protocol`、`damage.repaint`。
+`runtime.identity`、`validation.protocol`、`damage.repaint`、`connection.figure`、
+`connection.anchor`。

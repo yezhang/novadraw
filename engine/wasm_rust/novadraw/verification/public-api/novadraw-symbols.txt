@@ -653,10 +653,13 @@ module.tree struct FigureTree
 module.tree struct FigureTreeBuilder
 module.tree struct FreeformState
 module.tree struct IdentitySearch
+module.tree struct SubtreeBindingNodes
+module.tree struct SubtreeConnection
 module.tree struct SubtreeNodeError
 module.tree struct SubtreeNodeId
 module.tree struct SubtreeReceipt
 module.tree struct TreeSearchContext
+module.tree trait SubtreeConnectionBinding
 module.tree trait TreeSearch
 root mod advanced
 root mod animation

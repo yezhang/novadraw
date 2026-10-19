@@ -34,6 +34,57 @@ pub(crate) struct SubtreeNode {
     pub(crate) resources: Vec<crate::render::ResourceId>,
 }
 
+/// Owned Connection configuration resolved from construction identities before publication.
+///
+/// Anchor owners must belong to this description. Router and constraint strategies use the
+/// receiving Runtime's ordinary Connection registry and admission rules.
+pub struct SubtreeConnection {
+    /// Owned source endpoint strategy, or an unbound endpoint.
+    pub source: Option<Box<dyn crate::connection::ConnectionAnchor>>,
+    /// Owned target endpoint strategy, or an unbound endpoint.
+    pub target: Option<Box<dyn crate::connection::ConnectionAnchor>>,
+    /// Router identity resolved through the receiving Runtime.
+    pub router: crate::connection::RouterBinding,
+    /// Optional typed constraint checked by the selected Router.
+    pub constraint: Option<Box<dyn crate::connection::RoutingConstraint>>,
+}
+
+/// Identity resolution available only while preparing an unpublished description.
+pub struct SubtreeBindingNodes(pub(crate) SubtreeReceipt);
+
+impl SubtreeBindingNodes {
+    /// Resolves one reserved node; the returned identity is not yet attached.
+    pub fn figure(&self, node: SubtreeNodeId) -> Result<FigureId, SubtreeNodeError> {
+        self.0.figure(node)
+    }
+}
+
+/// Construction payload for a node's Connection binding.
+///
+/// The map contains reserved identities, not published Figures. Preparation must not publish
+/// application state; a refused description permanently retires these identities.
+pub trait SubtreeConnectionBinding {
+    /// Resolves the owned payload without publishing topology or application state.
+    fn prepare(
+        self: Box<Self>,
+        nodes: &SubtreeBindingNodes,
+    ) -> Result<SubtreeConnection, crate::runtime::RuntimeMutationError>;
+}
+
+impl<F> SubtreeConnectionBinding for F
+where
+    F: FnOnce(
+        &SubtreeBindingNodes,
+    ) -> Result<SubtreeConnection, crate::runtime::RuntimeMutationError>,
+{
+    fn prepare(
+        self: Box<Self>,
+        nodes: &SubtreeBindingNodes,
+    ) -> Result<SubtreeConnection, crate::runtime::RuntimeMutationError> {
+        (*self)(nodes)
+    }
+}
+
 /// A complete owned branch, configured before any Runtime identity is allocated.
 ///
 /// Nodes are added parent first. IDs are scoped to this description, including its receipt.
@@ -41,6 +92,7 @@ pub(crate) struct SubtreeNode {
 pub struct FigureSubtree {
     pub(crate) owner: Uuid,
     pub(crate) nodes: Vec<SubtreeNode>,
+    pub(crate) connections: Vec<(SubtreeNodeId, Box<dyn SubtreeConnectionBinding>)>,
 }
 
 impl FigureSubtree {
@@ -48,6 +100,7 @@ impl FigureSubtree {
     pub fn new(root: Box<dyn Figure>) -> Self {
         Self {
             owner: Uuid::new_v4(),
+            connections: Vec::new(),
             nodes: vec![SubtreeNode {
                 parent: None,
                 figure: root,
@@ -140,6 +193,21 @@ impl FigureSubtree {
     ) -> Result<(), SubtreeNodeError> {
         let index = self.index(node)?;
         self.nodes[index].resources.push(resource);
+        Ok(())
+    }
+
+    /// Sets or replaces a typed binding payload for one Connection node.
+    pub fn set_connection_binding(
+        &mut self,
+        node: SubtreeNodeId,
+        binding: impl SubtreeConnectionBinding + 'static,
+    ) -> Result<(), SubtreeNodeError> {
+        self.index(node)?;
+        if let Some((_, payload)) = self.connections.iter_mut().find(|(id, _)| *id == node) {
+            *payload = Box::new(binding);
+        } else {
+            self.connections.push((node, Box::new(binding)));
+        }
         Ok(())
     }
 }

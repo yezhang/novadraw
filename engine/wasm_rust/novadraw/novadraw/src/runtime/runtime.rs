@@ -1203,6 +1203,11 @@ impl Runtime {
         replacing: Option<FigureId>,
     ) -> Result<Vec<(FigureId, FigureId)>, RuntimeMutationError> {
         let runtime = self;
+        let owner = subtree.owner;
+        let bindings = subtree.connections;
+        let mut prepared_bindings = Vec::with_capacity(bindings.len());
+        let subsequent_invalidations =
+            u64::from(replacing.is_some()) + u64::from(parent == runtime.tree.synthetic_root());
         let mut dependencies = Vec::with_capacity(subtree.nodes.len());
         let inserted = runtime.tree.insert_subtree(
             parent,
@@ -1231,7 +1236,62 @@ impl Runtime {
                 index,
                 source: Box::new(source),
             },
+            |tree, ids| {
+                let indices: std::collections::HashMap<_, _> = ids
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(|(index, id)| (id, index))
+                    .collect();
+                let nodes = crate::tree::SubtreeBindingNodes(crate::tree::SubtreeReceipt::new(
+                    owner,
+                    ids.to_vec(),
+                ));
+                for (node, binding) in bindings {
+                    let figure = nodes.figure(node).expect("validated construction identity");
+                    let index = indices[&figure];
+                    let result = (|| {
+                        if !tree
+                            .is_connection_figure(figure)
+                            .map_err(ConnectionRuntimeError::from)?
+                        {
+                            return Err(ConnectionRuntimeError::NotConnectionFigure(figure).into());
+                        }
+                        let payload = binding.prepare(&nodes)?;
+                        for anchor in [&payload.source, &payload.target].into_iter().flatten() {
+                            if let Some(owner) = anchor.owner()
+                                && !indices.contains_key(&owner)
+                            {
+                                return Err(ConnectionRuntimeError::UnknownFigure(owner).into());
+                            }
+                        }
+                        if let RouterBinding::Inherited { layer } = payload.router
+                            && !indices.contains_key(&layer)
+                        {
+                            return Err(ConnectionRuntimeError::UnknownFigure(layer).into());
+                        }
+                        let prepared = crate::connection::PreparedSubtreeConnection {
+                            connection: ConnectionId::from_figure(figure),
+                            payload,
+                        };
+                        runtime.connections.prepare_subtree_connection(&prepared)?;
+                        prepared_bindings.push(prepared);
+                        Ok::<_, RuntimeMutationError>(())
+                    })();
+                    result.map_err(|source| RuntimeMutationError::FigureBatch {
+                        index,
+                        source: Box::new(source),
+                    })?;
+                }
+                runtime.connections.validate_subtree_revision_budget(
+                    subsequent_invalidations + u64::from(!prepared_bindings.is_empty()),
+                )?;
+                Ok(())
+            },
         )?;
+        runtime
+            .connections
+            .publish_subtree_connections(prepared_bindings);
         for ((id, parent), resources) in inserted.iter().zip(dependencies) {
             for resource in resources {
                 runtime
@@ -5218,6 +5278,50 @@ mod adr014_tests {
             2,
             "descriptor registration runs once per input"
         );
+    }
+
+    #[test]
+    fn subtree_binding_replacement_checks_the_complete_revision_budget_before_publication() {
+        use crate::{
+            connection::{ConnectionFigure, ConnectionId, RouterBinding},
+            tree::{FigureSubtree, SubtreeBindingNodes, SubtreeConnection},
+        };
+        let (mut runtime, root) = scene();
+        let figure = runtime
+            .add_figure(root, Box::new(ConnectionFigure::new()))
+            .unwrap();
+        let router = RouterBinding::Explicit {
+            router: runtime.connections.direct_router(),
+        };
+        let connection = ConnectionId::from_figure(figure);
+        runtime
+            .connections
+            .register_connection(connection, None, None, router, None)
+            .unwrap();
+        runtime
+            .connections
+            .set_dirty_revision_for_test(connection, u64::MAX - 2);
+        let before = runtime.connections.state(connection).unwrap();
+        let mut subtree = FigureSubtree::new(Box::new(ConnectionFigure::new()));
+        subtree
+            .set_connection_binding(subtree.root(), move |_: &SubtreeBindingNodes| {
+                Ok(SubtreeConnection {
+                    source: None,
+                    target: None,
+                    router,
+                    constraint: None,
+                })
+            })
+            .unwrap();
+        assert!(matches!(
+            runtime.set_contents_subtree(subtree),
+            Err(RuntimeMutationError::Connection(
+                ConnectionRuntimeError::GenerationExhausted
+            ))
+        ));
+        assert_eq!(runtime.tree.contents(), Some(root));
+        assert_eq!(runtime.connections.state(connection).unwrap(), before);
+        assert!(!runtime.is_faulted());
     }
 
     #[test]

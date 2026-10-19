@@ -2,7 +2,10 @@
 
 mod subtree;
 pub(crate) use subtree::SubtreeNode;
-pub use subtree::{FigureSubtree, SubtreeNodeError, SubtreeNodeId, SubtreeReceipt};
+pub use subtree::{
+    FigureSubtree, SubtreeBindingNodes, SubtreeConnection, SubtreeConnectionBinding,
+    SubtreeNodeError, SubtreeNodeId, SubtreeReceipt,
+};
 
 pub use crate::graph::{
     ChildInsertionError, CoordinateFailure, CoordinateQueryError, DEFAULT_VALIDATION_BUDGET,

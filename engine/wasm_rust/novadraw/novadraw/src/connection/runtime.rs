@@ -220,6 +220,12 @@ struct ConnectionState {
 
 pub(crate) struct RetiredConnections {
     _states: Vec<ConnectionState>,
+    _anchors: Vec<Box<dyn ConnectionAnchor>>,
+}
+
+pub(crate) struct PreparedSubtreeConnection {
+    pub(crate) connection: ConnectionId,
+    pub(crate) payload: crate::tree::SubtreeConnection,
 }
 
 pub(crate) struct ConnectionRouteBatch {
@@ -269,6 +275,7 @@ type ObstacleSnapshotResult =
 /// Runtime-private ownership of Connection relationships and dependency state.
 pub(crate) struct ConnectionRuntime {
     anchors: RuntimeArena<AnchorId, Box<dyn ConnectionAnchor>>,
+    subtree_anchors: std::collections::HashSet<AnchorId>,
     routers: RuntimeArena<RouterId, Box<dyn ConnectionRouter>>,
     direct_router: RouterId,
     states: HashMap<ConnectionId, ConnectionState>,
@@ -355,7 +362,11 @@ impl ConnectionRuntime {
                 revision: state.dirty_revision,
             };
         }
-        RetiredConnections { _states: states }
+        let anchors = self.retire_unused_subtree_anchors();
+        RetiredConnections {
+            _states: states,
+            _anchors: anchors,
+        }
     }
 
     pub(crate) fn new() -> Self {
@@ -368,6 +379,7 @@ impl ConnectionRuntime {
         let direct_router = routers.insert(Box::new(DirectRouter));
         Self {
             anchors: RuntimeArena::new(namespace),
+            subtree_anchors: std::collections::HashSet::new(),
             routers,
             direct_router,
             states: HashMap::new(),
@@ -391,6 +403,88 @@ impl ConnectionRuntime {
         self.anchors.insert(anchor)
     }
 
+    fn retire_unused_subtree_anchors(&mut self) -> Vec<Box<dyn ConnectionAnchor>> {
+        let used: std::collections::HashSet<_> = self
+            .states
+            .values()
+            .flat_map(|state| [state.source, state.target].into_iter().flatten())
+            .collect();
+        let unused: Vec<_> = self
+            .subtree_anchors
+            .iter()
+            .copied()
+            .filter(|anchor| !used.contains(anchor))
+            .collect();
+        unused
+            .into_iter()
+            .filter_map(|anchor| {
+                self.subtree_anchors.remove(&anchor);
+                self.anchors.remove(anchor)
+            })
+            .collect()
+    }
+
+    /// Validates one payload without inserting Anchors or Connection states.
+    pub(crate) fn prepare_subtree_connection(
+        &self,
+        binding: &PreparedSubtreeConnection,
+    ) -> Result<(), ConnectionRuntimeError> {
+        if self.states.contains_key(&binding.connection) {
+            return Err(ConnectionRuntimeError::DuplicateConnection(
+                binding.connection,
+            ));
+        }
+        let router = self.resolve_router_binding(binding.payload.router)?;
+        self.validate_constraint(router, binding.payload.constraint.as_deref())
+    }
+
+    pub(crate) fn validate_subtree_revision_budget(
+        &self,
+        increments: u64,
+    ) -> Result<(), ConnectionRuntimeError> {
+        for state in self.states.values() {
+            state
+                .dirty_revision
+                .checked_add(increments)
+                .ok_or(ConnectionRuntimeError::GenerationExhausted)?;
+        }
+        Ok(())
+    }
+
+    /// Commits a prevalidated batch without running extension validators again.
+    pub(crate) fn publish_subtree_connections(&mut self, bindings: Vec<PreparedSubtreeConnection>) {
+        if bindings.is_empty() {
+            return;
+        }
+        self.invalidate_all().expect("batch revision admission");
+        for binding in bindings {
+            let mut register = |anchor: Option<Box<dyn ConnectionAnchor>>| {
+                anchor.map(|anchor| {
+                    let id = self.anchors.insert(anchor);
+                    self.subtree_anchors.insert(id);
+                    id
+                })
+            };
+            let source = register(binding.payload.source);
+            let target = register(binding.payload.target);
+            self.states.insert(
+                binding.connection,
+                ConnectionState {
+                    source,
+                    target,
+                    router: binding.payload.router,
+                    constraint: binding.payload.constraint,
+                    dependencies: HashMap::new(),
+                    routing_space: None,
+                    dirty_revision: 2,
+                    route_generation: 0,
+                    resolution: ConnectionResolution::Dirty { revision: 2 },
+                },
+            );
+            self.order.push(binding.connection);
+        }
+    }
+
     pub(crate) fn remove_anchor(
         &mut self,
         anchor: AnchorId,
@@ -407,6 +501,9 @@ impl ConnectionRuntime {
         }
         self.anchors
             .remove(anchor)
+            .inspect(|_| {
+                self.subtree_anchors.remove(&anchor);
+            })
             .ok_or(ConnectionRuntimeError::UnknownAnchor(anchor))
     }
 
@@ -519,6 +616,7 @@ impl ConnectionRuntime {
         self.locators
             .retain(|binding| binding.connection != connection);
         self.remove_reverse_dependencies(connection, state.dependencies.keys());
+        drop(self.retire_unused_subtree_anchors());
         Ok(())
     }
 
@@ -604,6 +702,7 @@ impl ConnectionRuntime {
         }
         self.invalidate_all()?;
         self.state_mut(connection)?.source = source;
+        drop(self.retire_unused_subtree_anchors());
         Ok(true)
     }
 
@@ -619,6 +718,7 @@ impl ConnectionRuntime {
         }
         self.invalidate_all()?;
         self.state_mut(connection)?.target = target;
+        drop(self.retire_unused_subtree_anchors());
         Ok(true)
     }
 

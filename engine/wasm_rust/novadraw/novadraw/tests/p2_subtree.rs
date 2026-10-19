@@ -25,6 +25,194 @@ fn runtime() -> (Runtime, FigureId) {
 }
 
 #[test]
+fn paired_binding_is_published_with_the_complete_subtree_and_retired_with_it() {
+    use novadraw::{
+        connection::{
+            AnchorError, AnchorSite, ChopboxAnchor, ConnectionAnchor, ConnectionFigure,
+            ConnectionId, CoordinateSpace, RouteSceneQuery, RouterBinding,
+        },
+        geometry::Point,
+        tree::{SubtreeBindingNodes, SubtreeConnection},
+    };
+    struct ExternalAnchor(ChopboxAnchor);
+    impl ConnectionAnchor for ExternalAnchor {
+        fn owner(&self) -> Option<FigureId> {
+            self.0.owner()
+        }
+        fn reference_point(
+            &self,
+            scene: &mut dyn RouteSceneQuery,
+            output: CoordinateSpace,
+        ) -> Result<Point, AnchorError> {
+            self.0.reference_point(scene, output)
+        }
+        fn location(
+            &self,
+            scene: &mut dyn RouteSceneQuery,
+            reference: Point,
+            space: CoordinateSpace,
+            output: CoordinateSpace,
+        ) -> Result<AnchorSite, AnchorError> {
+            self.0.location(scene, reference, space, output)
+        }
+    }
+    let (mut runtime, root) = runtime();
+    let router = runtime.connections().direct_router();
+    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let source = subtree
+        .add(subtree.root(), Box::new(LabelFigure::new("source")))
+        .unwrap();
+    let target = subtree
+        .add(subtree.root(), Box::new(LabelFigure::new("target")))
+        .unwrap();
+    let line = subtree
+        .add(subtree.root(), Box::new(ConnectionFigure::new()))
+        .unwrap();
+    subtree
+        .set_connection_binding(line, move |nodes: &SubtreeBindingNodes| {
+            Ok(SubtreeConnection {
+                source: Some(Box::new(ExternalAnchor(ChopboxAnchor::new(
+                    nodes.figure(source).unwrap(),
+                )))),
+                target: Some(Box::new(ChopboxAnchor::new(nodes.figure(target).unwrap()))),
+                router: RouterBinding::Explicit { router },
+                constraint: None,
+            })
+        })
+        .unwrap();
+    let receipt = runtime.figure(root).unwrap().add_subtree(subtree).unwrap();
+    let connection = ConnectionId::from_figure(receipt.figure(line).unwrap());
+    let state = runtime.connections().state(connection).unwrap();
+    assert!(state.source.is_some());
+    assert!(state.target.is_some());
+    runtime.dispose_subtree(receipt.root()).unwrap();
+    assert!(runtime.connections().state(connection).is_err());
+    assert!(
+        runtime
+            .connections()
+            .remove_anchor(state.source.unwrap())
+            .is_err()
+    );
+    assert!(
+        runtime
+            .connections()
+            .remove_anchor(state.target.unwrap())
+            .is_err()
+    );
+}
+
+#[test]
+fn last_binding_rejection_retires_reserved_ids_without_publishing_a_connection() {
+    use novadraw::{
+        connection::{ConnectionFigure, ConnectionId, ConnectionRuntimeError, RouterBinding},
+        tree::{SubtreeBindingNodes, SubtreeConnection},
+    };
+    let (mut runtime, root) = runtime();
+    let mut foreign_runtime = Runtime::empty();
+    let foreign_router = foreign_runtime.connections().direct_router();
+    let router = runtime.connections().direct_router();
+    let before = runtime.tree().descendant_ids(root).unwrap();
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    for router in [router, foreign_router] {
+        let line = subtree
+            .add(subtree.root(), Box::new(ConnectionFigure::new()))
+            .unwrap();
+        let observed = observed.clone();
+        subtree
+            .set_connection_binding(line, move |nodes: &SubtreeBindingNodes| {
+                observed.lock().unwrap().push(nodes.figure(line).unwrap());
+                Ok(SubtreeConnection {
+                    source: None,
+                    target: None,
+                    router: RouterBinding::Explicit { router },
+                    constraint: None,
+                })
+            })
+            .unwrap();
+    }
+    assert!(matches!(
+        runtime.figure(root).unwrap().add_subtree(subtree),
+        Err(RuntimeMutationError::FigureBatch { index: 2, source })
+            if matches!(*source, RuntimeMutationError::Connection(ConnectionRuntimeError::UnknownRouter(_)))
+    ));
+    assert_eq!(runtime.tree().descendant_ids(root).unwrap(), before);
+    for figure in observed.lock().unwrap().iter().copied() {
+        assert!(runtime.tree().is_attached(figure).is_err());
+        assert!(
+            runtime
+                .connections()
+                .state(ConnectionId::from_figure(figure))
+                .is_err()
+        );
+    }
+    assert!(!runtime.is_faulted());
+}
+
+#[test]
+fn binding_rejects_non_connection_foreign_owner_and_constraint_without_replacing_scene() {
+    use novadraw::{
+        connection::{ChopboxAnchor, ConnectionFigure, RouterBinding},
+        tree::{SubtreeBindingNodes, SubtreeConnection},
+    };
+    struct Constraint;
+    let (mut runtime, root) = runtime();
+    let router = runtime.connections().direct_router();
+    for case in 0..3 {
+        let mut subtree =
+            FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let node = subtree
+            .add(
+                subtree.root(),
+                if case == 0 {
+                    Box::new(LabelFigure::new("invalid")) as Box<dyn Figure>
+                } else {
+                    Box::new(ConnectionFigure::new())
+                },
+            )
+            .unwrap();
+        subtree
+            .set_connection_binding(node, move |_: &SubtreeBindingNodes| {
+                Ok(SubtreeConnection {
+                    source: (case == 1).then(|| Box::new(ChopboxAnchor::new(root)) as _),
+                    target: None,
+                    router: RouterBinding::Explicit { router },
+                    constraint: (case == 2).then(|| Box::new(Constraint) as _),
+                })
+            })
+            .unwrap();
+        assert!(matches!(
+            runtime.set_contents_subtree(subtree),
+            Err(RuntimeMutationError::FigureBatch { index: 1, .. })
+        ));
+        assert_eq!(runtime.tree().contents(), Some(root));
+        assert!(runtime.tree().descendant_ids(root).unwrap().is_empty());
+        assert!(!runtime.is_faulted());
+    }
+}
+
+#[test]
+fn binding_preparation_panic_publishes_no_reserved_nodes() {
+    use novadraw::{connection::ConnectionFigure, tree::SubtreeBindingNodes};
+    let (mut runtime, root) = runtime();
+    let before = runtime.tree().descendant_ids(root).unwrap();
+    let mut subtree = FigureSubtree::new(Box::new(ConnectionFigure::new()));
+    subtree
+        .set_connection_binding(subtree.root(), |_: &SubtreeBindingNodes| {
+            panic!("binding preparation");
+        })
+        .unwrap();
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime.figure(root).unwrap().add_subtree(subtree)
+        }))
+        .is_err()
+    );
+    assert_eq!(runtime.tree().descendant_ids(root).unwrap(), before);
+    assert!(runtime.is_faulted());
+}
+
+#[test]
 fn external_description_preserves_order_layout_style_and_scoped_identity_mapping() {
     let (mut runtime, root) = runtime();
     let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
@@ -210,6 +398,7 @@ fn rejected_constraint_retires_reserved_ids_and_keeps_existing_topology() {
 
 struct Trigger {
     parent: FigureId,
+    router: novadraw::connection::RouterId,
     receipt: Arc<Mutex<Option<SubtreeReceipt>>>,
     rejection: Arc<Mutex<Option<String>>>,
     observed: Arc<Mutex<usize>>,
@@ -230,7 +419,22 @@ impl Figure for Trigger {
 }
 impl FigureEventHandler for Trigger {
     fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        let subtree = FigureSubtree::new(Box::new(LabelFigure::new("deferred")));
+        let mut subtree =
+            FigureSubtree::new(Box::new(novadraw::connection::ConnectionFigure::new()));
+        let router = self.router;
+        subtree
+            .set_connection_binding(
+                subtree.root(),
+                move |_: &novadraw::tree::SubtreeBindingNodes| {
+                    Ok(novadraw::tree::SubtreeConnection {
+                        source: None,
+                        target: None,
+                        router: novadraw::connection::RouterBinding::Explicit { router },
+                        constraint: None,
+                    })
+                },
+            )
+            .unwrap();
         let receipt = self.receipt.clone();
         let rejection = self.rejection.clone();
         context
@@ -254,11 +458,13 @@ fn deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publis
         let receipt = Arc::new(Mutex::new(None));
         let rejection = Arc::new(Mutex::new(None));
         let observed = Arc::new(Mutex::new(usize::MAX));
+        let router = runtime.connections().direct_router();
         runtime
             .figure(root)
             .unwrap()
             .add(Box::new(Trigger {
                 parent: if foreign { other_root } else { root },
+                router,
                 receipt: receipt.clone(),
                 rejection: rejection.clone(),
                 observed: observed.clone(),
@@ -269,6 +475,16 @@ fn deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publis
             .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
         assert_eq!(*observed.lock().unwrap(), 0);
         assert_eq!(receipt.lock().unwrap().is_some(), !foreign);
+        if let Some(receipt) = receipt.lock().unwrap().as_ref() {
+            assert!(
+                runtime
+                    .connections()
+                    .state(novadraw::connection::ConnectionId::from_figure(
+                        receipt.root()
+                    ))
+                    .is_ok()
+            );
+        }
         let errors = runtime.take_deferred_mutation_errors();
         assert_eq!(errors.len(), usize::from(foreign));
         assert_eq!(

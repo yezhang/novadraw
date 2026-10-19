@@ -876,6 +876,7 @@ impl FigureTree {
             &[crate::render::ResourceId],
         ) -> Result<(), E>,
         reject: impl Fn(usize, E) -> E,
+        prepare_bindings: impl FnOnce(&Self, &[FigureId]) -> Result<(), E>,
     ) -> Result<Vec<(FigureId, FigureId)>, E>
     where
         E: From<GraphMutationError> + From<LayoutError>,
@@ -925,6 +926,7 @@ impl FigureTree {
                         .map_err(|error| reject(index, error.into()))?;
                 }
             }
+            prepare_bindings(self, &ids)?;
             Ok::<_, E>(())
         }));
         match preparation {

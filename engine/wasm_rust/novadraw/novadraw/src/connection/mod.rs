@@ -41,11 +41,11 @@ pub use router::{
     RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint, RoutingGroupQuery,
     RoutingGroupScope, RoutingObstacle,
 };
-pub(crate) use runtime::ConnectionRuntime;
 pub use runtime::{
     ConnectionResolution, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
     RouterBinding, UnresolvedConnection,
 };
+pub(crate) use runtime::{ConnectionRuntime, PreparedSubtreeConnection};
 pub use shortest_path::{
     SHORTEST_PATH_DEFAULT_BEND_PENALTY, SHORTEST_PATH_DEFAULT_CLEARANCE,
     SHORTEST_PATH_DEFAULT_MINIMUM_STUB, ShortestPathConnectionRouter, ShortestPathRouterError,
