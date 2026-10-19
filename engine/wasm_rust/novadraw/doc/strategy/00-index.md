@@ -15,7 +15,8 @@
 | [commercial-value-analysis.md](commercial-value-analysis.md) | Draw2D / GEF 与 Rust 生态的商业价值分析 |
 | [ai-era-relationship-editor-research.md](ai-era-relationship-editor-research.md) | AI 协作关系编辑器的外部调研、差异化与验证假设 |
 | [ai-graphical-editor-generator.md](ai-graphical-editor-generator.md) | AI 动态生成领域图形编辑器的产品设计、价值边界与验证方案 |
-| [brand-naming-research.md](brand-naming-research.md) | 品牌命名问题、Weft / Heddle 候选分析与后续筛选方法 |
+| [brand-naming-research.md](brand-naming-research.md) | 品牌命名主研究、候选状态与后续筛选方法 |
+| [brand-naming-human-mark-making-research.md](brand-naming-human-mark-making-research.md) | 从史前造痕、外部表征与 AI 时代人类意图推导命名语义 |
 | [html-in-canvas-api-evaluation-2026-10-09.md](html-in-canvas-api-evaluation-2026-10-09.md) | HTML-in-Canvas 技术、项目适配性与采用门槛 |
 
 ## 使用原则
