@@ -69,6 +69,8 @@
 | 2026-10-16 | [P2-S07 坐标与 Route 查询实施证据](p2-s07-coordinate-route-query-evidence-2026-10-16.md) |
 | 2026-10-16 | [P2-S07 Tree 与 Stable 查询实施证据](p2-s07-tree-query-evidence-2026-10-16.md) |
 | 2026-10-16 | [P2-S07 查询身份与失败语义完成核验](p2-s07-query-identity-completion-2026-10-16.md) |
+| 2026-10-16 | [xtask 命令体系价值评估](xtask-command-system-value-assessment-2026-10-16.md) |
+| 2026-10-16 | [suites 配置与单元测试的职责边界](suite-configuration-and-unit-test-boundary-2026-10-16.md) |
 
 ## 平台与产品验收
 
