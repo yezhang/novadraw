@@ -581,7 +581,8 @@ impl FigureTree {
                 kind @ PendingMutationKind::AddChildFigure { .. } => {
                     self.apply_add_mutation(update_manager, kind)
                 }
-                PendingMutationKind::AddLayerFigure { .. }
+                PendingMutationKind::AddSubtree { .. }
+                | PendingMutationKind::AddLayerFigure { .. }
                 | PendingMutationKind::RemoveLayer { .. }
                 | PendingMutationKind::MoveLayer { .. }
                 | PendingMutationKind::ReparentLayer { .. }
@@ -764,27 +765,7 @@ impl FigureTree {
             }
             .into());
         }
-        let PreparedChild {
-            figure,
-            state,
-            capabilities,
-            depth,
-        } = child;
-        let layout = LayoutState::for_capabilities(&capabilities);
-        let uuid = Uuid::new_v4();
-        let id = self.blocks.insert_with_key(|key| FigureNode {
-            id: key,
-            uuid,
-            children: Vec::new(),
-            parent: None,
-            depth,
-            figure,
-            component_revision: 0,
-            capabilities,
-            prepared: None,
-            layout,
-            state,
-        });
+        let id = self.reserve_prepared_child(child);
         // Reserve an identity without publishing topology, UUID lookup or effects. Retiring a
         // rejected reservation ensures that an ID seen by a validator never aliases a later child.
         let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| prepare(self, id)));
@@ -799,6 +780,42 @@ impl FigureTree {
                 std::panic::resume_unwind(payload);
             }
         };
+        self.publish_reserved_child(id, parent_id, index, constraint);
+        Ok(id)
+    }
+
+    fn reserve_prepared_child(&mut self, child: PreparedChild) -> FigureId {
+        let PreparedChild {
+            figure,
+            state,
+            capabilities,
+            depth,
+        } = child;
+        let layout = LayoutState::for_capabilities(&capabilities);
+        let uuid = Uuid::new_v4();
+        self.blocks.insert_with_key(|key| FigureNode {
+            id: key,
+            uuid,
+            children: Vec::new(),
+            parent: None,
+            depth,
+            figure,
+            component_revision: 0,
+            capabilities,
+            prepared: None,
+            layout,
+            state,
+        })
+    }
+
+    fn publish_reserved_child(
+        &mut self,
+        id: FigureId,
+        parent_id: FigureId,
+        index: usize,
+        constraint: Option<Box<dyn LayoutConstraint>>,
+    ) {
+        let uuid = self.blocks[id].uuid;
         self.blocks[id].parent = Some(parent_id);
         self.uuid_map.insert(uuid, id);
         self.blocks[parent_id].children.insert(index, id);
@@ -822,7 +839,75 @@ impl FigureTree {
             });
         }
         self.mark_validation_path_invalid(parent_id);
-        Ok(id)
+    }
+
+    /// Reserves identities for validators, then publishes only after the whole branch passes.
+    pub(crate) fn insert_subtree(
+        &mut self,
+        parent: FigureId,
+        nodes: Vec<crate::tree::SubtreeNode>,
+    ) -> Result<Vec<(FigureId, FigureId)>, crate::runtime::RuntimeMutationError> {
+        use crate::runtime::RuntimeMutationError;
+        let mut ids = Vec::with_capacity(nodes.len());
+        let mut parents = Vec::with_capacity(nodes.len());
+        let mut constraints = Vec::with_capacity(nodes.len());
+        let preparation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut pending = std::collections::HashMap::<FigureId, usize>::new();
+            for (index, node) in nodes.into_iter().enumerate() {
+                let result = (|| {
+                    let target = node.parent.map(|index| ids[index]).unwrap_or(parent);
+                    let count = pending.entry(target).or_default();
+                    let prepared =
+                        self.prepare_child(node.figure, target, false, *count, node.style)?;
+                    let id = self.reserve_prepared_child(prepared);
+                    ids.push(id);
+                    parents.push(target);
+                    *count += 1;
+                    if let Some(layout) = node.layout {
+                        self.blocks[id].layout.manager = Some(layout);
+                    }
+                    constraints.push(node.constraint);
+                    Ok::<_, RuntimeMutationError>(())
+                })();
+                result.map_err(|source| RuntimeMutationError::FigureBatch {
+                    index,
+                    source: Box::new(source),
+                })?;
+            }
+            for (index, ((id, target), constraint)) in
+                ids.iter().zip(&parents).zip(&constraints).enumerate()
+            {
+                if let Some(constraint) = constraint
+                    && let Some(manager) = self.blocks[*target].layout.manager.as_deref()
+                {
+                    manager
+                        .validate_constraint(*target, *id, constraint.as_ref())
+                        .map_err(|error| RuntimeMutationError::FigureBatch {
+                            index,
+                            source: Box::new(RuntimeMutationError::Layout(error)),
+                        })?;
+                }
+            }
+            Ok::<_, RuntimeMutationError>(())
+        }));
+        match preparation {
+            Ok(Ok(())) => {}
+            other => {
+                for id in ids.into_iter().rev() {
+                    drop(self.blocks.remove(id));
+                }
+                match other {
+                    Ok(Err(error)) => return Err(error),
+                    Err(payload) => std::panic::resume_unwind(payload),
+                    Ok(Ok(())) => unreachable!(),
+                }
+            }
+        }
+        for ((id, target), constraint) in ids.iter().zip(&parents).zip(constraints) {
+            let index = self.blocks[*target].children.len();
+            self.publish_reserved_child(*id, *target, index, constraint);
+        }
+        Ok(ids.into_iter().zip(parents).collect())
     }
 
     pub(crate) fn attach_prepared_child(

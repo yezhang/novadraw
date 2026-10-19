@@ -274,7 +274,8 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |
 | `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | `TreeSearch`、`TreeSearchContext`、`ExclusionSearch`、`FigureTree::{hit_test_with,hit_test_excluding,find_in_subtree,ancestor_ids,descendant_ids,is_ancestor_of}` | verified | D1.5a：共享 hit-test traversal、prune 子树与稳定结构查询已有契约测试 |
 | `figure.properties` | `foreground/background/font/cursor/opaque` | `FigureStyle`、`ResolvedStyle`、Runtime update-aware style/opaque mutation 与 cursor 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
-| `figure.properties`, `event.input_listeners` | Figure 事件期样式与 cursor replacement | `EventSceneQuery::figure_style` 返回 committed 副本；`EventEffects::set_style_later` 经同一 Runtime style 提交，None 恢复继承 | verified | K01 外部 `p2_deferred_style` 四项测试与 InternalFrame 真实光标事件测试通过；完整 subtree/receipt 仍未完成 |
+| `figure.properties`, `event.input_listeners` | Figure 事件期样式与 cursor replacement | `EventSceneQuery::figure_style` 返回 committed 副本；`EventEffects::set_style_later` 经同一 Runtime style 提交，None 恢复继承 | verified | K01 外部 `p2_deferred_style` 四项测试与 InternalFrame 真实光标事件测试通过 |
+| `figure.tree`, `runtime.identity`, `layout.manager` | detached branch 构造后整体挂载 | `FigureSubtree`、`SubtreeNodeId`、`FigureMut::add_subtree` 与 `EventEffects::add_subtree_later` | partial | 完整准入、constraint/resource 预检、身份退休、成功 receipt 与官方 More Children 已验证；配对 binding、失败回执主动消费和整场景替换待完成 |
 | `figure.properties` | `tooltip` | FigureStyle tooltip 三态继承；Runtime-owned waiting/visible/hidden、单调 deadline、Show/Replace/Hide update 与共享边界 placement | verified | `m10_tooltip_contract`、Native overlay 截图与 Web DOM hover 验证 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`。

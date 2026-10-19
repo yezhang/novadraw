@@ -472,6 +472,15 @@ impl FigureMut<'_> {
 }
 
 impl FigureMut<'_> {
+    /// Publishes an owned complete branch after whole-subtree admission.
+    pub fn add_subtree(
+        &mut self,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.add_subtree(self.figure, subtree)
+    }
+
     pub fn add(&mut self, figure: Box<dyn Figure>) -> Result<FigureId, RuntimeMutationError> {
         self.runtime.validate_container_figure(self.figure)?;
         self.runtime.add_figure(self.figure, figure)
@@ -1154,6 +1163,49 @@ impl Runtime {
         self.register_label_icon_dependency(id);
         self.register_image_figure_dependency(id);
         self.tree.complete_attachment(id, parent);
+    }
+
+    pub(crate) fn add_subtree(
+        &mut self,
+        parent: FigureId,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_container_figure(parent)?;
+            let owner = subtree.owner;
+            for (index, node) in subtree.nodes.iter().enumerate() {
+                for resource in &node.resources {
+                    runtime.resources.status(*resource).map_err(|error| {
+                        RuntimeMutationError::FigureBatch {
+                            index,
+                            source: Box::new(RuntimeMutationError::Resource(error)),
+                        }
+                    })?;
+                }
+            }
+            let dependencies: Vec<_> = subtree
+                .nodes
+                .iter()
+                .map(|node| node.resources.clone())
+                .collect();
+            let inserted = runtime.tree.insert_subtree(parent, subtree.nodes)?;
+            for ((id, parent), resources) in inserted.iter().zip(dependencies) {
+                for resource in resources {
+                    runtime
+                        .resources
+                        .add_dependency(resource, *id)
+                        .expect("resource dependency passed admission");
+                }
+                runtime
+                    .tree
+                    .invalidate_child_insertion(&mut runtime.updates, *parent, *id);
+                runtime.complete_figure_insertion(*parent, *id);
+            }
+            Ok(crate::tree::SubtreeReceipt::new(
+                owner,
+                inserted.into_iter().map(|(id, _)| id).collect(),
+            ))
+        })
     }
 
     fn add_layered_pane_inner(
@@ -2969,6 +3021,15 @@ impl Runtime {
             PendingMutationKind::Reparent { child, new_parent } => self.reparent(child, new_parent),
             PendingMutationKind::AddChildFigure { parent, figure } => {
                 self.add_figure(parent, figure).map(|_| true)
+            }
+            PendingMutationKind::AddSubtree {
+                parent,
+                subtree,
+                committed,
+            } => {
+                let receipt = self.add_subtree(parent, subtree)?;
+                committed(receipt);
+                Ok(true)
             }
             PendingMutationKind::UpdateComponent(update) => update.apply(self),
             PendingMutationKind::UpdateCapability(update) => update.apply(self),

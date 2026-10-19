@@ -247,3 +247,34 @@ subtree 构造或事件结果 receipt，也不引入 Editor API。
 
 `api_semantics`：`figure.properties`、`event.input_listeners`、`runtime.identity`、
 `damage.repaint`。
+
+## K01 完整子树与挂载回执增量
+
+2026-10-19 继续按已批准的 Core 计划实施。`FigureSubtree` 拥有 detached Figure、
+局部 style、LayoutManager、父级 constraint 和显式 resource dependencies。
+`SubtreeNodeId` 使用描述实例身份与序号，不能作为 `FigureId` 使用。
+`FigureMut::add_subtree` 与 `EventEffects::add_subtree_later` 复用同一 Runtime 提交机制。
+
+准入先验证目标与资源，再按父先子后保留节点身份，验证 bounds、style、capability、
+child policy、深度和全部布局 constraint。保留节点尚未进入父级 children、UUID lookup、
+通知和 damage。验证拒绝或 panic 时清理保留节点；验证器见过的 FigureId 永久退休。
+全部通过后发布拓扑，再按父先子后处理依赖、失效和 attachment callback。
+callback panic 沿既有边界 fault，不回滚真实发布状态或外部副作用。
+
+同步返回 `SubtreeReceipt`；延迟入口的成功回调在全部 attachment callback 完成后接收
+同一映射。成功回调只获得 owned receipt，没有 Runtime、FigureTree 或同步写权限。
+拒绝时跳过成功回调，仍通过 deferred mutation errors 返回来源。receipt 表示 source
+挂载成功，不表示布局稳定或帧已呈现。
+
+外部消费者证据：`novadraw/tests/p2_subtree.rs` 验证外部 Figure、Label/Border/Layout、
+顺序与继承、foreign 构造身份、末项失败、Single child policy、constraint 拒绝与身份
+退休、事件内不可见、foreign Runtime、资源、10,000 深度限制和 attachment panic。
+官方 TreeExample 使用同一入口挂载 TreeBranch → AnimatingLayer / PageNode → Label，
+在成功回调更新 TreeModel，并保留父分支样式。
+
+本切片未关闭 K01 的通用配对 binding、整场景替换、失败回执主动消费和重入验收。
+新增 binding 描述需要独立验证身份映射与 registry 准入，不能以成功回调内写外部模型
+替代 Core binding 的原子预检。
+
+`api_semantics`：`figure.tree`、`figure.properties`、`layout.manager`、
+`runtime.identity`、`validation.protocol`、`damage.repaint`。

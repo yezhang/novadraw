@@ -366,6 +366,25 @@ impl EventEffects<'_> {
     }
 
     /// Enqueues a structural mutation for application after top-level dispatch.
+    ///
+    /// The success callback receives only the committed identity mapping, never Runtime authority.
+    /// Rejection skips the callback and uses `Runtime::take_deferred_mutation_errors`.
+    /// A lifecycle or success callback panic faults Runtime without rolling back external effects.
+    pub fn add_subtree_later(
+        &mut self,
+        parent: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        committed: impl FnOnce(crate::tree::SubtreeReceipt) + 'static,
+    ) {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::add_subtree(
+                parent,
+                subtree,
+                Box::new(committed),
+            )));
+    }
+
+    /// Enqueues a structural mutation for application after top-level dispatch.
     pub fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
         MutationContext::add_child_later(self, parent, figure);
     }

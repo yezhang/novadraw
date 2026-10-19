@@ -649,6 +649,11 @@ where
 }
 
 pub(crate) enum PendingMutationKind {
+    AddSubtree {
+        parent: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        committed: Box<dyn FnOnce(crate::tree::SubtreeReceipt)>,
+    },
     AddChildFigure {
         parent: FigureId,
         figure: Box<dyn Figure>,
@@ -732,6 +737,20 @@ pub(crate) enum PendingMutationKind {
 }
 
 impl PendingMutation {
+    pub(crate) fn add_subtree(
+        parent: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        committed: Box<dyn FnOnce(crate::tree::SubtreeReceipt)>,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::AddSubtree {
+                parent,
+                subtree,
+                committed,
+            },
+        }
+    }
+
     pub(crate) fn add_child_figure(parent: FigureId, figure: Box<dyn Figure>) -> Self {
         Self {
             kind: PendingMutationKind::AddChildFigure { parent, figure },
