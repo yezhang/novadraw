@@ -29,3 +29,4 @@
 - [14. 原子性、故障与可验证演进](14-correctness-and-evolution.md)
 
 - [附录：核心概念关系图](appendix-concept-map.md)
+- [附录：revision 如何约束编辑一致性](appendix-editor-revision.md)

@@ -189,6 +189,10 @@ Command；后两层可以随 Viewer 或 Runtime 重建。
 这些版本不能合并为一个全局计数器。一次模型 revision 可以引发多个表现帧；一次 backend
 session 可以跨越多个模型 revision；稳定 epoch 完成后，后端仍可能拒绝或延迟提交。
 
+Editor 还保存 Viewer 已应用的模型版本、直接编辑的源模型版本，并为输入和请求
+分配独立的交互版本。它们的作用、同步顺序及失败边界见
+[revision 如何约束编辑一致性](appendix-editor-revision.md)。
+
 ## 四个坐标域
 
 ```mermaid

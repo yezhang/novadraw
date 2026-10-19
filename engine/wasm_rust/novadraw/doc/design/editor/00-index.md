@@ -16,6 +16,10 @@ Viewport 协作。
 | 6 | [g5-viewport-autoexpose.md](g5-viewport-autoexpose.md) | 缩放反馈与双轴 auto-expose |
 | 7 | [p2-direct-text-edit.md](p2-direct-text-edit.md) | TextFlow 交互几何、直接编辑与 IME |
 
+机制分析（解释现行契约，不替代规范）：
+
+- [revision 的作用与边界](revision-semantics.md)：模型发布、Viewer 同步进度、交互版本与撤销历史。
+
 已接受的失败隔离契约：
 
 - [ADR-037：增量视图失败隔离与 Overlay 批量校验](../../adr/adr-037-editor-incremental-failure-isolation.md)；
