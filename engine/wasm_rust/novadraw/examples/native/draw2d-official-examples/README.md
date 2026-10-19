@@ -46,4 +46,14 @@ cargo test -p draw2d-official-examples --test source_contracts
 DRAW2D_REFERENCE_ROOT=/Users/bytedance/Documents/code/GitHub/gef-classic cargo test -p draw2d-official-examples --test source_contracts upstream_main_helpers_and_resources_match_the_inventory -- --ignored
 ```
 
-源码清单通过不等于结构/视觉/全交互验收；K00 仍需补齐逐 feature 的运行证据。
+`source-events.tsv` 记录全部 25 入口及清单中 49 个源码文件的 listener、callback、
+SWT import 和宿主调用行；它是词法证据，不是事件运行顺序或全 feature 证明。
+更新命令：
+
+```sh
+python3 verification/oracles/draw2d/capture_source_events.py --reference-root /Users/bytedance/Documents/code/GitHub/gef-classic --output examples/native/draw2d-official-examples/source-events.tsv
+```
+
+[Grid 事件 oracle](../../../verification/oracles/draw2d/README.md) 已记录原生 SWT
+注册回调的实际结果。源码清单通过不等于结构/视觉/全交互验收；K00 仍需补齐各入口
+运行证据和人工核对后的全 feature manifest。

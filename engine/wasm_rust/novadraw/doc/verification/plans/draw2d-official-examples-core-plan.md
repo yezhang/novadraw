@@ -42,7 +42,15 @@ Runtime / Viewport 的同步与事件期完整 contents 替换已接入同一子
 隔离已验证。keyed Layer 已复用资源准入，拒绝保留 key、拓扑与通知，事件期保留
 资源错误并继续 FIFO；Builder → Runtime 增加整树受检构造，原构造器委托并对非法
 资源明确 panic。attached 资源 effect 已核对整批预检，并补齐 retired 反例。
-K00/K01 均保留未完成，下一步补事件 oracle 和剩余示例的动态构造消费。契约见
+Grid Add 已接入成功回执，拒绝不发布默认 GridData；Clear 后由 Shape 生命周期清理
+控制器约束表，构造序列仍按官方继续循环。K00 已增加
+[Grid Java 事件基线](../../../verification/oracles/draw2d/README.md)，确认 FocusOut
+与 DefaultSelection 都提交 widthHint、非法值回退 1，以及 Clear 保留 Java selected
+引用。该证据只覆盖官方注册回调，不代替真实键鼠/焦点验收。
+全 25 入口及清单内 49 个源码文件已捕获 489 条事件/平台词法证据，
+`source-events.tsv` 保存源行与文件指纹；仍需人工核对 inactive 路径及运行顺序。
+K00/K01 均保留未完成，下一步补全入口事件 manifest、其余 Java oracle 和依赖
+K03/K05/K06/K08 的示例消费。契约见
 [ADR-009 增量](../../adr/adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
 
 ### K00 全入口基线与预检

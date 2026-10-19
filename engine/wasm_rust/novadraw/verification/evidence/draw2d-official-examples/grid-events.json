@@ -1,0 +1,16 @@
+{
+  "baseline": "4463d9d0ce13c19d10fbe769d29f28b7345a8cba",
+  "mode": "registered callbacks; native SWT widgets; no OS input injection",
+  "sources": {
+    "org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/AbstractExample.java": "e77ac244c5a20406f8c032da1cbbcdf82b4683ed948cd3c9bf1b9dce82f51c45",
+    "org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/layouts/GridLayoutExample.java": "a0e4b22570141d7dd1433f755ba095b91250dd64260aeae863c463385a27f363",
+    "GridEventOracle.java": "ed6b19b85d6aca2f67a2ac6454325e2b7d9a404e0b01b88bf84fd0c0cebe7a86"
+  },
+  "artifacts": {
+    "/Users/bytedance/Documents/code/GitHub/gef-classic/org.eclipse.draw2d/target/org.eclipse.draw2d-3.22.0-SNAPSHOT.jar": "f29b0247ae1a58cdc685bbcfbfcfc1174bbecd531f3da5d765c982ef3398f430",
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/third_party/draw2d-examples/target/performance-deps/org.eclipse.swt.cocoa.macosx.aarch64-3.135.0.jar": "11555a0133901e0acad659d923c2ba968857032829e0a3b4a2908bf0b2986e23"
+  },
+  "java": "openjdk version \"21.0.5\" 2024-10-15\nOpenJDK Runtime Environment Homebrew (build 21.0.5)\nOpenJDK 64-Bit Server VM Homebrew (build 21.0.5, mixed mode, sharing)\n",
+  "stdout": "platform\tcocoa\nswt-version\t4974\ndpi\t72,72\nfont\t1|.AppleSystemUIFont|13.0|0|COCOA|1|.AppleSystemUIFont\ninitial-children\t2\ninitial-grid-data-enabled\tfalse\nadd-0\tRoundedRectangle,RGB {255, 255, 0}\nadd-1\tRectangleFigure,RGB {128, 128, 128}\nadd-2\tEllipse,RGB {0, 255, 0}\nadd-3\tTriangle,RGB {127, 127, 255}\nadd-4\tRoundedRectangle,RGB {0, 255, 255}\nadd-5\tTriangle,RGB {0, 127, 0}\nadd-6\tRoundedRectangle,RGB {255, 196, 0}\nadd-7\tEllipse,RGB {0, 0, 255}\nadd-8\tRectangleFigure,RGB {255, 0, 0}\nselected-line-width\t4\nselected-grid-data-enabled\ttrue\nwidth-focus-out\t91,updates=1\nwidth-return\t92,updates=1\nError: Invalid Number entered for widthHint\nwidth-invalid\t1\nclear-children\t0\nclear-grid-data-enabled\tfalse\nclear-selected-reference-retained\ttrue\nadd-after-clear\tRoundedRectangle\n",
+  "stderr": ""
+}

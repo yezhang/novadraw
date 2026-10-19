@@ -2,6 +2,7 @@ use draw2d_official_examples::catalog;
 use std::{collections::BTreeSet, fs, path::PathBuf};
 
 const INVENTORY: &str = include_str!("../source-contracts.tsv");
+const EVENTS: &str = include_str!("../source-events.tsv");
 const PLAN: &str = include_str!(
     "../../../../doc/verification/plans/draw2d-official-examples-remaining-contracts.md"
 );
@@ -43,6 +44,36 @@ fn inventory_covers_catalog_and_plan_exactly_with_owned_steps() {
         }
         assert!(!row[2].contains("zest"));
     }
+}
+
+#[test]
+fn event_source_evidence_covers_every_main_and_inventoried_helper() {
+    let expected: BTreeSet<_> = rows()
+        .iter()
+        .flat_map(|row| row[1..3].iter().flat_map(|field| field.split(',')))
+        .filter(|path| *path != "-")
+        .collect();
+    let mut sources = BTreeSet::new();
+    for line in EVENTS.lines().filter(|line| !line.starts_with('#')) {
+        let fields: Vec<_> = line.splitn(4, '\t').collect();
+        assert_eq!(fields.len(), 4);
+        assert!(expected.contains(fields[0]));
+        assert!(!fields[3].contains("org.eclipse.zest"));
+        match fields[2] {
+            "sha256" => {
+                assert_eq!(fields[1], "0");
+                assert_eq!(fields[3].len(), 64);
+                assert!(fields[3].bytes().all(|byte| byte.is_ascii_hexdigit()));
+                assert!(sources.insert(fields[0]));
+            }
+            "registration" | "callback" | "platform" | "host" => {
+                assert!(fields[1].parse::<usize>().unwrap() > 0);
+                assert!(!fields[3].is_empty());
+            }
+            kind => panic!("unknown source evidence kind: {kind}"),
+        }
+    }
+    assert_eq!(sources, expected);
 }
 
 /// Exact local upstream validation; ordinary workspace tests do not require the sibling checkout.
@@ -87,6 +118,25 @@ fn upstream_main_helpers_and_resources_match_the_inventory() {
                 );
             }
         }
+    }
+    for line in EVENTS.lines().filter(|line| !line.starts_with('#')) {
+        let fields: Vec<_> = line.splitn(4, '\t').collect();
+        if fields[2] == "sha256" {
+            continue;
+        }
+        let source = fs::read_to_string(base.join(fields[0])).unwrap();
+        let number = fields[1].parse::<usize>().unwrap();
+        assert_eq!(
+            source
+                .lines()
+                .nth(number - 1)
+                .unwrap()
+                .trim()
+                .replace('\t', " "),
+            fields[3],
+            "{}:{number}",
+            fields[0],
+        );
     }
     for (file, kind, expected) in [
         ("graph/GraphTests.java", "DirectedGraph", 16),

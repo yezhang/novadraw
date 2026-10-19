@@ -77,8 +77,10 @@ typed resource 准入、Runtime / Viewport 同步与事件期完整 contents 替
 以及配对 Connection binding 的整批准入与 owned Anchor 释放切片。
 旧 add/indexed/constraint/batch 资源准入和事件重入边界已有测试证据；
 keyed Layer 已统一资源准入，Builder → Runtime 已增加整树受检构造，
-attached 资源 effect 已核对整批预检并补齐 retired 反例。下一步补事件 oracle
-和剩余示例的动态构造消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
+attached 资源 effect 已核对整批预检并补齐 retired 反例。Grid Add 已接入回执，
+Clear 后清理约束表并保留构造序列；Java Grid 注册回调取证确认 FocusOut/Return
+提交、非法值回退及 Clear 的引用行为。下一步补全入口事件 manifest、其余 Java
+oracle 和依赖后续切片的示例消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
