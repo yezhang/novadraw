@@ -112,6 +112,11 @@
 
 ### 架构分析边界
 
+- 官方示例迭代只建设 Canvas / LightweightSystem 内的 Draw2D 能力。Java 源码仅供
+  只读参考，不编写、修改、编译或运行 Java 验证代码；不建设 SWT 原生控件的
+  Novadraw 替代体系。示例临时控制面板允许用于过渡/验证，不作为 Core 演进目标。
+  Canvas 内真正的 Draw2D Figure 组件仍在范围内。当前计划见
+  `doc/verification/plans/draw2d-official-examples-core-plan.md`。
 - 架构设计优先从需求、第一性原理、draw2d/GEF 参考源码出发。
 - 第三方源码分析仅对标 `org.eclipse.draw2d` 与 `org.eclipse.gef`；不得用
   `org.eclipse.zest` 的源码或行为作为 Novadraw 的需求、语义、架构或实现依据。

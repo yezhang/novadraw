@@ -317,21 +317,27 @@ impl LayoutManager for GridLayout {
     fn preferred_measurement(
         &self,
         container: FigureId,
-        _constraints: MeasureConstraints,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<FigureMeasurement, LayoutError> {
         let (width, height) = self.measured_size(container, snapshot, false)?;
-        Ok(FigureMeasurement::new(width, height, None))
+        Ok(FigureMeasurement::new(
+            constraints.max_width().unwrap_or(width),
+            constraints.max_height().unwrap_or(height),
+            None,
+        ))
     }
 
     fn minimum_size(
         &self,
         container: FigureId,
-        _constraints: MeasureConstraints,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<Dimension, LayoutError> {
         // Draw2D GridLayout inherits AbstractLayout's minimum = preferred contract.
-        Ok(self.measured_size(container, snapshot, false)?.into())
+        Ok(self
+            .preferred_measurement(container, constraints, snapshot)?
+            .size())
     }
 
     fn layout(

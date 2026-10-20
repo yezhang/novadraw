@@ -151,7 +151,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "FlowLayoutExample",
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
-                "official shape outlines/colors, native Scale keyboard semantics and resizable canvas layout remain under verification",
+                "Canvas shape outlines/colors, Flow measurement and resize remain under verification",
             ],
             examples::flow_layout_example,
         ),
@@ -160,7 +160,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "GridLayoutExample",
             "org/eclipse/draw2d/examples/layouts/GridLayoutExample.java",
             &[
-                "editable SWT Combo and Text selection/caret semantics are not yet equivalent; shell.pack resizing remains to be ported",
+                "Canvas GridData measurement, span/grab and dynamic resize remain under verification",
             ],
             examples::grid_layout_example,
         ),
@@ -169,7 +169,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ToolbarLayoutExample",
             "org/eclipse/draw2d/examples/layouts/ToolbarLayoutExample.java",
             &[
-                "official shape outlines, stretch/reset behavior and native Scale keyboard semantics remain under verification",
+                "Canvas shape outlines, Toolbar measurement and stretch/reset behavior remain under verification",
             ],
             examples::toolbar_layout_example,
         ),
@@ -186,7 +186,9 @@ pub fn catalog() -> Vec<OfficialExample> {
             "printing",
             "PrintExample",
             "org/eclipse/draw2d/examples/printing/PrintExample.java",
-            &["P2-O01 printing/export output targets are deferred"],
+            &[
+                "official Canvas Figure composition and graphics output consumption remain to be ported",
+            ],
         ),
         OfficialExample::in_progress(
             "scroll-pane",
@@ -202,7 +204,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "inherit-background",
             "InheritBackgroundExample",
             "org/eclipse/draw2d/examples/swt/InheritBackgroundExample.java",
-            &["platform-native parent background inheritance has no Winit contract"],
+            &["transparent Canvas background-source composition remains to be implemented"],
         ),
         OfficialExample::blocked(
             "shape-styles",
@@ -226,13 +228,13 @@ pub fn catalog() -> Vec<OfficialExample> {
             "caret",
             "CaretExample",
             "org/eclipse/draw2d/examples/text/CaretExample.java",
-            &["requires a Native caret overlay and live hit inspector"],
+            &["requires TextFlow fragment geometry, hit positions and Canvas selection drawing"],
         ),
         OfficialExample::blocked(
             "multi-line-label",
             "MultiLineLabelExample",
             "org/eclipse/draw2d/examples/text/MultiLineLabelExample.java",
-            &["MultiLineLabel widget and native Text comparison are absent"],
+            &["Draw2D MultiLineLabel Figure composition, focus and scrolling remain to be ported"],
         ),
         OfficialExample::blocked(
             "text-flow",
@@ -273,7 +275,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/tree/TreeExample.java",
             &[
                 "official nineteen-node fixture, full branch insertion with parent style and commit receipt, selected label white/inherited reset, alignment/style/spacing, deletion and nonanimated collapse are ported",
-                "selected theme gradient, animation viewport tracking and native panel layout remain incomplete; Scale uses integer values and increment=5",
+                "Canvas selected gradient, animation geometry and viewport tracking remain incomplete",
             ],
             examples::tree_example,
         ),
@@ -292,7 +294,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/zoom/ZoomExample.java",
             &[
                 "ScrollBar repeat firing, five child Figure composition and SchemeBorder remain to be ported",
-                "SVG icons are currently represented by upstream PNG alternatives; native visual comparison is pending",
+                "original SVG resources and Canvas rendering remain under verification",
             ],
             examples::zoom_example,
         ),

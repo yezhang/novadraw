@@ -12,7 +12,7 @@ InheritBackgroundExample	swt/InheritBackgroundExample.java	-	-	K07,H01,H02,H04
 DirectedGraphDemo	graph/DirectedGraphDemo.java	graph/AbstractGraphDemo.java,graph/GraphTests.java	-	K01,K03,K06,H01,H04
 CompoundGraphDemo	graph/CompoundGraphDemo.java	graph/AbstractGraphDemo.java,graph/CompoundGraphTests.java	-	K01,K03,K06,H01,H04
 PathExample	path/PathExample.java	path/PathFigure.java,path/ZoomFigure.java	-	K02,K04,K05,K08,H01,H02,H04
-PrintExample	printing/PrintExample.java	-	printing/brazil.ico	K02,K09,H01,H03,H04
+PrintExample	printing/PrintExample.java	-	printing/brazil.ico	K02,K09,H01,H04
 ScrollPaneExample	scrollpane/ScrollPaneExample.java	AbstractExample.java,scrollpane/InternalFrame.java,ExampleUtil.java,ExampleImages.java	images/george.gif	K01,K02,K04,H01,H04
 ZoomExample	zoom/ZoomExample.java	zoom/ZoomContainer.java,zoom/UMLClassFigure.java,zoom/CompartmentFigure.java	zoom/images/class_obj.svg,zoom/images/field_private_obj.svg,zoom/images/methpub_obj.svg	K02,K04,K08,H01,H02,H04
 ThumbnailExample	thumbnail/ThumbnailExample.java	-	-	K01,K02,K07,H01,H04

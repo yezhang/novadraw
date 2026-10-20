@@ -86,18 +86,41 @@ impl ToolbarLayout {
         snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Result<Dimension, LayoutError> {
+        let constraints = match self.orientation {
+            ToolbarOrientation::Horizontal => {
+                MeasureConstraints::new(None, constraints.max_height())
+            }
+            ToolbarOrientation::Vertical => MeasureConstraints::new(constraints.max_width(), None),
+        }
+        .expect("axis selection preserves validated measurement constraints");
         let children = snapshot.children(container)?;
-        let mut main = 0.0_f64;
-        let mut minor = 0.0_f64;
-        for (child, _) in &children {
-            let size = if minimum {
-                snapshot.minimum_size(*child, constraints)?
-            } else {
-                snapshot.preferred_measurement(*child, constraints)?.size()
-            };
-            let size = self.oriented_size(size.into());
-            main += size.0;
-            minor = minor.max(size.1);
+        let measure = |constraints| -> Result<(f64, f64), LayoutError> {
+            let mut main = 0.0_f64;
+            let mut minor = 0.0_f64;
+            for (child, _) in &children {
+                let size = if minimum {
+                    snapshot.minimum_size(*child, constraints)?
+                } else {
+                    snapshot.preferred_measurement(*child, constraints)?.size()
+                };
+                let size = self.oriented_size(size.into());
+                main += size.0;
+                minor = minor.max(size.1);
+            }
+            Ok((main, minor))
+        };
+        let (mut main, mut minor) = measure(constraints)?;
+        let minor_hint = match self.orientation {
+            ToolbarOrientation::Horizontal => constraints.max_height(),
+            ToolbarOrientation::Vertical => constraints.max_width(),
+        };
+        if minor_hint.is_some_and(|hint| minor > hint) {
+            let expanded = match self.orientation {
+                ToolbarOrientation::Horizontal => MeasureConstraints::height(minor),
+                ToolbarOrientation::Vertical => MeasureConstraints::width(minor),
+            }
+            .expect("validated child measurement supplies a finite extent");
+            (main, minor) = measure(expanded)?;
         }
         main += self.spacing * children.len().saturating_sub(1) as f64;
         Ok(self.physical_size(main, minor).into())
@@ -151,30 +174,30 @@ impl LayoutManager for ToolbarLayout {
         let mut preferred = Vec::with_capacity(children.len());
         let mut minimum = Vec::with_capacity(children.len());
         let mut maximum = Vec::with_capacity(children.len());
+        let child_constraints = match self.orientation {
+            ToolbarOrientation::Horizontal => MeasureConstraints::height(client.height),
+            ToolbarOrientation::Vertical => MeasureConstraints::width(client.width),
+        }
+        .expect("client extent is validated");
         for (child, _) in &children {
             preferred.push(
                 self.oriented_size(
                     snapshot
-                        .preferred_measurement(*child, MeasureConstraints::UNBOUNDED)?
+                        .preferred_measurement(*child, child_constraints)?
                         .size()
                         .into(),
                 ),
             );
-            minimum.push(
-                self.oriented_size(
-                    snapshot
-                        .minimum_size(*child, MeasureConstraints::UNBOUNDED)?
-                        .into(),
-                ),
-            );
+            minimum
+                .push(self.oriented_size(snapshot.minimum_size(*child, child_constraints)?.into()));
             maximum.push(self.oriented_size(snapshot.maximum_size(*child)?.into()));
         }
 
         let spacing_total = self.spacing * children.len().saturating_sub(1) as f64;
         let preferred_main = preferred.iter().map(|size| size.0).sum::<f64>() + spacing_total;
         let minimum_main = minimum.iter().map(|size| size.0).sum::<f64>() + spacing_total;
-        let shrink = (preferred_main - available.0.max(minimum_main)).max(0.0);
-        let shrink_capacity = preferred
+        let mut shrink = (preferred_main - available.0.max(minimum_main)).max(0.0);
+        let mut shrink_capacity = preferred
             .iter()
             .zip(&minimum)
             .map(|(preferred, minimum)| (preferred.0 - minimum.0).max(0.0))
@@ -184,11 +207,21 @@ impl LayoutManager for ToolbarLayout {
         for (index, (child, _)) in children.iter().enumerate() {
             let capacity = (preferred[index].0 - minimum[index].0).max(0.0);
             let child_shrink = if shrink_capacity > 0.0 {
-                shrink * capacity / shrink_capacity
+                let share = shrink * capacity / shrink_capacity;
+                if preferred_main.fract() == 0.0
+                    && minimum_main.fract() == 0.0
+                    && available.0.fract() == 0.0
+                {
+                    share.trunc()
+                } else {
+                    share
+                }
             } else {
                 0.0
             };
             let main = (preferred[index].0 - child_shrink).max(minimum[index].0);
+            shrink -= child_shrink;
+            shrink_capacity -= capacity;
 
             let natural_minor = preferred[index]
                 .1
@@ -197,14 +230,20 @@ impl LayoutManager for ToolbarLayout {
             let minor = if self.stretch_minor_axis {
                 available.1.min(maximum[index].1).max(minimum[index].1)
             } else {
-                natural_minor.min(available.1)
+                natural_minor.min(available.1).max(minimum[index].1)
             };
             let minor_offset = match self.minor_alignment {
                 MinorAlignment::Start => 0.0,
-                MinorAlignment::Center => (available.1 - minor) / 2.0,
+                MinorAlignment::Center => {
+                    let offset = (available.1 - minor) / 2.0;
+                    if available.1.fract() == 0.0 && minor.fract() == 0.0 {
+                        offset.trunc()
+                    } else {
+                        offset
+                    }
+                }
                 MinorAlignment::End => available.1 - minor,
-            }
-            .max(0.0);
+            };
 
             let (width, height) = self.physical_size(main, minor);
             let (x, y) = match self.orientation {

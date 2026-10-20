@@ -4,7 +4,20 @@
 
 日期：2026-10-19
 
-状态：修订 3 已获准实施，2026-10-19；范围限定为 Core、扩展实现和平台工作
+状态：Canvas 范围修订；按用户最新要求只推进 LightweightSystem 承载的 Draw2D 能力
+
+## 当前范围裁定
+
+本表保留官方源码的宿主环境描述，实施任务只取 Canvas 内的 Draw2D Figure、
+布局、输入、图形、文字、资源和运行时能力。SWT Text/Combo/Scale/Group、原生
+控制面板和 Printer/Dialog 不属于 Novadraw 功能建设或完成门禁。现有临时控制
+工具可以保留，但不能把它升级为原生控件替代体系。
+
+不编写、修改、编译或运行 Java 验证代码；上游源码仅供只读语义分析。
+下面旧矩阵中关于 Java 运行、native 对照、pack、原生控件桥接、H03 真打印的要求
+全部撤销，不因旧记录中出现这些文字而继续执行。当前任务与退出条件统一见
+[Canvas Core 计划](draw2d-official-examples-core-plan.md) 和本地 Canvas 收口清单。
+原始需求描述保留为来源记录，不能作为当前执行门禁。
 
 ## 范围与判断依据
 

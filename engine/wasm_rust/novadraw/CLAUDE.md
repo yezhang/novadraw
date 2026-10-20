@@ -176,6 +176,14 @@ ADR-033/035/038 细化。P2-R02 image source rectangle 已完成。
 
 ## 架构设计原则
 
+### 官方示例实施范围
+
+只建设官方示例 Canvas / LightweightSystem 内的 Draw2D 能力。Java 源码仅作
+只读语义参考，不编写、修改、编译或运行 Java 验证代码；不建设 SWT 原生控件的
+Novadraw 替代体系。Canvas 外的临时控制工具可用于过渡或验证，不作为 Core
+演进目标或对等毕业条件。Draw2D Figure 组件（如 ScrollBar、MultiLineLabel）
+仍须按统一扩展模型实现，不能与 SWT 原生控件混淆。
+
 ### 基本准则
 
 架构设计时遵循以下优先级：

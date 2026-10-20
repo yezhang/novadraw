@@ -71,27 +71,16 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 2026-10-19 按用户批准的
 [官方示例 Core 计划](../verification/plans/draw2d-official-examples-core-plan.md)
-推进 K00 → K01，S08/S09 尚未启动。K00 已提交 25 入口 source/helper/resource
-基线，事件与 Java oracle 仍待补齐；K01 已完成延迟 style/cursor、owned subtree、
-typed resource 准入、Runtime / Viewport 同步与事件期完整 contents 替换，
-以及配对 Connection binding 的整批准入与 owned Anchor 释放切片。
-旧 add/indexed/constraint/batch 资源准入和事件重入边界已有测试证据；
-keyed Layer 已统一资源准入，Builder → Runtime 已增加整树受检构造，
-attached 资源 effect 已核对整批预检并补齐 retired 反例。Grid Add 已接入回执，
-Clear 后清理约束表并保留构造序列；Java Grid 注册回调取证确认 FocusOut/Return
-提交、非法值回退及 Clear 的引用行为。下一步补全入口事件 manifest、其余 Java
-oracle 和依赖后续切片的示例消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
-K02 已推进首批 Grid 测量对照：24 组固定尺寸 Java 输入输出，修正 grab 的收缩、
-整数余量和等宽列分配。K00/K01 的未完成证据继续保留。按用户要求调整为
-[全入口收口推进](../verification/plans/draw2d-official-examples-core-plan.md#以全部入口完成为终点的推进调整)，
-每个入口登记解阻依赖与完成范围，平台可行性提前取证，能力通过后必须回到真实
-消费者验收；K/H 依赖不再作为整批全局等待条件。
-K00/K06 两个 blocked graph 入口的全 fixture Java 基线已记录。
-当前返回 K02 Core：Grid oracle 扩展为 36 组，修正 span 轨道归属、混合 grab
-显式 hint 下限、minimum=preferred 和整数居中，约束替换缓存已有验证。
-下一步继续 Grid measurement hints/复杂 span，再推进 Flow/Toolbar 及 size/reset，
-完成可消费切片后接入示例。
-下一批平台取证优先 H01 原生控件桥接与 K08/H02 AA/hairline/低 miter；仍保持单批执行。
+按用户最新要求只推进 25 个入口中的 Canvas / LightweightSystem 能力。
+Java 仅作只读语义参考，撤销 Java 编写/运行探针及其生成基线、验证门禁；
+撤销 SWT 原生控件库、完整面板对等和真实打印作业作为本计划目标。
+临时示例控制工具可以保留，但不作为 Core 演进方向或完成条件。
+K01 的 subtree/回执、资源准入、contents 替换、Connection binding 和消费者保留；
+K02 的 Grid span/grab 与 Flow/Toolbar 测量修复保留，改用独立 Rust 契约验证。
+当前批次先完成撤销及 Rust 回归，随后继续 Canvas 内的 size/reset、文字换行、
+布局边界与 K03 Locator/Obstruction。Draw2D Figure ScrollBar、TextFlow、
+MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
+和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依

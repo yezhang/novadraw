@@ -105,19 +105,19 @@ impl FlowLayout {
         container: FigureId,
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
-        minimum: bool,
     ) -> Result<Dimension, LayoutError> {
+        let child_constraints = match self.direction {
+            FlowDirection::Horizontal => MeasureConstraints::new(constraints.max_width(), None),
+            FlowDirection::Vertical => MeasureConstraints::new(None, constraints.max_height()),
+        }
+        .expect("axis selection preserves validated measurement constraints");
         let sizes = snapshot
             .children(container)?
             .into_iter()
             .map(|(child, _)| {
-                if minimum {
-                    snapshot.minimum_size(child, constraints)
-                } else {
-                    snapshot
-                        .preferred_measurement(child, constraints)
-                        .map(|measurement| measurement.size())
-                }
+                snapshot
+                    .preferred_measurement(child, child_constraints)
+                    .map(|measurement| measurement.size())
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(match self.direction {
@@ -253,8 +253,15 @@ struct FlowLine {
 fn aligned_offset(available: f64, used: f64, alignment: FlowAlignment) -> f64 {
     match alignment {
         FlowAlignment::Start => 0.0,
-        FlowAlignment::Center => (available - used).max(0.0) / 2.0,
-        FlowAlignment::End => (available - used).max(0.0),
+        FlowAlignment::Center => {
+            let offset = (available - used) / 2.0;
+            if available.fract() == 0.0 && used.fract() == 0.0 {
+                offset.trunc()
+            } else {
+                offset
+            }
+        }
+        FlowAlignment::End => available - used,
     }
 }
 
@@ -271,7 +278,7 @@ impl LayoutManager for FlowLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<FigureMeasurement, LayoutError> {
-        let size = self.measure(container, constraints, snapshot, false)?;
+        let size = self.measure(container, constraints, snapshot)?;
         Ok(FigureMeasurement::new(size.width, size.height, None))
     }
 
@@ -281,7 +288,7 @@ impl LayoutManager for FlowLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<Dimension, LayoutError> {
-        self.measure(container, constraints, snapshot, true)
+        self.measure(container, constraints, snapshot)
     }
 
     fn layout(
