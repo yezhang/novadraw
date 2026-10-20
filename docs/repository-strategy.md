@@ -242,6 +242,8 @@ API 尚处于 0.x 不是继续使用单仓库的理由。可以通过精确 comm
 ## 12. 相关文档
 
 - [仓库结构与线程边界](repository-layout.md)
+- [Studio 产品设计入口](studio/README.md)
+- [Studio AI-native 产品设计](studio/ai-native-product-design.md)
 - [工程文档入口](../engine/wasm_rust/novadraw/doc/00-index.md)
 - [架构概览](../engine/wasm_rust/novadraw/doc/design/architecture/overview.md)
 - [公共 API 契约](../engine/wasm_rust/novadraw/doc/design/architecture/public-api-contract.md)
