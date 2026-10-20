@@ -294,6 +294,11 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
         .connections()
         .set_locator(connection, label, Box::new(ConnectionLocator::Middle))
         .unwrap();
+    runtime
+        .figure(label)
+        .unwrap()
+        .set_preferred_size(novadraw::geometry::Dimension::new(60.0, 30.0))
+        .unwrap();
 
     runtime
         .connections()
@@ -308,8 +313,14 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     let expected = start + (points.get(1).unwrap() - start) / 2.0;
     let label_bounds = runtime.tree().figure_bounds(label).unwrap();
     assert_eq!(label_bounds.center(), expected);
+    assert_eq!((label_bounds.width, label_bounds.height), (60.0, 30.0));
 
     let old_label_bounds = label_bounds;
+    runtime
+        .figure(label)
+        .unwrap()
+        .set_preferred_size(novadraw::geometry::Dimension::new(80.0, 40.0))
+        .unwrap();
     assert!(
         runtime
             .figure(target)
@@ -321,6 +332,91 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     );
     prepare_next_submission(&mut runtime).expect("reroute and Locator layout");
     assert_ne!(runtime.tree().figure_bounds(label), Ok(old_label_bounds));
+    let updated = runtime.tree().figure_bounds(label).unwrap();
+    assert_eq!((updated.width, updated.height), (80.0, 40.0));
+}
+
+struct InvalidLocatorMeasurement;
+
+impl novadraw::figure::Figure for InvalidLocatorMeasurement {
+    fn initial_bounds(&self) -> novadraw::geometry::Rectangle {
+        novadraw::geometry::Rectangle::new(0.0, 0.0, 20.0, 10.0)
+    }
+
+    fn name(&self) -> &'static str {
+        "InvalidLocatorMeasurement"
+    }
+
+    fn intrinsic_measurement(
+        &self,
+        _: novadraw::figure::MeasureConstraints,
+    ) -> novadraw::figure::FigureMeasurement {
+        novadraw::figure::FigureMeasurement::new(f64::NAN, 10.0, None)
+    }
+}
+
+#[test]
+fn locator_measurement_rejection_does_not_publish_child_geometry_and_can_recover() {
+    let (mut runtime, root, source, target, figure) = runtime_fixture();
+    let child = runtime
+        .figure(figure)
+        .unwrap()
+        .add(Box::new(InvalidLocatorMeasurement))
+        .unwrap();
+    let original = runtime.tree().figure_bounds(child).unwrap();
+    let source = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = runtime.connections().direct_router();
+    let connection = runtime
+        .connections()
+        .register_state(
+            figure,
+            Some(source),
+            Some(target),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    runtime
+        .connections()
+        .set_locator(connection, child, Box::new(ConnectionLocator::Middle))
+        .unwrap();
+    assert_eq!(
+        runtime
+            .connections()
+            .resolve_route(connection, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::LocatorFailed {
+                child,
+                error: LocatorError::ChildMeasurementFailed,
+            }
+        ))
+    );
+    assert_eq!(runtime.tree().figure_bounds(child).unwrap(), original);
+    assert!(
+        runtime
+            .tree()
+            .connection_route_points(figure)
+            .unwrap()
+            .is_none_or(|points| points.is_empty())
+    );
+    assert!(!runtime.is_faulted());
+
+    runtime
+        .figure(child)
+        .unwrap()
+        .set_preferred_size(novadraw::geometry::Dimension::new(60.0, 30.0))
+        .unwrap();
+    runtime
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let bounds = runtime.tree().figure_bounds(child).unwrap();
+    assert_eq!((bounds.width, bounds.height), (60.0, 30.0));
 }
 
 #[test]

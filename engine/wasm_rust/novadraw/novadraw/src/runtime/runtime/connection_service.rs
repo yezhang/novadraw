@@ -416,17 +416,33 @@ impl Runtime {
                                 return Err(ConnectionRuntimeError::Unresolved(reason));
                             }
                             None => {
-                                let bounds = self
-                                    .tree
-                                    .figure_bounds(child)
-                                    .expect("validated Locator child must remain attached");
+                                let size = match self.tree.preferred_measurement(
+                                    child,
+                                    crate::figure::MeasureConstraints::UNBOUNDED,
+                                ) {
+                                    Ok(measurement) => measurement.size(),
+                                    Err(_) => {
+                                        let reason = UnresolvedConnection::LocatorFailed {
+                                            child,
+                                            error: crate::LocatorError::ChildMeasurementFailed,
+                                        };
+                                        self.connections.reject_route_batch(&batch, reason.clone());
+                                        for affected in batch.calculations() {
+                                            self.tree.clear_connection_route(
+                                                &mut self.updates,
+                                                affected.connection().figure(),
+                                            );
+                                        }
+                                        return Err(ConnectionRuntimeError::Unresolved(reason));
+                                    }
+                                };
                                 child_updates.push((
                                     child,
                                     Rectangle::new(
-                                        placement.point.x() - bounds.width / 2.0,
-                                        placement.point.y() - bounds.height / 2.0,
-                                        bounds.width,
-                                        bounds.height,
+                                        placement.point.x() - size.width / 2.0,
+                                        placement.point.y() - size.height / 2.0,
+                                        size.width,
+                                        size.height,
                                     ),
                                     None,
                                 ));

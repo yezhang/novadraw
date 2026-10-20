@@ -65,6 +65,10 @@ K01 已完成多个通用切片并接入 Tree、Grid 与 ConnectionAndAnchor，�
 当前 Flow/Toolbar 的 hint 传递、二次测量、整数收缩、overflow 对齐与 Grid hints
 已修复，正在改用独立 Rust 契约验证。K02 未完成，真实文字换行、size/reset、
 owner border 和复杂布局边界继续推进。
+K03 首批修复普通 Locator child 使用旧 bounds 尺寸的问题，改为统一受检 preferred
+measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并可恢复，
+外部 Figure 与内置图元共用路径。owner quadrant、child-size 输入及 EndpointLocator
+开放 placement 契约尚未完成，不能将本切片视为 K03 整体关闭。
 
 接下来先完成当前 Rust 布局回归，再推进 K03 Locator 与 Obstruction 解阻，
 随后按依赖推进 K04/K05、K06、K07/K08。K00/H04 随每批维护，不等待全量先验收。

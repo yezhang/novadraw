@@ -223,6 +223,8 @@ pub enum LocatorError {
     DegenerateRoute,
     /// Custom Locator returned a non-finite point or reference.
     NonFinitePlacement,
+    /// The located child's preferred measurement could not be resolved.
+    ChildMeasurementFailed,
 }
 
 impl fmt::Display for LocatorError {
@@ -242,6 +244,7 @@ impl fmt::Display for LocatorError {
             Self::InvalidOffset => write!(formatter, "endpoint offset must be finite"),
             Self::DegenerateRoute => write!(formatter, "route has no non-zero length"),
             Self::NonFinitePlacement => write!(formatter, "locator placement must be finite"),
+            Self::ChildMeasurementFailed => write!(formatter, "locator child measurement failed"),
         }
     }
 }
