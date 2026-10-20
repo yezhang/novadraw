@@ -200,6 +200,12 @@ Text/Combo 的完整输入行为归 K04/H01，不依赖 Editor direct-edit sessi
 
 ### K06 图布局与树动画
 
+基线进度：已直接执行官方 Demo 的反射菜单及 16/10 factory 两方向，共 52 组，
+记录 45 正常结果和 7 原版越界异常，菜单、包含关系、node/edge 几何及异常栈保留。
+这不是 Rust 算法完成证据；静态 Random 与调用历史影响输出，不新增确定性承诺。
+后续以完整输入/算法不变量及原版异常适配推进，不能剔除异常 fixture 缩小分母。
+证据见 [graph oracle](../../../verification/oracles/draw2d/README.md#图布局全-fixture-基线)。
+
 graph归P2-L01：定义不依赖FigureTree/Editor的有向/compound模型输入和几何输出。
 保留node/edge/containment身份、尺寸/padding/insets/weight/delta/direction；
 输出rank/feedback/vNodes/edge points/group bounds。算法与Figure投影adapter分开。
@@ -293,6 +299,60 @@ Native默认按当前macOS环境验证，Windows/Linux/Web按能力矩阵逐项�
 转换为Core算法缺失。全部官方入口使用Core、扩展实现和平台适配，不增加Editor依赖。
 
 ## 交付顺序与门禁
+
+### 以全部入口完成为终点的推进调整
+
+2026-10-19 按用户要求复核推进方式。原计划正确划分了 Core、扩展与平台职责，
+但仅按 K 编号向前容易把能力测试当作示例交付，并将 H01/H02/H03 的可行性风险
+留到最后。固定尺寸 Grid 的 24 组通过只证明该输入范围，不能自动关闭 GridLayoutExample，
+也不能用整体测试数量表示官方示例完成比例。
+
+现保留 K/H 的能力身份，增加以下执行约束：
+
+- 分母始终为 25 入口，包括历史 complete、in_progress、not_implemented 和 blocked。
+  每个入口的结构、行为、宿主、backend、资源/失败路径都要有闭合证据；历史 complete
+  保留原证据范围，不自动视为全平台通过。
+- [入口收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)
+  逐项记录解阻依赖、交付组和必须验收的范围。它是待验收契约，不是通过记录；
+  源码业务要求仍以全量矩阵为准。每个 blocked 的 owner 是具体 K/H 责任域，
+  每个未移植入口都有首次接入前置条件，不允许永久使用“deferred”作为退出结论。
+- 每批选一个可验证的失败反例：先取官方 oracle，再补共享契约，接入真实示例，
+  核对结构/事件/几何，最后登记支持平台的视觉和退出证据。能力已通过、消费者
+  尚未实现时，保留该入口未完成并明确下一项差额。
+- K00/H04 随所有批次持续补证；词法清单需人工核对可达方法和真实事件顺序，
+  不要求先获得全部 UI 证据才能修已证明的 Core 缺口。
+- H01 原生控件/窗口桥接、H02 AA/hairline/低 miter/SVG/透明合成、
+  H03 Printer 的可行性取证提前。明确目标平台、实现位置、外部消费、失败通道及
+  可运行最小证据后再设计实现。结构化拒绝只算错误契约通过，不算功能实现；
+  若当前后端无法表达官方功能，必须评审可替换实现或明确平台 adapter 路径，
+  不能以 silent fallback、普通 Figure 替代原生控件或预览替代打印来关闭条目。
+- 保持一个 in_progress 实施批次。前置条件满足的下一组可进入，即使某个 K 的
+  其他消费者仍未完成；K02 不成为文字、图布局或宿主取证的全局阻塞。
+  新重大架构取舍继续遵循 ADR 评审；本调整没有批准未评审的新公共契约。
+
+按依赖形成以下交付组，实际执行队列只在 P2 backlog 维护：
+
+| 交付组 | 对应入口 | 闭合次序 |
+|---|---|---|
+| 基础与布局 | HelloWorld、EllipseHitting、FlowLayout、GridLayout、ToolbarLayout | K02 尺寸/可变 size/reset → K04/H01 控件与 resize → H04 逐入口复放 |
+| 连接与绕障 | ConnectionAndAnchor、UML、Obstruction | K02/K03 owner locator/路由 → Obstruction 首次完整移植 → UML 文字/便笺 → 宿主验收 |
+| 滚动与树 | ScrollPane、Zoom、SimpleTree、Tree | K04 五子节点/range/repeat → K02/K06 tree 与动画 → K07 tracking → SVG/theme/原生面板 |
+| 文字与路径 | 六个 text 入口、Path | K05 styled flow/fragment/inline → K04 readonly/range → H01 Caret/native Text → K08 Path 绘制 |
+| 图布局 | DirectedGraphDemo、CompoundGraphDemo | 全 32/20 Java fixture 基线 → K06 算法 → K01 实时场景替换 → 官方平铺 Figure/菜单及视觉验收 |
+| 实时视图与背景 | Thumbnail、Bidi 共享 range、InheritBackground | K07 source/view/resource epoch → H01 多窗口/背景源 → H02 合成/退出 |
+| 栅格与打印 | ShapeStyles、Print | K08/H02 可行性与合法值 → ShapeStyles 真实 cell Canvas → K09/H03 实际分页打印与取消 |
+
+交付组允许共享入口，但收口清单每入口只有一行。每次汇报分别给出：
+本批新增的可消费能力、实际接入入口、已关闭 feature、仍未关闭的原因及下一前置条件。
+不使用无权重的 K 数量或测试数计算总完成百分比。
+
+全计划完成要求：25/25 的 factory 对应官方独立实现；全 feature 清单无未实现、
+阻塞或未验收项；声明支持的平台有结构、事件、视觉及资源/退出证据；跨平台尚未
+支持项单独保留，不宣称全平台对等。算法基线、平台版本和源码异常须可追溯。
+原版异常必须成为明确且已验证的兼容行为或经评审的差异；不要求引擎复制 JVM 崩溃，
+也不允许通过删掉入口、改官方逻辑或跳过验收来消除异常。若平台可行性被否定，
+该功能保持未完成，进入替换方案评审；计划覆盖不构成可实现性的保证。
+以下旧轮次表是能力依赖的粗粒度参考，实际推进按上述交付组的可验证切片收口。
 
 | 轮次 | 顺序 | 可交付结果 |
 |---|---|---|

@@ -54,3 +54,25 @@ span/indent/hint、双轴 grab、等宽 grab 和混合 grab 六组配置，每�
 无 hint 的 grab 轨道可收缩，非 grab 或显式 hint 保留相应尺寸下限。
 等宽列单独保持官方整除规则；Core 的小数输入保留末轨残量及非负下限。
 复杂 span 的下限再分配和换行仍属于 K02 后续核对范围。
+
+## 图布局全 fixture 基线
+
+运行命令增加 `--graph-fixtures`，输出目标使用
+`verification/evidence/draw2d-official-examples/graph-fixtures.json`。
+工具直接编译两个官方 Demo、AbstractGraphDemo、GraphTests 和 CompoundGraphTests，
+调用 Demo 的 `getGraphMethods()` 获取真实反射菜单顺序；不按源码名称排序。
+随后调用 16 个 Directed 和 10 个 Compound factory，每个执行 SOUTH=4/EAST=16，
+共 52 个结果。JSON 记录源码/jar 指纹及异常栈，TSV 保存菜单、节点、包含关系、
+边端点、折点和 vNodes 数量。
+
+本次 [原始输出](../../evidence/draw2d-official-examples/graph-fixtures.json)
+得到 45 组正常结果、7 组原版 ArrayIndexOutOfBoundsException；
+576 条 node 和 461 条 edge 输出。异常来自 GraphTests 的
+`shuffleConnections` 负索引，保留原版源码和栈，不把异常组合改成空图或删除菜单。
+GraphTests 持有静态 Random，输出与调用历史有关；本基线是记录的菜单/方向调用
+序列，不声明跨进程、跨版本或单独重跑均得到同一坐标与异常分布。
+
+`source_contracts` 校验 26 菜单项、52 组合均有正常或异常结果，成功结果的 node/edge
+行数完整。它只验证基线记录，不证明 Rust 图布局实现、所有算法中间态、宿主菜单
+事件或视觉已经对等。K06 移植时仍需保存完整输入权重/padding/offset，分别验证
+算法不变量和官方异常适配；从源代码确认需求后再设计受检外部算法协议。

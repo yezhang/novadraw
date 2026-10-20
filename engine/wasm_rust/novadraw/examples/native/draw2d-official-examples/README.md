@@ -57,3 +57,9 @@ python3 verification/oracles/draw2d/capture_source_events.py --reference-root /U
 [Grid 事件 oracle](../../../verification/oracles/draw2d/README.md) 已记录原生 SWT
 注册回调的实际结果。源码清单通过不等于结构/视觉/全交互验收；K00 仍需补齐各入口
 运行证据和人工核对后的全 feature manifest。
+
+`completion-contracts.tsv` 为全部 25 入口登记交付组、解阻依赖和完成范围，
+测试防止漏项或丢失 K/H 依赖；它不记录通过状态。推进顺序与收口规则见
+[Core 计划调整](../../../doc/verification/plans/draw2d-official-examples-core-plan.md#以全部入口完成为终点的推进调整)。
+两个 blocked graph 入口已取得 52 组 Java 正常/异常基线，
+具体证据及复放限制见 [graph oracle](../../../verification/oracles/draw2d/README.md#图布局全-fixture-基线)。

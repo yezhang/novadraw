@@ -1,0 +1,27 @@
+# Required completion scopes, not passing evidence. Detail SSOT: remaining-contracts.md.
+# name	group	dependencies	closure-scopes
+HelloWorld	base	K00,H01,H04	Label-only;Shell200x100;native-font-background;resize-close
+EllipseHitting	base	K00,K02,H04	four-Ellipse;preferred-size-Flow;exact-hit-enter-exit;400x300-resize-visual-close
+ConnectionAndAnchorExample	connection	K01,K02,K03,H01,H04	two-GroupBox-four-Rectangle-two-Connection;decorations-three-locator-Label;u-v-owner-child-measurement;drag-absolute-local;host-visual-close
+ObstructionExample	connection	K01,K02,K03,H04	Random0-five-obstacle;visibility-shared-corner-spacing;left-drag-right-pair-middle-delete;parent-mismatch-oracle;path-map-lifecycle;visual-close
+FlowLayoutExample	base	K01,K02,K04,H01,H04	eleven-Shape-size-color;horizontal-vertical-wrap-align-stretch-spacing;size-reset;native-radio-Scale-shell-layout;visual-close
+GridLayoutExample	base	K01,K02,K04,H01,H04	two-initial-nine-cycle;Add-Clear-selection;all-GridData-span-grab-hint-indent;DefaultSelection-FocusOut-invalid;native-Combo-Text-pack;visual-close
+ToolbarLayoutExample	base	K01,K02,K04,H01,H04	five-Shape;horizontal-vertical-minimum-shrink-align-stretch;conditional-size-reset;native-Scale-shell-layout;visual-close
+ShapeStylesExample	output	K01,K02,K08,H01,H02,H04	eight-axis-five-Shape;independent-cell-Canvas-X-before-Y;AA-hairline-miter-dash-alpha-disabled;scene-rebuild-pack;visual-close
+InheritBackgroundExample	view	K07,H01,H02,H04	two-native-Group-Canvas;INHERIT_FORCE-parent-image-transparent-root;scroll-phase-DPI-alpha-repair;visual-close
+DirectedGraphDemo	graph	K01,K03,K06,H01,H04	sixteen-fixtures-two-directions;reflection-menu-default;rank-cycle-weight-padding-vNodes-points;Panel-Label-edge-decoration;scene-replace-host-visual-close
+CompoundGraphDemo	graph	K01,K03,K06,H01,H04	ten-fixtures-two-directions;reflection-menu-default;containment-cycle-cross-group-insets;flat-subgraph-visuals-before-node-edge;scene-replace-Tahoma-host-visual-close
+PathExample	text	K02,K04,K05,K08,H01,H02,H04	range-zoom-formula;closed-four-point-rotation-stroke;two-TextLayout-draws-underline-selection;clip-measure-AA-resource;visual-close
+PrintExample	output	K02,K09,H01,H03,H04	official-Label-Shape-Button-Connection-icon-tree;native-PrintDialog-job-page-TILE-zero-margin;DPI-clip-cancel-failure-resource;real-print
+ScrollPaneExample	tree	K01,K02,K04,H01,H04	two-InternalFrame-eighteen-George-Label;Toolbar-Flow-GroupBox;five-child-scrollbar-repeat-track;title-drag-eight-resize-cursor;host-visual-close
+ZoomExample	tree	K02,K04,K08,H01,H02,H04	two-three-compartment-UML;original-SVG-provider-DPI;five-child-scrollbar-replace-thumb-repeat;zoom-client-measure;theme-host-visual-close
+ThumbnailExample	view	K01,K02,K07,H01,H04	one-mutable-source-two-drag-Rectangle;live-aspect-raster-Thumbnail;two-Shell-resize-source-replace;epoch-damage-resource-unsubscribe-close
+BidiBlockExample	text	K05,K07,H01,H04	two-Canvas-ten-BlockFlow-each;LTR-RTL-inherit-relative-absolute-alignment-mirror;shared-range-extent-owner-release;visual-close
+CaretExample	text	K02,K05,H01,H04	FlowPage-TextFlow-Tahoma20-FlowBorder;native-Caret-focus;offset-trail-affinity-UTF16-UTF8;closed-selection-geometry;mouse-move-visual-close
+MultiLineLabelExample	text	K02,K04,K05,H01,H04	Viewport-Margin2-FlowPage-TextFlow;native-readonly-Text-comparison;focus-ring-auto-scrollbar-mirror-keyboard-font-accessibility;600x500-visual-close
+TextFlowExample	text	K05,H01,H04	six-sections-nested-InlineFlow;fragment-font-color-baseline-inherit;newline-wrap-right-alignment;host-visual-close
+TextFlowLargeExample	text	K01,K04,K05,H01,H04	twenty-blocks-twenty-font-blocks-four-hundred-fragments;nested-four-sentences;first-target-reparent-tooltip;letters-space-only-append;vertical-bar-incremental-layout-resource-close
+TextSurroundingFigureExample	text	K01,K05,H01,H04	outer-LTR-two-real-FlowAdapter-subtrees;Toolbar-three-Shape-orange-border;Stack-inner-RTL;inline-measure-wrap-baseline-clip-hit-damage;host-visual-close
+SimpleTreeExample	tree	K02,K06,H01,H04	four-branches-LEFT;AnimatingLayer-before-PageNode;normal-hanging-contour-empty-pane;Stack-Label-folded-border-font;resize-hit-visual-close
+TreeExample	tree	K01,K02,K04,K06,K07,H01,H04	nineteen-branches-native-root-selected-panels;More-Fewer-align-style-spacing-selection-gradient;double-click-collapse;210ms-center-reset-reverse-line-viewport-cancel;visual-close
+UMLClassDiagram	connection	K02,K03,K05,H01,H04	two-three-compartment-class-association-diamond;EndpointLocator-u8-default-v4;Label-borders-DogEar-width-wrap;original-icon-font;500x300-visual-close

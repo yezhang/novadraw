@@ -21,7 +21,9 @@ def main():
     parser.add_argument("--swt-jar", required=True, type=Path)
     parser.add_argument("--native-library-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--measurement", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--measurement", action="store_true")
+    mode.add_argument("--graph-fixtures", action="store_true")
     args = parser.parse_args()
     root = args.reference_root.resolve()
     revision = subprocess.check_output(
@@ -36,6 +38,16 @@ def main():
         Path(__file__).resolve().with_name(
             "GridMeasurementOracle.java" if args.measurement else "GridEventOracle.java"),
     ]
+    main_class = "org.eclipse.draw2d.examples.layouts." + (
+        "GridMeasurementOracle" if args.measurement else "GridEventOracle")
+    if args.graph_fixtures:
+        graph_root = source_root / "org/eclipse/draw2d/examples/graph"
+        sources = [graph_root / name for name in [
+            "GraphTests.java", "CompoundGraphTests.java", "AbstractGraphDemo.java",
+            "DirectedGraphDemo.java", "CompoundGraphDemo.java",
+        ]]
+        sources.append(Path(__file__).resolve().with_name("GraphFixtureOracle.java"))
+        main_class = "org.eclipse.draw2d.examples.graph.GraphFixtureOracle"
     artifacts = [args.draw2d_jar.resolve(), args.swt_jar.resolve()]
     classpath = ":".join(map(str, artifacts))
     with tempfile.TemporaryDirectory(prefix="novadraw-grid-oracle-") as directory:
@@ -47,15 +59,16 @@ def main():
             ["java", "-XstartOnFirstThread",
              f"-Djava.library.path={args.native_library_dir.resolve()}",
              "-cp", f"{directory}:{classpath}",
-             "org.eclipse.draw2d.examples.layouts."
-             + ("GridMeasurementOracle" if args.measurement else "GridEventOracle")],
+             main_class],
             capture_output=True, text=True, timeout=60,
         )
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
     evidence = {
         "baseline": revision,
-        "mode": ("fixed font-independent Grid measurements" if args.measurement else
+        "mode": ("official graph factory outputs and actual demo reflection order"
+                 if args.graph_fixtures else
+                 "fixed font-independent Grid measurements" if args.measurement else
                  "registered callbacks; native SWT widgets; no OS input injection"),
         "sources": {str(path.relative_to(root)) if path.is_relative_to(root) else path.name:
                     fingerprint(path) for path in sources},
@@ -67,6 +80,7 @@ def main():
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, indent=2, ensure_ascii=False) + "\n")
+    args.output.with_suffix(".tsv").write_text(result.stdout)
     print(result.stdout, end="")
 
 

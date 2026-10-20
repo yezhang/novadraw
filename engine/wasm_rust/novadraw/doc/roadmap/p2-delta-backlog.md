@@ -82,8 +82,13 @@ Clear 后清理约束表并保留构造序列；Java Grid 注册回调取证确�
 提交、非法值回退及 Clear 的引用行为。下一步补全入口事件 manifest、其余 Java
 oracle 和依赖后续切片的示例消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
 K02 已推进首批 Grid 测量对照：24 组固定尺寸 Java 输入输出，修正 grab 的收缩、
-整数余量和等宽列分配。K00/K01 的未完成证据继续保留；当前实施切片为 K02，
-下一步扩展复杂 span/hint、Flow/Toolbar 及可变 size/reset 对照。
+整数余量和等宽列分配。K00/K01 的未完成证据继续保留。按用户要求调整为
+[全入口收口推进](../verification/plans/draw2d-official-examples-core-plan.md#以全部入口完成为终点的推进调整)，
+每个入口登记解阻依赖与完成范围，平台可行性提前取证，能力通过后必须回到真实
+消费者验收；K/H 依赖不再作为整批全局等待条件。
+当前批次为 K00/K06 两个 blocked graph 入口的全 fixture Java 基线；
+随后返回 K02 复杂 span/hint、Flow/Toolbar 及 size/reset，完成可消费切片后接入示例。
+下一批平台取证优先 H01 原生控件桥接与 K08/H02 AA/hairline/低 miter；仍保持单批执行。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
