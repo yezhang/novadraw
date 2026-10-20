@@ -14,7 +14,7 @@ public final class GridMeasurementOracle {
         Display display = Display.getDefault();
         try {
             System.out.println("# case\twidth\theight\tpreferred\tminimum\tchildren");
-            for (int mode = 0; mode < 6; mode++) {
+            for (int mode = 0; mode < 9; mode++) {
                 for (int width : new int[] {0, 80, 155, 300}) {
                     Figure container = new Figure();
                     GridLayout layout = new GridLayout();
@@ -38,6 +38,18 @@ public final class GridMeasurementOracle {
                             data.verticalAlignment = GridData.FILL;
                             data.grabExcessHorizontalSpace = true;
                             data.grabExcessVerticalSpace = true;
+                        }
+                        if ((mode == 6 || mode == 7) && i == 0) {
+                            data.horizontalSpan = 2;
+                            data.widthHint = 200;
+                        }
+                        if (mode == 7 && i == 2) {
+                            data.grabExcessHorizontalSpace = true;
+                            data.horizontalAlignment = GridData.FILL;
+                        }
+                        if (mode == 8 && i == 0) {
+                            data.verticalSpan = 2;
+                            data.heightHint = 200;
                         }
                         container.add(child, data);
                     }

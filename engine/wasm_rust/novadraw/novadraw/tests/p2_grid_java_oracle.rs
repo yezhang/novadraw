@@ -52,6 +52,18 @@ fn grid_fixed_measurement_and_bounds_match_java() {
             if mode == 3 || mode == 4 || (mode == 5 && i != 1) {
                 constraint = GridConstraint::fill();
             }
+            if (mode == 6 || mode == 7) && i == 0 {
+                constraint.horizontal_span = 2;
+                constraint.width_hint = Some(200.0);
+            }
+            if mode == 7 && i == 2 {
+                constraint.grab_horizontal = true;
+                constraint.horizontal_alignment = novadraw::layout::GridAlignment::Fill;
+            }
+            if mode == 8 && i == 0 {
+                constraint.vertical_span = 2;
+                constraint.height_hint = Some(200.0);
+            }
             tree.builder()
                 .set_layout_constraint(child, constraint)
                 .unwrap();
@@ -122,5 +134,68 @@ fn fractional_grid_space_preserves_extent_and_nonnegative_grab_tracks() {
         if equal {
             assert_eq!(first.width, last.width);
         }
+    }
+}
+
+#[test]
+fn replacing_a_spanning_hint_invalidates_measurement_and_preserves_fixed_columns() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 155.0, 160.0)))
+        .unwrap();
+    tree.builder()
+        .set_layout_manager(root, Box::new(GridLayout::new(2)))
+        .unwrap();
+    let mut children = Vec::new();
+    for _ in 0..3 {
+        children.push(
+            tree.builder()
+                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 70.0, 70.0)))
+                .unwrap(),
+        );
+    }
+    tree.builder()
+        .set_layout_constraint(
+            children[2],
+            GridConstraint {
+                grab_horizontal: true,
+                horizontal_alignment: novadraw::layout::GridAlignment::Fill,
+                ..GridConstraint::default()
+            },
+        )
+        .unwrap();
+    for (hint, expected_width, trailing_width) in [(200.0, 210.0, 125.0), (90.0, 155.0, 70.0)] {
+        tree.builder()
+            .set_layout_constraint(
+                children[0],
+                GridConstraint {
+                    horizontal_span: 2,
+                    width_hint: Some(hint),
+                    ..GridConstraint::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+                .unwrap()
+                .width,
+            expected_width
+        );
+        assert_eq!(
+            tree.minimum_size(root, MeasureConstraints::UNBOUNDED)
+                .unwrap()
+                .width,
+            expected_width
+        );
+        tree.builder().validate_subtree(root).unwrap();
+        assert_eq!(
+            tree.figure_bounds(children[1]).unwrap(),
+            Rectangle::new(5.0, 80.0, 70.0, 70.0)
+        );
+        assert_eq!(
+            tree.figure_bounds(children[2]).unwrap(),
+            Rectangle::new(80.0, 80.0, trailing_width, 70.0)
+        );
     }
 }

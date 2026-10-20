@@ -45,7 +45,7 @@ span/indent/hint、双轴 grab、等宽 grab 和混合 grab 六组配置，每�
 0/80/155/300 四个容器宽度。
 
 [原始测量](../../evidence/draw2d-official-examples/grid-measurements.json) 保留输入与
-24 组 preferred/minimum/child bounds；同内容的 TSV 由 Rust 外部测试
+36 组 preferred/minimum/child bounds；同内容的 TSV 由 Rust 外部测试
 `p2_grid_java_oracle` 消费。固定尺寸避免字体指标干扰，不能代替官方 Shape 的
 可变 size/reset、文字换行、边框、全部 span/hint 或宿主 resize 验收。
 
@@ -54,6 +54,14 @@ span/indent/hint、双轴 grab、等宽 grab 和混合 grab 六组配置，每�
 无 hint 的 grab 轨道可收缩，非 grab 或显式 hint 保留相应尺寸下限。
 等宽列单独保持官方整除规则；Core 的小数输入保留末轨残量及非负下限。
 复杂 span 的下限再分配和换行仍属于 K02 后续核对范围。
+
+续批增加三组跨列/跨行 fixture：200px 跨列 hint、跨列 hint 与末列 grab 混合、
+200px 跨行 hint。36 组输出均已对照。span 无可扩展轨道时，deficit 落在末轨；
+已有可扩展轨道时只分配到这些轨道，按官方反向遍历分配整数余数。
+原来平均分摊会将固定列从 x=80 移到 x=107.5，并在混合 grab 下缩短 200px
+hint；现已修正。跨行整数居中采用整除，Grid minimum 按 AbstractLayout
+返回 preferred。约束替换回归同时验证测量缓存失效与固定列不漂移。
+这些结果只覆盖记录输入，多重重叠 span、measurement hints 和换行仍待核对。
 
 ## 图布局全 fixture 基线
 

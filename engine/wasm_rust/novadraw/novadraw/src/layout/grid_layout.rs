@@ -224,23 +224,11 @@ impl GridLayout {
             if placement.row_span == 1 {
                 rows[placement.row] = rows[placement.row].max(size.1);
             }
-            if placement.constraint.grab_horizontal {
-                for grab in grab_columns
-                    .iter_mut()
-                    .skip(placement.column)
-                    .take(placement.column_span)
-                {
-                    *grab = true;
-                }
+            if placement.constraint.grab_horizontal && placement.column_span == 1 {
+                grab_columns[placement.column] = true;
             }
-            if placement.constraint.grab_vertical {
-                for grab in grab_rows
-                    .iter_mut()
-                    .skip(placement.row)
-                    .take(placement.row_span)
-                {
-                    *grab = true;
-                }
+            if placement.constraint.grab_vertical && placement.row_span == 1 {
+                grab_rows[placement.row] = true;
             }
         }
 
@@ -252,17 +240,21 @@ impl GridLayout {
             };
             ensure_span_size(
                 &mut columns,
+                &mut grab_columns,
                 placement.column,
                 placement.column_span,
                 self.horizontal_spacing,
                 size.0,
+                placement.constraint.grab_horizontal,
             );
             ensure_span_size(
                 &mut rows,
+                &mut grab_rows,
                 placement.row,
                 placement.row_span,
                 self.vertical_spacing,
                 size.1,
+                placement.constraint.grab_vertical,
             );
         }
 
@@ -338,7 +330,8 @@ impl LayoutManager for GridLayout {
         _constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<Dimension, LayoutError> {
-        Ok(self.measured_size(container, snapshot, true)?.into())
+        // Draw2D GridLayout inherits AbstractLayout's minimum = preferred contract.
+        Ok(self.measured_size(container, snapshot, false)?.into())
     }
 
     fn layout(
@@ -472,15 +465,34 @@ fn span_size(tracks: &[f64], start: usize, span: usize, spacing: f64) -> f64 {
     tracks.iter().skip(start).take(span).sum::<f64>() + spacing * span.saturating_sub(1) as f64
 }
 
-fn ensure_span_size(tracks: &mut [f64], start: usize, span: usize, spacing: f64, requested: f64) {
+fn ensure_span_size(
+    tracks: &mut [f64],
+    grab: &mut [bool],
+    start: usize,
+    span: usize,
+    spacing: f64,
+    requested: f64,
+    expands: bool,
+) {
     let current = span_size(tracks, start, span, spacing);
     let deficit = (requested - current).max(0.0);
+    let expanding: Vec<_> = (start..start + span).filter(|index| grab[*index]).collect();
+    if expands && expanding.is_empty() {
+        grab[start + span - 1] = true;
+    }
     if deficit == 0.0 {
         return;
     }
-    let per_track = deficit / span as f64;
-    for track in tracks.iter_mut().skip(start).take(span) {
-        *track += per_track;
+    if expanding.is_empty() {
+        tracks[start + span - 1] += deficit;
+    } else {
+        // Span repair visits expandable tracks backwards in Draw2D; the first one
+        // receives the integer remainder.
+        let delta = (deficit / expanding.len() as f64).trunc();
+        for index in &expanding {
+            tracks[*index] += delta;
+        }
+        tracks[expanding[0]] += deficit - delta * expanding.len() as f64;
     }
 }
 
@@ -549,7 +561,14 @@ fn aligned_size(alignment: GridAlignment, preferred: f64, minimum: f64, availabl
 fn alignment_offset(alignment: GridAlignment, available: f64, size: f64) -> f64 {
     match alignment {
         GridAlignment::Start | GridAlignment::Fill => 0.0,
-        GridAlignment::Center => (available - size) / 2.0,
+        GridAlignment::Center => {
+            let offset = (available - size) / 2.0;
+            if available.fract() == 0.0 && size.fract() == 0.0 {
+                offset.trunc()
+            } else {
+                offset
+            }
+        }
         GridAlignment::End => available - size,
     }
     .max(0.0)
