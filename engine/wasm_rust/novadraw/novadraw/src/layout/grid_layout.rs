@@ -352,6 +352,32 @@ impl LayoutManager for GridLayout {
             return Ok(());
         }
         let (mut columns, mut rows, grab_columns, grab_rows) = self.track_sizes(&placements, false);
+        // GridData's grab flag permits shrinkage below cached preferred size when no hint
+        // pins that axis. Public minimum measurement remains a separate query.
+        let shrink_placements: Vec<_> = placements
+            .iter()
+            .map(|placement| {
+                let mut placement = *placement;
+                placement.minimum = (
+                    if placement.constraint.grab_horizontal
+                        && placement.constraint.width_hint.is_none()
+                    {
+                        placement.constraint.horizontal_indent.max(0.0)
+                    } else {
+                        placement.preferred.0
+                    },
+                    if placement.constraint.grab_vertical
+                        && placement.constraint.height_hint.is_none()
+                    {
+                        0.0
+                    } else {
+                        placement.preferred.1
+                    },
+                );
+                placement
+            })
+            .collect();
+        let (minimum_columns, minimum_rows, _, _) = self.track_sizes(&shrink_placements, true);
         let client = snapshot.container_bounds(container)?;
         let available_width = (client.width
             - self.margin_width * 2.0
@@ -361,8 +387,25 @@ impl LayoutManager for GridLayout {
             - self.margin_height * 2.0
             - self.vertical_spacing * rows.len().saturating_sub(1) as f64)
             .max(0.0);
-        distribute_extra(&mut columns, &grab_columns, available_width);
-        distribute_extra(&mut rows, &grab_rows, available_height);
+        if self.equal_column_widths && grab_columns.iter().any(|grab| *grab) {
+            let minimum = minimum_columns.iter().copied().fold(0.0_f64, f64::max);
+            let width = available_width / columns.len() as f64;
+            let width = if available_width.fract() == 0.0 {
+                width.trunc()
+            } else {
+                width
+            }
+            .max(minimum);
+            columns.fill(width);
+        } else {
+            distribute_extra(
+                &mut columns,
+                &minimum_columns,
+                &grab_columns,
+                available_width,
+            );
+        }
+        distribute_extra(&mut rows, &minimum_rows, &grab_rows, available_height);
 
         let column_positions = track_positions(
             client.x + self.margin_width,
@@ -441,16 +484,44 @@ fn ensure_span_size(tracks: &mut [f64], start: usize, span: usize, spacing: f64,
     }
 }
 
-fn distribute_extra(tracks: &mut [f64], grab: &[bool], available: f64) {
-    let extra = available - tracks.iter().sum::<f64>();
-    let grab_count = grab.iter().filter(|grab| **grab).count();
-    if extra <= 0.0 || grab_count == 0 {
-        return;
-    }
-    let share = extra / grab_count as f64;
-    for (track, grab) in tracks.iter_mut().zip(grab) {
-        if *grab {
-            *track += share;
+fn distribute_extra(tracks: &mut [f64], minimum: &[f64], grab: &[bool], available: f64) {
+    let mut active = grab.to_vec();
+    loop {
+        let count = active.iter().filter(|active| **active).count();
+        let extra = available - tracks.iter().sum::<f64>();
+        if count == 0 || extra == 0.0 {
+            return;
+        }
+        // Java integer division truncates toward zero; the final active track receives
+        // the remainder. Fractional geometry retains its residual instead of losing area.
+        let delta = (extra / count as f64).trunc();
+        let remainder = extra - delta * count as f64;
+        let mut last = None;
+        let mut clamped = false;
+        for (index, track) in tracks.iter_mut().enumerate() {
+            if active[index] {
+                if *track + delta > minimum[index] {
+                    *track += delta;
+                    last = Some(index);
+                } else {
+                    *track = minimum[index];
+                    active[index] = false;
+                    clamped = true;
+                }
+            }
+        }
+        if let Some(last) = last {
+            let adjusted = tracks[last] + remainder;
+            if adjusted < minimum[last] {
+                tracks[last] = minimum[last];
+                active[last] = false;
+                clamped = true;
+            } else {
+                tracks[last] = adjusted;
+            }
+        }
+        if !clamped {
+            return;
         }
     }
 }

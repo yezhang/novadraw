@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--swt-jar", required=True, type=Path)
     parser.add_argument("--native-library-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--measurement", action="store_true")
     args = parser.parse_args()
     root = args.reference_root.resolve()
     revision = subprocess.check_output(
@@ -32,7 +33,8 @@ def main():
     sources = [
         source_root / "org/eclipse/draw2d/examples/AbstractExample.java",
         source_root / "org/eclipse/draw2d/examples/layouts/GridLayoutExample.java",
-        Path(__file__).resolve().with_name("GridEventOracle.java"),
+        Path(__file__).resolve().with_name(
+            "GridMeasurementOracle.java" if args.measurement else "GridEventOracle.java"),
     ]
     artifacts = [args.draw2d_jar.resolve(), args.swt_jar.resolve()]
     classpath = ":".join(map(str, artifacts))
@@ -45,14 +47,16 @@ def main():
             ["java", "-XstartOnFirstThread",
              f"-Djava.library.path={args.native_library_dir.resolve()}",
              "-cp", f"{directory}:{classpath}",
-             "org.eclipse.draw2d.examples.layouts.GridEventOracle"],
+             "org.eclipse.draw2d.examples.layouts."
+             + ("GridMeasurementOracle" if args.measurement else "GridEventOracle")],
             capture_output=True, text=True, timeout=60,
         )
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
     evidence = {
         "baseline": revision,
-        "mode": "registered callbacks; native SWT widgets; no OS input injection",
+        "mode": ("fixed font-independent Grid measurements" if args.measurement else
+                 "registered callbacks; native SWT widgets; no OS input injection"),
         "sources": {str(path.relative_to(root)) if path.is_relative_to(root) else path.name:
                     fingerprint(path) for path in sources},
         "artifacts": {str(path): fingerprint(path) for path in artifacts},

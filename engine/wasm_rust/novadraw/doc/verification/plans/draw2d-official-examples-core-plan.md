@@ -99,6 +99,13 @@ typed owned request/receipt或construction-only subtree，禁止先为Tree发明
 
 ### K02 测量、布局、边框与坐标
 
+进度：首批 Grid 固定尺寸 Java oracle 已覆盖六组配置、四个容器宽度，共 24 组
+preferred/minimum/child bounds。修正 grab 轨道在小容器不收缩、余量浮点均分与
+等宽列分配的差额；外部 `p2_grid_java_oracle` 消费原始 TSV。
+该切片不关闭 K02：Flow/Toolbar、可变 Shape size/reset、文字换行、复杂 span、
+owner border 和坐标 oracle 仍待推进。取证范围见
+[Grid 测量对照](../../../verification/oracles/draw2d/README.md#grid-测量对照)。
+
 消费：Flow/Toolbar/Grid/EllipseHitting、SimpleTree/Tree、ScrollPane、两Locator示例、
 UML/Zoom、MultiLineLabel。
 

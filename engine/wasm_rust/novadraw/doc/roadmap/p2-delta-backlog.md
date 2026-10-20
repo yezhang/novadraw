@@ -81,6 +81,9 @@ attached 资源 effect 已核对整批预检并补齐 retired 反例。Grid Add 
 Clear 后清理约束表并保留构造序列；Java Grid 注册回调取证确认 FocusOut/Return
 提交、非法值回退及 Clear 的引用行为。下一步补全入口事件 manifest、其余 Java
 oracle 和依赖后续切片的示例消费；这些切片不关闭整个 K01，也不启动 Editor 改进批次。
+K02 已推进首批 Grid 测量对照：24 组固定尺寸 Java 输入输出，修正 grab 的收缩、
+整数余量和等宽列分配。K00/K01 的未完成证据继续保留；当前实施切片为 K02，
+下一步扩展复杂 span/hint、Flow/Toolbar 及可变 size/reset 对照。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
