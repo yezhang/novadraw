@@ -27,6 +27,30 @@ fn system() -> TextSystem {
     system
 }
 
+#[test]
+fn fractional_inline_height_ends_exactly_at_the_published_baseline() {
+    let mut system = system();
+    let request = request(
+        "before after",
+        vec![],
+        vec![TextInlineBox {
+            id: 1,
+            byte_offset: 7,
+            width: 160.0,
+            height: 49.185493,
+        }],
+    );
+    let layout = system
+        .measure(style(14.0, Color::BLACK).font().clone())
+        .layout_styled(&request)
+        .unwrap();
+    let placement = &layout.inline_placements()[0];
+    assert_eq!(
+        placement.bounds.y + placement.bounds.height,
+        f64::from(layout.layout().line_metrics()[placement.line_index].baseline)
+    );
+}
+
 fn request(text: &str, spans: Vec<TextStyleSpan>, boxes: Vec<TextInlineBox>) -> StyledTextRequest {
     StyledTextRequest::new(
         text,

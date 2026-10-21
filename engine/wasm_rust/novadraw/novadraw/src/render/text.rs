@@ -1610,7 +1610,9 @@ impl TextLayoutEngine for ParleyTextEngine {
                             id: inline.id,
                             bounds: Rectangle::new(
                                 f64::from(inline.x),
-                                f64::from(inline.y + line_shift),
+                                // Subtract in f64 so the exact published box height ends
+                                // at the exact published baseline, including fractional metrics.
+                                f64::from(lines[line_index].baseline) - f64::from(inline.height),
                                 f64::from(inline.width),
                                 f64::from(inline.height),
                             ),
