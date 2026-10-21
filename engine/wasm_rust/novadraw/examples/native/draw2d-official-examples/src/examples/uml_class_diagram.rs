@@ -1,7 +1,7 @@
 use novadraw::{
     connection::{
-        ChopboxAnchor, ConnectionFigure, ConnectionLocator, CoordinateSpace, EndpointLocator,
-        PolygonDecorationFigure, RouterBinding,
+        ChopboxAnchor, ConnectionEndpointLocator, ConnectionFigure, ConnectionLocator,
+        CoordinateSpace, PolygonDecorationFigure, RouteEnd, RouterBinding,
     },
     figure::{
         CONTAINER, ChildClippingStrategy, ContainerCapability, Figure, FigureCapabilityBuilder,
@@ -325,7 +325,10 @@ fn fixture() -> Fixture {
         .set_locator(
             association,
             endpoint,
-            Box::new(EndpointLocator::source(8.0, 0.0).expect("endpoint locator")),
+            Box::new(
+                ConnectionEndpointLocator::new(RouteEnd::Source, 8.0, 4.0)
+                    .expect("endpoint locator"),
+            ),
         )
         .expect("end1 locator");
     let middle = add_label(
@@ -685,5 +688,75 @@ mod tests {
             .stabilize_for_query()
             .expect("settled UML label");
         assert_eq!(fixture.runtime.tree().figure_bounds(label).unwrap(), after);
+    }
+
+    #[test]
+    fn endpoint_label_uses_owner_side_with_official_u_and_v_distances() {
+        let mut fixture = fixture();
+        fixture.runtime.frames().stabilize_for_query().unwrap();
+        let endpoint_label = fixture
+            .runtime
+            .tree()
+            .child_order(fixture.connection)
+            .unwrap()[1];
+        let label = fixture
+            .runtime
+            .tree()
+            .figure_bounds(endpoint_label)
+            .unwrap();
+        let route = fixture
+            .runtime
+            .tree()
+            .connection_route_points(fixture.connection)
+            .unwrap()
+            .unwrap();
+        let input_metadata = novadraw::connection::RouteMetadata {
+            source: novadraw::connection::RouteEndpoint {
+                reference: route.get(1).unwrap(),
+                site: novadraw::connection::AnchorSite {
+                    point: route.get(0).unwrap(),
+                    outward_normal: None,
+                },
+            },
+            target: novadraw::connection::RouteEndpoint {
+                reference: route.get(0).unwrap(),
+                site: novadraw::connection::AnchorSite {
+                    point: route.get(1).unwrap(),
+                    outward_normal: None,
+                },
+            },
+        };
+        let connection = fixture
+            .runtime
+            .tree()
+            .figure_bounds(fixture.connection)
+            .unwrap();
+        let owner = fixture
+            .runtime
+            .tree()
+            .figure_bounds(fixture.second_class)
+            .unwrap();
+        let owner = Rectangle::new(
+            owner.x - connection.x,
+            owner.y - connection.y,
+            owner.width,
+            owner.height,
+        );
+        let input = novadraw::connection::LocatorInput::new(
+            route,
+            &input_metadata,
+            Dimension::new(label.width, label.height),
+            Some(owner),
+            None,
+        )
+        .unwrap();
+        use novadraw::connection::ConnectionLocatorStrategy;
+        let expected = ConnectionEndpointLocator::new(RouteEnd::Source, 8.0, 4.0)
+            .unwrap()
+            .locate_child(&input)
+            .unwrap()
+            .child_bounds(input.child_size())
+            .unwrap();
+        assert_eq!(label, expected);
     }
 }

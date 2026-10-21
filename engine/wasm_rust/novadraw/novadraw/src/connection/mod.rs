@@ -25,8 +25,9 @@ pub use figure::{
     PreparedConnectionGeometry,
 };
 pub use locator::{
-    ConnectionLocator, ConnectionLocatorStrategy, EndpointLocator, LocatorError, LocatorPlacement,
-    MidpointLocator, PathFractionLocator,
+    ChildLocatorPlacement, ConnectionEndpointLocator, ConnectionLocator, ConnectionLocatorStrategy,
+    EndpointLocator, LocatorError, LocatorInput, LocatorPlacement, MidpointLocator,
+    PathFractionLocator,
 };
 pub(crate) use query::FigureTreeRouteSceneRead;
 pub use query::{

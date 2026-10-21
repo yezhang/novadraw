@@ -285,7 +285,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "UMLClassDiagram",
             "org/eclipse/draw2d/examples/uml/UMLClassDiagram.java",
             &[
-                "ConnectionEndpointLocator owner-side and child-size placement is absent; header/member font metrics and DogEar border still require visual parity verification",
+                "owner-side endpoint label placement is implemented; header/member font metrics and DogEar border still require visual parity verification",
             ],
             examples::uml_class_diagram,
         ),

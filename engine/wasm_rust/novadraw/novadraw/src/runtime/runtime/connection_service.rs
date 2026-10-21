@@ -356,6 +356,17 @@ impl Runtime {
                         candidate,
                         geometry.local_points(),
                         &local_metadata,
+                        calculation.owner_bounds().map(|bounds| {
+                            bounds.map(|bounds| {
+                                Rectangle::new(
+                                    bounds.x - geometry.path_bounds().x,
+                                    bounds.y - geometry.path_bounds().y,
+                                    bounds.width,
+                                    bounds.height,
+                                )
+                            })
+                        }),
+                        &self.tree,
                     ) {
                         Ok(placements) => placements,
                         Err(reason) => {
@@ -370,7 +381,8 @@ impl Runtime {
                         }
                     };
                     let mut child_updates = Vec::with_capacity(placements.len());
-                    for (child, placement) in placements {
+                    for (child, child_placement, measured_bounds) in placements {
+                        let placement = child_placement.placement();
                         let finite_placement = [
                             placement.point.x(),
                             placement.point.y(),
@@ -416,36 +428,9 @@ impl Runtime {
                                 return Err(ConnectionRuntimeError::Unresolved(reason));
                             }
                             None => {
-                                let size = match self.tree.preferred_measurement(
-                                    child,
-                                    crate::figure::MeasureConstraints::UNBOUNDED,
-                                ) {
-                                    Ok(measurement) => measurement.size(),
-                                    Err(_) => {
-                                        let reason = UnresolvedConnection::LocatorFailed {
-                                            child,
-                                            error: crate::LocatorError::ChildMeasurementFailed,
-                                        };
-                                        self.connections.reject_route_batch(&batch, reason.clone());
-                                        for affected in batch.calculations() {
-                                            self.tree.clear_connection_route(
-                                                &mut self.updates,
-                                                affected.connection().figure(),
-                                            );
-                                        }
-                                        return Err(ConnectionRuntimeError::Unresolved(reason));
-                                    }
-                                };
-                                child_updates.push((
-                                    child,
-                                    Rectangle::new(
-                                        placement.point.x() - size.width / 2.0,
-                                        placement.point.y() - size.height / 2.0,
-                                        size.width,
-                                        size.height,
-                                    ),
-                                    None,
-                                ));
+                                let bounds =
+                                    measured_bounds.expect("ordinary child has preflight bounds");
+                                child_updates.push((child, bounds, None));
                             }
                         }
                     }

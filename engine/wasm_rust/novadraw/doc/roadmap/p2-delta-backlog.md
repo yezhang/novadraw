@@ -81,7 +81,10 @@ K02 的 Grid span/grab 与 Flow/Toolbar 测量修复保留，改用独立 Rust �
 改为受检 preferred measurement，非法测量拒绝路由批次并可恢复；
 2026-10-21 补齐普通 Locator child 的 layout generation 失效跟踪，尺寸覆盖/重置与
 UML 连接文字修改无需端点移动即可重新定位；测量失败可自动恢复并保持稳定。
-owner-aware EndpointLocator 的开放输入/placement 与 Obstruction 路由仍待推进。
+owner-side 定位已按用户批准的 [ADR-039](../adr/adr-039-owner-aware-connection-locator.md)
+接入统一 LocatorInput/ChildLocatorPlacement、tracked owner 边界与官方 UML，最终门禁通过。
+保留 EndpointLocator 既有切线偏移；ConnectionEndpointLocator 实现 owner 四侧与 child-size 定位。
+Obstruction visibility 路由仍待推进，K03 不整体关闭。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

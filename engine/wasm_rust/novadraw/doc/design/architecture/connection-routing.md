@@ -686,3 +686,6 @@ M9.1 不以截图为完成门禁。
     geometry；line inset 不修改 route truth。
 12. 接受 P2-C02 基于 Runtime-owned immutable obstacle snapshot 做确定性批量路由，
     不让 Router 持有 Figure listener 或直接 mutation。
+13. [ADR-039](../../adr/adr-039-owner-aware-connection-locator.md)补充普通 child 的
+    LocatorInput 与 ChildLocatorPlacement、owner 边界依赖和受检 bounds override；
+    ConnectionEndpointLocator 承载官方 owner-side 语义，既有 EndpointLocator 保持切线偏移。

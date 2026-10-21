@@ -1,6 +1,6 @@
 use std::{error::Error, fmt};
 
-use crate::geometry::{Point, PointList, Vec2};
+use crate::geometry::{Dimension, Point, PointList, Rectangle, Vec2};
 
 use super::{RouteEnd, RouteMetadata};
 
@@ -11,6 +11,130 @@ pub struct LocatorPlacement {
     pub point: Point,
     /// Neighboring point used to orient endpoint decorations.
     pub reference: Point,
+}
+
+/// Immutable, connection-local inputs shared by built-in and external child locators.
+pub struct LocatorInput<'a> {
+    points: &'a PointList,
+    metadata: &'a RouteMetadata,
+    child_size: Dimension,
+    owners: [Option<Rectangle>; 2],
+}
+
+impl<'a> LocatorInput<'a> {
+    pub fn new(
+        points: &'a PointList,
+        metadata: &'a RouteMetadata,
+        child_size: Dimension,
+        source_owner_bounds: Option<Rectangle>,
+        target_owner_bounds: Option<Rectangle>,
+    ) -> Result<Self, LocatorError> {
+        if !valid_size(child_size) {
+            return Err(LocatorError::ChildMeasurementFailed);
+        }
+        let owners = [source_owner_bounds, target_owner_bounds];
+        if owners.iter().flatten().any(|bounds| !valid_bounds(*bounds)) {
+            return Err(LocatorError::NonFinitePlacement);
+        }
+        Ok(Self {
+            points,
+            metadata,
+            child_size,
+            owners,
+        })
+    }
+
+    pub fn points(&self) -> &PointList {
+        self.points
+    }
+    pub fn metadata(&self) -> &RouteMetadata {
+        self.metadata
+    }
+    pub fn child_size(&self) -> Dimension {
+        self.child_size
+    }
+    pub fn owner_bounds(&self, end: RouteEnd) -> Option<Rectangle> {
+        self.owners[match end {
+            RouteEnd::Source => 0,
+            RouteEnd::Target => 1,
+        }]
+    }
+}
+
+/// A route reference with an optional measured child bounds override.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ChildLocatorPlacement {
+    placement: LocatorPlacement,
+    bounds: Option<Rectangle>,
+}
+
+impl ChildLocatorPlacement {
+    pub const fn centered(placement: LocatorPlacement) -> Self {
+        Self {
+            placement,
+            bounds: None,
+        }
+    }
+    pub const fn with_bounds(placement: LocatorPlacement, bounds: Rectangle) -> Self {
+        Self {
+            placement,
+            bounds: Some(bounds),
+        }
+    }
+    pub const fn placement(&self) -> LocatorPlacement {
+        self.placement
+    }
+    pub const fn bounds_override(&self) -> Option<Rectangle> {
+        self.bounds
+    }
+
+    /// Validates both legacy references and custom bounds before any geometry is published.
+    pub fn child_bounds(&self, size: Dimension) -> Result<Rectangle, LocatorError> {
+        if !valid_size(size) {
+            return Err(LocatorError::ChildMeasurementFailed);
+        }
+        let p = self.placement;
+        if ![p.point.x(), p.point.y(), p.reference.x(), p.reference.y()]
+            .into_iter()
+            .all(f64::is_finite)
+        {
+            return Err(LocatorError::NonFinitePlacement);
+        }
+        let bounds = self.bounds.unwrap_or_else(|| {
+            Rectangle::new(
+                p.point.x() - size.width / 2.0,
+                p.point.y() - size.height / 2.0,
+                size.width,
+                size.height,
+            )
+        });
+        if !valid_bounds(bounds) {
+            return Err(LocatorError::NonFinitePlacement);
+        }
+        if bounds.width != size.width || bounds.height != size.height {
+            return Err(LocatorError::ChildSizeMismatch);
+        }
+        Ok(bounds)
+    }
+}
+
+fn valid_size(size: Dimension) -> bool {
+    size.width.is_finite() && size.height.is_finite() && size.width >= 0.0 && size.height >= 0.0
+}
+
+fn valid_bounds(bounds: Rectangle) -> bool {
+    [
+        bounds.x,
+        bounds.y,
+        bounds.width,
+        bounds.height,
+        bounds.x + bounds.width,
+        bounds.y + bounds.height,
+    ]
+    .into_iter()
+    .all(f64::is_finite)
+        && bounds.width >= 0.0
+        && bounds.height >= 0.0
 }
 
 /// Pure strategy for placing a child on committed Connection points.
@@ -25,6 +149,163 @@ pub trait ConnectionLocatorStrategy {
         _metadata: &RouteMetadata,
     ) -> Result<LocatorPlacement, LocatorError> {
         self.locate(points)
+    }
+
+    /// Places a measured child. Existing point strategies retain their centered behavior.
+    fn locate_child(
+        &self,
+        input: &LocatorInput<'_>,
+    ) -> Result<ChildLocatorPlacement, LocatorError> {
+        self.locate_with_metadata(input.points(), input.metadata())
+            .map(ChildLocatorPlacement::centered)
+    }
+}
+
+const DEFAULT_OWNER_U_DISTANCE: f64 = 14.0;
+const DEFAULT_OWNER_V_DISTANCE: f64 = 4.0;
+
+/// Draw2D owner-side label placement, distinct from tangent/normal EndpointLocator offsets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConnectionEndpointLocator {
+    end: RouteEnd,
+    u_distance: f64,
+    v_distance: f64,
+}
+
+impl ConnectionEndpointLocator {
+    pub fn new(end: RouteEnd, u_distance: f64, v_distance: f64) -> Result<Self, LocatorError> {
+        if !u_distance.is_finite() || !v_distance.is_finite() {
+            return Err(LocatorError::InvalidOffset);
+        }
+        Ok(Self {
+            end,
+            u_distance,
+            v_distance,
+        })
+    }
+
+    pub const fn with_default_distances(end: RouteEnd) -> Self {
+        Self {
+            end,
+            u_distance: DEFAULT_OWNER_U_DISTANCE,
+            v_distance: DEFAULT_OWNER_V_DISTANCE,
+        }
+    }
+}
+
+impl ConnectionLocatorStrategy for ConnectionEndpointLocator {
+    fn locate(&self, points: &PointList) -> Result<LocatorPlacement, LocatorError> {
+        terminal_placement(points, self.end, None)
+    }
+
+    fn locate_child(
+        &self,
+        input: &LocatorInput<'_>,
+    ) -> Result<ChildLocatorPlacement, LocatorError> {
+        require_points(input.points(), 2)?;
+        let normal = match self.end {
+            RouteEnd::Source => input.metadata().source.site.outward_normal,
+            RouteEnd::Target => input.metadata().target.site.outward_normal,
+        };
+        let points = input.points();
+        let (endpoint, neighbor) = match self.end {
+            RouteEnd::Source => (points.get(0).unwrap(), points.get(1).unwrap()),
+            RouteEnd::Target => (
+                points.get(points.len() - 1).unwrap(),
+                points.get(points.len() - 2).unwrap(),
+            ),
+        };
+        if ![endpoint.x(), endpoint.y(), neighbor.x(), neighbor.y()]
+            .into_iter()
+            .all(f64::is_finite)
+        {
+            return Err(LocatorError::NonFinitePlacement);
+        }
+        let mut inward = neighbor - endpoint;
+        if inward.length_squared() <= f64::EPSILON {
+            let normal = normal.ok_or(LocatorError::DegenerateRoute)?;
+            let length = normal.length();
+            if !length.is_finite() || length <= f64::EPSILON {
+                return Err(LocatorError::DegenerateRoute);
+            }
+            inward = normal / length;
+        }
+        let (vertical, positive) = if let Some(owner) = input
+            .owner_bounds(self.end)
+            .filter(|owner| owner.width > 0.0 && owner.height > 0.0)
+        {
+            let delta = endpoint - owner.center();
+            // Normalize before comparing to avoid overflowing cross-products.
+            let horizontal =
+                delta.x().abs() / owner.width >= delta.y().abs() / owner.height && delta.x() != 0.0;
+            (
+                !horizontal,
+                if horizontal {
+                    delta.x() >= 0.0
+                } else {
+                    delta.y() >= 0.0
+                },
+            )
+        } else {
+            let horizontal = inward.x().abs() > inward.y().abs();
+            (
+                !horizontal,
+                if horizontal {
+                    inward.x() > 0.0
+                } else {
+                    inward.y() > 0.0
+                },
+            )
+        };
+        let c = if positive { 1.0 } else { -1.0 };
+        let (x, y, dx, dy, width, height) = if vertical {
+            (
+                endpoint.y(),
+                endpoint.x(),
+                inward.y(),
+                inward.x(),
+                input.child_size().height,
+                input.child_size().width,
+            )
+        } else {
+            (
+                endpoint.x(),
+                endpoint.y(),
+                inward.x(),
+                inward.y(),
+                input.child_size().width,
+                input.child_size().height,
+            )
+        };
+        let tan = if dx == 0.0 {
+            1.0
+        } else {
+            (dy / dx).clamp(-1.0, 1.0)
+        };
+        let shift = if self.v_distance < 0.0 {
+            -height
+        } else if self.v_distance == 0.0 {
+            -height / 2.0
+        } else {
+            0.0
+        };
+        let x = x + c * self.u_distance + if positive { 0.0 } else { -width };
+        let y = y + c * self.u_distance * tan + self.v_distance + shift;
+        let size = input.child_size();
+        let bounds = if vertical {
+            Rectangle::new(y, x, size.width, size.height)
+        } else {
+            Rectangle::new(x, y, size.width, size.height)
+        };
+        let output = ChildLocatorPlacement::with_bounds(
+            LocatorPlacement {
+                point: endpoint,
+                reference: neighbor,
+            },
+            bounds,
+        );
+        output.child_bounds(size)?;
+        Ok(output)
     }
 }
 
@@ -225,6 +506,8 @@ pub enum LocatorError {
     NonFinitePlacement,
     /// The located child's preferred measurement could not be resolved.
     ChildMeasurementFailed,
+    /// A custom locator tried to change the authoritative preferred size.
+    ChildSizeMismatch,
 }
 
 impl fmt::Display for LocatorError {
@@ -245,6 +528,10 @@ impl fmt::Display for LocatorError {
             Self::DegenerateRoute => write!(formatter, "route has no non-zero length"),
             Self::NonFinitePlacement => write!(formatter, "locator placement must be finite"),
             Self::ChildMeasurementFailed => write!(formatter, "locator child measurement failed"),
+            Self::ChildSizeMismatch => write!(
+                formatter,
+                "locator bounds must preserve measured child size"
+            ),
         }
     }
 }

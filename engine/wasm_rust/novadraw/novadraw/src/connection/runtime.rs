@@ -5,9 +5,9 @@ use crate::identity::{RuntimeArena, RuntimeNamespace};
 use super::{
     AnchorGroupKey, AnchorId, Bendpoint, BendpointConstraint, ConnectionAnchor, ConnectionId,
     ConnectionRouter, CoordinateSpace, DependencyObservation, DependencySubject, DirectRouter,
-    LocatorError, LocatorPlacement, RouteError, RouteOutput, RouteRequest, RouteSceneQuery,
-    RouteSceneQueryError, RouteSceneRead, RouterId, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope, RoutingObstacle, TrackedRouteSceneQuery,
+    LocatorError, RouteError, RouteOutput, RouteRequest, RouteSceneQuery, RouteSceneQueryError,
+    RouteSceneRead, RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope,
+    RoutingObstacle, TrackedRouteSceneQuery,
 };
 use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
 
@@ -242,6 +242,7 @@ pub(crate) struct RouteCalculation {
     output: RouteOutput,
     observations: Vec<DependencyObservation>,
     next_generation: u64,
+    owner_bounds: [Option<crate::geometry::Rectangle>; 2],
 }
 
 struct ConnectionLocatorBinding {
@@ -258,6 +259,9 @@ impl ConnectionRouteBatch {
 }
 
 impl RouteCalculation {
+    pub(crate) const fn owner_bounds(&self) -> [Option<crate::geometry::Rectangle>; 2] {
+        self.owner_bounds
+    }
     pub(crate) const fn connection(&self) -> ConnectionId {
         self.connection
     }
@@ -659,15 +663,41 @@ impl ConnectionRuntime {
         connection: ConnectionId,
         points: &crate::geometry::PointList,
         metadata: &super::RouteMetadata,
-    ) -> Result<Vec<(FigureId, LocatorPlacement)>, UnresolvedConnection> {
+        owners: [Option<crate::geometry::Rectangle>; 2],
+        tree: &crate::tree::FigureTree,
+    ) -> Result<
+        Vec<(
+            FigureId,
+            super::ChildLocatorPlacement,
+            Option<crate::geometry::Rectangle>,
+        )>,
+        UnresolvedConnection,
+    > {
         self.locators
             .iter()
             .filter(|binding| binding.connection == connection)
             .map(|binding| {
-                binding
-                    .strategy
-                    .locate_with_metadata(points, metadata)
-                    .map(|placement| (binding.child, placement))
+                let compute = || {
+                    if tree.is_connection_decoration(binding.child) {
+                        return binding.strategy.locate_with_metadata(points, metadata).map(
+                            |placement| (super::ChildLocatorPlacement::centered(placement), None),
+                        );
+                    }
+                    let size = tree
+                        .preferred_measurement(
+                            binding.child,
+                            crate::figure::MeasureConstraints::UNBOUNDED,
+                        )
+                        .map_err(|_| LocatorError::ChildMeasurementFailed)?
+                        .size();
+                    let input =
+                        super::LocatorInput::new(points, metadata, size, owners[0], owners[1])?;
+                    let placement = binding.strategy.locate_child(&input)?;
+                    let bounds = placement.child_bounds(size)?;
+                    Ok((placement, Some(bounds)))
+                };
+                compute()
+                    .map(|(placement, bounds)| (binding.child, placement, bounds))
                     .map_err(|error| UnresolvedConnection::LocatorFailed {
                         child: binding.child,
                         error,
@@ -1272,6 +1302,35 @@ impl ConnectionRuntime {
             .get(&connection)
             .and_then(|state| state.constraint.as_deref());
         let mut query = TrackedRouteSceneQuery::new(source);
+        let mut owner_bounds = [None, None];
+        if self
+            .locators
+            .iter()
+            .any(|binding| binding.connection == connection)
+        {
+            for (index, owner) in [source_anchor.owner(), target_anchor.owner()]
+                .into_iter()
+                .enumerate()
+            {
+                if let Some(owner) = owner {
+                    let result = query.border_box(owner).and_then(|bounds| {
+                        query.map_rect(bounds, CoordinateSpace::FigureLocal(owner), routing_space)
+                    });
+                    match result {
+                        Ok(bounds) => owner_bounds[index] = Some(bounds),
+                        Err(error) => {
+                            observations.extend(query.into_observations());
+                            return Err((
+                                ConnectionRuntimeError::Unresolved(
+                                    UnresolvedConnection::RouteFailed(RouteError::Scene(error)),
+                                ),
+                                deduplicate_observations(observations),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
         let output = router.route(RouteRequest {
             connection,
             routing_space,
@@ -1311,6 +1370,7 @@ impl ConnectionRuntime {
             output,
             observations,
             next_generation,
+            owner_bounds,
         })
     }
 

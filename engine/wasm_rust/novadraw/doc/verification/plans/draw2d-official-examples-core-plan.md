@@ -69,8 +69,10 @@ K01 已完成多个通用切片并接入 Tree、Grid 与 ConnectionAndAnchor，�
 owner border 和复杂布局边界继续推进。
 K03 首批修复普通 Locator child 使用旧 bounds 尺寸的问题，改为统一受检 preferred
 measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并可恢复，
-外部 Figure 与内置图元共用路径。owner quadrant、child-size 输入及 EndpointLocator
-开放 placement 契约尚未完成，不能将本切片视为 K03 整体关闭。
+外部 Figure 与内置图元共用路径。2026-10-21 已按
+[ADR-039](../../adr/adr-039-owner-aware-connection-locator.md)接入 owner quadrant、
+child-size 输入与开放 child bounds placement，官方 UML 使用 ConnectionEndpointLocator，
+既有 EndpointLocator 切线偏移保持不变。Obstruction 路由尚未完成，K03 不整体关闭。
 
 2026-10-21 补齐 Locator child 测量失效：此前只修改 preferred size 时，端点几何
 不变，路由不会重新提交，导致连接标签停留在旧尺寸。现在绑定追踪普通 child 的
