@@ -75,6 +75,11 @@ pub struct UpdateManager {
     last_validation_error: Option<ValidationError>,
 }
 
+pub(crate) struct PreparationUpdateCheckpoint {
+    effects: NotificationQueue,
+    animation_cursor: usize,
+}
+
 impl Default for UpdateManager {
     fn default() -> Self {
         Self::new()
@@ -82,6 +87,40 @@ impl Default for UpdateManager {
 }
 
 impl UpdateManager {
+    pub(crate) fn preparation_checkpoint(&mut self) -> PreparationUpdateCheckpoint {
+        PreparationUpdateCheckpoint {
+            effects: self.notification_effects.clone(),
+            animation_cursor: self.animation_effect_cursor,
+        }
+    }
+
+    pub(crate) fn preparation_effect_count(&self) -> usize {
+        self.notification_effects.len()
+    }
+
+    pub(crate) fn rebase_preparation_effects(
+        &self,
+        prefix: &mut PreparationUpdateCheckpoint,
+        before: usize,
+    ) {
+        prefix.effects.extend(
+            self.notification_effects.effects()[before..]
+                .iter()
+                .cloned(),
+        );
+    }
+
+    pub(crate) fn restore_preparation_checkpoint(
+        &mut self,
+        prefix: PreparationUpdateCheckpoint,
+        tree: &crate::FigureTree,
+    ) {
+        self.notification_effects = prefix.effects;
+        self.animation_effect_cursor = prefix.animation_cursor;
+        self.invalid_figures = tree.invalid_figure_ids();
+        self.update_queued = true;
+    }
+
     pub(crate) fn freeze_figure_damage(
         &mut self,
         tree: &crate::FigureTree,

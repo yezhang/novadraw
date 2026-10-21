@@ -33,6 +33,7 @@ mod listener;
 pub mod property;
 mod repair;
 
+pub(crate) use deferred::PreparationUpdateCheckpoint;
 pub use deferred::UpdateManager;
 pub use listener::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,

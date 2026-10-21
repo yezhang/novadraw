@@ -41,6 +41,7 @@ use crate::runtime::update::{
 use crate::style::{FigureStyle, ResolvedStyle};
 
 // 渲染模块
+mod derived;
 mod layout_measurement;
 mod presentation;
 mod query;
@@ -960,6 +961,7 @@ pub struct FigureTree {
     /// 内容块（用户可访问的根容器）
     contents: Option<FigureId>,
     notification_effects: NotificationQueue,
+    derived_checkpoint: Option<derived::DerivedCheckpoint>,
 }
 
 pub(crate) struct TextLayoutRefreshResult {
@@ -1284,6 +1286,7 @@ impl FigureTree {
             root: root_id,
             contents: None,
             notification_effects: NotificationQueue::new(),
+            derived_checkpoint: None,
         }
     }
 
@@ -1890,6 +1893,7 @@ impl FigureTree {
         };
         let resize = width != old_bounds.width || height != old_bounds.height;
         let translate = x != old_bounds.x || y != old_bounds.y;
+        self.record_preparation_source_bounds(figure_id, Rectangle::new(x, y, width, height));
         if !resize && !translate {
             return false;
         }
@@ -1947,6 +1951,7 @@ impl FigureTree {
         let resize = width != old_bounds.width || height != old_bounds.height;
         let translate = x != old_bounds.x || y != old_bounds.y;
         if !resize && !translate {
+            self.record_preparation_source_bounds(figure_id, Rectangle::new(x, y, width, height));
             return false;
         }
         let parent_id = block.parent;
@@ -1954,6 +1959,7 @@ impl FigureTree {
         let visible = self
             .is_effectively_visible(figure_id)
             .expect("node was resolved above");
+        self.record_preparation_source_bounds(figure_id, Rectangle::new(x, y, width, height));
 
         if visible {
             self.erase(update_manager, figure_id, old_visual_bounds, parent_id);

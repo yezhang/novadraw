@@ -218,6 +218,16 @@ struct ConnectionState {
     resolution: ConnectionResolution,
 }
 
+struct PreparedRouteState {
+    dependencies: HashMap<DependencySubject, u64>,
+    routing_space: Option<CoordinateSpace>,
+    generation: u64,
+}
+
+pub(crate) struct ConnectionPreparationCheckpoint {
+    states: HashMap<ConnectionId, PreparedRouteState>,
+}
+
 pub(crate) struct RetiredConnections {
     _states: Vec<ConnectionState>,
     _anchors: Vec<Box<dyn ConnectionAnchor>>,
@@ -313,6 +323,54 @@ impl Default for ConnectionRuntime {
 }
 
 impl ConnectionRuntime {
+    pub(crate) fn preparation_checkpoint(&self) -> ConnectionPreparationCheckpoint {
+        ConnectionPreparationCheckpoint {
+            states: self
+                .states
+                .iter()
+                .map(|(id, state)| {
+                    (
+                        *id,
+                        PreparedRouteState {
+                            dependencies: state.dependencies.clone(),
+                            routing_space: state.routing_space,
+                            generation: state.route_generation,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    /// Restore unpublished routing metadata without undoing source bindings or dirty revisions.
+    pub(crate) fn restore_preparation_checkpoint(
+        &mut self,
+        prefix: ConnectionPreparationCheckpoint,
+    ) {
+        for (id, saved) in prefix.states {
+            if let Some(state) = self.states.get_mut(&id) {
+                state.dependencies = saved.dependencies;
+                state.routing_space = saved.routing_space;
+                state.route_generation = saved.generation;
+                state.resolution = ConnectionResolution::Dirty {
+                    revision: state.dirty_revision,
+                };
+            }
+        }
+        self.by_dependency.clear();
+        for (id, state) in &self.states {
+            for subject in state.dependencies.keys() {
+                self.by_dependency
+                    .entry(subject.clone())
+                    .or_default()
+                    .push(*id);
+            }
+        }
+        for locator in &mut self.locators {
+            locator.measurement_generation = None;
+        }
+    }
+
     pub(crate) fn validate_disposal(&self) -> Result<(), ConnectionRuntimeError> {
         for connection in &self.order {
             self.next_dirty_revision(*connection)?;

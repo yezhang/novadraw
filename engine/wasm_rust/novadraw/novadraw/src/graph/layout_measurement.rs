@@ -579,7 +579,10 @@ impl FigureTree {
                         self.repaint(update_manager, parent, None);
                     }
                 }
-                LayoutChange::ViewportEffect(effect) => effect.commit()?,
+                LayoutChange::ViewportEffect(effect) => {
+                    self.record_derived_viewport(&effect);
+                    effect.commit()?;
+                }
             }
         }
         Ok(())

@@ -100,6 +100,55 @@ impl PartialEq for ViewportLayoutEffect {
 }
 
 impl ViewportLayoutEffect {
+    pub(crate) fn current(&self) -> Self {
+        let runtime = lock_unpoisoned(&self.runtime);
+        Self {
+            horizontal: runtime.horizontal.snapshot(),
+            vertical: runtime.vertical.snapshot(),
+            content_scale: runtime.content_scale,
+            ..self.clone()
+        }
+    }
+
+    pub(crate) fn rebase(&mut self, before: &Self, after: &Self) {
+        for (saved, old, new) in [
+            (&mut self.horizontal, before.horizontal, after.horizontal),
+            (&mut self.vertical, before.vertical, after.vertical),
+        ] {
+            if old.minimum != new.minimum {
+                saved.minimum = new.minimum;
+            }
+            if old.maximum != new.maximum {
+                saved.maximum = new.maximum;
+            }
+            if old.extent != new.extent {
+                saved.extent = new.extent;
+            }
+            if old.value != new.value {
+                saved.value = new.value;
+            }
+        }
+        if before.content_scale != after.content_scale {
+            self.content_scale = after.content_scale;
+        }
+    }
+
+    pub(crate) fn restore(&self) -> Result<(), LayoutError> {
+        self.commit()?;
+        let runtime = lock_unpoisoned(&self.runtime);
+        for (model, snapshot) in [
+            (&runtime.horizontal, self.horizontal),
+            (&runtime.vertical, self.vertical),
+        ] {
+            model
+                .set_value(snapshot.value)
+                .map_err(|_| LayoutError::NonFiniteGeometry {
+                    figure: self.contents,
+                })?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn viewport(&self) -> FigureId {
         self.viewport
     }

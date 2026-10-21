@@ -17,6 +17,21 @@ pub struct PreparedDecorationGeometry {
 }
 
 impl PreparedDecorationGeometry {
+    /// Constructs complete backend-neutral geometry for an external decoration.
+    pub fn new(bounds: Rectangle, local_points: Vec<Point>) -> Result<Self, DecorationError> {
+        if !finite_rectangle(bounds)
+            || local_points
+                .iter()
+                .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        {
+            return Err(DecorationError::NonFiniteGeometry);
+        }
+        Ok(Self {
+            bounds,
+            local_points,
+        })
+    }
+
     /// Returns child bounds in the Connection's local coordinate space.
     pub const fn bounds(&self) -> Rectangle {
         self.bounds
@@ -67,6 +82,9 @@ impl Error for DecorationError {}
 
 /// Runtime-controlled geometry behavior for endpoint decorations.
 pub trait ConnectionDecorationBehavior {
+    /// Captures committed geometry for recovery of an unpublished preparation.
+    fn decoration_geometry(&self) -> PreparedDecorationGeometry;
+
     /// Prepares complete child geometry without mutating Figure or Runtime state.
     fn prepare_decoration_geometry(
         &self,
@@ -144,6 +162,13 @@ impl PolygonDecorationFigure {
 }
 
 impl ConnectionDecorationBehavior for PolygonDecorationFigure {
+    fn decoration_geometry(&self) -> PreparedDecorationGeometry {
+        PreparedDecorationGeometry {
+            bounds: crate::Bounded::bounds(&self.polygon),
+            local_points: self.polygon.local_points().to_vec(),
+        }
+    }
+
     fn prepare_decoration_geometry(
         &self,
         placement: LocatorPlacement,
@@ -264,6 +289,13 @@ impl PolylineDecorationFigure {
 }
 
 impl ConnectionDecorationBehavior for PolylineDecorationFigure {
+    fn decoration_geometry(&self) -> PreparedDecorationGeometry {
+        PreparedDecorationGeometry {
+            bounds: crate::Bounded::bounds(&self.polyline),
+            local_points: self.polyline.local_points().to_vec(),
+        }
+    }
+
     fn prepare_decoration_geometry(
         &self,
         placement: LocatorPlacement,

@@ -485,8 +485,10 @@ impl Runtime {
         true
     }
 
-    fn stabilize(&mut self) -> Result<(), FramePreparationError> {
-        self.poll_activities();
+    fn stabilize(
+        &mut self,
+        mut prefix: Option<&mut crate::runtime::update::PreparationUpdateCheckpoint>,
+    ) -> Result<(), FramePreparationError> {
         self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
         self.last_stabilization_error = None;
 
@@ -526,7 +528,15 @@ impl Runtime {
                         self.updates
                             .perform_validation_phase(&mut self.tree)
                             .map_err(FramePreparationError::Validation)?;
-                        if self.poll_activities() && self.updates.has_pending_layout() {
+                        let source_prefix = self.tree.capture_preparation_sources();
+                        let effect_count = self.updates.preparation_effect_count();
+                        let changed = self.poll_activities();
+                        self.tree.rebase_preparation_sources(source_prefix);
+                        if let Some(prefix) = prefix.as_deref_mut() {
+                            self.updates
+                                .rebase_preparation_effects(prefix, effect_count);
+                        }
+                        if changed && self.updates.has_pending_layout() {
                             work.insert(DerivedWorkKind::Layout);
                         }
                         work.insert(DerivedWorkKind::DependencyInvalidation);
@@ -591,9 +601,37 @@ impl Runtime {
     }
 
     fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
-        match self.stabilize() {
-            Ok(()) => Ok(()),
+        self.poll_activities();
+        // Commit source activities before opening the unpublished derived transaction.
+        let mut prefix = if self.tree.begin_derived_preparation() {
+            Some(self.updates.preparation_checkpoint())
+        } else {
+            None
+        };
+        let connection_prefix = prefix
+            .as_ref()
+            .map(|_| self.connections.preparation_checkpoint());
+        match self.stabilize(prefix.as_mut()) {
+            Ok(()) => {
+                self.tree
+                    .finish_derived_preparation(true)
+                    .map_err(|error| {
+                        FramePreparationError::Text(crate::figure::preparation::scene_error(error))
+                    })?;
+                Ok(())
+            }
             Err(error) => {
+                let recovery = self.tree.finish_derived_preparation(false);
+                if let Some(prefix) = connection_prefix {
+                    self.connections.restore_preparation_checkpoint(prefix);
+                }
+                if let Some(prefix) = prefix {
+                    self.updates
+                        .restore_preparation_checkpoint(prefix, &self.tree);
+                }
+                let error = recovery.err().map_or(error, |failure| {
+                    FramePreparationError::Text(crate::figure::preparation::scene_error(failure))
+                });
                 self.last_stabilization_error = Some(error.clone());
                 self.full_redraw_pending = true;
                 Err(error)
@@ -901,7 +939,7 @@ impl Runtime {
     #[cfg(test)]
     fn record_full_frame_inner(&mut self) -> NdCanvas {
         self.apply_pending_mutations_for_frame();
-        self.stabilize()
+        self.try_stabilize()
             .expect("full-frame recording requires stable derived state");
         self.process_animation_behaviors();
         self.animations

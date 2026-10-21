@@ -177,7 +177,16 @@ flow 子节点发布内容尺寸，避免静态边框漏算和 owner 边框重�
 `novadraw/tests/p2_t03_external_flow_engine.rs`，自行构造 styled 输出和 interaction
 provider，覆盖来源映射、绘制、命中、caret、selection 与跨节点视觉移动。
 
-内嵌子树反馈的失败闭环、完整边框度量组合及六个官方入口仍待后续实施和验收；
+内嵌子树反馈使用实例范围的派生检查点。失败时恢复旧 presentation、各节点几何、
+viewport 范围、Connection route points 和装饰几何，丢弃未发布通知并重新失效布局。
+活动提交的源属性、源 bounds、拓扑和连接绑定保留；恢复过程不克隆源组件。
+连接的派生 generation 和反向依赖索引恢复后重新进入 Dirty，locator 测量缓存失效。
+外部装饰与内置装饰共用 geometry capture/commit capability，外部消费者可通过受检
+`PreparedDecorationGeometry::new` 构造几何。
+`p2_scene_preparation_contract` 覆盖晚发测量失败、不收敛、源写入、viewport 以及
+实际发生重路由后的外部装饰恢复。
+
+完整边框度量组合及六个官方入口仍待后续实施和验收；
 本 ADR 尚未完成全部验收。
 
 结构化 flow 切片的 workspace fmt、check、Clippy 与 test 已通过

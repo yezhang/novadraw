@@ -155,6 +155,7 @@ pub(crate) struct PreparationKey {
     pub bounds: Rectangle,
 }
 
+#[derive(Clone)]
 pub(crate) struct PreparedFigure {
     pub owner: crate::FigureId,
     pub key: PreparationKey,
