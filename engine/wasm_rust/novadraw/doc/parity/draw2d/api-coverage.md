@@ -210,7 +210,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-ANIMATION` | Animation、Animator、LayoutAnimator、RoutingAnimator | GOAL-CAP/EXT/PERF | `pending` | 目标：Runtime-owned Timeline/Track + Presentation Plane | P2-M01；目标 suite `core.p2-m01-animation` | 不复制静态全局状态、阻塞 run loop 或逐帧 source mutation；默认无隐式动画 |
 | `CAP-CLIPPING-EXT` | replaceable/multi-rect clipping | GOAL-CAP/EXT | `pending` | 目标：受控 clipping provider | P2-C03 | 先闭合跨 viewport Connection 可见性真实用例 |
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
-| `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `pending` | `TextFlowFigure`、`TextLayoutEngine` | P2-T01/T02 complete；P2-T03 pending | 剩余 fragment style 与 inline/block 组合进入 P2-T03 |
+| `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `pending` | `TextFlowFigure`、`TextLayoutEngine`、`figure::flow` | P2-T01/T02 complete；P2-T03 in_progress（ADR-042） | styled request、来源快照与开放 inline/block 已有契约证据；六个官方入口待验收 |
 | `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` | M10.4 complete；P2-W01 pending | repeat scheduler、group/radio/slider 不污染 Core 状态机 |
 | `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `pending` | 目标：独立图布局输入/输出 adapter | P2-L01 | 属于 `org.eclipse.draw2d.graph`，不得按 Zest 排除 |
 | `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |

@@ -17,6 +17,7 @@ mod activity;
 pub use activity::{ACTIVITY, ActivityCapability, FigureActivity};
 pub(crate) mod capability;
 mod ellipse;
+pub mod flow;
 mod image;
 mod label;
 mod polygon;

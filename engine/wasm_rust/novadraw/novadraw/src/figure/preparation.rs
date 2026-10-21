@@ -156,6 +156,7 @@ pub(crate) struct PreparationKey {
 }
 
 pub(crate) struct PreparedFigure {
+    pub owner: crate::FigureId,
     pub key: PreparationKey,
     pub presentation: FigurePresentation,
 }

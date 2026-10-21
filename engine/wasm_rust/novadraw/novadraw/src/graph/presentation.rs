@@ -77,6 +77,39 @@ impl FigureTree {
         }
         let mut metrics_changed = false;
         // No tree changes occur until every candidate and its layout output has been checked.
+        let owners = candidates
+            .iter()
+            .map(|(id, _, _)| *id)
+            .collect::<std::collections::HashSet<_>>();
+        let retired = self
+            .blocks
+            .iter()
+            .filter_map(|(source, node)| {
+                node.prepared
+                    .as_ref()
+                    .filter(|prepared| {
+                        owners.contains(&prepared.owner) && !presented.contains(&source)
+                    })
+                    .map(|_| source)
+            })
+            .collect::<Vec<_>>();
+        for source in retired {
+            let node = &self.blocks[source];
+            let old_visual = node.visual_bounds();
+            let parent = node.parent;
+            let visible = self
+                .is_effectively_visible(source)
+                .expect("retired live source");
+            if visible {
+                self.erase(updates, source, old_visual, parent);
+            }
+            self.blocks[source].prepared = None;
+            self.mark_invalid(updates, source);
+            if visible {
+                self.repaint(updates, source, None);
+            }
+            metrics_changed = true;
+        }
         for (id, key, candidate) in candidates {
             for (parent, output) in candidate.layouts {
                 self.apply_layout_output(updates, parent, output)
@@ -86,6 +119,7 @@ impl FigureTree {
                 metrics_changed |= self.publish_prepared_figure(
                     source,
                     PreparedFigure {
+                        owner: id,
                         key: key.clone(),
                         presentation,
                     },
@@ -95,6 +129,7 @@ impl FigureTree {
             let changed = self.publish_prepared_figure(
                 id,
                 PreparedFigure {
+                    owner: id,
                     key,
                     presentation: candidate.root,
                 },

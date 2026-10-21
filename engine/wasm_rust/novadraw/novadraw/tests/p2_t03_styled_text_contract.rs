@@ -40,7 +40,12 @@ fn request(text: &str, spans: Vec<TextStyleSpan>, boxes: Vec<TextInlineBox>) -> 
 
 #[test]
 fn rejects_overlapping_unordered_and_non_utf8_styles() {
-    for ranges in [vec![0..1], vec![0..3, 2..4], vec![3..4, 0..3], vec![0..5]] {
+    for ranges in [
+        std::iter::once(0..1).collect(),
+        vec![0..3, 2..4],
+        vec![3..4, 0..3],
+        std::iter::once(0..5).collect(),
+    ] {
         let spans = ranges
             .into_iter()
             .map(|range| TextStyleSpan {
@@ -387,6 +392,44 @@ fn external_engine_constructs_checked_output_without_parley() {
             .measure(FontDescriptor::default())
             .layout_styled(&input),
         Err(TextError::NoUsableFont)
+    );
+}
+
+#[test]
+fn checked_output_rejects_run_attributed_to_another_source_style() {
+    let mut engine = ExternalEngine::default();
+    let mut system = system();
+    let input = request(
+        "two spans",
+        vec![
+            TextStyleSpan {
+                range: 0..3,
+                style: style(14.0, Color::RED),
+            },
+            TextStyleSpan {
+                range: 3..9,
+                style: style(14.0, Color::BLACK),
+            },
+        ],
+        vec![],
+    );
+    let valid = system
+        .measure(FontDescriptor::default())
+        .layout_styled(&input)
+        .unwrap();
+    let mut runs = valid.runs().to_vec();
+    runs[0].style_index = if runs[0].style_index == 1 { 2 } else { 1 };
+    assert_eq!(
+        StyledTextLayout::new(input.clone(), valid.layout().clone(), runs, vec![]),
+        Err(TextError::InvalidStyledLayout)
+    );
+    // Equal font sizes and a valid style identity do not permit crossing its source span.
+    engine
+        .register_font(valid.layout().glyph_runs()[0].font.resource_id(), 1, &[])
+        .unwrap();
+    assert_eq!(
+        engine.layout_styled(&input),
+        Err(TextError::InvalidStyledLayout)
     );
 }
 

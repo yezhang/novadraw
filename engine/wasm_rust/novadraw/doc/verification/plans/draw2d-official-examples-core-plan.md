@@ -91,8 +91,12 @@ UMLClassDiagram 覆盖只修改连接文字且类和路由不动时的重新测�
 250ms/40ms 连发与取消通过外部 Rust 契约；Zoom 原公式及 Native 截图通过。
 Path/MultiLineLabel 的消费者待 K05/K08，不关闭 K04 整批。
 
-下一步回到 K05，先核对 styled/nested flow 与真实 inline Figure 的源码契约并形成
-可评审设计，再按依赖推进 K06、K07/K08。K00/H04 随每批维护。
+K05 已按用户批准的
+[ADR-042](../../adr/adr-042-structured-flow-layout.md)进入实施。
+styled 引擎、原子 preparation、开放贡献 registry、结构化 flow 快照、
+真实 inline Figure 与 fragment border 已有独立契约测试。
+下一步补普通 block Border 与反馈失败闭环，再逐个接入六个 text 入口，
+按依赖推进 K06、K07/K08。K00/H04 随每批维护。
 每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 只登记 Canvas 内的结构、行为和失败/资源需求。
 

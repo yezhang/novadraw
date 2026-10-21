@@ -52,7 +52,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02、P2-F02 已完成；Native surface 视觉毕业依赖 P2-G01 present 证据 | A/B/C 已完成；D 待 Native/Web 关键帧、组合场景与实际 runner 预算 |
 | 5 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
 | 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
-| 7 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
+| 7 | P2-T03 | fragment style 与剩余 inline/block flow | `in_progress` | P2-T01/T02、ADR-042 | 测量、paint、interaction 使用同一快照；六个官方 text 入口验收 |
 | 8 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
 | 9 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
 | 10 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
@@ -100,6 +100,10 @@ K04 通用切片完成后回到 K05 的只读源码契约与设计，Path/MultiL
 K05 已按用户批准进入 [ADR-042](../adr/adr-042-structured-flow-layout.md) 实施，
 明确开放贡献协议、styled request、同 revision fragment 快照、
 FlowBorder 和真实 Figure placement；状态为 `in_progress`。
+styled 引擎、通用原子 preparation、开放 flow registry、结构化节点与来源快照
+已有独立消费者证据。相邻/嵌套 margin、跨字号 baseline、RTL 对齐、fragment
+命中、真实 Figure 二次测量、外部 fragment border 与字体/来源失效已覆盖；
+普通 block Border、内嵌反馈失败闭环与六个 text 入口仍待验收。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。
@@ -248,7 +252,7 @@ capability，以及开放 `PresentationBinding<V>`。后续 ADR-033 已取消 co
 
 规范入口：[ADR-025](../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
 [文字与图形整合](../design/rendering/text-graphics-integration.md)。
-本项与 deferred 的 P2-T03 富文本样式无关，也不关闭 P2-G01 未完成的 surface 验收。
+本项与 P2-T03 富文本样式增量无关，也不关闭 P2-G01 未完成的 surface 验收。
 
 交付切片：
 

@@ -82,6 +82,11 @@ pub struct MeasureContext<'a> {
 }
 
 impl<'a> MeasureContext<'a> {
+    /// Measurement generation, including completed or replaced font resources.
+    pub fn revision(&self) -> u64 {
+        self.engine.revision()
+    }
+
     pub fn layout_styled(
         &mut self,
         request: &super::StyledTextRequest,

@@ -1292,6 +1292,7 @@ mod s07_query_failure_tests {
         }
         let (mut tree, root) = subject();
         tree.blocks[root].prepared = Some(PreparedFigure {
+            owner: root,
             key: PreparationKey {
                 component: 0,
                 provider: 0,

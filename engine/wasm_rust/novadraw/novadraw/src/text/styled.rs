@@ -244,6 +244,17 @@ impl StyledTextLayout {
                 || !request.text.is_char_boundary(run.source_range.start)
                 || !request.text.is_char_boundary(run.source_range.end)
                 || request.style(run.style_index).is_none()
+                || if run.style_index == 0 {
+                    request.spans.iter().any(|span| {
+                        run.source_range.start < span.range.end
+                            && span.range.start < run.source_range.end
+                    })
+                } else {
+                    request.spans.get(run.style_index - 1).is_none_or(|span| {
+                        run.source_range.start < span.range.start
+                            || run.source_range.end > span.range.end
+                    })
+                }
                 || run.line_index >= layout.line_metrics().len()
                 || request
                     .style(run.style_index)

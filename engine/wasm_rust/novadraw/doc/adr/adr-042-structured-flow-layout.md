@@ -142,5 +142,30 @@ Runtime 先校验完整批次及输入 revision，再发布；非法 placement�
 普通后代的输入遍历。独立外部消费者见
 `novadraw/tests/p2_scene_preparation_contract.rs`。
 
-开放贡献协议、结构化 Figure 节点、flow 快照、fragment border、
-真实子树布局和六个官方入口仍在实施，尚未完成 ADR 的全部验收。
+开放贡献协议已增加 `ContributionKey<P>`、payload trait 和实例 registry。
+标准 text/group/block/figure-box/fragment-border handler 与外部 contributor
+使用同一注册入口。`FlowPageFigure`、`BlockFlowFigure`、`InlineFlowFigure`、
+`StructuredTextFigure` 与 `FlowAdapterFigure` 通过正常 capability 接入，
+Runtime 不按这些 Figure 的具体类型分派。
+
+`FlowSnapshot` 保存段落整体 shaping、来源范围、片段、内嵌位置与边框片段。
+绘制、片段命中、UTF-8 caret 和跨节点 selection 共用该快照；
+scene 与文字引擎 generation 一起组成 revision。真实子树位置通过
+`LayoutOutput` 提交，adapter 先测量行尾剩余宽度，必要时换行并按全宽重新测量。
+普通子 Figure 保留绘制与输入身份。source 移出 flow 后，通用 preparation
+按 owner 清除已退出快照的 descendant presentation。
+
+fragment border 通过同一贡献协议注册，首尾占位盒参与段落布局。
+边框收到来源、方向、owner style、分行矩形与首尾标记；需要 owner 字体测量
+的边框可在 preparation 阶段生成不可变 renderer，不在 paint 中重排。
+独立消费者见 `novadraw/tests/p2_t03_structured_flow_contract.rs`，
+覆盖来源身份、嵌套样式、共享 baseline、相邻与嵌套 margin、RTL 对齐、
+片段空白命中、二次测量、字体失效、来源迁移和非法边框指标拒绝。
+styled 输出另增加跨 style source range 的拒绝校验。
+
+普通 block Border 的完整组合、内嵌子树反馈的失败闭环及六个官方入口
+仍待后续实施和验收；本 ADR 尚未完成全部验收。
+
+结构化 flow 切片的 workspace fmt、check、Clippy 与 test 已通过
+（1,191 项通过、1 项忽略）；文档门禁通过。命令退出码与日志保存在
+`target/verification/adr042-flow/`。测试 target 的 Clippy 另行复查。
