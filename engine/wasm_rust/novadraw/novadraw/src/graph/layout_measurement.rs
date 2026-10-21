@@ -464,7 +464,7 @@ impl FigureTree {
         Ok(())
     }
 
-    fn validate_layout_output(
+    pub(crate) fn validate_layout_output(
         &self,
         container_id: FigureId,
         output: &LayoutOutput,
@@ -525,7 +525,7 @@ impl FigureTree {
         Ok(())
     }
 
-    fn apply_layout_output(
+    pub(crate) fn apply_layout_output(
         &mut self,
         update_manager: &mut UpdateManager,
         container_id: FigureId,

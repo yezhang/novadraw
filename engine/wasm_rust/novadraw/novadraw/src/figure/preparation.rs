@@ -5,6 +5,10 @@ use crate::text::{MeasureContext, TextError};
 use crate::{Dimension, Rectangle};
 use std::sync::Arc;
 
+mod scene;
+pub(crate) use scene::scene_error;
+pub use scene::{PreparationScene, PreparedScene};
+
 /// Optional preparation capability. It cannot mutate the tree or publish a frame.
 pub trait FigurePreparation {
     /// Changes whenever inputs held outside the Figure's component state change.
@@ -19,6 +23,16 @@ pub trait FigurePreparation {
         context: &mut MeasureContext<'_>,
         bounds: Rectangle,
     ) -> Result<FigurePresentation, TextError>;
+
+    /// Builds drawing and buffered layout effects from a frozen subtree prefix.
+    fn prepare_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        bounds: Rectangle,
+        _scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, TextError> {
+        self.prepare(context, bounds).map(PreparedScene::new)
+    }
 }
 
 /// Immutable drawing payload paired with the measurement that produced it.
@@ -33,6 +47,8 @@ pub struct FigurePresentation {
     minimum: Dimension,
     visual_bounds: Rectangle,
     drawing: Arc<dyn FigureDrawing>,
+    hit_regions: Option<Vec<Rectangle>>,
+    data: Option<Arc<dyn std::any::Any + Send + Sync>>,
 }
 
 impl FigurePresentation {
@@ -73,7 +89,48 @@ impl FigurePresentation {
             minimum,
             visual_bounds,
             drawing,
+            hit_regions: None,
+            data: None,
         })
+    }
+
+    /// Restricts self hit to disjoint prepared fragments while retaining child traversal.
+    pub fn with_hit_regions(mut self, regions: Vec<Rectangle>) -> Result<Self, TextError> {
+        for region in &regions {
+            if [
+                region.x,
+                region.y,
+                region.width,
+                region.height,
+                region.x + region.width,
+                region.y + region.height,
+            ]
+            .iter()
+            .any(|value| !value.is_finite())
+                || region.width < 0.0
+                || region.height < 0.0
+            {
+                return Err(TextError::InvalidMetric);
+            }
+        }
+        self.hit_regions = Some(regions);
+        Ok(self)
+    }
+
+    /// Immutable domain snapshot published together with drawing and geometry.
+    pub fn with_data<T: std::any::Any + Send + Sync>(mut self, data: Arc<T>) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    pub fn data<T: std::any::Any + Send + Sync>(&self) -> Option<&T> {
+        self.data.as_deref()?.downcast_ref()
+    }
+
+    pub(crate) fn hit(&self, point: crate::Point) -> bool {
+        self.hit_regions
+            .as_ref()
+            .is_none_or(|regions| regions.iter().any(|region| region.contains(point)))
     }
     pub fn measurement(&self) -> FigureMeasurement {
         self.measurement

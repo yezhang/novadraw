@@ -669,7 +669,7 @@ impl FigureNode {
         })
     }
 
-    fn preparation(&self) -> Option<&dyn FigurePreparation> {
+    pub(crate) fn preparation(&self) -> Option<&dyn FigurePreparation> {
         self.capabilities
             .get(PREPARATION)
             .expect("typed preparation descriptor must match its key")

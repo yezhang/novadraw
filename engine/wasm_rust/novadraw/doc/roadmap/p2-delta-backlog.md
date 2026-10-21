@@ -97,9 +97,9 @@ ScrollPane 复用同一实现。九项外部契约、26 项 viewport 回归、Zo
 K04 通用切片完成后回到 K05 的只读源码契约与设计，Path/MultiLineLabel
 仍依赖文字流和 Graphics 增量，不关闭 K04 整批。K05 先形成可评审契约，
 重大公共 API 变更依仓库规则评审后实施。
-K05 已形成 [ADR-042 草案](../adr/adr-042-structured-flow-layout.md)，
+K05 已按用户批准进入 [ADR-042](../adr/adr-042-structured-flow-layout.md) 实施，
 明确开放贡献协议、styled request、同 revision fragment 快照、
-FlowBorder 和真实 Figure placement；状态为 `design-draft`，未进入实现。
+FlowBorder 和真实 Figure placement；状态为 `in_progress`。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

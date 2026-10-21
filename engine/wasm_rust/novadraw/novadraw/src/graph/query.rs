@@ -169,6 +169,18 @@ impl FigureTree {
         Ok(&self.blocks[id])
     }
 
+    /// The immutable drawing, metrics and domain snapshot from the last successful preparation.
+    pub fn prepared_presentation(
+        &self,
+        id: FigureId,
+    ) -> Result<Option<&crate::figure::FigurePresentation>, TreeQueryError> {
+        Ok(self
+            .node(id)?
+            .prepared
+            .as_ref()
+            .map(|prepared| &prepared.presentation))
+    }
+
     /// Queries one attach-time capability descriptor without causing mutation.
     pub fn capability<C: 'static>(
         &self,

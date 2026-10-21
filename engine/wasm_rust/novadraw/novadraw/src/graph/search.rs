@@ -258,12 +258,17 @@ impl FigureTree {
             .parent_to_local_transform(id)
             .ok()??
             .transform_point(Point::new(point.0, point.1));
-        let self_hit =
+        let envelope_hit =
             node.figure
                 .precise_hit(local_point.x(), local_point.y(), node.figure_bounds());
+        let self_hit = envelope_hit
+            && node
+                .prepared
+                .as_ref()
+                .is_none_or(|prepared| prepared.presentation.hit(local_point));
         let overflow_visible =
             node.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
-        if !self_hit && !overflow_visible {
+        if !envelope_hit && !overflow_visible {
             return None;
         }
 

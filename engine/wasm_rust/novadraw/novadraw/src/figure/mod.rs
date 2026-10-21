@@ -22,7 +22,9 @@ mod label;
 mod polygon;
 mod polyline;
 pub(crate) mod preparation;
-pub use preparation::{FigureDrawing, FigurePreparation, FigurePresentation};
+pub use preparation::{
+    FigureDrawing, FigurePreparation, FigurePresentation, PreparationScene, PreparedScene,
+};
 mod rectangle;
 mod root;
 mod rounded_rectangle;

@@ -8,15 +8,33 @@ impl FigureTree {
         text: &mut dyn TextLayoutEngine,
         updates: &mut UpdateManager,
     ) -> Result<bool, TextError> {
-        use crate::figure::preparation::{PreparationKey, PreparedFigure};
-        let (figures, _) = self.resolved_styles_for(|node| node.preparation().is_some());
+        use crate::figure::PreparationScene;
+        use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
+        if !self
+            .blocks
+            .iter()
+            .any(|(_, node)| node.preparation().is_some())
+        {
+            return Ok(false);
+        }
+        let (styles, _) = self.resolved_styles_for(|_| true);
+        let figures = styles
+            .iter()
+            .map(|(id, _)| *id)
+            .filter(|id| self.blocks[*id].preparation().is_some())
+            .collect::<Vec<_>>();
+        let styles = styles
+            .into_iter()
+            .collect::<std::collections::HashMap<_, _>>();
         let mut candidates = Vec::new();
-        for (id, style) in figures {
+        for id in figures {
+            let style = &styles[&id];
             let node = &self.blocks[id];
             let preparation = node.preparation().expect("capability selected");
             let bounds = node.client_area();
+            let scene = PreparationScene::new(self, id, &styles);
             let key = PreparationKey {
-                component: node.component_revision,
+                component: scene.revision()?,
                 provider: preparation.revision(),
                 text: text.revision(),
                 font: style.font.clone(),
@@ -29,33 +47,90 @@ impl FigureTree {
                 text,
                 crate::text::FontDescriptor::parse(&style.font)?,
             );
-            let presentation = preparation.prepare(&mut context, bounds)?;
-            candidates.push((id, PreparedFigure { key, presentation }));
+            let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
+            prepared_scene.validate(&scene)?;
+            if scene.revision()? != key.component || preparation.revision() != key.provider {
+                return Err(TextError::InvalidPreparedScene(
+                    "input revision changed during preparation".into(),
+                ));
+            }
+            candidates.push((id, key, prepared_scene));
+        }
+        let mut presented = std::collections::HashSet::new();
+        for (id, key, candidate) in &candidates {
+            for source in
+                std::iter::once(id).chain(candidate.descendants.iter().map(|(source, _)| source))
+            {
+                if !presented.insert(*source) {
+                    return Err(TextError::InvalidPreparedScene(
+                        "overlapping presentation owners".into(),
+                    ));
+                }
+            }
+            if PreparationScene::new(self, *id, &styles).revision()? != key.component
+                || text.revision() != key.text
+            {
+                return Err(TextError::InvalidPreparedScene(
+                    "frozen preparation prefix is stale".into(),
+                ));
+            }
         }
         let mut metrics_changed = false;
-        for (id, candidate) in candidates {
-            let node = &self.blocks[id];
-            let changed = node.prepared.as_ref().is_none_or(|old| {
-                old.presentation.measurement() != candidate.presentation.measurement()
-                    || old.presentation.minimum_size() != candidate.presentation.minimum_size()
-            });
-            let old_visual = node.visual_bounds();
-            let parent = node.parent;
-            let visible = self.is_effectively_visible(id).expect("prepared live node");
-            if visible {
-                self.erase(updates, id, old_visual, parent);
+        // No tree changes occur until every candidate and its layout output has been checked.
+        for (id, key, candidate) in candidates {
+            for (parent, output) in candidate.layouts {
+                self.apply_layout_output(updates, parent, output)
+                    .map_err(scene_error)?;
             }
-            self.blocks[id].prepared = Some(candidate);
-            if changed {
-                metrics_changed = true;
-                self.mark_invalid(updates, id);
+            for (source, presentation) in candidate.descendants {
+                metrics_changed |= self.publish_prepared_figure(
+                    source,
+                    PreparedFigure {
+                        key: key.clone(),
+                        presentation,
+                    },
+                    updates,
+                );
             }
-            self.mark_freeform_ancestor_extents_dirty(id);
-            if visible {
-                self.repaint(updates, id, None);
-            }
+            let changed = self.publish_prepared_figure(
+                id,
+                PreparedFigure {
+                    key,
+                    presentation: candidate.root,
+                },
+                updates,
+            );
+            metrics_changed |= changed;
         }
         Ok(metrics_changed)
+    }
+
+    fn publish_prepared_figure(
+        &mut self,
+        id: FigureId,
+        candidate: crate::figure::preparation::PreparedFigure,
+        updates: &mut UpdateManager,
+    ) -> bool {
+        let node = &self.blocks[id];
+        let changed = node.prepared.as_ref().is_none_or(|old| {
+            old.presentation.measurement() != candidate.presentation.measurement()
+                || old.presentation.minimum_size() != candidate.presentation.minimum_size()
+        });
+        let old_visual = node.visual_bounds();
+        let parent = node.parent;
+        let visible = self.is_effectively_visible(id).expect("prepared live node");
+        if visible {
+            self.erase(updates, id, old_visual, parent);
+        }
+        self.blocks[id].prepared = Some(candidate);
+        if changed {
+            self.mark_invalid(updates, id);
+        }
+        self.mark_freeform_ancestor_extents_dirty(id);
+        if visible {
+            self.repaint(updates, id, None);
+        }
+        changed
     }
 
     pub(crate) fn set_child_clipping_strategy(

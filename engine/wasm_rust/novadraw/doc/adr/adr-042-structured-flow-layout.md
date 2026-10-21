@@ -4,7 +4,7 @@
 
 ## 状态
 
-设计草案，待评审；未进入实现。
+已接受，实施中（2026-10-21，用户批准按 ADR-042 实施）。
 承接官方示例 K05 与 P2-T03。`api_semantics` 为 `text.flow`、
 `text.interaction`、`layout.manager` 和 `input.dispatch`。
 
@@ -116,5 +116,31 @@ margin 折叠由 flow 布局负责，border 只返回受检度量并绘制。
 
 评审需确认：结构贡献以 Figure capability 承载；样式范围与占位盒由文字引擎
 统一 shaping/bidi；flow 服务拥有快照而 Figure 树保留节点身份。
-以上改变跨越公共文字 API 与布局契约，按 CLAUDE.md 的重大架构变更规则，
-本草案获批后才进入实现。ScrollBar 切片已独立完成，不受本评审影响。
+以上改变跨越公共文字 API 与布局契约，已按 CLAUDE.md 的重大架构变更规则
+完成评审批准。ScrollBar 切片已独立完成。
+
+## 实施证据
+
+文字引擎切片已提供 `StyledTextRequest` / `StyledTextLayout`、受检 UTF-8
+style span、段落方向与对齐、内嵌盒，以及 `TextLayoutEngine::layout_styled`。
+`RuntimeText` 和 `MeasureContext` 共用该入口；默认引擎的单样式入口适配到同一
+排版路径。`Graphics::fill_styled_text` 与 `PaintContext::fill_styled_text`
+同时支持 glyph 和轮廓绘制。分段颜色也参与交互 revision。
+
+Parley 0.7 的显式方向由适配层维护私有方向标记与原文偏移映射。
+内嵌盒产生负 leading 时，适配层统一修正行、glyph、盒与交互坐标，
+保留相邻文字的 descent，不把修正交给示例。
+独立消费者与失败反例见
+`novadraw/tests/p2_t03_styled_text_contract.rs`。
+
+通用 preparation 协议已增加 `PreparationScene` 和 `PreparedScene`。
+前者只读 preparing Figure 的冻结子树、解析样式和受检测量；
+后者将根 drawing、子节点 presentation 与普通 `LayoutOutput` 一起缓冲。
+Runtime 先校验完整批次及输入 revision，再发布；非法 placement、测量失败、
+输入 revision 漂移和错误的 parent-child 归属均保留旧 bounds 与旧快照。
+`FigurePresentation` 同时承载不可变领域数据与片段命中区域，片段空白不会阻止
+普通后代的输入遍历。独立外部消费者见
+`novadraw/tests/p2_scene_preparation_contract.rs`。
+
+开放贡献协议、结构化 Figure 节点、flow 快照、fragment border、
+真实子树布局和六个官方入口仍在实施，尚未完成 ADR 的全部验收。
