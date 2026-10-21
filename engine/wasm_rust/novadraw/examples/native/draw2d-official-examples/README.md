@@ -44,3 +44,11 @@ cargo run -p draw2d-official-examples --example obstruction_verification
 最后一个命令通过真实输入构造四阶段 Native 场景并截图，产物在
 `target/visual-verification/screenshots/`。路线允许斜线与 Canvas 外折点，
 不增加官方源码未规定的视口避让。
+
+Zoom 的连续缩放验证使用真实 ScrollBar 按钮输入，依次截图初始、最小、最大、
+再次最小四个状态。子布局使用反算后的逻辑区域，滚动条按自身最小尺寸保持厚度。
+
+```sh
+cargo test -p draw2d-official-examples --lib zoom_example
+cargo run -p draw2d-official-examples --example zoom_verification
+```

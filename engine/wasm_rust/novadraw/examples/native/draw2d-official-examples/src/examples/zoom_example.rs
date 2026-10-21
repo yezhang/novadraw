@@ -406,6 +406,83 @@ mod tests {
     }
 
     #[test]
+    fn repeated_zoom_keeps_the_bar_height_and_unscaled_content_visible() {
+        let mut fixture = fixture();
+        fixture
+            .runtime
+            .frames()
+            .stabilize_for_query()
+            .expect("initial layout");
+        let contents = fixture.runtime.tree().child_order(fixture.panel).unwrap()[0];
+        let class_bounds = fixture
+            .classes
+            .map(|id| fixture.runtime.tree().figure_bounds(id).unwrap());
+        for value in [30.0, 20.0, 10.0, 0.0, 40.0, 80.0, 120.0, 175.0, 0.0] {
+            let scale = zoom_for(value);
+            fixture
+                .runtime
+                .viewports()
+                .set_scale(fixture.panel, scale)
+                .unwrap();
+            fixture
+                .runtime
+                .frames()
+                .stabilize_for_query()
+                .expect("zoom layout");
+            let bar = fixture.runtime.tree().figure_bounds(fixture.bar).unwrap();
+            assert_eq!(bar.height, BAR_HEIGHT, "scale={scale}");
+            let panel = fixture.runtime.tree().figure_bounds(fixture.panel).unwrap();
+            let insets = fixture
+                .runtime
+                .tree()
+                .node(fixture.panel)
+                .unwrap()
+                .state()
+                .insets();
+            let bounds = fixture.runtime.tree().figure_bounds(contents).unwrap();
+            assert!(
+                (bounds.width * scale - (panel.width - insets.width())).abs() < 1e-8,
+                "scale={scale}, content={bounds:?}, panel={panel:?}"
+            );
+            assert!((bounds.height * scale - (panel.height - insets.height())).abs() < 1e-8);
+            for (id, expected) in fixture.classes.into_iter().zip(class_bounds) {
+                assert_eq!(fixture.runtime.tree().figure_bounds(id).unwrap(), expected);
+                if scale <= 1.0 {
+                    assert!(
+                        expected.x >= bounds.x
+                            && expected.y >= bounds.y
+                            && expected.x + expected.width <= bounds.x + bounds.width
+                            && expected.y + expected.height <= bounds.y + bounds.height,
+                        "scale={scale}: class {expected:?} clipped by {bounds:?}"
+                    );
+                }
+            }
+        }
+        for (increase, expected) in [(false, 0.0), (true, MAXIMUM - EXTENT), (false, 0.0)] {
+            for _ in 0..20 {
+                let bounds = fixture.runtime.tree().figure_bounds(fixture.bar).unwrap();
+                let x = if increase {
+                    bounds.width - ARROW_WIDTH / 2.0
+                } else {
+                    ARROW_WIDTH / 2.0
+                };
+                click(&mut fixture.runtime, x, BAR_HEIGHT / 2.0);
+                fixture.runtime.frames().stabilize_for_query().unwrap();
+                assert_eq!(
+                    fixture
+                        .runtime
+                        .tree()
+                        .figure_bounds(fixture.bar)
+                        .unwrap()
+                        .height,
+                    BAR_HEIGHT
+                );
+            }
+            assert_eq!(fixture.model.value(), expected);
+        }
+    }
+
+    #[test]
     fn arrow_page_and_drag_apply_the_official_zoom_formula() {
         let mut fixture = fixture();
         let width = WINDOW_SIZE;

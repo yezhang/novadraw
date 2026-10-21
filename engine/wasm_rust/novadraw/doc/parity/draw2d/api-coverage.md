@@ -366,7 +366,13 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 | `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments, replaceable parts, `REPEAT_FIRING` | 独立 `ScrollBarFigure`、五个普通 child、typed part constraint、可替换 RangeModel/custom thumb；250ms/40ms 连发与取消通过开放 FigureActivity；Zoom 和 ScrollPane 共用 | verified | ADR-041、`p2_scroll_bar`、`m8_viewport_contract`、Zoom 原公式与 Native 截图；Lines/LogicalPixels 与祖先 wheel fallback 保留 |
 | `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | Layer、keyed pane、Freeform 类型、派生 extent、nested 映射、OverflowVisible、`FreeformLayout` 与 content-domain Viewport/Zoom 集成 | verified | D2.1-D2.5 自动契约与 Native/Web 人工验收通过；不递归改写普通 child bounds |
 
-Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。
+连续缩放回归：`LayoutSceneQuery::container_bounds` 与 measurement 共用容器的
+`layout_constraints`，扣除物理 insets 后反算逻辑可用尺寸；外部缩放容器通过同一
+协议验证。ScrollBarLayout 的 minimum 与 preferred 一致，对齐 Draw2D
+AbstractLayout。`zoom_example` 的连续按钮测试和 `zoom_verification` 四阶段
+Native 截图覆盖最小、最大、再次最小，缩小时两个类完整可见，滚动条厚度保持不变。
+
+Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScrollBarLayout.java`、`AbstractLayout.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。
 
 ### Runtime / Resource / Submission 横切契约
 
