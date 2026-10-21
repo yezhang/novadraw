@@ -652,6 +652,11 @@ type SubtreeCompletion =
     Box<dyn FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>)>;
 
 pub(crate) enum PendingMutationKind {
+    ScrollViewport {
+        viewport: FigureId,
+        dx: f64,
+        dy: f64,
+    },
     SetContentsSubtree {
         viewport: Option<FigureId>,
         subtree: crate::tree::FigureSubtree,
@@ -949,6 +954,12 @@ impl PendingMutation {
                 figure,
                 update,
             })),
+        }
+    }
+
+    pub(crate) fn scroll_viewport(viewport: FigureId, dx: f64, dy: f64) -> Self {
+        Self {
+            kind: PendingMutationKind::ScrollViewport { viewport, dx, dy },
         }
     }
 

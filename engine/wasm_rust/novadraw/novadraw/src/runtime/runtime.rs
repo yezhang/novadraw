@@ -3203,6 +3203,9 @@ impl Runtime {
                 self.set_size_override(figure, kind, size)
             }
             PendingMutationKind::SetBounds { figure, bounds } => self.set_bounds(figure, bounds),
+            PendingMutationKind::ScrollViewport { viewport, dx, dy } => {
+                self.viewports().scroll_by(viewport, dx, dy)
+            }
             PendingMutationKind::SetScale { figure, scale } => {
                 self.viewports().set_scale(figure, scale)
             }

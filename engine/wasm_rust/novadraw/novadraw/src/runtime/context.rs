@@ -76,6 +76,26 @@ impl<'a> EventSceneQuery<'a> {
             .child_order(container)
             .map_err(EventSceneQueryError::from)
     }
+
+    /// Reads immutable domain data from the last admitted preparation.
+    pub fn prepared_data<T: std::any::Any + Send + Sync>(
+        &self,
+        figure: FigureId,
+    ) -> Result<Option<&T>, EventSceneQueryError> {
+        self.node(figure)?;
+        Ok(self
+            .tree
+            .prepared_presentation(figure)?
+            .and_then(|p| p.data::<T>()))
+    }
+
+    /// Reads the callback's committed component prefix.
+    pub fn component<T: Figure + 'static>(
+        &self,
+        figure: FigureId,
+    ) -> Result<Option<&T>, EventSceneQueryError> {
+        Ok(self.node(figure)?.figure.as_any().downcast_ref())
+    }
 }
 
 /// Failure produced by an [`EventSceneQuery`].
@@ -354,6 +374,17 @@ impl EventEffects<'_> {
             )));
     }
 
+    /// Enqueues the same typed component update for an explicitly identified source.
+    pub fn update_figure_component_later<U>(&mut self, figure: FigureId, update: U)
+    where
+        U: FigureComponentUpdate + 'static,
+    {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::update_component(
+                figure, update,
+            )));
+    }
+
     /// Enqueues a typed capability update for the current callback target.
     pub fn update_capability_later<U>(&mut self, update: U)
     where
@@ -573,6 +604,16 @@ impl EventEffects<'_> {
 impl MutationContext for EventEffects<'_> {
     fn enqueue_mutation(&mut self, mutation: PendingMutation) {
         self.effects.push(RuntimeEffect::Mutation(mutation));
+    }
+}
+
+impl EventEffects<'_> {
+    /// Applies a viewport delta after the callback releases its frozen scene prefix.
+    pub fn scroll_viewport_by_later(&mut self, viewport: FigureId, dx: f64, dy: f64) {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::scroll_viewport(
+                viewport, dx, dy,
+            )));
     }
 }
 

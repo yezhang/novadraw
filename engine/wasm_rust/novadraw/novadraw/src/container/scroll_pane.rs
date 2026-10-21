@@ -485,6 +485,16 @@ impl FigureTree {
     ) -> Result<ScrollPaneHandle, ScrollPaneError> {
         let horizontal_model: Arc<dyn RangeModel> = Arc::new(crate::DefaultRangeModel::default());
         let vertical_model: Arc<dyn RangeModel> = Arc::new(crate::DefaultRangeModel::default());
+        self.add_scroll_pane_with_models_to(parent, bounds, horizontal_model, vertical_model)
+    }
+
+    pub(crate) fn add_scroll_pane_with_models_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+        horizontal_model: Arc<dyn RangeModel>,
+        vertical_model: Arc<dyn RangeModel>,
+    ) -> Result<ScrollPaneHandle, ScrollPaneError> {
         let runtime = Arc::new(Mutex::new(ScrollPaneRuntime::new(
             bounds,
             Arc::clone(&horizontal_model),
@@ -546,6 +556,18 @@ impl FigureTree {
 }
 
 impl FigureTreeBuilder<'_> {
+    /// Composes ordinary ScrollBar and Viewport consumers around caller-owned ranges.
+    pub fn add_scroll_pane_with_models_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+        horizontal: Arc<dyn RangeModel>,
+        vertical: Arc<dyn RangeModel>,
+    ) -> Result<ScrollPaneHandle, ScrollPaneError> {
+        self.tree_mut()
+            .add_scroll_pane_with_models_to(parent, bounds, horizontal, vertical)
+    }
+
     pub fn add_scroll_pane_to(
         &mut self,
         parent: FigureId,
