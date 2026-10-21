@@ -60,6 +60,24 @@ pub struct OutlinedText {
 }
 
 impl OutlinedText {
+    pub(crate) fn with_vertical_offsets(&self, offsets: &[f64]) -> Result<Self, FontError> {
+        if offsets.len() != self.instances.len() {
+            return Err(FontError::InvalidFont);
+        }
+        let mut instances = self.instances.clone();
+        let mut path = Path::new();
+        for (instance, offset) in instances.iter_mut().zip(offsets) {
+            instance.transform = Affine2D::from_translation(0.0, *offset) * instance.transform;
+            append_transformed(&mut path, instance.outline.path(), instance.transform)?;
+        }
+        let checked = GlyphOutline::new(path.clone(), 1)?;
+        Ok(Self {
+            instances,
+            path,
+            ink_bounds: checked.ink_bounds(),
+        })
+    }
+
     pub fn instances(&self) -> &[GlyphInstance] {
         &self.instances
     }

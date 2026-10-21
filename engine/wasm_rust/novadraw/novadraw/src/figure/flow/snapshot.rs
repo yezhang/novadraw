@@ -238,6 +238,31 @@ impl FlowSnapshot {
                 index += 1;
                 moved = TextPosition::new(0, TextAffinity::Downstream);
             }
+            TextMovement::PreviousLine | TextMovement::NextLine => {
+                let layout = self.paragraphs[index].layout.layout();
+                let line = layout.caret_geometry(current)?.line_index();
+                let previous = movement == TextMovement::PreviousLine;
+                if (previous && line == 0 && index > 0)
+                    || (!previous
+                        && line + 1 == layout.line_metrics().len()
+                        && index + 1 < self.paragraphs.len())
+                {
+                    let global_x = layout.caret_geometry(current)?.bounds().x
+                        + self.paragraphs[index].origin.x();
+                    index = if previous { index - 1 } else { index + 1 };
+                    let paragraph = &self.paragraphs[index];
+                    let target = if previous {
+                        paragraph.layout.layout().line_metrics().last()
+                    } else {
+                        paragraph.layout.layout().line_metrics().first()
+                    }
+                    .ok_or(TextInteractionError::InvisibleTextPosition)?;
+                    moved = paragraph.layout.layout().hit_test_text(Point::new(
+                        global_x - paragraph.origin.x(),
+                        f64::from(target.baseline),
+                    ))?;
+                }
+            }
             _ => {}
         }
         let paragraph = &self.paragraphs[index];
@@ -322,9 +347,22 @@ fn build_snapshot(
     bounds: Rectangle,
     scene: &PreparationScene<'_>,
 ) -> Result<(Arc<FlowSnapshot>, Vec<FigureId>), FlowError> {
-    let mut assembly = FlowAssembly::new(scene, registry);
-    assembly.visit(scene.root())?;
-    assembly.finish();
+    let assembly = {
+        let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
+            let resolved = scene.style(source)?;
+            let style = crate::text::TextStyle::new(
+                crate::text::FontDescriptor::parse(&resolved.font)?,
+                resolved.foreground,
+            );
+            context.set_font(style.font().clone());
+            let renderer = border.prepare_renderer(context, &style)?.unwrap_or(border);
+            let metrics = renderer.metrics(context, &style)?.validate()?;
+            Ok((metrics, renderer))
+        };
+        let mut assembly = FlowAssembly::new(scene, registry, &mut measure_border);
+        assembly.visit(scene.root())?;
+        assembly.finish()
+    };
     let mut snapshot = FlowSnapshot {
         revision: flow_revision(context, bounds, scene)?,
         paragraphs: Vec::new(),
@@ -335,6 +373,7 @@ fn build_snapshot(
     };
     let mut y = bounds.y;
     let mut paragraph_padding = Vec::new();
+    let mut paragraph_right_edges = Vec::new();
     let mut decoration_extents = HashMap::new();
     for (index, paragraph) in assembly.paragraphs.iter().enumerate() {
         for decoration in &assembly.decorations {
@@ -355,7 +394,6 @@ fn build_snapshot(
         }
     }
     for (paragraph_index, mut p) in assembly.paragraphs.into_iter().enumerate() {
-        let mut renderers = HashMap::new();
         for decoration in &assembly.decorations {
             let sources = p
                 .sources
@@ -370,18 +408,25 @@ fn build_snapshot(
             if sources.is_empty() && decorated_boxes.is_empty() {
                 continue;
             }
-            let resolved = scene.style(decoration.source)?;
-            let style = crate::text::TextStyle::new(
-                crate::text::FontDescriptor::parse(&resolved.font)?,
-                resolved.foreground,
-            );
-            context.set_font(style.font().clone());
-            let renderer = decoration
-                .border
-                .prepare_renderer(context, &style)?
-                .unwrap_or_else(|| decoration.border.clone());
-            let metrics = renderer.metrics(context, &style)?.validate()?;
-            renderers.insert(decoration.source, renderer);
+            let metrics = decoration.metrics;
+            let is_block = assembly
+                .blocks
+                .iter()
+                .any(|b| b.source == decoration.source);
+            let (left, right) = if is_block {
+                (0.0, 0.0)
+            } else {
+                (
+                    metrics.insets.left + metrics.margin.left,
+                    metrics.insets.right + metrics.margin.right,
+                )
+            };
+            let (leading_space, trailing_space) =
+                if p.block.direction == crate::text::ParagraphDirection::RightToLeft {
+                    (right, left)
+                } else {
+                    (left, right)
+                };
             let first_offset = sources
                 .iter()
                 .map(|s| s.range.start)
@@ -407,14 +452,20 @@ fn build_snapshot(
                 .collect::<Vec<_>>();
             let leading = super::assembly::BoxSource {
                 child: None,
-                metrics: Some(Dimension::new(metrics.leading_width, metrics.height)),
+                metrics: Some(Dimension::new(
+                    metrics.leading_width + leading_space,
+                    metrics.height,
+                )),
                 border_marker: Some((decoration.source, true)),
                 offset: first_offset,
                 ancestors: ancestors.clone(),
             };
             let trailing = super::assembly::BoxSource {
                 child: None,
-                metrics: Some(Dimension::new(metrics.trailing_width, metrics.height)),
+                metrics: Some(Dimension::new(
+                    metrics.trailing_width + trailing_space,
+                    metrics.height,
+                )),
                 border_marker: Some((decoration.source, false)),
                 offset: last_offset,
                 ancestors,
@@ -429,6 +480,17 @@ fn build_snapshot(
                 p.boxes.insert(end, trailing);
             }
         }
+        // Equal byte offsets still have distinct opening/closing events in the tree.
+        // In particular a parent's opening precedes its child's, and its closing follows it.
+        p.boxes.sort_by_key(|b| {
+            let order = if let Some((source, leading)) = b.border_marker {
+                let (opening, closing) = assembly.traversal_order[&source];
+                if leading { opening } else { closing }
+            } else {
+                assembly.traversal_order[b.ancestors.last().expect("box owner")].0
+            };
+            (b.offset, order)
+        });
         let width = (bounds.width - p.block.padding.width() - p.block.margin.width()).max(0.0);
         let constraints = TextConstraints::new(Some(width as f32))?;
         let mut boxes = Vec::new();
@@ -463,7 +525,13 @@ fn build_snapshot(
                 boxes.clone(),
                 constraints,
             )?
-            .with_paragraph(p.block.direction, p.block.alignment, p.block.wrap);
+            .with_paragraph(
+                p.block.direction,
+                p.block
+                    .alignment
+                    .unwrap_or(crate::text::ParagraphAlignment::Leading),
+                p.block.wrap,
+            );
             let prefix_layout = context.layout_styled(&request)?;
             let occupied = prefix_layout
                 .layout()
@@ -489,13 +557,84 @@ fn build_snapshot(
             });
         }
         let request = StyledTextRequest::new(p.text, p.style, p.spans, boxes, constraints)?
-            .with_paragraph(p.block.direction, p.block.alignment, p.block.wrap);
+            .with_paragraph(
+                p.block.direction,
+                p.block
+                    .alignment
+                    .unwrap_or(crate::text::ParagraphAlignment::Leading),
+                p.block.wrap,
+            );
         let layout = context.layout_styled(&request)?;
+        let mut line_padding = vec![(0.0_f64, 0.0_f64); layout.layout().line_metrics().len()];
+        let mut decorated_lines = std::collections::HashSet::new();
+        for decoration in &assembly.decorations {
+            if assembly
+                .blocks
+                .iter()
+                .any(|b| b.source == decoration.source)
+            {
+                continue;
+            }
+            let mut lines = std::collections::HashSet::new();
+            for run in layout.runs() {
+                if p.sources.iter().any(|source| {
+                    source.ancestors.contains(&decoration.source)
+                        && run.source_range.start < source.range.end
+                        && source.range.start < run.source_range.end
+                }) {
+                    lines.insert(run.line_index);
+                }
+            }
+            for placement in layout.inline_placements() {
+                if p.boxes[placement.id as usize]
+                    .ancestors
+                    .contains(&decoration.source)
+                {
+                    lines.insert(placement.line_index);
+                }
+            }
+            for line in lines {
+                // Nesting adds border space; siblings share the largest required extent.
+                let chain = p
+                    .sources
+                    .iter()
+                    .find(|source| source.ancestors.contains(&decoration.source))
+                    .map(|source| &source.ancestors)
+                    .or_else(|| {
+                        p.boxes
+                            .iter()
+                            .find(|source| source.ancestors.contains(&decoration.source))
+                            .map(|source| &source.ancestors)
+                    });
+                if let Some(chain) = chain {
+                    let (mut top, mut bottom) = (0.0, 0.0);
+                    for ancestor in chain {
+                        if let Some(border) =
+                            assembly.decorations.iter().find(|d| d.source == *ancestor)
+                            && !assembly.blocks.iter().any(|b| b.source == *ancestor)
+                        {
+                            top += border.metrics.insets.top + border.metrics.margin.top;
+                            bottom += border.metrics.insets.bottom + border.metrics.margin.bottom;
+                        }
+                    }
+                    line_padding[line].0 = line_padding[line].0.max(top);
+                    line_padding[line].1 = line_padding[line].1.max(bottom);
+                }
+                decorated_lines.insert((decoration.source, line));
+            }
+        }
+        let layout = layout.with_line_padding(&line_padding)?;
         snapshot.size.width = snapshot.size.width.max(
             f64::from(layout.layout().width()) + p.block.padding.width() + p.block.margin.width(),
         );
         y += p.before;
         let origin = Point::new(bounds.x + p.block.margin.left + p.block.padding.left, y);
+        paragraph_right_edges.push(
+            origin.x()
+                + f64::from(layout.layout().width())
+                + p.block.padding.right
+                + p.block.margin.right,
+        );
         let index = snapshot.paragraphs.len();
         for source in &p.sources {
             let range = TextRange::new(
@@ -545,6 +684,44 @@ fn build_snapshot(
                     .and_modify(|b| *b = b.union(fragment.bounds))
                     .or_insert(fragment.bounds);
             }
+            if let Some(block) = assembly
+                .blocks
+                .iter()
+                .find(|b| b.source == decoration.source)
+            {
+                for (&line, b) in &mut lines {
+                    let first = block.paragraphs.start == index && line == 0;
+                    let last = block.paragraphs.end == index + 1
+                        && line + 1 == layout.layout().line_metrics().len();
+                    let top = if first {
+                        decoration.metrics.insets.top
+                    } else {
+                        0.0
+                    };
+                    let bottom = if last {
+                        decoration.metrics.insets.bottom
+                    } else {
+                        0.0
+                    };
+                    *b = Rectangle::new(
+                        bounds.x + block.left,
+                        b.y - top,
+                        (bounds.width - block.left - block.right).max(0.0),
+                        b.height + top + bottom,
+                    );
+                }
+            } else {
+                for (&line, b) in &mut lines {
+                    if decorated_lines.contains(&(decoration.source, line)) {
+                        *b = Rectangle::new(
+                            b.x,
+                            b.y - decoration.metrics.insets.top,
+                            b.width,
+                            b.height + decoration.metrics.insets.height(),
+                        );
+                    }
+                }
+            }
             let first = lines.keys().next().copied();
             let last = lines.keys().next_back().copied();
             for (line, b) in lines {
@@ -585,10 +762,7 @@ fn build_snapshot(
                         leading_box: marker(true),
                         trailing_box: marker(false),
                     },
-                    border: renderers
-                        .get(&decoration.source)
-                        .cloned()
-                        .unwrap_or_else(|| decoration.border.clone()),
+                    border: decoration.border.clone(),
                 });
             }
         }
@@ -614,7 +788,14 @@ fn build_snapshot(
             Rectangle::new(
                 bounds.x + block.left,
                 top,
-                (bounds.width - block.left - block.right).max(0.0),
+                (paragraph_right_edges[block.paragraphs.clone()]
+                    .iter()
+                    .copied()
+                    .fold(bounds.x + bounds.width, f64::max)
+                    - block.right
+                    - bounds.x
+                    - block.left)
+                    .max(0.0),
                 (bottom - top).max(0.0),
             ),
         );

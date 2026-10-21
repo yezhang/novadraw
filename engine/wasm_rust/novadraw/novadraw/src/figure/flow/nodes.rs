@@ -32,6 +32,14 @@ pub struct BlockContribution(pub FlowBlockStyle);
 impl FlowContributionPayload for BlockContribution {}
 pub const BLOCK_CONTRIBUTION: ContributionKey<BlockContribution> =
     ContributionKey::new("flow.block");
+#[derive(Clone)]
+pub struct BorderedBlockContribution {
+    pub style: FlowBlockStyle,
+    pub border: Arc<dyn super::FlowFragmentBorder>,
+}
+impl FlowContributionPayload for BorderedBlockContribution {}
+pub const BORDERED_BLOCK_CONTRIBUTION: ContributionKey<BorderedBlockContribution> =
+    ContributionKey::new("flow.bordered-block");
 #[derive(Clone, Copy)]
 pub struct FigureBoxContribution(pub FigureId);
 impl FlowContributionPayload for FigureBoxContribution {}
@@ -70,6 +78,17 @@ impl FlowContributionRegistry {
             .expect("distinct standard identity");
         registry
             .register(
+                BORDERED_BLOCK_CONTRIBUTION,
+                |p: &BorderedBlockContribution,
+                 c: &FlowContributionContext<'_>,
+                 out: &mut super::FlowAssembly<'_>| {
+                    out.decorate(c.source, p.border.clone())?;
+                    out.block(c.source, p.style)
+                },
+            )
+            .expect("distinct standard identity");
+        registry
+            .register(
                 FIGURE_BOX_CONTRIBUTION,
                 |p: &FigureBoxContribution,
                  c: &FlowContributionContext<'_>,
@@ -89,6 +108,7 @@ pub struct FlowPageFigure {
     style: FigureStyle,
     service: super::FlowLayoutService,
     border: Option<Arc<dyn Border>>,
+    block: FlowBlockStyle,
 }
 impl FlowPageFigure {
     pub fn new(bounds: Rectangle) -> Self {
@@ -97,6 +117,7 @@ impl FlowPageFigure {
             style: FigureStyle::default(),
             service: super::FlowLayoutService::default(),
             border: None,
+            block: FlowBlockStyle::default(),
         }
     }
     pub fn with_registry(mut self, registry: FlowContributionRegistry) -> Self {
@@ -111,6 +132,10 @@ impl FlowPageFigure {
         self.border = Some(Arc::new(border));
         self
     }
+    pub fn with_block_style(mut self, style: FlowBlockStyle) -> Result<Self, FlowError> {
+        self.block = style.validate()?;
+        Ok(self)
+    }
 }
 impl FlowContributor for FlowPageFigure {
     fn contribute(
@@ -118,7 +143,7 @@ impl FlowContributor for FlowPageFigure {
         _: &FlowContributionContext<'_>,
         out: &mut FlowContributionSink,
     ) -> Result<(), FlowError> {
-        out.append(GROUP_CONTRIBUTION, GroupContribution);
+        out.append(BLOCK_CONTRIBUTION, BlockContribution(self.block));
         Ok(())
     }
 }
@@ -183,6 +208,7 @@ pub struct BlockFlowFigure {
     style: FigureStyle,
     block: FlowBlockStyle,
     border: Option<Arc<dyn Border>>,
+    fragment_border: Option<Arc<dyn super::FlowFragmentBorder>>,
 }
 impl BlockFlowFigure {
     pub fn new(block: FlowBlockStyle) -> Result<Self, FlowError> {
@@ -191,6 +217,7 @@ impl BlockFlowFigure {
             style: FigureStyle::default(),
             block: block.validate()?,
             border: None,
+            fragment_border: None,
         })
     }
     pub fn with_style(mut self, style: FigureStyle) -> Self {
@@ -199,6 +226,13 @@ impl BlockFlowFigure {
     }
     pub fn block_style(&self) -> FlowBlockStyle {
         self.block
+    }
+    pub fn with_fragment_border(
+        mut self,
+        border: impl super::FlowFragmentBorder + 'static,
+    ) -> Self {
+        self.fragment_border = Some(Arc::new(border));
+        self
     }
     pub fn with_border(mut self, border: impl Border + 'static) -> Self {
         self.border = Some(Arc::new(border));
@@ -216,7 +250,17 @@ impl FlowContributor for BlockFlowFigure {
         _: &FlowContributionContext<'_>,
         out: &mut FlowContributionSink,
     ) -> Result<(), FlowError> {
-        out.append(BLOCK_CONTRIBUTION, BlockContribution(self.block));
+        if let Some(border) = &self.fragment_border {
+            out.append(
+                BORDERED_BLOCK_CONTRIBUTION,
+                BorderedBlockContribution {
+                    style: self.block,
+                    border: border.clone(),
+                },
+            );
+        } else {
+            out.append(BLOCK_CONTRIBUTION, BlockContribution(self.block));
+        }
         Ok(())
     }
 }

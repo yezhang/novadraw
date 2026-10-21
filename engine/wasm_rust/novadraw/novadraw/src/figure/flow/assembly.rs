@@ -15,7 +15,8 @@ use std::{
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlowBlockStyle {
     pub direction: ParagraphDirection,
-    pub alignment: ParagraphAlignment,
+    /// `None` inherits the nearest block's alignment; the root defaults to leading.
+    pub alignment: Option<ParagraphAlignment>,
     pub wrap: bool,
     pub margin: Insets,
     pub padding: Insets,
@@ -24,7 +25,7 @@ impl Default for FlowBlockStyle {
     fn default() -> Self {
         Self {
             direction: ParagraphDirection::Auto,
-            alignment: ParagraphAlignment::Leading,
+            alignment: None,
             wrap: true,
             margin: Insets::ZERO,
             padding: Insets::ZERO,
@@ -88,16 +89,33 @@ pub(crate) struct BlockBox {
     pub bottom_padding: f64,
 }
 
+type BorderMeasurer<'a> = dyn FnMut(
+        FigureId,
+        Arc<dyn super::FlowFragmentBorder>,
+    ) -> Result<(super::FlowBorderMetrics, Arc<dyn super::FlowFragmentBorder>), FlowError>
+    + 'a;
+
+pub(crate) struct FlowPlan {
+    pub paragraphs: Vec<Paragraph>,
+    pub members: Vec<FigureId>,
+    pub decorations: Vec<super::border::Decoration>,
+    pub blocks: Vec<BlockBox>,
+    pub trailing_margin: f64,
+    pub traversal_order: HashMap<FigureId, (usize, usize)>,
+}
+
 /// Normalized paragraph builder used by every registered handler.
 /// It can only append contributions or traverse frozen direct children.
 pub struct FlowAssembly<'a> {
     scene: &'a PreparationScene<'a>,
     registry: &'a FlowContributionRegistry,
+    measure_border: &'a mut BorderMeasurer<'a>,
     pub(crate) paragraphs: Vec<Paragraph>,
     pub(crate) members: Vec<FigureId>,
     pub(crate) decorations: Vec<super::border::Decoration>,
     pub(crate) blocks: Vec<BlockBox>,
-    pub(crate) trailing_margin: f64,
+    pub(crate) traversal_order: HashMap<FigureId, (usize, usize)>,
+    next_order: usize,
     visited: HashSet<FigureId>,
     stack: Vec<FigureId>,
     current: Option<Paragraph>,
@@ -111,15 +129,18 @@ impl<'a> FlowAssembly<'a> {
     pub(crate) fn new(
         scene: &'a PreparationScene<'a>,
         registry: &'a FlowContributionRegistry,
+        measure_border: &'a mut BorderMeasurer<'a>,
     ) -> Self {
         Self {
             scene,
             registry,
+            measure_border,
             paragraphs: Vec::new(),
             members: Vec::new(),
             decorations: Vec::new(),
             blocks: Vec::new(),
-            trailing_margin: 0.0,
+            traversal_order: HashMap::new(),
+            next_order: 0,
             visited: HashSet::new(),
             stack: Vec::new(),
             current: None,
@@ -141,10 +162,15 @@ impl<'a> FlowAssembly<'a> {
             return Err(FlowError::InvalidStructure);
         }
         self.members.push(source);
+        let opening = self.next_order;
+        self.next_order += 1;
         self.stack.push(source);
         let registry = self.registry;
         let result = registry.dispatch(source, self.scene, self);
         self.stack.pop();
+        self.traversal_order
+            .insert(source, (opening, self.next_order));
+        self.next_order += 1;
         result
     }
     pub fn children(&mut self, source: FigureId) -> Result<(), FlowError> {
@@ -234,8 +260,12 @@ impl<'a> FlowAssembly<'a> {
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
-        self.decorations
-            .push(super::border::Decoration { source, border });
+        let (metrics, border) = (self.measure_border)(source, border)?;
+        self.decorations.push(super::border::Decoration {
+            source,
+            border,
+            metrics,
+        });
         Ok(())
     }
     /// Block handlers use this same scope API, including third-party block contributors.
@@ -247,7 +277,23 @@ impl<'a> FlowAssembly<'a> {
         self.flush();
         let previous = self.block;
         let owner = self.owner;
-        let insets = self.scene.insets(source)?;
+        if let Some(decoration) = self.decorations.iter().find(|d| d.source == source) {
+            let metrics = decoration.metrics;
+            style.margin.top += metrics.margin.top;
+            style.margin.bottom += metrics.margin.bottom;
+            style.margin.left += metrics.margin.left;
+            style.margin.right += metrics.margin.right;
+            style.padding.top += metrics.insets.top;
+            style.padding.bottom += metrics.insets.bottom;
+            style.padding.left += metrics.insets.left;
+            style.padding.right += metrics.insets.right;
+        }
+        // The preparing root already receives its client area as the layout region.
+        let insets = if source == self.scene.root() {
+            Insets::ZERO
+        } else {
+            self.scene.insets(source)?
+        };
         style.padding.top += insets.top;
         style.padding.bottom += insets.bottom;
         style.padding.left += insets.left;
@@ -259,6 +305,7 @@ impl<'a> FlowAssembly<'a> {
         if style.direction == ParagraphDirection::Auto {
             style.direction = previous.direction;
         }
+        style.alignment = style.alignment.or(previous.alignment);
         self.pending_margin = self.pending_margin.max(style.margin.top);
         self.pending_padding += style.padding.top;
         style.padding.left += previous.padding.left;
@@ -300,8 +347,15 @@ impl<'a> FlowAssembly<'a> {
             self.paragraphs.push(paragraph);
         }
     }
-    pub(crate) fn finish(&mut self) {
+    pub(crate) fn finish(mut self) -> FlowPlan {
         self.flush();
-        self.trailing_margin = self.pending_margin;
+        FlowPlan {
+            paragraphs: self.paragraphs,
+            members: self.members,
+            decorations: self.decorations,
+            blocks: self.blocks,
+            trailing_margin: self.pending_margin,
+            traversal_order: self.traversal_order,
+        }
     }
 }

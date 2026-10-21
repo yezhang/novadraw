@@ -186,7 +186,15 @@ viewport 范围、Connection route points 和装饰几何，丢弃未发布通�
 `p2_scene_preparation_contract` 覆盖晚发测量失败、不收敛、源写入、viewport 以及
 实际发生重路由后的外部装饰恢复。
 
-完整边框度量组合及六个官方入口仍待后续实施和验收；
+`FlowBorderMetrics` 增加四侧 insets 和 margin；同一标准贡献 registry 提供
+`BorderedBlockContribution`，外部 block 可复用，内置 block 不走特权路径。
+block 边框间距进入既有 margin 折叠；inline 的首尾横向间距参与 shaping，
+各行的垂直间距同步调整 glyph、轮廓实例、内嵌盒、caret 和 selection。
+边框度量与不可变 renderer 在贡献遍历时一次准备，绘制阶段不测量。
+跨段上下移动保留全局横向位置并支持空段落的来源身份。
+独立契约测试覆盖非对称四侧间距、block 折叠、空段移动和轮廓坐标。
+
+六个官方入口仍待后续实施和验收；
 本 ADR 尚未完成全部验收。
 
 结构化 flow 切片的 workspace fmt、check、Clippy 与 test 已通过

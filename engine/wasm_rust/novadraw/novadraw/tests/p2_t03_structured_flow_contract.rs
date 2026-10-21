@@ -59,6 +59,292 @@ fn position(snapshot: &FlowSnapshot, source: FigureId, offset: usize) -> SourceT
     }
 }
 
+struct SpacedBorder(FlowBorderMetrics);
+impl FlowFragmentBorder for SpacedBorder {
+    fn metrics(
+        &self,
+        _: &mut novadraw::text::MeasureContext<'_>,
+        _: &novadraw::text::TextStyle,
+    ) -> Result<FlowBorderMetrics, FlowError> {
+        Ok(self.0)
+    }
+    fn paint_fragment(
+        &self,
+        _: &FlowBorderFragment,
+        _: &mut novadraw::graphics::PaintContext<'_>,
+    ) -> Result<(), novadraw::graphics::GraphicsError> {
+        Ok(())
+    }
+}
+
+#[test]
+fn padded_flow_outline_instances_follow_the_same_glyph_baselines() {
+    use novadraw::text::{
+        outline::{OutlineTextEngine, SkrifaOutlineProvider},
+        shaping::ParleyTextEngine,
+    };
+    let mut runtime = Runtime::with_text_layout_engine(
+        novadraw::tree::FigureTree::new(),
+        Box::new(OutlineTextEngine::new(
+            Box::new(ParleyTextEngine::new()),
+            Box::new(SkrifaOutlineProvider),
+        )),
+    );
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    let page = runtime
+        .set_contents(Box::new(FlowPageFigure::new(Rectangle::new(
+            0.0, 0.0, 85.0, 300.0,
+        ))))
+        .unwrap();
+    let inline = add(
+        &mut runtime,
+        page,
+        InlineFlowFigure::new().with_fragment_border(SpacedBorder(FlowBorderMetrics {
+            insets: Insets::new(3.0, 0.0, 7.0, 0.0),
+            ..FlowBorderMetrics::default()
+        })),
+    );
+    add(
+        &mut runtime,
+        inline,
+        StructuredTextFigure::new("first second third fourth"),
+    );
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    let layout = s.paragraphs[0].layout.layout();
+    let outlines = layout.outlines().unwrap();
+    let glyphs = layout
+        .glyph_runs()
+        .iter()
+        .flat_map(|run| &run.glyphs)
+        .collect::<Vec<_>>();
+    assert_eq!(outlines.instances().len(), glyphs.len());
+    for (instance, glyph) in outlines.instances().iter().zip(glyphs) {
+        assert!(
+            (instance.glyph_to_layout().transform_point(Point::ZERO).y() - f64::from(glyph.y))
+                .abs()
+                < 0.001
+        );
+    }
+}
+
+#[test]
+fn inline_four_side_spacing_keeps_caret_selection_and_glyphs_in_one_line_domain() {
+    let (mut runtime, page) = fixture(95.0);
+    let inline = add(
+        &mut runtime,
+        page,
+        InlineFlowFigure::new().with_fragment_border(SpacedBorder(FlowBorderMetrics {
+            insets: Insets::new(3.0, 5.0, 7.0, 11.0),
+            margin: Insets::new(13.0, 17.0, 19.0, 23.0),
+            ..FlowBorderMetrics::default()
+        })),
+    );
+    let text = add(
+        &mut runtime,
+        inline,
+        StructuredTextFigure::new("one two three four five six seven"),
+    );
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    let p = &s.paragraphs[0];
+    assert!(p.layout.layout().line_metrics().len() > 1);
+    let fragments = s.border_fragments().collect::<Vec<_>>();
+    assert_eq!(fragments.first().unwrap().leading_box.unwrap().width, 22.0);
+    assert_eq!(fragments.last().unwrap().trailing_box.unwrap().width, 34.0);
+    for run in p.layout.runs() {
+        let caret = s.caret(position(s, text, run.source_range.start)).unwrap();
+        let glyph = &p.layout.layout().glyph_runs()[p
+            .layout
+            .runs()
+            .iter()
+            .position(|r| std::ptr::eq(r, run))
+            .unwrap()]
+        .glyphs[0];
+        assert!(caret.bounds().y <= f64::from(glyph.y) + p.origin.y());
+        assert!(caret.bounds().y + caret.bounds().height >= f64::from(glyph.y) + p.origin.y());
+    }
+    assert!(
+        !s.selection(position(s, text, 0), position(s, text, 3))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn block_fragment_border_collapses_vertical_margins_and_adds_insets_once() {
+    let (mut runtime, page) = fixture(300.0);
+    let metrics = FlowBorderMetrics {
+        insets: Insets::new(3.0, 5.0, 7.0, 11.0),
+        margin: Insets::new(13.0, 17.0, 19.0, 23.0),
+        ..FlowBorderMetrics::default()
+    };
+    for _ in 0..2 {
+        let block = add(
+            &mut runtime,
+            page,
+            BlockFlowFigure::default().with_fragment_border(SpacedBorder(metrics)),
+        );
+        add(&mut runtime, block, StructuredTextFigure::new("block"));
+    }
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    assert_eq!(s.paragraphs[0].origin.x(), 22.0);
+    assert_eq!(s.paragraphs[0].origin.y(), 16.0);
+    assert_eq!(
+        s.paragraphs[1].origin.y()
+            - s.paragraphs[0].origin.y()
+            - f64::from(s.paragraphs[0].layout.layout().height()),
+        29.0
+    );
+    assert_eq!(s.border_fragments().next().unwrap().bounds.x, 17.0);
+}
+
+#[test]
+fn vertical_movement_crosses_an_empty_block_and_preserves_source_order() {
+    use novadraw::text::TextMovement;
+    let (mut runtime, page) = fixture(300.0);
+    let mut sources = Vec::new();
+    for text in ["first", "", "last"] {
+        let block = add(&mut runtime, page, BlockFlowFigure::default());
+        sources.push(add(&mut runtime, block, StructuredTextFigure::new(text)));
+    }
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    let empty = s
+        .move_position(position(s, sources[0], 0), TextMovement::NextLine)
+        .unwrap();
+    assert_eq!(empty.source, sources[1]);
+    assert_eq!(
+        s.move_position(empty, TextMovement::NextLine)
+            .unwrap()
+            .source,
+        sources[2]
+    );
+    assert_eq!(
+        s.move_position(empty, TextMovement::PreviousLine)
+            .unwrap()
+            .source,
+        sources[0]
+    );
+}
+
+#[test]
+fn nested_and_adjacent_border_markers_follow_tree_order() {
+    let (mut runtime, page) = fixture(500.0);
+    let border = || ExternalBorder {
+        painted: Arc::new(Mutex::new(Vec::new())),
+        invalid: Arc::new(AtomicBool::new(false)),
+    };
+    let outer = add(
+        &mut runtime,
+        page,
+        InlineFlowFigure::new().with_fragment_border(border()),
+    );
+    let inner = add(
+        &mut runtime,
+        outer,
+        InlineFlowFigure::new().with_fragment_border(border()),
+    );
+    add(&mut runtime, inner, StructuredTextFigure::new("inside"));
+    let sibling = add(
+        &mut runtime,
+        page,
+        InlineFlowFigure::new().with_fragment_border(border()),
+    );
+    add(&mut runtime, sibling, StructuredTextFigure::new("after"));
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    let find = |source| s.border_fragments().find(|f| f.source == source).unwrap();
+    let outer = find(outer);
+    let inner = find(inner);
+    let sibling = find(sibling);
+    assert!(outer.leading_box.unwrap().x < inner.leading_box.unwrap().x);
+    assert!(inner.trailing_box.unwrap().x < outer.trailing_box.unwrap().x);
+    assert!(outer.trailing_box.unwrap().x < sibling.leading_box.unwrap().x);
+}
+
+#[test]
+fn overflowing_block_keeps_right_padding_in_bounds_and_measurement() {
+    let (mut runtime, page) = fixture(60.0);
+    let block = add(
+        &mut runtime,
+        page,
+        BlockFlowFigure::new(FlowBlockStyle {
+            wrap: false,
+            padding: Insets::uniform(9.0),
+            ..FlowBlockStyle::default()
+        })
+        .unwrap(),
+    );
+    let text = add(
+        &mut runtime,
+        block,
+        StructuredTextFigure::new("long unwrapped contents"),
+    );
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    let content = s.placements[&text];
+    let envelope = s.placements[&block];
+    assert!((envelope.x + envelope.width - content.x - content.width - 9.0).abs() < 0.01);
+    assert!(
+        (runtime
+            .tree()
+            .preferred_measurement(block, MeasureConstraints::UNBOUNDED)
+            .unwrap()
+            .width
+            - envelope.width)
+            .abs()
+            < 0.01
+    );
+}
+
+#[test]
+fn page_alignment_is_inherited_through_inline_and_nested_blocks() {
+    let (mut runtime, _) = fixture(300.0);
+    let page = runtime
+        .set_contents(Box::new(
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 300.0, 400.0))
+                .with_block_style(FlowBlockStyle {
+                    alignment: Some(ParagraphAlignment::Center),
+                    ..FlowBlockStyle::default()
+                })
+                .unwrap(),
+        ))
+        .unwrap();
+    let group = add(&mut runtime, page, InlineFlowFigure::new());
+    let outer = add(&mut runtime, group, BlockFlowFigure::default());
+    let inner = add(&mut runtime, outer, BlockFlowFigure::default());
+    add(&mut runtime, inner, StructuredTextFigure::new("inherited"));
+    let explicit = add(
+        &mut runtime,
+        outer,
+        BlockFlowFigure::new(FlowBlockStyle {
+            alignment: Some(ParagraphAlignment::Left),
+            ..FlowBlockStyle::default()
+        })
+        .unwrap(),
+    );
+    add(
+        &mut runtime,
+        explicit,
+        StructuredTextFigure::new("explicit"),
+    );
+    record_full_submission(&mut runtime);
+    let s = snapshot(&runtime, page);
+    assert_eq!(
+        s.paragraphs[0].layout.request().alignment(),
+        ParagraphAlignment::Center
+    );
+    assert_eq!(
+        s.paragraphs[1].layout.request().alignment(),
+        ParagraphAlignment::Left
+    );
+}
+
 #[test]
 fn source_identity_styles_baselines_and_cross_node_selection_share_snapshot() {
     let (mut runtime, page) = fixture(300.0);
@@ -351,7 +637,7 @@ fn rtl_leading_and_physical_left_are_distinct() {
             page,
             BlockFlowFigure::new(FlowBlockStyle {
                 direction: ParagraphDirection::RightToLeft,
-                alignment,
+                alignment: Some(alignment),
                 ..FlowBlockStyle::default()
             })
             .unwrap(),
@@ -385,6 +671,7 @@ impl FlowFragmentBorder for ExternalBorder {
             },
             trailing_width: 12.0,
             height: f64::from(style.font().size()),
+            ..FlowBorderMetrics::default()
         })
     }
     fn paint_fragment(

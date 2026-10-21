@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     FigureId,
-    geometry::Rectangle,
+    geometry::{Insets, Rectangle},
     graphics::{GraphicsError, PaintContext},
     text::{MeasureContext, ParagraphDirection, TextStyle},
 };
@@ -16,12 +16,28 @@ pub struct FlowBorderMetrics {
     pub leading_width: f64,
     pub trailing_width: f64,
     pub height: f64,
+    /// Physical border space, included on each affected line.
+    pub insets: Insets,
+    /// Space outside the border; block vertical margins collapse.
+    pub margin: Insets,
 }
 impl FlowBorderMetrics {
     pub fn validate(self) -> Result<Self, FlowError> {
-        if [self.leading_width, self.trailing_width, self.height]
-            .iter()
-            .any(|v| !v.is_finite() || *v < 0.0)
+        if [
+            self.leading_width,
+            self.trailing_width,
+            self.height,
+            self.insets.top,
+            self.insets.bottom,
+            self.insets.left,
+            self.insets.right,
+            self.margin.top,
+            self.margin.bottom,
+            self.margin.left,
+            self.margin.right,
+        ]
+        .iter()
+        .any(|v| !v.is_finite() || *v < 0.0)
         {
             return Err(crate::text::TextError::InvalidMetric.into());
         }
@@ -88,6 +104,7 @@ pub(crate) fn register(registry: &mut FlowContributionRegistry) {
 pub(crate) struct Decoration {
     pub source: FigureId,
     pub border: Arc<dyn FlowFragmentBorder>,
+    pub metrics: FlowBorderMetrics,
 }
 #[derive(Clone)]
 pub(crate) struct BorderDrawing {

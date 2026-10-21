@@ -14,6 +14,7 @@ pub mod shaping {
     };
 }
 
+mod line_padding;
 pub mod outline;
 mod styled;
 pub use styled::{

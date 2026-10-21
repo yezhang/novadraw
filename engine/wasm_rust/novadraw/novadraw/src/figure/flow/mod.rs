@@ -11,10 +11,10 @@ pub use border::{
     FlowFragmentBorder,
 };
 pub use nodes::{
-    BLOCK_CONTRIBUTION, BlockContribution, BlockFlowFigure, FIGURE_BOX_CONTRIBUTION,
-    FigureBoxContribution, FlowAdapterFigure, FlowPageFigure, GROUP_CONTRIBUTION,
-    GroupContribution, InlineFlowFigure, SetFlowBlockStyle, SetStructuredFlowText,
-    StructuredTextFigure, TEXT_CONTRIBUTION, TextContribution,
+    BLOCK_CONTRIBUTION, BORDERED_BLOCK_CONTRIBUTION, BlockContribution, BlockFlowFigure,
+    BorderedBlockContribution, FIGURE_BOX_CONTRIBUTION, FigureBoxContribution, FlowAdapterFigure,
+    FlowPageFigure, GROUP_CONTRIBUTION, GroupContribution, InlineFlowFigure, SetFlowBlockStyle,
+    SetStructuredFlowText, StructuredTextFigure, TEXT_CONTRIBUTION, TextContribution,
 };
 pub use protocol::{
     ContributionKey, FLOW, FlowCapability, FlowContributionContext, FlowContributionHandler,
