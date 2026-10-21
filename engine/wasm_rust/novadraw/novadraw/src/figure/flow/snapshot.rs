@@ -7,15 +7,82 @@ use crate::{
     layout::LayoutOutput,
     text::{
         CaretGeometry, MeasureContext, SelectionQuad, StyledTextLayout, StyledTextRequest,
-        TextAffinity, TextConstraints, TextInlineBox, TextInteractionError, TextPosition,
-        TextRange,
+        TextAffinity, TextConstraints, TextInlineBox, TextInteractionError, TextMovement,
+        TextPosition, TextRange,
     },
 };
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
+
+type CachedFlow = (u64, Arc<FlowSnapshot>, Vec<FigureId>);
+
+fn flow_revision(
+    context: &MeasureContext<'_>,
+    bounds: Rectangle,
+    scene: &PreparationScene<'_>,
+) -> Result<u64, FlowError> {
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    scene.revision()?.hash(&mut hash);
+    context.revision().hash(&mut hash);
+    for value in [bounds.x, bounds.y, bounds.width, bounds.height] {
+        value.to_bits().hash(&mut hash);
+    }
+    Ok(hash.finish())
+}
+
+/// Instance-owned flow preparation. Custom roots use the same service as `FlowPageFigure`.
+/// Failed candidates never replace the last successfully checked cache entry.
+#[derive(Clone)]
+pub struct FlowLayoutService {
+    registry: FlowContributionRegistry,
+    cache: Arc<Mutex<Option<CachedFlow>>>,
+}
+impl FlowLayoutService {
+    pub fn new(registry: FlowContributionRegistry) -> Self {
+        Self {
+            registry,
+            cache: Arc::new(Mutex::new(None)),
+        }
+    }
+    pub fn prepare(
+        &self,
+        context: &mut MeasureContext<'_>,
+        bounds: Rectangle,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, FlowError> {
+        let key = flow_revision(context, bounds, scene)?;
+        let cached = self
+            .cache
+            .lock()
+            .map_err(|_| FlowError::InvalidStructure)?
+            .clone();
+        if let Some((revision, snapshot, members)) = cached
+            && revision == key
+        {
+            return prepare_snapshot(snapshot, &members, bounds, scene);
+        }
+        let (snapshot, members) = build_snapshot(&self.registry, context, bounds, scene)?;
+        let result = prepare_snapshot(snapshot.clone(), &members, bounds, scene)?;
+        result.validate(scene)?;
+        if flow_revision(context, bounds, scene)? != key {
+            return Err(crate::text::TextError::InvalidPreparedScene(
+                "flow preparation input changed during layout".into(),
+            )
+            .into());
+        }
+        *self.cache.lock().map_err(|_| FlowError::InvalidStructure)? =
+            Some((key, snapshot, members));
+        Ok(result)
+    }
+}
+impl Default for FlowLayoutService {
+    fn default() -> Self {
+        Self::new(FlowContributionRegistry::standard())
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct FlowFragment {
@@ -128,6 +195,69 @@ impl FlowSnapshot {
             geometry.line_index(),
         ))
     }
+    /// Moves through the paragraph's visual/word map and preserves source identity.
+    pub fn move_position(
+        &self,
+        position: SourceTextPosition,
+        movement: TextMovement,
+    ) -> Result<SourceTextPosition, TextInteractionError> {
+        let (mut index, current) = self.resolve(position)?;
+        let mut moved = self.paragraphs[index]
+            .layout
+            .layout()
+            .move_text_position(current, movement)?;
+        match movement {
+            TextMovement::DocumentStart => {
+                index = 0;
+                moved = TextPosition::new(0, TextAffinity::Downstream);
+            }
+            TextMovement::DocumentEnd => {
+                index = self.paragraphs.len() - 1;
+                moved = TextPosition::new(
+                    self.paragraphs[index].layout.request().text().len(),
+                    TextAffinity::Upstream,
+                );
+            }
+            TextMovement::PreviousVisual | TextMovement::PreviousWord
+                if moved.byte_offset() == current.byte_offset()
+                    && current.byte_offset() == 0
+                    && index > 0 =>
+            {
+                index -= 1;
+                moved = TextPosition::new(
+                    self.paragraphs[index].layout.request().text().len(),
+                    TextAffinity::Upstream,
+                );
+            }
+            TextMovement::NextVisual | TextMovement::NextWord
+                if moved.byte_offset() == current.byte_offset()
+                    && current.byte_offset()
+                        == self.paragraphs[index].layout.request().text().len()
+                    && index + 1 < self.paragraphs.len() =>
+            {
+                index += 1;
+                moved = TextPosition::new(0, TextAffinity::Downstream);
+            }
+            _ => {}
+        }
+        let paragraph = &self.paragraphs[index];
+        let mut sources = paragraph
+            .sources
+            .iter()
+            .filter(|s| moved.byte_offset() >= s.range.start && moved.byte_offset() <= s.range.end);
+        let source = if moved.affinity() == TextAffinity::Upstream {
+            sources.next()
+        } else {
+            sources.next_back()
+        }
+        .ok_or(TextInteractionError::InvalidTextPosition)?;
+        Ok(SourceTextPosition {
+            source: source.source,
+            byte_offset: moved.byte_offset() - source.range.start + source.source_offset,
+            affinity: moved.affinity(),
+            revision: self.revision,
+        })
+    }
     pub fn selection(
         &self,
         anchor: SourceTextPosition,
@@ -186,20 +316,17 @@ impl FigureDrawing for EmptyDrawing {
     }
 }
 
-pub(crate) fn prepare(
+fn build_snapshot(
     registry: &FlowContributionRegistry,
     context: &mut MeasureContext<'_>,
     bounds: Rectangle,
     scene: &PreparationScene<'_>,
-) -> Result<PreparedScene, FlowError> {
+) -> Result<(Arc<FlowSnapshot>, Vec<FigureId>), FlowError> {
     let mut assembly = FlowAssembly::new(scene, registry);
     assembly.visit(scene.root())?;
     assembly.finish();
-    let mut revision = std::collections::hash_map::DefaultHasher::new();
-    scene.revision()?.hash(&mut revision);
-    context.revision().hash(&mut revision);
     let mut snapshot = FlowSnapshot {
-        revision: revision.finish(),
+        revision: flow_revision(context, bounds, scene)?,
         paragraphs: Vec::new(),
         fragments: Vec::new(),
         placements: HashMap::new(),
@@ -207,7 +334,27 @@ pub(crate) fn prepare(
         borders: Vec::new(),
     };
     let mut y = bounds.y;
-    for mut p in assembly.paragraphs {
+    let mut paragraph_padding = Vec::new();
+    let mut decoration_extents = HashMap::new();
+    for (index, paragraph) in assembly.paragraphs.iter().enumerate() {
+        for decoration in &assembly.decorations {
+            if paragraph
+                .sources
+                .iter()
+                .any(|s| s.ancestors.contains(&decoration.source))
+                || paragraph
+                    .boxes
+                    .iter()
+                    .any(|b| b.ancestors.contains(&decoration.source))
+            {
+                decoration_extents
+                    .entry(decoration.source)
+                    .and_modify(|extent: &mut (usize, usize)| extent.1 = index)
+                    .or_insert((index, index));
+            }
+        }
+    }
+    for (paragraph_index, mut p) in assembly.paragraphs.into_iter().enumerate() {
         let mut renderers = HashMap::new();
         for decoration in &assembly.decorations {
             let sources = p
@@ -215,7 +362,12 @@ pub(crate) fn prepare(
                 .iter()
                 .filter(|s| s.ancestors.contains(&decoration.source))
                 .collect::<Vec<_>>();
-            if sources.is_empty() {
+            let decorated_boxes = p
+                .boxes
+                .iter()
+                .filter(|b| b.ancestors.contains(&decoration.source))
+                .collect::<Vec<_>>();
+            if sources.is_empty() && decorated_boxes.is_empty() {
                 continue;
             }
             let resolved = scene.style(decoration.source)?;
@@ -230,10 +382,24 @@ pub(crate) fn prepare(
                 .unwrap_or_else(|| decoration.border.clone());
             let metrics = renderer.metrics(context, &style)?.validate()?;
             renderers.insert(decoration.source, renderer);
-            let first = sources.first().expect("nonempty sources");
-            let last = sources.last().expect("nonempty sources");
-            let ancestors = first
-                .ancestors
+            let first_offset = sources
+                .iter()
+                .map(|s| s.range.start)
+                .chain(decorated_boxes.iter().map(|b| b.offset))
+                .min()
+                .expect("nonempty decoration");
+            let last_offset = sources
+                .iter()
+                .map(|s| s.range.end)
+                .chain(decorated_boxes.iter().map(|b| b.offset))
+                .max()
+                .expect("nonempty decoration");
+            let source_ancestors = sources
+                .first()
+                .map(|s| &s.ancestors)
+                .or_else(|| decorated_boxes.first().map(|b| &b.ancestors))
+                .expect("nonempty decoration");
+            let ancestors = source_ancestors
                 .iter()
                 .copied()
                 .take_while(|s| *s != decoration.source)
@@ -243,20 +409,25 @@ pub(crate) fn prepare(
                 child: None,
                 metrics: Some(Dimension::new(metrics.leading_width, metrics.height)),
                 border_marker: Some((decoration.source, true)),
-                offset: first.range.start,
+                offset: first_offset,
                 ancestors: ancestors.clone(),
             };
             let trailing = super::assembly::BoxSource {
                 child: None,
                 metrics: Some(Dimension::new(metrics.trailing_width, metrics.height)),
                 border_marker: Some((decoration.source, false)),
-                offset: last.range.end,
+                offset: last_offset,
                 ancestors,
             };
-            let start = p.boxes.partition_point(|b| b.offset < leading.offset);
-            p.boxes.insert(start, leading);
-            let end = p.boxes.partition_point(|b| b.offset <= trailing.offset);
-            p.boxes.insert(end, trailing);
+            let extent = decoration_extents[&decoration.source];
+            if paragraph_index == extent.0 {
+                let start = p.boxes.partition_point(|b| b.offset < leading.offset);
+                p.boxes.insert(start, leading);
+            }
+            if paragraph_index == extent.1 {
+                let end = p.boxes.partition_point(|b| b.offset <= trailing.offset);
+                p.boxes.insert(end, trailing);
+            }
         }
         let width = (bounds.width - p.block.padding.width() - p.block.margin.width()).max(0.0);
         let constraints = TextConstraints::new(Some(width as f32))?;
@@ -407,8 +578,10 @@ pub(crate) fn prepare(
                                 style.foreground,
                             )
                         },
-                        leading: Some(line) == first,
-                        trailing: Some(line) == last,
+                        leading: Some(line) == first
+                            && decoration_extents[&decoration.source].0 == index,
+                        trailing: Some(line) == last
+                            && decoration_extents[&decoration.source].1 == index,
                         leading_box: marker(true),
                         trailing_box: marker(false),
                     },
@@ -419,17 +592,7 @@ pub(crate) fn prepare(
                 });
             }
         }
-        let owner_bounds = Rectangle::new(
-            bounds.x + p.block.margin.left,
-            y - p.block.padding.top,
-            width.max(f64::from(layout.layout().width())) + p.block.padding.width(),
-            f64::from(layout.layout().height()) + p.block.padding.height(),
-        );
-        snapshot
-            .placements
-            .entry(p.owner)
-            .and_modify(|b| *b = b.union(owner_bounds))
-            .or_insert(owner_bounds);
+        paragraph_padding.push(p.top_padding);
         y += f64::from(layout.layout().height()) + p.after;
         snapshot.paragraphs.push(FlowParagraphSnapshot {
             owner: p.owner,
@@ -438,7 +601,24 @@ pub(crate) fn prepare(
             sources: p.sources,
         });
     }
-    snapshot.size.height = (y - bounds.y).max(0.0);
+    snapshot.size.height = (y - bounds.y + assembly.trailing_margin).max(0.0);
+    for block in &assembly.blocks {
+        let first = &snapshot.paragraphs[block.paragraphs.start];
+        let last = &snapshot.paragraphs[block.paragraphs.end - 1];
+        let top =
+            first.origin.y() - (paragraph_padding[block.paragraphs.start] - block.padding_above);
+        let bottom =
+            last.origin.y() + f64::from(last.layout.layout().height()) + block.bottom_padding;
+        snapshot.placements.insert(
+            block.source,
+            Rectangle::new(
+                bounds.x + block.left,
+                top,
+                (bounds.width - block.left - block.right).max(0.0),
+                (bottom - top).max(0.0),
+            ),
+        );
+    }
     // All source envelopes are derived from the same fragment revision.
     for fragment in &snapshot.fragments {
         snapshot
@@ -454,7 +634,15 @@ pub(crate) fn prepare(
     for &member in &assembly.members {
         snapshot.placements.entry(member).or_insert(Rectangle::ZERO);
     }
-    let snapshot = Arc::new(snapshot);
+    Ok((Arc::new(snapshot), assembly.members))
+}
+
+fn prepare_snapshot(
+    snapshot: Arc<FlowSnapshot>,
+    members: &[FigureId],
+    bounds: Rectangle,
+    scene: &PreparationScene<'_>,
+) -> Result<PreparedScene, FlowError> {
     let root = FigurePresentation::new(
         FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
         Dimension::new(0.0, 0.0),
@@ -489,7 +677,7 @@ pub(crate) fn prepare(
             .entry(parent)
             .or_default()
             .set_child_bounds(source, local);
-        if assembly.members.contains(&source) {
+        if members.contains(&source) {
             let regions = snapshot
                 .fragments
                 .iter()
@@ -503,8 +691,13 @@ pub(crate) fn prepare(
                     )
                 })
                 .collect();
+            let insets = scene.insets(source)?;
             let presentation = FigurePresentation::new(
-                FigureMeasurement::new(global.width, global.height, None),
+                FigureMeasurement::new(
+                    (global.width - insets.width()).max(0.0),
+                    (global.height - insets.height()).max(0.0),
+                    None,
+                ),
                 Dimension::new(0.0, 0.0),
                 Rectangle::new(0.0, 0.0, global.width, global.height),
                 Arc::new(EmptyDrawing),

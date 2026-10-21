@@ -163,8 +163,22 @@ fragment border 通过同一贡献协议注册，首尾占位盒参与段落布�
 片段空白命中、二次测量、字体失效、来源迁移和非法边框指标拒绝。
 styled 输出另增加跨 style source range 的拒绝校验。
 
-普通 block Border 的完整组合、内嵌子树反馈的失败闭环及六个官方入口
-仍待后续实施和验收；本 ADR 尚未完成全部验收。
+`FlowLayoutService` 已开放，内置 page 与外部自定义 root 共用同一 preparation
+入口和实例缓存。候选通过完整检查后才进入缓存；scene、文字引擎或排版区域变化
+都会更新快照 revision。`PreparedScene` 允许组合根绘制并保留子节点和布局效果，
+供 caret、selection 等显式绘制策略使用。
+
+page/block 的普通 Border 通过正常边框 capability 接入；已解析的 owner insets
+参与排版，嵌套 block 的盒边界与内容位置分别计算，各层内边距只计入一次。
+通用 prepared measurement 按内容尺寸叠加普通 Border 或已解析的 owner Border；
+flow 子节点发布内容尺寸，避免静态边框漏算和 owner 边框重复计入。
+`SetFlowBlockStyle` 支持受检更新。inline 边框跨 block 时只在全局首尾预留标记，
+仅含真实 Figure 盒的边框也参与布局。独立替代引擎见
+`novadraw/tests/p2_t03_external_flow_engine.rs`，自行构造 styled 输出和 interaction
+provider，覆盖来源映射、绘制、命中、caret、selection 与跨节点视觉移动。
+
+内嵌子树反馈的失败闭环、完整边框度量组合及六个官方入口仍待后续实施和验收；
+本 ADR 尚未完成全部验收。
 
 结构化 flow 切片的 workspace fmt、check、Clippy 与 test 已通过
 （1,191 项通过、1 项忽略）；文档门禁通过。命令退出码与日志保存在

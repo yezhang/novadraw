@@ -13,14 +13,16 @@ pub use border::{
 pub use nodes::{
     BLOCK_CONTRIBUTION, BlockContribution, BlockFlowFigure, FIGURE_BOX_CONTRIBUTION,
     FigureBoxContribution, FlowAdapterFigure, FlowPageFigure, GROUP_CONTRIBUTION,
-    GroupContribution, InlineFlowFigure, SetStructuredFlowText, StructuredTextFigure,
-    TEXT_CONTRIBUTION, TextContribution,
+    GroupContribution, InlineFlowFigure, SetFlowBlockStyle, SetStructuredFlowText,
+    StructuredTextFigure, TEXT_CONTRIBUTION, TextContribution,
 };
 pub use protocol::{
     ContributionKey, FLOW, FlowCapability, FlowContributionContext, FlowContributionHandler,
     FlowContributionPayload, FlowContributionRegistry, FlowContributionSink, FlowContributor,
 };
-pub use snapshot::{FlowFragment, FlowParagraphSnapshot, FlowSnapshot, SourceTextPosition};
+pub use snapshot::{
+    FlowFragment, FlowLayoutService, FlowParagraphSnapshot, FlowSnapshot, SourceTextPosition,
+};
 
 use crate::{FigureId, text::TextError};
 

@@ -285,14 +285,27 @@ fn point_in_rect(point: Point, rect: &Rectangle) -> bool {
 
 fn owner_scoped_border_measurement(
     figure: FigureId,
-    mut measurement: FigureMeasurement,
+    measurement: FigureMeasurement,
     snapshot: Option<&BorderSnapshot>,
 ) -> Result<FigureMeasurement, LayoutError> {
     let Some(snapshot) = snapshot else {
         return Ok(measurement);
     };
-    let insets = checked_measurement_insets(figure, snapshot.insets())?;
-    let preferred = snapshot.preferred_size();
+    border_measurement(
+        figure,
+        measurement,
+        snapshot.insets(),
+        snapshot.preferred_size(),
+    )
+}
+
+fn border_measurement(
+    figure: FigureId,
+    mut measurement: FigureMeasurement,
+    insets: Insets,
+    preferred: Dimension,
+) -> Result<FigureMeasurement, LayoutError> {
+    let insets = checked_measurement_insets(figure, insets)?;
     crate::layout::validate_measurement_size(figure, preferred, false)?;
     measurement.width += insets.width();
     measurement.height += insets.height();

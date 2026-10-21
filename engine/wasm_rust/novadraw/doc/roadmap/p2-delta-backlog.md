@@ -103,7 +103,8 @@ FlowBorder 和真实 Figure placement；状态为 `in_progress`。
 styled 引擎、通用原子 preparation、开放 flow registry、结构化节点与来源快照
 已有独立消费者证据。相邻/嵌套 margin、跨字号 baseline、RTL 对齐、fragment
 命中、真实 Figure 二次测量、外部 fragment border 与字体/来源失效已覆盖；
-普通 block Border、内嵌反馈失败闭环与六个 text 入口仍待验收。
+普通 page/block Border、外部 root 的公开布局服务、跨段落首尾边框与独立替代
+文字引擎已补齐。内嵌反馈失败闭环、完整边框度量组合与六个 text 入口仍待验收。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

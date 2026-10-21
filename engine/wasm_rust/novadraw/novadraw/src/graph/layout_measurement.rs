@@ -1,5 +1,20 @@
 use super::*;
 
+fn prepared_measurement(
+    figure: FigureId,
+    node: &FigureNode,
+    measurement: FigureMeasurement,
+) -> Result<FigureMeasurement, LayoutError> {
+    let measurement = crate::layout::validate_measurement(figure, measurement)?;
+    if node.border_snapshot.is_some() {
+        owner_scoped_border_measurement(figure, measurement, node.border_snapshot.as_ref())
+    } else if let Some(border) = node.figure.get_border() {
+        border_measurement(figure, measurement, node.insets(), border.preferred_size())
+    } else {
+        Ok(measurement)
+    }
+}
+
 impl FigureTree {
     pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Rectangle, FreeformError> {
         self.validate_identity(figure_id)?;
@@ -657,9 +672,13 @@ impl FigureTree {
             return Ok(measurement);
         }
         let constraints = block.layout_constraints(constraints);
-        let measurement = if let Some(prepared) = &block.prepared {
-            prepared.presentation.measurement()
-        } else if block.border_snapshot.is_some() {
+        if let Some(prepared) = &block.prepared {
+            return validate_projected_measurement(
+                figure_id,
+                prepared_measurement(figure_id, block, prepared.presentation.measurement())?,
+            );
+        }
+        let measurement = if block.border_snapshot.is_some() {
             block.figure.intrinsic_content_measurement(constraints)
         } else {
             block.figure.intrinsic_measurement(constraints)
@@ -706,10 +725,19 @@ impl FigureTree {
             return Ok(size);
         }
         let constraints = block.layout_constraints(constraints);
-        let measurement = if let Some(prepared) = &block.prepared {
+        if let Some(prepared) = &block.prepared {
             let size = prepared.presentation.minimum_size();
-            FigureMeasurement::new(size.width, size.height, None)
-        } else if block.border_snapshot.is_some() {
+            return Ok(validate_projected_measurement(
+                figure_id,
+                prepared_measurement(
+                    figure_id,
+                    block,
+                    FigureMeasurement::new(size.width, size.height, None),
+                )?,
+            )?
+            .size());
+        }
+        let measurement = if block.border_snapshot.is_some() {
             block
                 .figure
                 .intrinsic_content_minimum_measurement(constraints)

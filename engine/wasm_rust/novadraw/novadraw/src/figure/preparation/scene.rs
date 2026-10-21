@@ -93,6 +93,12 @@ impl<'a> PreparationScene<'a> {
         Ok(self.tree.node(id).map_err(scene_error)?.client_area())
     }
 
+    /// Resolved ordinary Border metrics, including owner-dependent snapshots.
+    pub fn insets(&self, id: FigureId) -> Result<crate::Insets, TextError> {
+        self.check(id)?;
+        Ok(self.tree.node(id).map_err(scene_error)?.insets())
+    }
+
     pub fn preferred_measurement(
         &self,
         id: FigureId,
@@ -121,6 +127,10 @@ impl<'a> PreparationScene<'a> {
                 node.bounds.y,
                 node.bounds.width,
                 node.bounds.height,
+                node.insets().top,
+                node.insets().right,
+                node.insets().bottom,
+                node.insets().left,
             ] {
                 value.to_bits().hash(&mut hash);
             }
@@ -162,6 +172,16 @@ impl PreparedScene {
             layouts: Vec::new(),
             descendants: Vec::new(),
         }
+    }
+
+    pub fn root_presentation(&self) -> &FigurePresentation {
+        &self.root
+    }
+
+    /// Composes root drawing while retaining the candidate's descendant and layout effects.
+    pub fn with_root_presentation(mut self, root: FigurePresentation) -> Self {
+        self.root = root;
+        self
     }
 
     pub fn layout(&mut self, parent: FigureId, output: LayoutOutput) {

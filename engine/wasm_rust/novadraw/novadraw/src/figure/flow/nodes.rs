@@ -3,18 +3,20 @@ use super::{
     FlowContributionPayload, FlowContributionRegistry, FlowContributionSink, FlowContributor,
     FlowError,
 };
+use crate::figure::border::Border;
 use crate::{
     Figure, FigureId,
     figure::{
-        CONTAINER, ChildClippingStrategy, ChildPolicy, ContainerCapability,
-        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer,
-        FigurePreparation, FigurePresentation, FigureStyle, PREPARATION, PreparationCapability,
-        PreparationScene, PreparedScene,
+        BORDER, BorderCapability, BorderedFigure, CONTAINER, ChildClippingStrategy, ChildPolicy,
+        ContainerCapability, FigureCapabilityBuilder, FigureCapabilityRegistrationError,
+        FigureContainer, FigurePreparation, FigurePresentation, FigureStyle, PREPARATION,
+        PreparationCapability, PreparationScene, PreparedScene,
     },
-    geometry::Rectangle,
+    geometry::{Insets, Rectangle},
     runtime::{FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate},
     text::{MeasureContext, TextError},
 };
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct TextContribution(pub String);
@@ -85,22 +87,28 @@ impl FlowContributionRegistry {
 pub struct FlowPageFigure {
     bounds: Rectangle,
     style: FigureStyle,
-    registry: FlowContributionRegistry,
+    service: super::FlowLayoutService,
+    border: Option<Arc<dyn Border>>,
 }
 impl FlowPageFigure {
     pub fn new(bounds: Rectangle) -> Self {
         Self {
             bounds,
             style: FigureStyle::default(),
-            registry: FlowContributionRegistry::standard(),
+            service: super::FlowLayoutService::default(),
+            border: None,
         }
     }
     pub fn with_registry(mut self, registry: FlowContributionRegistry) -> Self {
-        self.registry = registry;
+        self.service = super::FlowLayoutService::new(registry);
         self
     }
     pub fn with_style(mut self, style: FigureStyle) -> Self {
         self.style = style;
+        self
+    }
+    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+        self.border = Some(Arc::new(border));
         self
     }
 }
@@ -130,7 +138,9 @@ impl FigurePreparation for FlowPageFigure {
         b: Rectangle,
         scene: &PreparationScene<'_>,
     ) -> Result<PreparedScene, TextError> {
-        super::snapshot::prepare(&self.registry, c, b, scene).map_err(FlowError::into_text)
+        self.service
+            .prepare(c, b, scene)
+            .map_err(FlowError::into_text)
     }
 }
 impl Figure for FlowPageFigure {
@@ -143,12 +153,21 @@ impl Figure for FlowPageFigure {
     fn name(&self) -> &'static str {
         "FlowPageFigure"
     }
+    fn initial_insets(&self) -> Insets {
+        self.border
+            .as_deref()
+            .map_or(Insets::ZERO, Border::get_insets)
+    }
+    fn get_border(&self) -> Option<&dyn Border> {
+        self.border.as_deref()
+    }
     fn register_capabilities(
         &self,
         out: &mut FigureCapabilityBuilder,
     ) -> Result<(), FigureCapabilityRegistrationError> {
         out.register(FLOW, FlowCapability::of::<Self>())?;
         out.register(CONTAINER, ContainerCapability::of::<Self>())?;
+        out.register(BORDER, BorderCapability::of::<Self>())?;
         out.register(PREPARATION, PreparationCapability::of::<Self>())
     }
 }
@@ -163,6 +182,7 @@ pub struct BlockFlowFigure {
     bounds: Rectangle,
     style: FigureStyle,
     block: FlowBlockStyle,
+    border: Option<Arc<dyn Border>>,
 }
 impl BlockFlowFigure {
     pub fn new(block: FlowBlockStyle) -> Result<Self, FlowError> {
@@ -170,6 +190,7 @@ impl BlockFlowFigure {
             bounds: Rectangle::ZERO,
             style: FigureStyle::default(),
             block: block.validate()?,
+            border: None,
         })
     }
     pub fn with_style(mut self, style: FigureStyle) -> Self {
@@ -178,6 +199,10 @@ impl BlockFlowFigure {
     }
     pub fn block_style(&self) -> FlowBlockStyle {
         self.block
+    }
+    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+        self.border = Some(Arc::new(border));
+        self
     }
 }
 impl Default for BlockFlowFigure {
@@ -291,7 +316,7 @@ impl FlowContributor for FlowAdapterFigure {
     }
 }
 macro_rules! node_figure {
-    ($ty:ty) => {
+    ($ty:ty $(, $border:ident)?) => {
         impl Figure for $ty {
             fn initial_bounds(&self) -> Rectangle {
                 self.bounds
@@ -302,20 +327,47 @@ macro_rules! node_figure {
             fn name(&self) -> &'static str {
                 stringify!($ty)
             }
+            $(
+                fn initial_insets(&self) -> Insets {
+                    self.$border.as_deref().map_or(Insets::ZERO, Border::get_insets)
+                }
+                fn get_border(&self) -> Option<&dyn Border> {
+                    self.$border.as_deref()
+                }
+            )?
             fn register_capabilities(
                 &self,
                 out: &mut FigureCapabilityBuilder,
             ) -> Result<(), FigureCapabilityRegistrationError> {
                 out.register(FLOW, FlowCapability::of::<Self>())?;
+                $(let _ = &self.$border;
+                  out.register(BORDER, BorderCapability::of::<Self>())?;)?
                 out.register(CONTAINER, ContainerCapability::of::<Self>())
             }
         }
     };
 }
-node_figure!(BlockFlowFigure);
+node_figure!(BlockFlowFigure, border);
 node_figure!(InlineFlowFigure);
 node_figure!(StructuredTextFigure);
 node_figure!(FlowAdapterFigure);
+macro_rules! bordered_figure {
+    ($ty:ty) => {
+        impl BorderedFigure for $ty {
+            fn border(&self) -> Option<&Arc<dyn Border>> {
+                self.border.as_ref()
+            }
+            fn replace_border(
+                &mut self,
+                border: Option<Arc<dyn Border>>,
+            ) -> Option<Arc<dyn Border>> {
+                std::mem::replace(&mut self.border, border)
+            }
+        }
+    };
+}
+bordered_figure!(FlowPageFigure);
+bordered_figure!(BlockFlowFigure);
 impl FigureContainer for BlockFlowFigure {
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         ChildClippingStrategy::OverflowVisible
@@ -361,5 +413,27 @@ impl FigureComponentUpdate for SetStructuredFlowText {
     }
     fn commit(text: String, target: &mut Self::Figure) {
         target.text = text;
+    }
+}
+
+pub struct SetFlowBlockStyle(pub FlowBlockStyle);
+impl FigureComponentUpdate for SetFlowBlockStyle {
+    type Figure = BlockFlowFigure;
+    type Prepared = FlowBlockStyle;
+    type Error = FlowError;
+    fn prepare(
+        self,
+        current: &Self::Figure,
+        _: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<FlowBlockStyle>, FlowError> {
+        let style = self.0.validate()?;
+        Ok(if style == current.block {
+            PreparedFigureUpdate::unchanged(style)
+        } else {
+            PreparedFigureUpdate::layout_geometry_and_paint(style)
+        })
+    }
+    fn commit(style: FlowBlockStyle, target: &mut Self::Figure) {
+        target.block = style;
     }
 }

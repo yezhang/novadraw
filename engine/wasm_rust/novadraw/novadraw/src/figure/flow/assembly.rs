@@ -75,7 +75,17 @@ pub(crate) struct Paragraph {
     pub boxes: Vec<BoxSource>,
     pub block: FlowBlockStyle,
     pub before: f64,
+    pub top_padding: f64,
     pub after: f64,
+}
+
+pub(crate) struct BlockBox {
+    pub source: FigureId,
+    pub paragraphs: Range<usize>,
+    pub left: f64,
+    pub right: f64,
+    pub padding_above: f64,
+    pub bottom_padding: f64,
 }
 
 /// Normalized paragraph builder used by every registered handler.
@@ -86,6 +96,8 @@ pub struct FlowAssembly<'a> {
     pub(crate) paragraphs: Vec<Paragraph>,
     pub(crate) members: Vec<FigureId>,
     pub(crate) decorations: Vec<super::border::Decoration>,
+    pub(crate) blocks: Vec<BlockBox>,
+    pub(crate) trailing_margin: f64,
     visited: HashSet<FigureId>,
     stack: Vec<FigureId>,
     current: Option<Paragraph>,
@@ -106,6 +118,8 @@ impl<'a> FlowAssembly<'a> {
             paragraphs: Vec::new(),
             members: Vec::new(),
             decorations: Vec::new(),
+            blocks: Vec::new(),
+            trailing_margin: 0.0,
             visited: HashSet::new(),
             stack: Vec::new(),
             current: None,
@@ -153,6 +167,7 @@ impl<'a> FlowAssembly<'a> {
                 boxes: Vec::new(),
                 block: self.block,
                 before: self.pending_margin + self.pending_padding,
+                top_padding: self.pending_padding,
                 after: 0.0,
             });
             self.pending_margin = 0.0;
@@ -232,6 +247,15 @@ impl<'a> FlowAssembly<'a> {
         self.flush();
         let previous = self.block;
         let owner = self.owner;
+        let insets = self.scene.insets(source)?;
+        style.padding.top += insets.top;
+        style.padding.bottom += insets.bottom;
+        style.padding.left += insets.left;
+        style.padding.right += insets.right;
+        style.validate()?;
+        let padding_above = self.pending_padding;
+        let left = previous.padding.left + previous.margin.left + style.margin.left;
+        let right = previous.padding.right + previous.margin.right + style.margin.right;
         if style.direction == ParagraphDirection::Auto {
             style.direction = previous.direction;
         }
@@ -259,6 +283,14 @@ impl<'a> FlowAssembly<'a> {
         if let Some(last) = self.paragraphs.last_mut() {
             last.after += style.padding.bottom;
         }
+        self.blocks.push(BlockBox {
+            source,
+            paragraphs: start..self.paragraphs.len(),
+            left,
+            right,
+            padding_above,
+            bottom_padding: self.paragraphs.last().map_or(0.0, |p| p.after),
+        });
         self.block = previous;
         self.owner = owner;
         Ok(())
@@ -270,5 +302,6 @@ impl<'a> FlowAssembly<'a> {
     }
     pub(crate) fn finish(&mut self) {
         self.flush();
+        self.trailing_margin = self.pending_margin;
     }
 }
