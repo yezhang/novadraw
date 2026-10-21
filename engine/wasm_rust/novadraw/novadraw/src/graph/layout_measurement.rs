@@ -1076,7 +1076,32 @@ impl crate::layout::LayoutSceneRead for FigureTree {
 
     fn get_container_bounds(&self, container_id: FigureId) -> Result<Rectangle, LayoutError> {
         self.validate_identity(container_id)?;
-        let area = self.blocks[container_id].child_layout_area();
+        let block = &self.blocks[container_id];
+        // Layout output lives in child-content coordinates, just like child measurement.
+        // Apply the same open container projection after removing the physical border.
+        let bounds = block.figure_bounds();
+        let constraints = block.layout_content_constraints(
+            container_id,
+            MeasureConstraints::bounded(bounds.width, bounds.height).map_err(|_| {
+                LayoutError::NonFiniteGeometry {
+                    figure: container_id,
+                }
+            })?,
+        )?;
+        let area = Rectangle::new(
+            0.0,
+            0.0,
+            constraints
+                .max_width()
+                .ok_or(LayoutError::NonFiniteGeometry {
+                    figure: container_id,
+                })?,
+            constraints
+                .max_height()
+                .ok_or(LayoutError::NonFiniteGeometry {
+                    figure: container_id,
+                })?,
+        );
         if !finite_rectangle(area) {
             return Err(LayoutError::NonFiniteGeometry {
                 figure: container_id,

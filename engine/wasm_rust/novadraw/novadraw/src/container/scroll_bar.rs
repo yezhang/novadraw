@@ -603,11 +603,14 @@ impl LayoutManager for ScrollBarLayout {
     }
     fn minimum_size(
         &self,
-        _: FigureId,
-        _: MeasureConstraints,
-        _: &LayoutSceneQuery<'_>,
+        container: FigureId,
+        constraints: MeasureConstraints,
+        scene: &LayoutSceneQuery<'_>,
     ) -> Result<Dimension, LayoutError> {
-        Ok(Dimension::ZERO)
+        // Draw2D ScrollBarLayout inherits AbstractLayout's minimum = preferred contract.
+        Ok(self
+            .preferred_measurement(container, constraints, scene)?
+            .size())
     }
     fn layout(
         &mut self,

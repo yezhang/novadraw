@@ -206,7 +206,9 @@ client box 同时用于：
 
 - node-local client box 保留 `(left, top)` 原点，供 paint、clip 与 hit-test 使用；
 - `LayoutSceneQuery::container_bounds` 返回 child-content 域的可用区
-  `Rect(0, 0, client_width, client_height)`。
+  `Rect(0, 0, layout_width, layout_height)`。先从当前 bounds 扣除物理 insets，
+  再经过容器的 `layout_constraints` 转为布局域，与子节点测量共用同一协议。
+  普通容器尺寸等于 client 尺寸；均匀缩放容器尺寸等于 client 尺寸除以 scale。
 
 parent 的 `child_transform` 负责把 child-content 原点映射到 node-local client box，
 因此 inset 只能在该变换中应用一次，不能再写入 child bounds。Viewport 的滚动原点与

@@ -34,6 +34,78 @@ struct ExternalScalableFigure {
     scale: ScaleModel,
 }
 
+struct ExternalLayoutScale(ScaleModel);
+impl Figure for ExternalLayoutScale {
+    fn name(&self) -> &'static str {
+        "ExternalLayoutScale"
+    }
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 320.0, 240.0)
+    }
+    fn initial_insets(&self) -> novadraw::geometry::Insets {
+        novadraw::geometry::Insets::new(7.0, 11.0, 13.0, 17.0)
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::CONTAINER,
+            novadraw::figure::ContainerCapability::of::<Self>(),
+        )?;
+        out.register(SCALE, ScaleCapability::new(self.0.clone()))
+    }
+}
+impl novadraw::figure::FigureContainer for ExternalLayoutScale {
+    fn child_transform(&self) -> novadraw::figure::ChildTransform {
+        novadraw::figure::ChildTransform::uniform(self.0.scale(), 0.0, 0.0)
+    }
+    fn layout_constraints(
+        &self,
+        constraints: novadraw::figure::MeasureConstraints,
+    ) -> novadraw::figure::MeasureConstraints {
+        novadraw::figure::MeasureConstraints::new(
+            constraints.max_width().map(|value| value / self.0.scale()),
+            constraints.max_height().map(|value| value / self.0.scale()),
+        )
+        .unwrap()
+    }
+}
+
+#[test]
+fn external_scaled_stack_fills_physical_client_area_after_each_zoom() {
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(ExternalLayoutScale(ScaleModel::new())))
+        .unwrap();
+    runtime
+        .figure(root)
+        .unwrap()
+        .set_layout_manager(Box::new(novadraw::layout::StackLayout::new()))
+        .unwrap();
+    let child = runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .unwrap();
+    for scale in [1.0, 0.2, 3.7, 0.5] {
+        runtime.viewports().set_scale(root, scale).unwrap();
+        runtime.frames().stabilize_for_query().unwrap();
+        let child_bounds = runtime.tree().figure_bounds(child).unwrap();
+        assert!((child_bounds.width * scale - 292.0).abs() < 1e-8);
+        assert!((child_bounds.height * scale - 220.0).abs() < 1e-8);
+        let origin = point_in_surface(runtime.tree(), child, Point::new(0.0, 0.0));
+        let end = point_in_surface(
+            runtime.tree(),
+            child,
+            Point::new(child_bounds.width, child_bounds.height),
+        );
+        assert_eq!(origin, Point::new(11.0, 7.0));
+        assert!((end.x() - 303.0).abs() < 1e-8);
+        assert!((end.y() - 227.0).abs() < 1e-8);
+    }
+}
+
 impl Figure for ExternalScalableFigure {
     fn initial_bounds(&self) -> Rectangle {
         Rectangle::new(0.0, 0.0, 100.0, 80.0)
