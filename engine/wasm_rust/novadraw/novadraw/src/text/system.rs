@@ -82,6 +82,13 @@ pub struct MeasureContext<'a> {
 }
 
 impl<'a> MeasureContext<'a> {
+    pub fn layout_styled(
+        &mut self,
+        request: &super::StyledTextRequest,
+    ) -> Result<super::StyledTextLayout, TextError> {
+        self.engine.layout_styled(request)
+    }
+
     pub(crate) fn new(engine: &'a mut dyn TextLayoutEngine, font: FontDescriptor) -> Self {
         Self { engine, font }
     }

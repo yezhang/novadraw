@@ -15,6 +15,11 @@ pub mod shaping {
 }
 
 pub mod outline;
+mod styled;
+pub use styled::{
+    ParagraphAlignment, ParagraphDirection, StyledGlyphRun, StyledTextLayout, StyledTextRequest,
+    TextInlineBox, TextInlinePlacement, TextStyle, TextStyleSpan,
+};
 mod system;
 pub use system::{MeasureContext, TextSystem};
 

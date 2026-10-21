@@ -871,6 +871,16 @@ impl Runtime {
         self.text.revision()
     }
 
+    pub(crate) fn layout_styled_text(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        if self.faulted {
+            return Err(TextError::RuntimeFaulted);
+        }
+        self.guarded(|runtime| runtime.text.layout_styled(request))
+    }
+
     pub(crate) fn layout_text(
         &mut self,
         text: &str,

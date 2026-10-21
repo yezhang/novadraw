@@ -759,6 +759,13 @@ pub struct RuntimeText<'a> {
 }
 
 impl<'a> RuntimeText<'a> {
+    pub fn layout_styled(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        self.runtime.layout_styled_text(request)
+    }
+
     pub(super) fn new(runtime: &'a mut Runtime) -> Self {
         Self { runtime }
     }

@@ -644,6 +644,7 @@ pub struct TextLayoutKey {
     font: FontDescriptor,
     constraints: TextConstraints,
     engine_revision: u64,
+    style_revision: u64,
 }
 
 impl Default for TextLayoutKey {
@@ -653,6 +654,7 @@ impl Default for TextLayoutKey {
             font: FontDescriptor::default(),
             constraints: TextConstraints::UNBOUNDED,
             engine_revision: 0,
+            style_revision: 0,
         }
     }
 }
@@ -676,6 +678,29 @@ impl TextLayoutKey {
 }
 
 impl TextLayout {
+    pub(crate) fn glyph_run_layout(&self, index: usize) -> Self {
+        Self {
+            width: self.width,
+            full_width: self.full_width,
+            height: self.height,
+            lines: self.lines.clone(),
+            glyph_runs: vec![self.glyph_runs[index].clone()],
+            interaction: None,
+            visible_range: self.visible_range.clone(),
+            truncated: self.truncated,
+            key: self.key.clone(),
+            outlines: None,
+        }
+    }
+
+    pub(crate) fn bind_style_revision(&mut self, revision: u64) {
+        self.key.style_revision = revision;
+        let interaction_revision = self.interaction_revision();
+        if let Some(interaction) = self.interaction.as_mut() {
+            Arc::make_mut(interaction).bind_revision(interaction_revision);
+        }
+    }
+
     pub(crate) fn set_engine_revision(&mut self, revision: u64) {
         self.key.engine_revision = revision;
         let interaction_revision = self.interaction_revision();
@@ -747,6 +772,7 @@ impl TextLayout {
                 font: parts.font,
                 constraints: parts.constraints,
                 engine_revision: parts.engine_revision,
+                style_revision: 0,
             },
         })
     }
@@ -880,6 +906,7 @@ impl TextLayout {
     fn interaction_revision(&self) -> TextLayoutRevision {
         let mut revision = source_revision(self.key.text());
         mix_revision(&mut revision, self.key.engine_revision().to_le_bytes());
+        mix_revision(&mut revision, self.key.style_revision.to_le_bytes());
         mix_revision(
             &mut revision,
             self.key.font().family.as_bytes().iter().copied(),
@@ -934,6 +961,11 @@ pub enum TextError {
     InvalidInteractionMap,
     NoUsableFont,
     FontMetricsUnsupported,
+    StyledLayoutUnsupported,
+    InvalidStyleRange,
+    InvalidInlineBox,
+    InvalidStyledLayout,
+    InvalidPreparedScene(String),
     Outline(crate::text::outline::FontError),
 }
 
@@ -960,6 +992,20 @@ impl fmt::Display for TextError {
             Self::NoUsableFont => formatter.write_str("no usable font was found for the text"),
             Self::FontMetricsUnsupported => {
                 formatter.write_str("layout engine does not provide font metrics")
+            }
+            Self::StyledLayoutUnsupported => {
+                formatter.write_str("layout engine does not support styled requests")
+            }
+            Self::InvalidStyleRange => {
+                formatter.write_str("style ranges must be ordered, disjoint UTF-8 ranges")
+            }
+            Self::InvalidInlineBox => formatter
+                .write_str("inline boxes must have unique identities and ordered UTF-8 offsets"),
+            Self::InvalidStyledLayout => {
+                formatter.write_str("styled output does not match its request")
+            }
+            Self::InvalidPreparedScene(reason) => {
+                write!(formatter, "invalid prepared scene: {reason}")
             }
             Self::Outline(error) => error.fmt(formatter),
         }
@@ -1090,8 +1136,10 @@ fn validate_interaction_rectangle(rectangle: Rectangle) -> Result<(), TextIntera
 
 #[derive(Clone)]
 struct ParleyTextInteraction {
-    layout: Layout<()>,
+    layout: Layout<usize>,
     text_len: usize,
+    source_start: usize,
+    line_shifts: Vec<(f32, f32, f32)>,
 }
 
 impl TextInteractionProvider for ParleyTextInteraction {
@@ -1100,15 +1148,22 @@ impl TextInteractionProvider for ParleyTextInteraction {
     }
 
     fn hit_test(&self, point: Point) -> Result<TextPosition, TextInteractionError> {
-        let cursor = Cursor::from_point(&self.layout, point.x() as f32, point.y() as f32);
-        Ok(text_position_from_parley(cursor))
+        let y = point.y() as f32;
+        let shift = self
+            .line_shifts
+            .iter()
+            .find(|(_, start, end)| y >= *start && y < *end)
+            .or_else(|| self.line_shifts.last())
+            .map_or(0.0, |(shift, _, _)| *shift);
+        let cursor = Cursor::from_point(&self.layout, point.x() as f32, y - shift);
+        Ok(self.source_position(cursor))
     }
 
     fn caret_geometry(
         &self,
         position: TextPosition,
     ) -> Result<CaretGeometry, TextInteractionError> {
-        let cursor = parley_cursor(&self.layout, position)?;
+        let cursor = self.cursor(position)?;
         let bounds = cursor.geometry(&self.layout, 0.0);
         let midpoint = ((bounds.y0 + bounds.y1) * 0.5) as f32;
         let line_index = self
@@ -1120,7 +1175,12 @@ impl TextInteractionProvider for ParleyTextInteraction {
             })
             .unwrap_or_else(|| self.layout.len().saturating_sub(1));
         Ok(CaretGeometry::new(
-            Rectangle::new(bounds.x0, bounds.y0, bounds.width(), bounds.height()),
+            Rectangle::new(
+                bounds.x0,
+                bounds.y0 + self.line_shift(line_index),
+                bounds.width(),
+                bounds.height(),
+            ),
             line_index,
         ))
     }
@@ -1129,14 +1189,19 @@ impl TextInteractionProvider for ParleyTextInteraction {
         &self,
         range: TextRange,
     ) -> Result<Vec<SelectionQuad>, TextInteractionError> {
-        let anchor = parley_cursor(&self.layout, range.anchor)?;
-        let focus = parley_cursor(&self.layout, range.focus)?;
+        let anchor = self.cursor(range.anchor)?;
+        let focus = self.cursor(range.focus)?;
         Ok(Selection::new(anchor, focus)
             .geometry(&self.layout)
             .into_iter()
             .map(|(bounds, line_index)| {
                 SelectionQuad::new(
-                    Rectangle::new(bounds.x0, bounds.y0, bounds.width(), bounds.height()),
+                    Rectangle::new(
+                        bounds.x0,
+                        bounds.y0 + self.line_shift(line_index),
+                        bounds.width(),
+                        bounds.height(),
+                    ),
                     line_index,
                 )
             })
@@ -1148,7 +1213,7 @@ impl TextInteractionProvider for ParleyTextInteraction {
         position: TextPosition,
         movement: TextMovement,
     ) -> Result<TextPosition, TextInteractionError> {
-        let cursor = parley_cursor(&self.layout, position)?;
+        let cursor = self.cursor(position)?;
         let selection = Selection::new(cursor, cursor);
         let moved = match movement {
             TextMovement::PreviousVisual => selection.previous_visual(&self.layout, false),
@@ -1166,12 +1231,37 @@ impl TextInteractionProvider for ParleyTextInteraction {
                 return Err(TextInteractionError::InvalidTextPosition);
             }
         };
-        Ok(text_position_from_parley(moved.focus()))
+        Ok(self.source_position(moved.focus()))
+    }
+}
+
+impl ParleyTextInteraction {
+    fn line_shift(&self, index: usize) -> f64 {
+        self.line_shifts
+            .get(index)
+            .map_or(0.0, |(shift, _, _)| f64::from(*shift))
+    }
+
+    fn cursor(&self, position: TextPosition) -> Result<Cursor, TextInteractionError> {
+        parley_cursor(
+            &self.layout,
+            TextPosition::new(position.byte_offset + self.source_start, position.affinity),
+        )
+    }
+    fn source_position(&self, cursor: Cursor) -> TextPosition {
+        let position = text_position_from_parley(cursor);
+        TextPosition::new(
+            position
+                .byte_offset
+                .saturating_sub(self.source_start)
+                .min(self.text_len),
+            position.affinity,
+        )
     }
 }
 
 fn parley_cursor(
-    layout: &Layout<()>,
+    layout: &Layout<usize>,
     position: TextPosition,
 ) -> Result<Cursor, TextInteractionError> {
     let cursor = Cursor::from_byte_index(
@@ -1202,6 +1292,13 @@ fn text_position_from_parley(cursor: Cursor) -> TextPosition {
 pub trait TextLayoutEngine {
     fn revision(&self) -> u64;
 
+    fn layout_styled(
+        &mut self,
+        _request: &crate::text::StyledTextRequest,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        Err(TextError::StyledLayoutUnsupported)
+    }
+
     /// Metrics of the resolved font instance, independent of text advance.
     fn font_metrics(
         &mut self,
@@ -1229,7 +1326,7 @@ pub trait TextLayoutEngine {
 
 pub struct ParleyTextEngine {
     font_context: FontContext,
-    layout_context: LayoutContext<()>,
+    layout_context: LayoutContext<usize>,
     registered_fonts: BTreeMap<ResourceId, RegisteredFont>,
     registered_faces: Vec<RegisteredFace>,
     resolved_faces: HashMap<(u64, u32), FontFaceRef>,
@@ -1361,12 +1458,49 @@ impl TextLayoutEngine for ParleyTextEngine {
         font: &FontDescriptor,
         constraints: TextConstraints,
     ) -> Result<TextLayout, TextError> {
+        let request = crate::text::StyledTextRequest::new(
+            text,
+            crate::text::TextStyle::new(font.clone(), crate::graphics::Color::BLACK),
+            Vec::new(),
+            Vec::new(),
+            constraints,
+        )?;
+        self.layout_styled(&request)
+            .map(|result| result.into_layout())
+    }
+
+    fn layout_styled(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        use crate::text::{
+            ParagraphAlignment, ParagraphDirection, StyledGlyphRun, StyledTextLayout,
+            TextInlinePlacement,
+        };
+        let font = request.default_style().font();
+        let constraints = request.constraints();
         font.validate()?;
         TextConstraints::new(constraints.max_width)?;
 
+        // Parley 0.7 auto-detects the base direction. A private initial directional
+        // mark supplies the explicit paragraph context. All offsets are mapped back
+        // to the caller's source; this mark is never published as source content.
+        let prefix = match request.direction() {
+            ParagraphDirection::Auto => "",
+            ParagraphDirection::LeftToRight => "\u{200e}",
+            ParagraphDirection::RightToLeft => "\u{200f}",
+        };
+        let source_start = prefix.len();
+        let shaped_text = format!("{prefix}{}", request.text());
+        let text = shaped_text.as_str();
         FontFamily::parse(&font.family)
             .ok_or_else(|| TextError::InvalidFontDescriptor(font.family.clone()))?;
         let fallback_stack = self.fallback_stack(&font.family);
+        let span_stacks = request
+            .spans()
+            .iter()
+            .map(|span| self.fallback_stack(span.style.font().family()))
+            .collect::<Vec<_>>();
         let fallback_families = FontFamily::parse_list(&fallback_stack).collect::<Vec<_>>();
         let mut builder =
             self.layout_context
@@ -1381,11 +1515,55 @@ impl TextLayoutEngine for ParleyTextEngine {
             FontStyle::Italic => parley::FontStyle::Italic,
             FontStyle::Oblique => parley::FontStyle::Oblique(None),
         }));
+        builder.push_default(StyleProperty::Brush(0));
+        for (index, span) in request.spans().iter().enumerate() {
+            let range = span.range.start + source_start..span.range.end + source_start;
+            let font = span.style.font();
+            let families = FontFamily::parse_list(&span_stacks[index]).collect::<Vec<_>>();
+            builder.push(families.as_slice(), range.clone());
+            builder.push(StyleProperty::FontSize(font.size()), range.clone());
+            builder.push(
+                StyleProperty::FontWeight(parley::FontWeight::new(font.weight())),
+                range.clone(),
+            );
+            builder.push(
+                StyleProperty::FontStyle(match font.style() {
+                    FontStyle::Normal => parley::FontStyle::Normal,
+                    FontStyle::Italic => parley::FontStyle::Italic,
+                    FontStyle::Oblique => parley::FontStyle::Oblique(None),
+                }),
+                range.clone(),
+            );
+            builder.push(StyleProperty::Brush(index + 1), range);
+        }
+        for inline in request.inline_boxes() {
+            builder.push_inline_box(parley::InlineBox {
+                id: inline.id,
+                index: inline.byte_offset + source_start,
+                width: inline.width,
+                height: inline.height,
+            });
+        }
 
-        let mut layout: Layout<()> = builder.build(text);
-        layout.break_all_lines(constraints.max_width);
+        let mut layout: Layout<usize> = builder.build(text);
+        layout.break_all_lines(if request.wraps() {
+            constraints.max_width
+        } else {
+            None
+        });
+        layout.align(
+            constraints.max_width,
+            match request.alignment() {
+                ParagraphAlignment::Leading => parley::Alignment::Start,
+                ParagraphAlignment::Trailing => parley::Alignment::End,
+                ParagraphAlignment::Left => parley::Alignment::Left,
+                ParagraphAlignment::Right => parley::Alignment::Right,
+                ParagraphAlignment::Center => parley::Alignment::Center,
+            },
+            parley::AlignmentOptions::default(),
+        );
 
-        let lines = layout
+        let mut lines: Vec<TextLineMetrics> = layout
             .lines()
             .map(|line| {
                 let metrics = line.metrics();
@@ -1398,13 +1576,79 @@ impl TextLayoutEngine for ParleyTextEngine {
                 }
             })
             .collect();
+        // Parley's inline box ascent can exceed the default line height. Keep
+        // the adjacent text descent and map every consumer to the corrected lines.
+        let mut line_shifts = Vec::new();
+        let mut normalized_height = 0.0_f32;
+        if !request.inline_boxes().is_empty() {
+            for line in &mut lines {
+                let start = normalized_height;
+                let requested_height = line.ascent + line.descent + line.leading;
+                line.ascent = line.ascent.ceil();
+                line.descent = line.descent.ceil();
+                line.leading = (requested_height - line.ascent - line.descent)
+                    .round()
+                    .max(0.0);
+                let baseline = start + line.ascent + (line.leading * 0.5).floor();
+                normalized_height += line.ascent + line.descent + line.leading;
+                line_shifts.push((baseline - line.baseline, start, normalized_height));
+                line.baseline = baseline;
+            }
+        }
         let mut glyph_runs = Vec::new();
-        for line in layout.lines() {
+        let mut styled_runs = Vec::new();
+        let mut placements = Vec::new();
+        for (line_index, line) in layout.lines().enumerate() {
+            let line_shift = line_shifts
+                .get(line_index)
+                .map_or(0.0, |(shift, _, _)| *shift);
+            let mut run_glyph_offsets = HashMap::<usize, usize>::new();
             for item in line.items() {
                 let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
+                    if let PositionedLayoutItem::InlineBox(inline) = item {
+                        placements.push(TextInlinePlacement {
+                            id: inline.id,
+                            bounds: Rectangle::new(
+                                f64::from(inline.x),
+                                f64::from(inline.y + line_shift),
+                                f64::from(inline.width),
+                                f64::from(inline.height),
+                            ),
+                            line_index,
+                        });
+                    }
                     continue;
                 };
                 let run = glyph_run.run();
+                let glyph_start = run_glyph_offsets.entry(run.index()).or_default();
+                let glyph_end = *glyph_start + glyph_run.glyphs().count();
+                let mut cluster_start = 0;
+                let mut source_min = usize::MAX;
+                let mut source_max = 0;
+                for cluster in run.visual_clusters() {
+                    let cluster_end = cluster_start + cluster.glyphs().count();
+                    if cluster_start < glyph_end && cluster_end > *glyph_start {
+                        let source = cluster.text_range();
+                        source_min = source_min.min(source.start);
+                        source_max = source_max.max(source.end);
+                    }
+                    cluster_start = cluster_end;
+                }
+                *glyph_start = glyph_end;
+                if source_min == usize::MAX {
+                    continue;
+                }
+                let source_range = source_min.saturating_sub(source_start)
+                    ..source_max.saturating_sub(source_start);
+                if source_range.is_empty() {
+                    continue;
+                }
+                styled_runs.push(StyledGlyphRun {
+                    source_range,
+                    style_index: glyph_run.style().brush,
+                    line_index,
+                    right_to_left: run.is_rtl(),
+                });
                 let font = run.font();
                 let font_key = (font.data.id(), font.index);
                 let font_face = if let Some(face) = self.resolved_faces.get(&font_key) {
@@ -1423,7 +1667,7 @@ impl TextLayoutEngine for ParleyTextEngine {
                     face
                 };
                 let mut x = glyph_run.offset();
-                let baseline = glyph_run.baseline();
+                let baseline = glyph_run.baseline() + line_shift;
                 let glyphs = glyph_run
                     .glyphs()
                     .map(|glyph| {
@@ -1445,24 +1689,30 @@ impl TextLayoutEngine for ParleyTextEngine {
                 });
             }
         }
-        if !text.is_empty() && glyph_runs.is_empty() {
+        if !request.text().is_empty() && glyph_runs.is_empty() {
             return Err(TextError::NoUsableFont);
         }
 
         let width = layout.width();
         let full_width = layout.full_width();
-        let height = layout.height();
+        let height = if line_shifts.is_empty() {
+            layout.height()
+        } else {
+            normalized_height
+        };
         let interaction = TextInteractionMap::new(
-            text,
+            request.text(),
             Arc::new(ParleyTextInteraction {
                 layout,
-                text_len: text.len(),
+                text_len: request.text().len(),
+                source_start,
+                line_shifts,
             }),
         )
         .map_err(|_| TextError::InvalidInteractionMap)?;
 
-        TextLayout::from_parts(TextLayoutParts {
-            text: text.to_owned(),
+        let text_layout = TextLayout::from_parts(TextLayoutParts {
+            text: request.text().to_owned(),
             font: font.clone(),
             constraints,
             engine_revision: self.revision,
@@ -1471,10 +1721,11 @@ impl TextLayoutEngine for ParleyTextEngine {
             height,
             lines,
             glyph_runs,
-            visible_range: 0..text.len(),
+            visible_range: 0..request.text().len(),
             truncated: false,
         })
-        .and_then(|layout| layout.with_interaction_map(interaction))
+        .and_then(|layout| layout.with_interaction_map(interaction))?;
+        StyledTextLayout::new(request.clone(), text_layout, styled_runs, placements)
     }
 }
 

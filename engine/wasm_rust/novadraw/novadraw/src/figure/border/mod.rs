@@ -33,7 +33,7 @@ pub struct BorderSnapshot {
 
 #[derive(Clone, Debug, PartialEq)]
 enum BorderSnapshotKind {
-    TitleBar(title_bar_border::TitleBarMetrics),
+    TitleBar(Box<title_bar_border::TitleBarMetrics>),
     Compound {
         outer: Option<Box<BorderSnapshot>>,
         inner: Option<Box<BorderSnapshot>>,
@@ -45,7 +45,7 @@ impl BorderSnapshot {
         let insets = metrics.insets;
         let preferred = metrics.preferred;
         Self {
-            kind: BorderSnapshotKind::TitleBar(metrics),
+            kind: BorderSnapshotKind::TitleBar(Box::new(metrics)),
             insets,
             preferred,
         }

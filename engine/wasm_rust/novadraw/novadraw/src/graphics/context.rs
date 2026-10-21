@@ -176,6 +176,23 @@ impl<'a> PaintContext<'a> {
     pub fn fill_text(&mut self, layout: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.text(layout, origin, false)
     }
+    pub fn fill_styled_text(
+        &mut self,
+        text: &crate::text::StyledTextLayout,
+        origin: Point,
+    ) -> Result<(), GraphicsError> {
+        self.push_state();
+        let result = (|| {
+            for (layout, color) in text.paint_runs() {
+                self.set_fill_paint(color);
+                self.fill_text(layout, origin)?;
+            }
+            Ok(())
+        })();
+        let restored = self.pop_state();
+        result.and(restored)
+    }
+
     pub fn stroke_text(&mut self, layout: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.text(layout, origin, true)
     }
@@ -416,6 +433,13 @@ impl<'a> Graphics<'a> {
     }
     pub fn fill_text(&mut self, text: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.paint.fill_text(text, origin)
+    }
+    pub fn fill_styled_text(
+        &mut self,
+        text: &crate::text::StyledTextLayout,
+        origin: Point,
+    ) -> Result<(), GraphicsError> {
+        self.paint.fill_styled_text(text, origin)
     }
     pub fn stroke_text(&mut self, text: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.paint.stroke_text(text, origin)

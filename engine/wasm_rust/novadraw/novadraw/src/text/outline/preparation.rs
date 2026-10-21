@@ -279,6 +279,39 @@ impl OutlineTextEngine {
 }
 
 impl TextLayoutEngine for OutlineTextEngine {
+    fn layout_styled(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        let mut result = self.engine.layout_styled(request)?;
+        let revision = self.revision();
+        for layout in result.paint_layouts_mut() {
+            let outlines = self
+                .cache
+                .prepare_with(layout, |id| {
+                    self.fonts
+                        .get(&id)
+                        .cloned()
+                        .ok_or(FontError::ResourceMismatch)
+                })
+                .map_err(TextError::Outline)?;
+            layout.outlines = Some(Arc::new(outlines));
+            layout.set_engine_revision(revision);
+        }
+        let outlines = self
+            .cache
+            .prepare_with(result.layout(), |id| {
+                self.fonts
+                    .get(&id)
+                    .cloned()
+                    .ok_or(FontError::ResourceMismatch)
+            })
+            .map_err(TextError::Outline)?;
+        result.layout_mut().outlines = Some(Arc::new(outlines));
+        result.layout_mut().set_engine_revision(self.revision());
+        Ok(result)
+    }
+
     fn revision(&self) -> u64 {
         let (engine, provider, revision) = self.revision.get();
         let next = (self.engine.revision(), self.cache.provider.revision());
