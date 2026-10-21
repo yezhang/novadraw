@@ -96,8 +96,10 @@ K05 已按用户批准的
 styled 引擎、原子 preparation、开放贡献 registry、结构化 flow 快照、
 真实 inline Figure 与 fragment border 已有独立契约测试。
 普通 page/block Border、公开 flow 服务与独立替代文字引擎已补齐。
-下一步补反馈失败闭环与完整边框度量组合，再逐个接入六个 text 入口，
-按依赖推进 K06、K07/K08。K00/H04 随每批维护。
+反馈失败闭环、完整边框度量与六个 text 入口已补齐。
+六个 Native 截图已检查；示例测试覆盖来源更新、光标命中、焦点键盘滚动、
+共享范围与窄窗口真实 Figure 混排。下一步按依赖推进 K06、K07/K08；
+K00/H04 随每批维护。
 每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 只登记 Canvas 内的结构、行为和失败/资源需求。
 

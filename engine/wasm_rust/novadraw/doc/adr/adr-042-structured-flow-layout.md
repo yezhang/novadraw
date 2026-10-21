@@ -4,7 +4,7 @@
 
 ## 状态
 
-已接受，实施中（2026-10-21，用户批准按 ADR-042 实施）。
+已接受，已实施（2026-10-21，用户批准；六个官方入口及最终门禁通过）。
 承接官方示例 K05 与 P2-T03。`api_semantics` 为 `text.flow`、
 `text.interaction`、`layout.manager` 和 `input.dispatch`。
 
@@ -194,9 +194,28 @@ block 边框间距进入既有 margin 折叠；inline 的首尾横向间距参�
 跨段上下移动保留全局横向位置并支持空段落的来源身份。
 独立契约测试覆盖非对称四侧间距、block 折叠、空段移动和轮廓坐标。
 
-六个官方入口仍待后续实施和验收；
-本 ADR 尚未完成全部验收。
+六个官方入口已接入 `draw2d-official-examples`。TextFlow 保留六个 section、
+嵌套蓝色 inline、不同字号、源码仅换行符分行与尾侧对齐；Large 保留四十个 block
+与可追加的首个文字来源。Caret 的多语言文字、begin/end 分片边框、命中、
+光标与显式选择绘制共用 flow 快照。MultiLineLabel 使用 width-tracking viewport、
+两像素 margin、自动滚动条、焦点绘制、键盘滚动与文字 accessibility。
+Surrounding 保留 Toolbar 三 Shape 子树及 Stack 内嵌 RTL page。
+Bidi 的两个独立 Figure 树共享 vertical RangeModel，十种段落组合保持独立身份。
 
-结构化 flow 切片的 workspace fmt、check、Clippy 与 test 已通过
-（1,191 项通过、1 项忽略）；文档门禁通过。命令退出码与日志保存在
+`FigureTreeBuilder::add_scroll_pane_with_models_to` 将调用方的范围模型交给现有
+Viewport 和 ScrollBar；默认入口复用同一路径。事件回调通过 `EventSceneQuery`
+读取已发布的领域数据和源组件，typed deferred update 支持显式目标；
+延迟 viewport delta 进入既有 mutation 错误通道。示例没有自行实现坐标转换。
+内嵌盒的小数高度在适配层以 f64 从已发布 baseline 推导位置，避免 f32 相减后
+盒底越过 layout height；受检输出仍保持严格校验。
+
+示例使用随包字体对应原例的普通、等宽和多语言字体；补充 Noto Sans JP 与
+Noto Sans Hebrew 及各自 OFL 许可证。SWT 原生比较 Text、Hit info 面板和 Caret
+控件不属于 Canvas 验收范围；Core 光标与高亮使用显式绘制。
+Native 六个入口均已截图检查，产物在 `target/visual-verification/screenshots/`。
+示例测试覆盖稳定发布、不同字体注册实例、窄窗口重排、真实子树保留、
+共享滚动、受限键入、来源 revision、命中与焦点键盘滚动。
+
+最终 workspace fmt、check、Clippy 与 test 已通过
+（1,216 项通过、1 项忽略）；56 项示例测试与文档门禁通过。命令退出码与日志保存在
 `target/verification/adr042-flow/`。测试 target 的 Clippy 另行复查。
