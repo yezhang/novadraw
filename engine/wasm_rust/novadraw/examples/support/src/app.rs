@@ -213,8 +213,8 @@ impl DemoApp {
             &mut self.panel_host,
             &mut self.panel,
             &mut self.runtime,
-        ) {
-            panel_host.prepare(host.window(), panel, runtime);
+        ) && panel_host.prepare(host.window(), panel, runtime)
+        {
             runtime.frames().request_full_redraw();
         }
         let Some(host) = &self.host else {
@@ -611,7 +611,7 @@ impl ApplicationHandler<()> for DemoApp {
             && let (Some(panel_host), Some(host)) = (&mut self.panel_host, &self.host)
         {
             let response = panel_host.state.on_window_event(host.window(), &event);
-            if response.repaint {
+            if panel_event_needs_redraw(response.repaint, &event) {
                 host.request_redraw();
             }
             let canvas_captured = self
@@ -950,15 +950,15 @@ impl ApplicationHandler<()> for DemoApp {
             if self.panel.is_some()
                 && let Some(panel_host) = &mut self.panel_host
             {
-                let deadline = host
-                    .wake_deadline()
-                    .map(|time| self.clock_origin + Duration::from_micros(time.as_micros()))
-                    .map_or(panel_host.repaint_at, |time| {
-                        time.min(panel_host.repaint_at)
-                    });
-                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
-                if Instant::now() >= panel_host.repaint_at {
+                if crate::panel::take_due_repaint(&mut panel_host.repaint_at, Instant::now()) {
                     host.request_redraw();
+                }
+                if let Some(deadline) = panel_host.repaint_at {
+                    let deadline = host
+                        .wake_deadline()
+                        .map(|time| self.clock_origin + Duration::from_micros(time.as_micros()))
+                        .map_or(deadline, |time| time.min(deadline));
+                    event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
                 }
             }
         }
@@ -971,6 +971,11 @@ impl ApplicationHandler<()> for DemoApp {
         self.sync_platform_effects();
         self.renderer = None;
     }
+}
+
+#[cfg(feature = "egui-panel")]
+fn panel_event_needs_redraw(repaint: bool, event: &WindowEvent) -> bool {
+    repaint && !matches!(event, WindowEvent::RedrawRequested)
 }
 
 impl DemoApp {
@@ -1320,6 +1325,20 @@ fn run_runtime_demo_app_with_options(
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[cfg(feature = "egui-panel")]
+    #[test]
+    fn panel_redraw_event_does_not_schedule_itself_again() {
+        assert!(!panel_event_needs_redraw(
+            true,
+            &WindowEvent::RedrawRequested
+        ));
+        assert!(panel_event_needs_redraw(true, &WindowEvent::Focused(true)));
+        assert!(!panel_event_needs_redraw(
+            false,
+            &WindowEvent::Focused(true)
+        ));
+    }
 
     #[test]
     fn initial_frame_remains_pending_until_presentation_succeeds() {

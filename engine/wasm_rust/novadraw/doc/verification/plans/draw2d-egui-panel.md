@@ -36,3 +36,21 @@ cargo run -p draw2d-official-examples -- --screenshot=GridLayoutExample
 验证结果：workspace Clippy 通过，workspace 测试 1,132 项通过、1 项忽略，
 格式检查、文档检查与 `git diff --check` 通过。关闭默认 feature 的 support 编译通过。
 已生成全部 12 个可运行入口的原生截图，Grid、Flow 和 Tree 面板已人工检查。
+
+## CPU 与空闲重绘修复
+
+宿主原先把 egui-winit 对 `RedrawRequested` 的 `repaint=true` 再次转成
+`request_redraw`，形成持续重绘循环；每次 UI pass 又强制重绘整个 Canvas。
+现在当前重绘事件不再预约下一帧，延迟重绘到期后先清除截止时间，再请求一帧。
+无延迟任务时使用 `ControlFlow::Wait`，文本光标等定时任务仍保留截止时间。
+
+面板缓存上一帧的 shapes 和 DPI，只有图形或纹理变化才重新 tessellate 并请求
+Canvas 完整合成；场景参数修改仍走 Runtime 自身的失效路径。
+
+macOS、debug 构建、默认 Grid 场景，启动后无输入运行约 9 秒再结束进程，
+通过子进程的 user + system CPU 时间测量：修复前 7.377 秒，修复后 1.319 秒，
+减少约 82%。该窗口包含 GPU 和字体初始化，不代表稳定空闲期的 CPU 百分比；
+不包含 WindowServer 或 GPU 时间。
+
+回归覆盖当前重绘不预约自身、截止时间只消费一次、空闲 UI 停止重绘、
+文本光标保留延迟重绘，以及 egui 数字编辑改变 Grid 布局。

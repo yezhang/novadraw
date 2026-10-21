@@ -42,7 +42,9 @@ pub(crate) struct PanelHost {
     pub context: egui::Context,
     pub state: egui_winit::State,
     frame: Arc<Mutex<Frame>>,
-    pub repaint_at: std::time::Instant,
+    pub repaint_at: Option<std::time::Instant>,
+    last_shapes: Vec<egui::epaint::ClippedShape>,
+    last_pixels_per_point: f32,
 }
 
 impl PanelHost {
@@ -62,7 +64,9 @@ impl PanelHost {
             context,
             state,
             frame: Arc::default(),
-            repaint_at: std::time::Instant::now(),
+            repaint_at: Some(std::time::Instant::now()),
+            last_shapes: Vec::new(),
+            last_pixels_per_point: 0.0,
         }
     }
 
@@ -78,7 +82,7 @@ impl PanelHost {
         window: &winit::window::Window,
         panel: &mut Panel,
         runtime: &mut Runtime,
-    ) {
+    ) -> bool {
         let input = self.state.take_egui_input(window);
         // A host action must commit once even when egui asks for another sizing pass.
         self.context.begin_pass(input);
@@ -95,17 +99,44 @@ impl PanelHost {
             .get(&egui::ViewportId::ROOT)
             .map(|viewport| viewport.repaint_delay)
             .unwrap_or(std::time::Duration::MAX);
-        self.repaint_at = std::time::Instant::now()
-            .checked_add(delay)
-            .unwrap_or_else(|| std::time::Instant::now() + std::time::Duration::from_secs(3600));
+        self.repaint_at = repaint_deadline(std::time::Instant::now(), delay);
         self.state
             .handle_platform_output(window, output.platform_output);
+        let changed = self.last_pixels_per_point != output.pixels_per_point
+            || self.last_shapes != output.shapes
+            || !output.textures_delta.set.is_empty()
+            || !output.textures_delta.free.is_empty();
         let mut frame = self.frame.lock().expect("panel frame");
-        frame.primitives = self
-            .context
-            .tessellate(output.shapes, output.pixels_per_point);
+        if changed {
+            self.last_shapes = output.shapes;
+            self.last_pixels_per_point = output.pixels_per_point;
+            frame.primitives = self
+                .context
+                .tessellate(self.last_shapes.clone(), output.pixels_per_point);
+        }
         frame.textures.append(output.textures_delta);
         frame.pixels_per_point = output.pixels_per_point;
+        changed
+    }
+}
+
+fn repaint_deadline(
+    now: std::time::Instant,
+    delay: std::time::Duration,
+) -> Option<std::time::Instant> {
+    now.checked_add(delay)
+}
+
+/// Retire a due repaint before requesting a frame, so an expired deadline cannot spin.
+pub(crate) fn take_due_repaint(
+    deadline: &mut Option<std::time::Instant>,
+    now: std::time::Instant,
+) -> bool {
+    if deadline.is_some_and(|deadline| deadline <= now) {
+        *deadline = None;
+        true
+    } else {
+        false
     }
 }
 
@@ -157,5 +188,47 @@ impl NativeOverlay for Overlay {
             renderer.free_texture(id);
         }
         frame.textures = Default::default();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn idle_egui_has_no_deadline_and_due_repaint_is_consumed_once() {
+        let now = Instant::now();
+        assert_eq!(repaint_deadline(now, Duration::MAX), None);
+        let mut deadline = repaint_deadline(now, Duration::from_millis(10));
+        assert!(!take_due_repaint(&mut deadline, now));
+        assert!(take_due_repaint(
+            &mut deadline,
+            now + Duration::from_millis(10)
+        ));
+        assert!(!take_due_repaint(
+            &mut deadline,
+            now + Duration::from_secs(1)
+        ));
+    }
+
+    #[test]
+    fn idle_panel_settles_and_text_caret_retains_delayed_repaint() {
+        let context = egui::Context::default();
+        let mut text = String::from("12");
+        let id = egui::Id::new("numeric-input");
+        let mut idle_delay = Duration::ZERO;
+        for _ in 0..5 {
+            let output = context.run_ui(egui::RawInput::default(), |ui| {
+                ui.add(egui::TextEdit::singleline(&mut text).id(id));
+            });
+            idle_delay = output.viewport_output[&egui::ViewportId::ROOT].repaint_delay;
+        }
+        assert_eq!(idle_delay, Duration::MAX);
+        context.memory_mut(|memory| memory.request_focus(id));
+        let output = context.run_ui(egui::RawInput::default(), |ui| {
+            ui.add(egui::TextEdit::singleline(&mut text).id(id));
+        });
+        assert!(output.viewport_output[&egui::ViewportId::ROOT].repaint_delay < Duration::MAX);
     }
 }
