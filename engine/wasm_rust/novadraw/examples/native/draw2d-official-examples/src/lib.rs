@@ -275,7 +275,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ZoomExample",
             "org/eclipse/draw2d/examples/zoom/ZoomExample.java",
             &[
-                "ScrollBar repeat firing, five child Figure composition and SchemeBorder remain to be ported",
+                "ScrollBar composition/range/repeat are implemented; SchemeBorder still requires parity verification",
                 "original SVG resources and Canvas rendering remain under verification",
             ],
             examples::zoom_example,
@@ -362,7 +362,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            2
+            3
         );
 
         let mut ids = BTreeSet::new();

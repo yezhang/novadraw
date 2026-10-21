@@ -13,6 +13,8 @@
 //! AccessibleFigure       - 可选 accessibility 能力
 //! ```
 
+mod activity;
+pub use activity::{ACTIVITY, ActivityCapability, FigureActivity};
 pub(crate) mod capability;
 mod ellipse;
 mod image;

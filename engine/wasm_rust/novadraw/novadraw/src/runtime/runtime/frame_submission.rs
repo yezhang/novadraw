@@ -486,6 +486,7 @@ impl Runtime {
     }
 
     fn stabilize(&mut self) -> Result<(), FramePreparationError> {
+        self.poll_activities();
         self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
         self.last_stabilization_error = None;
 
@@ -525,6 +526,9 @@ impl Runtime {
                         self.updates
                             .perform_validation_phase(&mut self.tree)
                             .map_err(FramePreparationError::Validation)?;
+                        if self.poll_activities() && self.updates.has_pending_layout() {
+                            work.insert(DerivedWorkKind::Layout);
+                        }
                         work.insert(DerivedWorkKind::DependencyInvalidation);
                         work.insert(DerivedWorkKind::Presentation);
                     }

@@ -436,6 +436,13 @@ impl FigureTree {
             .map(|clickable| clickable.clickable_model().snapshot())
     }
 
+    pub(crate) fn activity_ids(&self) -> Vec<FigureId> {
+        self.blocks
+            .iter()
+            .filter_map(|(id, block)| block.activity().is_some().then_some(id))
+            .collect()
+    }
+
     pub(crate) fn clickable_ids(&self) -> Vec<FigureId> {
         self.blocks
             .iter()

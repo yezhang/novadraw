@@ -6,6 +6,7 @@
 pub mod layer;
 pub mod range_model;
 pub mod scalable;
+pub mod scroll_bar;
 pub mod scroll_pane;
 pub mod viewport;
 pub mod zoom;
@@ -21,9 +22,13 @@ pub use range_model::{
 pub use scalable::{
     ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, ScaleModel,
 };
+pub use scroll_bar::{
+    InvalidScrollBarConfig, SCROLL_VALUE, ScrollBarConfig, ScrollBarFigure, ScrollBarLayout,
+    ScrollBarPart, ScrollBarSubtree, ScrollBarValueConsumer, SetScrollBarModel,
+};
 pub use scroll_pane::{
-    ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,
-    ScrollPaneHandle, ScrollPaneLayout,
+    ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
+    ScrollPaneLayout,
 };
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};
 pub use zoom::{

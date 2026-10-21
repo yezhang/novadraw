@@ -685,6 +685,14 @@ impl FigureNode {
             .resolve(self.figure.as_ref())
     }
 
+    pub(crate) fn activity(&self) -> Option<&dyn crate::figure::FigureActivity> {
+        self.capabilities
+            .get(crate::figure::ACTIVITY)
+            .expect("typed activity descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
     pub(crate) fn input(&self) -> Option<&dyn super::FigureEventHandler> {
         self.capabilities
             .get(INPUT)

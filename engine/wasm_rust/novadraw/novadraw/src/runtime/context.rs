@@ -602,6 +602,65 @@ impl<'a> SceneDispatchContext<'a> {
         }
     }
 
+    pub(crate) fn poll_activities(&mut self, now: super::MonotonicTime) -> bool {
+        let mut changed = false;
+        for id in self.scene.activity_ids() {
+            if self.scene.is_attached(id) != Ok(true) {
+                continue;
+            }
+            let mut effects = Vec::new();
+            {
+                let block = self.scene.node(id).expect("activity node exists");
+                let bounds = block.figure_bounds();
+                let mut context = EventContext::new(
+                    id,
+                    Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                    block.visual_bounds(),
+                    self.interaction.is_pointer_pressed(id),
+                    self.interaction.keyboard_pressed_key(id),
+                    self.scene,
+                    &mut effects,
+                );
+                let active = self.scene.is_effectively_visible(id) == Ok(true)
+                    && self.scene.is_effectively_enabled(id) == Ok(true);
+                block
+                    .activity()
+                    .expect("registered activity")
+                    .poll(now, active, &mut context);
+            }
+            changed |= !effects.is_empty();
+            self.apply_effects(effects);
+        }
+        changed
+    }
+
+    fn apply_effects(&mut self, effects: Vec<RuntimeEffect>) {
+        for effect in effects {
+            match effect {
+                RuntimeEffect::Repaint { figure_id, rect } => {
+                    self.update_manager.add_dirty_region(figure_id, rect)
+                }
+                RuntimeEffect::Notification(effect) => {
+                    self.update_manager.enqueue_notification_effect(effect)
+                }
+                RuntimeEffect::Invalidate(figure_id) => {
+                    self.scene.mark_invalid(self.update_manager, figure_id)
+                }
+                RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
+                RuntimeEffect::SetPressed { figure_id, pressed } => {
+                    self.interaction.set_pressed(figure_id, pressed)
+                }
+                RuntimeEffect::SetKeyboardPressed { figure_id, key } => {
+                    self.interaction.set_keyboard_pressed(figure_id, key)
+                }
+                RuntimeEffect::ActivateClickable(figure_id) => {
+                    self.scene
+                        .activate_clickable(self.update_manager, figure_id);
+                }
+            }
+        }
+    }
+
     fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
         loop {
             let block = self.scene.node(target_id).ok()?;
@@ -911,30 +970,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
             }
         };
 
-        for effect in effects {
-            match effect {
-                RuntimeEffect::Repaint { figure_id, rect } => {
-                    self.update_manager.add_dirty_region(figure_id, rect);
-                }
-                RuntimeEffect::Notification(effect) => {
-                    self.update_manager.enqueue_notification_effect(effect);
-                }
-                RuntimeEffect::Invalidate(figure_id) => {
-                    self.scene.mark_invalid(self.update_manager, figure_id);
-                }
-                RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
-                RuntimeEffect::SetPressed { figure_id, pressed } => {
-                    self.interaction.set_pressed(figure_id, pressed);
-                }
-                RuntimeEffect::SetKeyboardPressed { figure_id, key } => {
-                    self.interaction.set_keyboard_pressed(figure_id, key);
-                }
-                RuntimeEffect::ActivateClickable(figure_id) => {
-                    self.scene
-                        .activate_clickable(self.update_manager, figure_id);
-                }
-            }
-        }
+        self.apply_effects(effects);
 
         handled
     }

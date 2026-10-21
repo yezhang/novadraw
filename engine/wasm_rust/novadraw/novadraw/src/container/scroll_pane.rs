@@ -11,17 +11,13 @@ use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::runtime::update::property::standard as property;
 use crate::{
     EventContext, FigureId, FigureMeasurement, FigureTree, FigureTreeBuilder, GraphMutationError,
-    MeasureConstraints, MouseEvent, RangeModel, ScrollDeltaKind, UpdateManager, ViewportError,
-    ViewportHandle, WheelEvent,
+    MeasureConstraints, RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle,
+    WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
 const DEFAULT_STEP_INCREMENT: f64 = 24.0;
-const MINIMUM_THUMB_LENGTH: f64 = 12.0;
 const PANE_BACKGROUND: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
-const TRACK_COLOR: Color = Color::rgba(0.86, 0.87, 0.89, 1.0);
-const THUMB_COLOR: Color = Color::rgba(0.38, 0.42, 0.48, 1.0);
-const BUTTON_COLOR: Color = Color::rgba(0.68, 0.70, 0.74, 1.0);
 
 fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
@@ -45,6 +41,7 @@ pub enum ScrollOrientation {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ScrollPaneError {
     Graph(GraphMutationError),
+    Layout(LayoutError),
     Viewport(ViewportError),
     MissingPane,
 }
@@ -53,6 +50,7 @@ impl fmt::Display for ScrollPaneError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Graph(error) => error.fmt(f),
+            Self::Layout(error) => error.fmt(f),
             Self::Viewport(error) => error.fmt(f),
             Self::MissingPane => write!(f, "scroll pane block does not exist"),
         }
@@ -70,6 +68,12 @@ impl From<GraphMutationError> for ScrollPaneError {
 impl From<ViewportError> for ScrollPaneError {
     fn from(value: ViewportError) -> Self {
         Self::Viewport(value)
+    }
+}
+
+impl From<LayoutError> for ScrollPaneError {
+    fn from(value: LayoutError) -> Self {
+        Self::Layout(value)
     }
 }
 
@@ -329,308 +333,45 @@ impl FigureEventHandler for ScrollPaneFigure {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-struct DragState {
-    armed: bool,
-    pointer_start: f64,
-    value_start: f64,
-}
-
-#[derive(Clone)]
-pub struct ScrollBarFigure {
-    bounds: Rectangle,
-    orientation: ScrollOrientation,
-    model: Arc<dyn RangeModel>,
+struct PaneScrollValue {
     pane_id: FigureId,
-    pane_runtime: Arc<Mutex<ScrollPaneRuntime>>,
-    drag: Arc<Mutex<DragState>>,
+    orientation: ScrollOrientation,
+    runtime: Arc<Mutex<ScrollPaneRuntime>>,
 }
 
-impl ScrollBarFigure {
-    fn new(
-        orientation: ScrollOrientation,
-        model: Arc<dyn RangeModel>,
-        pane_id: FigureId,
-        pane_runtime: Arc<Mutex<ScrollPaneRuntime>>,
-    ) -> Self {
-        Self {
-            bounds: Rectangle::ZERO,
-            orientation,
-            model,
-            pane_id,
-            pane_runtime,
-            drag: Arc::new(Mutex::new(DragState::default())),
+impl super::ScrollBarValueConsumer for PaneScrollValue {
+    fn value_changed(&self, old: f64, new: f64, context: &mut EventContext<'_>) {
+        let runtime = lock_unpoisoned(&self.runtime);
+        if let Some(viewport) = runtime.viewport_id {
+            let key = match self.orientation {
+                ScrollOrientation::Horizontal => property::HORIZONTAL_VIEW_LOCATION,
+                ScrollOrientation::Vertical => property::VERTICAL_VIEW_LOCATION,
+            };
+            context
+                .effects()
+                .emit_property_change(viewport, key, old, new);
+            context
+                .effects()
+                .coordinate_system_changed(viewport, runtime.viewport_bounds);
+            context.effects().repaint_figure(
+                viewport,
+                Rectangle::new(
+                    0.0,
+                    0.0,
+                    runtime.viewport_bounds.width,
+                    runtime.viewport_bounds.height,
+                ),
+            );
         }
-    }
-
-    fn axis_position(&self, x: f64, y: f64) -> f64 {
-        match self.orientation {
-            ScrollOrientation::Horizontal => x,
-            ScrollOrientation::Vertical => y,
-        }
-    }
-
-    fn axis_length(&self, bounds: Rectangle) -> f64 {
-        match self.orientation {
-            ScrollOrientation::Horizontal => bounds.width,
-            ScrollOrientation::Vertical => bounds.height,
-        }
-    }
-
-    fn geometry(&self, bounds: Rectangle) -> ScrollBarGeometry {
-        ScrollBarGeometry::new(0.0, self.axis_length(bounds), self.model.snapshot())
-    }
-
-    fn repaint_pane(&self, ctx: &mut EventContext<'_>) {
-        let runtime = lock_unpoisoned(&self.pane_runtime);
-        let pane_bounds = runtime.pane_bounds;
-        ctx.effects().repaint_figure(
+        context.effects().repaint_figure(
             self.pane_id,
-            Rectangle::new(0.0, 0.0, pane_bounds.width, pane_bounds.height),
-        );
-    }
-
-    fn notify_model_change(&self, old_value: f64, ctx: &mut EventContext<'_>) {
-        let runtime = lock_unpoisoned(&self.pane_runtime);
-        let Some(viewport_id) = runtime.viewport_id else {
-            return;
-        };
-        let property = match self.orientation {
-            ScrollOrientation::Horizontal => property::HORIZONTAL_VIEW_LOCATION,
-            ScrollOrientation::Vertical => property::VERTICAL_VIEW_LOCATION,
-        };
-        let new_value = self.model.value();
-        if old_value == new_value {
-            return;
-        }
-        ctx.effects()
-            .emit_property_change(viewport_id, property, old_value, new_value);
-        ctx.effects()
-            .coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.effects().repaint_figure(
-            viewport_id,
             Rectangle::new(
                 0.0,
                 0.0,
-                runtime.viewport_bounds.width,
-                runtime.viewport_bounds.height,
+                runtime.pane_bounds.width,
+                runtime.pane_bounds.height,
             ),
         );
-    }
-}
-
-impl Bounded for ScrollBarFigure {
-    fn bounds(&self) -> Rectangle {
-        self.bounds
-    }
-
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
-    }
-
-    fn name(&self) -> &'static str {
-        "ScrollBarFigure"
-    }
-
-    fn preferred_size(&self) -> Dimension {
-        match self.orientation {
-            ScrollOrientation::Horizontal => Dimension::new(0.0, DEFAULT_SCROLL_BAR_THICKNESS),
-            ScrollOrientation::Vertical => Dimension::new(DEFAULT_SCROLL_BAR_THICKNESS, 0.0),
-        }
-    }
-}
-
-impl Figure for ScrollBarFigure {
-    fn initial_bounds(&self) -> Rectangle {
-        self.bounds
-    }
-
-    fn name(&self) -> &'static str {
-        "ScrollBarFigure"
-    }
-
-    fn intrinsic_size(&self) -> Dimension {
-        Bounded::preferred_size(self)
-    }
-
-    fn paint(
-        &self,
-        context: &mut PaintContext<'_>,
-        bounds: Rectangle,
-    ) -> Result<(), GraphicsError> {
-        context.set_fill_paint(TRACK_COLOR);
-        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
-        let geometry = self.geometry(bounds);
-        let thickness = match self.orientation {
-            ScrollOrientation::Horizontal => bounds.height,
-            ScrollOrientation::Vertical => bounds.width,
-        };
-        context.set_fill_paint(BUTTON_COLOR);
-        match self.orientation {
-            ScrollOrientation::Horizontal => {
-                context.fill_rect(Rectangle::new(
-                    geometry.axis_start,
-                    0.0,
-                    geometry.button_length,
-                    thickness,
-                ))?;
-                context.fill_rect(Rectangle::new(
-                    geometry.axis_end - geometry.button_length,
-                    0.0,
-                    geometry.button_length,
-                    thickness,
-                ))?;
-                context.set_fill_paint(THUMB_COLOR);
-                context.fill_rect(Rectangle::new(
-                    geometry.thumb_start,
-                    0.0,
-                    geometry.thumb_length,
-                    thickness,
-                ))?;
-            }
-            ScrollOrientation::Vertical => {
-                context.fill_rect(Rectangle::new(
-                    0.0,
-                    geometry.axis_start,
-                    thickness,
-                    geometry.button_length,
-                ))?;
-                context.fill_rect(Rectangle::new(
-                    0.0,
-                    geometry.axis_end - geometry.button_length,
-                    thickness,
-                    geometry.button_length,
-                ))?;
-                context.set_fill_paint(THUMB_COLOR);
-                context.fill_rect(Rectangle::new(
-                    0.0,
-                    geometry.thumb_start,
-                    thickness,
-                    geometry.thumb_length,
-                ))?;
-            }
-        }
-        Ok(())
-    }
-
-    fn register_capabilities(
-        &self,
-        out: &mut crate::FigureCapabilityBuilder,
-    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
-        out.register(crate::INPUT, crate::InputCapability::of::<Self>())
-    }
-}
-
-impl FigureEventHandler for ScrollBarFigure {
-    fn wants_mouse_events(&self) -> bool {
-        true
-    }
-
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        let pointer = self.axis_position(event.x, event.y);
-        let geometry = self.geometry(ctx.target_bounds());
-        let snapshot = self.model.snapshot();
-        let next = if pointer < geometry.track_start {
-            Some(snapshot.value - DEFAULT_STEP_INCREMENT)
-        } else if pointer > geometry.track_end {
-            Some(snapshot.value + DEFAULT_STEP_INCREMENT)
-        } else if pointer < geometry.thumb_start {
-            Some(snapshot.value - snapshot.extent.max(DEFAULT_STEP_INCREMENT))
-        } else if pointer > geometry.thumb_end() {
-            Some(snapshot.value + snapshot.extent.max(DEFAULT_STEP_INCREMENT))
-        } else {
-            let mut drag = lock_unpoisoned(&self.drag);
-            *drag = DragState {
-                armed: true,
-                pointer_start: pointer,
-                value_start: snapshot.value,
-            };
-            None
-        };
-        if let Some(value) = next {
-            let old_value = self.model.value();
-            let _ = self.model.set_value(value);
-            self.notify_model_change(old_value, ctx);
-            self.repaint_pane(ctx);
-        }
-        true
-    }
-
-    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        let drag = *lock_unpoisoned(&self.drag);
-        if !drag.armed {
-            return false;
-        }
-        let geometry = self.geometry(ctx.target_bounds());
-        let draggable = (geometry.track_length - geometry.thumb_length).max(0.0);
-        let value_range =
-            (self.model.maximum() - self.model.extent() - self.model.minimum()).max(0.0);
-        if draggable > 0.0 && value_range > 0.0 {
-            let pointer_delta = self.axis_position(event.x, event.y) - drag.pointer_start;
-            let old_value = self.model.value();
-            let _ = self
-                .model
-                .set_value(drag.value_start + pointer_delta * value_range / draggable);
-            self.notify_model_change(old_value, ctx);
-            self.repaint_pane(ctx);
-        }
-        true
-    }
-
-    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
-        lock_unpoisoned(&self.drag).armed = false;
-        true
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct ScrollBarGeometry {
-    axis_start: f64,
-    axis_end: f64,
-    button_length: f64,
-    track_start: f64,
-    track_end: f64,
-    track_length: f64,
-    thumb_start: f64,
-    thumb_length: f64,
-}
-
-impl ScrollBarGeometry {
-    fn new(axis_start: f64, axis_length: f64, model: crate::RangeModelSnapshot) -> Self {
-        let axis_length = axis_length.max(0.0);
-        let button_length = DEFAULT_SCROLL_BAR_THICKNESS.min(axis_length / 3.0);
-        let axis_end = axis_start + axis_length;
-        let track_start = axis_start + button_length;
-        let track_end = axis_end - button_length;
-        let track_length = (track_end - track_start).max(0.0);
-        let span = (model.maximum - model.minimum).max(0.0);
-        let thumb_length = if span <= 0.0 {
-            track_length
-        } else {
-            (track_length * model.extent / span)
-                .max(MINIMUM_THUMB_LENGTH.min(track_length))
-                .min(track_length)
-        };
-        let value_range = (span - model.extent).max(0.0);
-        let thumb_offset = if value_range <= 0.0 {
-            0.0
-        } else {
-            (track_length - thumb_length) * (model.value - model.minimum) / value_range
-        };
-        Self {
-            axis_start,
-            axis_end,
-            button_length,
-            track_start,
-            track_end,
-            track_length,
-            thumb_start: track_start + thumb_offset,
-            thumb_length,
-        }
-    }
-
-    fn thumb_end(self) -> f64 {
-        self.thumb_start + self.thumb_length
     }
 }
 
@@ -759,24 +500,32 @@ impl FigureTree {
         )?;
         lock_unpoisoned(&runtime).viewport_id = Some(viewport.figure_id());
 
-        let horizontal_scroll_bar = self.try_add_child_to(
-            pane_id,
-            Box::new(ScrollBarFigure::new(
-                ScrollOrientation::Horizontal,
-                horizontal_model,
+        let mut add_bar = |orientation, model| -> Result<FigureId, ScrollPaneError> {
+            let description = super::ScrollBarFigure::new(model)
+                .with_config(super::ScrollBarConfig {
+                    orientation,
+                    step_increment: DEFAULT_STEP_INCREMENT,
+                    ..super::ScrollBarConfig::default()
+                })
+                .expect("pane ScrollBar config")
+                .with_consumer(Arc::new(PaneScrollValue {
+                    pane_id,
+                    orientation,
+                    runtime: Arc::clone(&runtime),
+                }))
+                .into_subtree();
+            let inserted = self.insert_subtree(
                 pane_id,
-                Arc::clone(&runtime),
-            )),
-        )?;
-        let vertical_scroll_bar = self.try_add_child_to(
-            pane_id,
-            Box::new(ScrollBarFigure::new(
-                ScrollOrientation::Vertical,
-                vertical_model,
-                pane_id,
-                Arc::clone(&runtime),
-            )),
-        )?;
+                description.subtree.nodes,
+                None,
+                |_, _, _| Ok::<_, ScrollPaneError>(()),
+                |_, error| error,
+                |_, _| Ok(()),
+            )?;
+            Ok(inserted[0].0)
+        };
+        let horizontal_scroll_bar = add_bar(ScrollOrientation::Horizontal, horizontal_model)?;
+        let vertical_scroll_bar = add_bar(ScrollOrientation::Vertical, vertical_model)?;
         self.replace_layout_manager(
             pane_id,
             Some(Box::new(ScrollPaneLayout {

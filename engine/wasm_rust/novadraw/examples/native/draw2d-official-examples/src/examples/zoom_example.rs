@@ -1,17 +1,20 @@
 //! Port of zoom/ZoomExample.java, UMLClassFigure.java and CompartmentFigure.java.
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use novadraw::{
-    container::{DefaultRangeModel, RangeModel, ScalableLayeredPaneFigure},
-    event::{EventContext, FigureEventHandler, MouseButton, MouseEvent},
+    container::{
+        DefaultRangeModel, RangeModel, ScalableLayeredPaneFigure, ScrollBarConfig, ScrollBarFigure,
+        ScrollBarPart, ScrollBarValueConsumer, ScrollOrientation,
+    },
+    event::EventContext,
     figure::{
         Alignment, Border, CONTAINER, ContainerCapability, Figure, FigureCapabilityBuilder,
-        FigureCapabilityRegistrationError, FigureContainer, FigureStyle, INPUT, InputCapability,
-        LabelFigure, RectangleFigure,
+        FigureCapabilityRegistrationError, FigureContainer, FigureStyle, LabelFigure,
+        RectangleFigure,
         border::{EtchedBorder, LineBorder},
     },
     geometry::{Dimension, Insets, Point, Rectangle},
-    graphics::{Color, GraphicsError, PaintContext, Path},
+    graphics::{Color, GraphicsError, PaintContext},
     layout::{MinorAlignment, StackLayout, ToolbarLayout, XYConstraint, XYLayout},
     runtime::{ImageId, Runtime},
     text::{FontDescriptor, TextConstraints, TextLayout},
@@ -24,8 +27,6 @@ const WINDOW_SIZE: f64 = 800.0;
 const BAR_HEIGHT: f64 = 24.0;
 const ARROW_WIDTH: f64 = 16.0;
 const MINIMUM_THUMB: f64 = 70.0;
-const STEP_INCREMENT: f64 = 10.0;
-const PAGE_INCREMENT: f64 = 50.0;
 const MAXIMUM: f64 = 200.0;
 const EXTENT: f64 = 25.0;
 const CLASS_COLOR: Color = Color::rgba(1.0, 1.0, 206.0 / 255.0, 1.0);
@@ -82,134 +83,10 @@ impl Border for SharedGroupBorder {
     }
 }
 
-#[derive(Default)]
-struct ThumbDrag {
-    start: Option<(f64, f64)>,
-}
-
-struct ZoomScrollBar {
-    model: Arc<DefaultRangeModel>,
-    panel: FigureId,
-    thumb: Arc<Mutex<Option<FigureId>>>,
-    drag: Mutex<ThumbDrag>,
-}
-
-impl ZoomScrollBar {
-    fn thumb_geometry(&self, width: f64) -> (f64, f64, f64) {
-        let track = (width - 2.0 * ARROW_WIDTH).max(0.0);
-        let length = (track * EXTENT / MAXIMUM).max(MINIMUM_THUMB).min(track);
-        let travel = (track - length).max(0.0);
-        let x = ARROW_WIDTH + self.model.value() / (MAXIMUM - EXTENT) * travel;
-        (x, length, travel)
-    }
-
-    fn set_value(&self, value: f64, context: &mut EventContext<'_>) {
-        let old = self.model.value();
-        self.model
-            .set_value(value.round())
-            .expect("finite scroll value");
-        if self.model.value() != old {
-            context
-                .effects()
-                .set_scale_later(self.panel, zoom_for(self.model.value()));
-            context.effects().repaint(None);
-            if let Some(thumb) = *self.thumb.lock().expect("thumb") {
-                let (x, width, _) = self.thumb_geometry(context.target_bounds().width);
-                context
-                    .effects()
-                    .set_bounds_later(thumb, Rectangle::new(x, 0.0, width, BAR_HEIGHT));
-            }
-        }
-    }
-}
-
-impl Figure for ZoomScrollBar {
-    fn initial_bounds(&self) -> Rectangle {
-        Rectangle::new(0.0, 0.0, WINDOW_SIZE, BAR_HEIGHT)
-    }
-
-    fn name(&self) -> &'static str {
-        "ScrollBar"
-    }
-
-    fn intrinsic_size(&self) -> Dimension {
-        Dimension::new(WINDOW_SIZE, BAR_HEIGHT)
-    }
-
-    fn paint(
-        &self,
-        context: &mut PaintContext<'_>,
-        bounds: Rectangle,
-    ) -> Result<(), GraphicsError> {
-        context.set_fill_paint(Color::rgba(0.85, 0.85, 0.85, 1.0));
-        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
-        context.set_stroke_paint(Color::BLACK);
-        context.set_stroke_width(1.0)?;
-        for x in [0.0, bounds.width - ARROW_WIDTH] {
-            context.stroke_rect(Rectangle::new(x, 0.0, ARROW_WIDTH, bounds.height))?;
-        }
-        for (x, direction) in [
-            (ARROW_WIDTH / 2.0, -1.0),
-            (bounds.width - ARROW_WIDTH / 2.0, 1.0),
-        ] {
-            let mut arrow = Path::new();
-            arrow.move_to(x + direction * 3.0, BAR_HEIGHT / 2.0);
-            arrow.line_to(x - direction * 3.0, BAR_HEIGHT / 2.0 - 4.0);
-            arrow.line_to(x - direction * 3.0, BAR_HEIGHT / 2.0 + 4.0);
-            arrow.close();
-            context.set_fill_paint(Color::BLACK);
-            context.fill_path(&arrow)?;
-        }
-        Ok(())
-    }
-
-    fn register_capabilities(
-        &self,
-        out: &mut FigureCapabilityBuilder,
-    ) -> Result<(), FigureCapabilityRegistrationError> {
-        out.register(INPUT, InputCapability::of::<Self>())?;
-        out.register(CONTAINER, ContainerCapability::of::<Self>())
-    }
-}
-
-impl FigureContainer for ZoomScrollBar {}
-
-impl FigureEventHandler for ZoomScrollBar {
-    fn on_mouse_pressed(&self, event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        if event.button != MouseButton::Left {
-            return false;
-        }
-        let width = context.target_bounds().width;
-        let (thumb_x, thumb_width, _) = self.thumb_geometry(width);
-        let value = self.model.value();
-        if event.x < ARROW_WIDTH {
-            self.set_value(value - STEP_INCREMENT, context);
-        } else if event.x >= width - ARROW_WIDTH {
-            self.set_value(value + STEP_INCREMENT, context);
-        } else if event.x < thumb_x {
-            self.set_value(value - PAGE_INCREMENT, context);
-        } else if event.x > thumb_x + thumb_width {
-            self.set_value(value + PAGE_INCREMENT, context);
-        } else {
-            self.drag.lock().expect("thumb drag").start = Some((event.x, value));
-        }
-        true
-    }
-
-    fn on_mouse_dragged(&self, event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        let start = self.drag.lock().expect("thumb drag").start;
-        if let Some((x, value)) = start {
-            let (_, _, travel) = self.thumb_geometry(context.target_bounds().width);
-            if travel > 0.0 {
-                self.set_value(value + (event.x - x) * (MAXIMUM - EXTENT) / travel, context);
-            }
-        }
-        true
-    }
-
-    fn on_mouse_released(&self, _event: &MouseEvent, _context: &mut EventContext<'_>) -> bool {
-        self.drag.lock().expect("thumb drag").start = None;
-        true
+struct ZoomValue(FigureId);
+impl ScrollBarValueConsumer for ZoomValue {
+    fn value_changed(&self, _: f64, value: f64, context: &mut EventContext<'_>) {
+        context.effects().set_scale_later(self.0, zoom_for(value));
     }
 }
 
@@ -355,29 +232,28 @@ fn fixture() -> Fixture {
     );
     let model = Arc::new(DefaultRangeModel::new(0.0, EXTENT, MAXIMUM).expect("zoom range"));
     model.set_value(40.0).expect("initial value");
-    let thumb = Arc::new(Mutex::new(None));
-    let scrollbar = ZoomScrollBar {
-        model: model.clone(),
-        panel,
-        thumb: thumb.clone(),
-        drag: Mutex::new(ThumbDrag::default()),
-    };
-    let (thumb_x, thumb_width, _) = scrollbar.thumb_geometry(WINDOW_SIZE);
-    let bar = runtime
+    let scrollbar = ScrollBarFigure::new(model.clone())
+        .with_bounds(Rectangle::new(0.0, 0.0, WINDOW_SIZE, BAR_HEIGHT))
+        .with_config(ScrollBarConfig {
+            orientation: ScrollOrientation::Horizontal,
+            thickness: BAR_HEIGHT,
+            button_length: ARROW_WIDTH,
+            minimum_thumb_length: MINIMUM_THUMB,
+            ..ScrollBarConfig::default()
+        })
+        .expect("Zoom ScrollBar config")
+        .with_consumer(Arc::new(ZoomValue(panel)))
+        .with_part(
+            ScrollBarPart::Thumb,
+            Box::new(LabelFigure::new("< Zoom >").with_border(LineBorder::default_border())),
+        )
+        .into_subtree();
+    let receipt = runtime
         .figure(root)
         .expect("root")
-        .add(Box::new(scrollbar))
+        .add_subtree(scrollbar.subtree)
         .expect("ScrollBar");
-    let label = runtime
-        .figure(bar)
-        .expect("bar")
-        .add(Box::new(
-            LabelFigure::new("< Zoom >")
-                .with_bounds(Rectangle::new(thumb_x, 0.0, thumb_width, BAR_HEIGHT))
-                .with_border(LineBorder::default_border()),
-        ))
-        .expect("thumb Label");
-    *thumb.lock().expect("thumb") = Some(label);
+    let bar = receipt.figure(scrollbar.root).expect("ScrollBar root");
     runtime
         .figure(root)
         .expect("root")
@@ -490,6 +366,7 @@ fn zoom_for(value: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use novadraw::event::MouseButton;
 
     #[test]
     fn official_two_class_fixture_and_scroll_range_are_preserved() {

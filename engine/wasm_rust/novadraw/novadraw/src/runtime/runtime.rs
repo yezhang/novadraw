@@ -324,6 +324,7 @@ pub struct Runtime {
     interaction: InteractionState,
     interaction_dispatcher: EventDispatcher,
     tooltip_controller: TooltipController,
+    activity_now: MonotonicTime,
     animations: AnimationService,
     accessibility: AccessibilityManager,
     focus_traversal_policy: Box<dyn FocusTraversalPolicy>,
@@ -623,6 +624,7 @@ impl Runtime {
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
             tooltip_controller: TooltipController::default(),
+            activity_now: MonotonicTime::ZERO,
             animations: AnimationService::new(namespace),
             accessibility: AccessibilityManager::default(),
             focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
@@ -766,18 +768,27 @@ impl Runtime {
                 &mut self.faulted,
             )
             .advance_time(now)?;
-        Ok(tooltip_changed || animation_changed)
+        self.activity_now = now;
+        let activity_changed = self.guarded(|runtime| runtime.poll_activities());
+        Ok(tooltip_changed || animation_changed || activity_changed)
     }
 
     pub(crate) fn next_wake_deadline(&self) -> Option<MonotonicTime> {
-        match (
-            self.tooltip_controller.next_wake_deadline(),
-            self.animations.next_wake_deadline(),
-        ) {
-            (Some(tooltip), Some(animation)) => Some(tooltip.min(animation)),
-            (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
-            (None, None) => None,
+        if self.faulted {
+            return None;
         }
+        self.tree
+            .activity_ids()
+            .into_iter()
+            .filter(|id| {
+                self.tree.is_attached(*id) == Ok(true)
+                    && self.tree.is_effectively_visible(*id) == Ok(true)
+                    && self.tree.is_effectively_enabled(*id) == Ok(true)
+            })
+            .filter_map(|id| self.tree.node(id).ok()?.activity()?.next_wake_deadline())
+            .chain(self.tooltip_controller.next_wake_deadline())
+            .chain(self.animations.next_wake_deadline())
+            .min()
     }
 
     pub(crate) fn visible_tooltip(&self) -> Option<&TooltipSnapshot> {
@@ -3115,6 +3126,7 @@ impl Runtime {
         &mut self,
         action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
     ) -> R {
+        self.poll_activities();
         let result = {
             let mut context = SceneDispatchContext::new(
                 &mut self.tree,
@@ -3128,7 +3140,20 @@ impl Runtime {
         self.apply_runtime_mutations(mutations);
         self.retain_interactive_figures();
         self.sync_clickable_visuals();
+        self.poll_activities();
         result
+    }
+
+    fn poll_activities(&mut self) -> bool {
+        let changed = SceneDispatchContext::new(
+            &mut self.tree,
+            &mut self.interaction,
+            &mut self.updates,
+            &mut self.mutations,
+        )
+        .poll_activities(self.activity_now);
+        let mutations = self.mutations.drain();
+        changed | self.apply_runtime_mutations(mutations)
     }
 
     fn ensure_layered_pane(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
