@@ -197,44 +197,41 @@ pub fn catalog() -> Vec<OfficialExample> {
                 "Render IR and Vello lowering cannot reproduce the SWT.OFF matrix cells",
             ],
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "bidi-block",
             "BidiBlockExample",
             "org/eclipse/draw2d/examples/text/BidiBlockExample.java",
-            &[
-                "per-block base direction and ALWAYS_LEFT/ALWAYS_RIGHT are absent",
-                "shared vertical RangeModel across two canvases is absent",
-            ],
+            examples::bidi_block_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "caret",
             "CaretExample",
             "org/eclipse/draw2d/examples/text/CaretExample.java",
-            &["requires TextFlow fragment geometry, hit positions and Canvas selection drawing"],
+            examples::caret_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "multi-line-label",
             "MultiLineLabelExample",
             "org/eclipse/draw2d/examples/text/MultiLineLabelExample.java",
-            &["Draw2D MultiLineLabel Figure composition, focus and scrolling remain to be ported"],
+            examples::multi_line_label_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "text-flow",
             "TextFlowExample",
             "org/eclipse/draw2d/examples/text/TextFlowExample.java",
-            &["P2-T03 fragment fonts, colors, baselines, and nested InlineFlow are deferred"],
+            examples::text_flow_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "text-flow-large",
             "TextFlowLargeExample",
             "org/eclipse/draw2d/examples/text/TextFlowLargeExample.java",
-            &["requires mutable fragment text and fragment-level fonts"],
+            examples::text_flow_large_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "text-surrounding-figure",
             "TextSurroundingFigureExample",
             "org/eclipse/draw2d/examples/text/TextSurroundingFigureExample.java",
-            &["FlowAdapter-style inline Figure subtrees are absent"],
+            examples::text_surrounding_figure_example,
         ),
         OfficialExample::blocked(
             "thumbnail",
@@ -362,7 +359,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            3
+            9
         );
 
         let mut ids = BTreeSet::new();
