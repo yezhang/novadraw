@@ -85,8 +85,14 @@ layout generation，尺寸覆盖、重置与文字测量变化会触发同一受
 Rust 契约覆盖尺寸变化、重置、不变值、测量失败后的自动恢复与失败稳定；
 UMLClassDiagram 覆盖只修改连接文字且类和路由不动时的重新测量与居中。
 
-接下来先完成当前 Rust 布局回归，再推进 K03 Locator 与 Obstruction 解阻，
-随后按依赖推进 K04/K05、K06、K07/K08。K00/H04 随每批维护，不等待全量先验收。
+2026-10-21 K04 的通用 ScrollBar 按
+[ADR-041](../../adr/adr-041-composable-scrollbar.md)接入 Zoom 和 ScrollPane。
+五个普通 Figure 部件、custom thumb minimum、RangeModel 替换、横纵布局、
+250ms/40ms 连发与取消通过外部 Rust 契约；Zoom 原公式及 Native 截图通过。
+Path/MultiLineLabel 的消费者待 K05/K08，不关闭 K04 整批。
+
+下一步回到 K05，先核对 styled/nested flow 与真实 inline Figure 的源码契约并形成
+可评审设计，再按依赖推进 K06、K07/K08。K00/H04 随每批维护。
 每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 只登记 Canvas 内的结构、行为和失败/资源需求。
 

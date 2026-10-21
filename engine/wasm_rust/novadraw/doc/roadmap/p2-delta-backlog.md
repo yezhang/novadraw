@@ -88,6 +88,18 @@ Obstruction 已按用户批准的 [ADR-040](../adr/adr-040-group-route-solving.m
 实现完整组求解、visibility/shared corner 与 Canvas 生命周期。
 外部 solver、失败恢复、独立障碍不变量、真实输入与四阶段 Native 截图已验证；
 最终 workspace 门禁通过（1,155 项测试通过、1 项忽略）。K03 的其他示例验收继续保留。
+2026-10-21 按用户要求实施 [ADR-041](../adr/adr-041-composable-scrollbar.md)：
+独立 ScrollBar 的五个普通 Figure 部件、可替换 RangeModel/thumb、横纵布局、
+250ms/40ms 连发及取消共用公开 FigureActivity；Zoom 删除私有组件，
+ScrollPane 复用同一实现。九项外部契约、26 项 viewport 回归、Zoom 两项交互
+与 Native 截图通过；最终 workspace fmt、Clippy 和 test 通过
+（1,164 项通过、1 项忽略）。
+K04 通用切片完成后回到 K05 的只读源码契约与设计，Path/MultiLineLabel
+仍依赖文字流和 Graphics 增量，不关闭 K04 整批。K05 先形成可评审契约，
+重大公共 API 变更依仓库规则评审后实施。
+K05 已形成 [ADR-042 草案](../adr/adr-042-structured-flow-layout.md)，
+明确开放贡献协议、styled request、同 revision fragment 快照、
+FlowBorder 和真实 Figure placement；状态为 `design-draft`，未进入实现。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

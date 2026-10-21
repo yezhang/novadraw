@@ -58,6 +58,8 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [038](adr-038-query-identity-and-failure-semantics.md) | 查询身份、合法缺失与失败传播 | 已接受，修订 1 | 2026-10-16 |
 | [039](adr-039-owner-aware-connection-locator.md) | 连接标签的 owner 方位定位 | 已接受，已实现并验证 | 2026-10-21 |
 | [040](adr-040-group-route-solving.md) | 连接组的统一路由求解 | 已接受，已实现并验证 | 2026-10-21 |
+| [041](adr-041-composable-scrollbar.md) | 通用 ScrollBar 与 Figure 活动调度 | 已接受，已实现并验证 | 2026-10-21 |
+| [042](adr-042-structured-flow-layout.md) | 结构化文字流与内嵌 Figure | 草案，待评审 | 2026-10-21 |
 
 ## 现行与历史隔离
 
