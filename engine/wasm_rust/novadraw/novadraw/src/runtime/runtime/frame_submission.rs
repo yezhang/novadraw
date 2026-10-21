@@ -447,10 +447,13 @@ impl Runtime {
     }
 
     fn invalidate_stale_connection_dependencies(&mut self) -> Result<bool, ConnectionRuntimeError> {
+        let locator_changed = self
+            .connections
+            .invalidate_stale_locator_measurements(&self.tree)?;
         let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
         self.connections
             .invalidate_stale_dependencies(&scene)
-            .map(|affected| !affected.is_empty())
+            .map(|affected| locator_changed || !affected.is_empty())
     }
 
     fn resolve_dirty_connection_routes(&mut self) -> bool {

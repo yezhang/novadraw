@@ -1525,6 +1525,12 @@ impl FigureTree {
         )
     }
 
+    pub(crate) fn is_connection_decoration(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|node| node.connection_decoration().is_some())
+    }
+
     pub(crate) fn commit_prepared_connection_decoration(
         &mut self,
         update_manager: &mut UpdateManager,

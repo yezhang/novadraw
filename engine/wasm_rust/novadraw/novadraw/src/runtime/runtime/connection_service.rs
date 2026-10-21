@@ -475,6 +475,8 @@ impl Runtime {
                             );
                         }
                     }
+                    self.connections
+                        .acknowledge_locator_measurements(candidate, &self.tree);
                 }
                 self.connections.commit_route_batch(&batch, routing_space);
                 Ok(requested)

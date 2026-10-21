@@ -248,6 +248,7 @@ struct ConnectionLocatorBinding {
     connection: ConnectionId,
     child: FigureId,
     strategy: Box<dyn ConnectionLocatorStrategy>,
+    measurement_generation: Option<u64>,
 }
 
 impl ConnectionRouteBatch {
@@ -635,11 +636,13 @@ impl ConnectionRuntime {
         {
             binding.connection = connection;
             binding.strategy = strategy;
+            binding.measurement_generation = None;
         } else {
             self.locators.push(ConnectionLocatorBinding {
                 connection,
                 child,
                 strategy,
+                measurement_generation: None,
             });
         }
         self.mark_dirty(connection)
@@ -671,6 +674,56 @@ impl ConnectionRuntime {
                     })
             })
             .collect()
+    }
+
+    pub(crate) fn invalidate_stale_locator_measurements(
+        &mut self,
+        tree: &crate::tree::FigureTree,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        let affected = self
+            .locators
+            .iter()
+            .filter_map(|binding| {
+                // Decorations derive their envelope from route orientation, not preferred size.
+                if tree.is_connection_decoration(binding.child) {
+                    return None;
+                }
+                let generation = tree.node(binding.child).ok()?.layout_state().generation();
+                (binding.measurement_generation != Some(generation)).then_some(binding.connection)
+            })
+            .collect::<Vec<_>>();
+        let affected = self.expand_group_invalidation(&affected)?;
+        for connection in &affected {
+            self.next_dirty_revision(*connection)?;
+        }
+        for connection in &affected {
+            self.mark_dirty(*connection)?;
+        }
+        // A failed measurement is retried only after another input change.
+        for binding in &mut self.locators {
+            binding.measurement_generation = tree
+                .node(binding.child)
+                .ok()
+                .map(|node| node.layout_state().generation());
+        }
+        Ok(!affected.is_empty())
+    }
+
+    pub(crate) fn acknowledge_locator_measurements(
+        &mut self,
+        connection: ConnectionId,
+        tree: &crate::tree::FigureTree,
+    ) {
+        for binding in self
+            .locators
+            .iter_mut()
+            .filter(|binding| binding.connection == connection)
+        {
+            binding.measurement_generation = tree
+                .node(binding.child)
+                .ok()
+                .map(|node| node.layout_state().generation());
+        }
     }
 
     pub(crate) fn state(

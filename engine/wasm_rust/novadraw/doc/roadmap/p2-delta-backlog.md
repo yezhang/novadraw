@@ -79,6 +79,8 @@ K01 的 subtree/回执、资源准入、contents 替换、Connection binding 和
 K02 的 Grid span/grab 与 Flow/Toolbar 测量修复保留，改用独立 Rust 契约验证。
 撤销及 Rust 回归已完成。当前 K03 首批修复普通 Locator child 的旧 bounds 尺寸，
 改为受检 preferred measurement，非法测量拒绝路由批次并可恢复；
+2026-10-21 补齐普通 Locator child 的 layout generation 失效跟踪，尺寸覆盖/重置与
+UML 连接文字修改无需端点移动即可重新定位；测量失败可自动恢复并保持稳定。
 owner-aware EndpointLocator 的开放输入/placement 与 Obstruction 路由仍待推进。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源

@@ -336,6 +336,90 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     assert_eq!((updated.width, updated.height), (80.0, 40.0));
 }
 
+#[test]
+fn locator_remeasures_child_size_without_endpoint_movement() {
+    let (mut runtime, root, source, target, figure) = runtime_fixture();
+    let child = runtime
+        .figure(figure)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .unwrap();
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = runtime.connections().direct_router();
+    let connection = runtime
+        .connections()
+        .register_state(
+            figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    runtime
+        .connections()
+        .set_locator(connection, child, Box::new(ConnectionLocator::Middle))
+        .unwrap();
+    runtime
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let route = runtime
+        .tree()
+        .connection_route_points(figure)
+        .unwrap()
+        .unwrap()
+        .clone();
+    let center = runtime.tree().figure_bounds(child).unwrap().center();
+    runtime
+        .figure(child)
+        .unwrap()
+        .set_preferred_size(novadraw::geometry::Dimension::new(90.0, 35.0))
+        .unwrap();
+    prepare_next_submission(&mut runtime).expect("child measurement invalidates Locator");
+    let bounds = runtime.tree().figure_bounds(child).unwrap();
+    assert_eq!((bounds.width, bounds.height), (90.0, 35.0));
+    assert_eq!(bounds.center(), center);
+    assert_eq!(
+        runtime
+            .tree()
+            .connection_route_points(figure)
+            .unwrap()
+            .unwrap(),
+        &route
+    );
+    runtime
+        .figure(child)
+        .unwrap()
+        .clear_preferred_size()
+        .unwrap();
+    prepare_next_submission(&mut runtime).expect("size reset invalidates Locator");
+    let bounds = runtime.tree().figure_bounds(child).unwrap();
+    assert_eq!((bounds.width, bounds.height), (20.0, 10.0));
+    assert_eq!(bounds.center(), center);
+    let generation = runtime.connections().state(connection).unwrap().resolution;
+    assert!(
+        !runtime
+            .figure(child)
+            .unwrap()
+            .clear_preferred_size()
+            .unwrap()
+    );
+    runtime
+        .frames()
+        .stabilize_for_query()
+        .expect("unchanged measurement settles");
+    assert_eq!(
+        runtime.connections().state(connection).unwrap().resolution,
+        generation
+    );
+}
+
 struct InvalidLocatorMeasurement;
 
 impl novadraw::figure::Figure for InvalidLocatorMeasurement {
@@ -411,12 +495,28 @@ fn locator_measurement_rejection_does_not_publish_child_geometry_and_can_recover
         .unwrap()
         .set_preferred_size(novadraw::geometry::Dimension::new(60.0, 30.0))
         .unwrap();
-    runtime
-        .connections()
-        .resolve_route(connection, CoordinateSpace::ChildContent(root))
-        .unwrap();
+    prepare_next_submission(&mut runtime)
+        .expect("measurement change recovers Locator automatically");
     let bounds = runtime.tree().figure_bounds(child).unwrap();
     assert_eq!((bounds.width, bounds.height), (60.0, 30.0));
+    runtime
+        .figure(child)
+        .unwrap()
+        .clear_preferred_size()
+        .unwrap();
+    let _ = prepare_next_submission(&mut runtime);
+    assert!(matches!(
+        runtime.connections().state(connection).unwrap().resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::LocatorFailed {
+            error: LocatorError::ChildMeasurementFailed,
+            ..
+        })
+    ));
+    runtime
+        .frames()
+        .stabilize_for_query()
+        .expect("unchanged failure must settle");
+    assert!(!runtime.is_faulted());
 }
 
 #[test]
@@ -896,7 +996,7 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("dirty route must schedule a frame");
-    runtime
+    let _ = runtime
         .frames()
         .complete_submission(
             initial.session_id,
@@ -924,7 +1024,7 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("owner geometry change must reroute in the same frame");
-    runtime
+    let _ = runtime
         .frames()
         .complete_submission(
             moved.session_id,

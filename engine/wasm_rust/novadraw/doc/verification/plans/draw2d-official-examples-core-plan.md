@@ -72,6 +72,14 @@ measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并�
 外部 Figure 与内置图元共用路径。owner quadrant、child-size 输入及 EndpointLocator
 开放 placement 契约尚未完成，不能将本切片视为 K03 整体关闭。
 
+2026-10-21 补齐 Locator child 测量失效：此前只修改 preferred size 时，端点几何
+不变，路由不会重新提交，导致连接标签停留在旧尺寸。现在绑定追踪普通 child 的
+layout generation，尺寸覆盖、重置与文字测量变化会触发同一受检路由批次；
+提交后确认新 generation，避免定位本身导致反复路由。Decoration 通过已有 capability
+识别，其边界来自 route orientation，不参与 preferred 测量失效。
+Rust 契约覆盖尺寸变化、重置、不变值、测量失败后的自动恢复与失败稳定；
+UMLClassDiagram 覆盖只修改连接文字且类和路由不动时的重新测量与居中。
+
 接下来先完成当前 Rust 布局回归，再推进 K03 Locator 与 Obstruction 解阻，
 随后按依赖推进 K04/K05、K06、K07/K08。K00/H04 随每批维护，不等待全量先验收。
 每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，

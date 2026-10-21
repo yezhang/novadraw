@@ -618,4 +618,72 @@ mod tests {
             2
         );
     }
+
+    #[test]
+    fn connection_label_text_remeasures_without_moving_classes() {
+        let mut fixture = fixture();
+        fixture
+            .runtime
+            .frames()
+            .stabilize_for_query()
+            .expect("initial UML layout");
+        let children = fixture
+            .runtime
+            .tree()
+            .child_order(fixture.connection)
+            .unwrap();
+        let label = children[2];
+        let before = fixture.runtime.tree().figure_bounds(label).unwrap();
+        let route = fixture
+            .runtime
+            .tree()
+            .connection_route_points(fixture.connection)
+            .unwrap()
+            .unwrap()
+            .clone();
+        let class_bounds = fixture
+            .runtime
+            .tree()
+            .figure_bounds(fixture.first_class)
+            .unwrap();
+        fixture
+            .runtime
+            .figure(label)
+            .unwrap()
+            .update_component(novadraw::runtime::SetLabelText::new(
+                "a substantially longer connection label",
+            ))
+            .expect("label text mutation");
+        fixture
+            .runtime
+            .frames()
+            .stabilize_for_query()
+            .expect("updated UML label");
+        let after = fixture.runtime.tree().figure_bounds(label).unwrap();
+        assert!(after.width > before.width);
+        assert_eq!(after.center(), before.center());
+        assert_eq!(
+            fixture
+                .runtime
+                .tree()
+                .figure_bounds(fixture.first_class)
+                .unwrap(),
+            class_bounds
+        );
+        assert_eq!(
+            fixture
+                .runtime
+                .tree()
+                .connection_route_points(fixture.connection)
+                .unwrap()
+                .unwrap(),
+            &route
+        );
+        fixture
+            .runtime
+            .frames()
+            .stabilize_for_query()
+            .expect("settled UML label");
+        assert_eq!(fixture.runtime.tree().figure_bounds(label).unwrap(), after);
+    }
 }
