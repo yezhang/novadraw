@@ -481,6 +481,17 @@ impl FigureMut<'_> {
         self.runtime.add_subtree(self.figure, subtree)
     }
 
+    /// Admits a complete replacement before retiring the addressed direct child.
+    /// Admission rejection preserves the child and all existing bindings.
+    pub fn replace_child_subtree(
+        &mut self,
+        child: FigureId,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        self.runtime
+            .replace_or_add_subtree(self.figure, Some(child), subtree)
+    }
+
     pub fn add(&mut self, figure: Box<dyn Figure>) -> Result<FigureId, RuntimeMutationError> {
         self.runtime.validate_container_figure(self.figure)?;
         self.runtime.add_figure(self.figure, figure)
@@ -1042,6 +1053,14 @@ impl Runtime {
         &mut self,
         subtree: crate::tree::FigureSubtree,
     ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        if subtree
+            .nodes
+            .iter()
+            .skip(1)
+            .any(|node| node.parent.is_none())
+        {
+            return Err(RuntimeMutationError::Rejected);
+        }
         self.connections
             .validate_disposal()
             .map_err(|_| RuntimeMutationError::Rejected)?;
@@ -3230,24 +3249,57 @@ impl Runtime {
             PendingMutationKind::AddSubtree {
                 parent,
                 subtree,
+                replacing,
                 completed,
-            } => self.guarded(|runtime| match runtime.add_subtree(parent, subtree) {
-                Ok(receipt) => {
-                    completed(Ok(receipt));
-                    Ok(true)
-                }
-                Err(error) => {
-                    runtime.deferred_mutation_errors.push_back(error);
-                    completed(Err(runtime
-                        .deferred_mutation_errors
-                        .back()
-                        .expect("rejection recorded before completion")));
-                    Ok(false)
+            } => self.guarded(|runtime| {
+                match runtime.replace_or_add_subtree(parent, replacing, subtree) {
+                    Ok(receipt) => {
+                        completed(Ok(receipt));
+                        Ok(true)
+                    }
+                    Err(error) => {
+                        runtime.deferred_mutation_errors.push_back(error);
+                        completed(Err(runtime
+                            .deferred_mutation_errors
+                            .back()
+                            .expect("rejection recorded before completion")));
+                        Ok(false)
+                    }
                 }
             }),
             PendingMutationKind::UpdateComponent(update) => update.apply(self),
             PendingMutationKind::UpdateCapability(update) => update.apply(self),
         }
+    }
+
+    fn replace_or_add_subtree(
+        &mut self,
+        parent: FigureId,
+        replacing: Option<FigureId>,
+        subtree: crate::tree::FigureSubtree,
+    ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        let Some(child) = replacing else {
+            return self.add_subtree(parent, subtree);
+        };
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_container_figure(parent)?;
+            runtime.validate_attached_figure(child)?;
+            if runtime.tree.parent_id(child) != Ok(Some(parent)) {
+                return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+            }
+            runtime
+                .connections
+                .validate_disposal()
+                .map_err(|_| RuntimeMutationError::Rejected)?;
+            let owner = subtree.owner;
+            let inserted = runtime.publish_subtree(parent, subtree, Some(child))?;
+            runtime.dispose_subtree(child)?;
+            runtime.complete_subtree_attachment(&inserted);
+            Ok(crate::tree::SubtreeReceipt::new(
+                owner,
+                inserted.into_iter().map(|(id, _)| id).collect(),
+            ))
+        })
     }
 
     fn initialize_layered_panes(&mut self) {

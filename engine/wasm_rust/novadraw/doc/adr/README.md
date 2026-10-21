@@ -57,6 +57,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [037](adr-037-editor-incremental-failure-isolation.md) | Editor 增量投影失败隔离 | 已接受，按矩阵修订 2 验证 | 2026-10-15 |
 | [038](adr-038-query-identity-and-failure-semantics.md) | 查询身份、合法缺失与失败传播 | 已接受，修订 1 | 2026-10-16 |
 | [039](adr-039-owner-aware-connection-locator.md) | 连接标签的 owner 方位定位 | 已接受，已实现并验证 | 2026-10-21 |
+| [040](adr-040-group-route-solving.md) | 连接组的统一路由求解 | 已接受，已实现并验证 | 2026-10-21 |
 
 ## 现行与历史隔离
 

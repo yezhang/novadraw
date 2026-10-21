@@ -104,6 +104,14 @@ impl<'a> RuntimeViewports<'a> {
         viewport: FigureId,
         subtree: crate::tree::FigureSubtree,
     ) -> Result<crate::tree::SubtreeReceipt, RuntimeMutationError> {
+        if subtree
+            .nodes
+            .iter()
+            .skip(1)
+            .any(|node| node.parent.is_none())
+        {
+            return Err(RuntimeMutationError::Rejected);
+        }
         let handle = self.handle(viewport)?;
         self.runtime.guarded_runtime_mutation(move |runtime| {
             let previous = handle

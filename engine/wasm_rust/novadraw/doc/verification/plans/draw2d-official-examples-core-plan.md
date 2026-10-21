@@ -72,7 +72,10 @@ measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并�
 外部 Figure 与内置图元共用路径。2026-10-21 已按
 [ADR-039](../../adr/adr-039-owner-aware-connection-locator.md)接入 owner quadrant、
 child-size 输入与开放 child bounds placement，官方 UML 使用 ConnectionEndpointLocator，
-既有 EndpointLocator 切线偏移保持不变。Obstruction 路由尚未完成，K03 不整体关闭。
+既有 EndpointLocator 切线偏移保持不变。Obstruction 已按
+[ADR-040](../../adr/adr-040-group-route-solving.md)实现组求解与 visibility/shared corner，
+完成外部消费者、真实输入和 Native 四阶段截图；workspace 最终门禁通过。
+K03 的其他示例验收继续保留。
 
 2026-10-21 补齐 Locator child 测量失效：此前只修改 preferred size 时，端点几何
 不变，路由不会重新提交，导致连接标签停留在旧尺寸。现在绑定追踪普通 child 的

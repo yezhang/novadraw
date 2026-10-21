@@ -29,3 +29,18 @@ cargo test -p draw2d-official-examples --test source_contracts
 
 当前计划见 [Canvas Core 计划](../../../doc/verification/plans/draw2d-official-examples-core-plan.md)。
 本轮新增的 Java 探针、运行脚本和生成基线已撤销。
+
+Obstruction 的组求解和交互按 [ADR-040](../../../doc/adr/adr-040-group-route-solving.md)
+实现。运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；
+左拖移动障碍或端点；障碍右键删除；端点中键删除整对，未配对端点中键只删除自身。
+成对删除修正了官方示例的 parent mismatch，保留差异记录。
+
+```sh
+cargo test -p novadraw --test p2_group_route_contract
+cargo test -p draw2d-official-examples --lib obstruction
+cargo run -p draw2d-official-examples --example obstruction_verification
+```
+
+最后一个命令通过真实输入构造四阶段 Native 场景并截图，产物在
+`target/visual-verification/screenshots/`。路线允许斜线与 Canvas 外折点，
+不增加官方源码未规定的视口避让。

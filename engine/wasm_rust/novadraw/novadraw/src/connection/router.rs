@@ -90,6 +90,86 @@ pub struct RouteRequest<'a> {
     pub group: Option<&'a dyn RoutingGroupQuery>,
 }
 
+/// One prepared endpoint pair in a stable routing group.
+pub struct RouteGroupMember<'a> {
+    connection: ConnectionId,
+    metadata: RouteMetadata,
+    constraint: Option<&'a dyn RoutingConstraint>,
+}
+
+impl<'a> RouteGroupMember<'a> {
+    pub const fn new(
+        connection: ConnectionId,
+        metadata: RouteMetadata,
+        constraint: Option<&'a dyn RoutingConstraint>,
+    ) -> Self {
+        Self {
+            connection,
+            metadata,
+            constraint,
+        }
+    }
+    pub const fn connection(&self) -> ConnectionId {
+        self.connection
+    }
+    pub const fn metadata(&self) -> &RouteMetadata {
+        &self.metadata
+    }
+    pub fn constraint(&self) -> Option<&dyn RoutingConstraint> {
+        self.constraint
+    }
+}
+
+/// Immutable group facts and a dependency-tracking query for one solver invocation.
+pub struct RouteGroupInput<'a> {
+    members: &'a [RouteGroupMember<'a>],
+    obstacles: &'a [RoutingObstacle],
+    routing_space: CoordinateSpace,
+    scene: &'a mut dyn RouteSceneQuery,
+}
+
+impl<'a> RouteGroupInput<'a> {
+    pub fn new(
+        members: &'a [RouteGroupMember<'a>],
+        obstacles: &'a [RoutingObstacle],
+        routing_space: CoordinateSpace,
+        scene: &'a mut dyn RouteSceneQuery,
+    ) -> Self {
+        Self {
+            members,
+            obstacles,
+            routing_space,
+            scene,
+        }
+    }
+    pub fn members(&self) -> &[RouteGroupMember<'_>] {
+        self.members
+    }
+    pub fn obstacles(&self) -> &[RoutingObstacle] {
+        self.obstacles
+    }
+    pub const fn routing_space(&self) -> CoordinateSpace {
+        self.routing_space
+    }
+    pub fn scene(&mut self) -> &mut dyn RouteSceneQuery {
+        self.scene
+    }
+}
+
+/// Complete candidate outputs; Runtime checks identity and endpoint correspondence.
+pub struct RouteGroupOutput {
+    routes: Vec<(ConnectionId, RouteOutput)>,
+}
+
+impl RouteGroupOutput {
+    pub fn new(routes: Vec<(ConnectionId, RouteOutput)>) -> Self {
+        Self { routes }
+    }
+    pub fn into_routes(self) -> Vec<(ConnectionId, RouteOutput)> {
+        self.routes
+    }
+}
+
 /// Endpoint metadata retained with a route.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RouteEndpoint {
@@ -173,6 +253,19 @@ impl RouteOutput {
 pub trait ConnectionRouter {
     /// Computes a complete route without mutating scene or runtime state.
     fn route(&self, request: RouteRequest<'_>) -> Result<RouteOutput, RouteError>;
+
+    /// Opts into eager endpoint snapshots; false preserves legacy Anchor callback order.
+    fn prepares_group_endpoints(&self) -> bool {
+        false
+    }
+
+    /// Returns a full group candidate or None to retain sequential routing.
+    fn solve_group(
+        &self,
+        _input: RouteGroupInput<'_>,
+    ) -> Result<Option<RouteGroupOutput>, RouteError> {
+        Ok(None)
+    }
 
     /// Returns the supported concrete constraint type, if one is required.
     fn constraint_type(&self) -> Option<TypeId> {
@@ -721,11 +814,17 @@ pub enum RouteError {
     NoObstacleFreePath,
     /// Anchor, route, or locator dependencies contain a cycle.
     DependencyCycle,
+    /// Group outputs are missing, duplicate, foreign, or do not preserve endpoint facts.
+    InvalidGroupOutput,
 }
 
 impl fmt::Display for RouteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidGroupOutput => write!(
+                formatter,
+                "group routes must match prepared identities and endpoints"
+            ),
             Self::Scene(error) => write!(formatter, "route scene query failed: {error}"),
             Self::Source(error) => write!(formatter, "source Anchor failed: {error}"),
             Self::Target(error) => write!(formatter, "target Anchor failed: {error}"),

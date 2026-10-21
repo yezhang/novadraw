@@ -37,22 +37,6 @@ pub struct OfficialExample {
 }
 
 impl OfficialExample {
-    const fn not_implemented(
-        id: &'static str,
-        name: &'static str,
-        upstream_path: &'static str,
-        gaps: &'static [&'static str],
-    ) -> Self {
-        Self {
-            id,
-            name,
-            upstream_path,
-            status: ParityStatus::NotImplemented,
-            gaps,
-            factory: None,
-        }
-    }
-
     const fn in_progress(
         id: &'static str,
         name: &'static str,
@@ -111,14 +95,11 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/HelloWorld.java",
             examples::hello_world,
         ),
-        OfficialExample::not_implemented(
+        OfficialExample::complete(
             "obstruction",
             "ObstructionExample",
             "org/eclipse/draw2d/examples/cg/ObstructionExample.java",
-            &[
-                "requires source-faithful dynamic obstacle and endpoint lifecycle",
-                "official visibility-graph paths and shared-corner spacing differ from Core's orthogonal ShortestPathConnectionRouter; the official algorithm must be ported",
-            ],
+            examples::obstruction,
         ),
         OfficialExample::in_progress(
             "connection-and-anchor",

@@ -660,6 +660,7 @@ pub(crate) enum PendingMutationKind {
     AddSubtree {
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
+        replacing: Option<FigureId>,
         completed: SubtreeCompletion,
     },
     AddChildFigure {
@@ -768,6 +769,23 @@ impl PendingMutation {
             kind: PendingMutationKind::AddSubtree {
                 parent,
                 subtree,
+                replacing: None,
+                completed,
+            },
+        }
+    }
+
+    pub(crate) fn replace_child_subtree(
+        parent: FigureId,
+        child: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        completed: SubtreeCompletion,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::AddSubtree {
+                parent,
+                subtree,
+                replacing: Some(child),
                 completed,
             },
         }

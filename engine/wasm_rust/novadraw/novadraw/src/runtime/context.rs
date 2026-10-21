@@ -385,6 +385,22 @@ impl EventEffects<'_> {
             )));
     }
 
+    /// Replaces an attached child only after the complete description passes admission.
+    ///
+    /// Rejection preserves the child. The completion observes the committed replacement,
+    /// and uses the same error retention and panic semantics as `add_subtree_later`.
+    pub fn replace_child_subtree_later(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+        subtree: crate::tree::FigureSubtree,
+        completed: impl FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>) + 'static,
+    ) {
+        self.effects.push(RuntimeEffect::Mutation(
+            PendingMutation::replace_child_subtree(parent, child, subtree, Box::new(completed)),
+        ));
+    }
+
     /// Replaces Runtime contents after top-level dispatch using whole-subtree admission.
     ///
     /// The completion has the same error retention and panic semantics as `add_subtree_later`.

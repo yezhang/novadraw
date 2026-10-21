@@ -978,15 +978,142 @@ impl ConnectionRuntime {
             obstacles,
         };
         let mut calculations = Vec::with_capacity(members.len());
+        let mut group_query = TrackedRouteSceneQuery::new(source);
+        let mut preparation_observations = obstacle_observations.clone();
+        let mut prepared_endpoints = Vec::new();
+        let grouped = if self
+            .router(router_id)
+            .expect("validated router")
+            .prepares_group_endpoints()
+        {
+            let preparation = (|| {
+                for member in &members {
+                    let (a, b, _) = self
+                        .route_input(*member)
+                        .map_err(|_| RouteError::InvalidGroupOutput)?;
+                    let topology = validate_viewport_topology(
+                        *member,
+                        self.anchors.get(a).expect("validated anchor").owner(),
+                        self.anchors.get(b).expect("validated anchor").owner(),
+                        routing_space,
+                        source,
+                    );
+                    match topology {
+                        Ok(observations) => preparation_observations.extend(observations),
+                        Err((error, observations)) => {
+                            preparation_observations.extend(observations);
+                            return Err(error);
+                        }
+                    }
+                    if let CoordinateSpace::ChildContent(domain) = routing_space {
+                        let subject = DependencySubject::Topology(domain);
+                        preparation_observations.push(DependencyObservation {
+                            generation: source.dependency_generation(&subject),
+                            subject,
+                        });
+                    }
+                    let metadata = super::router::resolve_endpoints(
+                        self.anchors.get(a).expect("validated anchor").as_ref(),
+                        self.anchors.get(b).expect("validated anchor").as_ref(),
+                        &mut group_query,
+                        routing_space,
+                        None,
+                        None,
+                    )?;
+                    prepared_endpoints.push(super::RouteGroupMember::new(
+                        *member,
+                        metadata,
+                        self.states
+                            .get(member)
+                            .and_then(|state| state.constraint.as_deref()),
+                    ));
+                }
+                self.router(router_id)
+                    .expect("validated router")
+                    .solve_group(super::RouteGroupInput::new(
+                        &prepared_endpoints,
+                        &group.obstacles,
+                        routing_space,
+                        &mut group_query,
+                    ))
+            })();
+            match preparation {
+                Ok(output) => output,
+                Err(error) => {
+                    let mut observations = preparation_observations;
+                    observations.extend(group_query.into_observations());
+                    let updates = members
+                        .iter()
+                        .map(|id| (*id, observations.clone()))
+                        .collect();
+                    return Err(self.fail_route_batch(
+                        members,
+                        ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
+                            error,
+                        )),
+                        updates,
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+        let mut group_observations = preparation_observations;
+        group_observations.extend(group_query.into_observations());
+        if grouped.is_some()
+            && members
+                .iter()
+                .any(|member| dependency_cycle(*member, &group_observations, source))
+        {
+            let updates = members
+                .iter()
+                .map(|id| (*id, group_observations.clone()))
+                .collect();
+            return Err(self.fail_route_batch(
+                members,
+                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
+                    RouteError::DependencyCycle,
+                )),
+                updates,
+            ));
+        }
+        let grouped = match grouped {
+            None => None,
+            Some(output) => {
+                let routes = output.into_routes();
+                let valid = routes.len() == members.len()
+                    && routes
+                        .iter()
+                        .zip(&prepared_endpoints)
+                        .all(|((id, route), expected)| {
+                            *id == expected.connection() && route.metadata() == expected.metadata()
+                        });
+                if !valid {
+                    let updates = members
+                        .iter()
+                        .map(|id| (*id, group_observations.clone()))
+                        .collect();
+                    return Err(self.fail_route_batch(
+                        members,
+                        ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
+                            RouteError::InvalidGroupOutput,
+                        )),
+                        updates,
+                    ));
+                }
+                Some(routes)
+            }
+        };
 
-        for member in &members {
+        for (index, member) in members.iter().enumerate() {
             self.stats.route_calculations = self.stats.route_calculations.saturating_add(1);
             let calculation = match self.calculate_route(
                 *member,
                 routing_space,
                 source,
                 &group,
-                &obstacle_observations,
+                &group_observations,
+                grouped.as_ref().map(|routes| &routes[index].1),
             ) {
                 Ok(calculation) => calculation,
                 Err((error, observations)) => {
@@ -1257,6 +1384,7 @@ impl ConnectionRuntime {
         source: &dyn RouteSceneRead,
         group: &RuntimeRoutingGroup,
         obstacle_observations: &[DependencyObservation],
+        prepared_output: Option<&RouteOutput>,
     ) -> Result<RouteCalculation, (ConnectionRuntimeError, Vec<DependencyObservation>)> {
         let (source_id, target_id, router_id) = self
             .route_input(connection)
@@ -1331,16 +1459,20 @@ impl ConnectionRuntime {
                 }
             }
         }
-        let output = router.route(RouteRequest {
-            connection,
-            routing_space,
-            source: source_anchor.as_ref(),
-            target: target_anchor.as_ref(),
-            constraint,
-            scene: &mut query,
-            group: (router.routing_group_scope() != RoutingGroupScope::None)
-                .then_some(group as &dyn RoutingGroupQuery),
-        });
+        let output = if let Some(output) = prepared_output {
+            Ok(output.clone())
+        } else {
+            router.route(RouteRequest {
+                connection,
+                routing_space,
+                source: source_anchor.as_ref(),
+                target: target_anchor.as_ref(),
+                constraint,
+                scene: &mut query,
+                group: (router.routing_group_scope() != RoutingGroupScope::None)
+                    .then_some(group as &dyn RoutingGroupQuery),
+            })
+        };
         observations.extend(query.into_observations());
         observations = deduplicate_observations(observations);
         if dependency_cycle(connection, &observations, source) {

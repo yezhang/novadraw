@@ -85,7 +85,7 @@ where
     }
 }
 
-/// A complete owned branch, configured before any Runtime identity is allocated.
+/// An owned root and optional sibling branches, configured before Runtime identity allocation.
 ///
 /// Nodes are added parent first. IDs are scoped to this description, including its receipt.
 /// Figure, Border and Layout implementations use the same capabilities as ordinary insertion.
@@ -141,6 +141,29 @@ impl FigureSubtree {
         let index = self.nodes.len();
         self.nodes.push(SubtreeNode {
             parent: Some(parent),
+            figure,
+            style: None,
+            layout: None,
+            constraint: None,
+            resources: Vec::new(),
+        });
+        Ok(self.id(index))
+    }
+
+    /// Appends a sibling of the addressed node, admitted with the same description.
+    ///
+    /// A sibling of the root is attached directly to the receiving container. This
+    /// permits related Connections and endpoint owners to share a routing domain
+    /// without introducing an artificial container.
+    pub fn add_sibling(
+        &mut self,
+        sibling: SubtreeNodeId,
+        figure: Box<dyn Figure>,
+    ) -> Result<SubtreeNodeId, SubtreeNodeError> {
+        let parent = self.nodes[self.index(sibling)?].parent;
+        let index = self.nodes.len();
+        self.nodes.push(SubtreeNode {
+            parent,
             figure,
             style: None,
             layout: None,
@@ -212,7 +235,7 @@ impl FigureSubtree {
     }
 }
 
-/// Successful publication of a complete subtree, before the next layout pass.
+/// Successful publication of a complete description, before the next layout pass.
 ///
 /// This maps construction identities to real Figures. It is not a stable epoch or frame receipt.
 #[derive(Debug)]

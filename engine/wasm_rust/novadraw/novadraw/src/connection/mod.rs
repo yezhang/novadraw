@@ -8,6 +8,7 @@ mod query;
 mod router;
 mod runtime;
 mod shortest_path;
+mod visibility;
 
 use crate::FigureId;
 
@@ -39,8 +40,8 @@ pub use router::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionRouter, DirectRouter,
     FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, MANHATTAN_DEFAULT_LANE_SPACING,
     MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RouteEnd, RouteEndpoint, RouteError,
-    RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope, RoutingObstacle,
+    RouteGroupInput, RouteGroupMember, RouteGroupOutput, RouteMetadata, RouteOutput, RouteRequest,
+    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, RoutingObstacle,
 };
 pub use runtime::{
     ConnectionResolution, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
@@ -51,6 +52,7 @@ pub use shortest_path::{
     SHORTEST_PATH_DEFAULT_BEND_PENALTY, SHORTEST_PATH_DEFAULT_CLEARANCE,
     SHORTEST_PATH_DEFAULT_MINIMUM_STUB, ShortestPathConnectionRouter, ShortestPathRouterError,
 };
+pub use visibility::{VISIBILITY_DEFAULT_SPACING, VisibilityGraphConnectionRouter};
 
 pub use crate::identity::{AnchorId, RouterId};
 

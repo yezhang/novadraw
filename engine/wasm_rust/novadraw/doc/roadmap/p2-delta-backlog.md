@@ -84,7 +84,10 @@ UML 连接文字修改无需端点移动即可重新定位；测量失败可自�
 owner-side 定位已按用户批准的 [ADR-039](../adr/adr-039-owner-aware-connection-locator.md)
 接入统一 LocatorInput/ChildLocatorPlacement、tracked owner 边界与官方 UML，最终门禁通过。
 保留 EndpointLocator 既有切线偏移；ConnectionEndpointLocator 实现 owner 四侧与 child-size 定位。
-Obstruction visibility 路由仍待推进，K03 不整体关闭。
+Obstruction 已按用户批准的 [ADR-040](../adr/adr-040-group-route-solving.md)
+实现完整组求解、visibility/shared corner 与 Canvas 生命周期。
+外部 solver、失败恢复、独立障碍不变量、真实输入与四阶段 Native 截图已验证；
+最终 workspace 门禁通过（1,155 项测试通过、1 项忽略）。K03 的其他示例验收继续保留。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

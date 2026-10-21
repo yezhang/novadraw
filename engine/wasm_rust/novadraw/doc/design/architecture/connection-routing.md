@@ -24,6 +24,14 @@ M9 不提供 GEF EditPart、EditPolicy、Tool、Request、Command、selection、
 `ShortestPathConnectionRouter` 分别由 P2-C01、P2-C02 在本契约上增量交付，不改变
 M9 已完成状态。
 
+[ADR-040](../../adr/adr-040-group-route-solving.md)补充完整组求解：
+Router 通过 `prepares_group_endpoints` 选择 Runtime 端点准备，
+`solve_group(RouteGroupInput)` 返回可选的 `RouteGroupOutput`；
+默认 None 沿既有逐条 route。完整输出必须按输入顺序对应同一 ConnectionId 与 metadata，
+Geometry、Locator、Decoration 全部预检成功后提交，任何失败沿整组 unresolved 通道处理。
+内置 VisibilityGraphConnectionRouter 与外部 solver 共用此协议；
+共享范围和规范 parent child content 坐标域保持不变。
+
 M9.1 只接受纯计算边界和错误模型，不建立 ConnectionRuntime 或修改 FigureTree。
 
 ## 2. Draw2D 基线与 Novadraw 变体
