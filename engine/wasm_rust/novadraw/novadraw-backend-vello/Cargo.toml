@@ -6,6 +6,7 @@ description = "Vello rendering backend for Novadraw"
 
 [features]
 default = []
+native-overlay = ["native"]
 native = [
   "dep:image",
   "dep:raw-window-handle",

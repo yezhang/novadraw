@@ -7,6 +7,7 @@ description = "Shared host and utilities for Novadraw examples"
 
 [features]
 default = ["native"]
+egui-panel = ["native", "dep:egui", "dep:egui-winit", "dep:egui-wgpu", "novadraw-backend-vello/native-overlay"]
 native = [
   "dep:novadraw-backend-vello",
   "novadraw-backend-vello/native",
@@ -27,3 +28,6 @@ winit = { workspace = true, optional = true }
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+egui = { version = "0.35", optional = true }
+egui-winit = { version = "0.35", default-features = false, features = ["clipboard", "x11", "wayland"], optional = true }
+egui-wgpu = { version = "0.35", default-features = false, optional = true }

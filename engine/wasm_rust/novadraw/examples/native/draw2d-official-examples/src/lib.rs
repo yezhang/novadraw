@@ -1,5 +1,6 @@
 //! Source-faithful ports of the runnable `org.eclipse.draw2d.examples` entries.
 
+#[cfg(test)]
 mod controls;
 mod examples;
 
@@ -312,11 +313,64 @@ pub fn runnable_entries() -> Vec<SceneEntry> {
         .collect()
 }
 
+pub fn panel_entries() -> Vec<novadraw_example_support::panel::PanelSceneEntry> {
+    catalog()
+        .into_iter()
+        .filter_map(|entry| {
+            entry.factory.map(|factory| {
+                let name = entry.name;
+                (
+                    name,
+                    Box::new(move || {
+                        examples::panel_scene(name).unwrap_or_else(|| (factory(), None))
+                    })
+                        as Box<dyn FnMut() -> novadraw_example_support::panel::PanelScene>,
+                )
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    #[test]
+    fn hosted_panels_preserve_canvas_without_mock_widgets() {
+        for name in [
+            "GridLayoutExample",
+            "FlowLayoutExample",
+            "ToolbarLayoutExample",
+            "TreeExample",
+        ] {
+            let (runtime, panel) = examples::panel_scene(name).expect("panel scene");
+            assert!(panel.is_some());
+            let root = runtime.tree().contents().expect("Canvas");
+            let mut pending = vec![root];
+            while let Some(id) = pending.pop() {
+                let node = runtime.tree().node(id).expect("Canvas figure");
+                assert!(
+                    ![
+                        "Button",
+                        "CheckBox",
+                        "RadioButton",
+                        "Scale",
+                        "Text",
+                        "Combo",
+                        "Group"
+                    ]
+                    .contains(&node.figure_name()),
+                    "{name}: mock {}",
+                    node.figure_name()
+                );
+                if let Ok(children) = runtime.tree().child_order(id) {
+                    pending.extend(children);
+                }
+            }
+        }
+    }
 
     #[test]
     fn catalog_is_the_exact_official_main_denominator() {

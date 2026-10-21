@@ -23,6 +23,8 @@
 
 #[cfg(feature = "native")]
 pub mod app;
+#[cfg(feature = "egui-panel")]
+pub mod panel;
 pub mod prelude;
 #[cfg(feature = "native")]
 pub mod verification;

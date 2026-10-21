@@ -41,6 +41,23 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
     a: 1.0,
 };
 
+/// Optional native host composition, executed after the Canvas blit and before presentation.
+#[cfg(feature = "native-overlay")]
+pub trait NativeOverlay {
+    fn paint(
+        &mut self,
+        device: &vello::wgpu::Device,
+        queue: &vello::wgpu::Queue,
+        encoder: &mut vello::wgpu::CommandEncoder,
+        target: &vello::wgpu::TextureView,
+        format: vello::wgpu::TextureFormat,
+        size: [u32; 2],
+    );
+}
+
+#[cfg(feature = "native-overlay")]
+pub use vello::wgpu;
+
 /// A native window that can provide the raw handles required by the GPU surface.
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 pub trait NativeWindow:
@@ -545,6 +562,8 @@ fn clip_restore_plan<'a>(
 }
 
 pub struct VelloRenderer {
+    #[cfg(feature = "native-overlay")]
+    overlay: Option<Box<dyn NativeOverlay>>,
     render_context: RenderContext,
     renderers: Vec<Option<Renderer>>,
     scene: vello::Scene,
@@ -611,6 +630,8 @@ impl VelloRenderer {
         renderers[surface.dev_id] = Some(create_renderer(&render_context, &surface)?);
 
         Ok(Self {
+            #[cfg(feature = "native-overlay")]
+            overlay: None,
             render_context,
             renderers,
             scene: vello::Scene::new(),
@@ -630,6 +651,11 @@ impl VelloRenderer {
 
     fn current_surface_size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
+    }
+
+    #[cfg(feature = "native-overlay")]
+    pub fn set_native_overlay(&mut self, overlay: Option<Box<dyn NativeOverlay>>) {
+        self.overlay = overlay;
     }
 
     fn sync_submission_resources(
@@ -1532,15 +1558,27 @@ impl RenderBackend for VelloRenderer {
             );
         }
 
+        let surface_view = surface_texture
+            .texture
+            .create_view(&vello::wgpu::TextureViewDescriptor::default());
         self.surface.blitter.copy(
             &device_handle.device,
             &mut encoder,
             &retained_view,
-            &surface_texture
-                .texture
-                .create_view(&vello::wgpu::TextureViewDescriptor::default()),
+            &surface_view,
         );
 
+        #[cfg(feature = "native-overlay")]
+        if let Some(overlay) = &mut self.overlay {
+            overlay.paint(
+                &device_handle.device,
+                &device_handle.queue,
+                &mut encoder,
+                &surface_view,
+                self.surface.config.format,
+                [width, height],
+            );
+        }
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
         #[cfg(all(target_os = "macos", feature = "native"))]
@@ -1643,6 +1681,23 @@ impl VelloRenderer {
         }
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
+        }
+        #[cfg(feature = "native-overlay")]
+        if let Some(overlay) = &mut self.overlay {
+            let mut encoder = device_handle.device.create_command_encoder(
+                &vello::wgpu::CommandEncoderDescriptor {
+                    label: Some("Screenshot overlay"),
+                },
+            );
+            overlay.paint(
+                &device_handle.device,
+                &device_handle.queue,
+                &mut encoder,
+                &retained_view,
+                vello::wgpu::TextureFormat::Rgba8Unorm,
+                [width, height],
+            );
+            device_handle.queue.submit([encoder.finish()]);
         }
         Ok(RenderDisposition::Presented)
     }

@@ -35,3 +35,13 @@ fn runtime_with_fonts() -> Runtime {
     }
     runtime
 }
+
+pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelScene> {
+    Some(match name {
+        "GridLayoutExample" => grid_layout_example::panel_scene(),
+        "FlowLayoutExample" => flow_layout_example::panel_scene(),
+        "ToolbarLayoutExample" => toolbar_layout_example::panel_scene(),
+        "TreeExample" => tree_example::panel_scene(),
+        _ => return None,
+    })
+}

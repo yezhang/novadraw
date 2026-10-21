@@ -1,13 +1,15 @@
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, AtomicUsize},
-};
-
+#[cfg(test)]
 use novadraw::{
     event::EventContext,
+    figure::{FigureStyle, LabelFigure},
+};
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::{Arc, Mutex};
+
+use novadraw::{
     figure::{
-        EllipseFigure, FigureStyle, LabelFigure, RectangleFigure, RoundedRectangleFigure,
-        TriangleFigure, border::LineBorder,
+        EllipseFigure, RectangleFigure, RoundedRectangleFigure, TriangleFigure, border::LineBorder,
     },
     geometry::{Dimension, Rectangle},
     graphics::Color,
@@ -16,7 +18,9 @@ use novadraw::{
     tree::FigureId,
 };
 
+#[cfg(test)]
 use crate::controls::{add_checkbox, add_radio, add_scale};
+use novadraw_example_support::panel::{Panel, PanelScene, egui};
 
 use super::runtime_with_fonts;
 
@@ -25,6 +29,7 @@ const HEIGHT: f64 = 620.0;
 const CONTENT_WIDTH: f64 = 620.0;
 const CONTENT_HEIGHT: f64 = 580.0;
 const CONTROL_X: f64 = 640.0;
+#[cfg(test)]
 const CONTROL_WIDTH: f64 = 250.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -77,7 +82,61 @@ pub fn flow_layout_example() -> Runtime {
     fixture().runtime
 }
 
+pub fn panel_scene() -> PanelScene {
+    let fixture = canvas_fixture(false);
+    let content = fixture.content;
+    let settings = fixture.settings;
+    (
+        fixture.runtime,
+        Some(Panel::new([CONTROL_X as f32, 20.0], move |ui, runtime| {
+            let mut state = settings.lock().expect("Flow settings");
+            let before = *state;
+            ui.heading("FlowLayout");
+            ui.checkbox(&mut state.horizontal, "Horizontal");
+            ui.checkbox(&mut state.stretch_minor_axis, "Stretch Minor Axis");
+            ui.label("Major Axis");
+            for (label, value) in [
+                ("Start", FlowAlignment::Start),
+                ("Center", FlowAlignment::Center),
+                ("End", FlowAlignment::End),
+            ] {
+                ui.radio_value(&mut state.major_alignment, value, label);
+            }
+            ui.add(
+                egui::Slider::new(&mut state.major_spacing, 0.0..=20.0)
+                    .integer()
+                    .text("Spacing"),
+            );
+            ui.separator();
+            ui.label("Minor Axis");
+            for (label, value) in [
+                ("Start", FlowAlignment::Start),
+                ("Center", FlowAlignment::Center),
+                ("End", FlowAlignment::End),
+            ] {
+                ui.radio_value(&mut state.minor_alignment, value, label);
+            }
+            ui.add(
+                egui::Slider::new(&mut state.minor_spacing, 0.0..=20.0)
+                    .integer()
+                    .text("Spacing"),
+            );
+            if *state != before {
+                runtime
+                    .figure(content)
+                    .expect("Flow container")
+                    .set_layout_manager(Box::new(state.layout()))
+                    .expect("Flow layout");
+            }
+        })),
+    )
+}
+
 fn fixture() -> Fixture {
+    canvas_fixture(cfg!(test))
+}
+
+fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
@@ -110,109 +169,117 @@ fn fixture() -> Fixture {
         .expect("FlowLayout");
     add_official_shapes(&mut runtime, content);
 
-    let controls_panel = runtime
-        .figure(root)
-        .expect("root")
-        .add(Box::new(
-            RectangleFigure::new_with_color(
-                CONTROL_X,
-                10.0,
-                CONTROL_WIDTH,
-                CONTENT_HEIGHT,
-                Color::rgba(0.96, 0.96, 0.96, 1.0),
-            )
-            .with_border(LineBorder::default_border()),
-        ))
-        .expect("control panel");
-    add_heading(&mut runtime, controls_panel, "FlowLayout Properties", 8.0);
+    #[cfg(not(test))]
+    let controls = Vec::new();
+    #[cfg(test)]
+    let controls = if _legacy_controls {
+        let controls_panel = runtime
+            .figure(root)
+            .expect("root")
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    CONTROL_X,
+                    10.0,
+                    CONTROL_WIDTH,
+                    CONTENT_HEIGHT,
+                    Color::rgba(0.96, 0.96, 0.96, 1.0),
+                )
+                .with_border(LineBorder::default_border()),
+            ))
+            .expect("control panel");
+        add_heading(&mut runtime, controls_panel, "FlowLayout Properties", 8.0);
 
-    let mut controls = Vec::new();
-    let horizontal = Arc::new(AtomicBool::new(true));
-    controls.push(add_checkbox(
-        &mut runtime,
-        controls_panel,
-        Rectangle::new(12.0, 42.0, 210.0, 22.0),
-        "Horizontal",
-        horizontal,
-        layout_bool_action(settings.clone(), content, |state, value| {
-            state.horizontal = value;
-        }),
-    ));
-    let stretch = Arc::new(AtomicBool::new(false));
-    controls.push(add_checkbox(
-        &mut runtime,
-        controls_panel,
-        Rectangle::new(12.0, 68.0, 210.0, 22.0),
-        "Stretch Minor Axis",
-        stretch,
-        layout_bool_action(settings.clone(), content, |state, value| {
-            state.stretch_minor_axis = value;
-        }),
-    ));
-
-    add_heading(&mut runtime, controls_panel, "Major Axis", 105.0);
-    let major_group = Arc::new(AtomicUsize::new(0));
-    for (index, (label, alignment)) in [
-        ("Top/Left", FlowAlignment::Start),
-        ("Middle/Center", FlowAlignment::Center),
-        ("Bottom/Right", FlowAlignment::End),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        controls.push(add_radio(
+        let mut controls = Vec::new();
+        let horizontal = Arc::new(AtomicBool::new(true));
+        controls.push(add_checkbox(
             &mut runtime,
             controls_panel,
-            Rectangle::new(12.0, 132.0 + index as f64 * 24.0, 210.0, 22.0),
-            label,
-            major_group.clone(),
-            index,
-            layout_choice_action(settings.clone(), content, alignment, true),
+            Rectangle::new(12.0, 42.0, 210.0, 22.0),
+            "Horizontal",
+            horizontal,
+            layout_bool_action(settings.clone(), content, |state, value| {
+                state.horizontal = value;
+            }),
         ));
-    }
-    let major_spacing = Arc::new(Mutex::new(5.0));
-    controls.push(add_scale(
-        &mut runtime,
-        controls_panel,
-        Rectangle::new(12.0, 210.0, 210.0, 24.0),
-        0.0,
-        20.0,
-        major_spacing,
-        layout_scale_action(settings.clone(), content, true),
-    ));
-    add_caption(&mut runtime, controls_panel, "Spacing", 235.0);
-
-    add_heading(&mut runtime, controls_panel, "Minor Axis", 275.0);
-    let minor_group = Arc::new(AtomicUsize::new(0));
-    for (index, (label, alignment)) in [
-        ("Top/Left", FlowAlignment::Start),
-        ("Middle/Center", FlowAlignment::Center),
-        ("Bottom/Right", FlowAlignment::End),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        controls.push(add_radio(
+        let stretch = Arc::new(AtomicBool::new(false));
+        controls.push(add_checkbox(
             &mut runtime,
             controls_panel,
-            Rectangle::new(12.0, 302.0 + index as f64 * 24.0, 210.0, 22.0),
-            label,
-            minor_group.clone(),
-            index,
-            layout_choice_action(settings.clone(), content, alignment, false),
+            Rectangle::new(12.0, 68.0, 210.0, 22.0),
+            "Stretch Minor Axis",
+            stretch,
+            layout_bool_action(settings.clone(), content, |state, value| {
+                state.stretch_minor_axis = value;
+            }),
         ));
-    }
-    let minor_spacing = Arc::new(Mutex::new(5.0));
-    controls.push(add_scale(
-        &mut runtime,
-        controls_panel,
-        Rectangle::new(12.0, 380.0, 210.0, 24.0),
-        0.0,
-        20.0,
-        minor_spacing,
-        layout_scale_action(settings.clone(), content, false),
-    ));
-    add_caption(&mut runtime, controls_panel, "Spacing", 405.0);
+
+        add_heading(&mut runtime, controls_panel, "Major Axis", 105.0);
+        let major_group = Arc::new(AtomicUsize::new(0));
+        for (index, (label, alignment)) in [
+            ("Top/Left", FlowAlignment::Start),
+            ("Middle/Center", FlowAlignment::Center),
+            ("Bottom/Right", FlowAlignment::End),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            controls.push(add_radio(
+                &mut runtime,
+                controls_panel,
+                Rectangle::new(12.0, 132.0 + index as f64 * 24.0, 210.0, 22.0),
+                label,
+                major_group.clone(),
+                index,
+                layout_choice_action(settings.clone(), content, alignment, true),
+            ));
+        }
+        let major_spacing = Arc::new(Mutex::new(5.0));
+        controls.push(add_scale(
+            &mut runtime,
+            controls_panel,
+            Rectangle::new(12.0, 210.0, 210.0, 24.0),
+            0.0,
+            20.0,
+            major_spacing,
+            layout_scale_action(settings.clone(), content, true),
+        ));
+        add_caption(&mut runtime, controls_panel, "Spacing", 235.0);
+
+        add_heading(&mut runtime, controls_panel, "Minor Axis", 275.0);
+        let minor_group = Arc::new(AtomicUsize::new(0));
+        for (index, (label, alignment)) in [
+            ("Top/Left", FlowAlignment::Start),
+            ("Middle/Center", FlowAlignment::Center),
+            ("Bottom/Right", FlowAlignment::End),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            controls.push(add_radio(
+                &mut runtime,
+                controls_panel,
+                Rectangle::new(12.0, 302.0 + index as f64 * 24.0, 210.0, 22.0),
+                label,
+                minor_group.clone(),
+                index,
+                layout_choice_action(settings.clone(), content, alignment, false),
+            ));
+        }
+        let minor_spacing = Arc::new(Mutex::new(5.0));
+        controls.push(add_scale(
+            &mut runtime,
+            controls_panel,
+            Rectangle::new(12.0, 380.0, 210.0, 24.0),
+            0.0,
+            20.0,
+            minor_spacing,
+            layout_scale_action(settings.clone(), content, false),
+        ));
+        add_caption(&mut runtime, controls_panel, "Spacing", 405.0);
+        controls
+    } else {
+        Vec::new()
+    };
 
     Fixture {
         runtime,
@@ -358,6 +425,7 @@ fn add_official_shapes(runtime: &mut Runtime, parent: FigureId) {
     }
 }
 
+#[cfg(test)]
 fn layout_bool_action(
     settings: Arc<Mutex<FlowSettings>>,
     content: FigureId,
@@ -375,6 +443,7 @@ fn layout_bool_action(
     }
 }
 
+#[cfg(test)]
 fn layout_choice_action(
     settings: Arc<Mutex<FlowSettings>>,
     content: FigureId,
@@ -397,6 +466,7 @@ fn layout_choice_action(
     }
 }
 
+#[cfg(test)]
 fn layout_scale_action(
     settings: Arc<Mutex<FlowSettings>>,
     content: FigureId,
@@ -418,14 +488,17 @@ fn layout_scale_action(
     }
 }
 
+#[cfg(test)]
 fn add_heading(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64) {
     add_text(runtime, parent, text, y, "bold 13px Inter Variable");
 }
 
+#[cfg(test)]
 fn add_caption(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64) {
     add_text(runtime, parent, text, y, "12px Inter Variable");
 }
 
+#[cfg(test)]
 fn add_text(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64, font: &str) {
     let label = runtime
         .figure(parent)

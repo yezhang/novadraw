@@ -1,8 +1,12 @@
+#[cfg(test)]
+use novadraw::figure::LabelFigure;
+#[cfg(test)]
+use std::sync::atomic::AtomicUsize;
 use std::{
     collections::HashMap,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -12,7 +16,7 @@ use novadraw::{
         CONTAINER, ChildClippingStrategy, ContainerCapability, CursorIcon, EllipseFigure, Figure,
         FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer,
         FigureLifecycle, FigureLifecycleContext, FigureStyle, INPUT, InputCapability, LIFECYCLE,
-        LabelFigure, LifecycleCapability, RectangleFigure, RoundedRectangleFigure, TriangleFigure,
+        LifecycleCapability, RectangleFigure, RoundedRectangleFigure, TriangleFigure,
     },
     geometry::{Dimension, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
@@ -21,12 +25,204 @@ use novadraw::{
     tree::{FigureId, FigureSubtree},
 };
 
+#[cfg(test)]
 use crate::controls::{
     add_button, add_checkbox, add_checkbox_enabled, add_combo, add_combo_enabled, add_text_field,
     replace_text_value_later,
 };
 
 use super::runtime_with_fonts;
+use novadraw_example_support::panel::{Panel, PanelScene, egui};
+
+pub fn panel_scene() -> PanelScene {
+    let mut runtime = runtime_with_fonts();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WIDTH,
+            HEIGHT,
+            Color::WHITE,
+        )))
+        .expect("Grid root");
+    let state = Arc::new(GridExampleState::default());
+    let content = runtime
+        .figure(root)
+        .expect("Grid root")
+        .add(Box::new(GridContainerFigure {
+            bounds: Rectangle::new(CONTENT_X, CONTENT_Y, CONTENT_WIDTH, CONTENT_HEIGHT),
+            state: state.clone(),
+        }))
+        .expect("Grid container");
+    let mut settings = GridSettings::default();
+    runtime
+        .figure(content)
+        .expect("Grid container")
+        .set_layout_manager(Box::new(settings.layout()))
+        .expect("Grid layout");
+    let mut sequence = ShapeSequence::default();
+    for _ in 0..2 {
+        let id = runtime
+            .figure(content)
+            .expect("Grid container")
+            .add(Box::new(sequence.next(state.clone())))
+            .expect("Grid shape");
+        runtime
+            .figure(id)
+            .expect("Grid shape")
+            .set_preferred_size(Dimension::new(SHAPE_SIZE, SHAPE_SIZE))
+            .expect("shape size");
+        state
+            .constraints
+            .lock()
+            .expect("constraints")
+            .insert(id, GridConstraint::default());
+    }
+    (
+        runtime,
+        Some(Panel::new([CONTROL_X as f32, 20.0], move |ui, runtime| {
+            ui.heading("GridLayout");
+            let before = settings;
+            ui.horizontal(|ui| {
+                ui.label("numColumns");
+                let response =
+                    ui.add(egui::DragValue::new(&mut settings.columns).range(1..=usize::MAX));
+                #[cfg(test)]
+                ui.ctx().data_mut(|data| {
+                    data.insert_temp(egui::Id::new("grid-columns-editor"), response.rect)
+                });
+                let _ = response;
+            });
+            ui.checkbox(&mut settings.equal_column_widths, "makeColumnsEqualWidth");
+            for (label, value) in [
+                ("marginWidth", &mut settings.margin_width),
+                ("marginHeight", &mut settings.margin_height),
+                ("horizontalSpacing", &mut settings.horizontal_spacing),
+                ("verticalSpacing", &mut settings.vertical_spacing),
+            ] {
+                ui.horizontal(|ui| {
+                    ui.label(label);
+                    ui.add(egui::DragValue::new(value).range(0.0..=f64::MAX));
+                });
+            }
+            if settings != before {
+                runtime
+                    .figure(content)
+                    .expect("Grid container")
+                    .set_layout_manager(Box::new(settings.layout()))
+                    .expect("Grid layout");
+            }
+            ui.horizontal(|ui| {
+                if ui.button("Add").clicked() {
+                    let figure = sequence.next(state.clone());
+                    let receipt = runtime
+                        .figure(content)
+                        .expect("Grid container")
+                        .add_subtree(FigureSubtree::new(Box::new(figure)))
+                        .expect("Grid insertion");
+                    state
+                        .constraints
+                        .lock()
+                        .expect("constraints")
+                        .insert(receipt.root(), GridConstraint::default());
+                }
+                if ui.button("Clear All").clicked() {
+                    if let Some(previous) = state.selected.lock().expect("selection").take() {
+                        previous.highlighted.store(false, Ordering::Relaxed);
+                    }
+                    let children = runtime
+                        .tree()
+                        .child_order(content)
+                        .expect("Grid children")
+                        .to_vec();
+                    for child in children {
+                        runtime
+                            .figure(content)
+                            .expect("Grid container")
+                            .remove(child)
+                            .expect("Grid removal");
+                    }
+                }
+            });
+            ui.separator();
+            ui.label("Selected Figure's GridData");
+            let selected = state
+                .selected
+                .lock()
+                .expect("selection")
+                .as_ref()
+                .map(|shape| shape.id);
+            ui.add_enabled_ui(selected.is_some(), |ui| {
+                let mut constraint = selected
+                    .and_then(|id| {
+                        state
+                            .constraints
+                            .lock()
+                            .expect("constraints")
+                            .get(&id)
+                            .copied()
+                    })
+                    .unwrap_or_default();
+                let before = constraint;
+                for (label, hint) in [
+                    ("widthHint", &mut constraint.width_hint),
+                    ("heightHint", &mut constraint.height_hint),
+                ] {
+                    let mut value = hint.unwrap_or(-1.0);
+                    ui.horizontal(|ui| {
+                        ui.label(label);
+                        ui.add(egui::DragValue::new(&mut value).range(-1.0..=f64::MAX));
+                    });
+                    *hint = (value >= 0.0).then_some(value);
+                }
+                for (label, alignment) in [
+                    ("horizontalAlignment", &mut constraint.horizontal_alignment),
+                    ("verticalAlignment", &mut constraint.vertical_alignment),
+                ] {
+                    egui::ComboBox::from_label(label)
+                        .selected_text(ALIGNMENT_NAMES[alignment_index(*alignment)])
+                        .show_ui(ui, |ui| {
+                            for (index, label) in ALIGNMENT_NAMES.iter().enumerate() {
+                                ui.selectable_value(alignment, alignment_at(index), *label);
+                            }
+                        });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("horizontalIndent");
+                    ui.add(
+                        egui::DragValue::new(&mut constraint.horizontal_indent)
+                            .range(0.0..=f64::MAX),
+                    );
+                });
+                for (label, span) in [
+                    ("horizontalSpan", &mut constraint.horizontal_span),
+                    ("verticalSpan", &mut constraint.vertical_span),
+                ] {
+                    ui.horizontal(|ui| {
+                        ui.label(label);
+                        ui.add(egui::DragValue::new(span).range(1..=usize::MAX));
+                    });
+                }
+                ui.checkbox(&mut constraint.grab_horizontal, "grabExcessHorizontalSpace");
+                ui.checkbox(&mut constraint.grab_vertical, "grabExcessVerticalSpace");
+                if constraint != before
+                    && let Some(id) = selected
+                {
+                    runtime
+                        .figure(id)
+                        .expect("selected Grid shape")
+                        .set_layout_constraint(constraint)
+                        .expect("Grid constraint");
+                    state
+                        .constraints
+                        .lock()
+                        .expect("constraints")
+                        .insert(id, constraint);
+                }
+            });
+        })),
+    )
+}
 
 const WIDTH: f64 = 1200.0;
 const HEIGHT: f64 = 760.0;
@@ -35,9 +231,12 @@ const CONTENT_Y: f64 = 20.0;
 const CONTENT_WIDTH: f64 = 790.0;
 const CONTENT_HEIGHT: f64 = 720.0;
 const CONTROL_X: f64 = 20.0;
+#[cfg(test)]
 const CONTROL_WIDTH: f64 = 350.0;
 const SHAPE_SIZE: f64 = 70.0;
+#[cfg(test)]
 const TEXT_WIDTH: f64 = 62.0;
+#[cfg(test)]
 const COMBO_WIDTH: f64 = 118.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -72,6 +271,7 @@ impl GridSettings {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone)]
 struct TextBinding {
     id: FigureId,
@@ -79,6 +279,7 @@ struct TextBinding {
     enabled: Arc<AtomicBool>,
 }
 
+#[cfg(test)]
 #[derive(Clone)]
 struct ChoiceBinding {
     id: FigureId,
@@ -86,6 +287,7 @@ struct ChoiceBinding {
     enabled: Arc<AtomicBool>,
 }
 
+#[cfg(test)]
 #[derive(Clone)]
 struct BoolBinding {
     id: FigureId,
@@ -93,6 +295,7 @@ struct BoolBinding {
     enabled: Arc<AtomicBool>,
 }
 
+#[cfg(test)]
 struct GridDataControls {
     width_hint: TextBinding,
     height_hint: TextBinding,
@@ -105,6 +308,7 @@ struct GridDataControls {
     grab_vertical: BoolBinding,
 }
 
+#[cfg(test)]
 impl GridDataControls {
     fn all_ids(&self) -> [FigureId; 9] {
         [
@@ -193,10 +397,12 @@ struct SelectedShape {
 struct GridExampleState {
     selected: Mutex<Option<SelectedShape>>,
     constraints: Mutex<HashMap<FigureId, GridConstraint>>,
+    #[cfg(test)]
     controls: Mutex<Option<Arc<GridDataControls>>>,
 }
 
 impl GridExampleState {
+    #[cfg(test)]
     fn set_controls(&self, controls: Arc<GridDataControls>) {
         *self.controls.lock().expect("GridData controls") = Some(controls);
     }
@@ -219,12 +425,14 @@ impl GridExampleState {
         highlighted.store(true, Ordering::Relaxed);
         repaint_figure(context, id);
 
+        #[cfg(test)]
         let constraint = *self
             .constraints
             .lock()
             .expect("GridData constraints")
             .entry(id)
             .or_default();
+        #[cfg(test)]
         if let Some(controls) = self.controls.lock().expect("GridData controls").as_ref() {
             controls.populate(constraint, context);
         }
@@ -235,11 +443,13 @@ impl GridExampleState {
             previous.highlighted.store(false, Ordering::Relaxed);
             repaint_figure(context, previous.id);
         }
+        #[cfg(test)]
         if let Some(controls) = self.controls.lock().expect("GridData controls").as_ref() {
             controls.set_enabled(false, context);
         }
     }
 
+    #[cfg(test)]
     fn update_constraint(
         &self,
         context: &mut EventContext<'_>,
@@ -484,10 +694,12 @@ const OFFICIAL_COLORS: [Color; 9] = [
     Color::rgba(1.0, 196.0 / 255.0, 0.0, 1.0),
 ];
 
+#[cfg(test)]
 struct GroupFigure {
     bounds: Rectangle,
 }
 
+#[cfg(test)]
 impl Figure for GroupFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -516,6 +728,7 @@ impl Figure for GroupFigure {
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
 struct Fixture {
     runtime: Runtime,
     content: FigureId,
@@ -527,9 +740,10 @@ struct Fixture {
 }
 
 pub fn grid_layout_example() -> Runtime {
-    fixture().runtime
+    panel_scene().0
 }
 
+#[cfg(test)]
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
     let root = runtime
@@ -727,6 +941,7 @@ fn fixture() -> Fixture {
     }
 }
 
+#[cfg(test)]
 fn create_grid_data_controls(
     runtime: &mut Runtime,
     root: FigureId,
@@ -855,6 +1070,7 @@ fn create_grid_data_controls(
     }
 }
 
+#[cfg(test)]
 fn add_grid_text(
     runtime: &mut Runtime,
     root: FigureId,
@@ -880,6 +1096,7 @@ fn add_grid_text(
     TextBinding { id, value, enabled }
 }
 
+#[cfg(test)]
 fn add_grid_alignment(
     runtime: &mut Runtime,
     root: FigureId,
@@ -912,6 +1129,7 @@ fn add_grid_alignment(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn add_layout_combo(
     runtime: &mut Runtime,
     root: FigureId,
@@ -943,6 +1161,7 @@ fn add_layout_combo(
     );
 }
 
+#[cfg(test)]
 fn layout_text_action(
     settings: Arc<Mutex<GridSettings>>,
     content: FigureId,
@@ -960,6 +1179,7 @@ fn layout_text_action(
     }
 }
 
+#[cfg(test)]
 fn layout_bool_action(
     settings: Arc<Mutex<GridSettings>>,
     content: FigureId,
@@ -977,6 +1197,7 @@ fn layout_bool_action(
     }
 }
 
+#[cfg(test)]
 fn add_group(runtime: &mut Runtime, root: FigureId, bounds: Rectangle, title: &'static str) {
     runtime
         .figure(root)
@@ -993,6 +1214,7 @@ fn add_group(runtime: &mut Runtime, root: FigureId, bounds: Rectangle, title: &'
     );
 }
 
+#[cfg(test)]
 fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, x: f64, y: f64, width: f64) {
     let label = runtime
         .figure(root)
@@ -1012,11 +1234,13 @@ fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, x: f64, y: f64
         .expect("Label style");
 }
 
+#[cfg(test)]
 fn set_text(binding: &TextBinding, value: String, context: &mut EventContext<'_>) {
     *binding.value.lock().expect("GridData text") = value.clone();
     replace_text_value_later(context, binding.id, value, TEXT_WIDTH - 4.0);
 }
 
+#[cfg(test)]
 fn set_choice(binding: &ChoiceBinding, index: usize, context: &mut EventContext<'_>) {
     binding.selected.store(index, Ordering::Relaxed);
     replace_text_value_later(
@@ -1027,6 +1251,7 @@ fn set_choice(binding: &ChoiceBinding, index: usize, context: &mut EventContext<
     );
 }
 
+#[cfg(test)]
 fn repaint_control(context: &mut EventContext<'_>, id: FigureId) {
     if let Ok(bounds) = context.scene().figure_bounds(id) {
         context
@@ -1043,19 +1268,23 @@ fn repaint_figure(context: &mut EventContext<'_>, id: FigureId) {
     }
 }
 
+#[cfg(test)]
 fn parse_integer(value: &str, fallback: i64) -> i64 {
     value.parse().unwrap_or(fallback)
 }
 
+#[cfg(test)]
 fn parse_hint(value: &str) -> Option<f64> {
     let value = parse_integer(value, 1);
     (value >= 0).then_some(value as f64)
 }
 
+#[cfg(test)]
 fn hint_text(value: Option<f64>) -> String {
     value.map_or_else(|| "-1".to_owned(), numeric_text)
 }
 
+#[cfg(test)]
 fn numeric_text(value: f64) -> String {
     format!("{value:.0}")
 }
@@ -1088,6 +1317,87 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn egui_numeric_edit_commits_columns_without_canvas_key_dispatch() {
+        let (mut runtime, mut panel) = panel_scene();
+        let panel = panel.as_mut().expect("Grid panel");
+        let root = runtime.tree().contents().expect("Grid root");
+        let content = runtime.tree().child_order(root).unwrap()[0];
+        for _ in 0..2 {
+            runtime
+                .figure(content)
+                .unwrap()
+                .add(Box::new(RectangleFigure::new(
+                    0.0, 0.0, SHAPE_SIZE, SHAPE_SIZE,
+                )))
+                .unwrap();
+        }
+        let context = egui::Context::default();
+        let mut input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1200.0, 800.0),
+            )),
+            ..Default::default()
+        };
+        // Build the panel, then find and focus its numeric editor through real pointer input.
+        let draw = |context: &egui::Context, panel: &mut Panel, runtime: &mut Runtime, input| {
+            context.run_ui(input, |ui| panel.show(ui, runtime))
+        };
+        draw(&context, panel, &mut runtime, input.clone());
+        let position = context
+            .data(|data| data.get_temp::<egui::Rect>(egui::Id::new("grid-columns-editor")))
+            .unwrap()
+            .center();
+        input.events = vec![
+            egui::Event::PointerMoved(position),
+            egui::Event::PointerButton {
+                pos: position,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::default(),
+            },
+        ];
+        draw(&context, panel, &mut runtime, input.clone());
+        input.events = vec![egui::Event::PointerButton {
+            pos: position,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::default(),
+        }];
+        draw(&context, panel, &mut runtime, input.clone());
+        input.events = vec![
+            egui::Event::Key {
+                key: egui::Key::A,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers {
+                    command: true,
+                    ctrl: true,
+                    ..Default::default()
+                },
+            },
+            egui::Event::Text("4".to_owned()),
+            egui::Event::Key {
+                key: egui::Key::Enter,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::default(),
+            },
+        ];
+        draw(&context, panel, &mut runtime, input);
+        runtime.frames().stabilize_for_query().unwrap();
+        let children = runtime.tree().child_order(content).unwrap();
+        let first = runtime.tree().figure_bounds(children[0]).unwrap();
+        let fourth = runtime.tree().figure_bounds(children[3]).unwrap();
+        assert_eq!(
+            first.y, fourth.y,
+            "four columns must place all four figures on one row"
+        );
+    }
 
     #[test]
     fn fixture_matches_the_official_shape_and_control_structure() {

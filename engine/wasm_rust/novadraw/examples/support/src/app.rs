@@ -75,6 +75,12 @@ impl UpdateListener for DemoUpdateListener {
 }
 
 pub struct DemoApp {
+    #[cfg(feature = "egui-panel")]
+    panel_scenes: Vec<crate::panel::PanelSceneEntry>,
+    #[cfg(feature = "egui-panel")]
+    panel: Option<crate::panel::Panel>,
+    #[cfg(feature = "egui-panel")]
+    panel_host: Option<crate::panel::PanelHost>,
     #[allow(clippy::type_complexity)]
     scenes: Vec<(&'static str, SceneCreator)>,
     current_scene_idx: usize,
@@ -112,6 +118,12 @@ impl DemoApp {
             .filter(|mode| *mode != usize::MAX)
             .unwrap_or_else(|| if screenshot_mode.is_some() { 0 } else { 4 });
         Self {
+            #[cfg(feature = "egui-panel")]
+            panel_scenes: Vec::new(),
+            #[cfg(feature = "egui-panel")]
+            panel: None,
+            #[cfg(feature = "egui-panel")]
+            panel_host: None,
             scenes,
             current_scene_idx: default_scene,
             runtime: None,
@@ -145,6 +157,17 @@ impl DemoApp {
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
             let mut runtime = creator();
+            #[cfg(feature = "egui-panel")]
+            if let Some((_, factory)) = self.panel_scenes.get_mut(idx) {
+                let (scene_runtime, panel) = factory();
+                runtime = scene_runtime;
+                self.panel = panel;
+                if let (Some(host), Some(renderer)) = (&self.host, &mut self.renderer) {
+                    let panel_host = crate::panel::PanelHost::new(host.window());
+                    renderer.set_native_overlay(self.panel.as_ref().map(|_| panel_host.overlay()));
+                    self.panel_host = Some(panel_host);
+                }
+            }
             runtime
                 .observations()
                 .add_update_listener(Box::new(DemoUpdateListener));
@@ -184,6 +207,16 @@ impl DemoApp {
 
     /// 渲染当前场景
     pub fn render(&mut self) -> RenderResult {
+        #[cfg(feature = "egui-panel")]
+        if let (Some(host), Some(panel_host), Some(panel), Some(runtime)) = (
+            &self.host,
+            &mut self.panel_host,
+            &mut self.panel,
+            &mut self.runtime,
+        ) {
+            panel_host.prepare(host.window(), panel, runtime);
+            runtime.frames().request_full_redraw();
+        }
         let Some(host) = &self.host else {
             return Ok(RenderDisposition::Skipped);
         };
@@ -244,6 +277,17 @@ impl DemoApp {
     }
 
     fn render_screenshot_frame(&mut self) -> RenderResult {
+        #[cfg(feature = "egui-panel")]
+        if let (Some(host), Some(panel_host), Some(panel), Some(runtime)) = (
+            &self.host,
+            &mut self.panel_host,
+            &mut self.panel,
+            &mut self.runtime,
+        ) {
+            // The first egui pass measures a new window; capture its settled second pass.
+            panel_host.prepare(host.window(), panel, runtime);
+            panel_host.prepare(host.window(), panel, runtime);
+        }
         let Some(host) = &self.host else {
             return Ok(RenderDisposition::Skipped);
         };
@@ -315,7 +359,17 @@ impl DemoApp {
         let (Some(runtime), Some(host)) = (&mut self.runtime, &self.host) else {
             return;
         };
-        host.set_cursor(runtime.focus().cursor_icon());
+        #[cfg(feature = "egui-panel")]
+        let panel_owns_pointer = self.panel.is_some()
+            && self
+                .panel_host
+                .as_ref()
+                .is_some_and(|panel| panel.context.egui_wants_pointer_input());
+        #[cfg(not(feature = "egui-panel"))]
+        let panel_owns_pointer = false;
+        if !panel_owns_pointer {
+            host.set_cursor(runtime.focus().cursor_icon());
+        }
         let tooltip_updates = runtime.tooltip().take_updates();
         if !tooltip_updates.is_empty() {
             runtime.frames().request_full_redraw();
@@ -511,6 +565,16 @@ impl ApplicationHandler<()> for DemoApp {
             }
         };
         self.renderer = Some(renderer);
+        #[cfg(feature = "egui-panel")]
+        if !self.panel_scenes.is_empty() {
+            let panel_host =
+                crate::panel::PanelHost::new(self.host.as_ref().expect("native host").window());
+            self.renderer
+                .as_mut()
+                .expect("renderer")
+                .set_native_overlay(self.panel.as_ref().map(|_| panel_host.overlay()));
+            self.panel_host = Some(panel_host);
+        }
         self.initial_frame_presented = false;
         self.initial_frame_attempts = 0;
         if is_backend_replacement
@@ -541,6 +605,53 @@ impl ApplicationHandler<()> for DemoApp {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        #[cfg(feature = "egui-panel")]
+        if self.panel.is_some()
+            && self.screenshot_mode.is_none()
+            && let (Some(panel_host), Some(host)) = (&mut self.panel_host, &self.host)
+        {
+            let response = panel_host.state.on_window_event(host.window(), &event);
+            if response.repaint {
+                host.request_redraw();
+            }
+            let canvas_captured = self
+                .runtime
+                .as_mut()
+                .is_some_and(|runtime| runtime.input().state().captured().is_some());
+            let pointer_event = matches!(
+                &event,
+                WindowEvent::CursorMoved { .. } | WindowEvent::MouseInput { .. }
+            );
+            let over_panel = match &event {
+                WindowEvent::CursorMoved { position, .. } => {
+                    let scale = host.window().scale_factor();
+                    panel_host
+                        .context
+                        .layer_id_at(crate::panel::egui::pos2(
+                            (position.x / scale) as f32,
+                            (position.y / scale) as f32,
+                        ))
+                        .is_some_and(|layer| layer.order != crate::panel::egui::Order::Background)
+                }
+                _ => false,
+            };
+            if (response.consumed || over_panel) && !(canvas_captured && pointer_event) {
+                if let Some(runtime) = &mut self.runtime {
+                    runtime.input().pointer_exited();
+                    if matches!(
+                        &event,
+                        WindowEvent::MouseInput {
+                            state: winit::event::ElementState::Pressed,
+                            ..
+                        }
+                    ) {
+                        runtime.focus().clear();
+                    }
+                }
+                self.sync_platform_effects();
+                return;
+            }
+        }
         if self.screenshot_mode.is_some()
             && matches!(
                 &event,
@@ -835,6 +946,21 @@ impl ApplicationHandler<()> for DemoApp {
             if time_changed {
                 host.request_redraw();
             }
+            #[cfg(feature = "egui-panel")]
+            if self.panel.is_some()
+                && let Some(panel_host) = &mut self.panel_host
+            {
+                let deadline = host
+                    .wake_deadline()
+                    .map(|time| self.clock_origin + Duration::from_micros(time.as_micros()))
+                    .map_or(panel_host.repaint_at, |time| {
+                        time.min(panel_host.repaint_at)
+                    });
+                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+                if Instant::now() >= panel_host.repaint_at {
+                    host.request_redraw();
+                }
+            }
         }
     }
 
@@ -950,6 +1076,8 @@ fn get_digit_index(key: &winit::keyboard::PhysicalKey) -> Option<usize> {
 /// 用于更灵活地配置应用
 #[allow(clippy::type_complexity)]
 pub struct AppBuilder {
+    #[cfg(feature = "egui-panel")]
+    panel_scenes: Vec<crate::panel::PanelSceneEntry>,
     title: String,
     app_name: String,
     scenes: Vec<(&'static str, SceneCreator)>,
@@ -963,6 +1091,8 @@ impl AppBuilder {
     /// 创建一个新的构建器
     pub fn new(title: &str) -> Self {
         Self {
+            #[cfg(feature = "egui-panel")]
+            panel_scenes: Vec::new(),
             title: title.to_string(),
             app_name: String::new(),
             scenes: Vec::new(),
@@ -1025,6 +1155,16 @@ impl AppBuilder {
         self
     }
 
+    #[cfg(feature = "egui-panel")]
+    pub fn with_panel_scenes(mut self, scenes: Vec<crate::panel::PanelSceneEntry>) -> Self {
+        self.scenes = scenes
+            .iter()
+            .map(|(name, _)| (*name, Box::new(Runtime::empty) as SceneCreator))
+            .collect();
+        self.panel_scenes = scenes;
+        self
+    }
+
     /// 设置截图模式
     ///
     /// `screenshot_all`: true=截图所有场景, false=不截图
@@ -1065,6 +1205,10 @@ impl AppBuilder {
             &app_name,
             self.screenshot_mode,
         );
+        #[cfg(feature = "egui-panel")]
+        {
+            app.panel_scenes = self.panel_scenes;
+        }
         event_loop.run_app(&mut app)?;
         Ok(())
     }

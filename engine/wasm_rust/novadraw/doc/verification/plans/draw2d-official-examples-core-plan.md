@@ -23,6 +23,8 @@ Core 负责 Figure 树、几何、测量/布局、输入分发、资源、连接
 扩展实现负责可替换算法与 Draw2D Figure 组件；backend/platform 负责栅格与宿主服务。
 示例控制器持有选中目标、配对关系和临时高亮/追加状态。不新增 GEF/Editor 依赖。
 当前执行队列只在 [P2 backlog](../../roadmap/p2-delta-backlog.md) 维护。
+Grid、Flow、Toolbar 和 Tree 的宿主控制面板接入与验证见
+[egui 控制面板](draw2d-egui-panel.md)。
 
 ## 本次撤销与保留
 

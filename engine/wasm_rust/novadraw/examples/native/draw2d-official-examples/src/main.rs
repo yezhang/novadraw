@@ -1,4 +1,4 @@
-use draw2d_official_examples::{catalog, runnable_entries};
+use draw2d_official_examples::{catalog, panel_entries};
 use novadraw_example_support::{AppBuilder, VerificationCli};
 
 const APP_NAME: &str = "draw2d-official-examples";
@@ -14,7 +14,7 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(2);
     });
-    let scenes = runnable_entries();
+    let scenes = panel_entries();
     let mut builder = AppBuilder::new(TITLE)
         .with_app_name(APP_NAME)
         .with_size(1200.0, 800.0);
@@ -35,7 +35,7 @@ fn main() {
     };
 
     builder
-        .with_runtime_scenes_boxed(scenes)
+        .with_panel_scenes(scenes)
         .run()
         .expect("failed to run Draw2D official examples");
 }

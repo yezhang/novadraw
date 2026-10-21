@@ -1,22 +1,25 @@
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, AtomicUsize},
-};
-
+#[cfg(test)]
 use novadraw::{
     event::EventContext,
-    figure::{
-        EllipseFigure, FigureStyle, LabelFigure, RectangleFigure, RoundedRectangleFigure,
-        border::LineBorder,
-    },
-    geometry::{Dimension, Rectangle},
+    figure::{FigureStyle, LabelFigure},
+    geometry::Rectangle,
+};
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::{Arc, Mutex};
+
+use novadraw::{
+    figure::{EllipseFigure, RectangleFigure, RoundedRectangleFigure, border::LineBorder},
+    geometry::Dimension,
     graphics::Color,
     layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation},
     runtime::Runtime,
     tree::FigureId,
 };
 
+#[cfg(test)]
 use crate::controls::{add_checkbox, add_radio, add_scale};
+use novadraw_example_support::panel::{Panel, PanelScene, egui};
 
 use super::runtime_with_fonts;
 
@@ -71,7 +74,46 @@ pub fn toolbar_layout_example() -> Runtime {
     fixture().runtime
 }
 
+pub fn panel_scene() -> PanelScene {
+    let fixture = canvas_fixture(false);
+    let content = fixture.content;
+    let settings = fixture.settings;
+    (
+        fixture.runtime,
+        Some(Panel::new([CONTROL_X as f32, 20.0], move |ui, runtime| {
+            let mut state = settings.lock().expect("Toolbar settings");
+            let before = *state;
+            ui.heading("ToolbarLayout");
+            ui.checkbox(&mut state.horizontal, "Horizontal");
+            ui.checkbox(&mut state.stretch_minor_axis, "Stretch Minor Axis");
+            for (label, value) in [
+                ("Start", MinorAlignment::Start),
+                ("Center", MinorAlignment::Center),
+                ("End", MinorAlignment::End),
+            ] {
+                ui.radio_value(&mut state.minor_alignment, value, label);
+            }
+            ui.add(
+                egui::Slider::new(&mut state.spacing, 0.0..=20.0)
+                    .integer()
+                    .text("Spacing"),
+            );
+            if *state != before {
+                runtime
+                    .figure(content)
+                    .expect("Toolbar container")
+                    .set_layout_manager(Box::new(state.layout()))
+                    .expect("Toolbar layout");
+            }
+        })),
+    )
+}
+
 fn fixture() -> Fixture {
+    canvas_fixture(cfg!(test))
+}
+
+fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
@@ -106,74 +148,82 @@ fn fixture() -> Fixture {
         .expect("ToolbarLayout");
     add_official_shapes(&mut runtime, content);
 
-    let panel = runtime
-        .figure(root)
-        .expect("root")
-        .add(Box::new(
-            RectangleFigure::new_with_color(
-                CONTROL_X,
-                10.0,
-                240.0,
-                CONTENT_HEIGHT,
-                Color::rgba(0.96, 0.96, 0.96, 1.0),
-            )
-            .with_border(LineBorder::default_border()),
-        ))
-        .expect("control panel");
-    add_heading(&mut runtime, panel, "ToolbarLayout Properties", 10.0);
+    #[cfg(not(test))]
+    let controls = Vec::new();
+    #[cfg(test)]
+    let controls = if _legacy_controls {
+        let panel = runtime
+            .figure(root)
+            .expect("root")
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    CONTROL_X,
+                    10.0,
+                    240.0,
+                    CONTENT_HEIGHT,
+                    Color::rgba(0.96, 0.96, 0.96, 1.0),
+                )
+                .with_border(LineBorder::default_border()),
+            ))
+            .expect("control panel");
+        add_heading(&mut runtime, panel, "ToolbarLayout Properties", 10.0);
 
-    let mut controls = Vec::new();
-    controls.push(add_checkbox(
-        &mut runtime,
-        panel,
-        Rectangle::new(12.0, 45.0, 210.0, 22.0),
-        "Horizontal",
-        Arc::new(AtomicBool::new(true)),
-        toolbar_bool_action(settings.clone(), content, |state, value| {
-            state.horizontal = value;
-        }),
-    ));
-    controls.push(add_checkbox(
-        &mut runtime,
-        panel,
-        Rectangle::new(12.0, 72.0, 210.0, 22.0),
-        "Stretch Minor Axis",
-        Arc::new(AtomicBool::new(false)),
-        toolbar_bool_action(settings.clone(), content, |state, value| {
-            state.stretch_minor_axis = value;
-        }),
-    ));
-
-    add_heading(&mut runtime, panel, "Minor Axis", 112.0);
-    let alignment = Arc::new(AtomicUsize::new(0));
-    for (index, (text, value)) in [
-        ("Top/Left", MinorAlignment::Start),
-        ("Middle/Center", MinorAlignment::Center),
-        ("Bottom/Right", MinorAlignment::End),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        controls.push(add_radio(
+        let mut controls = Vec::new();
+        controls.push(add_checkbox(
             &mut runtime,
             panel,
-            Rectangle::new(12.0, 140.0 + index as f64 * 26.0, 210.0, 22.0),
-            text,
-            alignment.clone(),
-            index,
-            toolbar_alignment_action(settings.clone(), content, value),
+            Rectangle::new(12.0, 45.0, 210.0, 22.0),
+            "Horizontal",
+            Arc::new(AtomicBool::new(true)),
+            toolbar_bool_action(settings.clone(), content, |state, value| {
+                state.horizontal = value;
+            }),
         ));
-    }
-    controls.push(add_scale(
-        &mut runtime,
-        panel,
-        Rectangle::new(12.0, 225.0, 210.0, 24.0),
-        0.0,
-        20.0,
-        Arc::new(Mutex::new(5.0)),
-        toolbar_scale_action(settings.clone(), content),
-    ));
-    add_caption(&mut runtime, panel, "Spacing", 252.0);
+        controls.push(add_checkbox(
+            &mut runtime,
+            panel,
+            Rectangle::new(12.0, 72.0, 210.0, 22.0),
+            "Stretch Minor Axis",
+            Arc::new(AtomicBool::new(false)),
+            toolbar_bool_action(settings.clone(), content, |state, value| {
+                state.stretch_minor_axis = value;
+            }),
+        ));
+
+        add_heading(&mut runtime, panel, "Minor Axis", 112.0);
+        let alignment = Arc::new(AtomicUsize::new(0));
+        for (index, (text, value)) in [
+            ("Top/Left", MinorAlignment::Start),
+            ("Middle/Center", MinorAlignment::Center),
+            ("Bottom/Right", MinorAlignment::End),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            controls.push(add_radio(
+                &mut runtime,
+                panel,
+                Rectangle::new(12.0, 140.0 + index as f64 * 26.0, 210.0, 22.0),
+                text,
+                alignment.clone(),
+                index,
+                toolbar_alignment_action(settings.clone(), content, value),
+            ));
+        }
+        controls.push(add_scale(
+            &mut runtime,
+            panel,
+            Rectangle::new(12.0, 225.0, 210.0, 24.0),
+            0.0,
+            20.0,
+            Arc::new(Mutex::new(5.0)),
+            toolbar_scale_action(settings.clone(), content),
+        ));
+        add_caption(&mut runtime, panel, "Spacing", 252.0);
+        controls
+    } else {
+        Vec::new()
+    };
 
     Fixture {
         runtime,
@@ -261,6 +311,7 @@ fn add_official_shapes(runtime: &mut Runtime, parent: FigureId) {
     }
 }
 
+#[cfg(test)]
 fn toolbar_bool_action(
     settings: Arc<Mutex<ToolbarSettings>>,
     content: FigureId,
@@ -278,6 +329,7 @@ fn toolbar_bool_action(
     }
 }
 
+#[cfg(test)]
 fn toolbar_alignment_action(
     settings: Arc<Mutex<ToolbarSettings>>,
     content: FigureId,
@@ -295,6 +347,7 @@ fn toolbar_alignment_action(
     }
 }
 
+#[cfg(test)]
 fn toolbar_scale_action(
     settings: Arc<Mutex<ToolbarSettings>>,
     content: FigureId,
@@ -311,14 +364,17 @@ fn toolbar_scale_action(
     }
 }
 
+#[cfg(test)]
 fn add_heading(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64) {
     add_text(runtime, parent, text, y, "bold 13px Inter Variable");
 }
 
+#[cfg(test)]
 fn add_caption(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64) {
     add_text(runtime, parent, text, y, "12px Inter Variable");
 }
 
+#[cfg(test)]
 fn add_text(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64, font: &str) {
     let label = runtime
         .figure(parent)
