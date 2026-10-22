@@ -153,16 +153,11 @@ impl FigureEventHandler for DraggableRectangle {
             return false;
         }
         let entry = event.entry_point();
-        let target = context.target_bounds();
-        *self.drag.lock().expect("drag state") = Some(DragSession {
-            entry,
-            bounds: Rectangle::new(
-                entry.x() - event.x,
-                entry.y() - event.y,
-                target.width,
-                target.height,
-            ),
-        });
+        let target = context.target_id();
+        let Ok(bounds) = context.scene().figure_bounds(target) else {
+            return false;
+        };
+        *self.drag.lock().expect("drag state") = Some(DragSession { entry, bounds });
         true
     }
 
@@ -193,6 +188,7 @@ impl FigureEventHandler for DraggableRectangle {
 struct Fixture {
     runtime: Runtime,
     first_node: FigureId,
+    endpoint_node: FigureId,
     first_connection: ConnectionId,
 }
 
@@ -242,16 +238,17 @@ fn fixture() -> Fixture {
         )
         .expect("midpoint route");
 
-    let (endpoint_panel, _, second_connection_figure, second_connection) = add_connected_group(
-        &mut runtime,
-        root,
-        Rectangle::new(SECOND_PANEL_X, 0.0, PANEL_WIDTH, PANEL_HEIGHT),
-        "Connection endpoint Locator",
-        Rectangle::new(60.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
-        Color::rgba(0.0, 1.0, 0.0, 1.0),
-        Rectangle::new(60.0, 230.0, NODE_WIDTH, NODE_HEIGHT),
-        Color::BLACK,
-    );
+    let (endpoint_panel, endpoint_node, second_connection_figure, second_connection) =
+        add_connected_group(
+            &mut runtime,
+            root,
+            Rectangle::new(SECOND_PANEL_X, 0.0, PANEL_WIDTH, PANEL_HEIGHT),
+            "Connection endpoint Locator",
+            Rectangle::new(60.0, 40.0, NODE_WIDTH, NODE_HEIGHT),
+            Color::rgba(0.0, 1.0, 0.0, 1.0),
+            Rectangle::new(60.0, 230.0, NODE_WIDTH, NODE_HEIGHT),
+            Color::BLACK,
+        );
     let target_label =
         add_connection_label(&mut runtime, second_connection_figure, "Endpoint", 72.0);
     runtime
@@ -304,6 +301,7 @@ fn fixture() -> Fixture {
     Fixture {
         runtime,
         first_node,
+        endpoint_node,
         first_connection,
     }
 }
@@ -560,5 +558,40 @@ mod tests {
             .expect("route");
         assert_ne!(after_route, &before_route);
         assert!(!submission.commands.is_empty());
+    }
+
+    #[test]
+    fn dragging_in_offset_panel_preserves_parent_local_bounds() {
+        let mut fixture = fixture();
+        let before = fixture
+            .runtime
+            .tree()
+            .figure_bounds(fixture.endpoint_node)
+            .expect("endpoint node bounds");
+        let start = Point::new(SECOND_PANEL_X + before.center().x(), before.center().y());
+
+        fixture
+            .runtime
+            .input()
+            .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
+        fixture
+            .runtime
+            .input()
+            .dispatch_mouse_moved(start.x() + 12.0, start.y() + 8.0);
+        fixture.runtime.input().dispatch_mouse_released(
+            start.x() + 12.0,
+            start.y() + 8.0,
+            MouseButton::Left,
+        );
+
+        assert_eq!(
+            fixture.runtime.tree().figure_bounds(fixture.endpoint_node),
+            Ok(Rectangle::new(
+                before.x + 12.0,
+                before.y + 8.0,
+                before.width,
+                before.height,
+            ))
+        );
     }
 }
