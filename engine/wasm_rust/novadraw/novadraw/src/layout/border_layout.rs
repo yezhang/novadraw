@@ -247,10 +247,16 @@ impl LayoutManager for BorderLayout {
         let cw = container_bounds.width;
         let ch = container_bounds.height;
 
-        let mut north_h = self.north_height;
-        let mut south_h = self.south_height;
-        let mut west_w = self.west_width;
-        let mut east_w = self.east_width;
+        // Legacy unconstrained placement can use configured fallback regions.
+        // Explicit Draw2D constraints reserve space only for actual edge children.
+        let mut fallback = false;
+        for (id, _) in &children {
+            fallback |= snapshot.constraint(*id)?.is_none();
+        }
+        let mut north_h = if fallback { self.north_height } else { 0.0 };
+        let mut south_h = if fallback { self.south_height } else { 0.0 };
+        let mut west_w = if fallback { self.west_width } else { 0.0 };
+        let mut east_w = if fallback { self.east_width } else { 0.0 };
         let constraints = MeasureConstraints::bounded(cw, ch)
             .expect("container bounds are valid layout geometry");
         for (child_id, _) in &children {

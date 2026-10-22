@@ -124,6 +124,34 @@ fn xy_layout_applies_container_insets_once() {
 }
 
 #[test]
+fn border_layout_center_does_not_reserve_absent_edge_regions() {
+    let mut runtime = novadraw::runtime::Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)))
+        .unwrap();
+    runtime
+        .figure(root)
+        .unwrap()
+        .set_layout_manager(Box::new(BorderLayout::new()))
+        .unwrap();
+    let child = runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+    runtime
+        .figure(child)
+        .unwrap()
+        .set_layout_constraint(BorderConstraint::new(BorderRegion::Center))
+        .unwrap();
+    runtime.frames().stabilize_for_query().unwrap();
+    assert_eq!(
+        runtime.tree().figure_bounds(child).unwrap(),
+        Rectangle::new(0.0, 0.0, 200.0, 160.0)
+    );
+}
+
+#[test]
 fn border_layout_uses_the_reserved_south_size_for_placement() {
     let mut graph = FigureTree::new();
     let root = graph
