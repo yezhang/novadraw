@@ -968,6 +968,7 @@ pub enum TextError {
     InvalidPreparedScene(String),
     PreparationMeasurement(Box<crate::figure::PreparationMeasureError>),
     PreparationRoute(Box<crate::figure::PreparationRouteError>),
+    PreparationDependency(Box<crate::figure::PreparationDependencyError>),
     Outline(crate::text::outline::FontError),
 }
 
@@ -1012,6 +1013,7 @@ impl fmt::Display for TextError {
             Self::Outline(error) => error.fmt(formatter),
             Self::PreparationMeasurement(error) => error.fmt(formatter),
             Self::PreparationRoute(error) => error.fmt(formatter),
+            Self::PreparationDependency(error) => error.fmt(formatter),
         }
     }
 }
@@ -1021,6 +1023,7 @@ impl Error for TextError {
         match self {
             Self::PreparationMeasurement(error) => Some(error.as_ref()),
             Self::PreparationRoute(error) => Some(error.as_ref()),
+            Self::PreparationDependency(error) => Some(error.as_ref()),
             Self::Outline(error) => Some(error),
             _ => None,
         }

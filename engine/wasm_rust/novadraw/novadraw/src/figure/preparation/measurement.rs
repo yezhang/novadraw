@@ -51,8 +51,20 @@ pub enum PreparationMeasureErrorKind {
 /// Ordered measurement dependency path rejected before invoking a callback.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PreparationDependencyError {
-    MeasurementCycle { path: Vec<FigureId> },
-    DepthExceeded { limit: usize },
+    MeasurementCycle {
+        path: Vec<FigureId>,
+    },
+    DependencyCycle {
+        path: Vec<crate::connection::DependencySubject>,
+    },
+    ForbiddenRouteOutputDependency {
+        owner: FigureId,
+        connection: crate::connection::ConnectionId,
+        subject: crate::connection::DependencySubject,
+    },
+    DepthExceeded {
+        limit: usize,
+    },
 }
 
 impl fmt::Display for PreparationDependencyError {

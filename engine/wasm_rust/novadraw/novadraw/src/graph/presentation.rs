@@ -31,6 +31,34 @@ impl FigureTree {
         &self,
         owner: FigureId,
     ) -> Result<crate::figure::PreparedSceneSnapshot, crate::connection::RouteSceneQueryError> {
+        use crate::connection::{DependencySubject, RouteSceneQueryError, RouteSceneRead};
+        let snapshot = self.source_checked_prepared_scene(owner)?;
+        let geometries = std::collections::HashMap::new();
+        let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+        let mut pending = vec![snapshot.clone()];
+        let mut visited = std::collections::HashSet::new();
+        while let Some(value) = pending.pop() {
+            if !visited.insert(value.identity()) {
+                continue;
+            }
+            for observation in value.observations() {
+                if read.dependency_generation(&observation.subject) != observation.generation {
+                    return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
+                }
+                if let DependencySubject::PreparedScene(dependency) = observation.subject {
+                    pending.push(self.source_checked_prepared_scene(dependency)?);
+                }
+            }
+        }
+        Ok(snapshot)
+    }
+
+    // Generation calculation must not recursively expand the computation graph.
+    // Full authority checks are performed by checked_prepared_scene above.
+    pub(crate) fn source_checked_prepared_scene(
+        &self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, crate::connection::RouteSceneQueryError> {
         use crate::connection::RouteSceneQueryError;
         self.validate_identity(owner)?;
         if !self.is_attached(owner)? {
@@ -87,7 +115,15 @@ impl FigureTree {
                 font: style.font.clone(),
                 bounds,
             };
-            if node.prepared.as_ref().is_some_and(|p| p.key == key) {
+            let geometries = std::collections::HashMap::new();
+            let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+            if node.prepared.as_ref().is_some_and(|p| {
+                use crate::connection::RouteSceneRead;
+                p.key == key
+                    && p.observations.iter().all(|observation| {
+                        read.dependency_generation(&observation.subject) == observation.generation
+                    })
+            }) {
                 continue;
             }
             let mut context = crate::text::MeasureContext::new(
@@ -166,7 +202,11 @@ impl FigureTree {
                     && old.key.text == key.text
                     && old.key.font == key.font
                     && old.key.bounds == key.bounds
-                    && old.observations == observations
+                    && old.observations.len() == observations.len()
+                    && old
+                        .observations
+                        .iter()
+                        .all(|observation| observations.contains(observation))
             });
             let identity = if let Some(old) = unchanged {
                 old.identity

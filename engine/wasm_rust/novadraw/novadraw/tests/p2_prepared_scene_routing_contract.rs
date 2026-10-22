@@ -24,6 +24,8 @@ struct Inputs {
     revision: AtomicU64,
     reject: AtomicBool,
     required: Mutex<Vec<ConnectionId>>,
+    geometry_read: Mutex<Option<FigureId>>,
+    snapshot_read: Mutex<Option<FigureId>>,
 }
 struct Page(Arc<Inputs>);
 struct Empty;
@@ -73,6 +75,12 @@ impl FigurePreparation for Page {
     ) -> Result<PreparedScene, TextError> {
         if self.0.reject.load(Ordering::Relaxed) {
             return Err(TextError::InvalidPreparedScene("rejected candidate".into()));
+        }
+        if let Some(id) = *self.0.geometry_read.lock().unwrap() {
+            scene.client_area(id)?;
+        }
+        if let Some(id) = *self.0.snapshot_read.lock().unwrap() {
+            scene.prepared_scene(id)?;
         }
         let mut result =
             PreparedScene::new(self.prepare(context, bounds)?).with_result_version(self.revision());
@@ -425,4 +433,52 @@ fn source_bounds_commit_is_observed_even_when_equal_to_current_derived_bounds() 
         .unwrap();
     frame(&mut f.runtime).unwrap();
     assert_ne!(f.seen.lock().unwrap().last().unwrap().identity(), old);
+}
+
+#[test]
+fn required_route_output_read_is_rejected_before_solver_and_recovers_after_correction() {
+    let mut f = fixture(true);
+    *f.inputs.geometry_read.lock().unwrap() = Some(f.connection.figure());
+    assert!(matches!(
+        frame(&mut f.runtime),
+        Err(FramePreparationError::Text(TextError::PreparationDependency(error)))
+            if matches!(*error, novadraw::figure::PreparationDependencyError::ForbiddenRouteOutputDependency {
+                owner, connection, ..
+            } if owner == f.owner && connection == f.connection)
+    ));
+    assert!(f.seen.lock().unwrap().is_empty());
+    *f.inputs.geometry_read.lock().unwrap() = None;
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+}
+
+#[test]
+fn route_cycle_expands_prepared_snapshot_computation_reads() {
+    let mut f = fixture(false);
+    *f.inputs.geometry_read.lock().unwrap() = Some(f.connection.figure());
+    // Without a required barrier the ordinary route failure channel still applies.
+    frame(&mut f.runtime).unwrap();
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::RouteFailed(
+            RouteError::DependencyCycle
+        ))
+    ));
+}
+
+#[test]
+fn preparation_self_snapshot_read_returns_ordered_structural_cycle() {
+    let mut f = fixture(true);
+    *f.inputs.snapshot_read.lock().unwrap() = Some(f.owner);
+    assert!(matches!(
+        frame(&mut f.runtime),
+        Err(FramePreparationError::Text(TextError::PreparationDependency(error)))
+            if matches!(&*error, novadraw::figure::PreparationDependencyError::DependencyCycle { path }
+                if *path == vec![DependencySubject::PreparedScene(f.owner), DependencySubject::PreparedScene(f.owner)])
+    ));
+    assert!(f.seen.lock().unwrap().is_empty());
 }

@@ -13,7 +13,12 @@
 Core 实施进度：约束测量与结构化错误已完成首批；候选快照查询、稳定领域结果版本、
 源 bounds 与派生 bounds 分离、路由快照观察和必需组发布屏障已接入。
 外部验证入口为 `p2_preparation_measurement_contract` 和
-`p2_prepared_scene_routing_contract`。完整计算依赖展开、同源 resolved 恢复、
+`p2_prepared_scene_routing_contract`。快照携带计算观察，路由环检测展开这些观察；
+preparation 查询自身快照返回有序结构环，必需组准入拒绝直接或经快照读取
+route/Locator 子树的几何与测量。原始 Figure/capability 借用进入路由子树时
+也记录几何读取；children/parent 源查询不增加此类边。缓存复用核对观察代数，
+身份比较不依赖观察顺序，受检查询拒绝计算观察已漂移的快照。
+完整 LayoutManager 传递观察、批次候选依赖图、同源 resolved 恢复、
 约束测量的传递观察与共享预算仍待后续批次；这不是整个增量的完成声明。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
@@ -193,8 +198,8 @@ pub enum PreparationMeasureErrorKind {
 以上代码描述增量的目标协议。Core 测量切片已实现 `PreparationMeasurement`、
 测量主体与阶段分类，以及 Layout/Text 原因包装；实际实现将 Layout、Text 和
 Dependency 原因保存在 Box 中，避免扩大每个 Result 的错误值，原始错误及
-`Error::source` 契约不变。当前 Dependency 只覆盖测量重入与深度限制；
-完整跨派生环和共享预算仍待后续切片。
+`Error::source` 契约不变。Dependency 已覆盖测量重入、快照结构环、
+必需路由输出反向读取和深度限制；LayoutManager 传递观察与共享预算仍待后续切片。
 `PreparationMetric` 区分 preferred 与 minimum；`PreparationMeasureStage` 标识
 constraint shrink、constraint inverse projection、Border/insets expansion、
 measurement projection。两者表达固定测量步骤，不分派内置或外部行为。

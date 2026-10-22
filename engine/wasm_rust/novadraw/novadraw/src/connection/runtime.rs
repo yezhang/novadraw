@@ -2103,12 +2103,34 @@ fn dependency_cycle(
     observations: &[DependencyObservation],
     scene: &dyn RouteSceneRead,
 ) -> bool {
-    observations.iter().any(|observation| {
-        dependency_figures(&observation.subject)
+    let mut pending = observations
+        .iter()
+        .map(|observation| observation.subject.clone())
+        .collect::<Vec<_>>();
+    let mut visited = std::collections::HashSet::new();
+    while let Some(subject) = pending.pop() {
+        if !visited.insert(subject.clone()) {
+            continue;
+        }
+        if dependency_figures(&subject)
             .into_iter()
             .flatten()
             .any(|figure| is_self_or_descendant(connection.figure(), figure, scene))
-    })
+        {
+            return true;
+        }
+        if let DependencySubject::PreparedScene(owner) = subject
+            && let Ok(snapshot) = scene.prepared_scene(owner)
+        {
+            pending.extend(
+                snapshot
+                    .observations()
+                    .iter()
+                    .map(|observation| observation.subject.clone()),
+            );
+        }
+    }
+    false
 }
 
 fn dependency_figures(subject: &DependencySubject) -> [Option<FigureId>; 2] {

@@ -621,7 +621,8 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         }
         match subject {
             DependencySubject::PreparedScene(figure) => {
-                self.prepared_scene(*figure)
+                self.tree
+                    .source_checked_prepared_scene(*figure)
                     .ok()
                     .map(|snapshot| snapshot.identity())
                     .hash(&mut hasher);

@@ -153,8 +153,79 @@ impl<'a> PreparationScene<'a> {
         self.tree.parent_id(id).map_err(scene_error)
     }
 
+    /// Reads another checked immutable result and retains its computation dependencies.
+    pub fn prepared_scene(&self, id: FigureId) -> Result<super::PreparedSceneSnapshot, TextError> {
+        self.check(id)?;
+        let subject = crate::connection::DependencySubject::PreparedScene(id);
+        let mut path = vec![crate::connection::DependencySubject::PreparedScene(
+            self.root,
+        )];
+        if self.snapshot_reaches_owner(&subject, &mut path)? {
+            return Err(TextError::PreparationDependency(Box::new(
+                PreparationDependencyError::DependencyCycle { path },
+            )));
+        }
+        let snapshot = self.tree.checked_prepared_scene(id).map_err(scene_error)?;
+        self.observe(subject);
+        Ok(snapshot)
+    }
+
+    fn snapshot_reaches_owner(
+        &self,
+        subject: &crate::connection::DependencySubject,
+        path: &mut Vec<crate::connection::DependencySubject>,
+    ) -> Result<bool, TextError> {
+        use crate::connection::DependencySubject;
+        let target = DependencySubject::PreparedScene(self.root);
+        let mut pending = vec![(subject.clone(), 1)];
+        let mut parents: HashMap<DependencySubject, DependencySubject> = HashMap::new();
+        let mut visited = HashSet::new();
+        while let Some((current, depth)) = pending.pop() {
+            if current == target {
+                let mut suffix = vec![current.clone()];
+                let mut cursor = current;
+                while let Some(parent) = parents.get(&cursor) {
+                    suffix.push(parent.clone());
+                    cursor = parent.clone();
+                }
+                suffix.reverse();
+                path.extend(suffix);
+                return Ok(true);
+            }
+            if depth >= crate::graph::MAX_TREE_DEPTH {
+                return Err(TextError::PreparationDependency(Box::new(
+                    PreparationDependencyError::DepthExceeded {
+                        limit: crate::graph::MAX_TREE_DEPTH,
+                    },
+                )));
+            }
+            if !visited.insert(current.clone()) {
+                continue;
+            }
+            if let DependencySubject::PreparedScene(owner) = current
+                && let Some(prepared) = self
+                    .tree
+                    .node(owner)
+                    .map_err(scene_error)?
+                    .prepared
+                    .as_ref()
+            {
+                for observation in &prepared.observations {
+                    if !visited.contains(&observation.subject) {
+                        parents
+                            .entry(observation.subject.clone())
+                            .or_insert(DependencySubject::PreparedScene(owner));
+                        pending.push((observation.subject.clone(), depth + 1));
+                    }
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub fn figure(&self, id: FigureId) -> Result<&dyn Figure, TextError> {
         self.check(id)?;
+        self.observe_borrowed_route_output(id)?;
         Ok(self.tree.node(id).map_err(scene_error)?.figure.as_ref())
     }
 
@@ -164,7 +235,26 @@ impl<'a> PreparationScene<'a> {
         key: CapabilityKey<C>,
     ) -> Result<Option<&C>, TextError> {
         self.check(id)?;
+        self.observe_borrowed_route_output(id)?;
         self.tree.capability(id, key).map_err(scene_error)
+    }
+
+    // Raw capability/figure borrows can expose route or post-route derived data.
+    // Treat access in that subtree as a calculation read; source membership has
+    // separate children/parent queries and does not pass through this boundary.
+    fn observe_borrowed_route_output(&self, mut id: FigureId) -> Result<(), TextError> {
+        let subject = crate::connection::DependencySubject::FigureGeometry(id);
+        loop {
+            let node = self.tree.node(id).map_err(scene_error)?;
+            if node.connection().is_some() {
+                self.observe(subject);
+                return Ok(());
+            }
+            let Some(parent) = node.parent else {
+                return Ok(());
+            };
+            id = parent;
+        }
     }
 
     pub fn style(&self, id: FigureId) -> Result<&ResolvedStyle, TextError> {
@@ -194,6 +284,15 @@ impl<'a> PreparationScene<'a> {
     ) -> Result<FigureMeasurement, TextError> {
         self.check(id)?;
         self.observe(crate::connection::DependencySubject::FigureMeasurement(id));
+        let node = self.tree.node(id).map_err(scene_error)?;
+        if node.preferred_size.is_none()
+            && node.layout.manager.is_none()
+            && let Some(prepared) = &node.prepared
+        {
+            self.observe(crate::connection::DependencySubject::PreparedScene(
+                prepared.owner,
+            ));
+        }
         self.tree
             .preferred_measurement(id, constraints)
             .map_err(scene_error)
@@ -395,6 +494,63 @@ impl PreparedScene {
                         PreparationRouteErrorKind::OutsideScope,
                     ));
                 }
+            }
+        }
+        let mut pending = scene
+            .observations()
+            .into_iter()
+            .map(|observation| observation.subject)
+            .collect::<Vec<_>>();
+        let mut visited = HashSet::new();
+        while let Some(subject) = pending.pop() {
+            if !visited.insert(subject.clone()) {
+                continue;
+            }
+            use crate::connection::DependencySubject;
+            let figures = match &subject {
+                DependencySubject::FigureGeometry(id)
+                | DependencySubject::FigureMeasurement(id)
+                | DependencySubject::NamedAnchorRegion(id, _) => vec![*id],
+                DependencySubject::RelativeTransform(from, to) => [from, to]
+                    .into_iter()
+                    .filter_map(|space| match space {
+                        crate::connection::CoordinateSpace::FigureLocal(id)
+                        | crate::connection::CoordinateSpace::ChildContent(id) => Some(*id),
+                        crate::connection::CoordinateSpace::LogicalSurface => None,
+                    })
+                    .collect(),
+                // Source membership/visibility do not read route output.
+                _ => Vec::new(),
+            };
+            for connection in &required {
+                for figure in &figures {
+                    if *figure == connection.figure()
+                        || scene.tree.is_ancestor_of(connection.figure(), *figure) == Ok(true)
+                    {
+                        return Err(TextError::PreparationDependency(Box::new(
+                            PreparationDependencyError::ForbiddenRouteOutputDependency {
+                                owner: scene.root,
+                                connection: *connection,
+                                subject,
+                            },
+                        )));
+                    }
+                }
+            }
+            if let DependencySubject::PreparedScene(owner) = subject
+                && let Some(prepared) = scene
+                    .tree
+                    .node(owner)
+                    .map_err(scene_error)?
+                    .prepared
+                    .as_ref()
+            {
+                pending.extend(
+                    prepared
+                        .observations
+                        .iter()
+                        .map(|observation| observation.subject.clone()),
+                );
             }
         }
         let mut sources = std::collections::HashSet::new();

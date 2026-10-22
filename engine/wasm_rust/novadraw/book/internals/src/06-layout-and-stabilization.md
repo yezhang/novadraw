@@ -196,7 +196,7 @@ outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline �
 
 测量调用栈由同一 preparation scene 共享。重入相同 Figure 时，入口立即返回带有
 有序 Figure 路径的 `PreparationDependencyError::MeasurementCycle`，不等待反馈预算。
-这一切片只处理测量重入；跨快照、route 和 Locator 的结构环以及共享求解预算仍由
+测量重入与快照计算依赖使用结构化错误；LayoutManager 的传递观察以及共享求解预算仍由
 [图投影增量方案](../../../doc/design/architecture/graph-projection-preparation.md)继续实施。
 
 错误类型位于
@@ -217,8 +217,11 @@ generation 来自有效快照身份，计算尝试不会单独增加 generation�
 
 `require_route_group` 的发布条件单独存储。稳定 epoch 晋升前，Runtime 检查完整求解组、
 resolved 状态、routing space 和本次快照观察；候选失败走原有派生检查点恢复。
-这批实现尚未完成跨 preparation/route/Locator 的传递环检查，以及同源恢复时的
-resolved 元数据保留；这些边界与共享预算继续按增量方案推进。
+快照保存计算观察，路由环检测展开快照观察；preparation 查询自己直接或传递依赖的
+快照时返回有序闭环。必需组准入拒绝读取组成员或其 Locator 子树的几何、测量及原始
+Figure/capability 数据，源 children/parent 查询仍然合法。缓存命中核对观察代数，
+受检快照查询也核对传递观察。LayoutManager 传递观察、同批候选之间的依赖验证、
+同源恢复的 resolved 元数据保留与共享预算继续按增量方案推进。
 外部消费者验证见
 [`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)。
 

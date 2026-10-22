@@ -35,6 +35,7 @@ impl PreparedSceneIdentity {
 pub struct PreparedSceneSnapshot {
     identity: PreparedSceneIdentity,
     presentation: FigurePresentation,
+    observations: Vec<crate::connection::DependencyObservation>,
 }
 
 impl PreparedSceneSnapshot {
@@ -44,6 +45,10 @@ impl PreparedSceneSnapshot {
 
     pub fn presentation(&self) -> &FigurePresentation {
         &self.presentation
+    }
+
+    pub(crate) fn observations(&self) -> &[crate::connection::DependencyObservation] {
+        &self.observations
     }
 }
 
@@ -225,6 +230,7 @@ impl PreparedFigure {
         PreparedSceneSnapshot {
             identity: self.identity,
             presentation: self.presentation.clone(),
+            observations: self.observations.clone(),
         }
     }
 }
