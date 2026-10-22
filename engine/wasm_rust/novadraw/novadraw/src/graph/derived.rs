@@ -9,6 +9,8 @@ struct DerivedNode {
     insets: Insets,
     border: Option<BorderSnapshot>,
     visible: bool,
+    measurement_generation: u64,
+    freeform: Option<FreeformState>,
     prepared: Option<crate::figure::preparation::PreparedFigure>,
     route: Option<PointList>,
     decoration: Option<crate::connection::PreparedDecorationGeometry>,
@@ -20,6 +22,8 @@ impl DerivedNode {
             insets: node.insets,
             border: node.border_snapshot.clone(),
             visible: node.is_visible,
+            measurement_generation: node.layout.generation(),
+            freeform: node.layout.freeform,
             prepared: node.prepared.clone(),
             route: node
                 .connection()
@@ -41,6 +45,10 @@ impl DerivedNode {
         }
         if before.visible != after.visible {
             self.visible = after.visible;
+        }
+        if before.measurement_generation != after.measurement_generation {
+            self.measurement_generation = after.measurement_generation;
+            self.freeform = after.freeform;
         }
         if before.route != after.route {
             self.route.clone_from(&after.route);
@@ -190,6 +198,12 @@ impl FigureTree {
                 {
                     decoration.commit_decoration_geometry(geometry);
                 }
+                // Discard caches computed for rejected geometry, while restoring the logical
+                // measurement version of the rebased source checkpoint.
+                node.is_valid = false;
+                node.layout.invalidate(LayoutInvalidation::Geometry);
+                node.layout.cache.get_mut().generation = saved.measurement_generation;
+                node.layout.freeform = saved.freeform;
             }
         }
         for (_, effect) in prefix.viewports {
@@ -198,13 +212,6 @@ impl FigureTree {
             }
         }
         self.notification_effects = prefix.effects;
-        // Measurements and custom layout caches may have observed rejected intermediate geometry.
-        let ids = self.blocks.iter().map(|(id, _)| id).collect::<Vec<_>>();
-        for id in ids {
-            let node = &mut self.blocks[id];
-            node.is_valid = false;
-            node.layout.invalidate(LayoutInvalidation::Geometry);
-        }
         Ok(())
     }
 }

@@ -26,6 +26,7 @@ struct Inputs {
     required: Mutex<Vec<ConnectionId>>,
     geometry_read: Mutex<Option<FigureId>>,
     snapshot_read: Mutex<Option<FigureId>>,
+    measurement_read: Mutex<Option<FigureId>>,
 }
 struct Page(Arc<Inputs>);
 struct Empty;
@@ -81,6 +82,9 @@ impl FigurePreparation for Page {
         }
         if let Some(id) = *self.0.snapshot_read.lock().unwrap() {
             scene.prepared_scene(id)?;
+        }
+        if let Some(id) = *self.0.measurement_read.lock().unwrap() {
+            scene.measure_figure(context, id, novadraw::figure::MeasureConstraints::UNBOUNDED)?;
         }
         let mut result =
             PreparedScene::new(self.prepare(context, bounds)?).with_result_version(self.revision());
@@ -366,7 +370,7 @@ fn rejected_same_source_candidate_keeps_the_old_identity() {
     frame(&mut f.runtime).unwrap();
     let old = f.seen.lock().unwrap().last().unwrap().identity();
     // Force a geometry feedback attempt without changing producer inputs.
-    let child = f
+    let _child = f
         .runtime
         .figure(f.connection.figure())
         .unwrap()
@@ -376,14 +380,166 @@ fn rejected_same_source_candidate_keeps_the_old_identity() {
     let stable = f.seen.lock().unwrap().last().unwrap().identity();
     assert_ne!(old, stable);
     f.inputs.reject.store(true, Ordering::Relaxed);
-    f.runtime
-        .connections()
-        .set_locator(f.connection, child, Box::new(ConnectionLocator::Target))
-        .unwrap();
+    f.runtime.figure(f.owner).unwrap().revalidate().unwrap();
     assert!(frame(&mut f.runtime).is_err());
     f.inputs.reject.store(false, Ordering::Relaxed);
     frame(&mut f.runtime).unwrap();
     assert_eq!(f.seen.lock().unwrap().last().unwrap().identity(), stable);
+}
+
+#[test]
+fn same_source_route_failure_restores_successful_metadata_and_generation() {
+    let mut f = fixture(true);
+    let measured = f
+        .runtime
+        .figure(f.owner)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+        .unwrap();
+    *f.inputs.measurement_read.lock().unwrap() = Some(measured);
+    frame(&mut f.runtime).unwrap();
+    let stable = f.runtime.connections().state(f.connection).unwrap();
+    let identity = f.seen.lock().unwrap().last().unwrap().identity();
+    let points = f
+        .runtime
+        .tree()
+        .connection_route_points(f.connection.figure())
+        .unwrap()
+        .unwrap()
+        .clone();
+    f.route_fail.store(true, Ordering::Relaxed);
+    f.runtime
+        .connections()
+        .invalidate_dependency(&DependencySubject::PreparedScene(f.owner))
+        .unwrap();
+    assert!(frame(&mut f.runtime).is_err());
+    assert_eq!(f.runtime.connections().state(f.connection).unwrap(), stable);
+    assert_eq!(
+        f.runtime
+            .tree()
+            .connection_route_points(f.connection.figure())
+            .unwrap()
+            .unwrap(),
+        &points
+    );
+    assert_eq!(f.seen.lock().unwrap().last().unwrap().identity(), identity);
+    assert!(f.runtime.connections().last_error().is_some());
+    f.route_fail.store(false, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    let stable = f.runtime.connections().state(f.connection).unwrap();
+    frame(&mut f.runtime).unwrap();
+    assert_eq!(f.runtime.connections().state(f.connection).unwrap(), stable);
+}
+
+#[test]
+fn retired_connection_is_not_restored_by_rejected_preparation() {
+    let mut f = fixture(true);
+    frame(&mut f.runtime).unwrap();
+    f.runtime.connections().remove_state(f.connection).unwrap();
+    assert!(frame(&mut f.runtime).is_err());
+    assert!(matches!(
+        f.runtime.connections().state(f.connection),
+        Err(ConnectionRuntimeError::UnknownConnection(id)) if id == f.connection
+    ));
+    f.inputs.required.lock().unwrap().clear();
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    assert!(matches!(
+        f.runtime.connections().state(f.connection),
+        Err(ConnectionRuntimeError::UnknownConnection(id)) if id == f.connection
+    ));
+}
+
+#[test]
+fn changed_source_route_failure_cannot_restore_resolved_metadata() {
+    let mut f = fixture(true);
+    frame(&mut f.runtime).unwrap();
+    let identity = f.seen.lock().unwrap().last().unwrap().identity();
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    f.route_fail.store(true, Ordering::Relaxed);
+    assert!(frame(&mut f.runtime).is_err());
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Unresolved(_)
+    ));
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    f.route_fail.store(false, Ordering::Relaxed);
+    f.inputs.revision.store(2, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    assert_ne!(f.seen.lock().unwrap().last().unwrap().identity(), identity);
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+}
+
+#[test]
+fn changed_binding_route_failure_preserves_binding_and_rejects_old_resolution() {
+    let mut f = fixture(true);
+    frame(&mut f.runtime).unwrap();
+    let source = f
+        .runtime
+        .connections()
+        .register_anchor(Box::new(XYAnchor::new(
+            Point::new(15.0, 20.0),
+            CoordinateSpace::ChildContent(f.owner),
+        )));
+    f.runtime
+        .connections()
+        .set_source(f.connection, Some(source))
+        .unwrap();
+    f.route_fail.store(true, Ordering::Relaxed);
+    assert!(frame(&mut f.runtime).is_err());
+    let state = f.runtime.connections().state(f.connection).unwrap();
+    assert_eq!(state.source, Some(source));
+    assert!(matches!(
+        state.resolution,
+        ConnectionResolution::Unresolved(_)
+    ));
+    f.route_fail.store(false, Ordering::Relaxed);
+    let attempts = f.seen.lock().unwrap().len();
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    // The failure must come from unavailable projection authority, before the router consumes it.
+    assert_eq!(f.seen.lock().unwrap().len(), attempts);
+    f.runtime
+        .connections()
+        .set_source(f.connection, Some(f.source))
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
 }
 
 #[test]

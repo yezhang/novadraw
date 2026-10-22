@@ -135,8 +135,9 @@ Core 约束测量协议已落地：`measure_scene`/`measure_figure`、独立 pre
 缩放、有限输入溢出及错误 source 链。后续 Core 批次已接入 Runtime 快照身份、
 稳定结果版本、源/派生 bounds 分离、路由快照依赖及必需组发布检查。
 快照计算观察已参与路由环检测，必需组准入拒绝读取路由及 Locator 子树输出，
-受检查询与缓存复用校验观察。LayoutManager 传递观察、同批候选依赖校验、
-同源 resolved 恢复与共享预算尚未完成，按同一增量继续推进，
+受检查询与缓存复用校验观察。必需组连接的成功记录支持同源 resolved 恢复，
+改源/绑定失败不能恢复旧 resolution，首帧失败保留重试入口。
+LayoutManager 传递观察、同批候选依赖校验与共享预算尚未完成，按同一增量继续推进，
 不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、

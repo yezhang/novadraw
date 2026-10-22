@@ -47,6 +47,8 @@ pub enum UnresolvedConnection {
     },
     /// A registered Locator child no longer belongs to the Connection Figure.
     InvalidLocatorChild(FigureId),
+    /// A rejected preparation changed the successful source or binding prefix.
+    PreparationInvalidated,
 }
 
 /// Current route lifecycle state.
@@ -214,14 +216,18 @@ struct ConnectionState {
     dependencies: HashMap<DependencySubject, u64>,
     routing_space: Option<CoordinateSpace>,
     dirty_revision: u64,
+    binding_revision: u64,
     route_generation: u64,
     resolution: ConnectionResolution,
+    stable: Option<PreparedRouteState>,
 }
 
+#[derive(Clone)]
 struct PreparedRouteState {
     dependencies: HashMap<DependencySubject, u64>,
     routing_space: Option<CoordinateSpace>,
     generation: u64,
+    binding_revision: u64,
 }
 
 pub(crate) struct ConnectionPreparationCheckpoint {
@@ -393,33 +399,78 @@ impl ConnectionRuntime {
             states: self
                 .states
                 .iter()
-                .map(|(id, state)| {
-                    (
-                        *id,
-                        PreparedRouteState {
-                            dependencies: state.dependencies.clone(),
-                            routing_space: state.routing_space,
-                            generation: state.route_generation,
-                        },
-                    )
-                })
+                .filter_map(|(id, state)| state.stable.clone().map(|saved| (*id, saved)))
                 .collect(),
         }
     }
 
-    /// Restore unpublished routing metadata without undoing source bindings or dirty revisions.
+    /// Only a complete successful stabilization may become a recovery authority.
+    pub(crate) fn finish_preparation_checkpoint(
+        &mut self,
+        required: impl IntoIterator<Item = ConnectionId>,
+    ) {
+        let required = required
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>();
+        for (id, state) in &mut self.states {
+            state.stable = (required.contains(id)
+                && matches!(state.resolution, ConnectionResolution::Resolved { .. }))
+            .then(|| PreparedRouteState {
+                dependencies: state.dependencies.clone(),
+                routing_space: state.routing_space,
+                generation: state.route_generation,
+                binding_revision: state.binding_revision,
+            });
+        }
+    }
+
+    /// Restore only metadata whose successful source and binding prefix remains valid.
     pub(crate) fn restore_preparation_checkpoint(
         &mut self,
         prefix: ConnectionPreparationCheckpoint,
+        source: &dyn RouteSceneRead,
     ) {
-        for (id, saved) in prefix.states {
-            if let Some(state) = self.states.get_mut(&id) {
-                state.dependencies = saved.dependencies;
+        let mut invalid = self
+            .order
+            .iter()
+            .copied()
+            .filter(|id| {
+                prefix.states.get(id).is_none_or(|saved| {
+                    saved.binding_revision != self.states[id].binding_revision
+                        || saved.dependencies.iter().any(|(subject, generation)| {
+                            source.dependency_generation(subject) != *generation
+                                || matches!(subject, DependencySubject::PreparedScene(owner)
+                                    if source.prepared_scene(*owner).is_err())
+                        })
+                })
+            })
+            .collect::<Vec<_>>();
+        // A group cannot recover a subset of its members.
+        invalid = self
+            .expand_group_invalidation(&invalid)
+            .unwrap_or_else(|_| self.order.clone());
+        for id in &self.order {
+            let state = self.states.get_mut(id).expect("registered connection");
+            if !invalid.contains(id)
+                && let Some(saved) = prefix.states.get(id)
+            {
+                state.dependencies.clone_from(&saved.dependencies);
                 state.routing_space = saved.routing_space;
                 state.route_generation = saved.generation;
-                state.resolution = ConnectionResolution::Dirty {
-                    revision: state.dirty_revision,
+                state.resolution = ConnectionResolution::Resolved {
+                    generation: saved.generation,
                 };
+            } else {
+                state.stable = None;
+                // Keep the failure's current source observations so corrections can retry.
+                if matches!(state.resolution, ConnectionResolution::Resolved { .. })
+                    || (prefix.states.contains_key(id)
+                        && matches!(state.resolution, ConnectionResolution::Dirty { .. }))
+                {
+                    state.resolution = ConnectionResolution::Unresolved(
+                        UnresolvedConnection::PreparationInvalidated,
+                    );
+                }
             }
         }
         self.by_dependency.clear();
@@ -605,8 +656,10 @@ impl ConnectionRuntime {
                     dependencies: HashMap::new(),
                     routing_space: None,
                     dirty_revision: 2,
+                    binding_revision: 2,
                     route_generation: 0,
                     resolution: ConnectionResolution::Dirty { revision: 2 },
+                    stable: None,
                 },
             );
             self.order.push(binding.connection);
@@ -688,6 +741,8 @@ impl ConnectionRuntime {
         self.layer_defaults.insert(layer, router);
         for connection in &affected {
             self.mark_dirty(*connection)?;
+            let state = self.state_mut(*connection)?;
+            state.binding_revision = state.dirty_revision;
         }
         Ok(affected)
     }
@@ -719,12 +774,14 @@ impl ConnectionRuntime {
             dependencies: HashMap::new(),
             routing_space: None,
             dirty_revision: 1,
+            binding_revision: 1,
             route_generation: 0,
             resolution: ConnectionResolution::Dirty { revision: 1 },
+            stable: None,
         };
         self.states.insert(connection, state);
         self.order.push(connection);
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         Ok(())
     }
 
@@ -735,7 +792,7 @@ impl ConnectionRuntime {
         if !self.states.contains_key(&connection) {
             return Err(ConnectionRuntimeError::UnknownConnection(connection));
         }
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         let state = self
             .states
             .remove(&connection)
@@ -772,13 +829,22 @@ impl ConnectionRuntime {
                 measurement_generation: None,
             });
         }
-        self.mark_dirty(connection)
+        self.mark_dirty(connection)?;
+        let state = self.state_mut(connection)?;
+        state.binding_revision = state.dirty_revision;
+        Ok(())
     }
 
-    pub(crate) fn remove_locator(&mut self, child: FigureId) -> bool {
+    pub(crate) fn remove_locator(
+        &mut self,
+        child: FigureId,
+    ) -> Result<bool, ConnectionRuntimeError> {
         let old_len = self.locators.len();
+        if self.locators.iter().any(|binding| binding.child == child) {
+            self.invalidate_bindings()?;
+        }
         self.locators.retain(|binding| binding.child != child);
-        self.locators.len() != old_len
+        Ok(self.locators.len() != old_len)
     }
 
     pub(crate) fn locator_placements(
@@ -906,7 +972,7 @@ impl ConnectionRuntime {
         if state.source == source {
             return Ok(false);
         }
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         self.state_mut(connection)?.source = source;
         drop(self.retire_unused_subtree_anchors());
         Ok(true)
@@ -922,7 +988,7 @@ impl ConnectionRuntime {
         if state.target == target {
             return Ok(false);
         }
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         self.state_mut(connection)?.target = target;
         drop(self.retire_unused_subtree_anchors());
         Ok(true)
@@ -939,7 +1005,7 @@ impl ConnectionRuntime {
         if state.router == binding {
             return Ok(false);
         }
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         self.state_mut(connection)?.router = binding;
         Ok(true)
     }
@@ -956,7 +1022,7 @@ impl ConnectionRuntime {
             .router;
         let router = self.resolve_router_binding(binding)?;
         self.validate_constraint(router, constraint.as_deref())?;
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         self.state_mut(connection)?.constraint = constraint;
         Ok(())
     }
@@ -979,7 +1045,7 @@ impl ConnectionRuntime {
         {
             return Ok(false);
         }
-        self.invalidate_all()?;
+        self.invalidate_bindings()?;
         let state = self.state_mut(connection)?;
         state.router = binding;
         state.constraint = constraint;
@@ -1735,6 +1801,14 @@ impl ConnectionRuntime {
         state.resolution = ConnectionResolution::Dirty {
             revision: state.dirty_revision,
         };
+        Ok(())
+    }
+
+    fn invalidate_bindings(&mut self) -> Result<(), ConnectionRuntimeError> {
+        self.invalidate_all()?;
+        for state in self.states.values_mut() {
+            state.binding_revision = state.dirty_revision;
+        }
         Ok(())
     }
 

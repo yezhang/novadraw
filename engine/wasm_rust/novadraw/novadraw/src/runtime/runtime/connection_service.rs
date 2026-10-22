@@ -262,7 +262,7 @@ impl Runtime {
             if !runtime.tree.is_attached(child)? {
                 return Err(ConnectionRuntimeError::UnknownFigure(child));
             }
-            Ok(runtime.connections.remove_locator(child))
+            runtime.connections.remove_locator(child)
         })
     }
 

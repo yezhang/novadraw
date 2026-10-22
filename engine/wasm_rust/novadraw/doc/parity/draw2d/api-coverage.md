@@ -337,9 +337,10 @@ Core 新增 `PreparationScene::measure_figure` 和 `FigurePreparation::measure_s
 外部消费者反例位于 `p2_preparation_measurement_contract`。Core 已增加 Runtime 签发的
 候选快照、路由快照观察、稳定结果版本和必需组发布检查，外部消费者反例位于
 `p2_prepared_scene_routing_contract`。快照计算观察已参与路由结构环检测，
-必需组准入拒绝路由/Locator 输出的反向读取；完整 LayoutManager 传递观察、
-同批候选依赖校验、同源 resolved 恢复、
-共享预算、Figure/Connection 投影与官方场景仍在实施，
+必需组准入拒绝路由/Locator 输出的反向读取。同源失败恢复成功记录中的 resolved
+metadata；改源或改绑定后失败不能恢复旧 resolution，首帧失败仍可修正后重试。
+完整 LayoutManager 传递观察、同批候选依赖校验、共享预算、
+Figure/Connection 投影与官方场景仍在实施，
 `CAP-GRAPH-LAYOUT` 保持 pending。
 
 ### M6 Event Dispatcher / Focus / Capture

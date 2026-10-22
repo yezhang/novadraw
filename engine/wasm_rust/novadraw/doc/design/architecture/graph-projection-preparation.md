@@ -18,7 +18,12 @@ preparation 查询自身快照返回有序结构环，必需组准入拒绝直�
 route/Locator 子树的几何与测量。原始 Figure/capability 借用进入路由子树时
 也记录几何读取；children/parent 源查询不增加此类边。缓存复用核对观察代数，
 身份比较不依赖观察顺序，受检查询拒绝计算观察已漂移的快照。
-完整 LayoutManager 传递观察、批次候选依赖图、同源 resolved 恢复、
+必需组连接另存完整稳定化成功记录，失败后核对绑定版本、快照有效性及依赖版本；
+同源恢复旧 resolved generation，改源或改绑定保留错误与当前观察并拒绝旧 resolution。
+恢复后必需组未 resolved 的 owner 及后代 presentation 标为 invalid；
+受检快照查询拒绝读取，不能通过显式 resolve 绕过重新 preparation。
+首帧尚无成功记录时保留重试状态；普通路由失败继续走既有通道。
+完整 LayoutManager 传递观察、批次候选依赖图、
 约束测量的传递观察与共享预算仍待后续批次；这不是整个增量的完成声明。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
@@ -303,6 +308,8 @@ prepare_scene 边界用 TextError 的结构化依赖包装，保留 `Error::sour
 重新冻结当前前缀并通过完整批次，再恢复 valid/resolved。
 稳定查询和 hit 不得把 invalid 的图投影报告为当前有效结果；
 既有 FigureTree 原始几何查询的诊断用途需在文档中明确。
+`FigureTree::prepared_presentation` 同样保留最近成功的原始诊断视图；
+它不证明当前投影有效。Router 的 authority 由受检 `prepared_scene` 查询判断。
 
 ## 外部消费者和验收
 

@@ -221,7 +221,10 @@ resolved 状态、routing space 和本次快照观察；候选失败走原有派
 快照时返回有序闭环。必需组准入拒绝读取组成员或其 Locator 子树的几何、测量及原始
 Figure/capability 数据，源 children/parent 查询仍然合法。缓存命中核对观察代数，
 受检快照查询也核对传递观察。LayoutManager 传递观察、同批候选之间的依赖验证、
-同源恢复的 resolved 元数据保留与共享预算继续按增量方案推进。
+共享预算继续按增量方案推进。必需组连接的恢复记录只在完整稳定化成功后保存；
+恢复先核对绑定版本、快照有效性及依赖版本。同源失败恢复旧 resolved generation；
+改源或改绑定后保留当前错误和观察，旧路线不能恢复为 resolved。
+尚无成功记录的首帧失败保留重试状态，普通路由失败通道保持原有语义。
 外部消费者验证见
 [`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)。
 

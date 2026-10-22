@@ -216,6 +216,7 @@ pub(crate) struct PreparationKey {
 #[derive(Clone)]
 pub(crate) struct PreparedFigure {
     pub owner: crate::FigureId,
+    pub valid: bool,
     pub key: PreparationKey,
     pub presentation: FigurePresentation,
     pub identity: PreparedSceneIdentity,

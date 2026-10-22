@@ -632,13 +632,39 @@ impl Runtime {
                     .map_err(|error| {
                         FramePreparationError::Text(crate::figure::preparation::scene_error(error))
                     })?;
+                self.connections.finish_preparation_checkpoint(
+                    self.tree
+                        .required_route_groups()
+                        .into_iter()
+                        .flat_map(|(_, group)| group.connections.iter().copied()),
+                );
                 Ok(())
             }
             Err(error) => {
                 let recovery = self.tree.finish_derived_preparation(false);
                 if let Some(prefix) = connection_prefix {
-                    self.connections.restore_preparation_checkpoint(prefix);
+                    let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+                    self.connections
+                        .restore_preparation_checkpoint(prefix, &scene);
                 }
+                let invalid_owners = self
+                    .tree
+                    .required_route_groups()
+                    .into_iter()
+                    .filter(|(_, group)| {
+                        group.connections.iter().any(|id| {
+                            !matches!(
+                                self.connections.state(*id),
+                                Ok(ConnectionStateSnapshot {
+                                    resolution: crate::connection::ConnectionResolution::Resolved { .. },
+                                    ..
+                                })
+                            )
+                        })
+                    })
+                    .map(|(owner, _)| owner)
+                    .collect::<Vec<_>>();
+                self.tree.invalidate_prepared_owners(&invalid_owners);
                 if let Some(prefix) = prefix {
                     self.updates
                         .restore_preparation_checkpoint(prefix, &self.tree);

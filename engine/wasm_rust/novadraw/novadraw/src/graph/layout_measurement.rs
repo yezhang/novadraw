@@ -1488,6 +1488,7 @@ mod s07_query_failure_tests {
         let (mut tree, root) = subject();
         tree.blocks[root].prepared = Some(PreparedFigure {
             owner: root,
+            valid: true,
             identity: crate::figure::PreparedSceneIdentity::new(root, 1),
             source: 0,
             result_version: None,

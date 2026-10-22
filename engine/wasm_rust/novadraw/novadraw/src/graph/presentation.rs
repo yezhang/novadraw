@@ -3,6 +3,18 @@ use crate::runtime::ResourceRegistry;
 use crate::runtime::update::property::standard as property;
 
 impl FigureTree {
+    pub(crate) fn invalidate_prepared_owners(&mut self, owners: &[FigureId]) {
+        let ids = self.blocks.iter().map(|(id, _)| id).collect::<Vec<_>>();
+        for id in ids {
+            let node = &mut self.blocks[id];
+            if let Some(prepared) = &mut node.prepared
+                && owners.contains(&prepared.owner)
+            {
+                prepared.valid = false;
+            }
+        }
+    }
+
     pub(crate) fn prepared_scene_generation(&self) -> u64 {
         self.prepared_scene_serial
     }
@@ -67,7 +79,7 @@ impl FigureTree {
         let prepared = self.blocks[owner]
             .prepared
             .as_ref()
-            .filter(|prepared| prepared.owner == owner)
+            .filter(|prepared| prepared.owner == owner && prepared.valid)
             .ok_or(RouteSceneQueryError::UnavailablePreparedScene(owner))?;
         let (styles, _) = self.resolved_styles_for(|_| true);
         let styles = styles.into_iter().collect();
@@ -119,7 +131,8 @@ impl FigureTree {
             let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
             if node.prepared.as_ref().is_some_and(|p| {
                 use crate::connection::RouteSceneRead;
-                p.key == key
+                p.valid
+                    && p.key == key
                     && p.observations.iter().all(|observation| {
                         read.dependency_generation(&observation.subject) == observation.generation
                     })
@@ -196,7 +209,8 @@ impl FigureTree {
         }
         for (id, key, input_source, observations, candidate) in candidates {
             let unchanged = self.blocks[id].prepared.as_ref().filter(|old| {
-                candidate.result_version.is_some()
+                old.valid
+                    && candidate.result_version.is_some()
                     && old.result_version == candidate.result_version
                     && old.source == input_source
                     && old.key.text == key.text
@@ -226,6 +240,7 @@ impl FigureTree {
                     source,
                     PreparedFigure {
                         owner: id,
+                        valid: true,
                         key: key.clone(),
                         presentation,
                         identity,
@@ -241,6 +256,7 @@ impl FigureTree {
                 id,
                 PreparedFigure {
                     owner: id,
+                    valid: true,
                     key,
                     presentation: candidate.root,
                     identity,

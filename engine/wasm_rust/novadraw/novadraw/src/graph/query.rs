@@ -169,7 +169,10 @@ impl FigureTree {
         Ok(&self.blocks[id])
     }
 
-    /// The immutable drawing, metrics and domain snapshot from the last successful preparation.
+    /// The immutable drawing and metrics retained from the last successful preparation.
+    ///
+    /// This raw diagnostic view may retain an invalid projection after a rejected candidate.
+    /// Routing authority is checked separately by `RouteSceneQuery::prepared_scene`.
     pub fn prepared_presentation(
         &self,
         id: FigureId,
