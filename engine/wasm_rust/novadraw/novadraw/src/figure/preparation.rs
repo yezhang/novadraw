@@ -8,6 +8,7 @@ use std::sync::Arc;
 mod measurement;
 mod routing;
 mod scene;
+mod source;
 pub(crate) use measurement::MeasurementSelection;
 pub use measurement::{
     PreparationDependencyError, PreparationMeasureError, PreparationMeasureErrorKind,
@@ -17,6 +18,7 @@ pub(crate) use routing::RequiredRouteGroup;
 pub use routing::{PreparationRouteError, PreparationRouteErrorKind};
 pub(crate) use scene::scene_error;
 pub use scene::{PreparationScene, PreparedScene};
+pub(crate) use source::{PreparationSource, PreparationSourceNode};
 
 /// Runtime-issued identity of one checked immutable preparation result.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -221,7 +223,7 @@ pub(crate) struct PreparedFigure {
     pub key: PreparationKey,
     pub presentation: FigurePresentation,
     pub identity: PreparedSceneIdentity,
-    pub source: u64,
+    pub source: PreparationSource,
     pub result_version: Option<u64>,
     pub observations: Vec<crate::connection::DependencyObservation>,
     pub required_routes: Vec<RequiredRouteGroup>,

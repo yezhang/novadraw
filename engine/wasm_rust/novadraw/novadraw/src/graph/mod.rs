@@ -966,6 +966,7 @@ pub struct FigureTree {
     notification_effects: NotificationQueue,
     derived_checkpoint: Option<derived::DerivedCheckpoint>,
     prepared_scene_serial: u64,
+    preparation_text_revision: u64,
 }
 
 pub(crate) struct TextLayoutRefreshResult {
@@ -1293,6 +1294,7 @@ impl FigureTree {
             notification_effects: NotificationQueue::new(),
             derived_checkpoint: None,
             prepared_scene_serial: 0,
+            preparation_text_revision: 0,
         }
     }
 

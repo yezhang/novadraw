@@ -141,6 +141,9 @@ LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 
 缓存命中保留传递观察，嵌套错误保留叶节点及原始原因。
 受约束测量源依赖与已提交 metrics 依赖已分开；同源失败后重试保留
 快照 identity、resolved metadata 和 route calculation count。
+快照源输入已改为逐项比对，批次写入前复核源与计算观察。
+字体替换或移除立即撤销旧快照的路由查询权限，重新准备后更新 identity；
+`p2_prepared_scene_routing_contract` 覆盖资源变更后的显式路由拒绝与恢复。
 同批候选依赖校验与共享预算尚未完成，按同一增量继续推进，
 不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。

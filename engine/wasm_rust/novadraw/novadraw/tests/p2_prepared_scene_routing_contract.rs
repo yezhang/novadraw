@@ -580,6 +580,43 @@ fn old_snapshot_cannot_be_routed_after_source_revision_drift() {
 }
 
 #[test]
+fn font_resource_changes_revoke_snapshot_authority_before_preparation() {
+    use novadraw::render::{BuiltinFont, FontData};
+    let mut f = fixture(false);
+    let font = f
+        .runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    let old = f.seen.lock().unwrap().last().unwrap().identity();
+    f.runtime
+        .resources()
+        .complete_font(font, FontData::new(BuiltinFont::Inter.bytes().to_vec()))
+        .unwrap();
+    let consumed = f.seen.lock().unwrap().len();
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    assert_eq!(f.seen.lock().unwrap().len(), consumed);
+    frame(&mut f.runtime).unwrap();
+    let current = f.seen.lock().unwrap().last().unwrap().identity();
+    assert_ne!(current, old);
+    f.runtime.resources().remove(font.resource_id()).unwrap();
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    frame(&mut f.runtime).unwrap();
+    assert_ne!(f.seen.lock().unwrap().last().unwrap().identity(), current);
+}
+
+#[test]
 fn source_bounds_commit_is_observed_even_when_equal_to_current_derived_bounds() {
     let mut f = fixture(true);
     frame(&mut f.runtime).unwrap();

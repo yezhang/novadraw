@@ -408,6 +408,40 @@ impl<'a> PreparationScene<'a> {
         self.input_revision(false)
     }
 
+    pub(crate) fn source_prefix(&self) -> Result<super::PreparationSource, TextError> {
+        let mut prefix = super::PreparationSource::default();
+        let mut pending = vec![self.root];
+        while let Some(id) = pending.pop() {
+            let node = self.tree.node(id).map_err(scene_error)?;
+            let bounds = node.source_bounds;
+            let insets = node.insets();
+            prefix.0.push(super::PreparationSourceNode {
+                id,
+                component: node.component_revision,
+                provider: node.preparation().map(|provider| provider.revision()),
+                parent: node.parent,
+                children: node.children.clone(),
+                layout: node.layout.source_generation,
+                sizes: [node.preferred_size, node.minimum_size, node.maximum_size]
+                    .map(|size| size.map(|size| [size.width.to_bits(), size.height.to_bits()])),
+                geometry: [
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    bounds.height,
+                    insets.top,
+                    insets.right,
+                    insets.bottom,
+                    insets.left,
+                ]
+                .map(f64::to_bits),
+                style: self.style(id)?.clone(),
+            });
+            pending.extend(node.children.iter().rev().copied());
+        }
+        Ok(prefix)
+    }
+
     /// Input revision includes structure, component state, styles and measurement generation.
     pub fn revision(&self) -> Result<u64, TextError> {
         self.input_revision(true)

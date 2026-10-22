@@ -1671,7 +1671,7 @@ mod s07_query_failure_tests {
             owner: root,
             valid: true,
             identity: crate::figure::PreparedSceneIdentity::new(root, 1),
-            source: 0,
+            source: crate::figure::preparation::PreparationSource::default(),
             result_version: None,
             observations: Vec::new(),
             required_routes: Vec::new(),

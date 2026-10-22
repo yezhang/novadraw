@@ -3527,6 +3527,8 @@ impl Runtime {
     }
 
     fn invalidate_resource_dependents(&mut self, dependents: Vec<FigureId>) {
+        self.tree
+            .synchronize_preparation_text_revision(self.text.revision());
         for figure in dependents {
             if self.tree.is_attached(figure) == Ok(true) {
                 self.tree.mark_invalid(&mut self.updates, figure);

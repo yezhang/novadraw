@@ -343,6 +343,8 @@ LayoutManager 子查询已按显式约束重测，preferred/minimum 分别选择
 缓存命中保留传递观察，嵌套错误保留实际测量主体与原始原因。
 `FigureMeasurementSource` 区分受约束测量源版本与已提交 metrics 代数；
 同源失败后的重试不替换快照或重算路由。
+候选准入与身份复用逐项核对源输入及字体版本；字体替换或移除后，
+显式路由在重新准备前拒绝旧快照。
 同批候选依赖校验、共享预算、
 Figure/Connection 投影与官方场景仍在实施，
 `CAP-GRAPH-LAYOUT` 保持 pending。

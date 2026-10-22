@@ -217,6 +217,9 @@ LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimu
 `PreparedFigure` 保存 Runtime 签发的快照身份、冻结源前缀、producer 结果版本与实际
 测量/几何观察。`PreparationScene::source_revision` 排除派生 bounds 和布局缓存代数；
 组件、拓扑、源 bounds、显式尺寸、布局策略/约束及解析样式仍参与输入验证。
+内部源前缀保存逐项输入，用于受检查询与身份复用；诊断 hash 不授予快照权限。
+批次写入前再次核对源输入、字体版本及计算观察。资源写入同步最新文字版本，
+因此字体替换或移除后的显式路由不能绕过 preparation 读取旧快照。
 不声明结果版本的旧 producer 保留按完整 preparation key 更新的兼容行为。
 
 `TrackedRouteSceneQuery` 自动观察 `DependencySubject::PreparedScene(owner)`。依赖

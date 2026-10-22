@@ -3,6 +3,10 @@ use crate::runtime::ResourceRegistry;
 use crate::runtime::update::property::standard as property;
 
 impl FigureTree {
+    pub(crate) fn synchronize_preparation_text_revision(&mut self, revision: u64) {
+        self.preparation_text_revision = revision;
+    }
+
     pub(crate) fn invalidate_prepared_owners(&mut self, owners: &[FigureId]) {
         let ids = self.blocks.iter().map(|(id, _)| id).collect::<Vec<_>>();
         for id in ids {
@@ -84,7 +88,9 @@ impl FigureTree {
         let (styles, _) = self.resolved_styles_for(|_| true);
         let styles = styles.into_iter().collect();
         let scene = crate::figure::PreparationScene::new(self, owner, &styles);
-        if scene.source_revision().ok() != Some(prepared.source) {
+        if scene.source_prefix().ok().as_ref() != Some(&prepared.source)
+            || prepared.key.text != self.preparation_text_revision
+        {
             return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
         }
         Ok(prepared.snapshot())
@@ -97,6 +103,7 @@ impl FigureTree {
     ) -> Result<bool, TextError> {
         use crate::figure::PreparationScene;
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
+        self.synchronize_preparation_text_revision(text.revision());
         if !self
             .blocks
             .iter()
@@ -120,6 +127,7 @@ impl FigureTree {
             let preparation = node.preparation().expect("capability selected");
             let bounds = node.client_area();
             let scene = PreparationScene::new(self, id, &styles);
+            let source = scene.source_prefix()?;
             let key = PreparationKey {
                 component: scene.revision()?,
                 provider: preparation.revision(),
@@ -133,6 +141,7 @@ impl FigureTree {
                 use crate::connection::RouteSceneRead;
                 p.valid
                     && p.key == key
+                    && p.source == source
                     && p.observations.iter().all(|observation| {
                         read.dependency_generation(&observation.subject) == observation.generation
                     })
@@ -143,7 +152,6 @@ impl FigureTree {
                 text,
                 crate::text::FontDescriptor::parse(&style.font)?,
             );
-            let source = scene.source_revision()?;
             let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
             prepared_scene.validate(&scene)?;
             if scene.revision()? != key.component || preparation.revision() != key.provider {
@@ -154,7 +162,7 @@ impl FigureTree {
             candidates.push((id, key, source, scene.observations(), prepared_scene));
         }
         let mut presented = std::collections::HashSet::new();
-        for (id, key, _, _, candidate) in &candidates {
+        for (id, key, source, observations, candidate) in &candidates {
             for source in
                 std::iter::once(id).chain(candidate.descendants.iter().map(|(source, _)| source))
             {
@@ -164,11 +172,23 @@ impl FigureTree {
                     ));
                 }
             }
-            if PreparationScene::new(self, *id, &styles).revision()? != key.component
+            let scene = PreparationScene::new(self, *id, &styles);
+            if scene.revision()? != key.component
+                || scene.source_prefix()? != *source
                 || text.revision() != key.text
             {
                 return Err(TextError::InvalidPreparedScene(
                     "frozen preparation prefix is stale".into(),
+                ));
+            }
+            use crate::connection::RouteSceneRead;
+            let geometries = std::collections::HashMap::new();
+            let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+            if observations.iter().any(|observation| {
+                read.dependency_generation(&observation.subject) != observation.generation
+            }) {
+                return Err(TextError::InvalidPreparedScene(
+                    "frozen preparation dependency is stale".into(),
                 ));
             }
         }
@@ -244,7 +264,7 @@ impl FigureTree {
                         key: key.clone(),
                         presentation,
                         identity,
-                        source: input_source,
+                        source: input_source.clone(),
                         result_version: candidate.result_version,
                         observations: observations.clone(),
                         required_routes: Vec::new(),
