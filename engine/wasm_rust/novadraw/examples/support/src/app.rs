@@ -23,8 +23,8 @@ pub use novadraw::{
 };
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
-    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,
-    adapt_modifiers, adapt_mouse_button, adapt_physical_key,
+    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_event,
+    adapt_key_input, adapt_modifiers, adapt_mouse_button, adapt_physical_key,
 };
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
@@ -348,6 +348,18 @@ impl DemoApp {
         if let Some(host) = &self.host {
             host.request_redraw();
         }
+    }
+
+    fn dispatch_key_pressed(&mut self, key: Key) -> bool {
+        let modifiers = self.modifiers;
+        let mut handled = false;
+        self.dispatch_input(|runtime| {
+            handled = runtime
+                .input()
+                .dispatch_key_pressed(key, modifiers)
+                .is_handled();
+        });
+        handled
     }
 
     fn monotonic_time(&self) -> MonotonicTime {
@@ -829,6 +841,13 @@ impl ApplicationHandler<()> for DemoApp {
                     return;
                 }
 
+                if let Some(key) =
+                    adapt_key_event(event.physical_key, event.text.as_deref(), self.modifiers)
+                    && self.dispatch_key_pressed(key)
+                {
+                    return;
+                }
+
                 match event.physical_key {
                     PhysicalKey::Code(KeyCode::Escape) => {
                         event_loop.exit();
@@ -901,11 +920,6 @@ impl ApplicationHandler<()> for DemoApp {
                         if let Some(digit) = get_digit_index(&event.physical_key) {
                             self.switch_scene(digit);
                             self.host.as_ref().unwrap().request_redraw();
-                        } else if let Some(key) = adapt_physical_key(event.physical_key) {
-                            let modifiers = self.modifiers;
-                            self.dispatch_input(|runtime| {
-                                runtime.input().dispatch_key_pressed(key, modifiers);
-                            });
                         }
                     }
                 }

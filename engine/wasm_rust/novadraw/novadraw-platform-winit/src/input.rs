@@ -68,6 +68,29 @@ pub fn adapt_physical_key(key: PhysicalKey) -> Option<Key> {
     })
 }
 
+/// Adapts one winit keyboard event into the Core key domain.
+///
+/// Printable text uses winit's layout-aware text. Command modifiers suppress printable
+/// characters so application shortcuts can handle them after the focused Figure declines them.
+pub fn adapt_key_event(
+    physical_key: PhysicalKey,
+    text: Option<&str>,
+    modifiers: KeyModifiers,
+) -> Option<Key> {
+    let command_modified = modifiers.control || modifiers.alt || modifiers.meta;
+    if !command_modified && let Some(text) = text {
+        let mut characters = text.chars();
+        if let Some(character) = characters.next()
+            && characters.next().is_none()
+            && !character.is_control()
+        {
+            return Some(Key::Character(character));
+        }
+    }
+    adapt_physical_key(physical_key)
+        .filter(|key| !command_modified || !matches!(key, Key::Character(_)))
+}
+
 pub fn adapt_key_input(key: Key, pressed: bool, modifiers: KeyModifiers) -> AdaptedKeyInput {
     if key != Key::Tab {
         return AdaptedKeyInput::Key {
@@ -287,6 +310,29 @@ mod tests {
             Some(Key::ArrowLeft)
         );
         assert_eq!(adapt_physical_key(PhysicalKey::Code(KeyCode::F2)), None);
+    }
+
+    #[test]
+    fn text_keys_preserve_digits_without_stealing_modified_shortcuts() {
+        assert_eq!(
+            adapt_key_event(
+                PhysicalKey::Code(KeyCode::Digit3),
+                Some("3"),
+                KeyModifiers::default(),
+            ),
+            Some(Key::Character('3'))
+        );
+        assert_eq!(
+            adapt_key_event(
+                PhysicalKey::Code(KeyCode::KeyS),
+                Some("s"),
+                KeyModifiers {
+                    meta: true,
+                    ..KeyModifiers::default()
+                },
+            ),
+            None
+        );
     }
 
     #[test]
