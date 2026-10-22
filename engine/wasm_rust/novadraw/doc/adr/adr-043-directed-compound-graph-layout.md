@@ -6,6 +6,10 @@
 
 已接受，修订 1，实施中（2026-10-22，用户批准 ADR-043 并授权实施）。
 实施与验收按下述切片推进，不代表 P2-L01 已完成。
+纯模型、Directed 和 Compound 切片已实现。adapter 切片核对发现候选领域数据与
+约束测量查询缺口，新增
+[图投影的候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
+该公开契约增量待评审；原修订 1 的接受状态不变。
 承接官方示例 K06；`api_semantics` 为 `layout.graph`、`layout.manager`、
 `connection.routing`、`figure.measurement` 和 `scene.preparation`。
 
@@ -419,6 +423,21 @@ rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 
 
 纯算法切片完成后继续统一 Figure/Connection adapter、动态测量反馈和官方场景。
 本段不表示 P2-L01 或 K06 已完成。
+
+### adapter 切片的公开查询评审
+
+2026-10-22 静态核对确认现有 RouteSceneQuery 可以读取检查点内的候选 bounds，
+但不能读取 Runtime 持有的候选 GraphLayoutResult、attachment boundary 证据或
+结果身份。现有路由依赖也不记录 prepared identity，因此无法识别 bounds 不变
+而完整路径改变的候选。prepared Figure 的测量分支直接返回已有快照，不能据此
+证明新宽度约束下的测量收敛。普通 route unresolved 本身不阻止稳定帧晋升。
+
+上述缺口及拟定接口集中在
+[候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
+包含源码证据、不可变结果查询、约束测量、source 前缀与必需路由组发布条件。
+按本 ADR 的“补充公开的受检候选查询契约并复审后实施”要求，
+该增量评审通过后继续 adapter；不采用检查点外的可变结果槽。
+已完成算法切片保持不变，两个官方场景仍未实现。
 
 ## 取舍
 

@@ -122,6 +122,11 @@ virtual nodes、排序/放置与有限走廊路由；16 fixture 的双方向 32 
 bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 组合、
 小数几何与嵌套/反馈端点反例通过。接下来进入统一 Figure/Connection adapter；
 统一投影、动态测量与官方场景仍未完成，全部验证完成前不关闭 P2-L01。
+adapter 静态核对已确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
+约束重测量和整组必需路由发布尚无完整契约。已形成
+[候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
+按 ADR-043 的新增公开候选查询复审要求等待增量评审，再继续该切片。
+P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。
