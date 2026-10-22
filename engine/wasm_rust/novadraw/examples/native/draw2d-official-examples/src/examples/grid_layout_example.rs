@@ -1,5 +1,9 @@
 #[cfg(test)]
-use novadraw::figure::LabelFigure;
+use novadraw::{
+    figure::LabelFigure,
+    geometry::Point,
+    text::{FontDescriptor, TextConstraints},
+};
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
 use std::{
@@ -238,6 +242,18 @@ const SHAPE_SIZE: f64 = 70.0;
 const TEXT_WIDTH: f64 = 62.0;
 #[cfg(test)]
 const COMBO_WIDTH: f64 = 118.0;
+#[cfg(test)]
+const GROUP_BACKGROUND: Color = Color::rgba(0.96, 0.96, 0.96, 1.0);
+#[cfg(test)]
+const GROUP_TITLE_HORIZONTAL_PADDING: f64 = 4.0;
+#[cfg(test)]
+const GROUP_TITLE_X: f64 = 10.0;
+#[cfg(test)]
+const GROUP_BORDER_INSET: f64 = 0.5;
+#[cfg(test)]
+const GROUP_BORDER_TOP: f64 = 8.5;
+#[cfg(test)]
+const CONTROL_FONT: &str = "13px Inter Variable";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct GridSettings {
@@ -697,6 +713,7 @@ const OFFICIAL_COLORS: [Color; 9] = [
 #[cfg(test)]
 struct GroupFigure {
     bounds: Rectangle,
+    title_width: f64,
 }
 
 #[cfg(test)]
@@ -714,16 +731,34 @@ impl Figure for GroupFigure {
         context: &mut PaintContext<'_>,
         bounds: Rectangle,
     ) -> Result<(), GraphicsError> {
-        context.set_fill_paint(Color::rgba(0.96, 0.96, 0.96, 1.0));
+        context.set_fill_paint(GROUP_BACKGROUND);
         context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
         context.set_stroke_paint(Color::rgba(0.45, 0.45, 0.45, 1.0));
         context.set_stroke_width(1.0)?;
-        context.stroke_rect(Rectangle::new(
-            0.5,
-            8.5,
-            bounds.width - 1.0,
-            bounds.height - 9.0,
-        ))
+        let right = bounds.width - GROUP_BORDER_INSET;
+        let bottom = bounds.height - GROUP_BORDER_INSET;
+        let gap_start = GROUP_TITLE_X - GROUP_TITLE_HORIZONTAL_PADDING;
+        let gap_end = (GROUP_TITLE_X + self.title_width).min(right);
+        context.stroke_line(
+            Point::new(GROUP_BORDER_INSET, GROUP_BORDER_TOP),
+            Point::new(gap_start, GROUP_BORDER_TOP),
+        )?;
+        context.stroke_line(
+            Point::new(gap_end, GROUP_BORDER_TOP),
+            Point::new(right, GROUP_BORDER_TOP),
+        )?;
+        context.stroke_line(
+            Point::new(GROUP_BORDER_INSET, GROUP_BORDER_TOP),
+            Point::new(GROUP_BORDER_INSET, bottom),
+        )?;
+        context.stroke_line(
+            Point::new(right, GROUP_BORDER_TOP),
+            Point::new(right, bottom),
+        )?;
+        context.stroke_line(
+            Point::new(GROUP_BORDER_INSET, bottom),
+            Point::new(right, bottom),
+        )
     }
 }
 
@@ -734,6 +769,8 @@ struct Fixture {
     content: FigureId,
     state: Arc<GridExampleState>,
     settings: Arc<Mutex<GridSettings>>,
+    num_columns: TextBinding,
+    group_titles: [FigureId; 4],
     controls: Arc<GridDataControls>,
     add_button: FigureId,
     clear_button: FigureId,
@@ -771,42 +808,50 @@ fn fixture() -> Fixture {
         .set_layout_manager(Box::new(settings.lock().expect("Grid settings").layout()))
         .expect("GridLayout");
 
-    add_group(
-        &mut runtime,
-        root,
-        Rectangle::new(CONTROL_X, 15.0, CONTROL_WIDTH, 100.0),
-        "Columns",
-    );
-    add_group(
-        &mut runtime,
-        root,
-        Rectangle::new(CONTROL_X, 120.0, CONTROL_WIDTH, 145.0),
-        "Margins and Spacing",
-    );
-    add_group(
-        &mut runtime,
-        root,
-        Rectangle::new(CONTROL_X, 270.0, CONTROL_WIDTH, 70.0),
-        "Children",
-    );
-    add_group(
-        &mut runtime,
-        root,
-        Rectangle::new(CONTROL_X, 345.0, CONTROL_WIDTH, 395.0),
-        "Selected Figure's GridData",
-    );
+    let group_titles = [
+        add_group(
+            &mut runtime,
+            root,
+            Rectangle::new(CONTROL_X, 15.0, CONTROL_WIDTH, 100.0),
+            "Columns",
+        ),
+        add_group(
+            &mut runtime,
+            root,
+            Rectangle::new(CONTROL_X, 120.0, CONTROL_WIDTH, 145.0),
+            "Margins and Spacing",
+        ),
+        add_group(
+            &mut runtime,
+            root,
+            Rectangle::new(CONTROL_X, 270.0, CONTROL_WIDTH, 70.0),
+            "Children",
+        ),
+        add_group(
+            &mut runtime,
+            root,
+            Rectangle::new(CONTROL_X, 345.0, CONTROL_WIDTH, 395.0),
+            "Selected Figure's GridData",
+        ),
+    ];
 
-    let num_columns = Arc::new(Mutex::new("2".to_owned()));
-    add_text_field(
+    let num_columns_value = Arc::new(Mutex::new("2".to_owned()));
+    let num_columns_enabled = Arc::new(AtomicBool::new(true));
+    let num_columns_id = add_text_field(
         &mut runtime,
         root,
         Rectangle::new(42.0, 48.0, TEXT_WIDTH, 22.0),
-        num_columns,
-        Arc::new(AtomicBool::new(true)),
+        num_columns_value.clone(),
+        num_columns_enabled.clone(),
         layout_text_action(settings.clone(), content, |settings, value| {
             settings.columns = parse_integer(&value, 1).max(1) as usize;
         }),
     );
+    let num_columns = TextBinding {
+        id: num_columns_id,
+        value: num_columns_value,
+        enabled: num_columns_enabled,
+    };
     add_caption(&mut runtime, root, "numColumns", 116.0, 48.0, 220.0);
     add_checkbox(
         &mut runtime,
@@ -935,6 +980,8 @@ fn fixture() -> Fixture {
         content,
         state,
         settings,
+        num_columns,
+        group_titles,
         controls,
         add_button: add_button_id,
         clear_button: clear_button_id,
@@ -1198,24 +1245,50 @@ fn layout_bool_action(
 }
 
 #[cfg(test)]
-fn add_group(runtime: &mut Runtime, root: FigureId, bounds: Rectangle, title: &'static str) {
+fn add_group(
+    runtime: &mut Runtime,
+    root: FigureId,
+    bounds: Rectangle,
+    title: &'static str,
+) -> FigureId {
+    let title_width = runtime
+        .text()
+        .layout(
+            title,
+            &FontDescriptor::parse(CONTROL_FONT).expect("control font"),
+            TextConstraints::UNBOUNDED,
+        )
+        .expect("group title layout")
+        .size()
+        .width
+        + 2.0 * GROUP_TITLE_HORIZONTAL_PADDING;
     runtime
         .figure(root)
         .expect("root")
-        .add(Box::new(GroupFigure { bounds }))
+        .add(Box::new(GroupFigure {
+            bounds,
+            title_width,
+        }))
         .expect("Group");
     add_caption(
         runtime,
         root,
         title,
-        bounds.x + 10.0,
+        bounds.x + GROUP_TITLE_X,
         bounds.y,
-        bounds.width - 20.0,
-    );
+        title_width.min(bounds.width - 20.0),
+    )
 }
 
 #[cfg(test)]
-fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, x: f64, y: f64, width: f64) {
+fn add_caption(
+    runtime: &mut Runtime,
+    root: FigureId,
+    text: &str,
+    x: f64,
+    y: f64,
+    width: f64,
+) -> FigureId {
     let label = runtime
         .figure(root)
         .expect("root")
@@ -1228,10 +1301,12 @@ fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, x: f64, y: f64
         .expect("Label")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some("13px Inter Variable".to_owned()),
+            background: Some(GROUP_BACKGROUND),
+            font: Some(CONTROL_FONT.to_owned()),
             ..FigureStyle::default()
         })
         .expect("Label style");
+    label
 }
 
 #[cfg(test)]
@@ -1442,6 +1517,48 @@ mod tests {
             GridSettings::default()
         );
         assert!(!fixture.controls.width_hint.enabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn num_columns_accepts_digits_and_commits_the_layout_on_enter() {
+        let mut fixture = fixture();
+        click(&mut fixture.runtime, fixture.num_columns.id);
+        fixture
+            .runtime
+            .input()
+            .dispatch_key_pressed(Key::Character('3'), KeyModifiers::default());
+        fixture
+            .runtime
+            .input()
+            .dispatch_key_pressed(Key::Enter, KeyModifiers::default());
+
+        assert_eq!(
+            fixture
+                .num_columns
+                .value
+                .lock()
+                .expect("numColumns value")
+                .as_str(),
+            "3"
+        );
+        assert_eq!(fixture.settings.lock().expect("Grid settings").columns, 3);
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
+    fn group_titles_have_opaque_region_backgrounds() {
+        let fixture = fixture();
+        for title in fixture.group_titles {
+            assert_eq!(
+                fixture
+                    .runtime
+                    .tree()
+                    .resolved_style(title)
+                    .expect("group title style")
+                    .background,
+                GROUP_BACKGROUND
+            );
+        }
     }
 
     #[test]
