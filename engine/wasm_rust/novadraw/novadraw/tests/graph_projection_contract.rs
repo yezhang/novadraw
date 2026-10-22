@@ -98,6 +98,9 @@ struct Fixture {
     fail: Arc<AtomicBool>,
 }
 fn fixture(dynamic: bool) -> Fixture {
+    fixture_in_viewport(dynamic, false)
+}
+fn fixture_in_viewport(dynamic: bool, viewport: bool) -> Fixture {
     let mut service = GraphLayoutService::new();
     register_layered_protocol(&mut service).unwrap();
     register_directed_graph(&mut service).unwrap();
@@ -138,11 +141,30 @@ fn fixture(dynamic: bool) -> Fixture {
     }
     let request = builder.build(&mut solve).unwrap();
     let mut runtime = Runtime::empty();
-    let owner = runtime
-        .set_contents(Box::new(GraphProjectionFigure::new(Rectangle::new(
-            0.0, 0.0, 600.0, 400.0,
-        ))))
-        .unwrap();
+    let graph = Box::new(GraphProjectionFigure::new(Rectangle::new(
+        0.0, 0.0, 600.0, 400.0,
+    )));
+    let owner = if viewport {
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+            .unwrap();
+        let viewport = runtime
+            .viewports()
+            .add(root, Rectangle::new(10.0, 20.0, 100.0, 80.0))
+            .unwrap()
+            .figure_id();
+        runtime
+            .viewports()
+            .set_tracks_width(viewport, true)
+            .unwrap();
+        runtime
+            .viewports()
+            .set_tracks_height(viewport, true)
+            .unwrap();
+        runtime.viewports().set_contents(viewport, graph).unwrap()
+    } else {
+        runtime.set_contents(graph).unwrap()
+    };
     let fail = Arc::new(AtomicBool::new(false));
     let mut entities = Vec::new();
     for node in request.nodes() {
@@ -265,6 +287,52 @@ fn frame(runtime: &mut Runtime) -> Result<(), FramePreparationError> {
         other => panic!("{other:?}"),
     }
 }
+#[test]
+fn graph_measurement_in_a_tracked_viewport_preserves_extent_and_route_identity_when_scrolled() {
+    let mut f = fixture_in_viewport(true, true);
+    frame(&mut f.runtime).unwrap();
+    let viewport = f.runtime.tree().parent_id(f.owner).unwrap().unwrap();
+    let tree = f.runtime.tree();
+    let snapshot = tree.prepared_presentation(f.owner).unwrap().unwrap();
+    let graph = snapshot.data::<GraphProjectionSnapshot>().unwrap();
+    let identity = graph.request().identity();
+    let extent = snapshot.minimum_size();
+    let bounds = tree.figure_bounds(f.owner).unwrap();
+    assert!(bounds.width >= extent.width && bounds.height >= extent.height);
+    assert!(bounds.width > 100.0);
+    let calculations = f.runtime.connections().routing_stats().route_calculations;
+    f.runtime
+        .viewports()
+        .set_view_location(viewport, 50.0, 30.0)
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    assert_eq!(
+        f.runtime
+            .viewports()
+            .handle(viewport)
+            .unwrap()
+            .view_location()
+            .x(),
+        50.0
+    );
+    assert_eq!(
+        f.runtime
+            .tree()
+            .prepared_presentation(f.owner)
+            .unwrap()
+            .unwrap()
+            .data::<GraphProjectionSnapshot>()
+            .unwrap()
+            .request()
+            .identity(),
+        identity
+    );
+    assert_eq!(
+        f.runtime.connections().routing_stats().route_calculations,
+        calculations
+    );
+}
+
 #[test]
 fn directed_projection_publishes_candidate_bounds_and_complete_routes_together() {
     let mut f = fixture(false);

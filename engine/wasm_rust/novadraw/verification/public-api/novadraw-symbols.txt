@@ -304,6 +304,11 @@ module.figure enum HitParticipation
 module.figure enum ImageDisplayState
 module.figure enum MeasureConstraintsError
 module.figure enum PolygonScaleMode
+module.figure enum PreparationDependencyError
+module.figure enum PreparationMeasureErrorKind
+module.figure enum PreparationMeasureStage
+module.figure enum PreparationMetric
+module.figure enum PreparationRouteErrorKind
 module.figure enum ScalablePolygonError
 module.figure enum ShapeMutationError
 module.figure enum TextPlacement
@@ -335,6 +340,7 @@ module.figure struct FlowParagraph
 module.figure struct FlowTextPosition
 module.figure struct FlowTextRange
 module.figure struct FreeformCapability
+module.figure struct GraphProjectionFigure
 module.figure struct ImageFigure
 module.figure struct InlineTextFragment
 module.figure struct InputCapability
@@ -344,9 +350,17 @@ module.figure struct LifecycleCapability
 module.figure struct MeasureConstraints
 module.figure struct PolygonFigure
 module.figure struct PolylineFigure
+module.figure struct PreparationBudget
+module.figure struct PreparationBudgetError
+module.figure struct PreparationBudgetHandle
 module.figure struct PreparationCapability
+module.figure struct PreparationMeasureError
+module.figure struct PreparationMeasurement
+module.figure struct PreparationRouteError
 module.figure struct PreparationScene
 module.figure struct PreparedScene
+module.figure struct PreparedSceneIdentity
+module.figure struct PreparedSceneSnapshot
 module.figure struct RectangleFigure
 module.figure struct ResolvedStyle
 module.figure struct ResourceDependenciesCapability
@@ -354,6 +368,7 @@ module.figure struct RootFigure
 module.figure struct RoundedRectangleFigure
 module.figure struct ScalablePolygonFigure
 module.figure struct ScaleCapability
+module.figure struct SetGraphProjection
 module.figure struct TextFlowFigure
 module.figure struct TextFlowViewport
 module.figure struct ToggleFigure

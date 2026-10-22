@@ -2,7 +2,9 @@ use crate::{
     figure::{
         CONTAINER, ContainerCapability, Figure, FigureCapabilityBuilder,
         FigureCapabilityRegistrationError, FigureContainer, FigurePreparation, FigurePresentation,
-        FigureStyle, PREPARATION, PreparationCapability, PreparationScene, PreparedScene,
+        FigureStyle, MeasureConstraints, PREPARATION, PreparationCapability,
+        PreparationMeasureError, PreparationMeasureErrorKind, PreparationMeasurement,
+        PreparationScene, PreparedScene,
     },
     geometry::Rectangle,
     layout::graph::{GraphLayoutError, GraphProjection},
@@ -53,6 +55,36 @@ impl FigureContainer for GraphProjectionFigure {
     }
 }
 impl FigurePreparation for GraphProjectionFigure {
+    fn measure_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        let prepared = self
+            .prepare_scene(context, Rectangle::ZERO, scene)
+            .map_err(|error| match error {
+                TextError::PreparationMeasurement(error) => *error,
+                TextError::PreparationDependency(error) => PreparationMeasureError {
+                    figure: scene.root(),
+                    outer_constraints: constraints,
+                    content_constraints: Some(constraints),
+                    kind: PreparationMeasureErrorKind::Dependency(error),
+                },
+                error => PreparationMeasureError {
+                    figure: scene.root(),
+                    outer_constraints: constraints,
+                    content_constraints: Some(constraints),
+                    kind: PreparationMeasureErrorKind::Text(Box::new(error)),
+                },
+            })?;
+        // Fixed graph inputs are not clipped to viewport hints. Dynamic leaf constraints
+        // remain part of the producer's frozen request and feedback contract.
+        Ok(PreparationMeasurement {
+            preferred: prepared.root_presentation().measurement(),
+            minimum: prepared.root_presentation().minimum_size(),
+        })
+    }
     fn prepare(
         &self,
         _: &mut MeasureContext<'_>,
