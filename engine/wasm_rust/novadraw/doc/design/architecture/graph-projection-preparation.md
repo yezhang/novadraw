@@ -47,7 +47,8 @@ preparation provider 的源版本，排除布局缓存失效代数。
 快照身份、visibility 与 topology 源查询不等于几何读取；快照按实际观察展开。
 外部契约覆盖跨 owner 的 P→Q→route→P、保留快照后的新增禁读和修正后恢复，
 普通 Router 的既有结构环错误仍走 RouteError 通道。
-共享预算仍待后续批次；这不是整个增量的完成声明。
+共享预算已接入 preparation、受约束测量、源前缀与快照检查、计算依赖遍历和图求解入口。
+文本约束测量与 graph adapter 仍待后续切片，整个增量尚未完成。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
 ## 实施前发现的契约缺口
@@ -228,7 +229,7 @@ pub enum PreparationMeasureErrorKind {
 Dependency 原因保存在 Box 中，避免扩大每个 Result 的错误值，原始错误及
 `Error::source` 契约不变。Dependency 已覆盖测量重入、快照结构环、
 必需路由输出反向读取和深度限制；LayoutManager 子查询和缓存已保留传递观察，
-共享预算仍待后续切片。
+共享预算错误沿同一结构化通道传播，保留实际失败节点及其约束。
 `PreparationMetric` 区分 preferred 与 minimum；`PreparationMeasureStage` 标识
 constraint shrink、constraint inverse projection、Border/insets expansion、
 measurement projection。两者表达固定测量步骤，不分派内置或外部行为。
@@ -313,6 +314,18 @@ prepare_scene 边界用 TextError 的结构化依赖包装，保留 `Error::sour
 
 环检测和遍历也消耗同一预算。结构可达性已证明有环时报告 DependencyCycle；
 尚未完成检查就耗尽预算时报告预算错误，不能伪称已证明有环。
+Core 使用 `PreparationBudgetHandle` 保存一次稳定化的 work/allocation 累计值。
+`PreparationScene::budget` 向所有 producer 暴露同一计数器；
+`GraphSolveContext::with_preparation_budget` 同时保留算法局部限制与稳定化总限制。
+创建另一求解上下文不会补充总预算。allocation 同时消耗 work 与 collection entry
+额度，消费者须在其私有 payload 分配前自行记账。
+Core 对子树构建、测量缓存、源前缀、快照观察、依赖图构建和可达性检查记账。
+超限记录保留在本次会话中，即使回调忽略返回错误，批次也不能继续发布。
+预算错误经 `PreparationDependencyError::Budget`、`PreparationMeasureError` 或
+`RouteSceneQueryError::PreparationBudget` 传播，`Error::source` 保留原始原因；
+算法入口用 `GraphLayoutError::PreparationBudget` 包装同一原因。
+嵌套测量不将叶节点的预算错误覆盖为父容器错误。
+下一次独立稳定化建立新预算，失败会话的计数不污染合法重试。
 失败按本提案的 source/检查点恢复规则处理，保留当前源依赖供合法修正触发重试。
 修正 binding 或测量读取后重建当前依赖；删除/替换 owner 时退休旧依赖边。
 

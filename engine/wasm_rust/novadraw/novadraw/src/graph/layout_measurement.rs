@@ -181,7 +181,18 @@ impl FigureTree {
             let preparation = node
                 .preparation()
                 .ok_or_else(|| fail(Some(content), Kind::UnsupportedConstraintMeasurement))?;
-            let measured_scene = scene.for_measurement(figure, outer, content);
+            let measured_scene =
+                scene
+                    .for_measurement(figure, outer, content)
+                    .map_err(|error| {
+                        fail(
+                            Some(content),
+                            match error {
+                                TextError::PreparationDependency(error) => Kind::Dependency(error),
+                                error => Kind::Text(Box::new(error)),
+                            },
+                        )
+                    })?;
             let style = scene
                 .style(figure)
                 .map_err(|error| fail(Some(content), Kind::Text(Box::new(error))))?;
@@ -197,14 +208,22 @@ impl FigureTree {
                         error.content_constraints = Some(content);
                     }
                     error
-                })?
-                .validate(
-                    figure,
-                    outer,
+                })?;
+            scene.budget().check().map_err(|error| {
+                fail(
                     Some(content),
-                    preferred_prepared,
-                    minimum_prepared,
-                )?;
+                    Kind::Dependency(Box::new(crate::figure::PreparationDependencyError::Budget(
+                        error,
+                    ))),
+                )
+            })?;
+            let measured = measured.validate(
+                figure,
+                outer,
+                Some(content),
+                preferred_prepared,
+                minimum_prepared,
+            )?;
             Some(measured)
         } else {
             None

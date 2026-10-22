@@ -446,17 +446,27 @@ impl Runtime {
         }
     }
 
-    fn invalidate_stale_connection_dependencies(&mut self) -> Result<bool, ConnectionRuntimeError> {
+    fn invalidate_stale_connection_dependencies(
+        &mut self,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<bool, ConnectionRuntimeError> {
         let locator_changed = self
             .connections
             .invalidate_stale_locator_measurements(&self.tree)?;
-        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::with_budget(
+            &self.tree,
+            &self.anchor_geometries,
+            budget.clone(),
+        );
         self.connections
             .invalidate_stale_dependencies(&scene)
             .map(|affected| locator_changed || !affected.is_empty())
     }
 
-    fn resolve_dirty_connection_routes(&mut self) -> bool {
+    fn resolve_dirty_connection_routes(
+        &mut self,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> bool {
         let dirty = self.connections.dirty_connections();
         if dirty.is_empty() {
             return false;
@@ -476,9 +486,11 @@ impl Runtime {
                     Some(ConnectionRuntimeError::UnknownFigure(connection.figure()));
                 continue;
             };
-            if let Err(error) =
-                self.resolve_connection_route(connection, CoordinateSpace::ChildContent(parent))
-            {
+            if let Err(error) = self.resolve_connection_route_with_budget(
+                connection,
+                CoordinateSpace::ChildContent(parent),
+                budget,
+            ) {
                 self.connection_error = Some(error);
             }
         }
@@ -491,6 +503,7 @@ impl Runtime {
     ) -> Result<(), FramePreparationError> {
         self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
         self.last_stabilization_error = None;
+        let preparation_budget = crate::figure::PreparationBudgetHandle::default();
 
         let mut work = DerivedWorkSet::default();
         let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
@@ -501,6 +514,9 @@ impl Runtime {
         work.insert(DerivedWorkKind::Presentation);
 
         while let Some(kind) = work.pop_next() {
+            preparation_budget
+                .consume("stabilization work", 1)
+                .map_err(|error| FramePreparationError::Text(error.into()))?;
             let count = &mut feedback_counts[kind as usize];
             *count += 1;
             if *count > DERIVED_STATE_FEEDBACK_LIMIT {
@@ -520,7 +536,10 @@ impl Runtime {
                         .refresh_prepared_figures(
                             self.text.as_mut(),
                             &mut self.updates,
-                            self.connections.preparation_dependencies(),
+                            self.connections
+                                .preparation_dependencies(&preparation_budget)
+                                .map_err(FramePreparationError::Text)?,
+                            &preparation_budget,
                         )
                         .map_err(FramePreparationError::Text)?;
                     if self.updates.has_pending_layout() {
@@ -549,7 +568,7 @@ impl Runtime {
                 }
                 DerivedWorkKind::DependencyInvalidation => {
                     if self
-                        .invalidate_stale_connection_dependencies()
+                        .invalidate_stale_connection_dependencies(&preparation_budget)
                         .map_err(|error| {
                             self.connection_error = Some(error);
                             FramePreparationError::DidNotConverge
@@ -560,7 +579,7 @@ impl Runtime {
                     }
                 }
                 DerivedWorkKind::Routing => {
-                    if self.resolve_dirty_connection_routes() {
+                    if self.resolve_dirty_connection_routes(&preparation_budget) {
                         work.insert(DerivedWorkKind::PostRouteGeometry);
                     }
                 }
@@ -580,7 +599,10 @@ impl Runtime {
                         .refresh_prepared_figures(
                             self.text.as_mut(),
                             &mut self.updates,
-                            self.connections.preparation_dependencies(),
+                            self.connections
+                                .preparation_dependencies(&preparation_budget)
+                                .map_err(FramePreparationError::Text)?,
+                            &preparation_budget,
                         )
                         .map_err(FramePreparationError::Text)?
                     {
@@ -603,21 +625,35 @@ impl Runtime {
                     }
                 }
             }
+            preparation_budget
+                .check()
+                .map_err(|error| FramePreparationError::Text(error.into()))?;
         }
 
         if self.updates.has_pending_layout() || !self.connections.dirty_connections().is_empty() {
             return Err(FramePreparationError::DidNotConverge);
         }
-        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::with_budget(
+            &self.tree,
+            &self.anchor_geometries,
+            preparation_budget.clone(),
+        );
         for (owner, group) in self.tree.required_route_groups() {
-            self.connections
-                .validate_required_routes(owner, group, &scene)
-                .map_err(|error| {
-                    FramePreparationError::Text(crate::text::TextError::PreparationRoute(Box::new(
-                        error,
-                    )))
-                })?;
+            let result = self
+                .connections
+                .validate_required_routes(owner, group, &scene);
+            preparation_budget
+                .check()
+                .map_err(|error| FramePreparationError::Text(error.into()))?;
+            result.map_err(|error| {
+                FramePreparationError::Text(crate::text::TextError::PreparationRoute(Box::new(
+                    error,
+                )))
+            })?;
         }
+        preparation_budget
+            .check()
+            .map_err(|error| FramePreparationError::Text(error.into()))?;
         self.stable_epoch = self.derivation_epoch;
         Ok(())
     }

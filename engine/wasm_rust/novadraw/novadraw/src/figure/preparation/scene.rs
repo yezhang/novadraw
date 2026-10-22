@@ -36,23 +36,42 @@ pub struct PreparationScene<'a> {
     observations: Rc<RefCell<Vec<crate::connection::DependencyObservation>>>,
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
+    budget: super::PreparationBudgetHandle,
 }
 
 impl<'a> PreparationScene<'a> {
+    #[cfg(test)]
     pub(crate) fn new(
         tree: &'a FigureTree,
         root: FigureId,
         styles: &'a HashMap<FigureId, ResolvedStyle>,
-    ) -> Self {
+    ) -> Result<Self, TextError> {
+        Self::with_budget(
+            tree,
+            root,
+            styles,
+            super::PreparationBudgetHandle::default(),
+        )
+    }
+
+    pub(crate) fn with_budget(
+        tree: &'a FigureTree,
+        root: FigureId,
+        styles: &'a HashMap<FigureId, ResolvedStyle>,
+        budget: super::PreparationBudgetHandle,
+    ) -> Result<Self, TextError> {
         let mut members = HashSet::new();
+        budget.allocate("preparation subtree", 1)?;
         let mut pending = vec![root];
         while let Some(id) = pending.pop() {
+            budget.allocate("preparation subtree", 1)?;
             members.insert(id);
             if let Ok(node) = tree.node(id) {
+                budget.allocate("preparation subtree", node.children.len() as u64)?;
                 pending.extend(node.children.iter().copied());
             }
         }
-        Self {
+        Ok(Self {
             tree,
             root,
             styles,
@@ -61,7 +80,13 @@ impl<'a> PreparationScene<'a> {
             observations: Rc::new(RefCell::new(Vec::new())),
             measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
-        }
+            budget,
+        })
+    }
+
+    /// Shares this stabilization's accounting with an external producer or solver.
+    pub fn budget(&self) -> super::PreparationBudgetHandle {
+        self.budget.clone()
     }
 
     pub fn root(&self) -> FigureId {
@@ -78,13 +103,13 @@ impl<'a> PreparationScene<'a> {
         root: FigureId,
         outer: MeasureConstraints,
         content: MeasureConstraints,
-    ) -> PreparationScene<'a> {
-        let mut scene = Self::new(self.tree, root, self.styles);
+    ) -> Result<PreparationScene<'a>, TextError> {
+        let mut scene = Self::with_budget(self.tree, root, self.styles, self.budget.clone())?;
         scene.measurement_path = self.measurement_path.clone();
         scene.observations = self.observations.clone();
         scene.measurements = self.measurements.clone();
         scene.measurement_constraints = Some((outer, content));
-        scene
+        Ok(scene)
     }
 
     /// Measures the selected Figure through the authoritative Runtime measurement pipeline.
@@ -111,6 +136,14 @@ impl<'a> PreparationScene<'a> {
             content_constraints: None,
             kind,
         };
+        let budget_failure = |error| {
+            failure(PreparationMeasureErrorKind::Dependency(Box::new(
+                PreparationDependencyError::Budget(error),
+            )))
+        };
+        self.budget
+            .consume("measurement query", 1)
+            .map_err(budget_failure)?;
         self.tree.validate_identity(id).map_err(|error| {
             failure(PreparationMeasureErrorKind::Layout(Box::new(
                 LayoutError::Identity(error),
@@ -142,6 +175,9 @@ impl<'a> PreparationScene<'a> {
             }
         }
         let text_revision = context.revision();
+        self.budget
+            .consume("measurement cache", self.measurements.borrow().len() as u64)
+            .map_err(budget_failure)?;
         let cached = self
             .measurements
             .borrow()
@@ -155,6 +191,7 @@ impl<'a> PreparationScene<'a> {
             .cloned();
         if let Some(record) = cached {
             self.retain_observations(&record.observations);
+            self.budget.check().map_err(budget_failure)?;
             return Ok(record.measurement);
         }
         struct MeasurementGuard(Rc<RefCell<Vec<FigureId>>>);
@@ -163,12 +200,24 @@ impl<'a> PreparationScene<'a> {
                 self.0.borrow_mut().pop();
             }
         }
+        self.budget
+            .allocate("measurement path", 1)
+            .map_err(budget_failure)?;
         self.measurement_path.borrow_mut().push(id);
         let _guard = MeasurementGuard(self.measurement_path.clone());
-        let mut measured_scene = Self::new(self.tree, id, self.styles);
+        let mut measured_scene = Self::with_budget(self.tree, id, self.styles, self.budget.clone())
+            .map_err(|error| {
+                failure(match error {
+                    TextError::PreparationDependency(error) => {
+                        PreparationMeasureErrorKind::Dependency(error)
+                    }
+                    error => PreparationMeasureErrorKind::Text(Box::new(error)),
+                })
+            })?;
         measured_scene.measurement_path = self.measurement_path.clone();
         measured_scene.measurements = self.measurements.clone();
         measured_scene.observe(crate::connection::DependencySubject::FigureMeasurementSource(id));
+        self.budget.check().map_err(budget_failure)?;
         let result = self.tree.measure_preparation_figure(
             context,
             id,
@@ -178,20 +227,25 @@ impl<'a> PreparationScene<'a> {
         );
         let observations = measured_scene.observations();
         self.retain_observations(&observations);
-        if let Ok(measurement) = result {
-            self.measurements.borrow_mut().push(MeasurementRecord {
-                figure: id,
-                constraints,
-                selection,
-                text_revision,
-                measurement,
-                observations,
-            });
-        }
-        result
+        // A nested failure owns its subject and constraints, including budget errors.
+        let measurement = result?;
+        self.budget.check().map_err(budget_failure)?;
+        self.budget
+            .allocate("measurement cache", 1)
+            .map_err(budget_failure)?;
+        self.measurements.borrow_mut().push(MeasurementRecord {
+            figure: id,
+            constraints,
+            selection,
+            text_revision,
+            measurement,
+            observations,
+        });
+        Ok(measurement)
     }
 
     fn check(&self, id: FigureId) -> Result<(), TextError> {
+        self.budget.consume("preparation query", 1)?;
         if self.members.contains(&id) {
             return Ok(());
         }
@@ -202,6 +256,10 @@ impl<'a> PreparationScene<'a> {
 
     pub fn children(&self, id: FigureId) -> Result<Vec<FigureId>, TextError> {
         self.check(id)?;
+        self.budget.allocate(
+            "children query",
+            self.tree.node(id).map_err(scene_error)?.children.len() as u64,
+        )?;
         self.tree.child_order(id).map_err(scene_error)
     }
 
@@ -225,7 +283,15 @@ impl<'a> PreparationScene<'a> {
                 PreparationDependencyError::DependencyCycle { path },
             )));
         }
-        let snapshot = self.tree.checked_prepared_scene(id).map_err(scene_error)?;
+        let snapshot = self
+            .tree
+            .checked_prepared_scene_with_budget(id, &self.budget)
+            .map_err(|error| match error {
+                crate::connection::RouteSceneQueryError::PreparationBudget(error) => {
+                    TextError::from(error)
+                }
+                error => scene_error(error),
+            })?;
         self.observe(subject);
         Ok(snapshot)
     }
@@ -237,14 +303,17 @@ impl<'a> PreparationScene<'a> {
     ) -> Result<bool, TextError> {
         use crate::connection::DependencySubject;
         let target = DependencySubject::PreparedScene(self.root);
+        self.budget.allocate("snapshot reachability", 1)?;
         let mut pending = vec![(subject.clone(), 1)];
         let mut parents: HashMap<DependencySubject, DependencySubject> = HashMap::new();
         let mut visited = HashSet::new();
         while let Some((current, depth)) = pending.pop() {
+            self.budget.allocate("snapshot reachability", 1)?;
             if current == target {
                 let mut suffix = vec![current.clone()];
                 let mut cursor = current;
                 while let Some(parent) = parents.get(&cursor) {
+                    self.budget.allocate("snapshot cycle path", 1)?;
                     suffix.push(parent.clone());
                     cursor = parent.clone();
                 }
@@ -271,6 +340,7 @@ impl<'a> PreparationScene<'a> {
                     .as_ref()
             {
                 for observation in &prepared.observations {
+                    self.budget.allocate("snapshot reachability", 2)?;
                     if !visited.contains(&observation.subject) {
                         parents
                             .entry(observation.subject.clone())
@@ -305,6 +375,7 @@ impl<'a> PreparationScene<'a> {
     fn observe_borrowed_route_output(&self, mut id: FigureId) -> Result<(), TextError> {
         let subject = crate::connection::DependencySubject::FigureGeometry(id);
         loop {
+            self.budget.consume("route ancestor query", 1)?;
             let node = self.tree.node(id).map_err(scene_error)?;
             if node.connection().is_some() {
                 self.observe(subject);
@@ -360,14 +431,31 @@ impl<'a> PreparationScene<'a> {
 
     pub(crate) fn observe(&self, subject: crate::connection::DependencySubject) {
         use crate::connection::RouteSceneRead;
-        let geometries = HashMap::new();
-        let read = crate::connection::FigureTreeRouteSceneRead::new(self.tree, &geometries);
-        let generation = read.dependency_generation(&subject);
         let mut observations = self.observations.borrow_mut();
+        if self
+            .budget
+            .consume("dependency observation", observations.len() as u64)
+            .is_err()
+        {
+            return;
+        }
         if !observations
             .iter()
             .any(|observation| observation.subject == subject)
         {
+            if self.budget.allocate("dependency observation", 1).is_err() {
+                return;
+            }
+            let geometries = HashMap::new();
+            let read = crate::connection::FigureTreeRouteSceneRead::with_budget(
+                self.tree,
+                &geometries,
+                self.budget.clone(),
+            );
+            let generation = read.dependency_generation(&subject);
+            if self.budget.check().is_err() {
+                return;
+            }
             observations.push(crate::connection::DependencyObservation {
                 subject,
                 generation,
@@ -378,16 +466,38 @@ impl<'a> PreparationScene<'a> {
     fn retain_observations(&self, retained: &[crate::connection::DependencyObservation]) {
         let mut observations = self.observations.borrow_mut();
         for observation in retained {
+            if self
+                .budget
+                .consume("dependency observation", observations.len() as u64)
+                .is_err()
+            {
+                return;
+            }
             if !observations
                 .iter()
                 .any(|item| item.subject == observation.subject)
             {
+                if self.budget.allocate("dependency observation", 1).is_err() {
+                    return;
+                }
                 observations.push(observation.clone());
             }
         }
     }
 
     pub(crate) fn check_layout_member(&self, id: FigureId) -> Result<(), LayoutError> {
+        self.budget
+            .consume("layout measurement query", 1)
+            .map_err(|error| {
+                LayoutError::Preparation(Box::new(PreparationMeasureError {
+                    figure: id,
+                    outer_constraints: MeasureConstraints::UNBOUNDED,
+                    content_constraints: None,
+                    kind: PreparationMeasureErrorKind::Dependency(Box::new(
+                        PreparationDependencyError::Budget(error),
+                    )),
+                }))
+            })?;
         self.tree.validate_identity(id)?;
         if self.members.contains(&id) {
             Ok(())
@@ -400,7 +510,15 @@ impl<'a> PreparationScene<'a> {
     }
 
     pub(crate) fn observations(&self) -> Vec<crate::connection::DependencyObservation> {
-        self.observations.borrow().clone()
+        let observations = self.observations.borrow();
+        if self
+            .budget
+            .allocate("observation snapshot", observations.len() as u64)
+            .is_err()
+        {
+            return Vec::new();
+        }
+        observations.clone()
     }
 
     /// Frozen source prefix. Layout output bounds and cache generations are excluded.
@@ -413,6 +531,10 @@ impl<'a> PreparationScene<'a> {
         let mut pending = vec![self.root];
         while let Some(id) = pending.pop() {
             let node = self.tree.node(id).map_err(scene_error)?;
+            self.budget.allocate(
+                "preparation source prefix",
+                1 + node.resource_inputs.len() as u64 + node.children.len() as u64,
+            )?;
             let bounds = node.source_bounds;
             let insets = node.insets();
             prefix.0.push(super::PreparationSourceNode {
@@ -452,6 +574,7 @@ impl<'a> PreparationScene<'a> {
         let mut hash = std::collections::hash_map::DefaultHasher::new();
         let mut stack = vec![self.root];
         while let Some(id) = stack.pop() {
+            self.budget.consume("preparation revision", 1)?;
             id.hash(&mut hash);
             let node = self.tree.node(id).map_err(scene_error)?;
             node.component_revision.hash(&mut hash);
@@ -511,6 +634,7 @@ impl<'a> PreparationScene<'a> {
             std::mem::discriminant(&style.cursor).hash(&mut hash);
             style.tooltip.hash(&mut hash);
             for child in node.children.iter().rev() {
+                self.budget.allocate("preparation revision", 1)?;
                 stack.push(*child);
             }
         }
@@ -581,6 +705,7 @@ impl PreparedScene {
     }
 
     pub(crate) fn validate(&self, scene: &PreparationScene<'_>) -> Result<(), TextError> {
+        scene.budget.check()?;
         use super::{PreparationRouteError, PreparationRouteErrorKind};
         let mut required = HashSet::new();
         for group in &self.required_routes {
@@ -598,6 +723,7 @@ impl PreparedScene {
                 ));
             }
             for connection in &group.connections {
+                scene.budget.allocate("required route validation", 1)?;
                 if !required.insert(*connection) {
                     return Err(fail(
                         Some(*connection),
@@ -625,6 +751,9 @@ impl PreparedScene {
             .collect::<Vec<_>>();
         let mut visited = HashSet::new();
         while let Some(subject) = pending.pop() {
+            scene
+                .budget
+                .allocate("candidate dependency validation", 1)?;
             if !visited.insert(subject.clone()) {
                 continue;
             }
@@ -647,9 +776,17 @@ impl PreparedScene {
             };
             for connection in &required {
                 for figure in &figures {
-                    if *figure == connection.figure()
-                        || scene.tree.is_ancestor_of(connection.figure(), *figure) == Ok(true)
-                    {
+                    let mut cursor = Some(*figure);
+                    let mut reads_route = false;
+                    while let Some(id) = cursor {
+                        scene.budget.consume("candidate route ancestry", 1)?;
+                        if id == connection.figure() {
+                            reads_route = true;
+                            break;
+                        }
+                        cursor = scene.tree.node(id).map_err(scene_error)?.parent;
+                    }
+                    if reads_route {
                         return Err(TextError::PreparationDependency(Box::new(
                             PreparationDependencyError::ForbiddenRouteOutputDependency {
                                 owner: scene.root,
@@ -668,6 +805,10 @@ impl PreparedScene {
                     .prepared
                     .as_ref()
             {
+                scene.budget.allocate(
+                    "candidate dependency validation",
+                    prepared.observations.len() as u64,
+                )?;
                 pending.extend(
                     prepared
                         .observations
@@ -678,6 +819,7 @@ impl PreparedScene {
         }
         let mut sources = std::collections::HashSet::new();
         for (id, _) in &self.descendants {
+            scene.budget.allocate("presentation validation", 1)?;
             scene.check(*id)?;
             if *id == scene.root || !sources.insert(*id) {
                 return Err(TextError::InvalidPreparedScene(
@@ -686,6 +828,7 @@ impl PreparedScene {
             }
         }
         for (parent, output) in &self.layouts {
+            scene.budget.consume("layout output validation", 1)?;
             scene.check(*parent)?;
             scene
                 .tree
@@ -720,7 +863,7 @@ mod tests {
             .set_layout_manager(root, Box::new(StackLayout::new()))
             .unwrap();
         let styles = HashMap::new();
-        let scene = PreparationScene::new(&tree, root, &styles);
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
         let mut text = TextSystem::new();
         let mut context = text.measure(FontDescriptor::default());
         let first = scene

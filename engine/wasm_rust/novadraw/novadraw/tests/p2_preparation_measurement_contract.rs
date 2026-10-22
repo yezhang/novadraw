@@ -114,6 +114,7 @@ enum Mode {
     InvalidBaseline,
     Text,
     Recursive,
+    Budget,
 }
 struct External {
     mode: Mode,
@@ -199,6 +200,10 @@ impl FigurePreparation for External {
                 ))));
             }
             Mode::Recursive => return scene.measure_figure(context, scene.root(), constraints),
+            Mode::Budget => {
+                let budget = scene.budget();
+                let _ = budget.consume("external measurement", budget.limit().work);
+            }
             _ => {}
         }
         Ok(PreparationMeasurement {
@@ -264,6 +269,86 @@ fn run(tree: FigureTree) -> Result<(), FramePreparationError> {
         FramePreparation::Error(error) => Err(error),
         other => panic!("unexpected frame state: {other:?}"),
     }
+}
+
+#[test]
+fn ignored_consumer_budget_failure_rejects_publication_and_next_session_recovers() {
+    struct ExhaustOnce(Arc<AtomicUsize>);
+    impl Figure for ExhaustOnce {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 120.0, 80.0)
+        }
+        fn name(&self) -> &'static str {
+            "ExhaustOnce"
+        }
+        fn register_capabilities(
+            &self,
+            out: &mut FigureCapabilityBuilder,
+        ) -> Result<(), FigureCapabilityRegistrationError> {
+            out.register(PREPARATION, PreparationCapability::of::<Self>())
+        }
+    }
+    impl FigurePreparation for ExhaustOnce {
+        fn prepare(
+            &self,
+            _: &mut MeasureContext<'_>,
+            _: Rectangle,
+        ) -> Result<FigurePresentation, TextError> {
+            Ok(presentation())
+        }
+        fn prepare_scene(
+            &self,
+            _: &mut MeasureContext<'_>,
+            _: Rectangle,
+            scene: &PreparationScene<'_>,
+        ) -> Result<PreparedScene, TextError> {
+            if self.0.fetch_add(1, Ordering::Relaxed) == 0 {
+                let budget = scene.budget();
+                let _ = budget.allocate("external payload", budget.limit().allocation);
+            }
+            Ok(PreparedScene::new(presentation()).with_result_version(1))
+        }
+    }
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(ExhaustOnce(Arc::new(AtomicUsize::new(0)))))
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+    let surface = SurfaceInfo {
+        logical_width: 120.0,
+        logical_height: 80.0,
+        pixel_width: 120,
+        pixel_height: 80,
+        scale_factor: 1.0,
+    };
+    let FramePreparation::Error(FramePreparationError::Text(error)) = runtime
+        .frames()
+        .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+    else {
+        panic!("ignored budget error must reject submission");
+    };
+    let TextError::PreparationDependency(error) = error else {
+        panic!("budget error lost its structure");
+    };
+    let novadraw::figure::PreparationDependencyError::Budget(error) = error.as_ref() else {
+        panic!("budget exhaustion was mistaken for a cycle");
+    };
+    assert_eq!(error.stage, "external payload");
+    assert!(error.allocation);
+    assert!(
+        runtime
+            .tree()
+            .prepared_presentation(root)
+            .unwrap()
+            .is_none()
+    );
+    assert!(matches!(
+        runtime
+            .frames()
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
+        FramePreparation::Ready(_)
+    ));
 }
 
 #[test]
@@ -343,6 +428,7 @@ fn structured_failures_keep_the_subject_constraints_and_original_cause() {
         Mode::InvalidBaseline,
         Mode::Text,
         Mode::Recursive,
+        Mode::Budget,
     ] {
         let (tree, child, _, _) = fixture(mode);
         let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
@@ -386,6 +472,9 @@ fn structured_failures_keep_the_subject_constraints_and_original_cause() {
                     cause) if matches!(cause.as_ref(), novadraw::figure::PreparationDependencyError::MeasurementCycle { path } if path == &[child, child]))
                 );
             }
+            Mode::Budget => assert!(matches!(&error.kind,
+                PreparationMeasureErrorKind::Dependency(error)
+                    if matches!(error.as_ref(), novadraw::figure::PreparationDependencyError::Budget(_)))),
             Mode::Supported => unreachable!(),
         }
     }
@@ -531,6 +620,37 @@ fn nested_layout_failure_preserves_the_leaf_and_original_text_cause() {
     assert_eq!(
         error.source().unwrap().downcast_ref::<TextError>(),
         Some(&TextError::NoUsableFont)
+    );
+}
+
+#[test]
+fn nested_measurement_budget_failure_keeps_the_leaf_and_constraints() {
+    let (tree, leaf, _, _) = nested_fixture(Mode::Budget);
+    let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
+    else {
+        panic!("expected nested budget failure");
+    };
+    assert_eq!(error.figure, leaf);
+    assert_eq!(
+        error.outer_constraints,
+        MeasureConstraints::width(40.0).unwrap()
+    );
+    assert_eq!(
+        error.content_constraints,
+        Some(MeasureConstraints::width(40.0).unwrap())
+    );
+    assert!(
+        matches!(&error.kind, PreparationMeasureErrorKind::Dependency(error)
+        if matches!(error.as_ref(), novadraw::figure::PreparationDependencyError::Budget(error)
+            if error.stage == "external measurement"))
+    );
+    assert!(
+        error
+            .source()
+            .unwrap()
+            .source()
+            .unwrap()
+            .is::<novadraw::figure::PreparationBudgetError>()
     );
 }
 

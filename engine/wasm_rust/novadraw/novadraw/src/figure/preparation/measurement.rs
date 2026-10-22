@@ -68,6 +68,7 @@ pub enum PreparationMeasureErrorKind {
 /// Ordered measurement dependency path rejected before invoking a callback.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PreparationDependencyError {
+    Budget(super::PreparationBudgetError),
     MeasurementCycle {
         path: Vec<FigureId>,
     },
@@ -89,7 +90,14 @@ impl fmt::Display for PreparationDependencyError {
         write!(formatter, "preparation dependency rejected: {self:?}")
     }
 }
-impl Error for PreparationDependencyError {}
+impl Error for PreparationDependencyError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Budget(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl PartialEq for PreparationMeasureErrorKind {
     fn eq(&self, other: &Self) -> bool {

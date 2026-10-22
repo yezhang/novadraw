@@ -204,8 +204,15 @@ LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimu
 旧 `FigureMeasurement` 仍记录已提交 metrics 的代数。
 嵌套失败经 `LayoutError::Preparation` 传播，保留叶节点身份与该节点的约束；
 直接测量入口还原原始错误及 `Error::source`。
-共享求解预算仍由
-[图投影增量方案](../../../doc/design/architecture/graph-projection-preparation.md)继续实施。
+一次稳定化的全部 preparation 与测量回调共用 `PreparationBudgetHandle`。
+子树构建、测量缓存、源前缀、快照观察与依赖可达性检查均累计 work/allocation；
+`PreparationScene::budget` 让外部 producer 对私有分配使用同一计数器。
+图算法通过 `GraphSolveContext::with_preparation_budget` 继续累计总预算，同时保留局部限制。
+预算耗尽是结构化错误，不能用它声称已经证明依赖有环。
+回调忽略超限错误也不能发布本批候选；下一次独立稳定化使用新计数器。
+嵌套预算错误保留实际失败叶节点及其约束。
+实现见
+[`figure/preparation/budget.rs`](../../../novadraw/src/figure/preparation/budget.rs)。
 
 错误类型位于
 [`figure/preparation/measurement.rs`](../../../novadraw/src/figure/preparation/measurement.rs)；
@@ -234,8 +241,10 @@ resolved 状态、routing space 和本次快照观察；候选失败走原有派
 快照保存计算观察，路由环检测展开快照观察；preparation 查询自己直接或传递依赖的
 快照时返回有序闭环。必需组准入拒绝读取组成员或其 Locator 子树的几何、测量及原始
 Figure/capability 数据，源 children/parent 查询仍然合法。缓存命中核对观察代数，
-受检快照查询也核对传递观察。LayoutManager 传递观察、同批候选之间的依赖验证、
-共享预算继续按增量方案推进。必需组连接的恢复记录只在完整稳定化成功后保存；
+受检快照查询也核对传递观察。同批准入合并候选、保留快照与成功路线的计算依赖，
+在任何布局或 presentation 写入前检查跨 owner 的环与必需组反向读取。
+LayoutManager 子查询和缓存保留传递观察，遍历使用同一次稳定化的预算。
+必需组连接的恢复记录只在完整稳定化成功后保存；
 恢复先核对绑定版本、快照有效性及依赖版本。同源失败恢复旧 resolved generation；
 改源或改绑定后保留当前错误和观察，旧路线不能恢复为 resolved。
 尚无成功记录的首帧失败保留重试状态，普通路由失败通道保持原有语义。

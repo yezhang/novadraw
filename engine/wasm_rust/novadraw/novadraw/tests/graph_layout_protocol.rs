@@ -4,8 +4,34 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use novadraw::figure::{PreparationBudget, PreparationBudgetHandle};
 use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
 use novadraw::layout::graph::*;
+
+#[test]
+fn rebuilt_solver_contexts_share_work_and_allocation_limits() {
+    let shared = PreparationBudgetHandle::new(PreparationBudget::new(10, 5));
+    let local = GraphBudget::new(100, 100);
+    let mut first = GraphSolveContext::with_preparation_budget(local, shared.clone());
+    first.allocate(GraphStage::Request, 3).unwrap();
+    let mut second = GraphSolveContext::with_preparation_budget(local, shared.clone());
+    second.allocate(GraphStage::Measurement, 2).unwrap();
+    assert_eq!(shared.used(), PreparationBudget::new(5, 5));
+    let error = second.allocate(GraphStage::Placement, 1).unwrap_err();
+    assert!(
+        matches!(&error, GraphLayoutError::PreparationBudget(error) if error.allocation && error.limit == 5)
+    );
+    assert!(std::error::Error::source(&error).is_some());
+    // A rejected allocation has not charged work or changed the local context.
+    assert_eq!(shared.used(), PreparationBudget::new(5, 5));
+    assert_eq!(second.used(), GraphBudget::new(2, 2));
+    assert!(first.consume(GraphStage::Result, 0).is_err());
+
+    let work = PreparationBudgetHandle::new(PreparationBudget::new(2, 10));
+    let mut context = GraphSolveContext::with_preparation_budget(local, work);
+    assert!(matches!(context.allocate(GraphStage::Request, 3),
+        Err(GraphLayoutError::PreparationBudget(error)) if !error.allocation));
+}
 
 struct Linear {
     gap: f64,

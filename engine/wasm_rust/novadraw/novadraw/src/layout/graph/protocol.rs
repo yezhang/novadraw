@@ -45,19 +45,38 @@ impl GraphBudget {
 pub struct GraphSolveContext {
     budget: GraphBudget,
     used: GraphBudget,
+    shared: Option<crate::figure::PreparationBudgetHandle>,
 }
 impl GraphSolveContext {
     pub fn new(budget: GraphBudget) -> Self {
         Self {
             budget,
             used: GraphBudget::new(0, 0),
+            shared: None,
+        }
+    }
+    /// Keeps the algorithm's own limit and charges the whole preparation session.
+    /// Rebuilding this context does not replenish the shared budget.
+    pub fn with_preparation_budget(
+        budget: GraphBudget,
+        shared: crate::figure::PreparationBudgetHandle,
+    ) -> Self {
+        Self {
+            shared: Some(shared),
+            ..Self::new(budget)
         }
     }
     pub fn used(&self) -> GraphBudget {
         self.used
     }
     pub fn consume(&mut self, stage: GraphStage, units: u64) -> Result<(), GraphLayoutError> {
-        self.used.work = checked_charge(stage, self.used.work, units, self.budget.work, false)?;
+        let work = checked_charge(stage, self.used.work, units, self.budget.work, false)?;
+        if let Some(shared) = &self.shared {
+            shared
+                .consume("graph solve", units)
+                .map_err(GraphLayoutError::PreparationBudget)?;
+        }
+        self.used.work = work;
         Ok(())
     }
     pub fn allocate(&mut self, stage: GraphStage, units: u64) -> Result<(), GraphLayoutError> {
@@ -68,7 +87,13 @@ impl GraphSolveContext {
             self.budget.allocation,
             true,
         )?;
-        self.consume(stage, units)?;
+        let work = checked_charge(stage, self.used.work, units, self.budget.work, false)?;
+        if let Some(shared) = &self.shared {
+            shared
+                .allocate("graph solve", units)
+                .map_err(GraphLayoutError::PreparationBudget)?;
+        }
+        self.used.work = work;
         self.used.allocation = allocation;
         Ok(())
     }
@@ -109,6 +134,7 @@ pub enum GraphViolation {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphLayoutError {
+    PreparationBudget(crate::figure::PreparationBudgetError),
     UnknownEntity(GraphEndpoint),
     UnknownEdge(GraphEdgeId),
     DuplicateEntity(GraphEndpoint),
@@ -153,7 +179,14 @@ impl fmt::Display for GraphLayoutError {
         write!(f, "graph layout: {self:?}")
     }
 }
-impl std::error::Error for GraphLayoutError {}
+impl std::error::Error for GraphLayoutError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::PreparationBudget(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 /// Owned frozen configuration. Implementations must not change its semantics through interior mutation.
 pub trait GraphAlgorithmPayload: Any + Send + Sync {}

@@ -385,6 +385,7 @@ impl RouteSceneQuery for TrackedRouteSceneQuery<'_> {
 pub(crate) struct FigureTreeRouteSceneRead<'a> {
     tree: &'a FigureTree,
     anchor_geometries: &'a HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
+    budget: crate::figure::PreparationBudgetHandle,
 }
 
 impl<'a> FigureTreeRouteSceneRead<'a> {
@@ -392,9 +393,22 @@ impl<'a> FigureTreeRouteSceneRead<'a> {
         tree: &'a FigureTree,
         anchor_geometries: &'a HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
     ) -> Self {
+        Self::with_budget(
+            tree,
+            anchor_geometries,
+            crate::figure::PreparationBudgetHandle::default(),
+        )
+    }
+
+    pub(crate) fn with_budget(
+        tree: &'a FigureTree,
+        anchor_geometries: &'a HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
+        budget: crate::figure::PreparationBudgetHandle,
+    ) -> Self {
         Self {
             tree,
             anchor_geometries,
+            budget,
         }
     }
 
@@ -459,7 +473,8 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         &self,
         owner: FigureId,
     ) -> Result<crate::figure::PreparedSceneSnapshot, RouteSceneQueryError> {
-        self.tree.checked_prepared_scene(owner)
+        self.tree
+            .checked_prepared_scene_with_budget(owner, &self.budget)
     }
 
     fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
@@ -602,6 +617,13 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
     }
 
     fn dependency_generation(&self, subject: &DependencySubject) -> u64 {
+        if self
+            .budget
+            .consume("route dependency generation", 1)
+            .is_err()
+        {
+            return 0;
+        }
         let mut hasher = DefaultHasher::new();
         subject.hash(&mut hasher);
         let figure_for = |space| match space {
@@ -622,11 +644,26 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         };
         for figure in figures.into_iter().flatten() {
             self.tree.contains(figure).hash(&mut hasher);
+            if matches!(
+                subject,
+                DependencySubject::FigureMeasurementSource(_)
+                    | DependencySubject::FigureVisibility(_)
+                    | DependencySubject::RelativeTransform(..)
+                    | DependencySubject::Topology(_)
+            ) {
+                let mut cursor = Some(figure);
+                while let Some(id) = cursor {
+                    if self.budget.consume("route dependency ancestry", 1).is_err() {
+                        return 0;
+                    }
+                    cursor = self.tree.node(id).ok().and_then(|node| node.parent);
+                }
+            }
         }
         match subject {
             DependencySubject::PreparedScene(figure) => {
                 self.tree
-                    .source_checked_prepared_scene(*figure)
+                    .source_checked_prepared_scene_with_budget(*figure, &self.budget)
                     .ok()
                     .map(|snapshot| snapshot.identity())
                     .hash(&mut hasher);
@@ -745,6 +782,8 @@ fn coordinate_space_error(space: CoordinateSpace) -> RouteSceneQueryError {
 /// Failure produced by a read-only scene query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RouteSceneQueryError {
+    /// Reachability or source validation exhausted its preparation session.
+    PreparationBudget(crate::figure::PreparationBudgetError),
     /// The query implementation does not expose preparation snapshots.
     UnsupportedPreparedSceneQuery(FigureId),
     /// Preparation is absent, retired or does not match the current source prefix.
@@ -791,6 +830,7 @@ pub enum RouteSceneQueryError {
 impl fmt::Display for RouteSceneQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PreparationBudget(error) => error.fmt(formatter),
             Self::UnsupportedPreparedSceneQuery(owner) => {
                 write!(formatter, "prepared scene query unsupported for {owner:?}")
             }
@@ -844,6 +884,7 @@ impl fmt::Display for RouteSceneQueryError {
 impl Error for RouteSceneQueryError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::PreparationBudget(error) => Some(error),
             Self::Coordinate(error) => Some(error),
             _ => None,
         }

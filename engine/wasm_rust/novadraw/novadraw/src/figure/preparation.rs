@@ -5,6 +5,8 @@ use crate::text::{MeasureContext, TextError};
 use crate::{Dimension, Rectangle};
 use std::sync::Arc;
 
+mod budget;
+pub use budget::{PreparationBudget, PreparationBudgetError, PreparationBudgetHandle};
 mod dependency;
 mod measurement;
 mod routing;

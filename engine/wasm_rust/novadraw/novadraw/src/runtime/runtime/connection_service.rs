@@ -293,8 +293,21 @@ impl Runtime {
         connection: ConnectionId,
         routing_space: CoordinateSpace,
     ) -> Result<RouteOutput, ConnectionRuntimeError> {
+        self.resolve_connection_route_with_budget(
+            connection,
+            routing_space,
+            &crate::figure::PreparationBudgetHandle::default(),
+        )
+    }
+
+    pub(crate) fn resolve_connection_route_with_budget(
+        &mut self,
+        connection: ConnectionId,
+        routing_space: CoordinateSpace,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<RouteOutput, ConnectionRuntimeError> {
         self.guarded_connection_mutation(|runtime| {
-            runtime.resolve_connection_route_inner(connection, routing_space)
+            runtime.resolve_connection_route_inner(connection, routing_space, budget)
         })
     }
 
@@ -302,6 +315,7 @@ impl Runtime {
         &mut self,
         connection: ConnectionId,
         routing_space: CoordinateSpace,
+        budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<RouteOutput, ConnectionRuntimeError> {
         let routing_order: Vec<_> = match (
             self.connections.routing_group_scope(connection)?,
@@ -317,12 +331,29 @@ impl Runtime {
                 .collect(),
             _ => vec![connection],
         };
-        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::with_budget(
+            &self.tree,
+            &self.anchor_geometries,
+            budget.clone(),
+        );
         let result = self
             .connections
             .route(connection, routing_space, &scene, &routing_order);
         match result {
             Ok(batch) => {
+                if let Err(error) = budget.check() {
+                    let reason = UnresolvedConnection::RouteFailed(RouteError::Scene(
+                        crate::connection::RouteSceneQueryError::PreparationBudget(error),
+                    ));
+                    self.connections.reject_route_batch(&batch, reason.clone());
+                    for affected in batch.calculations() {
+                        self.tree.clear_connection_route(
+                            &mut self.updates,
+                            affected.connection().figure(),
+                        );
+                    }
+                    return Err(ConnectionRuntimeError::Unresolved(reason));
+                }
                 let requested = batch
                     .calculations()
                     .iter()

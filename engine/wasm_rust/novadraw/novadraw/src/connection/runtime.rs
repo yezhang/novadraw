@@ -341,19 +341,22 @@ impl Default for ConnectionRuntime {
 impl ConnectionRuntime {
     pub(crate) fn preparation_dependencies(
         &self,
-    ) -> crate::figure::preparation::PreparationDependencies {
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<crate::figure::preparation::PreparationDependencies, crate::text::TextError> {
         let mut dependencies = crate::figure::preparation::PreparationDependencies::default();
         for connection in &self.order {
+            budget.consume("connection calculation dependencies", 1)?;
             if let Some(state) = self.states.get(connection)
                 && state.calculation_dependencies.binding_revision == state.binding_revision
             {
                 dependencies.replace(
                     DependencySubject::FigureGeometry(connection.figure()),
                     state.calculation_dependencies.subjects.iter().cloned(),
-                );
+                    budget,
+                )?;
             }
         }
-        dependencies
+        Ok(dependencies)
     }
 
     pub(crate) fn validate_required_routes(

@@ -43,26 +43,44 @@ impl FigureTree {
             .collect()
     }
 
-    pub(crate) fn checked_prepared_scene(
+    pub(crate) fn checked_prepared_scene_with_budget(
         &self,
         owner: FigureId,
+        budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<crate::figure::PreparedSceneSnapshot, crate::connection::RouteSceneQueryError> {
         use crate::connection::{DependencySubject, RouteSceneQueryError, RouteSceneRead};
-        let snapshot = self.source_checked_prepared_scene(owner)?;
+        let snapshot = self.source_checked_prepared_scene_with_budget(owner, budget)?;
         let geometries = std::collections::HashMap::new();
-        let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+        let read = crate::connection::FigureTreeRouteSceneRead::with_budget(
+            self,
+            &geometries,
+            budget.clone(),
+        );
         let mut pending = vec![snapshot.clone()];
         let mut visited = std::collections::HashSet::new();
         while let Some(value) = pending.pop() {
+            budget
+                .allocate("checked snapshot traversal", 1)
+                .map_err(RouteSceneQueryError::PreparationBudget)?;
             if !visited.insert(value.identity()) {
                 continue;
             }
             for observation in value.observations() {
+                budget
+                    .consume("checked snapshot observation", 1)
+                    .map_err(RouteSceneQueryError::PreparationBudget)?;
                 if read.dependency_generation(&observation.subject) != observation.generation {
+                    budget
+                        .check()
+                        .map_err(RouteSceneQueryError::PreparationBudget)?;
                     return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
                 }
                 if let DependencySubject::PreparedScene(dependency) = observation.subject {
-                    pending.push(self.source_checked_prepared_scene(dependency)?);
+                    budget
+                        .allocate("checked snapshot traversal", 1)
+                        .map_err(RouteSceneQueryError::PreparationBudget)?;
+                    pending
+                        .push(self.source_checked_prepared_scene_with_budget(dependency, budget)?);
                 }
             }
         }
@@ -71,11 +89,18 @@ impl FigureTree {
 
     // Generation calculation must not recursively expand the computation graph.
     // Full authority checks are performed by checked_prepared_scene above.
-    pub(crate) fn source_checked_prepared_scene(
+    pub(crate) fn source_checked_prepared_scene_with_budget(
         &self,
         owner: FigureId,
+        budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<crate::figure::PreparedSceneSnapshot, crate::connection::RouteSceneQueryError> {
         use crate::connection::RouteSceneQueryError;
+        let map_error = |_| {
+            budget.check().err().map_or(
+                RouteSceneQueryError::UnavailablePreparedScene(owner),
+                RouteSceneQueryError::PreparationBudget,
+            )
+        };
         self.validate_identity(owner)?;
         if !self.is_attached(owner)? {
             return Err(RouteSceneQueryError::DetachedFigure(owner));
@@ -85,14 +110,22 @@ impl FigureTree {
             .as_ref()
             .filter(|prepared| prepared.owner == owner && prepared.valid)
             .ok_or(RouteSceneQueryError::UnavailablePreparedScene(owner))?;
+        budget
+            .allocate("checked snapshot styles", self.blocks.len() as u64)
+            .map_err(RouteSceneQueryError::PreparationBudget)?;
         let (styles, _) = self.resolved_styles_for(|_| true);
         let styles = styles.into_iter().collect();
-        let scene = crate::figure::PreparationScene::new(self, owner, &styles);
-        if scene.source_prefix().ok().as_ref() != Some(&prepared.source)
+        let scene =
+            crate::figure::PreparationScene::with_budget(self, owner, &styles, budget.clone())
+                .map_err(map_error)?;
+        if scene.source_prefix().map_err(map_error)? != prepared.source
             || prepared.key.text != self.preparation_text_revision
         {
             return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
         }
+        budget
+            .allocate("checked snapshot clone", prepared.observations.len() as u64)
+            .map_err(RouteSceneQueryError::PreparationBudget)?;
         Ok(prepared.snapshot())
     }
 
@@ -101,6 +134,7 @@ impl FigureTree {
         text: &mut dyn TextLayoutEngine,
         updates: &mut UpdateManager,
         mut dependencies: crate::figure::preparation::PreparationDependencies,
+        budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<bool, TextError> {
         use crate::figure::PreparationScene;
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
@@ -112,6 +146,8 @@ impl FigureTree {
         {
             return Ok(false);
         }
+        // Reserve collection-entry accounting before building the batch's style/list/map views.
+        budget.allocate("preparation batch inputs", self.blocks.len() as u64 * 3)?;
         let (styles, _) = self.resolved_styles_for(|_| true);
         let figures = styles
             .iter()
@@ -127,7 +163,7 @@ impl FigureTree {
             let node = &self.blocks[id];
             let preparation = node.preparation().expect("capability selected");
             let bounds = node.client_area();
-            let scene = PreparationScene::new(self, id, &styles);
+            let scene = PreparationScene::with_budget(self, id, &styles, budget.clone())?;
             let source = scene.source_prefix()?;
             let key = PreparationKey {
                 component: scene.revision()?,
@@ -137,7 +173,11 @@ impl FigureTree {
                 bounds,
             };
             let geometries = std::collections::HashMap::new();
-            let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+            let read = crate::connection::FigureTreeRouteSceneRead::with_budget(
+                self,
+                &geometries,
+                budget.clone(),
+            );
             if node.prepared.as_ref().is_some_and(|p| {
                 use crate::connection::RouteSceneRead;
                 p.valid
@@ -149,6 +189,7 @@ impl FigureTree {
             }) {
                 continue;
             }
+            budget.check()?;
             let mut context = crate::text::MeasureContext::new(
                 text,
                 crate::text::FontDescriptor::parse(&style.font)?,
@@ -160,6 +201,7 @@ impl FigureTree {
                     "input revision changed during preparation".into(),
                 ));
             }
+            budget.allocate("preparation candidates", 1)?;
             candidates.push((id, key, source, scene.observations(), prepared_scene));
         }
         let mut presented = std::collections::HashSet::new();
@@ -167,13 +209,14 @@ impl FigureTree {
             for source in
                 std::iter::once(id).chain(candidate.descendants.iter().map(|(source, _)| source))
             {
+                budget.allocate("presentation membership", 1)?;
                 if !presented.insert(*source) {
                     return Err(TextError::InvalidPreparedScene(
                         "overlapping presentation owners".into(),
                     ));
                 }
             }
-            let scene = PreparationScene::new(self, *id, &styles);
+            let scene = PreparationScene::with_budget(self, *id, &styles, budget.clone())?;
             if scene.revision()? != key.component
                 || scene.source_prefix()? != *source
                 || text.revision() != key.text
@@ -184,18 +227,25 @@ impl FigureTree {
             }
             use crate::connection::RouteSceneRead;
             let geometries = std::collections::HashMap::new();
-            let read = crate::connection::FigureTreeRouteSceneRead::new(self, &geometries);
+            let read = crate::connection::FigureTreeRouteSceneRead::with_budget(
+                self,
+                &geometries,
+                budget.clone(),
+            );
             if observations.iter().any(|observation| {
                 read.dependency_generation(&observation.subject) != observation.generation
             }) {
+                budget.check()?;
                 return Err(TextError::InvalidPreparedScene(
                     "frozen preparation dependency is stale".into(),
                 ));
             }
         }
+        budget.allocate("retained dependency owners", self.blocks.len() as u64)?;
         dependencies.retain_tree(
             self,
             &self.blocks.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            budget,
         )?;
         for (id, _, _, observations, _) in &candidates {
             dependencies.replace(
@@ -203,8 +253,10 @@ impl FigureTree {
                 observations
                     .iter()
                     .map(|observation| observation.subject.clone()),
-            );
+                budget,
+            )?;
         }
+        budget.allocate("candidate owner index", candidates.len() as u64)?;
         let candidate_by_owner = candidates
             .iter()
             .map(|(id, _, _, _, candidate)| (*id, candidate))
@@ -225,14 +277,18 @@ impl FigureTree {
                 required
                     .iter()
                     .flat_map(|group| group.connections.iter().copied()),
+                budget,
             )?;
         }
+        budget.check()?;
         let mut metrics_changed = false;
         // No tree changes occur until every candidate and its layout output has been checked.
+        budget.allocate("publication owner index", candidates.len() as u64)?;
         let owners = candidates
             .iter()
             .map(|(id, _, _, _, _)| *id)
             .collect::<std::collections::HashSet<_>>();
+        budget.allocate("retired presentation scan", self.blocks.len() as u64)?;
         let retired = self
             .blocks
             .iter()
@@ -245,6 +301,20 @@ impl FigureTree {
                     .map(|_| source)
             })
             .collect::<Vec<_>>();
+        for (_, _, source, observations, candidate) in &candidates {
+            let inputs = source
+                .0
+                .iter()
+                .fold(observations.len() as u64, |total, node| {
+                    total.saturating_add(
+                        1 + node.children.len() as u64 + node.resources.len() as u64,
+                    )
+                });
+            budget.allocate(
+                "published preparation snapshots",
+                inputs.saturating_mul(candidate.descendants.len() as u64 + 1),
+            )?;
+        }
         for source in retired {
             let node = &self.blocks[source];
             let old_visual = node.visual_bounds();
