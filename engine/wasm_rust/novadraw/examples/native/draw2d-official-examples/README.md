@@ -52,3 +52,12 @@ Zoom 的连续缩放验证使用真实 ScrollBar 按钮输入，依次截图初�
 cargo test -p draw2d-official-examples --lib zoom_example
 cargo run -p draw2d-official-examples --example zoom_verification
 ```
+
+Path 已接入旋转闭合路径、选字 clip 和两次文字绘制；最小/最大缩放使用同一
+ScrollBar 的真实按钮输入验证。SchemeBorder 和字体指标下划线仍待 K08，
+入口状态保留 `in_progress`。
+
+```sh
+cargo test -p draw2d-official-examples --lib path_example
+cargo run -p draw2d-official-examples --example path_verification
+```

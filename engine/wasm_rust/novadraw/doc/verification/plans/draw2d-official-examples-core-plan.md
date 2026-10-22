@@ -103,6 +103,13 @@ K00/H04 随每批维护。
 每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 只登记 Canvas 内的结构、行为和失败/资源需求。
 
+2026-10-22 Path 从 blocked 转为 in_progress：ScrollBar 与缩放使用已有 Core
+组件，旋转闭合路径、两次文字绘制、UTF-8 selection clip 和蓝色下划线接入
+普通 FigurePreparation。BorderLayout 修复显式 Center 被不存在的边带挤占；
+保留既有无约束布局的兼容路径。Rust 验证中心区、旋转几何、两次文字/选字
+绘制与真实按钮缩放，Native 检查最小/最大截图。SchemeBorder 与字体指标驱动
+的下划线仍待 K08，当前静态示例装饰不代表通用文字装饰 API 已完成。
+
 ## 全计划完成判定
 
 25 个入口都具备独立 Canvas 实现；Canvas 功能清单没有未移植或阻塞项；

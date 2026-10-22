@@ -155,14 +155,14 @@ pub fn catalog() -> Vec<OfficialExample> {
             ],
             examples::toolbar_layout_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::in_progress(
             "path",
             "PathExample",
             "org/eclipse/draw2d/examples/path/PathExample.java",
             &[
-                "requires ScrollBar-driven scaling",
-                "requires fragment-level SWT TextLayout styling",
+                "Canvas path, rotation, selection and range zoom are ported; SchemeBorder and font-derived underline metrics remain pending",
             ],
+            examples::path_example,
         ),
         OfficialExample::blocked(
             "printing",
