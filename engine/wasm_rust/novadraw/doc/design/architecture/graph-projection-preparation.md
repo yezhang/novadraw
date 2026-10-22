@@ -27,6 +27,10 @@ LayoutManager 子查询已接入同一受约束测量会话，preferred/minimum 
 会话缓存保留子查询的传递观察，命中时将观察交给当前消费者。
 嵌套失败经 `LayoutError::Preparation` 保留实际主体、约束和原始原因，
 回到直接测量边界后返回原 `PreparationMeasureError`。
+受约束测量记录 `FigureMeasurementSource`，核对组件、约束、源 bounds、样式和
+preparation provider 的源版本，排除布局缓存失效代数。
+旧 `FigureMeasurement` 继续表示已提交测量结果依赖；同源失败后的重试不因
+重新验证布局缓存而替换快照或重算路由。
 批次候选依赖图与共享预算仍待后续批次；这不是整个增量的完成声明。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
@@ -235,6 +239,8 @@ generation；不记录图布局自己写入的 bounds。现有 PreparationScene.
 保留原用途，另提供 source 前缀读取，不改变 Flow 消费者的现有失效语义。
 
 Runtime 单独记录候选 bounds、prepared identity 与后代测量 generation。
+显式约束测量的源依赖与已提交 metrics 的依赖分别记录为
+`FigureMeasurementSource` 和 `FigureMeasurement`，两者不能互相替代。
 source 未漂移且最终约束与测量需求相同即可稳定。source 已漂移时拒绝整批；
 后代需求变化时消耗同一预算后重求解。成功缓存记录初始 source 测量和最终
 候选约束两份记录，稳定帧不重复从初始无界测量启动反馈。

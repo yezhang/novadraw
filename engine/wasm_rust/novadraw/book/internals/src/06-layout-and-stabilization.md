@@ -199,6 +199,9 @@ outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline �
 LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimum；
 未被选中的指标不参与校验。会话缓存记录 Figure、约束、指标和文字资源版本，
 同时保留子查询的传递观察，缓存命中不会省略依赖。
+受约束查询记录 `FigureMeasurementSource`，其版本来自组件、源 bounds、
+显式尺寸、布局约束、样式与 preparation provider；缓存重新验证不改变该版本。
+旧 `FigureMeasurement` 仍记录已提交 metrics 的代数。
 嵌套失败经 `LayoutError::Preparation` 传播，保留叶节点身份与该节点的约束；
 直接测量入口还原原始错误及 `Error::source`。
 共享求解预算仍由

@@ -154,6 +154,7 @@ impl RouteSceneRead for QueryFixture {
             return match subject {
                 DependencySubject::PreparedScene(figure)
                 | DependencySubject::FigureMeasurement(figure)
+                | DependencySubject::FigureMeasurementSource(figure)
                 | DependencySubject::FigureGeometry(figure)
                 | DependencySubject::FigureVisibility(figure)
                 | DependencySubject::Topology(figure)

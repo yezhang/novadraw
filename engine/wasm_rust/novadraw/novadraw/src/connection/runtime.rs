@@ -1419,6 +1419,7 @@ impl ConnectionRuntime {
             .filter(|subject| match subject {
                 DependencySubject::PreparedScene(candidate)
                 | DependencySubject::FigureMeasurement(candidate)
+                | DependencySubject::FigureMeasurementSource(candidate)
                 | DependencySubject::FigureGeometry(candidate)
                 | DependencySubject::FigureVisibility(candidate)
                 | DependencySubject::NamedAnchorRegion(candidate, _) => *candidate == figure,
@@ -2211,6 +2212,7 @@ fn dependency_figures(subject: &DependencySubject) -> [Option<FigureId>; 2] {
     match subject {
         DependencySubject::PreparedScene(figure)
         | DependencySubject::FigureMeasurement(figure)
+        | DependencySubject::FigureMeasurementSource(figure)
         | DependencySubject::FigureGeometry(figure)
         | DependencySubject::FigureVisibility(figure)
         | DependencySubject::NamedAnchorRegion(figure, _)

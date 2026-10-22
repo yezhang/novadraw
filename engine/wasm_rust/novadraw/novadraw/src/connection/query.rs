@@ -119,6 +119,9 @@ pub enum DependencySubject {
     PreparedScene(FigureId),
     /// Figure metrics, constraints and layout measurement generation.
     FigureMeasurement(FigureId),
+    /// Source inputs for a constrained measurement, excluding derived cache invalidation.
+    /// The preparation result separately retains constraints and text resource authority.
+    FigureMeasurementSource(FigureId),
     /// Figure-local geometry.
     FigureGeometry(FigureId),
     /// Effective Figure visibility.
@@ -610,6 +613,7 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
         let figures = match subject {
             DependencySubject::PreparedScene(figure)
             | DependencySubject::FigureMeasurement(figure)
+            | DependencySubject::FigureMeasurementSource(figure)
             | DependencySubject::FigureGeometry(figure)
             | DependencySubject::FigureVisibility(figure)
             | DependencySubject::Topology(figure)
@@ -637,6 +641,50 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
                         node.insets().left,
                     ] {
                         value.to_bits().hash(&mut hasher);
+                    }
+                }
+            }
+            DependencySubject::FigureMeasurementSource(figure) => {
+                if let Ok(node) = self.tree.node(*figure) {
+                    node.component_revision.hash(&mut hasher);
+                    node.layout.source_generation.hash(&mut hasher);
+                    node.preparation()
+                        .map(|provider| provider.revision())
+                        .hash(&mut hasher);
+                    node.parent.hash(&mut hasher);
+                    node.children.hash(&mut hasher);
+                    for size in [node.preferred_size, node.minimum_size, node.maximum_size] {
+                        size.is_some().hash(&mut hasher);
+                        if let Some(size) = size {
+                            size.width.to_bits().hash(&mut hasher);
+                            size.height.to_bits().hash(&mut hasher);
+                        }
+                    }
+                    for value in [
+                        node.source_bounds.x,
+                        node.source_bounds.y,
+                        node.source_bounds.width,
+                        node.source_bounds.height,
+                        node.insets().top,
+                        node.insets().right,
+                        node.insets().bottom,
+                        node.insets().left,
+                    ] {
+                        value.to_bits().hash(&mut hasher);
+                    }
+                    if let Ok(style) = self.tree.resolved_style(*figure) {
+                        style.font.hash(&mut hasher);
+                        for value in style
+                            .foreground
+                            .to_rgba_array()
+                            .into_iter()
+                            .chain(style.background.to_rgba_array())
+                        {
+                            value.to_bits().hash(&mut hasher);
+                        }
+                        style.alpha.to_bits().hash(&mut hasher);
+                        std::mem::discriminant(&style.cursor).hash(&mut hasher);
+                        style.tooltip.hash(&mut hasher);
                     }
                 }
             }

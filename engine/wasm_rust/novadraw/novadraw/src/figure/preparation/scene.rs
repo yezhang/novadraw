@@ -168,7 +168,7 @@ impl<'a> PreparationScene<'a> {
         let mut measured_scene = Self::new(self.tree, id, self.styles);
         measured_scene.measurement_path = self.measurement_path.clone();
         measured_scene.measurements = self.measurements.clone();
-        measured_scene.observe(crate::connection::DependencySubject::FigureMeasurement(id));
+        measured_scene.observe(crate::connection::DependencySubject::FigureMeasurementSource(id));
         let result = self.tree.measure_preparation_figure(
             context,
             id,
@@ -472,6 +472,8 @@ impl<'a> PreparationScene<'a> {
                 value.to_bits().hash(&mut hash);
             }
             style.alpha.to_bits().hash(&mut hash);
+            std::mem::discriminant(&style.cursor).hash(&mut hash);
+            style.tooltip.hash(&mut hash);
             for child in node.children.iter().rev() {
                 stack.push(*child);
             }
@@ -594,6 +596,7 @@ impl PreparedScene {
             let figures = match &subject {
                 DependencySubject::FigureGeometry(id)
                 | DependencySubject::FigureMeasurement(id)
+                | DependencySubject::FigureMeasurementSource(id)
                 | DependencySubject::NamedAnchorRegion(id, _) => vec![*id],
                 DependencySubject::RelativeTransform(from, to) => [from, to]
                     .into_iter()
@@ -689,7 +692,7 @@ mod tests {
             .unwrap();
         let observations = scene.observations();
         assert!(observations.iter().any(|observation| observation.subject
-            == crate::connection::DependencySubject::FigureMeasurement(child)));
+            == crate::connection::DependencySubject::FigureMeasurementSource(child)));
         let entries = scene.measurements.borrow().len();
         scene.observations.borrow_mut().clear();
         assert_eq!(

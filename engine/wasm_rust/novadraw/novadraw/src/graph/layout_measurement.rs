@@ -39,9 +39,7 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
     ) -> Result<Option<&dyn LayoutConstraint>, LayoutError> {
         self.scene.check_layout_member(child)?;
         self.scene
-            .observe(crate::connection::DependencySubject::FigureMeasurement(
-                child,
-            ));
+            .observe(crate::connection::DependencySubject::FigureMeasurementSource(child));
         crate::layout::LayoutSceneRead::get_constraint(self.tree, child)
     }
 
@@ -80,9 +78,7 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
     fn maximum_size(&self, figure: FigureId) -> Result<Dimension, LayoutError> {
         self.scene.check_layout_member(figure)?;
         self.scene
-            .observe(crate::connection::DependencySubject::FigureMeasurement(
-                figure,
-            ));
+            .observe(crate::connection::DependencySubject::FigureMeasurementSource(figure));
         self.tree.maximum_size(figure)
     }
 
@@ -103,9 +99,7 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
     fn get_content_scale(&self, figure: FigureId) -> Result<Option<f64>, LayoutError> {
         self.scene.check_layout_member(figure)?;
         self.scene
-            .observe(crate::connection::DependencySubject::FigureMeasurement(
-                figure,
-            ));
+            .observe(crate::connection::DependencySubject::FigureMeasurementSource(figure));
         crate::layout::LayoutSceneRead::get_content_scale(self.tree, figure)
     }
 }
@@ -1446,6 +1440,54 @@ mod s07_query_failure_tests {
         let mut tree = FigureTree::new();
         let id = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
         (tree, id)
+    }
+
+    #[test]
+    fn constrained_measurement_source_ignores_cache_invalidation_but_observes_source_changes() {
+        use crate::connection::{DependencySubject, FigureTreeRouteSceneRead, RouteSceneRead};
+        let (mut tree, root) = subject();
+        let geometries = std::collections::HashMap::new();
+        let source = DependencySubject::FigureMeasurementSource(root);
+        let committed = DependencySubject::FigureMeasurement(root);
+        let before_source =
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&source);
+        let before_committed =
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&committed);
+        tree.blocks[root]
+            .layout
+            .invalidate(LayoutInvalidation::Geometry);
+        let read = FigureTreeRouteSceneRead::new(&tree, &geometries);
+        assert_eq!(read.dependency_generation(&source), before_source);
+        assert_ne!(read.dependency_generation(&committed), before_committed);
+        tree.set_preferred_size(root, Some(Dimension::new(20.0, 30.0)));
+        assert_ne!(
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&source),
+            before_source
+        );
+        let before_style =
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&source);
+        tree.set_figure_style(
+            root,
+            crate::FigureStyle {
+                cursor: Some(crate::CursorIcon::Text),
+                ..crate::FigureStyle::default()
+            },
+        );
+        let after_cursor =
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&source);
+        assert_ne!(after_cursor, before_style);
+        tree.set_figure_style(
+            root,
+            crate::FigureStyle {
+                cursor: Some(crate::CursorIcon::Text),
+                tooltip: Some(Some("measurement input".into())),
+                ..crate::FigureStyle::default()
+            },
+        );
+        assert_ne!(
+            FigureTreeRouteSceneRead::new(&tree, &geometries).dependency_generation(&source),
+            after_cursor
+        );
     }
 
     #[test]

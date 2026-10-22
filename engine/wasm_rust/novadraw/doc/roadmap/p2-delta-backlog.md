@@ -139,6 +139,8 @@ Core 约束测量协议已落地：`measure_scene`/`measure_figure`、独立 pre
 改源/绑定失败不能恢复旧 resolution，首帧失败保留重试入口。
 LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 单独分派，
 缓存命中保留传递观察，嵌套错误保留叶节点及原始原因。
+受约束测量源依赖与已提交 metrics 依赖已分开；同源失败后重试保留
+快照 identity、resolved metadata 和 route calculation count。
 同批候选依赖校验与共享预算尚未完成，按同一增量继续推进，
 不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。

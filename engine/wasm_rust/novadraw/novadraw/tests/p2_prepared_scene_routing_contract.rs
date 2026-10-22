@@ -425,7 +425,14 @@ fn same_source_route_failure_restores_successful_metadata_and_generation() {
     assert_eq!(f.seen.lock().unwrap().last().unwrap().identity(), identity);
     assert!(f.runtime.connections().last_error().is_some());
     f.route_fail.store(false, Ordering::Relaxed);
+    let calculations = f.runtime.connections().routing_stats().route_calculations;
     frame(&mut f.runtime).unwrap();
+    assert_eq!(f.seen.lock().unwrap().last().unwrap().identity(), identity);
+    assert_eq!(f.runtime.connections().state(f.connection).unwrap(), stable);
+    assert_eq!(
+        f.runtime.connections().routing_stats().route_calculations,
+        calculations
+    );
     assert!(matches!(
         f.runtime
             .connections()
