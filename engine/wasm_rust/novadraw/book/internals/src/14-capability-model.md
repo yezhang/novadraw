@@ -1,4 +1,4 @@
-# 13. 类型化 Capability 与组件更新
+# 14. 类型化 Capability 与组件更新
 
 > **本章解决的问题**：一个新概念应进入基础 Figure 协议、横切 Capability、共享数据
 > 模型，还是具体组件更新？
@@ -10,7 +10,7 @@
 
 > Capability 用于跨类型发现统一语义；结构体和组件更新用于表达具体类型的数据与变化。
 
-## 13.1 四类扩展对象
+## 14.1 四类扩展对象
 
 ### 基础协议
 
@@ -45,7 +45,7 @@ flowchart TD
     D -->|否| Component
 ```
 
-## 13.2 基础协议为什么必须小
+## 14.2 基础协议为什么必须小
 
 基础协议每增加一个方法，所有 Figure 都必须理解其语义，主循环也可能需要新的调用
 阶段。因此，进入基础协议需要同时满足：
@@ -57,7 +57,7 @@ flowchart TD
 
 “未来也许有用”不是理由。默认空实现会隐藏概念并不普遍这一事实。
 
-## 13.3 Capability 的消费者判据
+## 14.3 Capability 的消费者判据
 
 一个概念成为 Capability，必须找到**独立消费者**：
 
@@ -70,7 +70,7 @@ flowchart TD
 Polyline 编辑器需要修改 PointList，不存在“任意 Figure 的点列表消费者”，PointList
 就不是 Capability。
 
-## 13.4 语义同名不等于同一能力
+## 14.4 语义同名不等于同一能力
 
 两个类型都有 `scale` 字段，不代表它们共享 Scale Capability。一个可能表示视口内容
 缩放，另一个表示图标内部几何比例。若消费者、坐标语义和失败合同不同，把它们放进
@@ -84,7 +84,7 @@ Polyline 编辑器需要修改 PointList，不存在“任意 Figure 的点列�
 - 副作用由谁提交；
 - 缺失能力如何处理。
 
-## 13.5 CapabilityKey
+## 14.5 CapabilityKey
 
 类型化 key 把发现身份与具体 descriptor 类型绑定：
 
@@ -103,7 +103,7 @@ struct CapabilityKey<C> {
 查找。重命名诊断文本不应改变能力身份；同一 Figure 也不能登记两个相同 descriptor
 类型来伪装成两个能力实例。
 
-## 13.6 Owned descriptor
+## 14.6 Owned descriptor
 
 挂载前，Figure 以拥有数据的 descriptor 声明能力：
 
@@ -129,7 +129,7 @@ descriptor 可以保存函数指针或无捕获 typed adapter。执行时由引�
 Figure 借用交给 adapter，由 adapter 在私有边界完成受检 concrete type 适配。调用方
 不接触 `Any`、`TypeId` 或 downcast。
 
-## 13.7 Registry 冻结
+## 14.7 Registry 冻结
 
 attach 后冻结 registry 有三个目的：
 
@@ -140,7 +140,7 @@ attach 后冻结 registry 有三个目的：
 能力内部状态仍可变化，但变化必须通过 Runtime mutation。冻结的是发现结构，不是对象
 永远不可变。
 
-## 13.8 类型擦除边界
+## 14.8 类型擦除边界
 
 开放类型集合通常需要内部类型擦除。安全边界应做到：
 
@@ -162,7 +162,7 @@ flowchart LR
     Descriptor --> Adapter[短借用 typed adapter]
 ```
 
-## 13.9 借用与调用
+## 14.9 借用与调用
 
 Capability 被消费时，不应同时把整个 Figure 和 Runtime 的可变引用交给 descriptor。
 读取型 descriptor 可以直接返回拥有值或不可变模型；产生变化的能力应返回 prepared
@@ -180,7 +180,7 @@ Runtime 解析 FigureId 和 CapabilityKey
 
 这样能力不能在回调中递归修改 registry、删除当前 Figure 或长期保存内部引用。
 
-## 13.10 Typed component update
+## 14.10 Typed component update
 
 具体 Figure 的状态变化可以用类型化更新表达：
 
@@ -207,7 +207,7 @@ Runtime 负责：
 这比给每种数据定义一个“Behavior trait”更准确，因为更新的目标是具体组件状态，不是
 跨类型统一调用的行为。
 
-## 13.11 PointList 为什么不是 Capability
+## 14.11 PointList 为什么不是 Capability
 
 PointList 是折线、多边形和自由路径可能复用的几何数据结构。它可以提供：
 
@@ -222,7 +222,7 @@ PointList 是折线、多边形和自由路径可能复用的几何数据结构�
 因此，PointList 应作为共享模型复用；具体 Figure 通过 `SetPolylinePoints` 等更新暴露
 变化。把它命名为 `PointListFigureBehavior` 只是在用 trait 包装字段。
 
-## 13.12 TextFlow 为什么通常不是 Capability
+## 14.12 TextFlow 为什么通常不是 Capability
 
 TextFlow 包含文本段、样式、换行和布局数据。它首先是具体文本 Figure 的领域模型。
 其他模块若需要测量文字，应依赖统一 Graphics/Text 服务，而不是发现任意 Figure 的
@@ -231,7 +231,7 @@ TextFlow 内部结构。
 只有当出现独立消费者，需要跨多种 Figure 统一执行“文本可编辑”语义时，才应定义
 TextEditing Capability；它也不等于暴露 TextFlow 数据。
 
-## 13.13 Viewport 的分类
+## 14.13 Viewport 的分类
 
 Viewport 通常是具体组合组件：它拥有裁剪、range model 和内容变换。设置滚动位置适合
 typed update。
@@ -241,7 +241,7 @@ typed update。
 
 一个对象可以同时是具体组件并提供某个横切 Capability，两者不冲突。
 
-## 13.14 Connection 的分类
+## 14.14 Connection 的分类
 
 Connection Figure 保存路径并参与基础绘制。Anchor provider 或可连接端点可以成为
 Capability，因为连接系统需要跨节点类型统一发现。
@@ -249,7 +249,7 @@ Capability，因为连接系统需要跨节点类型统一发现。
 但 Connection 的 bendpoints、router 配置和路径模型仍是具体组件数据。不能因为一个
 功能叫“连接”，就把所有相关字段塞进单一 Connection Capability。
 
-## 13.15 Input 与 Lifecycle
+## 14.15 Input 与 Lifecycle
 
 Input 符合 Capability 判据：
 
@@ -264,14 +264,14 @@ Lifecycle 是否成为 Capability 要更谨慎。如果所有 Figure 都必须�
 
 不要用 Capability 重复表达 Runtime 已经统一拥有的生命周期。
 
-## 13.16 Scale 的两种含义
+## 14.16 Scale 的两种含义
 
 若 Scale 表示 ScalablePane 的具体内容变换，它是组件状态和 typed update。若存在独立
 控制器需要跨多种实现统一设置逻辑缩放，并且合同一致，则可以抽象 Zoom Capability。
 
 关键仍是消费者和语义，而不是数据字段。
 
-## 13.17 Mutation 的统一路径
+## 14.17 Mutation 的统一路径
 
 无论变化来自基础 Figure、Capability 还是具体组件，都应形成统一 mutation：
 
@@ -288,7 +288,7 @@ Typed intent
 
 扩展分类不同，不意味着每类对象拥有不同副作用管线。
 
-## 13.18 属性身份
+## 14.18 属性身份
 
 属性通知也需要类型化身份：
 
@@ -315,7 +315,7 @@ ErasedPropertyKey
 - 驱动动画或观察者；
 - 避免不同 namespace 或不同值类型的同名属性错误匹配。
 
-## 13.19 公开与私有边界
+## 14.19 公开与私有边界
 
 不是所有组件都必须公开。公开边界可分为：
 
@@ -327,7 +327,7 @@ ErasedPropertyKey
 公开“可修改的任意组件表”会让内部布局无法演进。应用需要表达意图，而不是依赖所有
 内部字段。
 
-## 13.20 决策示例
+## 14.20 决策示例
 
 | 概念 | 分类 | 原因 |
 |---|---|---|
@@ -341,7 +341,7 @@ ErasedPropertyKey
 | Polyline points update | typed update | 面向具体组件的变化 |
 | Attach/detach | Runtime 生命周期 | 不应重复为可选行为 |
 
-## 13.21 必须保持的不变量
+## 14.21 必须保持的不变量
 
 1. 基础协议只包含普遍且由主循环调用的职责；
 2. Capability 必须有独立跨类型消费者；
@@ -353,7 +353,7 @@ ErasedPropertyKey
 8. PropertyKey 的 namespace、name 和值类型共同定义属性身份；
 9. 公共更新表达意图，不暴露任意内部存储。
 
-## 13.22 常见错误设计
+## 14.22 常见错误设计
 
 ### 每个字段都建一个 Behavior trait
 
@@ -376,13 +376,13 @@ ErasedPropertyKey
 Capability 名称不能取代 descriptor 类型；Property name 也不能脱离 namespace 和值
 类型单独比较。
 
-## 13.23 与前后章节的关系
+## 14.23 与前后章节的关系
 
 第 3 章定义了固定管线与扩展插槽，本章进一步给出扩展对象的分类规则。Figure 树、
 输入、连接和 Editor Policy 都可以应用这些规则。下一章将回答：当这些扩展失败或协议
 演进时，怎样用原子性和证据证明系统仍然正确。
 
-## 13.24 思考题
+## 14.24 思考题
 
 1. 一个概念被多个类型使用，为什么仍可能不适合做 Capability？
 2. Viewport 是组件，而 Scroll 可以是 Capability，这一区分依赖什么？

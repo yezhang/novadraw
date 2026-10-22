@@ -179,6 +179,44 @@ damage = old_surface_visual_bounds union new_surface_visual_bounds
 布局器输出的 child bounds 应明确属于父内容域。Renderer 进入 child 时再通过父级内容
 变换和 child bounds 切换坐标。这样布局器无需知道表面坐标，也不会把边框偏移重复计算。
 
+### 装饰如何改变几何合同
+
+装饰不是绘制结束时随手叠加的像素效果。它可能同时改变 client area、visual bounds、
+裁剪和命中。
+
+边框（`Border`）提供 insets。左、上、右、下边距从 local border box 扣除后，才得到
+children 的 client area。边框变厚会改变可用布局尺寸，因此必须使测量和布局失效；
+只改变边框颜色时，几何不变，只需重绘。
+
+复合边框（`CompoundBorder`）按外层再内层组合：
+
+```text
+local border box
+-> 扣除 outer border insets
+-> 扣除 inner border insets
+-> client area
+```
+
+组合顺序不能交换，因为内层边框的绘制范围建立在外层扣除后的矩形上。复合边框的
+preferred size 和 client area 必须使用同一组累计 insets。
+
+圆角 Figure 仍有轴对齐 border box，但其可见形状和精确命中可以使用圆角几何。祖先
+裁剪若也是圆角，命中必须尊重同一裁剪；普通矩形 bounds 只能作为保守快速拒绝，不能
+证明角落像素一定可见。
+
+阴影的偏移、模糊和扩散会扩大 visual bounds，也会扩大旧新 damage。当前 Core 没有
+通用 shadow API，因此不能假定任意 Figure 已自动获得阴影测量和命中语义。具体 Figure
+或外部扩展若实现阴影，必须显式提供保守 visual bounds，并说明阴影是否参与几何命中。
+
+装饰变化应按影响分层：
+
+| 变化 | 布局 | visual bounds / damage | 命中 |
+|---|---|---|---|
+| 边框厚度或 insets | 失效 | 重新计算 | 重新计算 client area |
+| 边框颜色 | 不变 | 重绘 | 不变 |
+| 圆角半径 | 通常不变 | 重绘并更新裁剪范围 | 精确几何可能变化 |
+| 阴影参数 | 通常不变 | 扩大旧新 damage | 由扩展合同决定 |
+
 ## 5.10 坐标根
 
 某些节点可以建立新的逻辑坐标根，例如独立画布、嵌套视图或反馈层。坐标根不是切断
@@ -268,6 +306,7 @@ transformed shape ⊆ transformed AABB
 5. visual bounds 覆盖所有可能像素影响；
 6. 不可逆变换不能被命中路径静默接受；
 7. 变换后包围盒必须保守。
+8. 装饰的布局 insets 与视觉外扩分别进入 client area 和 visual bounds，不能混用。
 
 ## 5.17 常见错误设计
 
@@ -291,10 +330,14 @@ transformed shape ⊆ transformed AABB
 
 旧祖先变换链已经丢失，无法清除旧像素。
 
+### 把装饰当成不影响几何的绘制细节
+
+边框厚度会改变 client area，阴影和外描边会改变 visual bounds，失效范围因此不完整。
+
 ## 5.18 与后续章节的关系
 
-本章定义了几何事实和坐标链。下一章的布局只在父内容域内产生候选 bounds；第 7 章
-利用旧新表面视觉包围盒形成 damage；第 9 章通过逆链执行命中；第 10 章的视口与连接
+本章定义了几何事实和坐标链。下一章的布局只在父内容域内产生候选 bounds；第 8 章
+利用旧新表面视觉包围盒形成 damage；第 10 章通过逆链执行命中；第 11 章的视口与连接
 则复用同一坐标查询。
 
 ## 5.19 思考题
@@ -304,3 +347,4 @@ transformed shape ⊆ transformed AABB
 3. scale 为零的节点如果曾经可见，damage 应如何处理？
 4. 为什么连接锚点不应直接返回表面坐标缓存？
 5. 一个独立坐标根需要对跨根查询定义哪些失败语义？
+6. 为什么边框颜色变化和边框厚度变化不能使用同一种失效级别？

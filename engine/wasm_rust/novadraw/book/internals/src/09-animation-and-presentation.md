@@ -1,4 +1,4 @@
-# 8. 动画与表现状态
+# 9. 动画与表现状态层
 
 > **本章解决的问题**：如何让属性、布局、连接和视口产生连续视觉过渡，同时保证模型、
 > Figure、布局、命中、通知和撤销仍然只认同一份最终事实？
@@ -12,7 +12,7 @@ bounds、连接路径或业务属性，布局、通知、命中、撤销和重�
 > 权威状态立即提交最终结果；动画只在 Runtime 拥有的表现状态层
 > （Presentation Plane）中生成可丢弃的表现覆盖值。
 
-## 8.1 为什么逐帧修改源状态是错误模型
+## 9.1 为什么逐帧修改源状态是错误模型
 
 考虑把节点从 A 移到 B，并播放 300 毫秒动画。若每一帧都调用一次 `set_bounds`：
 
@@ -26,7 +26,7 @@ bounds、连接路径或业务属性，布局、通知、命中、撤销和重�
 动画真正需要的是“最终事实已经是 B，但当前画面暂时显示在 A 与 B 之间”。这要求把
 状态分成不同层次，而不是让一个字段承担两种时间语义。
 
-## 8.2 已提交状态、表现状态与后端状态
+## 9.2 已提交状态、表现状态与后端状态
 
 这三类状态具有不同所有者和生命周期：
 
@@ -85,7 +85,7 @@ Figure 准备、动画内容覆盖和动画临时绘制项都可以复用它，�
 后端只消费 RenderSubmission，并管理 GPU 或软件资源。后端可以优化表现值的降低方式，
 但不能定义动画时间、取消语义或最终状态。
 
-## 8.3 正交模型
+## 9.3 正交模型
 
 动画由四个相互独立的问题组成：
 
@@ -114,7 +114,7 @@ flowchart TD
 AnimationBehavior，用于观察稳定 fact 后创建 Plan。两条入口最终进入同一 admission、
 通道所有权和采样管线。
 
-## 8.4 Target 与动画表现通道
+## 9.4 Target 与动画表现通道
 
 Target 由 subject identity 和类型化动画表现通道 identity 组成。常见通道包括：
 
@@ -131,7 +131,7 @@ Viewport 和外部 Figure 可以通过类型化 descriptor 增加领域通道。
 
 同一 subject/表现通道同时只有一个 owner。
 
-## 8.5 Motion 只负责采样
+## 9.5 Motion 只负责采样
 
 Motion 把时间映射为值：
 
@@ -152,7 +152,7 @@ Motion 不能：
 同一绝对时间必须产生确定结果。掉帧后直接采样新的单调时间，而不是循环补做每个中间
 刷新步。
 
-## 8.6 Composition 与 Timeline
+## 9.6 Composition 与 Timeline
 
 Composition 组织 Track 时间：
 
@@ -170,7 +170,7 @@ Decay 需要 settle tolerance 与最大时长；无限 Procedural 只能位于�
 
 Pause 是 active timeline 的运行状态，不是与 Delay 重复的 composition node。
 
-## 8.7 Runtime 拥有时间与服务
+## 9.7 Runtime 拥有时间与服务
 
 Runtime 独占 AnimationService：
 
@@ -198,7 +198,7 @@ active set 为空时：
 
 因此，没有使用动画的应用不承担持续帧成本。
 
-## 8.8 一帧中的因果顺序
+## 9.8 一帧中的因果顺序
 
 ```mermaid
 sequenceDiagram
@@ -227,7 +227,7 @@ sequenceDiagram
 已提交状态的通知只依赖源事务已经稳定，不依赖动画是否完成，也不依赖当前帧是否
 Presented。后端失败不能回滚源状态；动画失败也只能清除表现覆盖并显示最终值。
 
-## 8.9 Stable Fact 与 AnimationBehavior
+## 9.9 Stable Fact 与 AnimationBehavior
 
 Core 默认不为普通 mutation 安装隐式动画。普通属性变化仍直接显示最终静态结果。
 
@@ -248,7 +248,7 @@ stable epoch 的变化记录与 `StableSceneQuery`，返回 Plan 或不采取动
 Behavior 不能作为普通 listener 回调重入 Runtime，也不能在 Motion 采样阶段重新解释
 Trigger。Trigger 只决定“何时建计划”，不决定“如何插值”。
 
-## 8.10 Before/After Capture
+## 9.10 Before/After Capture
 
 属性 Tween 可以显式提供 start/end value。布局、路由、换父和生命周期过渡则需要真正
 的旧几何，不能在 mutation 后从新状态反推。
@@ -272,7 +272,7 @@ source rollback。
 - 不留下通道 owner、表现覆盖值或 wakeup；
 - 画面直接显示已提交最终状态。
 
-## 8.11 Damage 与视觉包络
+## 9.11 Damage 与视觉包络
 
 每次采样必须同时给出前后保守视觉包围范围：
 
@@ -293,7 +293,7 @@ damage =
 只有表现覆盖值而没有保守视觉包围范围的效果不能进入可见管线。后端可以优化实际绘制，
 但不能缩小 Core 无法证明安全的 damage。
 
-## 8.12 Channel 冲突与 Retarget
+## 9.12 Channel 冲突与 Retarget
 
 当前公开 `InterruptionPolicy` 支持两种处理：
 
@@ -306,7 +306,7 @@ damage =
 交互状态通常使用 Replace。Retarget 必须先完整预检 replacement，再采样当前表现并
 转移 owner。若预检失败，旧计划原样继续，不能短暂闪到已提交最终状态。
 
-## 8.13 Cancel 不回滚事实
+## 9.13 Cancel 不回滚事实
 
 取消动画的默认语义是：
 
@@ -319,7 +319,7 @@ damage =
 若要从当前值继续，必须 retarget；若要回到历史起点，必须创建以历史值为目标的新
 source operation 或新 Plan，而不是回滚已提交状态。
 
-## 8.14 Disabled、Enabled 与 ReducedMotion
+## 9.14 Disabled、Enabled 与 ReducedMotion
 
 | 模式 | 行为 |
 |---|---|
@@ -332,7 +332,7 @@ source operation 或新 Plan，而不是回滚已提交状态。
 
 切回 Enabled 不自动复活已终止计划。模式切换只有在像素实际变化时才请求帧。
 
-## 8.15 Suspension 与不可见状态
+## 9.15 Suspension 与不可见状态
 
 Surface suspended 或 target effectively hidden 时，每个计划需要明确策略：
 
@@ -343,7 +343,7 @@ Surface suspended 或 target effectively hidden 时，每个计划需要明确�
 持续 Connection 效果通常使用 Pause；短时业务 transition 通常使用 Advance。不能由
 每个 Figure 私自实现另一套隐藏计时规则。
 
-## 8.16 交互与 Accessibility
+## 9.16 交互与 Accessibility
 
 公共协议声明三种交互几何策略：
 
@@ -363,7 +363,7 @@ Figure 树的坐标、裁剪、重绘和销毁协议。
 未来若启用采样表现几何命中，绘制和命中必须消费同一表现覆盖快照。Accessibility 的
 role、state 和 action 仍来自稳定场景状态；是否报告采样表现边界必须由平台合同明确。
 
-## 8.17 领域能力如何接入
+## 9.17 领域能力如何接入
 
 ### 属性过渡
 
@@ -390,7 +390,7 @@ pan/zoom；auto-expose 仍是输入控制器，不伪装成固定 Tween。
 Dash flow、moving pulse 等使用 Procedural track，共享 Runtime clock。它们不修改 route、
 通知、history 或 hit-test，并受 active-track 与动画临时绘制项预算约束。
 
-## 8.18 失败语义
+## 9.18 失败语义
 
 Animation admission 在修改任何表现所有权前验证：
 
@@ -413,7 +413,7 @@ Animation admission 在修改任何表现所有权前验证：
 
 动画失败从不回滚已经提交的模型、布局或路由。
 
-## 8.19 复杂度与确定性
+## 9.19 复杂度与确定性
 
 动画热路径应按 active animation 数量增长，而不是按 FigureTree 大小增长：
 
@@ -429,7 +429,7 @@ damage merge = O(sampled visual effects)
 性能降级不能改变最终已提交状态。预算耗尽只拒绝新计划，不能驱逐无关 active
 plan 或静默修改组合语义。
 
-## 8.20 必须保持的不变量
+## 9.20 必须保持的不变量
 
 1. 已提交状态是模型、布局、路由、通知和历史的最终值来源；
 2. 表现状态由 Runtime 拥有且可随时丢弃；
@@ -442,7 +442,7 @@ plan 或静默修改组合语义。
 9. 交互几何策略必须显式；
 10. 无 active animation 时不持续扫描、唤醒或提交。
 
-## 8.21 常见错误设计
+## 9.21 常见错误设计
 
 ### 每帧修改 Figure bounds
 
@@ -473,16 +473,16 @@ Timeline 已结束但表现状态仍存在，形成没有 owner 的第二权威�
 两者具有不同所有者和树归属。`TemporaryVisual` 不进入 Figure 树；Overlay、Handle 和
 Feedback 由 Viewer 管理，并继续使用 Figure 树的交互协议。
 
-## 8.22 与前后章节的关系
+## 9.22 与前后章节的关系
 
-第 7 章定义稳定场景状态、damage、RenderSubmission 和 Runtime acknowledgement。
+第 8 章定义稳定场景状态、damage、RenderSubmission 和 Runtime acknowledgement。
 本章在不改变已提交场景状态的前提下，为帧录制增加可选的稀疏表现覆盖快照。
 
 下一章从平台输入进入场景。当前输入命中读取已提交几何；`Presentation` 策略已经进入
-公共协议，但现有 Figure 绑定仍会拒绝该策略。第 10 章的 Viewport 和 Connection 是
+公共协议，但现有 Figure 绑定仍会拒绝该策略。第 11 章的 Viewport 和 Connection 是
 表现状态层的领域消费者。
 
-## 8.23 思考题
+## 9.23 思考题
 
 1. 为什么布局动画不能每帧调用 LayoutManager？
 2. 源状态已经是最终值时，取消动画为什么不需要回滚？

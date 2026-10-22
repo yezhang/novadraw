@@ -1,4 +1,4 @@
-# 11. 模型、EditPart 与确定性视图派生
+# 12. 模型、EditPart 与确定性视图派生
 
 > **本章解决的问题**：业务对象如何被稳定地映射成 Figure 树，而不让视图成为第二份
 > 模型？
@@ -13,7 +13,7 @@ Runtime。若业务事实保存在 Figure 中，这些操作都会改变语义�
 视图派生是 Viewer 根据单一模型 revision 构建或同步 Part/Figure 视图的确定性过程。
 模型是业务事实，派生视图可以销毁和重建。
 
-## 11.1 模型与 Figure 的不同生命周期
+## 12.1 模型与 Figure 的不同生命周期
 
 业务模型需要：
 
@@ -32,7 +32,7 @@ Figure 需要：
 
 因此，Figure 是业务对象在某个 Viewer 派生视图中的场景表示，不是模型本身。
 
-## 11.2 ModelAdapter
+## 12.2 ModelAdapter
 
 Editor 不应假设所有业务模型都使用同一种对象系统。`ModelAdapter` 提供最小稳定读取：
 
@@ -52,7 +52,7 @@ apply(command) -> new revision
 
 Adapter 是业务系统与 Editor 的边界，不应把 Figure 或 Runtime 类型写回模型。
 
-## 11.3 EditPart 的职责
+## 12.3 EditPart 的职责
 
 编辑部件（EditPart，后文简称 Part）是 Viewer 内的视图控制器。它把一个模型对象或
 一种视图角色连接到 Figure，但它本身既不是业务对象，也不是 Figure。
@@ -89,7 +89,7 @@ Viewer 拥有由 `PartNode` 组成的 Part 树（`PartTree`）。行为对象参
 Root Part 没有业务模型身份。Connection Part 仍使用 `EditPartId`，只是经过角色校验后
 以 `ConnectionPart` 参与连接 API；它不建立第四种身份域。
 
-## 11.4 三个身份域
+## 12.4 三个身份域
 
 Viewer 显式维护映射：
 
@@ -107,7 +107,7 @@ flowchart LR
 
 视觉事件从 FigureId 找到 Part，再由 Part 找到 ModelId；命令只保存业务身份和值。
 
-## 11.5 Visual ownership
+## 12.5 Visual ownership
 
 视觉所有权（visual ownership）说明谁负责某个 Figure 的创建、事件归属和销毁。一个
 Part 的稳定视觉不一定只有一个 Figure：
@@ -150,7 +150,7 @@ Handle 和 Feedback 可以关联某个 owner Part，但该关联只表达 target
 以获得不同坐标和叠放语义。Part 被删除时，Viewer 必须同步清理选择、焦点和与其关联的
 Overlay，不能等待孤立 Figure 自行失效。
 
-## 11.6 Containment 视图构建
+## 12.6 Containment 视图构建
 
 业务 containment 决定 Containment Part 树的主要结构。代码标识符和检索词中常把这
 一过程写作 containment projection；本书称为 containment 视图构建。过程如下：
@@ -166,7 +166,7 @@ Overlay，不能等待孤立 Figure 自行失效。
 
 Part 树与 Figure 树通常相关，但不要求完全同构。图层、装饰和连接会引入额外 Figure。
 
-## 11.7 连接视图构建
+## 12.7 连接视图构建
 
 业务连接通常引用 source/target ModelId。Viewer 只有在端点 Part 可解析后，才能建立
 连接视图。代码标识符和检索词中常写作 connection projection。ConnectionPart 是
@@ -188,7 +188,7 @@ source/target 以及 incoming/outgoing 关系索引。
 当作端点。Core 路径进入 unresolved 也只表示当前场景依赖尚不可解析，不会自行删除
 业务连接或 ConnectionPart。
 
-## 11.8 稳定快照
+## 12.8 稳定快照
 
 视图派生必须基于单一 model revision。若读取 children 后模型又变化，再读取连接会得到
 混合快照。
@@ -201,7 +201,7 @@ ModelAdapter 应提供：
 
 Viewer 不能把“每次查询都成功”误认为整体一致。
 
-## 11.9 Plan、Validate、Commit、Publish
+## 12.9 Plan、Validate、Commit、Publish
 
 视图同步同样采用四阶段事务。
 
@@ -247,7 +247,7 @@ Plan 不修改现有 Viewer。
 
 派生视图和 Core 场景稳定后，Viewer 发布新 revision、选择变化和可观察事件。
 
-## 11.10 为什么视图派生要确定
+## 12.10 为什么视图派生要确定
 
 给定同一模型快照、Viewer 配置和主题，视图派生应得到语义等价结果：
 
@@ -265,7 +265,7 @@ derive_view(snapshot, config) -> equivalent view
 
 这使重建、测试和回放具有可比较结果。
 
-## 11.11 节点重排
+## 12.11 节点重排
 
 模型只改变同一父级 children 顺序时，Viewer 应：
 
@@ -279,7 +279,7 @@ derive_view(snapshot, config) -> equivalent view
 
 不应销毁并重建所有节点，否则选择、工具目标和缓存会无谓失效。
 
-## 11.12 删除
+## 12.12 删除
 
 删除模型节点时，计划必须同时处理：
 
@@ -294,7 +294,7 @@ derive_view(snapshot, config) -> equivalent view
 模型通知只描述业务事实，Viewer 负责把影响扩展到当前视图。删除不能依赖各 Part 收到
 无序回调后自行清理。
 
-## 11.13 撤销和重建
+## 12.13 撤销和重建
 
 撤销恢复模型 revision 后，Viewer 从模型事实重建视图。旧 FigureId 不需要恢复；需要
 恢复的是业务语义：
@@ -306,7 +306,7 @@ derive_view(snapshot, config) -> equivalent view
 
 因此，Command 绝不能保存 FigureId 作为业务目标。
 
-## 11.14 Revision 连续性
+## 12.14 Revision 连续性
 
 增量通知应声明前后 revision：
 
@@ -319,7 +319,7 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 
 “尽量应用剩余事件”会让 Viewer 永久偏离模型。
 
-## 11.15 模型变化只有两个入口
+## 12.15 模型变化只有两个入口
 
 Viewer 可以长期提供只读模型访问，但不能把完整模型可变引用交给普通调用者。否则调用者
 可以绕过命令历史、revision 通知和视图同步，模型与视图将停在不同因果前缀。
@@ -351,7 +351,7 @@ flowchart TD
 同步成功但没有新 Viewer revision 是合法空操作。revision gap、stale event、root 变化
 或部分视图同步失败会使 Viewer 进入故障锁定状态；Viewer 不能猜测缺失变化。
 
-## 11.16 宿主驱动与领域编辑分离
+## 12.16 宿主驱动与领域编辑分离
 
 窗口循环需要驱动 frame、surface、时间、焦点和启动资源，但不应因此取得 Viewer 内部
 编辑状态的任意修改权。
@@ -372,14 +372,14 @@ Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `V
 这个边界把“宿主必须驱动 Viewer”与“宿主可以编辑 Viewer 内部事实”分开。facade 调用
 结束后，所有内部借用同时结束，宿主只能保存 Viewer 自身和平台对象。
 
-## 11.17 重复身份
+## 12.17 重复身份
 
 同一快照中若两个对象声明相同 ModelId，Viewer 无法建立双射。正确结果是拒绝构建视图，
 保留上一稳定 Viewer 或进入明确故障状态。
 
 自动给其中一个对象换 ID 会篡改业务语义，不能由视图层完成。
 
-## 11.18 读取期间漂移
+## 12.18 读取期间漂移
 
 若 Adapter 不能提供不可变快照，Viewer 应：
 
@@ -391,7 +391,7 @@ Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `V
 
 不能把不同 revision 的 containment 和 connection 拼在一起。
 
-## 11.19 多 Viewer
+## 12.19 多 Viewer
 
 多个 Viewer 可以共享同一模型，但各自拥有：
 
@@ -404,7 +404,7 @@ Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `V
 一个 Viewer 的销毁不影响模型，也不使另一个 Viewer 的 Part/Figure ID 失效。模型
 Command 完成后，各 Viewer 独立消费同一业务 revision。
 
-## 11.20 必须保持的不变量
+## 12.20 必须保持的不变量
 
 1. 模型是业务事实的唯一权威；
 2. Viewer 必须基于单一稳定 revision 派生视图；
@@ -419,7 +419,7 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 11. ConnectionPart 复用 EditPartId 身份域，不进入 containment children；
 12. Overlay 仍是统一 Figure 树中的临时 Figure 子树，不成为稳定 Part。
 
-## 11.21 常见错误设计
+## 12.21 常见错误设计
 
 ### Figure 直接保存并修改业务对象
 
@@ -458,13 +458,13 @@ Viewer 无法证明自己对应任何真实模型快照。
 
 平台驱动和领域编辑没有类型边界，frame、输入、选择和模型修改可以绕过各自协议。
 
-## 11.22 与后续章节的关系
+## 12.22 与后续章节的关系
 
 本章解释模型如何形成稳定视图。下一章从反方向说明输入如何经 Tool、Request 和 Policy
-形成只修改模型的 Command，再由本章的视图派生闭环返回 Figure。第 13 章则处理 Figure 和
+形成只修改模型的 Command，再由本章的视图派生闭环返回 Figure。第 14 章则处理 Figure 和
 Part 如何通过类型化扩展保持开放。
 
-## 11.23 思考题
+## 12.23 思考题
 
 1. 为什么 Part 树与 Figure 树不必完全同构？
 2. 节点重排时保留 Part/Figure 身份有什么价值？

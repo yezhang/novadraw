@@ -189,10 +189,6 @@ Command；后两层可以随 Viewer 或 Runtime 重建。
 这些版本不能合并为一个全局计数器。一次模型 revision 可以引发多个表现帧；一次 backend
 session 可以跨越多个模型 revision；稳定 epoch 完成后，后端仍可能拒绝或延迟提交。
 
-Editor 还保存 Viewer 已应用的模型版本、直接编辑的源模型版本，并为输入和请求
-分配独立的交互版本。它们的作用、同步顺序及失败边界见
-[revision 如何约束编辑一致性](appendix-editor-revision.md)。
-
 ## 四个坐标域
 
 ```mermaid
@@ -265,6 +261,43 @@ sequenceDiagram
 - `reject`：可恢复拒绝，并证明模型没有变化；
 - `fault`：模型状态未知或协议破坏，Stack 与 Viewer 故障锁定。
 
+## Selection 与 focus
+
+```text
+Viewer 的有序 ModelId 集合
+-> 末项是 primary selection
+-> 选择 revision 驱动 Handle、Tool 对象和命令可用性
+
+平台 / 控件 focus
+-> 决定键盘和文本输入目标
+```
+
+Selection 与 focus 分别拥有状态。模型 revision 前进后，Viewer 用当前 `ModelId` 集合
+执行 reconcile；删除对象退出选择，剩余末项成为新的 primary。每个 Viewer 保持独立
+选择，应用若需要联动，必须显式桥接。
+
+框选、拖放和粘贴最终都复用 SelectionModel、Policy 和 Command。当前框架没有通用
+marquee、系统 DnD 或 ClipboardAdapter API，不能把宿主集成误写成已实现的 Editor
+能力。
+
+## 文本派生闭环
+
+```text
+UTF-8 内容 + FontDescriptor + 字体资源 revision + TextConstraints
+-> 分段和字体 fallback
+-> shaping
+-> 换行、截断和定位
+-> 不可变 TextLayout
+-> TextMetrics + glyph runs + ink bounds + TextInteractionMap
+```
+
+测量、绘制和文本交互共享同一 `TextLayout`。`MeasureContext` 生成布局，
+`PaintContext` 只绘制已定位 glyph。字体、内容、宽度、换行策略或文字引擎 revision
+变化后，旧布局失效；前景色变化只要求重绘。
+
+布局盒服务布局，ink bounds 服务文字墨迹，Figure visual bounds 合并装饰后的像素影响。
+三者不能互相替代。
+
 ## 帧提交与恢复闭环
 
 ```mermaid
@@ -307,7 +340,27 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 新请求、同步资源修改、资源失败或移除都会使旧 token 失效。迟到完成只能返回 stale，
 不得改变资源状态或触发图形失效。
 
-## 14 章的因果位置
+图像资源还区分物理像素尺寸、逻辑尺寸和像素域中的 `ImageRegion`。纯内容替换只要求
+资源同步和重绘；逻辑尺寸变化会继续触发测量和布局。
+
+## 线程边界
+
+```text
+平台或工作线程
+-> 拥有的输入、bytes、解码结果或结构化错误
+-> 宿主队列
+-> Runtime 单一 owner 串行 drive
+-> 拥有的 RenderSubmission
+-> Host / RenderBackend
+-> 拥有的 RenderResult
+-> Runtime owner 完成确认
+```
+
+单个 Runtime 不支持并发 mutation。局部 trait 的 `Send + Sync` 不能推出 Runtime 可以
+被多个线程同时 drive。平台主线程和 GPU 调用限制由具体 adapter/backend 声明，Core
+只规定所有结果回到 owner 后仍要经过 identity、token 和事务验证。
+
+## 15 章的因果位置
 
 | 章节 | 主要输入 | 稳定输出 | 核心不变量 |
 |---|---|---|---|
@@ -317,14 +370,15 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 | 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
 | 5. 几何与坐标 | 带域几何 | 可逆坐标变换或保守表面包围盒 | 绘制、命中和重绘共享变换链 |
 | 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
-| 7. 绘制与帧 | 稳定场景状态和可选表现覆盖快照 | RenderSubmission 与 acknowledgement | 录制完成不等于提交包就绪 |
-| 8. 动画与表现状态 | 已提交状态和时间 | 稀疏表现覆盖快照或无快照 | 表现不反向改写已提交状态 |
-| 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
-| 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
-| 11. 视图派生 | 单一模型 revision | 完整 Viewer 视图 | 模型变化必须受控同步 |
-| 12. 编辑协议 | 连续输入和 Request | 可撤销 Command 结果 | 会话关闭模型与视图同步事务 |
-| 13. Capability | 新扩展概念 | 正确分类的扩展对象 | Capability 必须有独立消费者 |
-| 14. 正确性与演进 | 变化和故障 | 可重复证据 | 失败前后状态必须可描述 |
+| 7. 文本排版 | 内容、字体和宽度约束 | 不可变 TextLayout | 测量、绘制和交互共享排版结果 |
+| 8. 绘制与帧 | 稳定场景状态和可选表现覆盖快照 | RenderSubmission 与 acknowledgement | 录制完成不等于提交包就绪 |
+| 9. 动画与表现状态层 | 已提交状态和时间 | 稀疏表现覆盖快照或无快照 | 表现不反向改写已提交状态 |
+| 10. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
+| 11. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
+| 12. 视图派生 | 单一模型 revision | 完整 Viewer 视图 | 模型变化必须受控同步 |
+| 13. 编辑协议 | 连续输入和 Request | 可撤销 Command 结果 | 会话关闭模型与视图同步事务 |
+| 14. Capability | 新扩展概念 | 正确分类的扩展对象 | Capability 必须有独立消费者 |
+| 15. 正确性与演进 | 变化、故障和异步结果 | 可重复证据 | 失败和线程边界前后状态必须可描述 |
 
 ## 全书失败分类
 

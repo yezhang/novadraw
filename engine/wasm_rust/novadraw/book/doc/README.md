@@ -11,3 +11,4 @@
 - [“场景事实”术语拆分与迁移方案](scene-state-terminology-migration-plan.md)
 - [“帧出版”术语拆分与迁移方案](frame-submission-terminology-migration-plan.md)
 - [“表现平面”及相关概念术语审计](presentation-state-terminology-audit.md)
+- [《深入理解 Novadraw》核心概念补充计划](zz-internals-concept-gap-audit-2026-10-20.md)

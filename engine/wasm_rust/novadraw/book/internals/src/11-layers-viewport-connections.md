@@ -1,4 +1,4 @@
-# 10. 图层、视口与连接
+# 11. 图层、视口与连接
 
 > **本章解决的问题**：当一个结果依赖多个节点、祖先变换或可见范围时，如何追踪来源、
 > 安排重算，并避免缓存与 Runtime 当前场景状态失配？
@@ -11,7 +11,7 @@
 > 跨节点能力不应缓存未知来源的几何；它们必须通过可追踪查询读取稳定场景状态，并在
 > 查询依赖项变化后重新计算。
 
-## 10.1 语义图层
+## 11.1 语义图层
 
 图层是具有稳定角色的普通容器：
 
@@ -24,7 +24,7 @@
 图层仍服从 Figure 树、坐标链、裁剪和生命周期。它的特殊性来自接纳规则、叠放位置和
 更新策略，不来自一套平行渲染系统。
 
-## 10.2 为什么反馈单独成层
+## 11.2 为什么反馈单独成层
 
 反馈是交互临时状态，不应写入业务 Figure。单独反馈层可以：
 
@@ -36,7 +36,7 @@
 
 反馈层仍应由 Viewer 或 Runtime 拥有，Tool 只提交反馈描述。
 
-## 10.3 Freeform 内容范围
+## 11.3 Freeform 内容范围
 
 自由画布的内容范围通常由 children 变换到容器坐标域后的范围并集得到：
 
@@ -51,7 +51,7 @@ content_extent =
 
 正确实现可以增量维护索引，但语义必须等价于对当前稳定 children 重新求并集。
 
-## 10.4 Range model
+## 11.4 Range model
 
 视口通常使用 range model 表示一维滚动状态：
 
@@ -73,7 +73,7 @@ extent >= 0
 当内容范围、视口尺寸或缩放变化时，旧 value 可能不再合法。Runtime 应在同一事务中
 归一化，而不是让滚动条和内容分别修正。
 
-## 10.5 Viewport 与 ScrollPane
+## 11.5 Viewport 与 ScrollPane
 
 Viewport 负责裁剪和内容偏移；ScrollPane 负责组合 viewport、滚动条和交互策略。二者
 不应混成一个拥有所有行为的巨大 Figure。
@@ -83,7 +83,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 这样程序滚动、滚轮、拖动滚动条和自动暴露共享同一事实。
 
-## 10.6 Scalable pane
+## 11.6 Scalable pane
 
 缩放容器对内容施加比例变换。缩放会影响：
 
@@ -96,7 +96,58 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 缩放不应直接重写每个 child 的业务 bounds。业务逻辑坐标保持稳定，比例进入祖先
 变换链。
 
-## 10.7 自动暴露
+### ZoomManager 的权威状态
+
+`ZoomManager` 保存当前 zoom、允许范围和可选离散级别。离散级别必须严格递增，当前值
+始终被 `minimum_zoom` 与 `maximum_zoom` 夹取。放大、缩小、直接设值和程序适配都写入
+同一个 zoom 权威，不能让滚轮和工具栏分别保存倍率。
+
+以某个表面点为锚缩放时，要同时调整 viewport range，使该点对应的内容位置在缩放前后
+保持不动：
+
+```text
+anchor_content = surface_to_content(anchor_surface, old_zoom, old_scroll)
+new_zoom = clamp(requested_zoom)
+new_scroll = solve(anchor_content, anchor_surface, new_zoom)
+```
+
+先改 zoom、下一帧再修 scroll，会让锚点短暂跳动，也会让当前拖拽读取不一致坐标。
+
+### Fit 的计算边界
+
+适配缩放读取内容范围和 viewport 可用尺寸：
+
+```text
+fit_all    = min(viewport_width / content_width,
+                 viewport_height / content_height)
+fit_width  = viewport_width / content_width
+fit_height = viewport_height / content_height
+```
+
+结果仍要经过 min/max clamp，并按对齐策略更新滚动位置。空内容、零尺寸和非有限输入应
+返回明确结果，不能制造无穷倍率。
+
+Core 当前提供 `fit_all`、`fit_width` 和 `fit_height`，没有内置 `fit_selection`。
+Editor 若要适配选择集合，应先从当前 Viewer selection 解析业务对象，再通过场景查询
+得到其稳定内容范围，最后调用同一 fit 计算。这样 ZoomManager 不需要依赖 Editor 身份。
+
+### 不同缩放级别的视觉策略
+
+缩放变换默认会同时缩放几何、描边和文字。某些应用希望线宽保持屏幕像素稳定，或在
+低倍率隐藏标签、改用简化 Figure。这些是显式的 Figure、样式或应用策略，不是
+ZoomManager 自动执行的统一规则。
+
+策略必须说明哪些事实随 zoom 改变：
+
+- 只改变祖先变换时，业务 bounds 和文本排版保持不变；
+- 屏幕恒定描边会改变本地等效线宽和 visual bounds；
+- 标签显隐或替换 Figure 会改变场景源状态和 damage；
+- 文字若重新选择字号，会触发重新测量，不再是纯视口变换。
+
+缩放动画使用第 9 章的表现状态层生成临时 viewport 覆盖；动画结束后，只提交最终 zoom
+和 range model。中间帧不能逐帧改写业务 bounds。
+
+## 11.7 自动暴露
 
 拖拽接近视口边缘时，Editor 可能请求自动滚动。每个 tick：
 
@@ -109,7 +160,7 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 不能先按旧坐标更新反馈，再异步滚动，否则预览会跳动。
 
-## 10.8 Connection 的三层含义与四个角色
+## 11.8 Connection 的三层含义与四个角色
 
 “连接（Connection）”在模型、Editor 和图形核心中表示三个相关但不同的对象：
 
@@ -147,6 +198,33 @@ Core Connection 是可重建的场景对象和派生路径。删除或暂时无�
 
 根据端点、约束和障碍物计算候选路径。Router 是纯计算策略。
 
+#### 路由算法不是同一种折线
+
+当前内置路由器覆盖五种不同约束：
+
+| 路由器 | 输入重点 | 输出语义 |
+|---|---|---|
+| Direct | 两个端点 | 端点间直线路径 |
+| Bendpoint | 端点和显式折点 | 按给定顺序经过折点 |
+| Manhattan | 端点和正交约束 | 只含水平、垂直线段的路径 |
+| Fan | 同组连接与稳定次序 | 为重合连接分配可辨识偏移 |
+| ShortestPath | 端点和显式障碍物快照 | 在当前障碍约束下寻找合法短路径 |
+
+手动自由路径可以由 Bendpoint 的显式控制点表达；曲线路由可以由外部 Router 实现。二者
+仍必须返回统一的受检路由输出，不能在 Connection 绘制阶段私自改路径。
+
+`ShortestPath` 只消费本次不可变障碍物快照。障碍物集合及其 revision 由 SceneQuery
+提供，路由器不能扫描可变 Figure 树，也不能缓存 Figure 引用。障碍变化后，依赖追踪
+使连接重新路由。
+
+路由输出使用 `PointList`。点序固定为 source 到 target，首点和尾点必须与本次解析的
+anchors 匹配，中间点表达折点。Runtime 还要验证所有坐标有限、相邻线段合法，并按具体
+算法检查正交或障碍约束。
+
+无法找到无障碍路径时，`ShortestPath` 返回 `NoObstacleFreePath`。Runtime 将连接发布
+为 unresolved，而不是沿用旧路径、退化为穿过障碍物的直线，或把失败伪装成空
+`PointList`。
+
 ### Connection
 
 保存端点描述、路由策略和当前派生路径，并作为 Figure 绘制。
@@ -163,7 +241,7 @@ flowchart LR
     Runtime --> Connection
 ```
 
-## 10.9 依赖追踪
+## 11.9 依赖追踪
 
 SceneQuery 在计算端点时同时记录依赖：
 
@@ -178,7 +256,7 @@ SceneQuery 在计算端点时同时记录依赖：
 
 查询依赖项必须来自实际读取或明确声明，不能靠路由器私下保存未知对象引用。
 
-## 10.10 路由稳定化
+## 11.10 路由稳定化
 
 连接路由进入第 6 章的工作列表：
 
@@ -193,7 +271,7 @@ SceneQuery 在计算端点时同时记录依赖：
 
 连接不能在端点仍布局中时提前发布。
 
-## 10.11 分组路由
+## 11.11 分组路由
 
 某些路由器同时协调多条连接，例如避免重叠或分配公共通道。此时计算单元是 connection
 group，而不是单条连接。
@@ -208,7 +286,7 @@ group，而不是单条连接。
 
 逐条提交会让后计算连接读取前一条新路径，结果依赖遍历顺序。
 
-## 10.12 自环
+## 11.12 自环
 
 source 与 target 指向同一 Figure 时，普通两端点直线路由可能退化为零长度。自环需要
 明确语义：
@@ -220,7 +298,7 @@ source 与 target 指向同一 Figure 时，普通两端点直线路由可能退
 
 自环仍使用同一 Anchor、SceneQuery 和 Router 协议，不应成为绘制阶段的特判。
 
-## 10.13 Unresolved 状态
+## 11.13 Unresolved 状态
 
 端点可能暂时不存在，例如模型连接先于目标视图出现，或目标正在被删除。连接需要显式
 状态：
@@ -234,7 +312,7 @@ Invalid(error)
 Unresolved 不等于沿用旧路径。框架可以选择隐藏连接、绘制诊断反馈或等待下一 revision，
 但必须避免把旧几何误认为当前事实。
 
-## 10.14 三个事件的共同传播
+## 11.14 三个事件的共同传播
 
 ### 节点移动
 
@@ -253,7 +331,7 @@ Unresolved 不等于沿用旧路径。框架可以选择隐藏连接、绘制诊
 
 这三个事件说明“几何值变化”和“几何所依附的坐标变换变化”都可以触发可见结果更新。
 
-## 10.15 图层间坐标
+## 11.15 图层间坐标
 
 连接层和内容层可能是 siblings。连接锚点不能假设两者共享本地坐标。正确流程是：
 
@@ -265,7 +343,7 @@ target local -> common surface/root -> connection layer local
 统一 SceneQuery 选择公共域并处理坐标根。手写“减去父位置”在嵌套视口和缩放后必然
 失效。
 
-## 10.16 必须保持的不变量
+## 11.16 必须保持的不变量
 
 1. 图层仍属于统一 Figure 树；
 2. freeform extent 等价于当前稳定 children 的范围；
@@ -274,9 +352,11 @@ target local -> common surface/root -> connection layer local
 5. 跨节点查询记录身份与版本依赖；
 6. Router 只返回候选路径，Runtime 提交；
 7. unresolved 不复用未经证明的旧几何；
-8. 业务连接、ConnectionPart 和 Core Connection 不互相冒充身份。
+8. 业务连接、ConnectionPart 和 Core Connection 不互相冒充身份；
+9. zoom、range model 和锚点缩放在同一事务中归一化；
+10. 路由输出从 source 指向 target，失败不会伪装成合法空路径。
 
-## 10.17 常见错误设计
+## 11.17 常见错误设计
 
 ### 连接缓存端点 Figure 引用
 
@@ -298,13 +378,21 @@ target local -> common surface/root -> connection layer local
 
 最终路径依赖遍历顺序，无法确定性回放。
 
-## 10.18 与后续章节的关系
+### ZoomManager 自动改写 Figure 视觉策略
+
+缩放倍率、标签显隐、屏幕恒定描边和文字重排被混成一个隐式副作用，失效范围无法证明。
+
+### 避障失败时退化为直线
+
+画面看似仍有连接，却违反了调用者选择避障路由的合同，旧障碍依赖也被掩盖。
+
+## 11.18 与后续章节的关系
 
 至此，图形核心已经形成从树、坐标、布局、damage、输入到跨节点派生状态的闭环。下一
 部分进入 Editor：业务模型如何确定性派生为这些 Figure，以及连续交互如何最终产生
 模型命令。
 
-## 10.19 思考题
+## 11.19 思考题
 
 1. 为什么 freeform extent 不能只在 child 变大时更新？
 2. 视口滚动后，连接的逻辑 path 和表面几何分别发生什么变化？
@@ -312,3 +400,6 @@ target local -> common surface/root -> connection layer local
 4. 分组路由为何需要批量原子提交？
 5. unresolved 连接在什么条件下可以自动恢复？
 6. Core Connection 暂时 unresolved 时，为什么不能直接删除业务连接？
+7. 以表面点为锚缩放时，为什么 zoom 和 scroll 必须一起提交？
+8. `fit_selection` 为什么应由 Editor 解析选择，再复用 Core fit 计算？
+9. `ShortestPath` 为什么必须读取显式障碍物快照？
