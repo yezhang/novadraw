@@ -647,6 +647,7 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
             DependencySubject::FigureMeasurementSource(figure) => {
                 if let Ok(node) = self.tree.node(*figure) {
                     node.component_revision.hash(&mut hasher);
+                    node.resource_inputs.hash(&mut hasher);
                     node.layout.source_generation.hash(&mut hasher);
                     node.preparation()
                         .map(|provider| provider.revision())

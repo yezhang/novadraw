@@ -418,6 +418,7 @@ impl<'a> PreparationScene<'a> {
             prefix.0.push(super::PreparationSourceNode {
                 id,
                 component: node.component_revision,
+                resources: node.resource_inputs.clone(),
                 provider: node.preparation().map(|provider| provider.revision()),
                 parent: node.parent,
                 children: node.children.clone(),
@@ -454,6 +455,7 @@ impl<'a> PreparationScene<'a> {
             id.hash(&mut hash);
             let node = self.tree.node(id).map_err(scene_error)?;
             node.component_revision.hash(&mut hash);
+            node.resource_inputs.hash(&mut hash);
             if let Some(preparation) = node.preparation() {
                 preparation.revision().hash(&mut hash);
             }

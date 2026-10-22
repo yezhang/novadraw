@@ -95,7 +95,9 @@ impl Runtime {
         if self.tree.is_attached(figure) != Ok(true) {
             return Err(ResourceError::UnknownFigure);
         }
-        self.resources.add_dependency(resource_id, figure)
+        self.resources.add_dependency(resource_id, figure)?;
+        self.record_resource_input(resource_id, figure);
+        Ok(())
     }
 
     pub(crate) fn remove_resource_dependency(
@@ -104,7 +106,11 @@ impl Runtime {
         figure: FigureId,
     ) -> Result<bool, ResourceError> {
         self.guarded_resource_mutation(|runtime| {
-            runtime.resources.remove_dependency(resource_id, figure)
+            let removed = runtime.resources.remove_dependency(resource_id, figure)?;
+            if removed && let Some(node) = runtime.tree.node_mut(figure) {
+                node.resource_inputs.retain(|(id, _)| *id != resource_id);
+            }
+            Ok(removed)
         })
     }
 
@@ -118,7 +124,7 @@ impl Runtime {
 
     fn complete_image_inner(&mut self, id: ImageId, image: ImageData) -> Result<(), ResourceError> {
         let dependents = self.resources.complete_image(id, image)?;
-        self.invalidate_resource_dependents(dependents);
+        self.invalidate_resource_dependents(id.resource_id(), dependents);
         Ok(())
     }
 
@@ -136,7 +142,7 @@ impl Runtime {
     ) -> Result<(), ResourceError> {
         self.guarded_resource_mutation(move |runtime| {
             let dependents = runtime.resources.complete_image_request(token, image)?;
-            runtime.invalidate_resource_dependents(dependents);
+            runtime.invalidate_resource_dependents(token.resource_id(), dependents);
             Ok(())
         })
     }
@@ -179,7 +185,7 @@ impl Runtime {
             .register_font(id.resource_id(), revision, font.bytes())
             .map_err(|_| ResourceError::InvalidFontData)?;
         let dependents = self.resources.complete_font(id, font)?;
-        self.invalidate_resource_dependents(dependents);
+        self.invalidate_resource_dependents(id.resource_id(), dependents);
         Ok(())
     }
 
@@ -200,7 +206,7 @@ impl Runtime {
                 .register_font(token.resource_id(), revision, font.bytes())
                 .map_err(|_| ResourceError::InvalidFontData)?;
             let dependents = runtime.resources.complete_font_request(token, font)?;
-            runtime.invalidate_resource_dependents(dependents);
+            runtime.invalidate_resource_dependents(token.resource_id(), dependents);
             Ok(())
         })
     }
@@ -219,7 +225,7 @@ impl Runtime {
             self.text.remove_font(id);
         }
         let dependents = self.resources.fail(id, reason)?;
-        self.invalidate_resource_dependents(dependents);
+        self.invalidate_resource_dependents(id, dependents);
         Ok(())
     }
 
@@ -236,7 +242,7 @@ impl Runtime {
                 runtime.text.remove_font(token.resource_id());
             }
             let dependents = runtime.resources.fail_request(token, reason)?;
-            runtime.invalidate_resource_dependents(dependents);
+            runtime.invalidate_resource_dependents(token.resource_id(), dependents);
             Ok(())
         })
     }
@@ -252,7 +258,7 @@ impl Runtime {
                 .retain(|_, font_id| font_id.resource_id() != id);
         }
         let dependents = self.resources.remove(id)?;
-        self.invalidate_resource_dependents(dependents);
+        self.invalidate_resource_dependents(id, dependents);
         Ok(())
     }
 }

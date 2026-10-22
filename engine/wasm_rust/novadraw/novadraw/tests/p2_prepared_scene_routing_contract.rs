@@ -617,6 +617,67 @@ fn font_resource_changes_revoke_snapshot_authority_before_preparation() {
 }
 
 #[test]
+fn image_dependency_changes_preserve_committed_source_through_failed_preparation() {
+    use novadraw::render::ImageData;
+    let mut f = fixture(true);
+    let measured = f
+        .runtime
+        .figure(f.owner)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+        .unwrap();
+    *f.inputs.measurement_read.lock().unwrap() = Some(measured);
+    let image = f.runtime.resources().register_image().unwrap();
+    f.runtime
+        .resources()
+        .add_dependency(image.resource_id(), measured)
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    let old = f.seen.lock().unwrap().last().unwrap().identity();
+    // A resource outside the frozen subtree must not invalidate this projection.
+    let unrelated = f.runtime.resources().register_image().unwrap();
+    f.runtime
+        .resources()
+        .complete_image(unrelated, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    assert_eq!(f.seen.lock().unwrap().last().unwrap().identity(), old);
+    f.runtime
+        .resources()
+        .complete_image(image, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
+        .unwrap();
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    f.route_fail.store(true, Ordering::Relaxed);
+    assert!(frame(&mut f.runtime).is_err());
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Unresolved(_)
+    ));
+    f.route_fail.store(false, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    let current = f.seen.lock().unwrap().last().unwrap().identity();
+    assert_ne!(current, old);
+    f.runtime.resources().remove(image.resource_id()).unwrap();
+    assert!(
+        f.runtime
+            .connections()
+            .resolve_route(f.connection, CoordinateSpace::ChildContent(f.owner))
+            .is_err()
+    );
+    frame(&mut f.runtime).unwrap();
+    assert_ne!(f.seen.lock().unwrap().last().unwrap().identity(), current);
+}
+
+#[test]
 fn source_bounds_commit_is_observed_even_when_equal_to_current_derived_bounds() {
     let mut f = fixture(true);
     frame(&mut f.runtime).unwrap();

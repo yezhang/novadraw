@@ -345,6 +345,8 @@ LayoutManager 子查询已按显式约束重测，preferred/minimum 分别选择
 同源失败后的重试不替换快照或重算路由。
 候选准入与身份复用逐项核对源输入及字体版本；字体替换或移除后，
 显式路由在重新准备前拒绝旧快照。
+资源依赖身份及状态进入源前缀和 `FigureMeasurementSource`，派生恢复不撤销
+资源变化；图片更新、移除、失败恢复及无关资源隔离反例通过。
 同批候选依赖校验、共享预算、
 Figure/Connection 投影与官方场景仍在实施，
 `CAP-GRAPH-LAYOUT` 保持 pending。

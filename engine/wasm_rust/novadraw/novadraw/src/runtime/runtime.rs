@@ -1319,6 +1319,7 @@ impl Runtime {
             self.resources
                 .add_dependency(resource, id)
                 .expect("resource dependency passed admission");
+            self.record_resource_input(resource, id);
         }
     }
 
@@ -3526,11 +3527,31 @@ impl Runtime {
         Ok(())
     }
 
-    fn invalidate_resource_dependents(&mut self, dependents: Vec<FigureId>) {
+    fn record_resource_input(&mut self, resource: crate::render::ResourceId, figure: FigureId) {
+        let status = self.resources.status(resource).ok().cloned();
+        if let Some(node) = self.tree.node_mut(figure) {
+            if let Some((_, old)) = node
+                .resource_inputs
+                .iter_mut()
+                .find(|(id, _)| *id == resource)
+            {
+                *old = status;
+            } else {
+                node.resource_inputs.push((resource, status));
+            }
+        }
+    }
+
+    fn invalidate_resource_dependents(
+        &mut self,
+        resource: crate::render::ResourceId,
+        dependents: Vec<FigureId>,
+    ) {
         self.tree
             .synchronize_preparation_text_revision(self.text.revision());
         for figure in dependents {
             if self.tree.is_attached(figure) == Ok(true) {
+                self.record_resource_input(resource, figure);
                 self.tree.mark_invalid(&mut self.updates, figure);
                 self.tree.repaint(&mut self.updates, figure, None);
             }

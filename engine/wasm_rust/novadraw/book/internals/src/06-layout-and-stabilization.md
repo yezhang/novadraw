@@ -220,6 +220,9 @@ LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimu
 内部源前缀保存逐项输入，用于受检查询与身份复用；诊断 hash 不授予快照权限。
 批次写入前再次核对源输入、字体版本及计算观察。资源写入同步最新文字版本，
 因此字体替换或移除后的显式路由不能绕过 preparation 读取旧快照。
+节点另外保存挂载时的 capability/显式依赖和 component effect 绑定的资源身份与状态，
+供源前缀与测量源版本核对。资源更新属于已提交输入，派生检查点不会恢复旧值；
+无关图片更新不替换图快照。
 不声明结果版本的旧 producer 保留按完整 preparation key 更新的兼容行为。
 
 `TrackedRouteSceneQuery` 自动观察 `DependencySubject::PreparedScene(owner)`。依赖

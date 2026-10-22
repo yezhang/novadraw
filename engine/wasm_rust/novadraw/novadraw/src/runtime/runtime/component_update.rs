@@ -329,11 +329,15 @@ impl Runtime {
                     self.resources
                         .add_dependency(resource, figure)
                         .expect("validated resource dependency must commit");
+                    self.record_resource_input(resource, figure);
                 }
                 if let Some(resource) = old {
                     self.resources
                         .remove_dependency(resource, figure)
                         .expect("validated resource dependency must commit");
+                    if let Some(node) = self.tree.node_mut(figure) {
+                        node.resource_inputs.retain(|(id, _)| *id != resource);
+                    }
                 }
             }
             ValidatedFigureEffect::Reparent { parent, constraint } => {

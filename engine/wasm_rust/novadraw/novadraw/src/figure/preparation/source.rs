@@ -8,6 +8,7 @@ pub(crate) struct PreparationSource(pub(crate) Vec<PreparationSourceNode>);
 pub(crate) struct PreparationSourceNode {
     pub(crate) id: FigureId,
     pub(crate) component: u64,
+    pub(crate) resources: Vec<(crate::render::ResourceId, Option<crate::ResourceStatus>)>,
     pub(crate) provider: Option<u64>,
     pub(crate) parent: Option<FigureId>,
     pub(crate) children: Vec<FigureId>,

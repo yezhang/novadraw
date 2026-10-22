@@ -559,6 +559,8 @@ pub struct FigureNode {
     pub(crate) figure: Box<dyn super::Figure>,
     /// Runtime 提交的私有组件状态版本。
     pub(crate) component_revision: u64,
+    /// Committed resource inputs; derived checkpoints never restore these values.
+    pub(crate) resource_inputs: Vec<(crate::render::ResourceId, Option<crate::ResourceStatus>)>,
     /// Bounds supplied by source mutations, excluding unpublished layout output.
     pub(crate) source_bounds: Rectangle,
     /// Attach-time typed capability descriptors.
@@ -1275,6 +1277,7 @@ impl FigureTree {
             depth: 0,
             figure: root_figure,
             component_revision: 0,
+            resource_inputs: Vec::new(),
             source_bounds: root_bounds,
             capabilities: root_capabilities,
             prepared: None,

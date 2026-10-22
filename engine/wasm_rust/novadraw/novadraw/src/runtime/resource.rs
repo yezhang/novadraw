@@ -55,7 +55,7 @@ pub enum ResourceKind {
     Font,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ResourceStatus {
     Pending,
     Ready { revision: u64 },

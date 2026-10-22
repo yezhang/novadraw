@@ -144,6 +144,9 @@ LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 
 快照源输入已改为逐项比对，批次写入前复核源与计算观察。
 字体替换或移除立即撤销旧快照的路由查询权限，重新准备后更新 identity；
 `p2_prepared_scene_routing_contract` 覆盖资源变更后的显式路由拒绝与恢复。
+挂载时的 capability/显式依赖和 component effect 绑定的资源状态参与源前缀与测量源依赖；
+图片完成或移除后，失败恢复保留资源变化并拒绝旧 resolution。
+无关图片更新不替换图快照；测量、路由及 Label 定向回归共 42 项通过。
 同批候选依赖校验与共享预算尚未完成，按同一增量继续推进，
 不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
