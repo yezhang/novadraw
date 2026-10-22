@@ -50,7 +50,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
 | 3 | P2-F02 | 开放的 Figure capability registry 与 Runtime mutation | `complete` | ADR-014/019、GA-4 | 外部标准/自定义 capability、无 Core accessor 扩张或横切能力 concrete 分支 |
 | 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02、P2-F02 已完成；Native surface 视觉毕业依赖 P2-G01 present 证据 | A/B/C 已完成；D 待 Native/Web 关键帧、组合场景与实际 runner 预算 |
-| 5 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 5 | P2-L01 | Directed/Compound graph layout adapter | `design` | GA-4 扩展边界、ADR-043 待评审 | 独立图模型、确定性输出、外部算法集成 |
 | 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
 | 7 | P2-T03 | fragment style 与剩余 inline/block flow | `complete` | P2-T01/T02、ADR-042 | 测量、paint、interaction 使用同一快照；六个官方 text 入口验收 |
 | 8 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
@@ -107,6 +107,14 @@ styled 引擎、通用原子 preparation、开放 flow registry、结构化节�
 文字引擎已补齐。内嵌反馈失败闭环、四侧边框度量与六个 text 入口均已实现，
 Native 六个截图与 56 项示例测试通过；最终 workspace fmt、check、Clippy 和 test
 通过（1,216 项通过、1 项忽略）。后续回到 K06、K07/K08 的依赖顺序。
+2026-10-22 Path 首个消费者切片已接入，状态改为 in_progress。通用 BorderLayout
+修复显式 Center 预留不存在的边带；Path 的真实 ScrollBar 输入、旋转路径、
+双绘制选字与 Native 最小/最大截图已覆盖。SchemeBorder 与字体指标下划线
+仍留在 K08；不关闭 K04/K05/K08 整批。接下来进入 P2-L01 Design，
+只读 Draw2D 图算法与官方 fixture，形成独立模型、求解器与 Figure 投影契约。
+[ADR-043](../adr/adr-043-directed-compound-graph-layout.md) 已形成提议，待用户评审；
+默认/外部算法共用 typed registry，16+10 个 fixture 的双方向组合共 52 项。
+算法、Figure adapter 与 graph 场景尚未实施，不从 Design 状态推断完成。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

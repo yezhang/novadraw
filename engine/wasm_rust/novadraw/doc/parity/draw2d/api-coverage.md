@@ -324,6 +324,12 @@ Novadraw 验证入口：`novadraw/tests/m4_coordinate_contract.rs`、`examples/n
 
 Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpdateManager.java`。
 
+2026-10-22 BorderLayout 回归：显式 Center 且没有边区 child 时占满完整 client area，
+不为不存在的 North/South/East/West 预留默认尺寸。`m5_layout_contract` 验证该反例；
+旧无约束布局的 fallback 区域保持兼容。官方 Path 已使用默认 BorderLayout 消费。
+P2-L01 的 `layout.graph` 仅进入 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)
+设计评审，Directed/Compound 模型、算法与投影均尚未实施。
+
 ### M6 Event Dispatcher / Focus / Capture
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
