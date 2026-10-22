@@ -364,6 +364,35 @@ GraphTests 有 16 个公开 fixture，CompoundGraphTests 有 10 个，分别验�
 预算耗尽及同域测量前缀编辑。此切片尚未实现默认分层算法、
 Figure/Connection adapter、动态测量反馈或两个官方图场景。
 
+### Directed 切片实施证据
+
+2026-10-22 已接入标准 `DIRECTED_GRAPH` 注册项，以及同一 registry 下的
+`LAYERED_EDGE`、`LAYERED_ROW` 与 `LAYERED_RESULT`。实现包含确定性消环、
+初始可行 rank、紧生成树、加权 network simplex、virtual nodes、双向中位数排序、
+局部交叉优化、横向辅助图求解和完整路径恢复；工作区不修改不可变请求。
+横向辅助图仍使用相同的受预算 rank 求解器，优化 attachment 之间的加权距离。
+
+GraphTests 的 16 个源码输入在 `examples/scenes/src/graph_fixtures.rs` 重建，
+SOUTH/EAST 的 32 个组合及重复输出一致性通过。fixture 使用源码声明的边顺序：
+上游 `shuffleConnections` 的 signed integer 乘法可能溢出并生成负下标；
+随机打乱只影响插入顺序，不改变本次重建的拓扑、尺寸、offset、span 或 weight。
+本切片未执行 Java。节点仍保留源码尺寸，不替换为 Label 测量。
+
+本实现的通用 clearance 门禁覆盖实体外部 padding、edge padding 与半 stroke width，
+比上游直接路径的局部检查更严格。规范 rank 间隔和同 rank 横向间隔额外预留
+edge clearance；virtual 邻域的左右障碍只延长至由本次实体和端点推导的有限范围。
+输出不追求上游的像素坐标，保留上述硬约束与加权布局目标。
+
+`novadraw/tests/graph_layout_directed.rs` 另行验证 feedback 原始端点、row 顺序、
+EAST 超侧边 offset、fixed 轴拉伸拒绝、空图及分层证据篡改拒绝。
+内部小图穷举独立对照加权 rank 目标；排序测试独立计数交叉。
+小数尺寸/非对称 padding 的独立反例要求按实际包围盒向外舍入，
+路由 stub 使用与通用验证器相同运算顺序的障碍边界，避免舍入产生伪重叠或
+不可达端点；不放宽验证器。最大 rank 后的零 span 边不会发生整数加法 panic，
+跨层辅助实体数在分配前由共享预算拒绝。
+Compound、统一 Figure/Connection adapter、测量反馈及两个官方场景仍待后续切片，
+不能据此关闭 P2-L01 或 K06。
+
 ## 取舍
 
 不复制 Java 的可变输入/输出混合模型和 visitor 工作区，也不引入产品编辑器模型。

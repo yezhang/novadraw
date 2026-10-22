@@ -329,8 +329,10 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 旧无约束布局的 fallback 区域保持兼容。官方 Path 已使用默认 BorderLayout 消费。
 P2-L01 按已接受的 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)
 实施：`layout::graph` 纯请求/受检结果、通用候选验证和实例级开放 registry
-已通过 18 项外部非分层协议测试。Directed/Compound 默认算法、Figure/Connection
-投影与官方场景尚未完成，`CAP-GRAPH-LAYOUT` 保持 pending。
+已通过 18 项外部非分层协议测试。Directed 默认算法已完成消环、加权 rank、
+virtual nodes、排序/放置与完整路由，16 fixture 双方向 32 组合和独立反例通过。
+Compound 默认算法、Figure/Connection 投影与官方场景尚未完成，
+`CAP-GRAPH-LAYOUT` 保持 pending。
 
 ### M6 Event Dispatcher / Focus / Capture
 

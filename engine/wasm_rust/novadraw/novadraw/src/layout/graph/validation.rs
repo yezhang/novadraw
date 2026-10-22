@@ -577,7 +577,7 @@ fn validate_endpoint(
 }
 
 /// Open-interior slab intersection. Boundary contact is legal; entering a padded obstacle is not.
-fn segment_intersects_interior(a: Point, b: Point, rect: Rectangle) -> bool {
+pub(super) fn segment_intersects_interior(a: Point, b: Point, rect: Rectangle) -> bool {
     if rect.width == 0.0 || rect.height == 0.0 {
         return false;
     }

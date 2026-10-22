@@ -145,6 +145,7 @@ pub enum GraphLayoutError {
     },
     Overflow(GraphStage),
     UnsatisfiedRankConstraint(GraphEdgeId),
+    UnsatisfiedSizeConstraint(GraphEndpoint),
     NonConvergentMeasurement,
 }
 impl fmt::Display for GraphLayoutError {
