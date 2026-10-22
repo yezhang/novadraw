@@ -966,6 +966,7 @@ pub enum TextError {
     InvalidInlineBox,
     InvalidStyledLayout,
     InvalidPreparedScene(String),
+    GraphProjection(Box<crate::layout::graph::GraphLayoutError>),
     PreparationMeasurement(Box<crate::figure::PreparationMeasureError>),
     PreparationRoute(Box<crate::figure::PreparationRouteError>),
     PreparationDependency(Box<crate::figure::PreparationDependencyError>),
@@ -1014,6 +1015,7 @@ impl fmt::Display for TextError {
             Self::PreparationMeasurement(error) => error.fmt(formatter),
             Self::PreparationRoute(error) => error.fmt(formatter),
             Self::PreparationDependency(error) => error.fmt(formatter),
+            Self::GraphProjection(error) => error.fmt(formatter),
         }
     }
 }
@@ -1024,6 +1026,7 @@ impl Error for TextError {
             Self::PreparationMeasurement(error) => Some(error.as_ref()),
             Self::PreparationRoute(error) => Some(error.as_ref()),
             Self::PreparationDependency(error) => Some(error.as_ref()),
+            Self::GraphProjection(error) => Some(error.as_ref()),
             Self::Outline(error) => Some(error),
             _ => None,
         }

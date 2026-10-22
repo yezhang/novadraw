@@ -125,6 +125,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `event.input_listeners` | 输入事件监听 | mouse、motion、wheel、key、focus listener 与 Figure callback |
 | `event.focus` | Focus | focus owner、focus traversal、focus gained/lost |
 | `layout.manager` | LayoutManager | layout、constraint、preferred/min size、invalidate；maximum size 属于 IFigure |
+| `layout.graph` | 有向图与复合图布局 | 独立图请求、尺寸与包含约束、typed 算法/结果能力、完整路径及 Figure/Connection 投影 |
 | `validation.protocol` | Validation | invalidate、invalidateTree、revalidate、validate、validation root |
 | `update_manager.two_phase` | UpdateManager | Validation -> Damage Repair 两阶段更新事务 |
 | `damage.repaint` | Damage / Repaint | repaint、dirty region、intersects、damage parent-chain 映射 |
@@ -180,6 +181,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 | P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
 | P2-M01 | `animation.timeline`, `animation.presentation`, `frame.preparation`, `damage.repaint` | `in_progress` | ADR-026 已接受；M01-A/B complete，当前推进 M01-C 领域消费者 |
+| P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `in_progress` | ADR-043 纯算法与统一 adapter 已接入，52 个官方输入方向组合通过 Runtime 发布；官方场景、Native 与最终门禁待完成 |
 
 P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持
 文本度量/绘制同源、图文有序合成、字体资源 revision 与失败发布合同；
@@ -212,7 +214,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
 | `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `adapted` | `TextFlowFigure`、`TextLayoutEngine`、`figure::flow` | P2-T01/T02/T03 complete（ADR-042） | styled request、来源快照、开放 inline/block、四侧 FlowBorder、外部 root 与独立替代引擎、失败恢复与六个官方入口已验证；UTF-8/affinity 和显式选择绘制作为合理变体 |
 | `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` | M10.4 complete；P2-W01 pending | repeat scheduler、group/radio/slider 不污染 Core 状态机 |
-| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `pending` | 目标：独立图布局输入/输出 adapter | P2-L01 | 属于 `org.eclipse.draw2d.graph`，不得按 Zest 排除 |
+| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `pending` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router 已实现 | P2-L01、[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) | 52 个输入方向组合通过统一 Runtime adapter；官方场景与 Native 验收仍待完成，不以纯算法或结构断言代替对等毕业 |
 | `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |
 | `CAP-ACCESSIBILITY` | Accessible / dispatcher / actions | GOAL-CAP/PORT | `pending` | Core snapshot/action；Web/Native provider | M10.5 complete；P2-A01 pending | Core 语义完成不等于原生 AT provider 完成 |
 | `CAP-LIVE-UNMOUNT` | remove 后由应用保活并再次挂载 | GOAL-EXT | `pending` | 目标待 ADR | P2-LC01 | 先定义所有权、ID、扫描参与和退出路径 |

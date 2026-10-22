@@ -12,7 +12,7 @@
 该公开契约增量已按 GP01–GP04 完成修订 2，用户授权进入 Core 实施；
 原 ADR 修订 1 的接受状态不变。
 承接官方示例 K06；`api_semantics` 为 `layout.graph`、`layout.manager`、
-`connection.routing`、`figure.measurement` 和 `scene.preparation`。
+`connection.anchor`、`connection.router` 和 `frame.preparation`。
 
 ## 目标与来源
 
@@ -447,6 +447,23 @@ rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 
 [意见处理记录](../design/architecture/graph-projection-preparation.md#增量评审意见处理记录)。
 原评审报告保留。用户随后要求按 ADR-043 和增量方案推进 Core 编码，
 修订 2 据此进入实施；文档接受不代表新增公开契约已实现或验证。
+
+### 统一 adapter 的 Core 实施证据
+
+`layout::graph::GraphProjection` 已接入完整 flat binding、动态候选宽度测量、
+不可变领域快照、attachment Anchor 与整组完整路径输出。外部非分层算法
+注册自己的 typed 结果能力，并通过相同 producer/Anchor/Router 发布；
+`GraphProjectionFigure` 使用普通 typed component update 安装 producer。
+缓存只保存纯验证成功的结果，复用前核对精确源输入与最终约束测量，
+不持有当前附着几何或路由权限。
+
+`graph_projection_contract` 的 8 项测试通过，其中一项将 52 个官方 fixture/方向
+组合全部通过 Runtime 首帧发布，逐点核对 Connection 绘制域到 routing scope 的路径。
+另覆盖动态 EAST 首帧收敛、稳定缓存、叶节点测量错误恢复、振荡拒绝、
+错误 Anchor、缺失/重复/退休 binding 及宿主预算拒绝后的重试。
+与既有 preparation 测量、快照路由测试合计 46 项通过。
+复杂 fixture 使用显式的有限宿主 preparation budget；默认有限预算保持不变。
+两个官方场景、Native 截图与最终 workspace 门禁仍待完成，P2-L01 不登记关闭。
 
 ## 取舍
 

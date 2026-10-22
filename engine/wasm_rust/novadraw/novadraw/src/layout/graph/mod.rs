@@ -8,6 +8,8 @@ mod directed;
 mod graph_routing;
 mod layered;
 mod model;
+mod preparation;
+mod projection;
 mod protocol;
 mod ranking;
 mod validation;
@@ -25,6 +27,12 @@ pub use model::{
     AttachmentOffset, AttachmentSide, GraphAttachment, GraphAxisSize, GraphDirection, GraphEdge,
     GraphEdgeId, GraphEndpoint, GraphGroup, GraphGroupId, GraphLayoutRequest, GraphNode,
     GraphNodeId, GraphRequestBuilder, GraphRequestIdentity, GraphSize,
+};
+pub use preparation::{
+    GraphProjection, GraphProjectionMeasurement, GraphProjectionMeasurementResult,
+};
+pub use projection::{
+    GraphProjectionAnchor, GraphProjectionBinding, GraphProjectionRouter, GraphProjectionSnapshot,
 };
 pub use protocol::{
     GraphAlgorithmCapabilities, GraphAlgorithmKey, GraphAlgorithmPayload, GraphAttachmentBoundary,

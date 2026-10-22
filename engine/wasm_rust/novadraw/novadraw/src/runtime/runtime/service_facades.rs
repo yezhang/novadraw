@@ -42,6 +42,17 @@ impl<'a> RuntimeFrames<'a> {
         self.runtime.stabilize_for_query()
     }
 
+    /// Limits all work and allocation entries in each complete stabilization attempt.
+    pub fn preparation_budget(&self) -> crate::figure::PreparationBudget {
+        self.runtime.preparation_budget
+    }
+
+    /// Changes host policy for subsequent attempts; callbacks cannot replenish this budget.
+    pub fn set_preparation_budget(&mut self, budget: crate::figure::PreparationBudget) {
+        self.runtime.preparation_budget = budget;
+        self.runtime.request_full_redraw();
+    }
+
     pub fn prepare_submission(
         &mut self,
         surface: SurfaceInfo,

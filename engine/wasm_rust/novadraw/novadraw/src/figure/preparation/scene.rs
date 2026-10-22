@@ -485,6 +485,31 @@ impl<'a> PreparationScene<'a> {
         }
     }
 
+    /// A pure producer cache must revalidate and retain every computation read, including
+    /// reads made while obtaining its initial measurement demands.
+    pub(crate) fn reuse_observations(
+        &self,
+        retained: &[crate::connection::DependencyObservation],
+    ) -> Result<bool, TextError> {
+        use crate::connection::RouteSceneRead;
+        let geometries = HashMap::new();
+        let read = crate::connection::FigureTreeRouteSceneRead::with_budget(
+            self.tree,
+            &geometries,
+            self.budget.clone(),
+        );
+        for observation in retained {
+            self.budget.consume("producer cache dependencies", 1)?;
+            if read.dependency_generation(&observation.subject) != observation.generation {
+                self.budget.check()?;
+                return Ok(false);
+            }
+        }
+        self.retain_observations(retained);
+        self.budget.check()?;
+        Ok(true)
+    }
+
     pub(crate) fn check_layout_member(&self, id: FigureId) -> Result<(), LayoutError> {
         self.budget
             .consume("layout measurement query", 1)

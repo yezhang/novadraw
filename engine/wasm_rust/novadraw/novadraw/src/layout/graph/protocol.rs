@@ -132,7 +132,7 @@ pub enum GraphViolation {
     IdentityCoverage,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GraphLayoutError {
     PreparationBudget(crate::figure::PreparationBudgetError),
     UnknownEntity(GraphEndpoint),
@@ -151,6 +151,7 @@ pub enum GraphLayoutError {
     },
     RequestMismatch,
     RegistryMismatch,
+    InvalidProjectionBinding,
     ContainmentCycle(super::GraphGroupId),
     DepthExceeded,
     Disconnected,

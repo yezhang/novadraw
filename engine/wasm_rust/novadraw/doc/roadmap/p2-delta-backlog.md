@@ -120,10 +120,10 @@ Native 六个截图与 56 项示例测试通过；最终 workspace fmt、check�
 virtual nodes、排序/放置与有限走廊路由；16 fixture 的双方向 32 组合、
 穷举加权目标及独立端点/排序/证据验证通过。Compound 的包含域消环、head/tail、
 bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 组合、
-小数几何与嵌套/反馈端点反例通过。接下来进入统一 Figure/Connection adapter；
-统一投影、动态测量与官方场景仍未完成，全部验证完成前不关闭 P2-L01。
-adapter 静态核对已确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
-约束重测量和整组必需路由发布尚无完整契约。已形成
+小数几何与嵌套/反馈端点反例通过。统一 Figure/Connection adapter 已完成 Core 接入，
+官方场景与整体交付仍在推进，全部验证完成前不关闭 P2-L01。
+adapter 实施前的静态核对确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
+约束重测量和整组必需路由发布缺少完整契约。随后形成
 [候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
 已按[增量评审意见](../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
 完成提案修订 2，全部采纳 GP01–GP04，补齐 identity 保留条件、结构环检测、
@@ -147,8 +147,12 @@ LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 
 挂载时的 capability/显式依赖和 component effect 绑定的资源状态参与源前缀与测量源依赖；
 图片完成或移除后，失败恢复保留资源变化并拒绝旧 resolution。
 无关图片更新不替换图快照；测量、路由及 Label 定向回归共 42 项通过。
-同批候选依赖校验与共享预算尚未完成，按同一增量继续推进，
-不据此关闭 adapter 切片。
+同批候选依赖校验、共享预算与 FlowPage/TextFlow 的约束测量已完成 Core 接入。
+统一 `GraphProjection` producer、完整 flat binding、候选宽度重测量、
+attachment Anchor 与整组完整路径输出已实现；外部非分层算法走同一 adapter。
+纯结果缓存核对精确源输入与最终测量，Runtime 保持唯一发布权威。
+宿主可配置每次完整稳定化的有限预算，图求解与测量继续共享计数器。
+官方场景、Native 截图与最终全量门禁仍待验证，不据此关闭 P2-L01。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源

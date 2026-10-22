@@ -8,7 +8,8 @@
 属于 P2-L01 的 Figure/Connection adapter 切片，补充
 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
 纯请求、Directed 和 Compound 切片已实现；本增量进入实施，完成状态仍以验证证据为准。
-`api_semantics`：`scene.preparation`、`figure.measurement`、`connection.routing`。
+`api_semantics`：`frame.preparation`、`layout.manager`、`connection.anchor`、
+`connection.router`。
 
 Core 实施进度：约束测量与结构化错误已完成首批；候选快照查询、稳定领域结果版本、
 源 bounds 与派生 bounds 分离、路由快照观察和必需组发布屏障已接入。
@@ -55,7 +56,17 @@ FlowPage/TextFlow 已接入显式约束测量。结构化 Flow 通过公开
 TextFlow 的候选测量复用换行与截断算法，不修改附着的文字交互布局。
 文字查询与绘制共用 Runtime presentation 中的不可变值，专用附着刷新路径已移除。
 贡献遍历、排版与快照分配记入共享预算；内联测量错误保留叶节点身份和约束。
-graph adapter 仍待后续切片，整个增量尚未完成。
+graph adapter 已接入 `layout::graph::GraphProjection`：完整 flat binding、动态实体的
+候选宽度反馈、不可变 `GraphProjectionSnapshot`、attachment Anchor 与整组路径输出
+均走相同公开协议。`GraphProjectionFigure` 通过 typed component update 安装 producer；
+外部容器可以直接组合同一 producer，不需要 Core 类型分派。
+producer 的缓存只保存纯验证成功的图结果，不保存附着几何或当前路由权限。
+复用前逐项核对冻结源输入、文字版本、服务验证版本和最终约束测量；
+候选 payload 与布局、路径的发布权威仍是 Runtime 检查点。路由失败后保留的纯结果
+不能绕过 Runtime 的快照有效性检查；求解或测量失败值不进入缓存。
+RuntimeFrames 提供 preparation budget 查询和配置，配置作用于下一次完整稳定化；
+默认有限额度保持不变，回调不能重置共享计数器。大型官方图使用显式的有限宿主预算。
+官方图场景、Native 截图与最终全量门禁仍待后续切片，整个增量尚未完成。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
 ## 实施前发现的契约缺口

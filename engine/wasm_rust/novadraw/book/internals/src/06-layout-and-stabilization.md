@@ -225,6 +225,8 @@ LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimu
 预算耗尽是结构化错误，不能用它声称已经证明依赖有环。
 回调忽略超限错误也不能发布本批候选；下一次独立稳定化使用新计数器。
 嵌套预算错误保留实际失败叶节点及其约束。
+宿主通过 `RuntimeFrames::set_preparation_budget` 设置后续完整稳定化的有限额度；
+默认额度不变，producer 和 solver 只能累计消耗，不能在反馈轮次之间补充额度。
 实现见
 [`figure/preparation/budget.rs`](../../../novadraw/src/figure/preparation/budget.rs)。
 
@@ -264,6 +266,30 @@ LayoutManager 子查询和缓存保留传递观察，遍历使用同一次稳定
 尚无成功记录的首帧失败保留重试状态，普通路由失败通道保持原有语义。
 外部消费者验证见
 [`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)。
+
+### 图布局消费同一候选
+
+`GraphProjectionBinding` 明确保存图实体到 Figure、图边到 Connection 的完整一一映射。
+adapter 要求它们都是 owner 的直接 child；图 group 的包含关系保留在不可变请求中，
+不会变成 FigureTree 的父子关系。未列入动态测量的实体继续使用 fixture 尺寸。
+
+`GraphProjection` 先通过权威测量入口取得动态需求，再求解 placement 和完整路径。
+它用候选 outer 宽度重新测量；需求改变时，在同一预算内重建请求并再次求解。
+最终测量记录随 `GraphProjectionSnapshot` 保存，重复稳定化观察最终约束并复用受检结果。
+缓存同时核对并继承初始需求与各反馈轮次的全部计算观察，不能因只重测最终约束而
+遗漏初始需求所读取的依赖。观察版本或集合改变时，重新生成请求并求解。
+出现需求振荡时返回 `NonConvergentMeasurement`，不能把最后一次候选当作稳定结果。
+纯结果缓存不持有当前路由权限，Runtime presentation 仍是唯一发布权威。
+
+`GraphProjectionAnchor` 从 Runtime 受检快照读取 attachment，核对候选 Figure bounds
+与 binding，再通过引擎坐标 API 返回位置和法线。`GraphProjectionRouter` 从同一
+快照读取完整 points，核对 Runtime 已准备的端点与法线，交给普通组路由准入通道。
+`GraphProjectionFigure` 通过 `SetGraphProjection` 安装 producer；外部容器可以直接
+组合同一公开 producer 和路由类型。
+实现见 [`layout/graph/preparation.rs`](../../../novadraw/src/layout/graph/preparation.rs)
+与 [`layout/graph/projection.rs`](../../../novadraw/src/layout/graph/projection.rs)。
+验证见 [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)，
+覆盖 52 个官方输入方向组合、外部非分层算法、动态 EAST 测量、振荡与失败恢复。
 
 ## 6.10 稳定 epoch
 

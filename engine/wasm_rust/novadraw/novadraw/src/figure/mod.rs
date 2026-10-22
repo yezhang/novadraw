@@ -18,6 +18,7 @@ pub use activity::{ACTIVITY, ActivityCapability, FigureActivity};
 pub(crate) mod capability;
 mod ellipse;
 pub mod flow;
+mod graph_projection;
 mod image;
 mod label;
 mod polygon;
@@ -52,6 +53,7 @@ pub use capability::{
     ResourceDependenciesCapability, SCALE, ScaleCapability,
 };
 pub use ellipse::EllipseFigure;
+pub use graph_projection::{GraphProjectionFigure, SetGraphProjection};
 pub use image::{ImageDisplayState, ImageFigure};
 pub use label::{Alignment, LabelFigure, TextPlacement};
 pub use polygon::PolygonFigure;

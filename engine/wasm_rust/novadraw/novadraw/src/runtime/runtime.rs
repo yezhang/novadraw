@@ -356,6 +356,7 @@ pub struct Runtime {
     derivation_epoch: u64,
     stable_epoch: u64,
     last_stabilization_error: Option<FramePreparationError>,
+    preparation_budget: crate::figure::PreparationBudget,
     faulted: bool,
 }
 
@@ -656,6 +657,7 @@ impl Runtime {
             derivation_epoch: 0,
             stable_epoch: 0,
             last_stabilization_error: None,
+            preparation_budget: crate::figure::PreparationBudget::default(),
             faulted: false,
         };
         for (id, resources) in dependencies {

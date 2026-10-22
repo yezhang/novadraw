@@ -503,7 +503,8 @@ impl Runtime {
     ) -> Result<(), FramePreparationError> {
         self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
         self.last_stabilization_error = None;
-        let preparation_budget = crate::figure::PreparationBudgetHandle::default();
+        let preparation_budget =
+            crate::figure::PreparationBudgetHandle::new(self.preparation_budget);
 
         let mut work = DerivedWorkSet::default();
         let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
