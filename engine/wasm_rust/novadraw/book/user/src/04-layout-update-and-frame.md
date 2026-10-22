@@ -401,11 +401,40 @@ handle_acknowledgement(acknowledgement);
 
 排查时沿本章开头的因果链从前向后检查，不要先修改渲染主循环。
 
-## 4.13 验证入口
+## 4.13 有向图与复合图
+
+图布局从 `novadraw::layout::graph` 导入。先用 `GraphRequestBuilder` 描述节点尺寸、
+边、子图包含关系和算法选择，再创建对应 Figure 与 Connection，并构造完整的
+`GraphProjectionBinding`。图中的包含关系与 FigureTree 父子关系分别维护：
+官方 Compound 场景的子图边框和成员 Figure 都是同一容器的直接子节点。
+
+将 `GraphProjection` 通过 `SetGraphProjection` 安装到 `GraphProjectionFigure`，
+连接则使用同一 binding 创建的 Anchor 和 `GraphProjectionRouter`。
+Runtime 会准备图结果、写入候选位置、计算整组路径，再提交稳定帧。
+应用不应在场景构造中提前求解并逐项写 bounds，也不能保留旧快照作为当前路由权限。
+
+显式输入尺寸保留原请求；需要根据 Figure 内容测量的实体通过
+`GraphProjectionMeasurement` 声明。当算法改变候选宽度时，Core 会按新宽度
+重新测量，直到请求需求与结果一致。测量振荡或预算耗尽会返回错误。
+图容器也提供受约束测量，视口可以据此扩展内容范围；滚动改变视口位置，
+不改变图拓扑和图布局坐标。
+
+完整消费者见
+[`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
+运行后，Graph 菜单选择官方 fixture，Graph Direction 选择 SOUTH/EAST；
+超出视口的内容通过宿主面板的 Horizontal/Vertical 控制查看。
+
+```sh
+cargo run -p draw2d-official-examples
+cargo run -p draw2d-official-examples --example graph_verification
+```
+
+## 4.14 验证入口
 
 - [`m5_layout_contract.rs`](../../../novadraw/tests/m5_layout_contract.rs)
 - [`d4_constrained_measurement.rs`](../../../novadraw/tests/d4_constrained_measurement.rs)
 - [`d4_component_update.rs`](../../../novadraw/tests/d4_component_update.rs)
 - [`d4_notification_epoch.rs`](../../../novadraw/tests/d4_notification_epoch.rs)
 - [`runtime_resize_contract.rs`](../../../novadraw/tests/runtime_resize_contract.rs)
+- [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)
 - `cargo xtask verify runtime.apps`

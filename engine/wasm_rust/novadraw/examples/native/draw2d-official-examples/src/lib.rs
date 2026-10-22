@@ -8,6 +8,11 @@ use novadraw::runtime::Runtime;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
+/// Representative official inputs for Native visual verification.
+pub fn graph_verification_entries() -> Vec<SceneEntry> {
+    examples::graph_verification_entries()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParityStatus {
     Complete,
@@ -110,17 +115,17 @@ pub fn catalog() -> Vec<OfficialExample> {
             ],
             examples::connection_and_anchor,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "compound-graph",
             "CompoundGraphDemo",
             "org/eclipse/draw2d/examples/graph/CompoundGraphDemo.java",
-            &["P2-L01 CompoundDirectedGraph layout is not implemented"],
+            examples::compound_graph,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "directed-graph",
             "DirectedGraphDemo",
             "org/eclipse/draw2d/examples/graph/DirectedGraphDemo.java",
-            &["P2-L01 DirectedGraph layout is not implemented"],
+            examples::directed_graph,
         ),
         OfficialExample::complete(
             "ellipse-hitting",
@@ -359,7 +364,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            9
+            11
         );
 
         let mut ids = BTreeSet::new();

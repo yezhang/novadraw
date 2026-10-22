@@ -181,7 +181,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 | P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
 | P2-M01 | `animation.timeline`, `animation.presentation`, `frame.preparation`, `damage.repaint` | `in_progress` | ADR-026 已接受；M01-A/B complete，当前推进 M01-C 领域消费者 |
-| P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `in_progress` | ADR-043 纯算法与统一 adapter 已接入，52 个官方输入方向组合通过 Runtime 发布；官方场景、Native 与最终门禁待完成 |
+| P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `complete` | ADR-043 与 preparation 增量已实施；默认/外部算法、52 个官方组合、真实菜单与 Native 验收、最终门禁见[证据](../../../verification/evidence/adr043/implementation.md) |
 
 P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持
 文本度量/绘制同源、图文有序合成、字体资源 revision 与失败发布合同；
@@ -214,7 +214,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
 | `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `adapted` | `TextFlowFigure`、`TextLayoutEngine`、`figure::flow` | P2-T01/T02/T03 complete（ADR-042） | styled request、来源快照、开放 inline/block、四侧 FlowBorder、外部 root 与独立替代引擎、失败恢复与六个官方入口已验证；UTF-8/affinity 和显式选择绘制作为合理变体 |
 | `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` | M10.4 complete；P2-W01 pending | repeat scheduler、group/radio/slider 不污染 Core 状态机 |
-| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `pending` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router 已实现 | P2-L01、[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) | 52 个输入方向组合通过统一 Runtime adapter；官方场景与 Native 验收仍待完成，不以纯算法或结构断言代替对等毕业 |
+| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `adapted` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router | P2-L01、[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) | 独立图与 FigureTree 分开；默认/外部算法共用投影，52 个组合、候选测量/整体发布/失败恢复、真实菜单及 Native 四幅截图已验证，不承诺平台字体逐像素一致 |
 | `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |
 | `CAP-ACCESSIBILITY` | Accessible / dispatcher / actions | GOAL-CAP/PORT | `pending` | Core snapshot/action；Web/Native provider | M10.5 complete；P2-A01 pending | Core 语义完成不等于原生 AT provider 完成 |
 | `CAP-LIVE-UNMOUNT` | remove 后由应用保活并再次挂载 | GOAL-EXT | `pending` | 目标待 ADR | P2-LC01 | 先定义所有权、ID、扫描参与和退出路径 |
@@ -349,9 +349,14 @@ LayoutManager 子查询已按显式约束重测，preferred/minimum 分别选择
 显式路由在重新准备前拒绝旧快照。
 资源依赖身份及状态进入源前缀和 `FigureMeasurementSource`，派生恢复不撤销
 资源变化；图片更新、移除、失败恢复及无关资源隔离反例通过。
-同批候选依赖校验、共享预算、
-Figure/Connection 投影与官方场景仍在实施，
-`CAP-GRAPH-LAYOUT` 保持 pending。
+候选依赖校验、共享预算、约束 Flow 测量与统一 Figure/Connection 投影均已完成。
+图容器受约束测量复用纯 producer，tracked viewport 滚动保持图 identity 和路由次数；
+普通 Runtime 布局使用同一文字服务，冻结源前缀由后代共享不可变切片。
+两个官方图入口通过 52 个源码输入方向组合、真实菜单切换、旧身份与注册退休、
+resize 后字体资源检查和 Native 四幅代表性截图。最终 workspace 与公开 API
+门禁、五个应用探针及 Web backend 编译通过。
+`CAP-GRAPH-LAYOUT` 为 adapted；P2-L01 为 complete，见
+[实施证据](../../../verification/evidence/adr043/implementation.md)。
 
 ### M6 Event Dispatcher / Focus / Capture
 

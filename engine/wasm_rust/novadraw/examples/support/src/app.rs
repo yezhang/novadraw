@@ -309,7 +309,8 @@ impl DemoApp {
             .prepare_submission(surface, renderer.capabilities())
         {
             FramePreparation::Ready(submission) => submission,
-            FramePreparation::Error(_) => {
+            FramePreparation::Error(error) => {
+                eprintln!("screenshot frame preparation failed: {error:?}");
                 self.sync_platform_effects();
                 return Ok(RenderDisposition::Retry);
             }
@@ -492,7 +493,10 @@ impl DemoApp {
         if !presented {
             self.screenshot_attempts += 1;
             if self.screenshot_attempts >= SCREENSHOT_RENDER_RETRY_LIMIT {
-                error!("场景 {} 未产生可截图帧", self.scenes[idx].0);
+                eprintln!(
+                    "scene {} did not produce a screenshot frame: {result:?}",
+                    self.scenes[idx].0
+                );
                 std::process::exit(1);
             }
             if let Some(host) = &self.host {
@@ -509,7 +513,7 @@ impl DemoApp {
                 self.analyze_screenshot(&path, scene_name);
             }
             Err(e) => {
-                error!("截图失败: {}", e);
+                eprintln!("screenshot failed: {e}");
                 std::process::exit(1);
             }
         }

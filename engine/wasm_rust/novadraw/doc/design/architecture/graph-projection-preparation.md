@@ -2,12 +2,13 @@
 
 类型：`normative-design`
 
-状态：`accepted / implementing`，修订 2（2026-10-22，用户授权按 ADR-043 和增量方案推进 Core 编码）。
+状态：`accepted / implemented`，修订 2（2026-10-22，按用户授权完成 Core 编码与验证）。
 已按[增量评审意见](../../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
 处理 GP01–GP04。原评审报告保留其基线判断；当前执行授权来自修订后的用户指令。
 属于 P2-L01 的 Figure/Connection adapter 切片，补充
 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
-纯请求、Directed 和 Compound 切片已实现；本增量进入实施，完成状态仍以验证证据为准。
+纯请求、Directed、Compound、统一 adapter 与本增量均已实现；
+最终门禁及 Native 证据见[实施记录](../../../verification/evidence/adr043/implementation.md)。
 `api_semantics`：`frame.preparation`、`layout.manager`、`connection.anchor`、
 `connection.router`。
 
@@ -66,7 +67,17 @@ producer 的缓存只保存纯验证成功的图结果，不保存附着几何�
 不能绕过 Runtime 的快照有效性检查；求解或测量失败值不进入缓存。
 RuntimeFrames 提供 preparation budget 查询和配置，配置作用于下一次完整稳定化；
 默认有限额度保持不变，回调不能重置共享计数器。大型官方图使用显式的有限宿主预算。
-官方图场景、Native 截图与最终全量门禁仍待后续切片，整个增量尚未完成。
+官方图场景已接入真实 Label、子图边框、连线和箭头，52 个输入方向组合通过。
+宿主 fixture/方向菜单的真实点击、完整替换后的旧身份拒绝也已验证。
+图容器通过同一纯 producer 返回受约束尺寸，tracked viewport 测量/滚动保持
+图请求 identity 与路由计算次数；测量阶段不发布缓冲布局。
+Native 代表性场景已生成并检查；workspace fmt、check、严格 Clippy、test，
+五个应用探针、Web backend 编译及公开 API 边界门禁均通过，P2-L01 已完成。
+普通 Runtime 布局已传入文字服务与同一稳定化预算，复用显式约束测量。
+LayoutManager 保留调用者的读取范围，preparation 回调仍限定在自身子树。
+冻结源前缀与快照观察由 owner 和后代共享不可变切片，保留逐项输入核对，
+避免发布时为每个后代复制完整前缀。默认预算未提高。
+官方文本的窗口缩窄、大段文本、输入重排与小尺寸多行标签回归均已通过。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
 ## 实施前发现的契约缺口
@@ -394,9 +405,9 @@ Core 对子树构建、测量缓存、源前缀、快照观察、依赖图构建
 | 改源后路由失败、删除端点或退休 binding | 源变化保留，旧结果 invalid，受影响组 unresolved，无新 partial submission |
 | contents 成功替换后旧服务再查询 | 旧身份拒绝，无旧树或旧依赖复活 |
 
-通过此增量评审后，按候选查询与必需组发布→测量/source 前缀→graph adapter
-的顺序实施。随后接入两个官方场景、真实 fixture/方向切换与 Native 截图，
-补齐书籍和语义账本，完成最终门禁后关闭 P2-L01。
+本增量已按候选查询与必需组发布→测量/source 前缀→graph adapter 的顺序实施。
+两个官方场景、真实 fixture/方向切换与 Native 截图已验收，书籍与语义账本已同步；
+最终门禁通过后关闭 P2-L01。
 
 ## 增量评审意见处理记录
 

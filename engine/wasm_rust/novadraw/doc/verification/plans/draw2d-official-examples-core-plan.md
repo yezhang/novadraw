@@ -110,6 +110,15 @@ K00/H04 随每批维护。
 绘制与真实按钮缩放，Native 检查最小/最大截图。SchemeBorder 与字体指标驱动
 的下划线仍待 K08，当前静态示例装饰不代表通用文字装饰 API 已完成。
 
+2026-10-22 K06 的 Directed/Compound 图布局部分已按
+[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)与
+[preparation 增量](../../design/architecture/graph-projection-preparation.md)接入 Core。
+默认与外部算法共用独立请求、typed registry 和统一 Figure/Connection adapter；
+候选测量、快照身份与整组发布通过外部契约。两个官方图入口的 52 个方向组合、
+真实菜单切换、字体资源及 Native 四幅代表性截图已验收，入口标为 complete。
+证据见 [实施记录](../../../verification/evidence/adr043/implementation.md)。
+K06 的 tree contour 与 presentation 动画保留原状态；K07/K08 继续按依赖推进。
+
 ## 全计划完成判定
 
 25 个入口都具备独立 Canvas 实现；Canvas 功能清单没有未移植或阻塞项；

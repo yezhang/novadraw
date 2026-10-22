@@ -61,3 +61,21 @@ ScrollBar 的真实按钮输入验证。SchemeBorder 和字体指标下划线仍
 cargo test -p draw2d-official-examples --lib path_example
 cargo run -p draw2d-official-examples --example path_verification
 ```
+
+DirectedGraphDemo 和 CompoundGraphDemo 通过 Core `GraphProjection` 显示全部官方
+fixture，并支持 SOUTH/EAST 切换。场景只复用 `examples/scenes/` 中按源码声明的
+graph fixture 输入，不复用近似画面或预先计算的布局。Label 与 group 边框是
+同一容器下的 sibling；图包含关系保留在独立请求中。
+
+图容器的受约束测量驱动 tracked viewport，超出视口的内容通过宿主面板的
+Horizontal/Vertical 控制查看。固定节点尺寸保持源码输入；字体使用内置 Inter。
+Native 验证展示 offset attachment、EAST 跨层路径、厚子图边框和嵌套子图：
+
+```sh
+cargo test -p draw2d-official-examples --lib graph_examples
+cargo run -p draw2d-official-examples --example graph_verification
+```
+
+两个图入口的 Canvas 契约、真实菜单切换和 Native 代表性截图已验收，
+状态为 `complete`。证据见
+[ADR-043 实施记录](../../../verification/evidence/adr043/implementation.md)。

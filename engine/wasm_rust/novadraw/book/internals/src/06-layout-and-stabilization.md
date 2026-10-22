@@ -286,10 +286,23 @@ adapter 要求它们都是 owner 的直接 child；图 group 的包含关系保�
 快照读取完整 points，核对 Runtime 已准备的端点与法线，交给普通组路由准入通道。
 `GraphProjectionFigure` 通过 `SetGraphProjection` 安装 producer；外部容器可以直接
 组合同一公开 producer 和路由类型。
+图容器的 `measure_scene` 也调用 producer，读取纯结果尺寸并丢弃布局效果。
+视口先据此测量内容，随后正常 preparation 才取得候选发布资格。
+显式图尺寸保持原请求；视口宽度提示不裁掉图 extent。视口滚动只改变几何映射，
+不会改变图请求、快照身份或相同 routing scope 中的完整路径。
+普通 Runtime 布局也传入同一文字服务和稳定化预算，按每次查询的约束重新测量；
+因此视口缩窄后，Flow 不会继续沿用上一帧的换行尺寸。
+LayoutManager 保留调用者的查询范围，preparation 回调则只读取自身子树。
+每个 owner 的冻结源前缀和计算观察由后代共享不可变切片，避免为每个后代复制
+完整前缀；逐项输入核对和有限预算仍然有效。
+文字交互读取同一不可变 presentation；修改文字视口 offset 后，Editor 先完成
+Runtime 稳定化，再读取光标和选区几何，避免把新 offset 与旧布局混用。
 实现见 [`layout/graph/preparation.rs`](../../../novadraw/src/layout/graph/preparation.rs)
 与 [`layout/graph/projection.rs`](../../../novadraw/src/layout/graph/projection.rs)。
 验证见 [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)，
-覆盖 52 个官方输入方向组合、外部非分层算法、动态 EAST 测量、振荡与失败恢复。
+覆盖 52 个官方输入方向组合、外部非分层算法、动态 EAST 测量、振荡、失败恢复
+和 tracked viewport 测量/滚动。真实 Label、边框、箭头与宿主菜单切换见
+[`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
 
 ## 6.10 稳定 epoch
 

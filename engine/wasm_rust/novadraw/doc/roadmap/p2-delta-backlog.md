@@ -50,7 +50,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
 | 3 | P2-F02 | 开放的 Figure capability registry 与 Runtime mutation | `complete` | ADR-014/019、GA-4 | 外部标准/自定义 capability、无 Core accessor 扩张或横切能力 concrete 分支 |
 | 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02、P2-F02 已完成；Native surface 视觉毕业依赖 P2-G01 present 证据 | A/B/C 已完成；D 待 Native/Web 关键帧、组合场景与实际 runner 预算 |
-| 5 | P2-L01 | Directed/Compound graph layout adapter | `in_progress` | GA-4 扩展边界、ADR-043 已接受 | 独立图模型、确定性输出、外部算法集成 |
+| 5 | P2-L01 | Directed/Compound graph layout adapter | `complete` | GA-4 扩展边界、ADR-043 已实施 | 独立模型、默认/外部算法、统一投影、52 个官方组合与 Native 验收、最终门禁 |
 | 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
 | 7 | P2-T03 | fragment style 与剩余 inline/block flow | `complete` | P2-T01/T02、ADR-042 | 测量、paint、interaction 使用同一快照；六个官方 text 入口验收 |
 | 8 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
@@ -121,7 +121,7 @@ virtual nodes、排序/放置与有限走廊路由；16 fixture 的双方向 32 
 穷举加权目标及独立端点/排序/证据验证通过。Compound 的包含域消环、head/tail、
 bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 组合、
 小数几何与嵌套/反馈端点反例通过。统一 Figure/Connection adapter 已完成 Core 接入，
-官方场景与整体交付仍在推进，全部验证完成前不关闭 P2-L01。
+官方场景与整体交付随后完成，最终证据见本段末尾。
 adapter 实施前的静态核对确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
 约束重测量和整组必需路由发布缺少完整契约。随后形成
 [候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
@@ -152,8 +152,15 @@ LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 
 attachment Anchor 与整组完整路径输出已实现；外部非分层算法走同一 adapter。
 纯结果缓存核对精确源输入与最终测量，Runtime 保持唯一发布权威。
 宿主可配置每次完整稳定化的有限预算，图求解与测量继续共享计数器。
-官方场景、Native 截图与最终全量门禁仍待验证，不据此关闭 P2-L01。
-P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
+官方 Directed/Compound 场景已接入，52 个组合通过真实 Label、完整路径和 binding
+检查；宿主菜单真实点击覆盖 fixture/方向替换。Core graph 容器的受约束测量复用纯
+producer，tracked viewport 测量/滚动保持图 identity 和路由计算次数。
+Native 代表性截图已生成并检查。普通布局约束测量、共享不可变源前缀及
+Editor 文字 offset 更新后的稳定查询已补齐，默认预算保持不变。
+最终 workspace fmt、check、严格 Clippy、test 通过（1,321 项通过、1 项忽略、
+0 项失败）；五个应用探针、Web backend 编译和公开 API 边界门禁均通过。
+P2-L01 为 `complete`，证据见[实施记录](../../verification/evidence/adr043/implementation.md)。
+原 ADR 修订 1 与增量修订 2 保持有效；K06 的 tree contour 与动画不随图布局关闭。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。

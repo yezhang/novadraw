@@ -106,3 +106,25 @@ Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现�
 
 `novadraw/src/graph/render_recursive.rs` 是受保护的渲染主流程。除非语义证据证明主流程
 错误，否则应先检查 Figure、坐标、命令录制、后端 lowering 和调用路径。
+
+## 3.8 图投影参与同一稳定化
+
+`GraphProjection` 的缓存保存不可变请求、受检图结果和计算观察。它不拥有附着几何，
+也不能授予当前路由权限。Runtime 按精确源前缀检查候选，核对完整 binding，
+再把节点位置、领域快照和必需连接组一起发布。必需组是发布屏障；
+只有计算实际读取路由输出时，才建立计算依赖边。
+
+图容器的受约束测量调用同一 producer，取纯结果的 preferred/minimum，丢弃其
+缓冲布局与路由发布声明。这样视口可以先测量图内容，而不会在测量阶段修改树。
+随后的 preparation 仍须通过完整发布检查。显式图尺寸不被视口宽度提示截断，
+动态叶节点的反馈约束由请求契约决定。
+
+文字交互几何同样来自不可变 presentation。Editor 更新文字反馈的滚动位置后，
+必须先通过 Runtime 稳定化，再查询光标和选区；查询本身不刷新附着状态。
+
+修改这条执行链时，至少检查首帧候选 Anchor/路径一致、测量失败后恢复、
+完整内容替换后旧身份拒绝、稳定结果不重复路由，以及视口滚动不改变图结果身份。
+验证见
+[`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)、
+[`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)
+和 [`p2_preparation_measurement_contract.rs`](../../../novadraw/tests/p2_preparation_measurement_contract.rs)。

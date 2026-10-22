@@ -4,12 +4,13 @@
 
 ## 状态
 
-已接受，修订 1，实施中（2026-10-22，用户批准 ADR-043 并授权实施）。
-实施与验收按下述切片推进，不代表 P2-L01 已完成。
-纯模型、Directed 和 Compound 切片已实现。adapter 切片核对发现候选领域数据与
+已接受，修订 1，已实施（2026-10-22）。用户批准 ADR-043 并授权实施后，
+纯模型、默认算法、统一 adapter 与两个官方图场景已完成；P2-L01 为 `complete`。
+实施与最终门禁见[完成证据](../../verification/evidence/adr043/implementation.md)。
+adapter 切片核对发现候选领域数据与
 约束测量查询缺口，新增
 [图投影的候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
-该公开契约增量已按 GP01–GP04 完成修订 2，用户授权进入 Core 实施；
+该公开契约增量已按 GP01–GP04 完成修订 2，并按用户授权完成 Core 实施；
 原 ADR 修订 1 的接受状态不变。
 承接官方示例 K06；`api_semantics` 为 `layout.graph`、`layout.manager`、
 `connection.anchor`、`connection.router` 和 `frame.preparation`。
@@ -395,8 +396,8 @@ EAST 超侧边 offset、fixed 轴拉伸拒绝、空图及分层证据篡改拒�
 路由 stub 使用与通用验证器相同运算顺序的障碍边界，避免舍入产生伪重叠或
 不可达端点；不放宽验证器。最大 rank 后的零 span 边不会发生整数加法 panic，
 跨层辅助实体数在分配前由共享预算拒绝。
-Compound、统一 Figure/Connection adapter、测量反馈及两个官方场景仍待后续切片，
-不能据此关闭 P2-L01 或 K06。
+该 Directed 切片不能单独关闭 P2-L01 或 K06；后续 Compound、统一 adapter、
+测量反馈和官方场景的证据分别记录如下。
 
 ### Compound 切片实施证据
 
@@ -457,13 +458,34 @@ rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 
 缓存只保存纯验证成功的结果，复用前核对精确源输入与最终约束测量，
 不持有当前附着几何或路由权限。
 
-`graph_projection_contract` 的 8 项测试通过，其中一项将 52 个官方 fixture/方向
+`graph_projection_contract` 的 9 项测试通过，其中一项将 52 个官方 fixture/方向
 组合全部通过 Runtime 首帧发布，逐点核对 Connection 绘制域到 routing scope 的路径。
 另覆盖动态 EAST 首帧收敛、稳定缓存、叶节点测量错误恢复、振荡拒绝、
 错误 Anchor、缺失/重复/退休 binding 及宿主预算拒绝后的重试。
-与既有 preparation 测量、快照路由测试合计 46 项通过。
+与既有 preparation 测量、快照路由测试合计 47 项通过。
 复杂 fixture 使用显式的有限宿主 preparation budget；默认有限预算保持不变。
-两个官方场景、Native 截图与最终 workspace 门禁仍待完成，P2-L01 不登记关闭。
+两个官方场景与 Native 截图的证据见下一节。
+
+### 官方消费者与视口测量
+
+DirectedGraphDemo 和 CompoundGraphDemo 已接入 Core producer。16 个 Directed 与
+10 个 Compound fixture 的 SOUTH/EAST 组合使用真实 Label、blue group 边框、
+gray connection 和 target decoration。宿主菜单通过公开 mutation 重建 contents；
+真实 egui 点击测试覆盖 fixture 和方向切换，替换后旧 Figure 身份拒绝查询。
+
+`GraphProjectionFigure::measure_scene` 复用纯 producer，返回受检 preferred/minimum，
+不发布其缓冲布局。固定图输入不随 viewport hint 截断；动态实体继续按请求声明反馈。
+Core tracked viewport 测量/滚动反例通过，滚动后图请求 identity 和 route calculation
+count 保持不变。`graph_projection_contract` 当前共 9 项通过。
+
+官方场景通过 52 个组合的 Label layout、完整路径与 sibling binding 检查。
+Native 验证入口为 `cargo run -p draw2d-official-examples --example graph_verification`，
+覆盖 offset attachment、EAST 跨层路径、9px compound 边框与嵌套子图。
+样例采用内置 Inter 字体；不宣称与平台 Tahoma 字体逐像素相同。
+最终 workspace fmt、check、严格 Clippy 和 test 均通过：1,321 项通过、1 项忽略、
+0 项失败。五个 `runtime.apps` 探针、Web backend 编译及公开 API/依赖/热路径
+边界验证通过；P2-L01 已完成。Native 截图与执行证据见
+[实施记录](../../verification/evidence/adr043/implementation.md)。
 
 ## 取舍
 
@@ -488,4 +510,4 @@ rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 
 | R06 | 已采纳：[独立布局域](#独立布局域)、[基础结果与 typed 能力结果](#基础结果与-typed-能力结果) | group 也携带 typed row constraint，按连续区块排序，分层 group 用 head/tail rank 区间表达 |
 | 补充建议 | 已采纳：[目标与来源](#目标与来源)、[边界输入与预算](#边界输入与预算) | 固定源码提交；明确自环、零 span、空 group 和准入/分配/反馈/验证预算 |
 
-修订 1 已获用户批准，实施门禁通过；P2-L01 进入实施，完成状态仍以验证证据为准。
+修订 1 已获用户批准，实施门禁通过；P2-L01 的实施及最终验证已完成，证据见上文。
