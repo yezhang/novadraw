@@ -517,7 +517,11 @@ impl Runtime {
                     self.refresh_text_flow_layouts()
                         .map_err(FramePreparationError::Text)?;
                     self.tree
-                        .refresh_prepared_figures(self.text.as_mut(), &mut self.updates)
+                        .refresh_prepared_figures(
+                            self.text.as_mut(),
+                            &mut self.updates,
+                            self.connections.preparation_dependencies(),
+                        )
                         .map_err(FramePreparationError::Text)?;
                     if self.updates.has_pending_layout() {
                         work.insert(DerivedWorkKind::Layout);
@@ -573,7 +577,11 @@ impl Runtime {
                     let prepared_generation = self.tree.prepared_scene_generation();
                     if self
                         .tree
-                        .refresh_prepared_figures(self.text.as_mut(), &mut self.updates)
+                        .refresh_prepared_figures(
+                            self.text.as_mut(),
+                            &mut self.updates,
+                            self.connections.preparation_dependencies(),
+                        )
                         .map_err(FramePreparationError::Text)?
                     {
                         work.insert(DerivedWorkKind::Layout);

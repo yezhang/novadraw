@@ -5,10 +5,12 @@ use crate::text::{MeasureContext, TextError};
 use crate::{Dimension, Rectangle};
 use std::sync::Arc;
 
+mod dependency;
 mod measurement;
 mod routing;
 mod scene;
 mod source;
+pub(crate) use dependency::PreparationDependencies;
 pub(crate) use measurement::MeasurementSelection;
 pub use measurement::{
     PreparationDependencyError, PreparationMeasureError, PreparationMeasureErrorKind,

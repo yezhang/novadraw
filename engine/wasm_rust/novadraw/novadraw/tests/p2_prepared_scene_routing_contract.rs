@@ -743,3 +743,164 @@ fn preparation_self_snapshot_read_returns_ordered_structural_cycle() {
     ));
     assert!(f.seen.lock().unwrap().is_empty());
 }
+
+#[test]
+fn new_cross_owner_candidate_reads_are_rejected_before_publication_and_recover() {
+    let mut f = fixture(false);
+    let child_inputs = Arc::new(Inputs::default());
+    let child = f
+        .runtime
+        .figure(f.owner)
+        .unwrap()
+        .add(Box::new(Page(child_inputs.clone())))
+        .unwrap();
+    let route_figure = f
+        .runtime
+        .figure(child)
+        .unwrap()
+        .add(Box::new(ConnectionFigure::new()))
+        .unwrap();
+    let source = f
+        .runtime
+        .connections()
+        .register_anchor(Box::new(XYAnchor::new(
+            Point::new(10.0, 10.0),
+            CoordinateSpace::ChildContent(child),
+        )));
+    let target = f
+        .runtime
+        .connections()
+        .register_anchor(Box::new(XYAnchor::new(
+            Point::new(70.0, 50.0),
+            CoordinateSpace::ChildContent(child),
+        )));
+    let router = f
+        .runtime
+        .connections()
+        .register_router(Box::new(SnapshotRouter {
+            owner: f.owner,
+            seen: f.seen.clone(),
+            fail: f.route_fail.clone(),
+        }));
+    let connection = f
+        .runtime
+        .connections()
+        .register_state(
+            route_figure,
+            Some(source),
+            Some(target),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    let stable = f.runtime.connections().state(connection).unwrap();
+    let stable_points = f
+        .runtime
+        .tree()
+        .connection_route_points(route_figure)
+        .unwrap()
+        .unwrap()
+        .clone();
+    let consumed = f.seen.lock().unwrap().len();
+    // Both callbacks now read new dependencies while the old source prefix is still valid.
+    // The root reads the child's retained snapshot; the child candidate reads route output.
+    *f.inputs.snapshot_read.lock().unwrap() = Some(child);
+    *child_inputs.geometry_read.lock().unwrap() = Some(route_figure);
+    f.runtime.figure(f.owner).unwrap().revalidate().unwrap();
+    f.runtime.figure(child).unwrap().revalidate().unwrap();
+    assert!(matches!(
+        frame(&mut f.runtime),
+        Err(FramePreparationError::Text(TextError::PreparationDependency(error)))
+            if matches!(&*error, novadraw::figure::PreparationDependencyError::DependencyCycle { path }
+                if *path == vec![
+                    DependencySubject::PreparedScene(f.owner),
+                    DependencySubject::PreparedScene(child),
+                    DependencySubject::FigureGeometry(route_figure),
+                    DependencySubject::PreparedScene(f.owner),
+                ])
+    ));
+    assert_eq!(f.seen.lock().unwrap().len(), consumed);
+    let rejected = f.runtime.connections().state(connection).unwrap();
+    assert_eq!(rejected.source, stable.source);
+    assert_eq!(rejected.target, stable.target);
+    assert_eq!(rejected.router, stable.router);
+    assert_eq!(
+        f.runtime
+            .tree()
+            .connection_route_points(route_figure)
+            .unwrap()
+            .unwrap(),
+        &stable_points,
+    );
+    *child_inputs.geometry_read.lock().unwrap() = None;
+    // A legitimate source correction retires the rejected candidate's edges.
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+}
+
+#[test]
+fn new_candidate_cannot_hide_required_route_reads_behind_a_retained_snapshot() {
+    let mut f = fixture(true);
+    let child_inputs = Arc::new(Inputs::default());
+    let child = f
+        .runtime
+        .figure(f.connection.figure())
+        .unwrap()
+        .add(Box::new(Page(child_inputs.clone())))
+        .unwrap();
+    frame(&mut f.runtime).unwrap();
+    *f.inputs.snapshot_read.lock().unwrap() = Some(child);
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    let consumed = f.seen.lock().unwrap().len();
+    *child_inputs.geometry_read.lock().unwrap() = Some(child);
+    f.runtime.figure(child).unwrap().revalidate().unwrap();
+    assert!(matches!(
+        frame(&mut f.runtime),
+        Err(FramePreparationError::Text(TextError::PreparationDependency(error)))
+            if matches!(&*error,
+                novadraw::figure::PreparationDependencyError::ForbiddenRouteOutputDependency {
+                    owner, connection, subject
+                } if *owner == f.owner && *connection == f.connection
+                    && *subject == DependencySubject::FigureGeometry(child))
+    ));
+    assert_eq!(f.seen.lock().unwrap().len(), consumed);
+    *child_inputs.geometry_read.lock().unwrap() = None;
+    frame(&mut f.runtime).unwrap();
+}
+
+#[test]
+fn replacing_router_binding_retires_the_old_calculation_edges() {
+    let mut f = fixture(false);
+    frame(&mut f.runtime).unwrap();
+    let old_consumed = f.seen.lock().unwrap().len();
+    let router = f
+        .runtime
+        .connections()
+        .register_router(Box::new(DirectRouter));
+    f.runtime
+        .connections()
+        .set_router_binding(f.connection, RouterBinding::Explicit { router })
+        .unwrap();
+    *f.inputs.geometry_read.lock().unwrap() = Some(f.connection.figure());
+    f.inputs.revision.store(1, Ordering::Relaxed);
+    frame(&mut f.runtime).unwrap();
+    assert_eq!(f.seen.lock().unwrap().len(), old_consumed);
+    assert!(matches!(
+        f.runtime
+            .connections()
+            .state(f.connection)
+            .unwrap()
+            .resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+}

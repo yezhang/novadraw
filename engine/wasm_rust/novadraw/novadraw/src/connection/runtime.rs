@@ -214,6 +214,8 @@ struct ConnectionState {
     router: RouterBinding,
     constraint: Option<Box<dyn RoutingConstraint>>,
     dependencies: HashMap<DependencySubject, u64>,
+    // Successful output edges are distinct from rejected observations retained for retry.
+    calculation_dependencies: CalculationDependencies,
     routing_space: Option<CoordinateSpace>,
     dirty_revision: u64,
     binding_revision: u64,
@@ -225,13 +227,21 @@ struct ConnectionState {
 #[derive(Clone)]
 struct PreparedRouteState {
     dependencies: HashMap<DependencySubject, u64>,
+    calculation_dependencies: CalculationDependencies,
     routing_space: Option<CoordinateSpace>,
     generation: u64,
     binding_revision: u64,
 }
 
+#[derive(Clone, Default)]
+struct CalculationDependencies {
+    binding_revision: u64,
+    subjects: Vec<DependencySubject>,
+}
+
 pub(crate) struct ConnectionPreparationCheckpoint {
     states: HashMap<ConnectionId, PreparedRouteState>,
+    calculation_dependencies: HashMap<ConnectionId, CalculationDependencies>,
 }
 
 pub(crate) struct RetiredConnections {
@@ -329,6 +339,23 @@ impl Default for ConnectionRuntime {
 }
 
 impl ConnectionRuntime {
+    pub(crate) fn preparation_dependencies(
+        &self,
+    ) -> crate::figure::preparation::PreparationDependencies {
+        let mut dependencies = crate::figure::preparation::PreparationDependencies::default();
+        for connection in &self.order {
+            if let Some(state) = self.states.get(connection)
+                && state.calculation_dependencies.binding_revision == state.binding_revision
+            {
+                dependencies.replace(
+                    DependencySubject::FigureGeometry(connection.figure()),
+                    state.calculation_dependencies.subjects.iter().cloned(),
+                );
+            }
+        }
+        dependencies
+    }
+
     pub(crate) fn validate_required_routes(
         &self,
         owner: FigureId,
@@ -401,6 +428,11 @@ impl ConnectionRuntime {
                 .iter()
                 .filter_map(|(id, state)| state.stable.clone().map(|saved| (*id, saved)))
                 .collect(),
+            calculation_dependencies: self
+                .states
+                .iter()
+                .map(|(id, state)| (*id, state.calculation_dependencies.clone()))
+                .collect(),
         }
     }
 
@@ -417,6 +449,7 @@ impl ConnectionRuntime {
                 && matches!(state.resolution, ConnectionResolution::Resolved { .. }))
             .then(|| PreparedRouteState {
                 dependencies: state.dependencies.clone(),
+                calculation_dependencies: state.calculation_dependencies.clone(),
                 routing_space: state.routing_space,
                 generation: state.route_generation,
                 binding_revision: state.binding_revision,
@@ -451,10 +484,18 @@ impl ConnectionRuntime {
             .unwrap_or_else(|_| self.order.clone());
         for id in &self.order {
             let state = self.states.get_mut(id).expect("registered connection");
+            state.calculation_dependencies = prefix
+                .calculation_dependencies
+                .get(id)
+                .cloned()
+                .unwrap_or_default();
             if !invalid.contains(id)
                 && let Some(saved) = prefix.states.get(id)
             {
                 state.dependencies.clone_from(&saved.dependencies);
+                state
+                    .calculation_dependencies
+                    .clone_from(&saved.calculation_dependencies);
                 state.routing_space = saved.routing_space;
                 state.route_generation = saved.generation;
                 state.resolution = ConnectionResolution::Resolved {
@@ -654,6 +695,7 @@ impl ConnectionRuntime {
                     router: binding.payload.router,
                     constraint: binding.payload.constraint,
                     dependencies: HashMap::new(),
+                    calculation_dependencies: CalculationDependencies::default(),
                     routing_space: None,
                     dirty_revision: 2,
                     binding_revision: 2,
@@ -772,6 +814,7 @@ impl ConnectionRuntime {
             router,
             constraint,
             dependencies: HashMap::new(),
+            calculation_dependencies: CalculationDependencies::default(),
             routing_space: None,
             dirty_revision: 1,
             binding_revision: 1,
@@ -1336,6 +1379,14 @@ impl ConnectionRuntime {
                 .get_mut(&calculation.connection)
                 .expect("prepared route batch references registered connections");
             state.routing_space = Some(routing_space);
+            state.calculation_dependencies = CalculationDependencies {
+                binding_revision: state.binding_revision,
+                subjects: calculation
+                    .observations
+                    .iter()
+                    .map(|observation| observation.subject.clone())
+                    .collect(),
+            };
             state.route_generation = calculation.next_generation;
             state.resolution = ConnectionResolution::Resolved {
                 generation: state.route_generation,
@@ -2210,16 +2261,18 @@ fn dependency_cycle(
 
 fn dependency_figures(subject: &DependencySubject) -> [Option<FigureId>; 2] {
     match subject {
-        DependencySubject::PreparedScene(figure)
-        | DependencySubject::FigureMeasurement(figure)
+        DependencySubject::FigureMeasurement(figure)
         | DependencySubject::FigureMeasurementSource(figure)
         | DependencySubject::FigureGeometry(figure)
-        | DependencySubject::FigureVisibility(figure)
-        | DependencySubject::NamedAnchorRegion(figure, _)
-        | DependencySubject::Topology(figure) => [Some(*figure), None],
+        | DependencySubject::NamedAnchorRegion(figure, _) => [Some(*figure), None],
         DependencySubject::RelativeTransform(from, to) => {
             [coordinate_figure(*from), coordinate_figure(*to)]
         }
+        // Snapshot identity alone is not a geometry read. Its actual calculations
+        // are expanded by dependency_cycle; visibility and membership are source data.
+        DependencySubject::PreparedScene(_)
+        | DependencySubject::FigureVisibility(_)
+        | DependencySubject::Topology(_) => [None, None],
     }
 }
 

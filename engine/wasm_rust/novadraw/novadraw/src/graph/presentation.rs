@@ -100,6 +100,7 @@ impl FigureTree {
         &mut self,
         text: &mut dyn TextLayoutEngine,
         updates: &mut UpdateManager,
+        mut dependencies: crate::figure::preparation::PreparationDependencies,
     ) -> Result<bool, TextError> {
         use crate::figure::PreparationScene;
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
@@ -191,6 +192,40 @@ impl FigureTree {
                     "frozen preparation dependency is stale".into(),
                 ));
             }
+        }
+        dependencies.retain_tree(
+            self,
+            &self.blocks.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+        )?;
+        for (id, _, _, observations, _) in &candidates {
+            dependencies.replace(
+                crate::connection::DependencySubject::PreparedScene(*id),
+                observations
+                    .iter()
+                    .map(|observation| observation.subject.clone()),
+            );
+        }
+        let candidate_by_owner = candidates
+            .iter()
+            .map(|(id, _, _, _, candidate)| (*id, candidate))
+            .collect::<std::collections::HashMap<_, _>>();
+        for (id, node) in self.blocks.iter() {
+            let required = if let Some(candidate) = candidate_by_owner.get(&id) {
+                &candidate.required_routes
+            } else if let Some(prepared) = &node.prepared
+                && prepared.owner == id
+            {
+                &prepared.required_routes
+            } else {
+                continue;
+            };
+            dependencies.validate(
+                self,
+                id,
+                required
+                    .iter()
+                    .flat_map(|group| group.connections.iter().copied()),
+            )?;
         }
         let mut metrics_changed = false;
         // No tree changes occur until every candidate and its layout output has been checked.
