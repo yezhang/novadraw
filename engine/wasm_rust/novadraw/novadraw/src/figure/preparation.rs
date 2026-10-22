@@ -5,12 +5,32 @@ use crate::text::{MeasureContext, TextError};
 use crate::{Dimension, Rectangle};
 use std::sync::Arc;
 
+mod measurement;
 mod scene;
+pub use measurement::{
+    PreparationDependencyError, PreparationMeasureError, PreparationMeasureErrorKind,
+    PreparationMeasureStage, PreparationMeasurement, PreparationMetric,
+};
 pub(crate) use scene::scene_error;
 pub use scene::{PreparationScene, PreparedScene};
 
 /// Optional preparation capability. It cannot mutate the tree or publish a frame.
 pub trait FigurePreparation {
+    /// Measures content under explicit constraints. Drawing preparation remains separate.
+    fn measure_scene(
+        &self,
+        _context: &mut MeasureContext<'_>,
+        constraints: crate::MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        Err(PreparationMeasureError {
+            figure: scene.root(),
+            outer_constraints: constraints,
+            content_constraints: Some(constraints),
+            kind: PreparationMeasureErrorKind::UnsupportedConstraintMeasurement,
+        })
+    }
+
     /// Changes whenever inputs held outside the Figure's component state change.
     fn revision(&self) -> u64 {
         0

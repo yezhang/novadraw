@@ -97,6 +97,9 @@ impl<'a> MeasureContext<'a> {
     pub(crate) fn new(engine: &'a mut dyn TextLayoutEngine, font: FontDescriptor) -> Self {
         Self { engine, font }
     }
+    pub(crate) fn reborrow_with_font(&mut self, font: FontDescriptor) -> MeasureContext<'_> {
+        MeasureContext::new(self.engine, font)
+    }
     pub fn font(&self) -> &FontDescriptor {
         &self.font
     }

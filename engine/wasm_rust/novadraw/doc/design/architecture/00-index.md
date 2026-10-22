@@ -25,7 +25,7 @@
 | [tree-search-and-focus.md](tree-search-and-focus.md) | 树查询、命中与焦点遍历 |
 | [derived-state-convergence.md](derived-state-convergence.md) | 派生状态收敛事务 |
 | [deep-layout-presentation-convergence.md](deep-layout-presentation-convergence.md) | 深层布局盒模型与文字 Presentation 收敛 |
-| [graph-projection-preparation.md](graph-projection-preparation.md) | `proposal`：ADR-043 adapter 的候选快照、约束测量与必需路由发布增量，待评审 |
+| [graph-projection-preparation.md](graph-projection-preparation.md) | 已接受修订 2：ADR-043 adapter 的候选快照、约束测量与必需路由发布增量，GP01–GP04 已处理，实施中 |
 | [resource-lifecycle.md](resource-lifecycle.md) | 资源因果与 Backend Session |
 | [figure-inspector.md](figure-inspector.md) | 稳定场景与提交后事件诊断 |
 | [component-update.md](component-update.md) | 第三方组件 typed update 规范 |

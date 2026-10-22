@@ -24,7 +24,9 @@ mod polygon;
 mod polyline;
 pub(crate) mod preparation;
 pub use preparation::{
-    FigureDrawing, FigurePreparation, FigurePresentation, PreparationScene, PreparedScene,
+    FigureDrawing, FigurePreparation, FigurePresentation, PreparationDependencyError,
+    PreparationMeasureError, PreparationMeasureErrorKind, PreparationMeasureStage,
+    PreparationMeasurement, PreparationMetric, PreparationScene, PreparedScene,
 };
 mod rectangle;
 mod root;

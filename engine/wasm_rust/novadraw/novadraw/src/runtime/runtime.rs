@@ -125,7 +125,14 @@ impl fmt::Display for FramePreparationError {
     }
 }
 
-impl std::error::Error for FramePreparationError {}
+impl std::error::Error for FramePreparationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Text(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum FramePreparation {

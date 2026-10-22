@@ -125,7 +125,15 @@ bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 
 adapter 静态核对已确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
 约束重测量和整组必需路由发布尚无完整契约。已形成
 [候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
-按 ADR-043 的新增公开候选查询复审要求等待增量评审，再继续该切片。
+已按[增量评审意见](../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
+完成提案修订 2，全部采纳 GP01–GP04，补齐 identity 保留条件、结构环检测、
+测量优先级与结构化错误。用户随后授权按 ADR-043 和增量方案推进 Core 编码，
+修订 2 进入实施，先推进候选快照查询与必需组发布，再推进测量/source 前缀和 adapter。
+Core 约束测量协议已落地：`measure_scene`/`measure_figure`、独立 preferred/minimum
+来源选择、单次 Border 组合、结构化错误和测量重入检查。独立外部消费者覆盖
+新约束、override/LayoutManager 优先级、不支持/非法尺寸/baseline、非对称边距、
+缩放、有限输入溢出及错误 source 链。快照身份、必需组、跨派生依赖和共享预算
+尚未完成，按同一增量继续推进，不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源

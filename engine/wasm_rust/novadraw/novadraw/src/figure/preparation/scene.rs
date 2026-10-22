@@ -1,6 +1,8 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
+    rc::Rc,
 };
 
 use crate::figure::{CapabilityKey, ResolvedStyle};
@@ -9,7 +11,10 @@ use crate::layout::{LayoutError, LayoutOutput};
 use crate::text::TextError;
 use crate::{Figure, FigureId, FigureMeasurement, MeasureConstraints, Rectangle};
 
-use super::FigurePresentation;
+use super::{
+    FigurePresentation, PreparationDependencyError, PreparationMeasureError,
+    PreparationMeasureErrorKind, PreparationMeasurement,
+};
 
 /// Frozen read access restricted to the preparing Figure's subtree.
 pub struct PreparationScene<'a> {
@@ -17,6 +22,8 @@ pub struct PreparationScene<'a> {
     root: FigureId,
     styles: &'a HashMap<FigureId, ResolvedStyle>,
     members: HashSet<FigureId>,
+    measurement_path: Rc<RefCell<Vec<FigureId>>>,
+    measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
 }
 
 impl<'a> PreparationScene<'a> {
@@ -38,11 +45,86 @@ impl<'a> PreparationScene<'a> {
             root,
             styles,
             members,
+            measurement_path: Rc::new(RefCell::new(Vec::new())),
+            measurement_constraints: None,
         }
     }
 
     pub fn root(&self) -> FigureId {
         self.root
+    }
+
+    /// Outer and content constraints of the current measurement callback.
+    pub fn measurement_constraints(&self) -> Option<(MeasureConstraints, MeasureConstraints)> {
+        self.measurement_constraints
+    }
+
+    pub(crate) fn for_measurement(
+        &self,
+        root: FigureId,
+        outer: MeasureConstraints,
+        content: MeasureConstraints,
+    ) -> PreparationScene<'a> {
+        let mut scene = Self::new(self.tree, root, self.styles);
+        scene.measurement_path = self.measurement_path.clone();
+        scene.measurement_constraints = Some((outer, content));
+        scene
+    }
+
+    /// Measures the selected Figure through the authoritative Runtime measurement pipeline.
+    /// A registered preparation capability is explicitly selected when no override/layout wins.
+    pub fn measure_figure(
+        &self,
+        context: &mut crate::text::MeasureContext<'_>,
+        id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        let failure = |kind| PreparationMeasureError {
+            figure: id,
+            outer_constraints: constraints,
+            content_constraints: None,
+            kind,
+        };
+        self.tree.validate_identity(id).map_err(|error| {
+            failure(PreparationMeasureErrorKind::Layout(Box::new(
+                LayoutError::Identity(error),
+            )))
+        })?;
+        if !self.members.contains(&id) {
+            return Err(failure(PreparationMeasureErrorKind::Layout(Box::new(
+                LayoutError::InvalidChild {
+                    container: self.root,
+                    child: id,
+                },
+            ))));
+        }
+        {
+            let path = self.measurement_path.borrow();
+            if path.contains(&id) {
+                let mut path = path.clone();
+                path.push(id);
+                return Err(failure(PreparationMeasureErrorKind::Dependency(Box::new(
+                    PreparationDependencyError::MeasurementCycle { path },
+                ))));
+            }
+            if path.len() >= crate::graph::MAX_TREE_DEPTH {
+                return Err(failure(PreparationMeasureErrorKind::Dependency(Box::new(
+                    PreparationDependencyError::DepthExceeded {
+                        limit: crate::graph::MAX_TREE_DEPTH,
+                    },
+                ))));
+            }
+        }
+        struct MeasurementGuard(Rc<RefCell<Vec<FigureId>>>);
+        impl Drop for MeasurementGuard {
+            fn drop(&mut self) {
+                self.0.borrow_mut().pop();
+            }
+        }
+        self.measurement_path.borrow_mut().push(id);
+        let _guard = MeasurementGuard(self.measurement_path.clone());
+        self.tree
+            .measure_preparation_figure(context, id, constraints, self)
     }
 
     fn check(&self, id: FigureId) -> Result<(), TextError> {

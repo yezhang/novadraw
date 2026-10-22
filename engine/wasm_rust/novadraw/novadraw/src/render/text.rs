@@ -966,6 +966,7 @@ pub enum TextError {
     InvalidInlineBox,
     InvalidStyledLayout,
     InvalidPreparedScene(String),
+    PreparationMeasurement(Box<crate::figure::PreparationMeasureError>),
     Outline(crate::text::outline::FontError),
 }
 
@@ -1008,11 +1009,20 @@ impl fmt::Display for TextError {
                 write!(formatter, "invalid prepared scene: {reason}")
             }
             Self::Outline(error) => error.fmt(formatter),
+            Self::PreparationMeasurement(error) => error.fmt(formatter),
         }
     }
 }
 
-impl Error for TextError {}
+impl Error for TextError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::PreparationMeasurement(error) => Some(error.as_ref()),
+            Self::Outline(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextInteractionError {

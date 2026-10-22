@@ -331,7 +331,11 @@ P2-L01 按已接受的 [ADR-043](../../adr/adr-043-directed-compound-graph-layou
 实施：`layout::graph` 纯请求/受检结果、通用候选验证和实例级开放 registry
 已通过 18 项外部非分层协议测试。Directed 默认算法已完成消环、加权 rank、
 virtual nodes、排序/放置与完整路由，16 fixture 双方向 32 组合和独立反例通过。
-Compound 默认算法、Figure/Connection 投影与官方场景尚未完成，
+Compound 默认算法已完成，10 fixture 双方向 20 组合与嵌套/反馈端点反例通过。
+Core 新增 `PreparationScene::measure_figure` 和 `FigurePreparation::measure_scene`，
+在显式约束下独立分派 preferred/minimum 的权威来源，结构化保留失败主体和原因。
+外部消费者反例位于 `p2_preparation_measurement_contract`；候选快照、依赖环、
+共享预算、Figure/Connection 投影与官方场景仍在实施，
 `CAP-GRAPH-LAYOUT` 保持 pending。
 
 ### M6 Event Dispatcher / Focus / Capture

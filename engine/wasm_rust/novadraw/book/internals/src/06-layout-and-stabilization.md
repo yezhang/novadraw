@@ -185,6 +185,25 @@ child bounds 可能由外部事实给定，父级派生内容 extent。它看似
 但文本换行等场景可能需要带宽度提示重新测量。框架应显式表示约束变化，而不是无限
 递归“再试一次”。
 
+### preparation 的约束测量
+
+`PreparationScene::measure_figure` 通过 Core 的测量入口分派，不由图布局 adapter
+自行测量字体或组合 Border。preferred 与 minimum 独立选择 override、LayoutManager、
+preparation 或 intrinsic 来源；只有实际选中 preparation 时才调用
+`FigurePreparation::measure_scene`。callback 接收内容约束，可从 scene 查询本次
+outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline 后完成物理 Border
+组合及容器正投影。override 不经过内容展开。
+
+测量调用栈由同一 preparation scene 共享。重入相同 Figure 时，入口立即返回带有
+有序 Figure 路径的 `PreparationDependencyError::MeasurementCycle`，不等待反馈预算。
+这一切片只处理测量重入；跨快照、route 和 Locator 的结构环以及共享求解预算仍由
+[图投影增量方案](../../../doc/design/architecture/graph-projection-preparation.md)继续实施。
+
+错误类型位于
+[`figure/preparation/measurement.rs`](../../../novadraw/src/figure/preparation/measurement.rs)；
+外部消费者反例见
+[`p2_preparation_measurement_contract.rs`](../../../novadraw/tests/p2_preparation_measurement_contract.rs)。
+
 ## 6.10 稳定 epoch
 
 每轮稳定化使用 epoch 标识其输入和发布边界。epoch 完成意味着：

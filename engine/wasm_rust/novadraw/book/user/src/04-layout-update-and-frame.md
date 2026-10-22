@@ -197,6 +197,19 @@ runtime
 图形准备结果（`FigurePresentation`）把受检测量、视觉边界和不可变绘制数据保存为
 一个值。它不专属于动画；普通文本、图像和边框准备也可以产生该结果。
 
+自定义 preparation 需要在新宽度下重新测量时，通过
+`PreparationScene::measure_figure(context, figure, constraints)` 查询。该入口分别解析
+preferred 和 minimum：显式尺寸优先，其次是 LayoutManager，再选择注册的
+`FigurePreparation::measure_scene`，最后使用普通 Figure 的内在测量。
+即使还没有 prepared 快照，注册的 preparation 分支也需要支持显式约束；
+默认实现返回 `UnsupportedConstraintMeasurement`。
+
+`measure_scene` 返回内容域的 `PreparationMeasurement`，不修改 bounds，也不生成
+绘制数据。Runtime 负责扣除物理边距、反投影约束、组合一次 Border 和正投影结果。
+override 直接正投影，不再加 Border。测量失败通过 `PreparationMeasureError`
+保留实际 Figure、outer/content 约束与原始错误，并沿
+`TextError::PreparationMeasurement` 传到帧准备错误。
+
 测量缓存以布局代数和约束为键。结构、约束、显式尺寸或相关内容变化时，Runtime
 使缓存失效；应用不需要手工清理。
 
@@ -205,6 +218,7 @@ runtime
 - [`MeasureConstraints` 与 `FigureMeasurement`](../../../novadraw/src/figure/mod.rs)
 - [`LayoutSnapshot` 与 `LayoutOutput`](../../../novadraw/src/layout/mod.rs)
 - [约束文本测量测试](../../../novadraw/tests/d4_constrained_measurement.rs)
+- [外部 preparation 约束测量测试](../../../novadraw/tests/p2_preparation_measurement_contract.rs)
 
 ## 4.6 应用运行期如何触发更新
 

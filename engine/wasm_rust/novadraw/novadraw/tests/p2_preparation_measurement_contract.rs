@@ -1,0 +1,475 @@
+//! External producer uses only public preparation and measurement contracts.
+use novadraw::{
+    figure::{
+        CONTAINER, ContainerCapability, Figure, FigureCapabilityBuilder,
+        FigureCapabilityRegistrationError, FigureContainer, FigureDrawing, FigureMeasurement,
+        FigurePreparation, FigurePresentation, MeasureConstraints, PREPARATION,
+        PreparationCapability, PreparationMeasureError, PreparationMeasureErrorKind,
+        PreparationMeasurement, PreparationMetric, PreparationScene, PreparedScene,
+        border::{Border, MarginBorder},
+    },
+    geometry::{Dimension, Rectangle},
+    graphics::{GraphicsError, PaintContext},
+    layout::StackLayout,
+    render::{BackendCapabilities, SurfaceInfo},
+    runtime::{FramePreparation, FramePreparationError, Runtime},
+    text::{MeasureContext, TextError},
+    tree::{FigureId, FigureTree},
+};
+use std::{
+    error::Error,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
+
+struct Empty;
+impl FigureDrawing for Empty {
+    fn paint(&self, _: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
+}
+fn presentation() -> FigurePresentation {
+    FigurePresentation::new(
+        FigureMeasurement::new(10.0, 10.0, None),
+        Dimension::ZERO,
+        Rectangle::ZERO,
+        Arc::new(Empty),
+    )
+    .unwrap()
+}
+
+struct DefaultUnsupported;
+impl Figure for DefaultUnsupported {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::ZERO
+    }
+    fn name(&self) -> &'static str {
+        "DefaultUnsupported"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())
+    }
+}
+impl FigurePreparation for DefaultUnsupported {
+    fn prepare(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        Ok(presentation())
+    }
+}
+
+type MeasurementLog = Arc<Mutex<Vec<Result<PreparationMeasurement, PreparationMeasureError>>>>;
+struct Probe(MeasurementLog);
+impl Figure for Probe {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 120.0, 80.0)
+    }
+    fn name(&self) -> &'static str {
+        "MeasurementProbe"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())
+    }
+}
+impl FigurePreparation for Probe {
+    fn prepare(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        Ok(presentation())
+    }
+    fn prepare_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        _: Rectangle,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, TextError> {
+        let child = scene.children(scene.root())?[0];
+        for width in [40.0, 80.0] {
+            let measured =
+                scene.measure_figure(context, child, MeasureConstraints::width(width).unwrap());
+            self.0.lock().unwrap().push(measured.clone());
+            measured?;
+        }
+        Ok(PreparedScene::new(presentation()))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Mode {
+    Supported,
+    Unsupported,
+    InvalidSize,
+    InvalidBaseline,
+    Text,
+    Recursive,
+}
+struct External {
+    mode: Mode,
+    calls: Arc<AtomicUsize>,
+    border: Option<MarginBorder>,
+    scale: f64,
+}
+impl Figure for External {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 10.0, 10.0)
+    }
+    fn name(&self) -> &'static str {
+        "ExternalMeasured"
+    }
+    fn initial_insets(&self) -> novadraw::geometry::Insets {
+        self.border
+            .as_ref()
+            .map_or(novadraw::geometry::Insets::ZERO, Border::get_insets)
+    }
+    fn get_border(&self) -> Option<&dyn Border> {
+        self.border.as_ref().map(|border| border as &dyn Border)
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())?;
+        out.register(CONTAINER, ContainerCapability::of::<Self>())
+    }
+}
+impl FigureContainer for External {
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        MeasureConstraints::new(
+            constraints.max_width().map(|width| width / self.scale),
+            constraints.max_height().map(|height| height / self.scale),
+        )
+        .unwrap()
+    }
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        FigureMeasurement::new(
+            measurement.width * self.scale,
+            measurement.height * self.scale,
+            measurement.baseline.map(|baseline| baseline * self.scale),
+        )
+    }
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
+        Dimension::new(size.width * self.scale, size.height * self.scale)
+    }
+}
+impl FigurePreparation for External {
+    fn prepare(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        Ok(presentation())
+    }
+    fn measure_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        let (outer, content) = scene.measurement_constraints().unwrap();
+        assert_eq!(content, constraints);
+        let failure = |kind| PreparationMeasureError {
+            figure: scene.root(),
+            outer_constraints: outer,
+            content_constraints: Some(content),
+            kind,
+        };
+        let width = constraints.max_width().unwrap_or(100.0);
+        match self.mode {
+            Mode::Unsupported => {
+                return Err(failure(
+                    PreparationMeasureErrorKind::UnsupportedConstraintMeasurement,
+                ));
+            }
+            Mode::Text => {
+                return Err(failure(PreparationMeasureErrorKind::Text(Box::new(
+                    TextError::NoUsableFont,
+                ))));
+            }
+            Mode::Recursive => return scene.measure_figure(context, scene.root(), constraints),
+            _ => {}
+        }
+        Ok(PreparationMeasurement {
+            preferred: FigureMeasurement::new(
+                if matches!(self.mode, Mode::InvalidSize) {
+                    f64::NAN
+                } else {
+                    width
+                },
+                400.0 / width,
+                if matches!(self.mode, Mode::InvalidBaseline) {
+                    Some(100.0)
+                } else {
+                    None
+                },
+            ),
+            minimum: Dimension::new(5.0, 2.0),
+        })
+    }
+}
+
+fn fixture(mode: Mode) -> (FigureTree, FigureId, MeasurementLog, Arc<AtomicUsize>) {
+    projection_fixture(mode, None, 1.0)
+}
+fn projection_fixture(
+    mode: Mode,
+    border: Option<MarginBorder>,
+    scale: f64,
+) -> (FigureTree, FigureId, MeasurementLog, Arc<AtomicUsize>) {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(Probe(log.clone())))
+        .unwrap();
+    let child = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(External {
+                mode,
+                calls: calls.clone(),
+                border,
+                scale,
+            }),
+        )
+        .unwrap();
+    (tree, child, log, calls)
+}
+fn run(tree: FigureTree) -> Result<(), FramePreparationError> {
+    match Runtime::new(tree).frames().prepare_submission(
+        SurfaceInfo {
+            logical_width: 120.0,
+            logical_height: 80.0,
+            pixel_width: 120,
+            pixel_height: 80,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    ) {
+        FramePreparation::Ready(_) => Ok(()),
+        FramePreparation::Error(error) => Err(error),
+        other => panic!("unexpected frame state: {other:?}"),
+    }
+}
+
+#[test]
+fn external_prepared_measurement_honors_each_constraint_without_using_old_metrics() {
+    let (tree, _, log, calls) = fixture(Mode::Supported);
+    run(tree).unwrap();
+    assert!(calls.load(Ordering::Relaxed) >= 2);
+    let log = log.lock().unwrap();
+    assert_eq!(
+        log[0].as_ref().unwrap().preferred.size(),
+        Dimension::new(40.0, 10.0)
+    );
+    assert_eq!(
+        log[1].as_ref().unwrap().preferred.size(),
+        Dimension::new(80.0, 5.0)
+    );
+}
+
+#[test]
+fn override_and_layout_skip_an_unsupported_preparation_measurement() {
+    for layout in [false, true] {
+        let (mut tree, child, log, calls) = fixture(Mode::Unsupported);
+        if layout {
+            tree.builder()
+                .set_layout_manager(child, Box::new(StackLayout::new()))
+                .unwrap();
+        } else {
+            tree.builder()
+                .set_preferred_size(child, Some(Dimension::new(17.0, 19.0)))
+                .unwrap();
+            tree.builder()
+                .set_minimum_size(child, Some(Dimension::new(3.0, 4.0)))
+                .unwrap();
+        }
+        run(tree).unwrap();
+        assert_eq!(calls.load(Ordering::Relaxed), 0);
+        if !layout {
+            assert_eq!(
+                log.lock().unwrap()[0].as_ref().unwrap().preferred.size(),
+                Dimension::new(17.0, 19.0)
+            );
+        }
+    }
+}
+
+#[test]
+fn preferred_override_does_not_hide_unsupported_minimum() {
+    let (mut tree, child, _, calls) = fixture(Mode::Unsupported);
+    tree.builder()
+        .set_preferred_size(child, Some(Dimension::new(17.0, 19.0)))
+        .unwrap();
+    assert!(
+        matches!(run(tree), Err(FramePreparationError::Text(TextError::PreparationMeasurement(error)))
+        if error.figure == child && error.kind == PreparationMeasureErrorKind::UnsupportedConstraintMeasurement)
+    );
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn selected_minimum_does_not_validate_overridden_preferred_output() {
+    let (mut tree, child, log, _) = fixture(Mode::InvalidSize);
+    tree.builder()
+        .set_preferred_size(child, Some(Dimension::new(17.0, 19.0)))
+        .unwrap();
+    run(tree).unwrap();
+    assert_eq!(
+        log.lock().unwrap()[0].as_ref().unwrap().minimum,
+        Dimension::new(5.0, 2.0)
+    );
+}
+
+#[test]
+fn structured_failures_keep_the_subject_constraints_and_original_cause() {
+    for mode in [
+        Mode::Unsupported,
+        Mode::InvalidSize,
+        Mode::InvalidBaseline,
+        Mode::Text,
+        Mode::Recursive,
+    ] {
+        let (tree, child, _, _) = fixture(mode);
+        let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
+        else {
+            panic!("expected structured failure");
+        };
+        assert_eq!(error.figure, child);
+        assert_eq!(
+            error.outer_constraints,
+            MeasureConstraints::width(40.0).unwrap()
+        );
+        match mode {
+            Mode::Unsupported => assert_eq!(
+                error.kind,
+                PreparationMeasureErrorKind::UnsupportedConstraintMeasurement
+            ),
+            Mode::InvalidSize => {
+                assert!(matches!(
+                    error.kind,
+                    PreparationMeasureErrorKind::InvalidSize {
+                        metric: PreparationMetric::Preferred,
+                        ..
+                    }
+                ));
+                assert_eq!(*error, error.as_ref().clone()); // NaN diagnostics remain reflexive.
+            }
+            Mode::InvalidBaseline => assert!(matches!(
+                error.kind,
+                PreparationMeasureErrorKind::InvalidBaseline {
+                    baseline: 100.0,
+                    height: 10.0
+                }
+            )),
+            Mode::Text => assert_eq!(
+                error.source().unwrap().downcast_ref::<TextError>(),
+                Some(&TextError::NoUsableFont)
+            ),
+            Mode::Recursive => {
+                assert!(
+                    matches!(&error.kind, PreparationMeasureErrorKind::Dependency(
+                    cause) if matches!(cause.as_ref(), novadraw::figure::PreparationDependencyError::MeasurementCycle { path } if path == &[child, child]))
+                );
+            }
+            Mode::Supported => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn asymmetric_border_and_container_projection_are_applied_once() {
+    let border = MarginBorder::default_border().with_margins(3.0, 5.0, 5.0, 7.0);
+    for overrides in [false, true] {
+        let (mut tree, child, log, calls) = projection_fixture(Mode::Supported, Some(border), 2.0);
+        if overrides {
+            tree.builder()
+                .set_preferred_size(child, Some(Dimension::new(17.0, 19.0)))
+                .unwrap();
+            tree.builder()
+                .set_minimum_size(child, Some(Dimension::new(3.0, 4.0)))
+                .unwrap();
+        }
+        run(tree).unwrap();
+        let log = log.lock().unwrap();
+        let measured = log[0].as_ref().unwrap();
+        if overrides {
+            assert_eq!(calls.load(Ordering::Relaxed), 0);
+            assert_eq!(measured.preferred.size(), Dimension::new(34.0, 38.0));
+            assert_eq!(measured.minimum, Dimension::new(6.0, 8.0));
+        } else {
+            // (outer width 40 - border width 12) / scale 2 = content width 14.
+            assert_eq!(measured.preferred.width, 52.0);
+            assert_eq!(measured.preferred.height, (400.0 / 14.0 + 8.0) * 2.0);
+            assert_eq!(measured.minimum, Dimension::new(34.0, 20.0));
+        }
+    }
+}
+
+#[test]
+fn finite_inset_overflow_is_distinct_and_happens_before_the_callback() {
+    let border =
+        MarginBorder::default_border().with_margins(f64::MAX, f64::MAX, f64::MAX, f64::MAX);
+    let (tree, child, _, calls) = projection_fixture(Mode::Supported, Some(border), 1.0);
+    let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
+    else {
+        panic!("expected structured overflow");
+    };
+    assert_eq!(error.figure, child);
+    assert_eq!(error.content_constraints, None);
+    assert_eq!(
+        error.kind,
+        PreparationMeasureErrorKind::DerivedOverflow {
+            stage: novadraw::figure::PreparationMeasureStage::ConstraintShrink,
+        }
+    );
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
+}
+
+#[test]
+fn default_constraint_measurement_is_explicitly_unsupported_before_a_snapshot_exists() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(Probe(Arc::default())))
+        .unwrap();
+    let child = tree
+        .builder()
+        .add_child(root, Box::new(DefaultUnsupported))
+        .unwrap();
+    assert!(
+        matches!(run(tree), Err(FramePreparationError::Text(TextError::PreparationMeasurement(error)))
+        if error.figure == child && error.kind == PreparationMeasureErrorKind::UnsupportedConstraintMeasurement)
+    );
+}
+
+#[test]
+fn frame_error_source_chain_reaches_the_original_text_error() {
+    let (tree, child, _, _) = fixture(Mode::Text);
+    let error = run(tree).unwrap_err();
+    let text = error.source().unwrap().downcast_ref::<TextError>().unwrap();
+    let measurement = text
+        .source()
+        .unwrap()
+        .downcast_ref::<PreparationMeasureError>()
+        .unwrap();
+    assert_eq!(measurement.figure, child);
+    assert_eq!(
+        measurement.source().unwrap().downcast_ref::<TextError>(),
+        Some(&TextError::NoUsableFont)
+    );
+}

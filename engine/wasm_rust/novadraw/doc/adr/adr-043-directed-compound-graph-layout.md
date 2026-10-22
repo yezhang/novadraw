@@ -9,7 +9,8 @@
 纯模型、Directed 和 Compound 切片已实现。adapter 切片核对发现候选领域数据与
 约束测量查询缺口，新增
 [图投影的候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
-该公开契约增量待评审；原修订 1 的接受状态不变。
+该公开契约增量已按 GP01–GP04 完成修订 2，用户授权进入 Core 实施；
+原 ADR 修订 1 的接受状态不变。
 承接官方示例 K06；`api_semantics` 为 `layout.graph`、`layout.manager`、
 `connection.routing`、`figure.measurement` 和 `scene.preparation`。
 
@@ -436,8 +437,16 @@ rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 
 [候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
 包含源码证据、不可变结果查询、约束测量、source 前缀与必需路由组发布条件。
 按本 ADR 的“补充公开的受检候选查询契约并复审后实施”要求，
-该增量评审通过后继续 adapter；不采用检查点外的可变结果槽。
+该增量修订完成后已获得用户的编码授权，继续 adapter；不采用检查点外的可变结果槽。
 已完成算法切片保持不变，两个官方场景仍未实现。
+
+依据[图投影 preparation 增量评审](../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
+完成提案修订 2，全部采纳 GP01–GP04：分离 preparation 尝试与快照 identity 更新，
+明确计算依赖及结构环检测，保留测量来源优先级，并补齐结构化测量错误。
+处理结果与验收反例见提案的
+[意见处理记录](../design/architecture/graph-projection-preparation.md#增量评审意见处理记录)。
+原评审报告保留。用户随后要求按 ADR-043 和增量方案推进 Core 编码，
+修订 2 据此进入实施；文档接受不代表新增公开契约已实现或验证。
 
 ## 取舍
 

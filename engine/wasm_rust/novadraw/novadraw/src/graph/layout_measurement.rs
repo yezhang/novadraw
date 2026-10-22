@@ -16,6 +16,141 @@ fn prepared_measurement(
 }
 
 impl FigureTree {
+    pub(crate) fn measure_preparation_figure(
+        &self,
+        context: &mut crate::text::MeasureContext<'_>,
+        figure: FigureId,
+        outer: MeasureConstraints,
+        scene: &crate::figure::PreparationScene<'_>,
+    ) -> Result<crate::figure::PreparationMeasurement, crate::figure::PreparationMeasureError> {
+        stacker::maybe_grow(
+            RECURSIVE_VALIDATION_STACK_RED_ZONE,
+            RECURSIVE_VALIDATION_STACK_GROWTH,
+            || self.measure_preparation_figure_inner(context, figure, outer, scene),
+        )
+    }
+
+    fn measure_preparation_figure_inner(
+        &self,
+        context: &mut crate::text::MeasureContext<'_>,
+        figure: FigureId,
+        outer: MeasureConstraints,
+        scene: &crate::figure::PreparationScene<'_>,
+    ) -> Result<crate::figure::PreparationMeasurement, crate::figure::PreparationMeasureError> {
+        use crate::figure::{
+            PreparationMeasureError, PreparationMeasureErrorKind as Kind,
+            PreparationMeasureStage as Stage, PreparationMeasurement,
+        };
+        let node = &self.blocks[figure];
+        let prepared_source = node.preparation().is_some() || node.prepared.is_some();
+        let preferred_prepared =
+            node.preferred_size.is_none() && node.layout.manager.is_none() && prepared_source;
+        let minimum_prepared =
+            node.minimum_size.is_none() && node.layout.manager.is_none() && prepared_source;
+        let fail = |content, kind| PreparationMeasureError {
+            figure,
+            outer_constraints: outer,
+            content_constraints: content,
+            kind,
+        };
+        let layout_error = |content, stage, error| {
+            fail(
+                content,
+                match error {
+                    LayoutError::InvalidMeasurement {
+                        reason: crate::layout::MeasurementFailure::DerivedOverflow,
+                        ..
+                    } => Kind::DerivedOverflow { stage },
+                    error => Kind::Layout(Box::new(error)),
+                },
+            )
+        };
+        let content = if preferred_prepared || minimum_prepared || node.layout.manager.is_some() {
+            Some(
+                node.layout_content_constraints(figure, outer)
+                    .map_err(|error| layout_error(None, Stage::ConstraintShrink, error))?,
+            )
+        } else {
+            None
+        };
+        let prepared = if preferred_prepared || minimum_prepared {
+            let content = content.expect("selected preparation has content constraints");
+            let preparation = node
+                .preparation()
+                .ok_or_else(|| fail(Some(content), Kind::UnsupportedConstraintMeasurement))?;
+            let measured_scene = scene.for_measurement(figure, outer, content);
+            let style = scene
+                .style(figure)
+                .map_err(|error| fail(Some(content), Kind::Text(Box::new(error))))?;
+            let font = crate::text::FontDescriptor::parse(&style.font)
+                .map_err(|error| fail(Some(content), Kind::Text(Box::new(error))))?;
+            let mut child_context = context.reborrow_with_font(font);
+            let measured = preparation
+                .measure_scene(&mut child_context, content, &measured_scene)
+                .map_err(|mut error| {
+                    // Preserve a nested measurement's actual subject and constraints.
+                    if error.figure == figure {
+                        error.outer_constraints = outer;
+                        error.content_constraints = Some(content);
+                    }
+                    error
+                })?
+                .validate(
+                    figure,
+                    outer,
+                    Some(content),
+                    preferred_prepared,
+                    minimum_prepared,
+                )?;
+            Some(measured)
+        } else {
+            None
+        };
+        let preferred = if let Some(size) = node.preferred_size {
+            let raw = FigureMeasurement::new(size.width, size.height, None);
+            PreparationMeasurement {
+                preferred: raw,
+                minimum: Dimension::ZERO,
+            }
+            .validate(figure, outer, content, true, false)?;
+            validate_projected_measurement(figure, node.project_preferred_measurement(raw))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else if preferred_prepared {
+            let raw = prepared.expect("selected preparation measured").preferred;
+            let expanded = prepared_measurement(figure, node, raw)
+                .map_err(|error| layout_error(content, Stage::BorderExpansion, error))?;
+            validate_projected_measurement(figure, node.project_preferred_measurement(expanded))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else {
+            self.preferred_measurement(figure, outer)
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        };
+        let minimum = if let Some(size) = node.minimum_size {
+            PreparationMeasurement {
+                preferred: FigureMeasurement::default(),
+                minimum: size,
+            }
+            .validate(figure, outer, content, false, true)?;
+            validate_projected_size(figure, node.project_minimum_size(size))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else if minimum_prepared {
+            let raw = prepared.expect("selected preparation measured").minimum;
+            let expanded = prepared_measurement(
+                figure,
+                node,
+                FigureMeasurement::new(raw.width, raw.height, None),
+            )
+            .map_err(|error| layout_error(content, Stage::BorderExpansion, error))?
+            .size();
+            validate_projected_size(figure, node.project_minimum_size(expanded))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else {
+            self.minimum_size(figure, outer)
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        };
+        PreparationMeasurement { preferred, minimum }.validate(figure, outer, content, true, true)
+    }
+
     pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Rectangle, FreeformError> {
         self.validate_identity(figure_id)?;
         let block = self
