@@ -3,6 +3,7 @@
 //! Graph identities belong to a request builder, never to a Figure tree. Algorithms and
 //! additional constraints/results use the same instance-owned typed registry.
 
+mod compound;
 mod directed;
 mod graph_routing;
 mod layered;
@@ -11,6 +12,7 @@ mod protocol;
 mod ranking;
 mod validation;
 
+pub use compound::{COMPOUND_GRAPH, CompoundGraphConfig, register_compound_graph};
 pub use directed::{
     DIRECTED_GRAPH, DIRECTED_ORDERING_SWEEPS, DirectedGraphConfig, register_directed_graph,
 };
@@ -25,10 +27,10 @@ pub use model::{
     GraphNodeId, GraphRequestBuilder, GraphRequestIdentity, GraphSize,
 };
 pub use protocol::{
-    GraphAlgorithmCapabilities, GraphAlgorithmKey, GraphAlgorithmPayload, GraphBudget,
-    GraphCapabilityKey, GraphCapabilityPayload, GraphCapabilityValidator, GraphConstraintKey,
-    GraphConstraintOwner, GraphConstraintPayload, GraphConstraintValidator, GraphConstraints,
-    GraphLayoutAlgorithm, GraphLayoutCandidate, GraphLayoutError, GraphLayoutResult,
-    GraphLayoutService, GraphPlacement, GraphResultCapabilities, GraphRoute, GraphSolveContext,
-    GraphStage, GraphViolation, PreparedGraphAttachment,
+    GraphAlgorithmCapabilities, GraphAlgorithmKey, GraphAlgorithmPayload, GraphAttachmentBoundary,
+    GraphBudget, GraphCapabilityKey, GraphCapabilityPayload, GraphCapabilityValidator,
+    GraphConstraintKey, GraphConstraintOwner, GraphConstraintPayload, GraphConstraintValidator,
+    GraphConstraints, GraphLayoutAlgorithm, GraphLayoutCandidate, GraphLayoutError,
+    GraphLayoutResult, GraphLayoutService, GraphPlacement, GraphResultCapabilities, GraphRoute,
+    GraphSolveContext, GraphStage, GraphViolation, PreparedGraphAttachment,
 };

@@ -870,3 +870,110 @@ fn draw2d_attachment_offset_can_exceed_the_side_length_after_transposition() {
     proposed.extent.height = 90.0;
     validate(&request, proposed).unwrap();
 }
+
+struct BoundaryProof(Rectangle);
+impl GraphCapabilityPayload for BoundaryProof {}
+const BOUNDARY_PROOF: GraphCapabilityKey<BoundaryProof> =
+    GraphCapabilityKey::new("consumer.selected-boundary");
+
+#[test]
+fn external_selected_boundary_uses_the_same_geometry_and_registered_proof_gate() {
+    let mut ctx = context();
+    let mut builder =
+        GraphRequestBuilder::new(GraphDirection::South, LINEAR, Linear { gap: 0.0 }, &mut ctx)
+            .unwrap();
+    let group = builder
+        .add_group(Dimension::new(100.0, 100.0), &mut ctx)
+        .unwrap();
+    let node = builder
+        .add_node(GraphSize::fixed(Dimension::new(10.0, 10.0)), &mut ctx)
+        .unwrap();
+    builder.node_mut(node).unwrap().parent = Some(group);
+    let edge = builder.add_edge(group, node, &mut ctx).unwrap();
+    let request = builder.build(&mut ctx).unwrap();
+    let boundary = Rectangle::new(20.0, 10.0, 5.0, 20.0);
+    let mut service = GraphLayoutService::new();
+    let mut capabilities = GraphAlgorithmCapabilities::new().result(BOUNDARY_PROOF);
+    capabilities.groups = true;
+    service.register(LINEAR, capabilities, linear).unwrap();
+    service
+        .register_capability(
+            BOUNDARY_PROOF,
+            |proof: &BoundaryProof,
+             _: &GraphLayoutRequest,
+             candidate: &GraphLayoutCandidate,
+             ctx: &mut GraphSolveContext| {
+                ctx.consume(GraphStage::Capability, 1)?;
+                if candidate.routes[0].source.boundary.is_some_and(|boundary| {
+                    boundary.is_certified_by(BOUNDARY_PROOF) && boundary.bounds() == proof.0
+                }) {
+                    Ok(())
+                } else {
+                    Err(GraphLayoutError::CapabilityRejected(BOUNDARY_PROOF.name()))
+                }
+            },
+        )
+        .unwrap();
+    let mut candidate = GraphLayoutCandidate::new(&request);
+    let outer = Rectangle::new(0.0, 0.0, 100.0, 100.0);
+    let node_bounds = Rectangle::new(20.0, 50.0, 10.0, 10.0);
+    candidate.placements = vec![
+        GraphPlacement {
+            entity: group.into(),
+            bounds: outer,
+        },
+        GraphPlacement {
+            entity: node.into(),
+            bounds: node_bounds,
+        },
+    ];
+    let source = PreparedGraphAttachment::on_boundary(
+        group.into(),
+        GraphAttachmentBoundary::new(boundary, BOUNDARY_PROOF),
+        AttachmentSide::Bottom,
+        GraphAttachment::default(),
+        15.0,
+    );
+    let target = PreparedGraphAttachment::on_bounds(
+        node.into(),
+        node_bounds,
+        AttachmentSide::Top,
+        GraphAttachment::default(),
+        0.0,
+    );
+    candidate.routes = vec![GraphRoute {
+        edge,
+        source,
+        target,
+        points: vec![source.position, target.position],
+    }];
+    candidate.extent = outer;
+    assert!(matches!(
+        GraphLayoutResult::validate(&request, candidate.clone(), &service, &mut ctx),
+        Err(GraphLayoutError::MissingCapability(_))
+    ));
+    candidate
+        .capabilities
+        .insert(BOUNDARY_PROOF, BoundaryProof(boundary), &mut ctx)
+        .unwrap();
+    let result =
+        GraphLayoutResult::validate(&request, candidate.clone(), &service, &mut ctx).unwrap();
+    assert_eq!(
+        result.route(edge).unwrap().source.position,
+        Point::new(22.5, 15.0)
+    );
+    // Geometry is valid inside the owner, but its registered provenance does not match.
+    let wrong = Rectangle::new(30.0, 10.0, 5.0, 20.0);
+    candidate.routes[0].source = PreparedGraphAttachment::on_boundary(
+        group.into(),
+        GraphAttachmentBoundary::new(wrong, BOUNDARY_PROOF),
+        AttachmentSide::Bottom,
+        GraphAttachment::default(),
+        15.0,
+    );
+    candidate.routes[0].points[0] = candidate.routes[0].source.position;
+    assert!(matches!(
+        GraphLayoutResult::validate(&request, candidate, &service, &mut ctx),
+        Err(GraphLayoutError::CapabilityRejected(_))
+    ));
+}

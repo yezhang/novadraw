@@ -550,7 +550,7 @@ pub(super) fn order_rows(
     Ok(())
 }
 
-fn place_rows(
+pub(super) fn place_rows(
     rows: &[Vec<usize>],
     vertices: &mut [Vertex],
     request: &GraphLayoutRequest,
@@ -573,7 +573,12 @@ fn place_rows(
         // rank sum. Avoid inward rounding at the previous row's actual padded boundary.
         for index in row {
             context.consume(GraphStage::Placement, 1)?;
-            y = outside_leading_boundary(y, vertices[*index].padding.top, cursor, context)?;
+            y = outside_leading_boundary(
+                y,
+                vertices[*index].padding.top + clearance,
+                cursor,
+                context,
+            )?;
         }
         for index in row {
             if *index < request.nodes().len() {
@@ -595,11 +600,11 @@ fn place_rows(
             .iter()
             .map(|index| {
                 let vertex = &vertices[*index];
-                vertex.bounds.y - vertex.padding.top
-                    + (vertex.bounds.height + vertex.padding.height())
+                let top = vertex.padding.top + clearance;
+                let bottom = vertex.padding.bottom + clearance;
+                vertex.bounds.y - top + (vertex.bounds.height + (top + bottom))
             })
-            .fold(y + height, f64::max)
-            + clearance;
+            .fold(y + height, f64::max);
         if !cursor.is_finite() {
             return Err(GraphLayoutError::Overflow(GraphStage::Placement));
         }

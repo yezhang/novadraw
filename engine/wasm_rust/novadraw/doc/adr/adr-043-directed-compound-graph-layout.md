@@ -393,6 +393,33 @@ EAST 超侧边 offset、fixed 轴拉伸拒绝、空图及分层证据篡改拒�
 Compound、统一 Figure/Connection adapter、测量反馈及两个官方场景仍待后续切片，
 不能据此关闭 P2-L01 或 K06。
 
+### Compound 切片实施证据
+
+2026-10-22 已接入标准 `COMPOUND_GRAPH` 注册项。消环先按包含域构建同级区块的
+商图，保持祖先与成员之间的边不反转，再按 source→target 顺序转换 head/tail；
+这是确定性的包含域排序变体，不复制 Java 的随机排序结果。私有包含边参与加权
+rank 求解，跨层边建立 virtual nodes，空子图 rank 建立 bridge。同级 group 作为
+连续区块排序，group row constraint 与成员约束分别在各自包含域内生效。
+横向辅助图包含跨 rank 共享的左右 separator，minimum、border 和 inner padding
+进入放置约束；子图矩形来自求解的边界，保留 head/tail 的独立横向位置。
+
+`GraphAttachmentBoundary` 携带候选边界几何和 typed 结果能力身份；通用验证器
+检查边界位于 owner 内、side/offset/inset 与位置一致，服务要求对应 payload 存在且
+通过注册验证器。标准分层验证器检查 head/tail 选择、rank 区间与 feedback provenance；
+外部非分层算法使用相同入口和失败通道，不需要伪造 rank。
+
+`examples/scenes/src/compound_fixtures.rs` 重建 CompoundGraphTests 的 10 个输入，
+保留源码尺寸、包含关系、边声明顺序及默认 width=1、padding=10；
+SOUTH/EAST 的 20 个组合通过，重复输出一致。独立测试覆盖空 group minimum、
+祖先/成员与嵌套 group 双向端点、跨 group 循环、group row constraint、zero span、
+自环拒绝、fixed 轴冲突、预算与无证据边界拒绝。
+全部 fixture 另以小数尺寸和非对称 padding/border/inner padding 验证。
+rank 间距按实际 clearance 包围盒向外舍入，group 使用能够覆盖 tail 末端的
+最小可表示 span；验证器检查相同重建公式，不引入 epsilon。
+
+纯算法切片完成后继续统一 Figure/Connection adapter、动态测量反馈和官方场景。
+本段不表示 P2-L01 或 K06 已完成。
+
 ## 取舍
 
 不复制 Java 的可变输入/输出混合模型和 visitor 工作区，也不引入产品编辑器模型。

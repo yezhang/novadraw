@@ -118,7 +118,9 @@ Native 六个截图与 56 项示例测试通过；最终 workspace fmt、check�
 两个官方场景推进；纯请求/受检结果与开放 registry 第一切片已实现，
 18 项外部非分层协议测试通过。Directed 阶段已实现确定性消环、加权 rank、
 virtual nodes、排序/放置与有限走廊路由；16 fixture 的双方向 32 组合、
-穷举加权目标及独立端点/排序/证据验证通过。接下来进入 Compound 阶段；
+穷举加权目标及独立端点/排序/证据验证通过。Compound 的包含域消环、head/tail、
+bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 组合、
+小数几何与嵌套/反馈端点反例通过。接下来进入统一 Figure/Connection adapter；
 统一投影、动态测量与官方场景仍未完成，全部验证完成前不关闭 P2-L01。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源

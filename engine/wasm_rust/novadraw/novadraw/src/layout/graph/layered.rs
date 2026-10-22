@@ -39,11 +39,14 @@ pub struct LayeredNodeRank {
     pub node: GraphNodeId,
     pub rank: u32,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LayeredGroupRanks {
     pub group: GraphGroupId,
     pub head: u32,
     pub tail: u32,
+    /// Independently solved boundary boxes, in consumer coordinates.
+    pub head_bounds: Rectangle,
+    pub tail_bounds: Rectangle,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LayeredVirtualNode {
@@ -164,6 +167,48 @@ fn validate(
         {
             return Err(reject());
         }
+        context.consume(GraphStage::Capability, candidate.placements.len() as u64)?;
+        let placement = candidate
+            .placements
+            .iter()
+            .find(|placement| placement.entity == group.group.into())
+            .ok_or_else(reject)?;
+        let outer = super::directed::transpose_rect(placement.bounds, request.direction());
+        let head = super::directed::transpose_rect(group.head_bounds, request.direction());
+        let tail = super::directed::transpose_rect(group.tail_bounds, request.direction());
+        let border = super::directed::transpose_insets(
+            request.group(group.group)?.border_insets,
+            request.direction(),
+        );
+        for boundary in [head, tail] {
+            if ![
+                boundary.x,
+                boundary.y,
+                boundary.width,
+                boundary.height,
+                boundary.x + boundary.width,
+                boundary.y + boundary.height,
+            ]
+            .into_iter()
+            .all(f64::is_finite)
+                || boundary.width != super::compound::BOUNDARY_CROSS_SIZE
+                || boundary.height < 0.0
+                || boundary.x < outer.x
+                || boundary.x + boundary.width > outer.x + outer.width
+                || boundary.y < outer.y
+                || boundary.y + boundary.height > outer.y + outer.height
+            {
+                return Err(reject());
+            }
+        }
+        if head.y != outer.y
+            || head.height < border.top
+            || outer.height
+                != super::compound::enclosing_span(head.y, tail.y + tail.height, context)?
+            || tail.height < border.bottom
+        {
+            return Err(reject());
+        }
     }
     for node in request.nodes() {
         context.consume(GraphStage::Capability, 1)?;
@@ -204,6 +249,21 @@ fn validate(
         }
     }
     let mut previous_end = None;
+    for group in &evidence.groups {
+        for (rank, bounds) in [
+            (group.head, group.head_bounds),
+            (group.tail, group.tail_bounds),
+        ] {
+            context.consume(GraphStage::Capability, 1)?;
+            let canonical = super::directed::transpose_rect(bounds, request.direction());
+            if bands
+                .insert(rank, (canonical.y, canonical.height))
+                .is_some_and(|existing| existing != (canonical.y, canonical.height))
+            {
+                return Err(reject());
+            }
+        }
+    }
     for (y, height) in bands.values() {
         context.consume(GraphStage::Capability, 1)?;
         if previous_end.is_some_and(|end| *y < end) {
@@ -219,6 +279,15 @@ fn validate(
     for edge in &evidence.edges {
         context.consume(GraphStage::Capability, 1)?;
         let input = request.edge(edge.edge)?;
+        if edge.feedback {
+            for (owner, member) in [(input.source, input.target), (input.target, input.source)] {
+                if let GraphEndpoint::Group(group) = owner
+                    && super::compound::contains(request, group, member, context)?
+                {
+                    return Err(reject());
+                }
+            }
+        }
         if !seen.insert(edge.edge) {
             return Err(reject());
         }
@@ -255,6 +324,64 @@ fn validate(
             .ok_or_else(reject)?;
         for (is_source, prepared) in [(true, route.source), (false, route.target)] {
             let attachment = request.attachment(input, is_source)?;
+            if let GraphEndpoint::Group(id) = prepared.endpoint {
+                let working_source = is_source != edge.feedback;
+                let selected_head = super::compound::selected_head(
+                    request,
+                    input,
+                    edge.feedback,
+                    working_source,
+                    context,
+                )?;
+                let group = evidence
+                    .groups
+                    .iter()
+                    .find(|group| group.group == id)
+                    .ok_or_else(reject)?;
+                let expected_rank = if selected_head {
+                    group.head
+                } else {
+                    group.tail
+                };
+                let actual_rank = if working_source {
+                    edge.source_rank
+                } else {
+                    edge.target_rank
+                };
+                let boundary = if selected_head {
+                    group.head_bounds
+                } else {
+                    group.tail_bounds
+                };
+                let Some(prepared_boundary) = prepared.boundary else {
+                    return Err(reject());
+                };
+                if actual_rank != expected_rank
+                    || prepared_boundary.bounds() != boundary
+                    || !prepared_boundary.is_certified_by(LAYERED_RESULT)
+                {
+                    return Err(reject());
+                }
+                let canonical = super::directed::transpose_rect(boundary, request.direction());
+                let border = super::directed::transpose_insets(
+                    request.group(id)?.border_insets,
+                    request.direction(),
+                );
+                let inset = if working_source && selected_head {
+                    canonical.height - border.top
+                } else {
+                    0.0
+                };
+                let side = match (request.direction(), working_source) {
+                    (super::GraphDirection::South, true) => super::AttachmentSide::Bottom,
+                    (super::GraphDirection::South, false) => super::AttachmentSide::Top,
+                    (super::GraphDirection::East, true) => super::AttachmentSide::Right,
+                    (super::GraphDirection::East, false) => super::AttachmentSide::Left,
+                };
+                if prepared.inset != inset || (attachment.side.is_none() && prepared.side != side) {
+                    return Err(reject());
+                }
+            }
             if matches!(prepared.endpoint, GraphEndpoint::Node(_)) && attachment.side.is_none() {
                 let leading = edge.feedback == is_source;
                 let expected = match (request.direction(), leading) {

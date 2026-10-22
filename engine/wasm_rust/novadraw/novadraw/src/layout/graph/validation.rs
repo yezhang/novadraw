@@ -536,17 +536,33 @@ fn validate_endpoint(
     {
         return Err(invalid());
     }
-    let max_inset = match entity {
-        GraphEndpoint::Node(_) => 0.0,
-        GraphEndpoint::Group(id) => {
-            let border = request.group(id)?.border_insets;
-            match actual.side {
-                AttachmentSide::Top => border.top,
-                AttachmentSide::Bottom => border.bottom,
-                AttachmentSide::Left => border.left,
-                AttachmentSide::Right => border.right,
-            }
+    let (bounds, max_inset) = if let Some(boundary) = actual.boundary {
+        let selected = boundary.bounds();
+        if !matches!(entity, GraphEndpoint::Group(_))
+            || !valid_rect(selected)
+            || !covers(bounds, selected)
+        {
+            return Err(invalid());
         }
+        let depth = match actual.side {
+            AttachmentSide::Top | AttachmentSide::Bottom => selected.height,
+            AttachmentSide::Left | AttachmentSide::Right => selected.width,
+        };
+        (selected, depth)
+    } else {
+        let max_inset = match entity {
+            GraphEndpoint::Node(_) => 0.0,
+            GraphEndpoint::Group(id) => {
+                let border = request.group(id)?.border_insets;
+                match actual.side {
+                    AttachmentSide::Top => border.top,
+                    AttachmentSide::Bottom => border.bottom,
+                    AttachmentSide::Left => border.left,
+                    AttachmentSide::Right => border.right,
+                }
+            }
+        };
+        (bounds, max_inset)
     };
     if actual.inset > max_inset {
         return Err(invalid());

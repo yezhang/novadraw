@@ -423,8 +423,31 @@ pub struct GraphPlacement {
     pub bounds: Rectangle,
 }
 
-/// A selected side, offset and group border inset, tied to one original endpoint.
-/// Capability validators check algorithm-specific head/tail provenance.
+/// An algorithm-selected group boundary certified by a registered typed result capability.
+/// This is geometry evidence, not another graph entity.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GraphAttachmentBoundary {
+    bounds: Rectangle,
+    proof: CapabilityIdentity,
+}
+impl GraphAttachmentBoundary {
+    /// The capability's validator must check the geometry and its endpoint provenance.
+    pub fn new<P: GraphCapabilityPayload>(bounds: Rectangle, proof: GraphCapabilityKey<P>) -> Self {
+        Self {
+            bounds,
+            proof: proof.identity(),
+        }
+    }
+    pub fn bounds(self) -> Rectangle {
+        self.bounds
+    }
+    pub fn is_certified_by<P: GraphCapabilityPayload>(self, key: GraphCapabilityKey<P>) -> bool {
+        self.proof.id == key.identity().id
+    }
+}
+
+/// A selected side and offset, tied to one original endpoint.
+/// An optional boundary changes the reference box only with registered capability evidence.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PreparedGraphAttachment {
     pub endpoint: GraphEndpoint,
@@ -432,6 +455,7 @@ pub struct PreparedGraphAttachment {
     pub offset: AttachmentOffset,
     pub inset: f64,
     pub position: Point,
+    pub boundary: Option<GraphAttachmentBoundary>,
 }
 impl PreparedGraphAttachment {
     /// Compute a boundary point in the consumer coordinate domain. Validation still checks
@@ -465,7 +489,20 @@ impl PreparedGraphAttachment {
             offset: attachment.offset,
             inset,
             position,
+            boundary: None,
         }
+    }
+    /// Select an independent group boundary. Nodes always use their outer box.
+    pub fn on_boundary(
+        endpoint: GraphEndpoint,
+        boundary: GraphAttachmentBoundary,
+        side: AttachmentSide,
+        attachment: GraphAttachment,
+        inset: f64,
+    ) -> Self {
+        let mut result = Self::on_bounds(endpoint, boundary.bounds, side, attachment, inset);
+        result.boundary = Some(boundary);
+        result
     }
 }
 
@@ -790,6 +827,24 @@ impl GraphLayoutService {
         registration: &AlgorithmRegistration,
         context: &mut GraphSolveContext,
     ) -> Result<(), GraphLayoutError> {
+        for route in &candidate.routes {
+            for endpoint in [route.source, route.target] {
+                context.consume(GraphStage::Capability, 1)?;
+                if let Some(boundary) = endpoint.boundary {
+                    context.consume(
+                        GraphStage::Capability,
+                        candidate.capabilities.entries.len() as u64,
+                    )?;
+                    if !candidate
+                        .capabilities
+                        .identities()
+                        .any(|identity| identity.id == boundary.proof.id)
+                    {
+                        return Err(GraphLayoutError::MissingCapability(boundary.proof.name));
+                    }
+                }
+            }
+        }
         for required in &request.required {
             context.consume(
                 GraphStage::Capability,

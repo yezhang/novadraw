@@ -55,6 +55,15 @@ pub(super) fn route_directed(
     let mut target_obstacle = None;
     for placement in placements {
         context.consume(GraphStage::Routing, 1)?;
+        if let super::GraphEndpoint::Group(group) = placement.entity {
+            let contains_source = placement.entity != edge.source
+                && super::compound::contains(request, group, edge.source, context)?;
+            let contains_target = placement.entity != edge.target
+                && super::compound::contains(request, group, edge.target, context)?;
+            if contains_source || contains_target {
+                continue;
+            }
+        }
         let bounds = transpose_rect(placement.bounds, request.direction());
         let padding = transpose_insets(
             request.entity_padding(placement.entity)?,
@@ -90,12 +99,22 @@ pub(super) fn route_directed(
     let source_stub = stub(
         source_position,
         source_side,
-        source_obstacle.ok_or_else(|| rejected(edge))?,
+        source_obstacle.unwrap_or(Rectangle::new(
+            source_position.x(),
+            source_position.y(),
+            0.0,
+            0.0,
+        )),
     );
     let target_stub = stub(
         target_position,
         target_side,
-        target_obstacle.ok_or_else(|| rejected(edge))?,
+        target_obstacle.unwrap_or(Rectangle::new(
+            target_position.x(),
+            target_position.y(),
+            0.0,
+            0.0,
+        )),
     );
     if !clear(source_position, source_stub, &unrelated, context)?
         || !clear(target_position, target_stub, &unrelated, context)?
