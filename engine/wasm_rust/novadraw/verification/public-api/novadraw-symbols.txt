@@ -71,6 +71,7 @@ module.connection constant MANHATTAN_DEFAULT_MINIMUM_STUB
 module.connection constant SHORTEST_PATH_DEFAULT_BEND_PENALTY
 module.connection constant SHORTEST_PATH_DEFAULT_CLEARANCE
 module.connection constant SHORTEST_PATH_DEFAULT_MINIMUM_STUB
+module.connection constant VISIBILITY_DEFAULT_SPACING
 module.connection enum AnchorError
 module.connection enum AnchorGeometry
 module.connection enum AnchorGroupKey
@@ -97,7 +98,9 @@ module.connection struct AnchorSemanticKeyError
 module.connection struct AnchorSite
 module.connection struct BendpointConnectionRouter
 module.connection struct BendpointConstraint
+module.connection struct ChildLocatorPlacement
 module.connection struct ChopboxAnchor
+module.connection struct ConnectionEndpointLocator
 module.connection struct ConnectionFigure
 module.connection struct ConnectionGeometryError
 module.connection struct ConnectionId
@@ -111,6 +114,7 @@ module.connection struct EndpointLocator
 module.connection struct FanRouter
 module.connection struct FanRouterError
 module.connection struct LabelAnchor
+module.connection struct LocatorInput
 module.connection struct LocatorPlacement
 module.connection struct ManhattanConnectionRouter
 module.connection struct MidpointLocator
@@ -121,6 +125,9 @@ module.connection struct PreparedConnectionGeometry
 module.connection struct PreparedDecorationGeometry
 module.connection struct RoundedRectangleAnchor
 module.connection struct RouteEndpoint
+module.connection struct RouteGroupInput
+module.connection struct RouteGroupMember
+module.connection struct RouteGroupOutput
 module.connection struct RouteMetadata
 module.connection struct RouteOutput
 module.connection struct RouteRequest
@@ -129,6 +136,7 @@ module.connection struct RoutingObstacle
 module.connection struct ShortestPathConnectionRouter
 module.connection struct ShortestPathRouterError
 module.connection struct TrackedRouteSceneQuery
+module.connection struct VisibilityGraphConnectionRouter
 module.connection struct XYAnchor
 module.connection trait ConnectionAnchor
 module.connection trait ConnectionDecorationBehavior
@@ -140,11 +148,13 @@ module.connection trait RouteSceneRead
 module.connection trait RoutingConstraint
 module.connection trait RoutingGroupQuery
 module.container constant DEFAULT_ZOOM_LEVELS
+module.container constant SCROLL_VALUE
 module.container enum LayerError
 module.container enum LayerPlacement
 module.container enum RangeModelError
 module.container enum RangeProperty
 module.container enum ScaleError
+module.container enum ScrollBarPart
 module.container enum ScrollBarVisibility
 module.container enum ScrollOrientation
 module.container enum ScrollPaneError
@@ -153,6 +163,7 @@ module.container enum ZoomError
 module.container mod layer
 module.container mod range_model
 module.container mod scalable
+module.container mod scroll_bar
 module.container mod scroll_pane
 module.container mod viewport
 module.container mod zoom
@@ -160,6 +171,7 @@ module.container struct DefaultRangeModel
 module.container struct DefaultScrollPolicy
 module.container struct FreeformLayerFigure
 module.container struct FreeformLayeredPane
+module.container struct InvalidScrollBarConfig
 module.container struct LayerFigure
 module.container struct LayerKey
 module.container struct LayerKeyError
@@ -173,10 +185,14 @@ module.container struct ScalableFreeformLayeredPane
 module.container struct ScalableLayeredPaneFigure
 module.container struct ScaleHandle
 module.container struct ScaleModel
+module.container struct ScrollBarConfig
 module.container struct ScrollBarFigure
+module.container struct ScrollBarLayout
+module.container struct ScrollBarSubtree
 module.container struct ScrollPaneFigure
 module.container struct ScrollPaneHandle
 module.container struct ScrollPaneLayout
+module.container struct SetScrollBarModel
 module.container struct ViewportFigure
 module.container struct ViewportHandle
 module.container struct ViewportLayout
@@ -184,6 +200,7 @@ module.container struct ZoomManager
 module.container struct ZoomViewportState
 module.container trait RangeListener
 module.container trait RangeModel
+module.container trait ScrollBarValueConsumer
 module.container trait ZoomScrollPolicy
 module.event enum AccessibilityAction
 module.event enum AccessibilityError
@@ -261,6 +278,7 @@ module.event trait PropertyValueType
 module.event trait UpdateListener
 module.event trait ValidatingListener
 module.figure constant ACCESSIBILITY
+module.figure constant ACTIVITY
 module.figure constant BORDER
 module.figure constant CLICKABLE
 module.figure constant CONNECTION
@@ -291,7 +309,9 @@ module.figure enum ShapeMutationError
 module.figure enum TextPlacement
 module.figure enum WidgetError
 module.figure mod border
+module.figure mod flow
 module.figure struct AccessibilityCapability
+module.figure struct ActivityCapability
 module.figure struct BorderCapability
 module.figure struct ButtonFigure
 module.figure struct CapabilityKey
@@ -325,6 +345,8 @@ module.figure struct MeasureConstraints
 module.figure struct PolygonFigure
 module.figure struct PolylineFigure
 module.figure struct PreparationCapability
+module.figure struct PreparationScene
+module.figure struct PreparedScene
 module.figure struct RectangleFigure
 module.figure struct ResolvedStyle
 module.figure struct ResourceDependenciesCapability
@@ -343,6 +365,7 @@ module.figure trait BorderedFigure
 module.figure trait Bounded
 module.figure trait ClickableBehavior
 module.figure trait Figure
+module.figure trait FigureActivity
 module.figure trait FigureContainer
 module.figure trait FigureDrawing
 module.figure trait FigureEventHandler
@@ -404,6 +427,7 @@ module.layout enum LayoutInvalidation
 module.layout enum MeasurementFailure
 module.layout enum MinorAlignment
 module.layout enum ToolbarOrientation
+module.layout mod graph
 module.layout struct BorderConstraint
 module.layout struct BorderLayout
 module.layout struct FillLayout
@@ -617,6 +641,8 @@ module.runtime trait FocusTraversalPolicy
 module.runtime type PreparedCapabilityUpdate
 module.text enum BuiltinFont
 module.text enum FontStyle
+module.text enum ParagraphAlignment
+module.text enum ParagraphDirection
 module.text enum TextAffinity
 module.text enum TextError
 module.text enum TextInteractionError
@@ -629,12 +655,19 @@ module.text struct FontFaceRef
 module.text struct FontMetrics
 module.text struct MeasureContext
 module.text struct SelectionQuad
+module.text struct StyledGlyphRun
+module.text struct StyledTextLayout
+module.text struct StyledTextRequest
 module.text struct TextConstraints
+module.text struct TextInlineBox
+module.text struct TextInlinePlacement
 module.text struct TextLayout
 module.text struct TextLineMetrics
 module.text struct TextMetrics
 module.text struct TextPosition
 module.text struct TextRange
+module.text struct TextStyle
+module.text struct TextStyleSpan
 module.text struct TextSystem
 module.tree constant DEFAULT_VALIDATION_BUDGET
 module.tree constant FREEFORM_EXTENT_PROPERTY
