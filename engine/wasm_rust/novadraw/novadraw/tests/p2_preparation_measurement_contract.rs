@@ -271,6 +271,215 @@ fn run(tree: FigureTree) -> Result<(), FramePreparationError> {
     }
 }
 
+struct TextProbe(MeasurementLog);
+impl Figure for TextProbe {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 400.0, 300.0)
+    }
+    fn name(&self) -> &'static str {
+        "TextProbe"
+    }
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())
+    }
+}
+impl FigurePreparation for TextProbe {
+    fn prepare(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        Ok(presentation())
+    }
+    fn prepare_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        _: Rectangle,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, TextError> {
+        let child = scene.children(scene.root())?[0];
+        for constraints in [
+            MeasureConstraints::UNBOUNDED,
+            MeasureConstraints::width(80.0).unwrap(),
+            MeasureConstraints::width(160.0).unwrap(),
+        ] {
+            let result = scene.measure_figure(context, child, constraints);
+            self.0.lock().unwrap().push(result.clone());
+            result?;
+        }
+        Ok(PreparedScene::new(presentation()))
+    }
+}
+
+fn text_fixture(figure: impl Figure + 'static) -> (Runtime, FigureId, MeasurementLog) {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(TextProbe(log.clone())))
+        .unwrap();
+    let child = tree.builder().add_child(root, Box::new(figure)).unwrap();
+    let mut runtime = Runtime::new(tree);
+    runtime
+        .resources()
+        .register_builtin_font(novadraw::text::BuiltinFont::Inter)
+        .unwrap();
+    runtime
+        .figure(root)
+        .unwrap()
+        .set_style(novadraw::figure::FigureStyle {
+            font: Some("16px Inter".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    (runtime, child, log)
+}
+
+fn prepare_text(runtime: &mut Runtime) -> Result<(), FramePreparationError> {
+    match runtime.frames().prepare_submission(
+        SurfaceInfo {
+            logical_width: 400.0,
+            logical_height: 300.0,
+            pixel_width: 400,
+            pixel_height: 300,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    ) {
+        FramePreparation::Ready(_) => Ok(()),
+        FramePreparation::Error(error) => Err(error),
+        other => panic!("unexpected text frame: {other:?}"),
+    }
+}
+
+const WRAPPING_TEXT: &str = "alpha beta gamma delta epsilon zeta eta theta";
+
+#[test]
+fn nested_layout_remeasures_text_flow_in_the_authoritative_session() {
+    use novadraw::figure::{FlowPage, TextFlowFigure};
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (mut runtime, container, log) = text_fixture(External {
+        mode: Mode::Unsupported,
+        calls: calls.clone(),
+        border: Some(MarginBorder::default_border().with_margins(2.0, 3.0, 5.0, 7.0)),
+        scale: 1.0,
+    });
+    runtime
+        .figure(container)
+        .unwrap()
+        .set_layout_manager(Box::new(StackLayout::new()))
+        .unwrap();
+    runtime
+        .figure(container)
+        .unwrap()
+        .add(Box::new(TextFlowFigure::new(
+            Rectangle::new(0.0, 0.0, 300.0, 200.0),
+            FlowPage::from_text(WRAPPING_TEXT),
+        )))
+        .unwrap();
+    prepare_text(&mut runtime).unwrap();
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
+    let log = log.lock().unwrap();
+    let narrow = log[1].as_ref().unwrap();
+    let wide = log[2].as_ref().unwrap();
+    assert!(narrow.preferred.height > wide.preferred.height);
+    assert!(wide.preferred.height > log[0].as_ref().unwrap().preferred.height);
+    assert_eq!(narrow.minimum, narrow.preferred.size());
+}
+
+#[test]
+fn structured_flow_measures_unbounded_and_candidate_width_without_mutating_attached_bounds() {
+    use novadraw::figure::flow::{FlowPageFigure, StructuredTextFigure};
+    let initial = Rectangle::new(0.0, 0.0, 300.0, 200.0);
+    let (mut runtime, page, log) = text_fixture(
+        FlowPageFigure::new(initial)
+            .with_border(MarginBorder::default_border().with_margins(2.0, 3.0, 5.0, 7.0)),
+    );
+    runtime
+        .figure(page)
+        .unwrap()
+        .add(Box::new(StructuredTextFigure::new(WRAPPING_TEXT)))
+        .unwrap();
+    prepare_text(&mut runtime).unwrap();
+    let log = log.lock().unwrap();
+    let measurements = log
+        .iter()
+        .take(3)
+        .map(|result| result.as_ref().unwrap())
+        .collect::<Vec<_>>();
+    assert!(measurements[0].preferred.width > measurements[2].preferred.width);
+    assert!(measurements[1].preferred.height > measurements[2].preferred.height);
+    for measured in &measurements {
+        assert_eq!(measured.minimum, measured.preferred.size());
+    }
+    assert_eq!(runtime.tree().node(page).unwrap().bounds(), initial);
+}
+
+#[test]
+fn text_flow_candidate_measurement_uses_wrapping_and_truncation_algorithm() {
+    use novadraw::figure::{FlowPage, FlowWrapping, TextFlowFigure};
+    for wrapping in [
+        FlowWrapping::SoftWrap,
+        FlowWrapping::NoWrap,
+        FlowWrapping::Truncate { max_lines: 1 },
+    ] {
+        let (mut runtime, _, log) = text_fixture(
+            TextFlowFigure::new(
+                Rectangle::new(0.0, 0.0, 300.0, 200.0),
+                FlowPage::from_text(WRAPPING_TEXT),
+            )
+            .with_wrapping(wrapping),
+        );
+        prepare_text(&mut runtime).unwrap();
+        let log = log.lock().unwrap();
+        let unbounded = log[0].as_ref().unwrap();
+        let narrow = log[1].as_ref().unwrap();
+        let wide = log[2].as_ref().unwrap();
+        match wrapping {
+            FlowWrapping::SoftWrap => {
+                assert!(narrow.preferred.height > wide.preferred.height);
+                assert!(wide.preferred.height > unbounded.preferred.height);
+            }
+            FlowWrapping::NoWrap => assert_eq!(narrow, unbounded),
+            FlowWrapping::Truncate { .. } => {
+                assert_eq!(narrow.preferred.height, unbounded.preferred.height);
+                assert!(narrow.preferred.width <= 80.0);
+            }
+        }
+        assert!(narrow.preferred.baseline.unwrap() <= narrow.preferred.height);
+        assert_eq!(narrow.minimum, narrow.preferred.size());
+    }
+}
+
+#[test]
+fn structured_flow_inline_measurement_preserves_unsupported_leaf_error() {
+    use novadraw::figure::flow::{FlowAdapterFigure, FlowPageFigure};
+    let (mut runtime, page, log) =
+        text_fixture(FlowPageFigure::new(Rectangle::new(0.0, 0.0, 300.0, 200.0)));
+    let adapter = runtime
+        .figure(page)
+        .unwrap()
+        .add(Box::new(FlowAdapterFigure::new()))
+        .unwrap();
+    let leaf = runtime
+        .figure(adapter)
+        .unwrap()
+        .add(Box::new(DefaultUnsupported))
+        .unwrap();
+    prepare_text(&mut runtime).unwrap_err();
+    let log = log.lock().unwrap();
+    let error = log[0].as_ref().unwrap_err();
+    assert_eq!(error.figure, leaf);
+    assert_eq!(error.outer_constraints, MeasureConstraints::UNBOUNDED);
+    assert_eq!(
+        error.kind,
+        PreparationMeasureErrorKind::UnsupportedConstraintMeasurement
+    );
+}
+
 #[test]
 fn ignored_consumer_budget_failure_rejects_publication_and_next_session_recovers() {
     struct ExhaustOnce(Arc<AtomicUsize>);

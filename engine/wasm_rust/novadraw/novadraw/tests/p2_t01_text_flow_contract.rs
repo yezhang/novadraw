@@ -48,6 +48,18 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
         .unwrap();
 
     let frame = record_full_submission(&mut runtime);
+    let queried_layout = runtime.text().flow_layout(flow).unwrap() as *const _;
+    let prepared = runtime
+        .tree()
+        .prepared_presentation(flow)
+        .unwrap()
+        .unwrap()
+        .data::<TextFlowFigure>()
+        .unwrap();
+    assert!(std::ptr::eq(
+        queried_layout,
+        prepared.text_layout().unwrap(),
+    ));
     let layout = runtime.text().flow_layout(flow).unwrap().clone();
     assert_eq!(
         layout.key().text(),

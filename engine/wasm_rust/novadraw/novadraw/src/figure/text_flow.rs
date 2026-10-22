@@ -2,14 +2,20 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use std::ops::Range;
 
+use super::{
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureDrawing, FigurePreparation,
+    FigurePresentation, PREPARATION, PreparationCapability, PreparationMeasureError,
+    PreparationMeasureErrorKind, PreparationMeasurement, PreparationScene, PreparedScene,
+};
 use crate::geometry::{Point, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
     CaretGeometry, FontDescriptor, SelectionQuad, TextAffinity, TextConstraints, TextError,
-    TextInteractionError, TextLayout, TextLayoutEngine, TextLayoutRevision, TextMovement,
-    TextPosition, TextRange,
+    TextInteractionError, TextLayout, TextLayoutRevision, TextMovement, TextPosition, TextRange,
 };
 use crate::{Alignment, Figure, FigureMeasurement, MeasureConstraints};
+use crate::{geometry::Dimension, text::MeasureContext};
+use std::sync::Arc;
 
 const ELLIPSIS: &str = "...";
 
@@ -280,6 +286,8 @@ impl TextFlowFigure {
         self.viewport
     }
 
+    /// Available on the immutable prepared value stored in `FigurePresentation`.
+    /// Attached source components keep no independent layout; use Runtime text queries.
     pub fn text_layout(&self) -> Option<&TextLayout> {
         self.layout.as_ref().map(|snapshot| &snapshot.layout)
     }
@@ -385,16 +393,15 @@ impl TextFlowFigure {
         Ok(moved)
     }
 
-    pub(crate) fn refresh_layout(
+    fn prepare_layout(
         &mut self,
-        engine: &mut dyn TextLayoutEngine,
-        font: &FontDescriptor,
+        context: &mut MeasureContext<'_>,
         bounds: Rectangle,
     ) -> Result<bool, TextError> {
         let key = FlowLayoutKey {
             revision: self.revision,
-            font: font.clone(),
-            engine_revision: engine.revision(),
+            font: context.font().clone(),
+            engine_revision: context.revision(),
             bounds,
             wrapping: self.wrapping,
             horizontal_alignment: self.horizontal_alignment,
@@ -403,27 +410,7 @@ impl TextFlowFigure {
         if self.layout.as_ref().is_some_and(|layout| layout.key == key) {
             return Ok(false);
         }
-        let text = self.page.text();
-        let constraints = match self.wrapping {
-            FlowWrapping::NoWrap => TextConstraints::UNBOUNDED,
-            FlowWrapping::SoftWrap | FlowWrapping::Truncate { .. } => {
-                TextConstraints::new(Some(key.bounds.width.max(0.0) as f32))?
-            }
-        };
-        let full = engine.layout(&text, font, constraints)?;
-        let layout = match self.wrapping {
-            FlowWrapping::Truncate { max_lines } if full.line_metrics().len() > max_lines => {
-                truncate_to_lines(
-                    engine,
-                    &text,
-                    font,
-                    constraints,
-                    max_lines,
-                    full.full_width(),
-                )?
-            }
-            _ => full,
-        };
+        let layout = self.shape(context, Some(bounds.width.max(0.0)))?;
         let origin = Point::new(
             aligned(
                 key.bounds.x,
@@ -454,6 +441,56 @@ impl TextFlowFigure {
             snapshot.origin.x() + self.viewport.content_offset.x(),
             snapshot.origin.y() + self.viewport.content_offset.y(),
         )
+    }
+
+    fn shape(
+        &self,
+        context: &mut MeasureContext<'_>,
+        width: Option<f64>,
+    ) -> Result<TextLayout, TextError> {
+        let text = self.page.text();
+        let constraints = match self.wrapping {
+            FlowWrapping::NoWrap => TextConstraints::UNBOUNDED,
+            FlowWrapping::SoftWrap | FlowWrapping::Truncate { .. } => {
+                TextConstraints::new(width.map(|width| width as f32))?
+            }
+        };
+        let full = context.layout_text(&text, constraints)?;
+        match self.wrapping {
+            FlowWrapping::Truncate { max_lines } if full.line_metrics().len() > max_lines => {
+                truncate_to_lines(context, &text, constraints, max_lines, full.full_width())
+            }
+            _ => Ok(full),
+        }
+    }
+
+    fn charge_shaping(&self, scene: &PreparationScene<'_>) -> Result<(), TextError> {
+        let entries = self
+            .page
+            .paragraphs
+            .iter()
+            .fold(0usize, |total, paragraph| {
+                paragraph
+                    .fragments
+                    .iter()
+                    .fold(total.saturating_add(1), |total, fragment| {
+                        total.saturating_add(fragment.text.len())
+                    })
+            });
+        // Truncation shapes logarithmically many prefixes and collects grapheme offsets.
+        let passes = if matches!(self.wrapping, FlowWrapping::Truncate { .. }) {
+            entries.max(1).ilog2() as usize + 3
+        } else {
+            3
+        };
+        scene
+            .budget()
+            .allocate("text flow shaping", entries.saturating_mul(passes) as u64)
+            .map_err(|error| {
+                TextError::PreparationDependency(Box::new(
+                    super::PreparationDependencyError::Budget(error),
+                ))
+            })
     }
 
     pub fn set_viewport(&mut self, viewport: TextFlowViewport) {
@@ -559,6 +596,13 @@ impl Figure for TextFlowFigure {
         "TextFlowFigure"
     }
 
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())
+    }
+
     fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
         self.layout
             .as_ref()
@@ -614,16 +658,83 @@ impl Figure for TextFlowFigure {
     }
 }
 
+impl FigureDrawing for TextFlowFigure {
+    fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        let bounds = self
+            .layout
+            .as_ref()
+            .map_or(Rectangle::ZERO, |snapshot| snapshot.key.bounds);
+        Figure::paint(self, context, bounds)
+    }
+}
+impl FigurePreparation for TextFlowFigure {
+    fn measure_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        let failure = |kind| PreparationMeasureError {
+            figure: scene.root(),
+            outer_constraints: constraints,
+            content_constraints: Some(constraints),
+            kind,
+        };
+        self.charge_shaping(scene).map_err(|error| {
+            failure(match error {
+                TextError::PreparationDependency(error) => {
+                    PreparationMeasureErrorKind::Dependency(error)
+                }
+                error => PreparationMeasureErrorKind::Text(Box::new(error)),
+            })
+        })?;
+        let layout = self
+            .shape(context, constraints.max_width())
+            .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
+        Ok(PreparationMeasurement {
+            preferred: FigureMeasurement::new(
+                f64::from(layout.width()),
+                f64::from(layout.height()),
+                Some(f64::from(layout.baseline())),
+            ),
+            minimum: Dimension::new(f64::from(layout.width()), f64::from(layout.height())),
+        })
+    }
+
+    fn prepare(
+        &self,
+        context: &mut MeasureContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        let mut prepared = self.clone();
+        prepared.prepare_layout(context, bounds)?;
+        let measurement = prepared.intrinsic_measurement(MeasureConstraints::UNBOUNDED);
+        let visual = prepared.visual_bounds_in(bounds);
+        let prepared = Arc::new(prepared);
+        FigurePresentation::new(measurement, measurement.size(), visual, prepared.clone())
+            .map(|presentation| presentation.with_data(prepared))
+    }
+
+    fn prepare_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        bounds: Rectangle,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, TextError> {
+        self.charge_shaping(scene)?;
+        self.prepare(context, bounds).map(PreparedScene::new)
+    }
+}
+
 fn truncate_to_lines(
-    engine: &mut dyn TextLayoutEngine,
+    context: &mut MeasureContext<'_>,
     source: &str,
-    font: &FontDescriptor,
     constraints: TextConstraints,
     max_lines: usize,
     full_width: f32,
 ) -> Result<TextLayout, TextError> {
     if max_lines == 0 {
-        return engine.layout("", font, constraints)?.with_visibility(
+        return context.layout_text("", constraints)?.with_visibility(
             source,
             0..0,
             true,
@@ -640,8 +751,8 @@ fn truncate_to_lines(
             .get(middle)
             .map_or(source.len(), |(index, _)| *index);
         let candidate = format!("{}{}", &source[..byte_end], ELLIPSIS);
-        if engine
-            .layout(&candidate, font, constraints)?
+        if context
+            .layout_text(&candidate, constraints)?
             .line_metrics()
             .len()
             <= max_lines
@@ -652,10 +763,9 @@ fn truncate_to_lines(
         }
     }
     let visible_end = graphemes.get(low).map_or(source.len(), |(index, _)| *index);
-    engine
-        .layout(
+    context
+        .layout_text(
             &format!("{}{}", &source[..visible_end], ELLIPSIS),
-            font,
             constraints,
         )?
         .with_visibility(source, 0..visible_end, true, full_width, constraints)

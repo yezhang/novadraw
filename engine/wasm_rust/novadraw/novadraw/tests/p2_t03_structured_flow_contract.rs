@@ -965,10 +965,15 @@ impl novadraw::figure::FigurePreparation for ExternalPage {
         b: Rectangle,
         scene: &novadraw::figure::PreparationScene<'_>,
     ) -> Result<novadraw::figure::PreparedScene, novadraw::text::TextError> {
+        let measured = self
+            .0
+            .measure(c, MeasureConstraints::width(b.width).unwrap(), scene)?;
         let first = self
             .0
             .prepare(c, b, scene)
             .map_err(|e| novadraw::text::TextError::InvalidPreparedScene(e.to_string()))?;
+        assert_eq!(measured.preferred, first.root_presentation().measurement());
+        assert_eq!(measured.minimum, first.root_presentation().minimum_size());
         let second = self
             .0
             .prepare(c, b, scene)

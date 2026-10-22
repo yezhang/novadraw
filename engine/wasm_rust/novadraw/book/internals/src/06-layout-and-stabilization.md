@@ -194,6 +194,20 @@ preparation 或 intrinsic 来源；只有实际选中 preparation 时才调用
 outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline 后完成物理 Border
 组合及容器正投影。override 不经过内容展开。
 
+`FlowLayoutService::measure` 在冻结贡献树上执行排版，只返回内容尺寸，不发布
+placement 或 drawing；外部 Flow root 与 `FlowPageFigure` 共用这个入口。
+宽度未限定时，文字请求也保持未限定，不构造无限 Rectangle。
+内联普通 Figure 通过同一 `measure_figure` 会话测量；当前行剩余宽度不足时，
+按完整行宽重新测量。FlowPage 的 minimum 与同约束 preferred 相等，
+沿用 Draw2D `FlowPage.getMinimumSize` 契约。
+`TextFlowFigure` 的约束测量和绘制 preparation 共用换行、截断排版函数；
+候选测量不修改已有文字交互布局。附着源组件不再维护独立布局缓存，
+Runtime 的文字查询与绘制共用 presentation 中的不可变 TextFlow 值；
+TextFlow 经通用 preparation 更新，专用刷新路径已移除。
+Flow 贡献、文字排版与快照分配累计同一预算。
+验证入口为 `p2_preparation_measurement_contract`、`p2_t01_text_flow_contract` 和
+`p2_t03_structured_flow_contract`。
+
 测量调用栈由同一 preparation scene 共享。重入相同 Figure 时，入口立即返回带有
 有序 Figure 路径的 `PreparationDependencyError::MeasurementCycle`，不等待反馈预算。
 LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimum；

@@ -18,8 +18,7 @@ use super::figure::{
     CONTAINER, CapabilityKey, CapabilityQueryError, ChildClippingStrategy, ChildPolicy,
     ClickableSnapshot, ClickableVisualState, FREEFORM, FigureCapabilityRegistrationError,
     FigureMeasurement, FigurePreparation, INPUT, ImageFigure, LAYER, LIFECYCLE, LabelFigure,
-    MeasureConstraints, PREPARATION, PolygonFigure, PolylineFigure, SCALE, TextFlowFigure,
-    ToggleFigure,
+    MeasureConstraints, PREPARATION, PolygonFigure, PolylineFigure, SCALE, ToggleFigure,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
@@ -798,14 +797,6 @@ impl FigureNode {
         figure
             .downcast_ref::<PolygonFigure>()
             .map(PointListFigureRef::Polygon)
-    }
-
-    fn text_flow(&self) -> Option<&TextFlowFigure> {
-        self.figure.as_ref().as_any().downcast_ref()
-    }
-
-    fn text_flow_mut(&mut self) -> Option<&mut TextFlowFigure> {
-        self.figure.as_mut().as_any_mut().downcast_mut()
     }
 
     fn label(&self) -> Option<&LabelFigure> {

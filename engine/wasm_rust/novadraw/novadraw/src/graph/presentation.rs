@@ -551,50 +551,6 @@ impl FigureTree {
         Ok(changed)
     }
 
-    pub(crate) fn refresh_text_flow_layouts(
-        &mut self,
-        text: &mut dyn TextLayoutEngine,
-        updates: &mut UpdateManager,
-    ) -> Result<TextLayoutRefreshResult, TextError> {
-        let flow_ids = self
-            .blocks
-            .iter()
-            .filter_map(|(id, node)| node.text_flow().is_some().then_some(id))
-            .collect::<Vec<_>>();
-        if flow_ids.is_empty() {
-            return Ok(TextLayoutRefreshResult {
-                changed: Vec::new(),
-                style_nodes_visited: 0,
-                figures_refreshed: 0,
-            });
-        }
-        let (flows, style_nodes_visited) =
-            self.resolved_styles_for(|node| node.text_flow().is_some());
-        let figures_refreshed = u64::try_from(flow_ids.len()).unwrap_or(u64::MAX);
-        let mut changed = Vec::new();
-        for (id, style) in flows {
-            let font = crate::render::FontDescriptor::parse(&style.font)?;
-            let bounds = self.blocks[id].client_area();
-            let old_visual = self.blocks[id].visual_bounds();
-            let parent = self.blocks[id].parent;
-            let flow = self.blocks[id]
-                .text_flow_mut()
-                .expect("TextFlow type checked before refresh");
-            if flow.refresh_layout(text, &font, bounds)? {
-                if self.is_effectively_visible(id).expect("live text flow") {
-                    self.erase(updates, id, old_visual, parent);
-                }
-                self.mark_freeform_ancestor_extents_dirty(id);
-                changed.push(id);
-            }
-        }
-        Ok(TextLayoutRefreshResult {
-            changed,
-            style_nodes_visited,
-            figures_refreshed,
-        })
-    }
-
     pub(crate) fn refresh_image_figures(&mut self, resources: &ResourceRegistry) -> Vec<FigureId> {
         let images = self
             .blocks

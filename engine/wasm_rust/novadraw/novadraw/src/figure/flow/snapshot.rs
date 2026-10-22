@@ -1,7 +1,10 @@
 use super::{FlowAssembly, FlowContributionRegistry, FlowError, FlowSourceRange};
 use crate::{
     FigureId, FigureMeasurement, MeasureConstraints,
-    figure::{FigureDrawing, FigurePresentation, PreparationScene, PreparedScene},
+    figure::{
+        FigureDrawing, FigurePresentation, PreparationMeasureError, PreparationMeasureErrorKind,
+        PreparationMeasurement, PreparationScene, PreparedScene,
+    },
     geometry::{Dimension, Point, Rectangle},
     graphics::{GraphicsError, PaintContext},
     layout::LayoutOutput,
@@ -47,6 +50,42 @@ impl FlowLayoutService {
             cache: Arc::new(Mutex::new(None)),
         }
     }
+    /// Measures a frozen contribution tree without publishing placements or drawing.
+    /// Unbounded width is passed to the text engine as an unbounded constraint.
+    pub fn measure(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        let bounds = Rectangle::new(0.0, 0.0, constraints.max_width().unwrap_or(0.0), 0.0);
+        let (snapshot, _) = build_snapshot(
+            &self.registry,
+            context,
+            bounds,
+            constraints.max_width(),
+            scene,
+        )
+        .map_err(|error| match error.into_text() {
+            crate::text::TextError::PreparationMeasurement(error) => *error,
+            crate::text::TextError::PreparationDependency(error) => PreparationMeasureError {
+                figure: scene.root(),
+                outer_constraints: constraints,
+                content_constraints: Some(constraints),
+                kind: PreparationMeasureErrorKind::Dependency(error),
+            },
+            error => PreparationMeasureError {
+                figure: scene.root(),
+                outer_constraints: constraints,
+                content_constraints: Some(constraints),
+                kind: PreparationMeasureErrorKind::Text(Box::new(error)),
+            },
+        })?;
+        Ok(PreparationMeasurement {
+            preferred: FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
+            minimum: snapshot.size,
+        })
+    }
     pub fn prepare(
         &self,
         context: &mut MeasureContext<'_>,
@@ -64,7 +103,8 @@ impl FlowLayoutService {
         {
             return prepare_snapshot(snapshot, &members, bounds, scene);
         }
-        let (snapshot, members) = build_snapshot(&self.registry, context, bounds, scene)?;
+        let (snapshot, members) =
+            build_snapshot(&self.registry, context, bounds, Some(bounds.width), scene)?;
         let result = prepare_snapshot(snapshot.clone(), &members, bounds, scene)?;
         result.validate(scene)?;
         if flow_revision(context, bounds, scene)? != key {
@@ -345,8 +385,19 @@ fn build_snapshot(
     registry: &FlowContributionRegistry,
     context: &mut MeasureContext<'_>,
     bounds: Rectangle,
+    available_width: Option<f64>,
     scene: &PreparationScene<'_>,
 ) -> Result<(Arc<FlowSnapshot>, Vec<FigureId>), FlowError> {
+    let allocate = |entries: usize| {
+        scene
+            .budget()
+            .allocate("flow snapshot", entries as u64)
+            .map_err(|error| {
+                FlowError::Text(crate::text::TextError::PreparationDependency(Box::new(
+                    crate::figure::PreparationDependencyError::Budget(error),
+                )))
+            })
+    };
     let assembly = {
         let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
             let resolved = scene.style(source)?;
@@ -363,12 +414,19 @@ fn build_snapshot(
         assembly.visit(scene.root())?;
         assembly.finish()
     };
+    allocate(
+        assembly
+            .paragraphs
+            .len()
+            .saturating_mul(assembly.decorations.len().saturating_add(3))
+            .saturating_add(assembly.members.len()),
+    )?;
     let mut snapshot = FlowSnapshot {
         revision: flow_revision(context, bounds, scene)?,
         paragraphs: Vec::new(),
         fragments: Vec::new(),
         placements: HashMap::new(),
-        size: Dimension::new(bounds.width, 0.0),
+        size: Dimension::new(available_width.unwrap_or(0.0), 0.0),
         borders: Vec::new(),
     };
     let mut y = bounds.y;
@@ -394,6 +452,20 @@ fn build_snapshot(
         }
     }
     for (paragraph_index, mut p) in assembly.paragraphs.into_iter().enumerate() {
+        scene
+            .budget()
+            .allocate(
+                "flow paragraph shaping",
+                (p.text
+                    .len()
+                    .saturating_add(p.boxes.len())
+                    .saturating_add(p.sources.len())) as u64,
+            )
+            .map_err(|error| {
+                crate::text::TextError::PreparationDependency(Box::new(
+                    crate::figure::PreparationDependencyError::Budget(error),
+                ))
+            })?;
         for decoration in &assembly.decorations {
             let sources = p
                 .sources
@@ -491,10 +563,18 @@ fn build_snapshot(
             };
             (b.offset, order)
         });
-        let width = (bounds.width - p.block.padding.width() - p.block.margin.width()).max(0.0);
-        let constraints = TextConstraints::new(Some(width as f32))?;
+        let width = available_width
+            .map(|width| (width - p.block.padding.width() - p.block.margin.width()).max(0.0));
+        let constraints = TextConstraints::new(width.map(|width| width as f32))?;
         let mut boxes = Vec::new();
         for (id, source) in p.boxes.iter().enumerate() {
+            allocate(
+                p.text
+                    .len()
+                    .saturating_add(p.spans.len())
+                    .saturating_add(boxes.len())
+                    .saturating_add(1),
+            )?;
             if let Some(metrics) = source.metrics {
                 boxes.push(TextInlineBox {
                     id: id as u64,
@@ -538,16 +618,26 @@ fn build_snapshot(
                 .line_metrics()
                 .last()
                 .map_or(0.0, |line| f64::from(line.advance));
-            let remaining = (width - occupied).max(0.0);
-            let mut measurement = scene.preferred_measurement(
-                child,
-                MeasureConstraints::width(remaining).map_err(|_| FlowError::InvalidStructure)?,
-            )?;
-            if occupied > 0.0 && measurement.width > remaining {
-                measurement = scene.preferred_measurement(
+            let remaining = width.map(|width| (width - occupied).max(0.0));
+            let mut measurement = scene
+                .measure_figure(
+                    context,
                     child,
-                    MeasureConstraints::width(width).map_err(|_| FlowError::InvalidStructure)?,
-                )?;
+                    MeasureConstraints::new(remaining, None)
+                        .map_err(|_| FlowError::InvalidStructure)?,
+                )
+                .map_err(crate::text::TextError::from)?
+                .preferred;
+            if occupied > 0.0 && remaining.is_some_and(|remaining| measurement.width > remaining) {
+                measurement = scene
+                    .measure_figure(
+                        context,
+                        child,
+                        MeasureConstraints::new(width, None)
+                            .map_err(|_| FlowError::InvalidStructure)?,
+                    )
+                    .map_err(crate::text::TextError::from)?
+                    .preferred;
             }
             boxes.push(TextInlineBox {
                 id: id as u64,
@@ -565,6 +655,14 @@ fn build_snapshot(
                 p.block.wrap,
             );
         let layout = context.layout_styled(&request)?;
+        allocate(
+            layout
+                .layout()
+                .line_metrics()
+                .len()
+                .saturating_mul(assembly.decorations.len().saturating_add(1))
+                .saturating_add(layout.runs().len()),
+        )?;
         let mut line_padding = vec![(0.0_f64, 0.0_f64); layout.layout().line_metrics().len()];
         let mut decorated_lines = std::collections::HashSet::new();
         for decoration in &assembly.decorations {
@@ -641,11 +739,16 @@ fn build_snapshot(
                 TextPosition::new(source.range.start, TextAffinity::Downstream),
                 TextPosition::new(source.range.end, TextAffinity::Upstream),
             );
-            for quad in layout
+            let quads = layout
                 .layout()
                 .selection_geometry(range)
-                .map_err(|_| FlowError::InvalidStructure)?
-            {
+                .map_err(|_| FlowError::InvalidStructure)?;
+            allocate(
+                quads
+                    .len()
+                    .saturating_mul(source.ancestors.len().saturating_add(1)),
+            )?;
+            for quad in quads {
                 let b = translated(quad.bounds(), origin);
                 for &ancestor in &source.ancestors {
                     snapshot.fragments.push(FlowFragment {
@@ -659,6 +762,7 @@ fn build_snapshot(
         }
         for placement in layout.inline_placements() {
             let source = &p.boxes[placement.id as usize];
+            allocate(source.ancestors.len().saturating_add(1))?;
             let b = translated(placement.bounds, origin);
             if let Some(child) = source.child {
                 snapshot.placements.insert(child, b);
@@ -706,7 +810,8 @@ fn build_snapshot(
                     *b = Rectangle::new(
                         bounds.x + block.left,
                         b.y - top,
-                        (bounds.width - block.left - block.right).max(0.0),
+                        (available_width.unwrap_or(snapshot.size.width) - block.left - block.right)
+                            .max(0.0),
                         b.height + top + bottom,
                     );
                 }
@@ -810,7 +915,7 @@ fn build_snapshot(
     }
     snapshot.placements.insert(
         scene.root(),
-        Rectangle::new(0.0, 0.0, bounds.width, snapshot.size.height),
+        Rectangle::new(0.0, 0.0, snapshot.size.width, snapshot.size.height),
     );
     for &member in &assembly.members {
         snapshot.placements.entry(member).or_insert(Rectangle::ZERO);
@@ -826,7 +931,7 @@ fn prepare_snapshot(
 ) -> Result<PreparedScene, FlowError> {
     let root = FigurePresentation::new(
         FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
-        Dimension::new(0.0, 0.0),
+        snapshot.size,
         Rectangle::new(0.0, 0.0, bounds.width, bounds.height).union(Rectangle::new(
             bounds.x,
             bounds.y,

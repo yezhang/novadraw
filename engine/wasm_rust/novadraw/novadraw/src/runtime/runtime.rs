@@ -217,9 +217,9 @@ pub struct TextLayoutStats {
     pub label_style_nodes_visited: u64,
     /// Label figures considered for intrinsic layout refresh.
     pub label_figures_refreshed: u64,
-    /// Style-propagation nodes inspected while refreshing TextFlow layouts.
+    /// Compatibility counter; TextFlow now uses the shared preparation pipeline.
     pub text_flow_style_nodes_visited: u64,
-    /// TextFlow figures considered for layout refresh.
+    /// Compatibility counter; no separate TextFlow refresh is performed.
     pub text_flow_figures_refreshed: u64,
 }
 
@@ -940,27 +940,6 @@ impl Runtime {
         let any_changed = !changed.is_empty();
         for figure in changed {
             self.refresh_label_icon_geometry(figure);
-            self.tree.repaint(&mut self.updates, figure, None);
-        }
-        Ok(any_changed)
-    }
-
-    fn refresh_text_flow_layouts(&mut self) -> Result<bool, TextError> {
-        let refresh = self
-            .tree
-            .refresh_text_flow_layouts(self.text.as_mut(), &mut self.updates)?;
-        self.text_layout_stats.text_flow_style_nodes_visited = self
-            .text_layout_stats
-            .text_flow_style_nodes_visited
-            .saturating_add(refresh.style_nodes_visited);
-        self.text_layout_stats.text_flow_figures_refreshed = self
-            .text_layout_stats
-            .text_flow_figures_refreshed
-            .saturating_add(refresh.figures_refreshed);
-        let changed = refresh.changed;
-        let any_changed = !changed.is_empty();
-        for figure in changed {
-            self.tree.mark_invalid(&mut self.updates, figure);
             self.tree.repaint(&mut self.updates, figure, None);
         }
         Ok(any_changed)
@@ -2458,7 +2437,9 @@ impl Runtime {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
         self.tree
-            .text_flow(id)
+            .prepared_presentation(id)
+            .map_err(|_| ShapeMutationError::UnknownFigure(id))?
+            .and_then(|presentation| presentation.data::<crate::TextFlowFigure>())
             .and_then(crate::TextFlowFigure::text_layout)
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
@@ -2544,7 +2525,9 @@ impl Runtime {
             return Err(TextFlowQueryError::UnknownFigure(id));
         }
         self.tree
-            .text_flow(id)
+            .prepared_presentation(id)
+            .map_err(|_| TextFlowQueryError::UnknownFigure(id))?
+            .and_then(|presentation| presentation.data::<crate::TextFlowFigure>())
             .ok_or(TextFlowQueryError::WrongCapability(id))
     }
 

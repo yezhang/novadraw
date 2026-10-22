@@ -126,6 +126,17 @@ pub struct FlowAssembly<'a> {
     source_offsets: HashMap<FigureId, usize>,
 }
 impl<'a> FlowAssembly<'a> {
+    fn allocate(&self, entries: usize) -> Result<(), FlowError> {
+        self.scene
+            .budget()
+            .allocate("flow assembly", entries as u64)
+            .map_err(|error| {
+                crate::text::TextError::PreparationDependency(Box::new(
+                    crate::figure::PreparationDependencyError::Budget(error),
+                ))
+                .into()
+            })
+    }
     pub(crate) fn new(
         scene: &'a PreparationScene<'a>,
         registry: &'a FlowContributionRegistry,
@@ -152,6 +163,7 @@ impl<'a> FlowAssembly<'a> {
         }
     }
     pub fn visit(&mut self, source: FigureId) -> Result<(), FlowError> {
+        self.allocate(4)?;
         if self.stack.last().copied() != self.scene.parent(source)? {
             return Err(FlowError::InvalidStructure);
         }
@@ -210,6 +222,11 @@ impl<'a> FlowAssembly<'a> {
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
+        self.allocate(
+            text.len()
+                .saturating_add(self.stack.len())
+                .saturating_add(4),
+        )?;
         let ancestors = self.stack.clone();
         let source_offset = *self.source_offsets.entry(source).or_default();
         self.source_offsets
@@ -241,6 +258,7 @@ impl<'a> FlowAssembly<'a> {
         if self.stack.last() != Some(&source) || self.scene.parent(child)? != Some(source) {
             return Err(FlowError::InvalidStructure);
         }
+        self.allocate(self.stack.len().saturating_add(2))?;
         let ancestors = self.stack.clone();
         let paragraph = self.paragraph(style);
         paragraph.boxes.push(BoxSource {
@@ -260,6 +278,7 @@ impl<'a> FlowAssembly<'a> {
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
+        self.allocate(1)?;
         let (metrics, border) = (self.measure_border)(source, border)?;
         self.decorations.push(super::border::Decoration {
             source,
@@ -270,6 +289,7 @@ impl<'a> FlowAssembly<'a> {
     }
     /// Block handlers use this same scope API, including third-party block contributors.
     pub fn block(&mut self, source: FigureId, mut style: FlowBlockStyle) -> Result<(), FlowError> {
+        self.allocate(2)?;
         style.validate()?;
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);

@@ -436,10 +436,6 @@ impl FigureTree {
         self.blocks.get(id)?.label()
     }
 
-    pub(crate) fn text_flow(&self, id: FigureId) -> Option<&crate::TextFlowFigure> {
-        self.blocks.get(id)?.text_flow()
-    }
-
     pub(crate) fn image_figure(&self, id: FigureId) -> Option<&ImageFigure> {
         self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
     }

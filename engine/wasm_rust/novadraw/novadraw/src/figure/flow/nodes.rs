@@ -148,6 +148,14 @@ impl FlowContributor for FlowPageFigure {
     }
 }
 impl FigurePreparation for FlowPageFigure {
+    fn measure_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: crate::MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<crate::figure::PreparationMeasurement, crate::figure::PreparationMeasureError> {
+        self.service.measure(context, constraints, scene)
+    }
     fn prepare(
         &self,
         _: &mut MeasureContext<'_>,

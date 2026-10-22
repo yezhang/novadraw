@@ -48,7 +48,14 @@ preparation provider 的源版本，排除布局缓存失效代数。
 外部契约覆盖跨 owner 的 P→Q→route→P、保留快照后的新增禁读和修正后恢复，
 普通 Router 的既有结构环错误仍走 RouteError 通道。
 共享预算已接入 preparation、受约束测量、源前缀与快照检查、计算依赖遍历和图求解入口。
-文本约束测量与 graph adapter 仍待后续切片，整个增量尚未完成。
+FlowPage/TextFlow 已接入显式约束测量。结构化 Flow 通过公开
+`FlowLayoutService::measure` 复用绘制排版算法，内联 Figure 进入同一测量会话；
+无界宽度传给文字引擎，不以无限 Rectangle 模拟。FlowPage 的 minimum
+沿用 Draw2D 同约束 preferred 契约，物理 Border 仍由权威入口组合一次。
+TextFlow 的候选测量复用换行与截断算法，不修改附着的文字交互布局。
+文字查询与绘制共用 Runtime presentation 中的不可变值，专用附着刷新路径已移除。
+贡献遍历、排版与快照分配记入共享预算；内联测量错误保留叶节点身份和约束。
+graph adapter 仍待后续切片，整个增量尚未完成。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
 ## 实施前发现的契约缺口

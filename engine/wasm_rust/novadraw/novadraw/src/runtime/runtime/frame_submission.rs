@@ -530,8 +530,6 @@ impl Runtime {
                         .map_err(FramePreparationError::Text)?;
                     self.refresh_label_intrinsic_metrics()
                         .map_err(FramePreparationError::Text)?;
-                    self.refresh_text_flow_layouts()
-                        .map_err(FramePreparationError::Text)?;
                     self.tree
                         .refresh_prepared_figures(
                             self.text.as_mut(),
@@ -610,12 +608,6 @@ impl Runtime {
                     }
                     if self.tree.prepared_scene_generation() != prepared_generation {
                         work.insert(DerivedWorkKind::DependencyInvalidation);
-                    }
-                    if self
-                        .refresh_text_flow_layouts()
-                        .map_err(FramePreparationError::Text)?
-                    {
-                        work.insert(DerivedWorkKind::Layout);
                     }
                     if self
                         .refresh_label_presentations()
