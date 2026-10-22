@@ -15,6 +15,101 @@ fn prepared_measurement(
     }
 }
 
+/// A layout calculation in the same frozen measurement session as its preparation producer.
+struct PreparationLayoutRead<'a, 'tree, 'text> {
+    tree: &'a FigureTree,
+    scene: &'a crate::figure::PreparationScene<'tree>,
+    context: RefCell<&'a mut crate::text::MeasureContext<'text>>,
+}
+
+impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
+    fn get_children(&self, parent: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
+        self.scene.check_layout_member(parent)?;
+        let children = crate::layout::LayoutSceneRead::get_children(self.tree, parent)?;
+        for (child, _) in &children {
+            self.scene
+                .observe(crate::connection::DependencySubject::FigureGeometry(*child));
+        }
+        Ok(children)
+    }
+
+    fn get_constraint(
+        &self,
+        child: FigureId,
+    ) -> Result<Option<&dyn LayoutConstraint>, LayoutError> {
+        self.scene.check_layout_member(child)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureMeasurement(
+                child,
+            ));
+        crate::layout::LayoutSceneRead::get_constraint(self.tree, child)
+    }
+
+    fn preferred_measurement(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<FigureMeasurement, LayoutError> {
+        self.scene
+            .measure_selected(
+                &mut self.context.borrow_mut(),
+                figure,
+                constraints,
+                crate::figure::preparation::MeasurementSelection::Preferred,
+            )
+            .map(|measurement| measurement.preferred)
+            .map_err(|error| LayoutError::Preparation(Box::new(error)))
+    }
+
+    fn minimum_size(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<Dimension, LayoutError> {
+        self.scene
+            .measure_selected(
+                &mut self.context.borrow_mut(),
+                figure,
+                constraints,
+                crate::figure::preparation::MeasurementSelection::Minimum,
+            )
+            .map(|measurement| measurement.minimum)
+            .map_err(|error| LayoutError::Preparation(Box::new(error)))
+    }
+
+    fn maximum_size(&self, figure: FigureId) -> Result<Dimension, LayoutError> {
+        self.scene.check_layout_member(figure)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureMeasurement(
+                figure,
+            ));
+        self.tree.maximum_size(figure)
+    }
+
+    fn get_container_bounds(&self, figure: FigureId) -> Result<Rectangle, LayoutError> {
+        self.scene.check_layout_member(figure)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureGeometry(figure));
+        crate::layout::LayoutSceneRead::get_container_bounds(self.tree, figure)
+    }
+
+    fn get_freeform_extent(&self, figure: FigureId) -> Result<Option<Rectangle>, LayoutError> {
+        self.scene.check_layout_member(figure)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureGeometry(figure));
+        crate::layout::LayoutSceneRead::get_freeform_extent(self.tree, figure)
+    }
+
+    fn get_content_scale(&self, figure: FigureId) -> Result<Option<f64>, LayoutError> {
+        self.scene.check_layout_member(figure)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureMeasurement(
+                figure,
+            ));
+        crate::layout::LayoutSceneRead::get_content_scale(self.tree, figure)
+    }
+}
+
 impl FigureTree {
     pub(crate) fn measure_preparation_figure(
         &self,
@@ -22,11 +117,12 @@ impl FigureTree {
         figure: FigureId,
         outer: MeasureConstraints,
         scene: &crate::figure::PreparationScene<'_>,
+        selection: crate::figure::preparation::MeasurementSelection,
     ) -> Result<crate::figure::PreparationMeasurement, crate::figure::PreparationMeasureError> {
         stacker::maybe_grow(
             RECURSIVE_VALIDATION_STACK_RED_ZONE,
             RECURSIVE_VALIDATION_STACK_GROWTH,
-            || self.measure_preparation_figure_inner(context, figure, outer, scene),
+            || self.measure_preparation_figure_inner(context, figure, outer, scene, selection),
         )
     }
 
@@ -36,6 +132,7 @@ impl FigureTree {
         figure: FigureId,
         outer: MeasureConstraints,
         scene: &crate::figure::PreparationScene<'_>,
+        selection: crate::figure::preparation::MeasurementSelection,
     ) -> Result<crate::figure::PreparationMeasurement, crate::figure::PreparationMeasureError> {
         use crate::figure::{
             PreparationMeasureError, PreparationMeasureErrorKind as Kind,
@@ -43,10 +140,16 @@ impl FigureTree {
         };
         let node = &self.blocks[figure];
         let prepared_source = node.preparation().is_some() || node.prepared.is_some();
-        let preferred_prepared =
-            node.preferred_size.is_none() && node.layout.manager.is_none() && prepared_source;
-        let minimum_prepared =
-            node.minimum_size.is_none() && node.layout.manager.is_none() && prepared_source;
+        let preferred_selected = selection.preferred();
+        let minimum_selected = selection.minimum();
+        let preferred_prepared = preferred_selected
+            && node.preferred_size.is_none()
+            && node.layout.manager.is_none()
+            && prepared_source;
+        let minimum_prepared = minimum_selected
+            && node.minimum_size.is_none()
+            && node.layout.manager.is_none()
+            && prepared_source;
         let fail = |content, kind| PreparationMeasureError {
             figure,
             outer_constraints: outer,
@@ -54,6 +157,9 @@ impl FigureTree {
             kind,
         };
         let layout_error = |content, stage, error| {
+            if let LayoutError::Preparation(error) = error {
+                return *error;
+            }
             fail(
                 content,
                 match error {
@@ -65,7 +171,10 @@ impl FigureTree {
                 },
             )
         };
-        let content = if preferred_prepared || minimum_prepared || node.layout.manager.is_some() {
+        let layout_selected = node.layout.manager.is_some()
+            && ((preferred_selected && node.preferred_size.is_none())
+                || (minimum_selected && node.minimum_size.is_none()));
+        let content = if preferred_prepared || minimum_prepared || layout_selected {
             Some(
                 node.layout_content_constraints(figure, outer)
                     .map_err(|error| layout_error(None, Stage::ConstraintShrink, error))?,
@@ -106,7 +215,15 @@ impl FigureTree {
         } else {
             None
         };
-        let preferred = if let Some(size) = node.preferred_size {
+        let layout_scene = PreparationLayoutRead {
+            tree: self,
+            scene,
+            context: RefCell::new(context),
+        };
+        let query = LayoutSceneQuery::new(&layout_scene);
+        let preferred = if !preferred_selected {
+            FigureMeasurement::default()
+        } else if let Some(size) = node.preferred_size {
             let raw = FigureMeasurement::new(size.width, size.height, None);
             PreparationMeasurement {
                 preferred: raw,
@@ -121,11 +238,20 @@ impl FigureTree {
                 .map_err(|error| layout_error(content, Stage::BorderExpansion, error))?;
             validate_projected_measurement(figure, node.project_preferred_measurement(expanded))
                 .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else if let Some(layout) = node.layout.manager.as_deref() {
+            let raw = layout
+                .preferred_measurement(figure, content.unwrap(), &query)
+                .and_then(|raw| crate::layout::validate_measurement(figure, raw))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?;
+            node.project_layout_preferred_measurement(figure, raw)
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
         } else {
             self.preferred_measurement(figure, outer)
                 .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
         };
-        let minimum = if let Some(size) = node.minimum_size {
+        let minimum = if !minimum_selected {
+            Dimension::ZERO
+        } else if let Some(size) = node.minimum_size {
             PreparationMeasurement {
                 preferred: FigureMeasurement::default(),
                 minimum: size,
@@ -144,11 +270,24 @@ impl FigureTree {
             .size();
             validate_projected_size(figure, node.project_minimum_size(expanded))
                 .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
+        } else if let Some(layout) = node.layout.manager.as_deref() {
+            let raw = layout
+                .minimum_size(figure, content.unwrap(), &query)
+                .and_then(|raw| crate::layout::validate_measurement_size(figure, raw, false))
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?;
+            node.project_layout_minimum_size(figure, raw)
+                .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
         } else {
             self.minimum_size(figure, outer)
                 .map_err(|error| layout_error(content, Stage::MeasurementProjection, error))?
         };
-        PreparationMeasurement { preferred, minimum }.validate(figure, outer, content, true, true)
+        PreparationMeasurement { preferred, minimum }.validate(
+            figure,
+            outer,
+            content,
+            preferred_selected,
+            minimum_selected,
+        )
     }
 
     pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Rectangle, FreeformError> {
@@ -1315,19 +1454,19 @@ mod s07_query_failure_tests {
         let missing = FigureId::from_local(root.namespace(), slotmap::KeyData::from_ffi(u64::MAX));
         let error = LayoutError::Identity(TreeQueryError::UnknownFigure(missing));
         let query = LayoutSceneQuery::new(&tree);
-        assert_eq!(query.children(missing), Err(error));
-        assert_eq!(query.constraint(missing).err(), Some(error));
-        assert_eq!(query.container_bounds(missing), Err(error));
+        assert_eq!(query.children(missing), Err(error.clone()));
+        assert_eq!(query.constraint(missing).err(), Some(error.clone()));
+        assert_eq!(query.container_bounds(missing), Err(error.clone()));
         assert_eq!(
             query.preferred_measurement(missing, MeasureConstraints::UNBOUNDED),
-            Err(error)
+            Err(error.clone())
         );
         assert_eq!(
             query.minimum_size(missing, MeasureConstraints::UNBOUNDED),
-            Err(error)
+            Err(error.clone())
         );
-        assert_eq!(query.maximum_size(missing), Err(error));
-        assert_eq!(query.freeform_extent(missing), Err(error));
+        assert_eq!(query.maximum_size(missing), Err(error.clone()));
+        assert_eq!(query.freeform_extent(missing), Err(error.clone()));
         assert_eq!(query.content_scale(missing), Err(error));
     }
 
@@ -1344,11 +1483,11 @@ mod s07_query_failure_tests {
                 };
                 assert_eq!(
                     tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
-                    Err(error)
+                    Err(error.clone())
                 );
                 assert_eq!(
                     tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
-                    Err(error)
+                    Err(error.clone())
                 );
                 tree.set_maximum_size(root, Some(size));
                 if axis == f64::INFINITY {
@@ -1435,7 +1574,7 @@ mod s07_query_failure_tests {
         };
         assert_eq!(
             tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
-            Err(error)
+            Err(error.clone())
         );
         assert_eq!(
             tree.minimum_size(root, MeasureConstraints::UNBOUNDED),
@@ -1549,7 +1688,7 @@ mod s07_query_failure_tests {
         };
         assert_eq!(
             tree.preferred_measurement(root, MeasureConstraints::UNBOUNDED),
-            Err(overflow)
+            Err(overflow.clone())
         );
         assert_eq!(
             tree.minimum_size(root, MeasureConstraints::UNBOUNDED),

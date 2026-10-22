@@ -80,7 +80,7 @@ fn zoom_location_at(old_location: Point, anchor: Point, old_zoom: f64, new_zoom:
     )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ZoomError {
     InvalidZoom,
     InvalidZoomLevels,

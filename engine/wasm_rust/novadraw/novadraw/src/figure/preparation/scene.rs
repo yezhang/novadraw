@@ -12,9 +12,19 @@ use crate::text::TextError;
 use crate::{Figure, FigureId, FigureMeasurement, MeasureConstraints, Rectangle};
 
 use super::{
-    FigurePresentation, PreparationDependencyError, PreparationMeasureError,
+    FigurePresentation, MeasurementSelection, PreparationDependencyError, PreparationMeasureError,
     PreparationMeasureErrorKind, PreparationMeasurement,
 };
+
+#[derive(Clone)]
+struct MeasurementRecord {
+    figure: FigureId,
+    constraints: MeasureConstraints,
+    selection: MeasurementSelection,
+    text_revision: u64,
+    measurement: PreparationMeasurement,
+    observations: Vec<crate::connection::DependencyObservation>,
+}
 
 /// Frozen read access restricted to the preparing Figure's subtree.
 pub struct PreparationScene<'a> {
@@ -24,6 +34,7 @@ pub struct PreparationScene<'a> {
     members: HashSet<FigureId>,
     measurement_path: Rc<RefCell<Vec<FigureId>>>,
     observations: Rc<RefCell<Vec<crate::connection::DependencyObservation>>>,
+    measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
 }
 
@@ -48,6 +59,7 @@ impl<'a> PreparationScene<'a> {
             members,
             measurement_path: Rc::new(RefCell::new(Vec::new())),
             observations: Rc::new(RefCell::new(Vec::new())),
+            measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
         }
     }
@@ -70,6 +82,7 @@ impl<'a> PreparationScene<'a> {
         let mut scene = Self::new(self.tree, root, self.styles);
         scene.measurement_path = self.measurement_path.clone();
         scene.observations = self.observations.clone();
+        scene.measurements = self.measurements.clone();
         scene.measurement_constraints = Some((outer, content));
         scene
     }
@@ -81,6 +94,16 @@ impl<'a> PreparationScene<'a> {
         context: &mut crate::text::MeasureContext<'_>,
         id: FigureId,
         constraints: MeasureConstraints,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        self.measure_selected(context, id, constraints, MeasurementSelection::Both)
+    }
+
+    pub(crate) fn measure_selected(
+        &self,
+        context: &mut crate::text::MeasureContext<'_>,
+        id: FigureId,
+        constraints: MeasureConstraints,
+        selection: MeasurementSelection,
     ) -> Result<PreparationMeasurement, PreparationMeasureError> {
         let failure = |kind| PreparationMeasureError {
             figure: id,
@@ -118,6 +141,22 @@ impl<'a> PreparationScene<'a> {
                 ))));
             }
         }
+        let text_revision = context.revision();
+        let cached = self
+            .measurements
+            .borrow()
+            .iter()
+            .find(|record| {
+                record.figure == id
+                    && record.constraints == constraints
+                    && record.selection == selection
+                    && record.text_revision == text_revision
+            })
+            .cloned();
+        if let Some(record) = cached {
+            self.retain_observations(&record.observations);
+            return Ok(record.measurement);
+        }
         struct MeasurementGuard(Rc<RefCell<Vec<FigureId>>>);
         impl Drop for MeasurementGuard {
             fn drop(&mut self) {
@@ -126,9 +165,30 @@ impl<'a> PreparationScene<'a> {
         }
         self.measurement_path.borrow_mut().push(id);
         let _guard = MeasurementGuard(self.measurement_path.clone());
-        self.observe(crate::connection::DependencySubject::FigureMeasurement(id));
-        self.tree
-            .measure_preparation_figure(context, id, constraints, self)
+        let mut measured_scene = Self::new(self.tree, id, self.styles);
+        measured_scene.measurement_path = self.measurement_path.clone();
+        measured_scene.measurements = self.measurements.clone();
+        measured_scene.observe(crate::connection::DependencySubject::FigureMeasurement(id));
+        let result = self.tree.measure_preparation_figure(
+            context,
+            id,
+            constraints,
+            &measured_scene,
+            selection,
+        );
+        let observations = measured_scene.observations();
+        self.retain_observations(&observations);
+        if let Ok(measurement) = result {
+            self.measurements.borrow_mut().push(MeasurementRecord {
+                figure: id,
+                constraints,
+                selection,
+                text_revision,
+                measurement,
+                observations,
+            });
+        }
+        result
     }
 
     fn check(&self, id: FigureId) -> Result<(), TextError> {
@@ -298,7 +358,7 @@ impl<'a> PreparationScene<'a> {
             .map_err(scene_error)
     }
 
-    fn observe(&self, subject: crate::connection::DependencySubject) {
+    pub(crate) fn observe(&self, subject: crate::connection::DependencySubject) {
         use crate::connection::RouteSceneRead;
         let geometries = HashMap::new();
         let read = crate::connection::FigureTreeRouteSceneRead::new(self.tree, &geometries);
@@ -312,6 +372,30 @@ impl<'a> PreparationScene<'a> {
                 subject,
                 generation,
             });
+        }
+    }
+
+    fn retain_observations(&self, retained: &[crate::connection::DependencyObservation]) {
+        let mut observations = self.observations.borrow_mut();
+        for observation in retained {
+            if !observations
+                .iter()
+                .any(|item| item.subject == observation.subject)
+            {
+                observations.push(observation.clone());
+            }
+        }
+    }
+
+    pub(crate) fn check_layout_member(&self, id: FigureId) -> Result<(), LayoutError> {
+        self.tree.validate_identity(id)?;
+        if self.members.contains(&id) {
+            Ok(())
+        } else {
+            Err(LayoutError::InvalidChild {
+                container: self.root,
+                child: id,
+            })
         }
     }
 
@@ -570,5 +654,51 @@ impl PreparedScene {
                 .map_err(|error: LayoutError| scene_error(error))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        figure::RectangleFigure,
+        layout::StackLayout,
+        text::{FontDescriptor, TextSystem},
+    };
+
+    #[test]
+    fn cached_layout_measurement_retains_transitive_observations() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .unwrap();
+        let child = tree
+            .builder()
+            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+            .unwrap();
+        tree.builder()
+            .set_layout_manager(root, Box::new(StackLayout::new()))
+            .unwrap();
+        let styles = HashMap::new();
+        let scene = PreparationScene::new(&tree, root, &styles);
+        let mut text = TextSystem::new();
+        let mut context = text.measure(FontDescriptor::default());
+        let first = scene
+            .measure_figure(&mut context, root, MeasureConstraints::UNBOUNDED)
+            .unwrap();
+        let observations = scene.observations();
+        assert!(observations.iter().any(|observation| observation.subject
+            == crate::connection::DependencySubject::FigureMeasurement(child)));
+        let entries = scene.measurements.borrow().len();
+        scene.observations.borrow_mut().clear();
+        assert_eq!(
+            scene
+                .measure_figure(&mut context, root, MeasureConstraints::UNBOUNDED)
+                .unwrap(),
+            first
+        );
+        assert_eq!(scene.measurements.borrow().len(), entries);
+        assert_eq!(scene.observations(), observations);
     }
 }

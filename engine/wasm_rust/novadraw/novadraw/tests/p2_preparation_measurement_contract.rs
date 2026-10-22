@@ -10,7 +10,7 @@ use novadraw::{
     },
     geometry::{Dimension, Rectangle},
     graphics::{GraphicsError, PaintContext},
-    layout::StackLayout,
+    layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery, StackLayout},
     render::{BackendCapabilities, SurfaceInfo},
     runtime::{FramePreparation, FramePreparationError, Runtime},
     text::{MeasureContext, TextError},
@@ -471,5 +471,151 @@ fn frame_error_source_chain_reaches_the_original_text_error() {
     assert_eq!(
         measurement.source().unwrap().downcast_ref::<TextError>(),
         Some(&TextError::NoUsableFont)
+    );
+}
+
+fn nested_fixture(mode: Mode) -> (FigureTree, FigureId, MeasurementLog, Arc<AtomicUsize>) {
+    let (mut tree, container, log, _) = fixture(Mode::Unsupported);
+    tree.builder()
+        .set_layout_manager(container, Box::new(StackLayout::new()))
+        .unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let leaf = tree
+        .builder()
+        .add_child(
+            container,
+            Box::new(External {
+                mode,
+                calls: calls.clone(),
+                border: None,
+                scale: 1.0,
+            }),
+        )
+        .unwrap();
+    (tree, leaf, log, calls)
+}
+
+#[test]
+fn layout_children_are_remeasured_under_each_explicit_constraint() {
+    let (tree, _, log, calls) = nested_fixture(Mode::Supported);
+    run(tree).unwrap();
+    let log = log.lock().unwrap();
+    assert_eq!(
+        log[0].as_ref().unwrap().preferred.size(),
+        Dimension::new(40.0, 10.0)
+    );
+    assert_eq!(
+        log[1].as_ref().unwrap().preferred.size(),
+        Dimension::new(80.0, 5.0)
+    );
+    assert_eq!(log[0].as_ref().unwrap().minimum, Dimension::new(5.0, 2.0));
+    assert!(calls.load(Ordering::Relaxed) >= 4);
+}
+
+#[test]
+fn nested_layout_failure_preserves_the_leaf_and_original_text_cause() {
+    let (tree, leaf, _, _) = nested_fixture(Mode::Text);
+    let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
+    else {
+        panic!("expected nested failure");
+    };
+    assert_eq!(error.figure, leaf);
+    assert_eq!(
+        error.outer_constraints,
+        MeasureConstraints::width(40.0).unwrap()
+    );
+    assert_eq!(
+        error.content_constraints,
+        Some(MeasureConstraints::width(40.0).unwrap())
+    );
+    assert_eq!(
+        error.source().unwrap().downcast_ref::<TextError>(),
+        Some(&TextError::NoUsableFont)
+    );
+}
+
+struct RepeatedPreferredLayout;
+impl LayoutManager for RepeatedPreferredLayout {
+    fn preferred_measurement(
+        &self,
+        container: FigureId,
+        constraints: MeasureConstraints,
+        scene: &LayoutSceneQuery<'_>,
+    ) -> Result<FigureMeasurement, LayoutError> {
+        let child = scene.children(container)?[0].0;
+        let first = scene.preferred_measurement(child, constraints)?;
+        assert_eq!(first, scene.preferred_measurement(child, constraints)?);
+        Ok(first)
+    }
+    fn minimum_size(
+        &self,
+        _: FigureId,
+        _: MeasureConstraints,
+        _: &LayoutSceneQuery<'_>,
+    ) -> Result<Dimension, LayoutError> {
+        Ok(Dimension::ZERO)
+    }
+    fn layout(
+        &mut self,
+        _: FigureId,
+        _: &LayoutSceneQuery<'_>,
+        _: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        Ok(())
+    }
+}
+
+#[test]
+fn repeated_nested_preferred_queries_use_the_session_cache_and_skip_invalid_minimum() {
+    struct PreferredOnly(Arc<AtomicUsize>);
+    impl Figure for PreferredOnly {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::ZERO
+        }
+        fn name(&self) -> &'static str {
+            "PreferredOnly"
+        }
+        fn register_capabilities(
+            &self,
+            out: &mut FigureCapabilityBuilder,
+        ) -> Result<(), FigureCapabilityRegistrationError> {
+            out.register(PREPARATION, PreparationCapability::of::<Self>())
+        }
+    }
+    impl FigurePreparation for PreferredOnly {
+        fn prepare(
+            &self,
+            _: &mut MeasureContext<'_>,
+            _: Rectangle,
+        ) -> Result<FigurePresentation, TextError> {
+            Ok(presentation())
+        }
+        fn measure_scene(
+            &self,
+            _: &mut MeasureContext<'_>,
+            constraints: MeasureConstraints,
+            _: &PreparationScene<'_>,
+        ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            Ok(PreparationMeasurement {
+                preferred: FigureMeasurement::new(constraints.max_width().unwrap(), 7.0, None),
+                minimum: Dimension::new(f64::NAN, -1.0),
+            })
+        }
+    }
+    let (mut tree, container, log, _) = fixture(Mode::Unsupported);
+    tree.builder()
+        .set_layout_manager(container, Box::new(RepeatedPreferredLayout))
+        .unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    tree.builder()
+        .add_child(container, Box::new(PreferredOnly(calls.clone())))
+        .unwrap();
+    run(tree).unwrap();
+    let log = log.lock().unwrap();
+    assert_eq!(calls.load(Ordering::Relaxed), log.len());
+    assert_eq!(
+        log[0].as_ref().unwrap().preferred.size(),
+        Dimension::new(40.0, 7.0)
     );
 }

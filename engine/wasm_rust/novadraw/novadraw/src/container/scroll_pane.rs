@@ -38,7 +38,7 @@ pub enum ScrollOrientation {
     Vertical,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScrollPaneError {
     Graph(GraphMutationError),
     Layout(LayoutError),

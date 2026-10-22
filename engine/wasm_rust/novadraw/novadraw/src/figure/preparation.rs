@@ -8,6 +8,7 @@ use std::sync::Arc;
 mod measurement;
 mod routing;
 mod scene;
+pub(crate) use measurement::MeasurementSelection;
 pub use measurement::{
     PreparationDependencyError, PreparationMeasureError, PreparationMeasureErrorKind,
     PreparationMeasureStage, PreparationMeasurement, PreparationMetric,

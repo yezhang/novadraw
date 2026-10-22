@@ -19,6 +19,23 @@ pub enum PreparationMetric {
     Minimum,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MeasurementSelection {
+    Both,
+    Preferred,
+    Minimum,
+}
+
+impl MeasurementSelection {
+    pub(crate) fn preferred(self) -> bool {
+        self != Self::Minimum
+    }
+
+    pub(crate) fn minimum(self) -> bool {
+        self != Self::Preferred
+    }
+}
+
 /// Checked geometry stage at which finite input overflowed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PreparationMeasureStage {

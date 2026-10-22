@@ -23,8 +23,11 @@ route/Locator 子树的几何与测量。原始 Figure/capability 借用进入�
 恢复后必需组未 resolved 的 owner 及后代 presentation 标为 invalid；
 受检快照查询拒绝读取，不能通过显式 resolve 绕过重新 preparation。
 首帧尚无成功记录时保留重试状态；普通路由失败继续走既有通道。
-完整 LayoutManager 传递观察、批次候选依赖图、
-约束测量的传递观察与共享预算仍待后续批次；这不是整个增量的完成声明。
+LayoutManager 子查询已接入同一受约束测量会话，preferred/minimum 分别选择来源；
+会话缓存保留子查询的传递观察，命中时将观察交给当前消费者。
+嵌套失败经 `LayoutError::Preparation` 保留实际主体、约束和原始原因，
+回到直接测量边界后返回原 `PreparationMeasureError`。
+批次候选依赖图与共享预算仍待后续批次；这不是整个增量的完成声明。
 下表保留实施前基线，不能用来判断上述入口的当前代码行为。
 
 ## 实施前发现的契约缺口
@@ -204,7 +207,8 @@ pub enum PreparationMeasureErrorKind {
 测量主体与阶段分类，以及 Layout/Text 原因包装；实际实现将 Layout、Text 和
 Dependency 原因保存在 Box 中，避免扩大每个 Result 的错误值，原始错误及
 `Error::source` 契约不变。Dependency 已覆盖测量重入、快照结构环、
-必需路由输出反向读取和深度限制；LayoutManager 传递观察与共享预算仍待后续切片。
+必需路由输出反向读取和深度限制；LayoutManager 子查询和缓存已保留传递观察，
+共享预算仍待后续切片。
 `PreparationMetric` 区分 preferred 与 minimum；`PreparationMeasureStage` 标识
 constraint shrink、constraint inverse projection、Border/insets expansion、
 measurement projection。两者表达固定测量步骤，不分派内置或外部行为。

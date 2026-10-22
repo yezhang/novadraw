@@ -196,7 +196,12 @@ outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline �
 
 测量调用栈由同一 preparation scene 共享。重入相同 Figure 时，入口立即返回带有
 有序 Figure 路径的 `PreparationDependencyError::MeasurementCycle`，不等待反馈预算。
-测量重入与快照计算依赖使用结构化错误；LayoutManager 的传递观察以及共享求解预算仍由
+LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimum；
+未被选中的指标不参与校验。会话缓存记录 Figure、约束、指标和文字资源版本，
+同时保留子查询的传递观察，缓存命中不会省略依赖。
+嵌套失败经 `LayoutError::Preparation` 传播，保留叶节点身份与该节点的约束；
+直接测量入口还原原始错误及 `Error::source`。
+共享求解预算仍由
 [图投影增量方案](../../../doc/design/architecture/graph-projection-preparation.md)继续实施。
 
 错误类型位于

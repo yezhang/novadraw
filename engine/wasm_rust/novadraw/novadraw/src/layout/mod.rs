@@ -179,8 +179,10 @@ impl<'a> LayoutSceneQuery<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LayoutError {
+    /// Original constrained measurement failure from a nested preparation query.
+    Preparation(Box<crate::figure::PreparationMeasureError>),
     ConstraintTypeMismatch {
         container: FigureId,
         child: FigureId,
@@ -258,6 +260,7 @@ pub(crate) fn validate_measurement_size(
 impl fmt::Display for LayoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Preparation(error) => error.fmt(f),
             Self::Freeform(error) => error.fmt(f),
             Self::Capability(error) => error.fmt(f),
             Self::Identity(error) => error.fmt(f),
@@ -297,6 +300,7 @@ impl fmt::Display for LayoutError {
 impl Error for LayoutError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Preparation(error) => Some(error.as_ref()),
             Self::Identity(error) => Some(error),
             Self::Freeform(error) => Some(error),
             Self::Capability(error) => Some(error),
