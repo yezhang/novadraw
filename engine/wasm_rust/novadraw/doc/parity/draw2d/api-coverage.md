@@ -327,8 +327,10 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 2026-10-22 BorderLayout 回归：显式 Center 且没有边区 child 时占满完整 client area，
 不为不存在的 North/South/East/West 预留默认尺寸。`m5_layout_contract` 验证该反例；
 旧无约束布局的 fallback 区域保持兼容。官方 Path 已使用默认 BorderLayout 消费。
-P2-L01 的 `layout.graph` 仅进入 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)
-设计评审，Directed/Compound 模型、算法与投影均尚未实施。
+P2-L01 按已接受的 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)
+实施：`layout::graph` 纯请求/受检结果、通用候选验证和实例级开放 registry
+已通过 18 项外部非分层协议测试。Directed/Compound 默认算法、Figure/Connection
+投影与官方场景尚未完成，`CAP-GRAPH-LAYOUT` 保持 pending。
 
 ### M6 Event Dispatcher / Focus / Capture
 

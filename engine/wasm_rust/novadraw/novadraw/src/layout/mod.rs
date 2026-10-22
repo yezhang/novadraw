@@ -6,6 +6,7 @@ mod border_layout;
 mod fill_layout;
 mod flow_layout;
 mod freeform_layout;
+pub mod graph;
 mod grid_layout;
 mod stack_layout;
 mod toolbar_layout;
