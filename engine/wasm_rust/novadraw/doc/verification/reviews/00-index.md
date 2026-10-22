@@ -73,6 +73,7 @@
 | 2026-10-16 | [suites 配置与单元测试的职责边界](suite-configuration-and-unit-test-boundary-2026-10-16.md) |
 | 2026-10-19 | [全量文档知识修正](documentation-knowledge-revision-2026-10-19.md) |
 | 2026-10-19 | [Draw2D 样例与 API 组合性分析](draw2d-example-api-ergonomics-2026-10-19.md) |
+| 2026-10-22 | [ADR-043 草案审核意见](adr-043-draft-review-2026-10-22.md) |
 
 ## 专题核验
 

@@ -60,7 +60,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [040](adr-040-group-route-solving.md) | 连接组的统一路由求解 | 已接受，已实现并验证 | 2026-10-21 |
 | [041](adr-041-composable-scrollbar.md) | 通用 ScrollBar 与 Figure 活动调度 | 已接受，已实现并验证 | 2026-10-21 |
 | [042](adr-042-structured-flow-layout.md) | 结构化文字流与内嵌 Figure | 已接受，实施中 | 2026-10-21 |
-| [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 提议，待评审 | 2026-10-22 |
+| [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 已接受，修订 1，实施中 | 2026-10-22 |
 
 ## 现行与历史隔离
 
