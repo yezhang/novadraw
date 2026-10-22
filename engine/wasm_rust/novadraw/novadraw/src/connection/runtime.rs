@@ -323,6 +323,71 @@ impl Default for ConnectionRuntime {
 }
 
 impl ConnectionRuntime {
+    pub(crate) fn validate_required_routes(
+        &self,
+        owner: FigureId,
+        group: &crate::figure::preparation::RequiredRouteGroup,
+        scene: &dyn RouteSceneRead,
+    ) -> Result<(), crate::figure::PreparationRouteError> {
+        use crate::figure::{PreparationRouteError, PreparationRouteErrorKind as Kind};
+        let failure = |connection, kind| PreparationRouteError {
+            owner,
+            connection,
+            kind,
+        };
+        let subject = DependencySubject::PreparedScene(owner);
+        scene
+            .prepared_scene(owner)
+            .map_err(|_| failure(None, Kind::SnapshotMismatch))?;
+        let generation = scene.dependency_generation(&subject);
+        let routing_order = self
+            .order
+            .iter()
+            .copied()
+            .filter(|id| scene.parent_id(id.figure()).ok() == Some(Some(owner)))
+            .collect::<Vec<_>>();
+        for connection in &group.connections {
+            let state = self.states.get(connection).ok_or_else(|| {
+                failure(
+                    Some(*connection),
+                    Kind::Connection(Box::new(ConnectionRuntimeError::UnknownConnection(
+                        *connection,
+                    ))),
+                )
+            })?;
+            match &state.resolution {
+                ConnectionResolution::Resolved { .. } => {}
+                ConnectionResolution::Unresolved(reason) => {
+                    return Err(failure(
+                        Some(*connection),
+                        Kind::Connection(Box::new(ConnectionRuntimeError::Unresolved(
+                            reason.clone(),
+                        ))),
+                    ));
+                }
+                _ => return Err(failure(Some(*connection), Kind::Unresolved)),
+            }
+            if state.routing_space != Some(group.scope)
+                || state.dependencies.get(&subject) != Some(&generation)
+            {
+                return Err(failure(Some(*connection), Kind::SnapshotMismatch));
+            }
+            let router = self
+                .resolve_router_binding(state.router)
+                .map_err(|error| failure(Some(*connection), Kind::Connection(Box::new(error))))?;
+            let members = self
+                .routing_group_members(*connection, router, group.scope, &routing_order)
+                .map_err(|error| failure(Some(*connection), Kind::Connection(Box::new(error))))?;
+            if members
+                .iter()
+                .any(|member| !group.connections.contains(member))
+            {
+                return Err(failure(Some(*connection), Kind::IncompleteGroup));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn preparation_checkpoint(&self) -> ConnectionPreparationCheckpoint {
         ConnectionPreparationCheckpoint {
             states: self
@@ -1286,7 +1351,9 @@ impl ConnectionRuntime {
             .by_dependency
             .keys()
             .filter(|subject| match subject {
-                DependencySubject::FigureGeometry(candidate)
+                DependencySubject::PreparedScene(candidate)
+                | DependencySubject::FigureMeasurement(candidate)
+                | DependencySubject::FigureGeometry(candidate)
                 | DependencySubject::FigureVisibility(candidate)
                 | DependencySubject::NamedAnchorRegion(candidate, _) => *candidate == figure,
                 DependencySubject::Topology(candidate) => topology_changed && *candidate == figure,
@@ -2046,7 +2113,9 @@ fn dependency_cycle(
 
 fn dependency_figures(subject: &DependencySubject) -> [Option<FigureId>; 2] {
     match subject {
-        DependencySubject::FigureGeometry(figure)
+        DependencySubject::PreparedScene(figure)
+        | DependencySubject::FigureMeasurement(figure)
+        | DependencySubject::FigureGeometry(figure)
         | DependencySubject::FigureVisibility(figure)
         | DependencySubject::NamedAnchorRegion(figure, _)
         | DependencySubject::Topology(figure) => [Some(*figure), None],

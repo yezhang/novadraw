@@ -3,6 +3,53 @@ use crate::runtime::ResourceRegistry;
 use crate::runtime::update::property::standard as property;
 
 impl FigureTree {
+    pub(crate) fn prepared_scene_generation(&self) -> u64 {
+        self.prepared_scene_serial
+    }
+
+    pub(crate) fn required_route_groups(
+        &self,
+    ) -> Vec<(FigureId, &crate::figure::preparation::RequiredRouteGroup)> {
+        self.blocks
+            .iter()
+            .flat_map(|(id, node)| {
+                node.prepared
+                    .as_ref()
+                    .into_iter()
+                    .filter(move |prepared| prepared.owner == id)
+                    .flat_map(move |prepared| {
+                        prepared
+                            .required_routes
+                            .iter()
+                            .map(move |group| (id, group))
+                    })
+            })
+            .collect()
+    }
+
+    pub(crate) fn checked_prepared_scene(
+        &self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, crate::connection::RouteSceneQueryError> {
+        use crate::connection::RouteSceneQueryError;
+        self.validate_identity(owner)?;
+        if !self.is_attached(owner)? {
+            return Err(RouteSceneQueryError::DetachedFigure(owner));
+        }
+        let prepared = self.blocks[owner]
+            .prepared
+            .as_ref()
+            .filter(|prepared| prepared.owner == owner)
+            .ok_or(RouteSceneQueryError::UnavailablePreparedScene(owner))?;
+        let (styles, _) = self.resolved_styles_for(|_| true);
+        let styles = styles.into_iter().collect();
+        let scene = crate::figure::PreparationScene::new(self, owner, &styles);
+        if scene.source_revision().ok() != Some(prepared.source) {
+            return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
+        }
+        Ok(prepared.snapshot())
+    }
+
     pub(crate) fn refresh_prepared_figures(
         &mut self,
         text: &mut dyn TextLayoutEngine,
@@ -47,6 +94,7 @@ impl FigureTree {
                 text,
                 crate::text::FontDescriptor::parse(&style.font)?,
             );
+            let source = scene.source_revision()?;
             let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
             prepared_scene.validate(&scene)?;
             if scene.revision()? != key.component || preparation.revision() != key.provider {
@@ -54,10 +102,10 @@ impl FigureTree {
                     "input revision changed during preparation".into(),
                 ));
             }
-            candidates.push((id, key, prepared_scene));
+            candidates.push((id, key, source, scene.observations(), prepared_scene));
         }
         let mut presented = std::collections::HashSet::new();
-        for (id, key, candidate) in &candidates {
+        for (id, key, _, _, candidate) in &candidates {
             for source in
                 std::iter::once(id).chain(candidate.descendants.iter().map(|(source, _)| source))
             {
@@ -79,7 +127,7 @@ impl FigureTree {
         // No tree changes occur until every candidate and its layout output has been checked.
         let owners = candidates
             .iter()
-            .map(|(id, _, _)| *id)
+            .map(|(id, _, _, _, _)| *id)
             .collect::<std::collections::HashSet<_>>();
         let retired = self
             .blocks
@@ -110,7 +158,25 @@ impl FigureTree {
             }
             metrics_changed = true;
         }
-        for (id, key, candidate) in candidates {
+        for (id, key, input_source, observations, candidate) in candidates {
+            let unchanged = self.blocks[id].prepared.as_ref().filter(|old| {
+                candidate.result_version.is_some()
+                    && old.result_version == candidate.result_version
+                    && old.source == input_source
+                    && old.key.text == key.text
+                    && old.key.font == key.font
+                    && old.key.bounds == key.bounds
+                    && old.observations == observations
+            });
+            let identity = if let Some(old) = unchanged {
+                old.identity
+            } else {
+                self.prepared_scene_serial =
+                    self.prepared_scene_serial.checked_add(1).ok_or_else(|| {
+                        TextError::InvalidPreparedScene("prepared scene identity exhausted".into())
+                    })?;
+                crate::figure::PreparedSceneIdentity::new(id, self.prepared_scene_serial)
+            };
             for (parent, output) in candidate.layouts {
                 self.apply_layout_output(updates, parent, output)
                     .map_err(scene_error)?;
@@ -122,6 +188,11 @@ impl FigureTree {
                         owner: id,
                         key: key.clone(),
                         presentation,
+                        identity,
+                        source: input_source,
+                        result_version: candidate.result_version,
+                        observations: observations.clone(),
+                        required_routes: Vec::new(),
                     },
                     updates,
                 );
@@ -132,6 +203,11 @@ impl FigureTree {
                     owner: id,
                     key,
                     presentation: candidate.root,
+                    identity,
+                    source: input_source,
+                    result_version: candidate.result_version,
+                    observations,
+                    required_routes: candidate.required_routes,
                 },
                 updates,
             );

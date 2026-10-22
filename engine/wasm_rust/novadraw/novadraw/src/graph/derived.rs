@@ -105,6 +105,14 @@ impl FigureTree {
     }
 
     pub(crate) fn record_preparation_source_bounds(&mut self, id: FigureId, bounds: Rectangle) {
+        if self
+            .derived_checkpoint
+            .as_ref()
+            .is_none_or(|prefix| prefix.source_region)
+            && let Some(node) = self.blocks.get_mut(id)
+        {
+            node.source_bounds = bounds;
+        }
         if let Some(prefix) = self.derived_checkpoint.as_mut()
             && prefix.source_region
             && let Some(node) = prefix.nodes.get_mut(&id)

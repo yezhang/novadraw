@@ -210,6 +210,17 @@ override 直接正投影，不再加 Border。测量失败通过 `PreparationMea
 保留实际 Figure、outer/content 约束与原始错误，并沿
 `TextError::PreparationMeasurement` 传到帧准备错误。
 
+Anchor 和 Router 通过 `RouteSceneQuery::prepared_scene(owner)` 读取 Runtime 持有的
+`PreparedSceneSnapshot`。快照包含不可构造的身份和不可变 presentation；旧快照可用于
+诊断，但源输入变化后不能用于当前路由。producer 用
+`PreparedScene::with_result_version` 声明稳定的领域结果版本。相同源前缀、结果版本、
+约束与已观察依赖保留身份，普通 preparation 回调重跑不必使路由失效。
+
+图投影必须同时发布布局和路径时，在候选中调用 `require_route_group`，显式提供
+`ChildContent(owner)` 和完整 ConnectionId 集合。Runtime 在稳定帧晋升前检查组覆盖、
+resolved 状态和快照依赖；失败通过 `TextError::PreparationRoute` 保留主体与原因。
+声明本身是发布屏障，不是读取路径的计算依赖。
+
 测量缓存以布局代数和约束为键。结构、约束、显式尺寸或相关内容变化时，Runtime
 使缓存失效；应用不需要手工清理。
 
@@ -219,6 +230,7 @@ override 直接正投影，不再加 Border。测量失败通过 `PreparationMea
 - [`LayoutSnapshot` 与 `LayoutOutput`](../../../novadraw/src/layout/mod.rs)
 - [约束文本测量测试](../../../novadraw/tests/d4_constrained_measurement.rs)
 - [外部 preparation 约束测量测试](../../../novadraw/tests/p2_preparation_measurement_contract.rs)
+- [候选快照与必需路由组测试](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)
 
 ## 4.6 应用运行期如何触发更新
 

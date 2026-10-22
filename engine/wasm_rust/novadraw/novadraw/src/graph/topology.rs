@@ -826,6 +826,7 @@ impl FigureTree {
             depth,
             figure,
             component_revision: 0,
+            source_bounds: state.bounds,
             capabilities,
             prepared: None,
             layout,

@@ -204,6 +204,24 @@ outer/content 约束；返回内容 metrics，Runtime 校验尺寸和 baseline �
 外部消费者反例见
 [`p2_preparation_measurement_contract.rs`](../../../novadraw/tests/p2_preparation_measurement_contract.rs)。
 
+### preparation 快照与路由发布
+
+`PreparedFigure` 保存 Runtime 签发的快照身份、冻结源前缀、producer 结果版本与实际
+测量/几何观察。`PreparationScene::source_revision` 排除派生 bounds 和布局缓存代数；
+组件、拓扑、源 bounds、显式尺寸、布局策略/约束及解析样式仍参与输入验证。
+不声明结果版本的旧 producer 保留按完整 preparation key 更新的兼容行为。
+
+`TrackedRouteSceneQuery` 自动观察 `DependencySubject::PreparedScene(owner)`。依赖
+generation 来自有效快照身份，计算尝试不会单独增加 generation。presentation 阶段
+替换快照后重新安排依赖失效检查，避免 bounds 未变时沿用旧路径。
+
+`require_route_group` 的发布条件单独存储。稳定 epoch 晋升前，Runtime 检查完整求解组、
+resolved 状态、routing space 和本次快照观察；候选失败走原有派生检查点恢复。
+这批实现尚未完成跨 preparation/route/Locator 的传递环检查，以及同源恢复时的
+resolved 元数据保留；这些边界与共享预算继续按增量方案推进。
+外部消费者验证见
+[`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)。
+
 ## 6.10 稳定 epoch
 
 每轮稳定化使用 epoch 标识其输入和发布边界。epoch 完成意味着：

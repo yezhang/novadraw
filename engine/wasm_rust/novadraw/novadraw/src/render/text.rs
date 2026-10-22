@@ -967,6 +967,7 @@ pub enum TextError {
     InvalidStyledLayout,
     InvalidPreparedScene(String),
     PreparationMeasurement(Box<crate::figure::PreparationMeasureError>),
+    PreparationRoute(Box<crate::figure::PreparationRouteError>),
     Outline(crate::text::outline::FontError),
 }
 
@@ -1010,6 +1011,7 @@ impl fmt::Display for TextError {
             }
             Self::Outline(error) => error.fmt(formatter),
             Self::PreparationMeasurement(error) => error.fmt(formatter),
+            Self::PreparationRoute(error) => error.fmt(formatter),
         }
     }
 }
@@ -1018,6 +1020,7 @@ impl Error for TextError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::PreparationMeasurement(error) => Some(error.as_ref()),
+            Self::PreparationRoute(error) => Some(error.as_ref()),
             Self::Outline(error) => Some(error),
             _ => None,
         }

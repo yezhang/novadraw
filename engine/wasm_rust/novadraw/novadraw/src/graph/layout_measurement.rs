@@ -966,6 +966,7 @@ impl FigureTree {
             return false;
         }
         block.layout.manager = layout_manager;
+        block.layout.source_generation = block.layout.source_generation.wrapping_add(1);
         self.mark_validation_path_invalid_for(container, LayoutInvalidation::Structure);
         true
     }
@@ -1023,6 +1024,7 @@ impl FigureTree {
             return false;
         };
         parent.layout.constraints.insert(child_id, constraint);
+        parent.layout.source_generation = parent.layout.source_generation.wrapping_add(1);
         self.mark_validation_path_invalid_for(parent_id, LayoutInvalidation::Constraint);
         self.emit_layout_event(LayoutEvent {
             kind: LayoutEventKind::ConstraintChanged,
@@ -1062,6 +1064,8 @@ impl FigureTree {
             .and_then(|parent| parent.layout.constraints.remove(&child_id))
             .is_some();
         if removed {
+            let layout = &mut self.blocks[parent_id].layout;
+            layout.source_generation = layout.source_generation.wrapping_add(1);
             self.mark_validation_path_invalid_for(parent_id, LayoutInvalidation::Constraint);
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::ConstraintChanged,
@@ -1484,6 +1488,11 @@ mod s07_query_failure_tests {
         let (mut tree, root) = subject();
         tree.blocks[root].prepared = Some(PreparedFigure {
             owner: root,
+            identity: crate::figure::PreparedSceneIdentity::new(root, 1),
+            source: 0,
+            result_version: None,
+            observations: Vec::new(),
+            required_routes: Vec::new(),
             key: PreparationKey {
                 component: 0,
                 provider: 0,

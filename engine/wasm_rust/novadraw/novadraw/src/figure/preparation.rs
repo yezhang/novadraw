@@ -6,13 +6,46 @@ use crate::{Dimension, Rectangle};
 use std::sync::Arc;
 
 mod measurement;
+mod routing;
 mod scene;
 pub use measurement::{
     PreparationDependencyError, PreparationMeasureError, PreparationMeasureErrorKind,
     PreparationMeasureStage, PreparationMeasurement, PreparationMetric,
 };
+pub(crate) use routing::RequiredRouteGroup;
+pub use routing::{PreparationRouteError, PreparationRouteErrorKind};
 pub(crate) use scene::scene_error;
 pub use scene::{PreparationScene, PreparedScene};
+
+/// Runtime-issued identity of one checked immutable preparation result.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct PreparedSceneIdentity {
+    owner: crate::FigureId,
+    serial: u64,
+}
+
+impl PreparedSceneIdentity {
+    pub(crate) fn new(owner: crate::FigureId, serial: u64) -> Self {
+        Self { owner, serial }
+    }
+}
+
+/// Owned read-only preparation result. Retaining it does not grant publication authority.
+#[derive(Clone)]
+pub struct PreparedSceneSnapshot {
+    identity: PreparedSceneIdentity,
+    presentation: FigurePresentation,
+}
+
+impl PreparedSceneSnapshot {
+    pub fn identity(&self) -> PreparedSceneIdentity {
+        self.identity
+    }
+
+    pub fn presentation(&self) -> &FigurePresentation {
+        &self.presentation
+    }
+}
 
 /// Optional preparation capability. It cannot mutate the tree or publish a frame.
 pub trait FigurePreparation {
@@ -180,4 +213,18 @@ pub(crate) struct PreparedFigure {
     pub owner: crate::FigureId,
     pub key: PreparationKey,
     pub presentation: FigurePresentation,
+    pub identity: PreparedSceneIdentity,
+    pub source: u64,
+    pub result_version: Option<u64>,
+    pub observations: Vec<crate::connection::DependencyObservation>,
+    pub required_routes: Vec<RequiredRouteGroup>,
+}
+
+impl PreparedFigure {
+    pub(crate) fn snapshot(&self) -> PreparedSceneSnapshot {
+        PreparedSceneSnapshot {
+            identity: self.identity,
+            presentation: self.presentation.clone(),
+        }
+    }
 }

@@ -152,7 +152,9 @@ impl RouteSceneRead for QueryFixture {
     fn dependency_generation(&self, subject: &DependencySubject) -> u64 {
         if !self.flapping_generation {
             return match subject {
-                DependencySubject::FigureGeometry(figure)
+                DependencySubject::PreparedScene(figure)
+                | DependencySubject::FigureMeasurement(figure)
+                | DependencySubject::FigureGeometry(figure)
                 | DependencySubject::FigureVisibility(figure)
                 | DependencySubject::Topology(figure)
                 | DependencySubject::NamedAnchorRegion(figure, _) => {
@@ -185,6 +187,25 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
                 .expect("valid FigureTree construction")
         })
         .collect()
+}
+
+#[test]
+fn legacy_scene_read_reports_unsupported_preparation_and_tracks_the_failed_read() {
+    let owner = figure_ids(1)[0];
+    let source = QueryFixture::default();
+    assert!(matches!(
+        source.prepared_scene(owner),
+        Err(RouteSceneQueryError::UnsupportedPreparedSceneQuery(id)) if id == owner
+    ));
+    let mut query = source.tracked();
+    assert!(matches!(
+        query.prepared_scene(owner),
+        Err(RouteSceneQueryError::UnsupportedPreparedSceneQuery(id)) if id == owner
+    ));
+    assert_eq!(
+        query.observations()[0].subject,
+        DependencySubject::PreparedScene(owner)
+    );
 }
 
 #[test]

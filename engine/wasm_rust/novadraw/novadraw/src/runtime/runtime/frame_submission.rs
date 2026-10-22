@@ -570,12 +570,16 @@ impl Runtime {
                     work.insert(DerivedWorkKind::Presentation);
                 }
                 DerivedWorkKind::Presentation => {
+                    let prepared_generation = self.tree.prepared_scene_generation();
                     if self
                         .tree
                         .refresh_prepared_figures(self.text.as_mut(), &mut self.updates)
                         .map_err(FramePreparationError::Text)?
                     {
                         work.insert(DerivedWorkKind::Layout);
+                    }
+                    if self.tree.prepared_scene_generation() != prepared_generation {
+                        work.insert(DerivedWorkKind::DependencyInvalidation);
                     }
                     if self
                         .refresh_text_flow_layouts()
@@ -595,6 +599,16 @@ impl Runtime {
 
         if self.updates.has_pending_layout() || !self.connections.dirty_connections().is_empty() {
             return Err(FramePreparationError::DidNotConverge);
+        }
+        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+        for (owner, group) in self.tree.required_route_groups() {
+            self.connections
+                .validate_required_routes(owner, group, &scene)
+                .map_err(|error| {
+                    FramePreparationError::Text(crate::text::TextError::PreparationRoute(Box::new(
+                        error,
+                    )))
+                })?;
         }
         self.stable_epoch = self.derivation_epoch;
         Ok(())

@@ -425,6 +425,7 @@ impl NodeState {
 pub struct LayoutState {
     pub(crate) manager: Option<Box<dyn LayoutManager>>,
     pub(crate) constraints: std::collections::HashMap<FigureId, Box<dyn LayoutConstraint>>,
+    pub(crate) source_generation: u64,
     cache: RefCell<LayoutCache>,
     freeform: Option<FreeformState>,
 }
@@ -558,6 +559,8 @@ pub struct FigureNode {
     pub(crate) figure: Box<dyn super::Figure>,
     /// Runtime 提交的私有组件状态版本。
     pub(crate) component_revision: u64,
+    /// Bounds supplied by source mutations, excluding unpublished layout output.
+    pub(crate) source_bounds: Rectangle,
     /// Attach-time typed capability descriptors.
     pub(crate) capabilities: FigureCapabilitySet,
     pub(crate) prepared: Option<crate::figure::preparation::PreparedFigure>,
@@ -962,6 +965,7 @@ pub struct FigureTree {
     contents: Option<FigureId>,
     notification_effects: NotificationQueue,
     derived_checkpoint: Option<derived::DerivedCheckpoint>,
+    prepared_scene_serial: u64,
 }
 
 pub(crate) struct TextLayoutRefreshResult {
@@ -1270,6 +1274,7 @@ impl FigureTree {
             depth: 0,
             figure: root_figure,
             component_revision: 0,
+            source_bounds: root_bounds,
             capabilities: root_capabilities,
             prepared: None,
             layout: LayoutState::default(),
@@ -1287,6 +1292,7 @@ impl FigureTree {
             contents: None,
             notification_effects: NotificationQueue::new(),
             derived_checkpoint: None,
+            prepared_scene_serial: 0,
         }
     }
 

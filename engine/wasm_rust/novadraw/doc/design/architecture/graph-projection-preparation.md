@@ -10,6 +10,13 @@
 纯请求、Directed 和 Compound 切片已实现；本增量进入实施，完成状态仍以验证证据为准。
 `api_semantics`：`scene.preparation`、`figure.measurement`、`connection.routing`。
 
+Core 实施进度：约束测量与结构化错误已完成首批；候选快照查询、稳定领域结果版本、
+源 bounds 与派生 bounds 分离、路由快照观察和必需组发布屏障已接入。
+外部验证入口为 `p2_preparation_measurement_contract` 和
+`p2_prepared_scene_routing_contract`。完整计算依赖展开、同源 resolved 恢复、
+约束测量的传递观察与共享预算仍待后续批次；这不是整个增量的完成声明。
+下表保留实施前基线，不能用来判断上述入口的当前代码行为。
+
 ## 实施前发现的契约缺口
 
 候选 bounds 已可通过现有 Anchor 查询读取。Runtime 先应用候选 LayoutOutput，

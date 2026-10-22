@@ -132,8 +132,10 @@ adapter 静态核对已确认候选 bounds 可读，但候选领域数据/身份
 Core 约束测量协议已落地：`measure_scene`/`measure_figure`、独立 preferred/minimum
 来源选择、单次 Border 组合、结构化错误和测量重入检查。独立外部消费者覆盖
 新约束、override/LayoutManager 优先级、不支持/非法尺寸/baseline、非对称边距、
-缩放、有限输入溢出及错误 source 链。快照身份、必需组、跨派生依赖和共享预算
-尚未完成，按同一增量继续推进，不据此关闭 adapter 切片。
+缩放、有限输入溢出及错误 source 链。后续 Core 批次已接入 Runtime 快照身份、
+稳定结果版本、源/派生 bounds 分离、路由快照依赖及必需组发布检查。
+完整跨派生依赖、同源 resolved 恢复与共享预算尚未完成，按同一增量继续推进，
+不据此关闭 adapter 切片。
 P2-L01 保持 `in_progress`，原 ADR 修订 1 与已完成的算法切片保持有效。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源

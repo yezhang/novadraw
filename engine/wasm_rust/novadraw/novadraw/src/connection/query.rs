@@ -115,6 +115,10 @@ impl AnchorGeometry {
 /// Stable subject used by the Runtime reverse dependency index.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DependencySubject {
+    /// Runtime-owned immutable prepared result.
+    PreparedScene(FigureId),
+    /// Figure metrics, constraints and layout measurement generation.
+    FigureMeasurement(FigureId),
     /// Figure-local geometry.
     FigureGeometry(FigureId),
     /// Effective Figure visibility.
@@ -138,6 +142,14 @@ pub struct DependencyObservation {
 
 /// Immutable scene data source wrapped by [`TrackedRouteSceneQuery`].
 pub trait RouteSceneRead {
+    /// Returns a checked immutable preparation result from this query's scene.
+    fn prepared_scene(
+        &self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, RouteSceneQueryError> {
+        Err(RouteSceneQueryError::UnsupportedPreparedSceneQuery(owner))
+    }
+
     /// Returns whether a Figure is attached to the current public tree.
     fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError>;
 
@@ -192,6 +204,14 @@ pub trait RouteSceneRead {
 
 /// Read-only, dependency-tracking scene access used by Anchor and Router strategies.
 pub trait RouteSceneQuery {
+    /// Returns a checked immutable preparation result and observes its identity.
+    fn prepared_scene(
+        &mut self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, RouteSceneQueryError> {
+        Err(RouteSceneQueryError::UnsupportedPreparedSceneQuery(owner))
+    }
+
     /// Returns whether a Figure is attached to the current public tree.
     fn is_attached(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError>;
 
@@ -284,6 +304,16 @@ impl<'a> TrackedRouteSceneQuery<'a> {
 }
 
 impl RouteSceneQuery for TrackedRouteSceneQuery<'_> {
+    fn prepared_scene(
+        &mut self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, RouteSceneQueryError> {
+        self.observe(DependencySubject::PreparedScene(owner))?;
+        let snapshot = self.source.prepared_scene(owner)?;
+        self.observe(DependencySubject::PreparedScene(owner))?;
+        Ok(snapshot)
+    }
+
     fn is_attached(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
         self.source.is_attached(figure)
@@ -422,6 +452,13 @@ impl<'a> FigureTreeRouteSceneRead<'a> {
 }
 
 impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
+    fn prepared_scene(
+        &self,
+        owner: FigureId,
+    ) -> Result<crate::figure::PreparedSceneSnapshot, RouteSceneQueryError> {
+        self.tree.checked_prepared_scene(owner)
+    }
+
     fn is_attached(&self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.validate_figure(figure)?;
         self.tree.is_attached(figure).map_err(Into::into)
@@ -571,7 +608,9 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
             CoordinateSpace::LogicalSurface => None,
         };
         let figures = match subject {
-            DependencySubject::FigureGeometry(figure)
+            DependencySubject::PreparedScene(figure)
+            | DependencySubject::FigureMeasurement(figure)
+            | DependencySubject::FigureGeometry(figure)
             | DependencySubject::FigureVisibility(figure)
             | DependencySubject::Topology(figure)
             | DependencySubject::NamedAnchorRegion(figure, _) => [Some(*figure), None],
@@ -581,6 +620,25 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
             self.tree.contains(figure).hash(&mut hasher);
         }
         match subject {
+            DependencySubject::PreparedScene(figure) => {
+                self.prepared_scene(*figure)
+                    .ok()
+                    .map(|snapshot| snapshot.identity())
+                    .hash(&mut hasher);
+            }
+            DependencySubject::FigureMeasurement(figure) => {
+                if let Ok(node) = self.tree.node(*figure) {
+                    node.layout.generation().hash(&mut hasher);
+                    for value in [
+                        node.insets().top,
+                        node.insets().right,
+                        node.insets().bottom,
+                        node.insets().left,
+                    ] {
+                        value.to_bits().hash(&mut hasher);
+                    }
+                }
+            }
             DependencySubject::FigureGeometry(figure)
             | DependencySubject::NamedAnchorRegion(figure, _) => {
                 if let Ok(bounds) = self.tree.figure_bounds(*figure) {
@@ -637,6 +695,10 @@ fn coordinate_space_error(space: CoordinateSpace) -> RouteSceneQueryError {
 /// Failure produced by a read-only scene query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RouteSceneQueryError {
+    /// The query implementation does not expose preparation snapshots.
+    UnsupportedPreparedSceneQuery(FigureId),
+    /// Preparation is absent, retired or does not match the current source prefix.
+    UnavailablePreparedScene(FigureId),
     /// The Figure identity belongs to another tree.
     ForeignFigure(FigureId),
     /// A checked coordinate calculation failed.
@@ -679,6 +741,15 @@ pub enum RouteSceneQueryError {
 impl fmt::Display for RouteSceneQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnsupportedPreparedSceneQuery(owner) => {
+                write!(formatter, "prepared scene query unsupported for {owner:?}")
+            }
+            Self::UnavailablePreparedScene(owner) => {
+                write!(
+                    formatter,
+                    "prepared scene unavailable or stale for {owner:?}"
+                )
+            }
             Self::ForeignFigure(figure) => write!(formatter, "foreign Figure ID: {figure:?}"),
             Self::Coordinate(error) => error.fmt(formatter),
             Self::UnknownFigure(figure) => write!(formatter, "unknown Figure ID: {figure:?}"),

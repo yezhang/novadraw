@@ -26,7 +26,8 @@ pub(crate) mod preparation;
 pub use preparation::{
     FigureDrawing, FigurePreparation, FigurePresentation, PreparationDependencyError,
     PreparationMeasureError, PreparationMeasureErrorKind, PreparationMeasureStage,
-    PreparationMeasurement, PreparationMetric, PreparationScene, PreparedScene,
+    PreparationMeasurement, PreparationMetric, PreparationRouteError, PreparationRouteErrorKind,
+    PreparationScene, PreparedScene, PreparedSceneIdentity, PreparedSceneSnapshot,
 };
 mod rectangle;
 mod root;
