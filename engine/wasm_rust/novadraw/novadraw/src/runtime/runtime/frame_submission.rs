@@ -548,7 +548,13 @@ impl Runtime {
                 DerivedWorkKind::Layout => {
                     if self.updates.has_pending_layout() {
                         self.updates
-                            .perform_validation_phase(&mut self.tree)
+                            .perform_validation_phase_measured(
+                                &mut self.tree,
+                                Some(&mut crate::graph::LayoutMeasurementSession {
+                                    text: self.text.as_mut(),
+                                    budget: &preparation_budget,
+                                }),
+                            )
                             .map_err(FramePreparationError::Validation)?;
                         let source_prefix = self.tree.capture_preparation_sources();
                         let effect_count = self.updates.preparation_effect_count();

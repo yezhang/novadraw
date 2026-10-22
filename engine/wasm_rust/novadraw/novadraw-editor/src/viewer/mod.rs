@@ -3023,16 +3023,19 @@ where
             text_bounds.width,
             content_width,
         );
-        if horizontal_scroll != previous_horizontal_scroll
-            && let Err(error) =
+        if horizontal_scroll != previous_horizontal_scroll {
+            if let Err(error) =
                 self.runtime
                     .figure(text_feedback)?
                     .update_component(SetDirectTextViewport(TextFlowViewport::clipped(
                         Point::new(-horizontal_scroll, 0.0),
                     )))
-        {
-            let _ = self.remove_direct_text_feedback(&figures);
-            return Err(direct_text_viewport_error(error));
+            {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(direct_text_viewport_error(error));
+            }
+            // Publish the source viewport offset before reading immutable text geometry.
+            self.runtime.frames().stabilize_for_query()?;
         }
         let Ok(transform) = self
             .runtime

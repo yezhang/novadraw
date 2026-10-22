@@ -42,7 +42,7 @@ impl PreparedSceneIdentity {
 pub struct PreparedSceneSnapshot {
     identity: PreparedSceneIdentity,
     presentation: FigurePresentation,
-    observations: Vec<crate::connection::DependencyObservation>,
+    observations: Arc<[crate::connection::DependencyObservation]>,
 }
 
 impl PreparedSceneSnapshot {
@@ -229,7 +229,7 @@ pub(crate) struct PreparedFigure {
     pub identity: PreparedSceneIdentity,
     pub source: PreparationSource,
     pub result_version: Option<u64>,
-    pub observations: Vec<crate::connection::DependencyObservation>,
+    pub observations: Arc<[crate::connection::DependencyObservation]>,
     pub required_routes: Vec<RequiredRouteGroup>,
 }
 

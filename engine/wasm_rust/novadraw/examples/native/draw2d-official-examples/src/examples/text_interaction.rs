@@ -182,6 +182,16 @@ impl FigureDrawing for InteractiveDrawing {
     }
 }
 impl FigurePreparation for InteractivePage {
+    fn measure_scene(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: novadraw::figure::MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<novadraw::figure::PreparationMeasurement, novadraw::figure::PreparationMeasureError>
+    {
+        self.service.measure(context, constraints, scene)
+    }
+
     fn prepare(
         &self,
         _: &mut MeasureContext<'_>,

@@ -108,6 +108,20 @@ struct Drawing {
     underline: Vec<SelectionQuad>,
 }
 impl FigurePreparation for PathFigure {
+    fn measure_scene(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: novadraw::figure::MeasureConstraints,
+        _: &novadraw::figure::PreparationScene<'_>,
+    ) -> Result<novadraw::figure::PreparationMeasurement, novadraw::figure::PreparationMeasureError>
+    {
+        let (_, bounds) = path_geometry();
+        Ok(novadraw::figure::PreparationMeasurement {
+            preferred: FigureMeasurement::new(bounds.width, bounds.height, None),
+            minimum: Dimension::new(bounds.width, bounds.height),
+        })
+    }
+
     fn prepare(
         &self,
         context: &mut MeasureContext<'_>,

@@ -1,5 +1,52 @@
 use super::*;
 
+pub(crate) struct LayoutMeasurementSession<'a> {
+    pub(crate) text: &'a mut dyn TextLayoutEngine,
+    pub(crate) budget: &'a crate::figure::PreparationBudgetHandle,
+}
+
+impl LayoutMeasurementSession<'_> {
+    fn layout(
+        &mut self,
+        tree: &FigureTree,
+        container: FigureId,
+        manager: &mut dyn LayoutManager,
+        output: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let preparation_error = |error| {
+            LayoutError::Preparation(Box::new(crate::figure::PreparationMeasureError {
+                figure: container,
+                outer_constraints: MeasureConstraints::UNBOUNDED,
+                content_constraints: None,
+                kind: crate::figure::PreparationMeasureErrorKind::Text(Box::new(error)),
+            }))
+        };
+        self.budget
+            .allocate("layout measurement styles", tree.blocks.len() as u64)
+            .map_err(|error| preparation_error(error.into()))?;
+        let (styles, _) = tree.resolved_styles_for(|_| true);
+        let styles = styles.into_iter().collect();
+        let scene = crate::figure::PreparationScene::with_budget(
+            tree,
+            tree.root_id(),
+            &styles,
+            self.budget.clone(),
+        )
+        .map_err(preparation_error)?;
+        let mut context =
+            crate::text::MeasureContext::new(self.text, crate::text::FontDescriptor::default());
+        let read = PreparationLayoutRead {
+            tree,
+            scene: &scene,
+            context: RefCell::new(&mut context),
+        };
+        manager.layout(container, &LayoutSceneQuery::new(&read), output)?;
+        self.budget
+            .check()
+            .map_err(|error| preparation_error(error.into()))
+    }
+}
+
 fn prepared_measurement(
     figure: FigureId,
     node: &FigureNode,
@@ -48,6 +95,7 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
         figure: FigureId,
         constraints: MeasureConstraints,
     ) -> Result<FigureMeasurement, LayoutError> {
+        self.tree.validate_identity(figure)?;
         self.scene
             .measure_selected(
                 &mut self.context.borrow_mut(),
@@ -64,6 +112,7 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
         figure: FigureId,
         constraints: MeasureConstraints,
     ) -> Result<Dimension, LayoutError> {
+        self.tree.validate_identity(figure)?;
         self.scene
             .measure_selected(
                 &mut self.context.borrow_mut(),
@@ -456,6 +505,7 @@ impl FigureTree {
 
     /// Executes the graph-owned validation phase while UpdateManager owns only
     /// the pending work queue and phase trigger.
+    #[cfg(test)]
     pub(crate) fn perform_validation_cycle(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -463,11 +513,28 @@ impl FigureTree {
         self.perform_validation_cycle_with_budget(update_manager, DEFAULT_VALIDATION_BUDGET)
     }
 
+    #[cfg(test)]
     pub(crate) fn perform_validation_cycle_with_budget(
         &mut self,
         update_manager: &mut UpdateManager,
         budget: usize,
     ) -> Result<(), ValidationError> {
+        self.perform_validation_cycle_measured(update_manager, budget, None)
+    }
+
+    pub(crate) fn perform_validation_cycle_measured(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        budget: usize,
+        mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
+    ) -> Result<(), ValidationError> {
+        if !self
+            .blocks
+            .iter()
+            .any(|(_, node)| node.preparation().is_some())
+        {
+            measurement = None;
+        }
         let mut processed = 0;
         let mut invalidation_chain = Vec::new();
         loop {
@@ -501,7 +568,9 @@ impl FigureTree {
             validation_roots.dedup();
 
             for root_id in validation_roots {
-                if let Err(error) = self.revalidate_with_update(update_manager, root_id) {
+                if let Err(error) =
+                    self.revalidate_with_update(update_manager, root_id, measurement.as_deref_mut())
+                {
                     update_manager.add_invalid_figure(root_id);
                     return Err(error.into());
                 }
@@ -530,12 +599,19 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         container_id: FigureId,
+        measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), LayoutError> {
         let ancestors_visible = match self.parent_id(container_id)? {
             Some(parent) => self.is_effectively_visible(parent)?,
             None => true,
         };
-        self.revalidate_with_update_inner(update_manager, container_id, ancestors_visible, 0)
+        self.revalidate_with_update_inner(
+            update_manager,
+            container_id,
+            ancestors_visible,
+            0,
+            measurement,
+        )
     }
 
     fn revalidate_with_update_inner(
@@ -544,6 +620,7 @@ impl FigureTree {
         container_id: FigureId,
         ancestors_visible: bool,
         depth: usize,
+        measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), LayoutError> {
         if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
             return stacker::maybe_grow(
@@ -555,11 +632,18 @@ impl FigureTree {
                         container_id,
                         ancestors_visible,
                         depth,
+                        measurement,
                     )
                 },
             );
         }
-        self.revalidate_with_update_body(update_manager, container_id, ancestors_visible, depth)
+        self.revalidate_with_update_body(
+            update_manager,
+            container_id,
+            ancestors_visible,
+            depth,
+            measurement,
+        )
     }
 
     fn revalidate_with_update_body(
@@ -568,6 +652,7 @@ impl FigureTree {
         container_id: FigureId,
         ancestors_visible: bool,
         depth: usize,
+        mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), LayoutError> {
         if self
             .blocks
@@ -586,7 +671,12 @@ impl FigureTree {
             .as_deref()
             .is_some_and(LayoutManager::requires_valid_children_before_layout);
         if prevalidate_children {
-            self.revalidate_children_with_update(update_manager, container_id, depth)?;
+            self.revalidate_children_with_update(
+                update_manager,
+                container_id,
+                depth,
+                measurement.as_deref_mut(),
+            )?;
         }
 
         let layout_manager = self
@@ -601,8 +691,12 @@ impl FigureTree {
             });
             let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let snapshot = LayoutSceneQuery::new(self);
-                layout_manager.layout(container_id, &snapshot, &mut output)
+                if let Some(session) = measurement.as_deref_mut() {
+                    session.layout(self, container_id, layout_manager.as_mut(), &mut output)
+                } else {
+                    let snapshot = LayoutSceneQuery::new(self);
+                    layout_manager.layout(container_id, &snapshot, &mut output)
+                }
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
                 block.layout.manager = Some(layout_manager);
@@ -619,7 +713,7 @@ impl FigureTree {
             });
         }
 
-        self.revalidate_children_with_update(update_manager, container_id, depth)?;
+        self.revalidate_children_with_update(update_manager, container_id, depth, measurement)?;
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
@@ -637,6 +731,7 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         parent_id: FigureId,
         parent_depth: usize,
+        mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), LayoutError> {
         let children = self
             .blocks
@@ -644,7 +739,13 @@ impl FigureTree {
             .map(|block| block.children.clone())
             .unwrap_or_default();
         for child_id in children {
-            self.revalidate_with_update_inner(update_manager, child_id, true, parent_depth + 1)?;
+            self.revalidate_with_update_inner(
+                update_manager,
+                child_id,
+                true,
+                parent_depth + 1,
+                measurement.as_deref_mut(),
+            )?;
         }
         Ok(())
     }
@@ -654,7 +755,7 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         container_id: FigureId,
     ) -> Result<(), LayoutError> {
-        self.revalidate_with_update(update_manager, container_id)
+        self.revalidate_with_update(update_manager, container_id, None)
     }
 
     #[cfg(test)]
@@ -1692,7 +1793,7 @@ mod s07_query_failure_tests {
             identity: crate::figure::PreparedSceneIdentity::new(root, 1),
             source: crate::figure::preparation::PreparationSource::default(),
             result_version: None,
-            observations: Vec::new(),
+            observations: Vec::new().into(),
             required_routes: Vec::new(),
             key: PreparationKey {
                 component: 0,

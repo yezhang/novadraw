@@ -124,7 +124,7 @@ impl FigureTree {
             return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
         }
         budget
-            .allocate("checked snapshot clone", prepared.observations.len() as u64)
+            .allocate("checked snapshot clone", 1)
             .map_err(RouteSceneQueryError::PreparationBudget)?;
         Ok(prepared.snapshot())
     }
@@ -301,18 +301,12 @@ impl FigureTree {
                     .map(|_| source)
             })
             .collect::<Vec<_>>();
-        for (_, _, source, observations, candidate) in &candidates {
-            let inputs = source
-                .0
-                .iter()
-                .fold(observations.len() as u64, |total, node| {
-                    total.saturating_add(
-                        1 + node.children.len() as u64 + node.resources.len() as u64,
-                    )
-                });
+        for (_, _, _, observations, candidate) in &candidates {
+            // Source inputs were allocated once while freezing the prefix. Each published
+            // descendant shares that immutable prefix and the owner's observation slice.
             budget.allocate(
                 "published preparation snapshots",
-                inputs.saturating_mul(candidate.descendants.len() as u64 + 1),
+                (observations.len() as u64).saturating_add(candidate.descendants.len() as u64 + 1),
             )?;
         }
         for source in retired {
@@ -333,6 +327,7 @@ impl FigureTree {
             metrics_changed = true;
         }
         for (id, key, input_source, observations, candidate) in candidates {
+            let observations: std::sync::Arc<[_]> = observations.into();
             let unchanged = self.blocks[id].prepared.as_ref().filter(|old| {
                 old.valid
                     && candidate.result_version.is_some()

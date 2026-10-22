@@ -241,7 +241,10 @@ fn intrinsic_minimum_baseline_is_checked_before_discarding_it() {
         figure: root,
         reason: MeasurementFailure::InvalidBaseline,
     };
-    assert_eq!(tree.preferred_measurement(root, CONSTRAINTS), Err(error));
+    assert_eq!(
+        tree.preferred_measurement(root, CONSTRAINTS),
+        Err(error.clone())
+    );
     assert_eq!(tree.minimum_size(root, CONSTRAINTS), Err(error));
 }
 
@@ -296,8 +299,11 @@ fn projection_overflow_is_rejected_before_cache_publication() {
         reason: MeasurementFailure::DerivedOverflow,
     };
     for _ in 0..2 {
-        assert_eq!(tree.preferred_measurement(root, CONSTRAINTS), Err(error));
-        assert_eq!(tree.minimum_size(root, CONSTRAINTS), Err(error));
+        assert_eq!(
+            tree.preferred_measurement(root, CONSTRAINTS),
+            Err(error.clone())
+        );
+        assert_eq!(tree.minimum_size(root, CONSTRAINTS), Err(error.clone()));
     }
     assert_eq!(calls.get(), 4);
     assert_eq!(
@@ -325,7 +331,7 @@ impl LayoutManager for QueryFailure {
         _: MeasureConstraints,
         _: &LayoutSceneQuery<'_>,
     ) -> Result<FigureMeasurement, LayoutError> {
-        Err(self.error)
+        Err(self.error.clone())
     }
     fn minimum_size(
         &self,
@@ -333,7 +339,7 @@ impl LayoutManager for QueryFailure {
         _: MeasureConstraints,
         _: &LayoutSceneQuery<'_>,
     ) -> Result<Dimension, LayoutError> {
-        Err(self.error)
+        Err(self.error.clone())
     }
     fn layout(
         &mut self,
@@ -342,23 +348,26 @@ impl LayoutManager for QueryFailure {
         output: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         output.set_child_bounds(self.survivor, Rectangle::new(1.0, 2.0, 3.0, 4.0));
-        assert_eq!(query.children(self.target), Err(self.error));
-        assert_eq!(query.constraint(self.target).err(), Some(self.error));
-        assert_eq!(query.container_bounds(self.target), Err(self.error));
+        assert_eq!(query.children(self.target), Err(self.error.clone()));
+        assert_eq!(
+            query.constraint(self.target).err(),
+            Some(self.error.clone())
+        );
+        assert_eq!(query.container_bounds(self.target), Err(self.error.clone()));
         assert_eq!(
             query.preferred_measurement(self.target, CONSTRAINTS),
-            Err(self.error)
+            Err(self.error.clone())
         );
         assert_eq!(
             query.minimum_size(self.target, CONSTRAINTS),
-            Err(self.error)
+            Err(self.error.clone())
         );
-        assert_eq!(query.maximum_size(self.target), Err(self.error));
-        assert_eq!(query.freeform_extent(self.target), Err(self.error));
-        assert_eq!(query.content_scale(self.target), Err(self.error));
+        assert_eq!(query.maximum_size(self.target), Err(self.error.clone()));
+        assert_eq!(query.freeform_extent(self.target), Err(self.error.clone()));
+        assert_eq!(query.content_scale(self.target), Err(self.error.clone()));
         assert_eq!(
             query.constraint_as::<Rectangle>(container, self.target),
-            Err(self.error)
+            Err(self.error.clone())
         );
         query.preferred_measurement(self.target, CONSTRAINTS)?;
         Ok(())
@@ -408,15 +417,18 @@ fn foreign_and_retired_queries_discard_the_entire_candidate_output() {
             .set_layout_manager(Box::new(QueryFailure {
                 target,
                 survivor,
-                error,
+                error: error.clone(),
             }))
             .unwrap();
         assert_eq!(
             runtime.tree().preferred_measurement(root, CONSTRAINTS),
-            Err(error)
+            Err(error.clone())
         );
-        assert_eq!(runtime.tree().minimum_size(root, CONSTRAINTS), Err(error));
-        assert_eq!(runtime.tree().maximum_size(target), Err(error));
+        assert_eq!(
+            runtime.tree().minimum_size(root, CONSTRAINTS),
+            Err(error.clone())
+        );
+        assert_eq!(runtime.tree().maximum_size(target), Err(error.clone()));
         // The callback queues a legal change before failing through the public query.
         // The owner must reject that complete candidate, including the legal prefix.
         assert_eq!(

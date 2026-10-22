@@ -31,7 +31,7 @@ pub struct PreparationScene<'a> {
     tree: &'a FigureTree,
     root: FigureId,
     styles: &'a HashMap<FigureId, ResolvedStyle>,
-    members: HashSet<FigureId>,
+    members: Rc<HashSet<FigureId>>,
     measurement_path: Rc<RefCell<Vec<FigureId>>>,
     observations: Rc<RefCell<Vec<crate::connection::DependencyObservation>>>,
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
@@ -75,7 +75,7 @@ impl<'a> PreparationScene<'a> {
             tree,
             root,
             styles,
-            members,
+            members: Rc::new(members),
             measurement_path: Rc::new(RefCell::new(Vec::new())),
             observations: Rc::new(RefCell::new(Vec::new())),
             measurements: Rc::new(RefCell::new(Vec::new())),
@@ -205,17 +205,19 @@ impl<'a> PreparationScene<'a> {
             .map_err(budget_failure)?;
         self.measurement_path.borrow_mut().push(id);
         let _guard = MeasurementGuard(self.measurement_path.clone());
-        let mut measured_scene = Self::with_budget(self.tree, id, self.styles, self.budget.clone())
-            .map_err(|error| {
-                failure(match error {
-                    TextError::PreparationDependency(error) => {
-                        PreparationMeasureErrorKind::Dependency(error)
-                    }
-                    error => PreparationMeasureErrorKind::Text(Box::new(error)),
-                })
-            })?;
-        measured_scene.measurement_path = self.measurement_path.clone();
-        measured_scene.measurements = self.measurements.clone();
+        // LayoutManagers retain their caller's read scope. A preparation callback is
+        // narrowed to its own subtree by for_measurement before it receives this view.
+        let measured_scene = Self {
+            tree: self.tree,
+            root: self.root,
+            styles: self.styles,
+            members: self.members.clone(),
+            measurement_path: self.measurement_path.clone(),
+            observations: Rc::new(RefCell::new(Vec::new())),
+            measurements: self.measurements.clone(),
+            measurement_constraints: self.measurement_constraints,
+            budget: self.budget.clone(),
+        };
         measured_scene.observe(crate::connection::DependencySubject::FigureMeasurementSource(id));
         self.budget.check().map_err(budget_failure)?;
         let result = self.tree.measure_preparation_figure(
@@ -339,7 +341,7 @@ impl<'a> PreparationScene<'a> {
                     .prepared
                     .as_ref()
             {
-                for observation in &prepared.observations {
+                for observation in prepared.observations.iter() {
                     self.budget.allocate("snapshot reachability", 2)?;
                     if !visited.contains(&observation.subject) {
                         parents
@@ -552,7 +554,7 @@ impl<'a> PreparationScene<'a> {
     }
 
     pub(crate) fn source_prefix(&self) -> Result<super::PreparationSource, TextError> {
-        let mut prefix = super::PreparationSource::default();
+        let mut prefix = Vec::new();
         let mut pending = vec![self.root];
         while let Some(id) = pending.pop() {
             let node = self.tree.node(id).map_err(scene_error)?;
@@ -562,7 +564,7 @@ impl<'a> PreparationScene<'a> {
             )?;
             let bounds = node.source_bounds;
             let insets = node.insets();
-            prefix.0.push(super::PreparationSourceNode {
+            prefix.push(super::PreparationSourceNode {
                 id,
                 component: node.component_revision,
                 resources: node.resource_inputs.clone(),
@@ -587,7 +589,7 @@ impl<'a> PreparationScene<'a> {
             });
             pending.extend(node.children.iter().rev().copied());
         }
-        Ok(prefix)
+        Ok(super::PreparationSource(prefix.into()))
     }
 
     /// Input revision includes structure, component state, styles and measurement generation.

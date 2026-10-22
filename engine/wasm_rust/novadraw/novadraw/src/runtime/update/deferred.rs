@@ -646,13 +646,25 @@ impl UpdateManager {
         &mut self,
         graph: &mut crate::graph::FigureTree,
     ) -> Result<(), ValidationError> {
+        self.perform_validation_phase_measured(graph, None)
+    }
+
+    pub(crate) fn perform_validation_phase_measured(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+        measurement: Option<&mut crate::graph::LayoutMeasurementSession<'_>>,
+    ) -> Result<(), ValidationError> {
         if !self.has_pending_layout() {
             return Ok(());
         }
         self.last_validation_error = None;
         self.notification_effects
             .emit_update(UpdateEvent::Validating);
-        match graph.perform_validation_cycle(self) {
+        match graph.perform_validation_cycle_measured(
+            self,
+            crate::graph::DEFAULT_VALIDATION_BUDGET,
+            measurement,
+        ) {
             Ok(()) => {
                 self.absorb_graph_effects(graph);
                 self.notification_effects

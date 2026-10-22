@@ -369,7 +369,14 @@ mod tests {
             .unwrap()
             .data::<novadraw::figure::flow::FlowSnapshot>()
             .unwrap();
-        assert!(after.size.height > before.size.height);
+        assert!(
+            after.size.height > before.size.height,
+            "before={:?}, after={:?}, viewport={:?}, page={:?}",
+            before.size,
+            after.size,
+            runtime.tree().figure_bounds(viewport),
+            runtime.tree().figure_bounds(page)
+        );
         assert!(after.paragraphs[0].layout.inline_placements().len() >= 2);
         for (&child, bounds) in &after.placements {
             if runtime.tree().node(child).unwrap().figure_name() == "RectangleFigure" {

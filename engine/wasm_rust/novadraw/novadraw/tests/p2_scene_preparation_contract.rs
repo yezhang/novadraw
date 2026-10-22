@@ -179,6 +179,20 @@ impl Figure for ExternalPage {
 }
 impl FigureContainer for ExternalPage {}
 impl FigurePreparation for ExternalPage {
+    fn measure_scene(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: novadraw::figure::MeasureConstraints,
+        _: &PreparationScene<'_>,
+    ) -> Result<novadraw::figure::PreparationMeasurement, novadraw::figure::PreparationMeasureError>
+    {
+        let width = if self.revision() == 8 { 200.0 } else { 120.0 };
+        Ok(novadraw::figure::PreparationMeasurement {
+            preferred: FigureMeasurement::new(width, 80.0, None),
+            minimum: Dimension::ZERO,
+        })
+    }
+
     fn revision(&self) -> u64 {
         self.mode.load(Ordering::Relaxed)
     }

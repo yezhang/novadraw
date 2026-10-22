@@ -2,7 +2,7 @@ use crate::{FigureId, figure::ResolvedStyle};
 
 /// Exact frozen source inputs. Diagnostic hashes never grant snapshot authority.
 #[derive(Clone, Default, PartialEq)]
-pub(crate) struct PreparationSource(pub(crate) Vec<PreparationSourceNode>);
+pub(crate) struct PreparationSource(pub(crate) std::sync::Arc<[PreparationSourceNode]>);
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct PreparationSourceNode {

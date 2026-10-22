@@ -42,6 +42,7 @@ use crate::style::{FigureStyle, ResolvedStyle};
 // 渲染模块
 mod derived;
 mod layout_measurement;
+pub(crate) use layout_measurement::LayoutMeasurementSession;
 mod presentation;
 mod query;
 pub(crate) use query::checked_coordinate_inverse;
