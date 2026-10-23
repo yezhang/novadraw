@@ -463,6 +463,21 @@ impl FigureTree {
         self.render_to_with_presentation(gc, None);
     }
 
+    pub(crate) fn capture_to(
+        &self,
+        gc: &mut NdCanvas,
+        root: FigureId,
+        rect: Rectangle,
+        style: &crate::ResolvedStyle,
+        font: crate::text::FontDescriptor,
+    ) {
+        let scene = FigureTreeRenderRef {
+            blocks: &self.blocks,
+            presentation: None,
+        };
+        FigureRenderer::new(&scene, gc).capture(root, rect, style, font);
+    }
+
     pub(crate) fn render_to_with_presentation(
         &self,
         gc: &mut NdCanvas,

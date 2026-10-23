@@ -18,7 +18,7 @@ pub const DEFAULT_STROKE_MITER_LIMIT: f64 = 4.0;
 /// 渲染命令
 ///
 /// 包含一个渲染操作类型。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RenderCommand {
     /// 命令类型
     pub kind: RenderCommandKind,
@@ -27,7 +27,7 @@ pub struct RenderCommand {
 /// 渲染命令类型
 ///
 /// 初期只支持矩形绘制，其他图形保留扩展。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RenderCommandKind {
     /// 保存当前 transform 和 clip 到栈
     PushState,

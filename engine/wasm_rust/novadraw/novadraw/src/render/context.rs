@@ -53,6 +53,7 @@ pub struct NdCanvas {
     state_stack: Vec<GraphicsState>,
     recording_error: Option<crate::graphics::GraphicsError>,
     font_dependencies: Vec<crate::text::FontFaceRef>,
+    transform_floor: Option<Affine2D>,
 }
 
 impl Default for NdCanvas {
@@ -71,6 +72,7 @@ impl NdCanvas {
             state_stack: Vec::new(),
             recording_error: None,
             font_dependencies: Vec::new(),
+            transform_floor: None,
         }
     }
 
@@ -293,8 +295,13 @@ impl NdCanvas {
 
     pub fn set_transform(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
         let t = Affine2D::new(a, b, c, d, e, f);
+        let t = self.transform_floor.map_or(t, |floor| floor * t);
         self.state.transform = t;
         self.create_command(RenderCommandKind::SetTransform { matrix: t });
+    }
+
+    pub(crate) fn set_transform_floor(&mut self, floor: Affine2D) {
+        self.transform_floor = Some(floor);
     }
 
     #[cfg(test)]

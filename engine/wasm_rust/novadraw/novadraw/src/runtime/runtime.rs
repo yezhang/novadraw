@@ -49,6 +49,7 @@ mod component_update;
 mod connection_service;
 mod frame_resource;
 mod frame_submission;
+pub(crate) mod scene_capture;
 mod service_facades;
 mod viewport_facades;
 
@@ -101,6 +102,7 @@ impl DerivedWorkSet {
 #[derive(Clone, Debug, PartialEq)]
 pub enum FramePreparationError {
     Faulted,
+    EpochExhausted,
     Text(TextError),
     Graphics(crate::graphics::GraphicsError),
     Validation(ValidationError),
@@ -114,6 +116,7 @@ impl fmt::Display for FramePreparationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::EpochExhausted => formatter.write_str("stable scene epoch exhausted"),
             Self::Text(error) => error.fmt(formatter),
             Self::Graphics(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
@@ -355,6 +358,7 @@ pub struct Runtime {
     deferred_mutation_errors: VecDeque<RuntimeMutationError>,
     derivation_epoch: u64,
     stable_epoch: u64,
+    scenes: crate::scene::SceneProducer,
     last_stabilization_error: Option<FramePreparationError>,
     preparation_budget: crate::figure::PreparationBudget,
     faulted: bool,
@@ -656,6 +660,7 @@ impl Runtime {
             deferred_mutation_errors: VecDeque::new(),
             derivation_epoch: 0,
             stable_epoch: 0,
+            scenes: crate::scene::SceneProducer::new(namespace),
             last_stabilization_error: None,
             preparation_budget: crate::figure::PreparationBudget::default(),
             faulted: false,
@@ -1765,6 +1770,7 @@ impl Runtime {
                 runtime.updates.add_frozen_surface_region(rect);
             }
             runtime.tree.mark_invalid(&mut runtime.updates, parent);
+            runtime.scenes.retire_figures(&removed);
             if let Some(node) = retired.nodes.iter().find(|node| Some(node.id) == focused) {
                 crate::EventContext::retired_focus_lost(
                     node,
@@ -5294,6 +5300,15 @@ mod adr014_tests {
         let child = runtime
             .add_figure(root, Box::new(PanicOnDetach))
             .expect("valid Runtime mutation");
+        let source = runtime.scenes().register_source(child).unwrap();
+        let (_, _, handoff) = runtime
+            .scenes()
+            .subscribe(
+                source,
+                crate::scene::SOURCE_LOCAL_CAPTURE,
+                crate::scene::SourceLocalCapture::default(),
+            )
+            .unwrap();
         let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             runtime.dispose_subtree(child).unwrap();
         }));
@@ -5301,6 +5316,15 @@ mod adr014_tests {
         assert!(runtime.is_faulted());
         assert!(runtime.tree().node(child).is_err());
         assert_eq!(runtime.tree().child_order(root), Ok(vec![]));
+        assert!(matches!(
+            handoff.take().unwrap(),
+            Some(crate::scene::SceneEvent::Closed(
+                crate::scene::SceneClosed {
+                    reason: crate::scene::SceneCloseReason::SourceDisposed,
+                    ..
+                }
+            ))
+        ));
         assert!(runtime.prepare_frame().is_none());
         assert!(matches!(
             runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),

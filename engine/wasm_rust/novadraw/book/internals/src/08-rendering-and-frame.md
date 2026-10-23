@@ -481,14 +481,42 @@ Unsupported、InvalidInput、OOM 和 Fatal 会形成无界提交循环，并掩�
 
 透明和叠放要求重建区域内容，不等于重画变化对象。
 
-## 8.18 与后续章节的关系
+## 8.18 共享捕获复用稳定化，保留提交权限
+
+`RuntimeScenes::capture` 先提交待处理输入并稳定化，再在 source Runtime 内录制
+指定子树。入口抵消 source 的外部 placement，冻结 resolved style，并固定外层捕获
+clip。内部子树仍走 `FigureRenderer` 原有递归绘制，presentation 动画快照不参与。
+`set_transform` 保留捕获原点约束，不能恢复到主窗口的 surface 坐标。
+
+录制成功后，Core 按 image/font 命令逐项保留 `ResourceRegistry::snapshot_resource`
+返回的不可变 payload，核验 revision、类型和图像尺寸，形成 `SceneSnapshot`。
+只有完整校验成功的结果才能进入有界交接槽；资源 pending log 不被排空。
+因此 source surface 暂停或存在旧在途帧时，CPU 场景仍可独立捕获。
+
+捕获输入用 FigureTree 与 UpdateManager 通知队列的单调 serial 及宿主活动时间辨识。
+同一稳定输入只改订阅配置时复用稳定结果，不晋升 source epoch。
+serial 或 epoch 耗尽会返回错误，不回绕。失败尝试记住输入版本，宿主需等待新输入、
+变更配置或显式重试，不能因错误形成持续唤醒。
+
+source、subscription 与配置版本分别由 producer 管理。删除 source Figure 时，
+Runtime 在结构释放后发布终止事件；释放 Runtime 时，producer 仍向 owned handoff
+写入 `Closed`。宿主接管事件与 destination 的帧呈现确认是两条独立协议。
+目标资源导入、循环准入和背景合成不由捕获替代，仍按 ADR-044/045 的后续切片实现。
+
+源码入口为
+[`scene.rs`](../../../novadraw/src/scene.rs)、
+[`scene_capture.rs`](../../../novadraw/src/runtime/runtime/scene_capture.rs)；
+外部消费者测试见
+[`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)。
+
+## 8.19 与后续章节的关系
 
 本章从稳定场景状态走到像素提交。下一章在已提交场景状态与 RenderSubmission 之间
 加入可丢弃的表现状态层，解释可选表现覆盖快照如何复用同一 damage、资源和帧合同而
 不污染源状态。第 10 章再从平台事件反向进入场景，第 11 章展示视口和连接如何同时产生
 派生几何与表现覆盖变化。
 
-## 8.19 思考题
+## 8.20 思考题
 
 1. 为什么 dirty 集合不能直接作为后端的 damage？
 2. 节点完全移出视口后，为什么仍可能需要一帧提交？

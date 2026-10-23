@@ -429,7 +429,38 @@ cargo run -p draw2d-official-examples
 cargo run -p draw2d-official-examples --example graph_verification
 ```
 
-## 4.14 验证入口
+## 4.14 捕获共享场景
+
+`Runtime::scenes()` 提供独立于 surface 帧的捕获服务。先登记 attached source，
+再建立订阅；宿主检查 `needs_capture`，驱动初始捕获、输入变化后的捕获或显式重试。
+捕获失败不会发布半个结果，也不会消费主窗口的 damage、资源同步记录或在途帧。
+
+```rust,ignore
+use novadraw::scene::{SOURCE_LOCAL_CAPTURE, SourceLocalCapture};
+
+let source = runtime.scenes().register_source(source_figure)?;
+let (subscription, config_revision, handoff) =
+    runtime.scenes().subscribe(source, SOURCE_LOCAL_CAPTURE, SourceLocalCapture::default())?;
+if runtime.scenes().needs_capture(subscription)? {
+    let snapshot = runtime.scenes().capture(subscription)?;
+}
+```
+
+默认捕获域是 source 的局部 border box。祖先颜色、字体与 alpha 会冻结为入口样式，
+source 外部的位置、裁剪和视口变换不进入结果。`SourceLocalCapture::rectangle`
+支持非零原点与零尺寸；零尺寸产生合法空结果。
+自定义选择通过 `SceneCapturePolicyKey<P>` 与 `SceneCapturePolicy<P>` 注册，
+与默认选择共用校验和错误通道。
+
+`SceneHandoff` 每个订阅只保留最新完整结果、最近错误和终止事件。
+宿主调用 `take()` 后拥有事件；source 释放后仍可读取 `Closed`。
+这次交接不确认 GPU 呈现。取消订阅、删除 source 和释放 Runtime 都会结束订阅；
+终止会清除未消费的普通结果，迟到捕获不能重新激活它。
+
+K07-1 已提供捕获与交接。目标端安装、视图测量和宿主背景仍按
+[K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
+
+## 4.15 验证入口
 
 - [`m5_layout_contract.rs`](../../../novadraw/tests/m5_layout_contract.rs)
 - [`d4_constrained_measurement.rs`](../../../novadraw/tests/d4_constrained_measurement.rs)
@@ -437,4 +468,5 @@ cargo run -p draw2d-official-examples --example graph_verification
 - [`d4_notification_epoch.rs`](../../../novadraw/tests/d4_notification_epoch.rs)
 - [`runtime_resize_contract.rs`](../../../novadraw/tests/runtime_resize_contract.rs)
 - [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)
+- [`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)
 - `cargo xtask verify runtime.apps`

@@ -556,6 +556,10 @@ impl UpdateManager {
         self.notification_effects.effects()
     }
 
+    pub(crate) fn notification_input_serial(&self) -> Option<u64> {
+        self.notification_effects.input_serial()
+    }
+
     /// 获取失效块数量
     #[allow(dead_code)]
     pub fn invalid_count(&self) -> usize {

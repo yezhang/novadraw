@@ -67,6 +67,29 @@ impl<'a> FigureRenderer<'a> {
         self.paint(root_id, 0);
     }
 
+    /// Seeds inheritance without applying the capture root's external placement.
+    pub(super) fn capture(
+        &mut self,
+        root: FigureId,
+        rect: crate::Rectangle,
+        style: &ResolvedStyle,
+        font: crate::text::FontDescriptor,
+    ) {
+        let Some(node) = self.scene.get(root) else {
+            return;
+        };
+        let bounds = node.figure_bounds();
+        self.gc.set_foreground_color(style.foreground);
+        self.gc.set_background_color(style.background);
+        self.gc.set_alpha(style.alpha);
+        self.gc.set_font(font);
+        self.gc.clip_rect(0.0, 0.0, rect.width, rect.height);
+        self.gc.translate(-rect.x - bounds.x, -rect.y - bounds.y);
+        self.gc
+            .set_transform_floor(crate::Affine2D::from_translation(-rect.x, -rect.y));
+        self.paint(root, 0);
+    }
+
     /// 绘制 Figure
     ///
     /// 对应 draw2d Figure.paint()：

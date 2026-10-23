@@ -39,6 +39,8 @@ pub mod render;
 /// Runtime lifecycle, mutation, resource, and frame APIs.
 #[allow(missing_docs)]
 pub mod runtime;
+/// Immutable shared-scene capture and view protocols.
+pub mod scene;
 /// Text measurement, immutable layouts and glyph outline extensions.
 pub mod text;
 /// Figure tree construction and query APIs.

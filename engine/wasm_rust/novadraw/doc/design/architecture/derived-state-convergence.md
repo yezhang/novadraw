@@ -357,7 +357,23 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 stable epoch。P2-S05 已证明嵌套布局盒模型和首帧 glyph/clip/damage 组合，不能据此推断
 全部版本竞争和第三方失败场景已验收。
 
-## 14. 非目标
+## 14. 共享场景捕获
+
+[ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)允许
+`Runtime::scenes().capture` 复用 `stabilize_for_query`，在 source 的稳定状态上独立录制。
+该出口只返回受检 `SceneSnapshot`，不准备、推进或确认 surface frame，也不消费
+damage、资源 pending log 和在途提交。
+
+K07-1 使用通知队列的单调输入 serial 与宿主活动时间判断是否需要再次稳定化。
+配置改变只重录当前稳定子树，不伪造 source mutation 或递增 source epoch。
+队列克隆随原有派生事务保存和恢复，serial 耗尽时拒绝捕获；stable epoch 改为受检递增。
+
+捕获配置、录制或资源闭包失败只拒绝该订阅的候选，并保留其他订阅的独立出口。
+主窗口遇到同一 Figure 绘制错误仍拒绝自己的帧；第三方回调 panic 仍使 Runtime faulted。
+失败输入不会自动无限重试，宿主需要新输入、配置变更或显式捕获驱动。
+结构循环准入与目标端安装按 K07-2/K07-3 验收，不能从捕获通过推断已经完成。
+
+## 15. 非目标
 
 - 运行时可注册任意节点、任意边和任意 callback 的通用依赖 DAG scheduler；
 - 多线程/worker layout；

@@ -210,8 +210,9 @@ while ($implementations =~ /id="method\.([^"]+)"/g) {
 print scalar keys %methods;
 PERL
 )"
-# ADR-009 K01 adds two checked composition-root constructors; ADR-033 records the budget.
-runtime_method_budget=27
+# ADR-009 K01 adds two constructors; ADR-044 K07 adds only the scenes facade entry.
+# ADR-033 records the exact composition-root budget.
+runtime_method_budget=28
 if (( runtime_method_count > runtime_method_budget )); then
   echo "Runtime exposes $runtime_method_count inherent methods; budget is $runtime_method_budget" >&2
   exit 1

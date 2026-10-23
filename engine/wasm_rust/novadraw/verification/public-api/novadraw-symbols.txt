@@ -722,5 +722,6 @@ root mod host
 root mod layout
 root mod render
 root mod runtime
+root mod scene
 root mod text
 root mod tree

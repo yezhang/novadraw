@@ -1301,6 +1301,10 @@ impl FigureTree {
         self.notification_effects.effects()
     }
 
+    pub(crate) fn notification_input_serial(&self) -> Option<u64> {
+        self.notification_effects.input_serial()
+    }
+
     /// 排空通知 effect 队列。
     pub(crate) fn drain_notification_effects(&mut self) -> Vec<NotificationEffect> {
         self.notification_effects.drain()

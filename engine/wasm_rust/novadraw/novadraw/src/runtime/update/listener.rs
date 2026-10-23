@@ -216,9 +216,19 @@ pub trait ObservationListener {
 ///
 /// 该队列是后续 listener/subscription 系统的最小核心。
 /// 任何 Figure 或 UpdateManager 的变化都应先记录 effect，再由事务边界统一 drain/flush。
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct NotificationQueue {
     effects: Vec<NotificationEffect>,
+    input_serial: Option<u64>,
+}
+
+impl Default for NotificationQueue {
+    fn default() -> Self {
+        Self {
+            effects: Vec::new(),
+            input_serial: Some(0),
+        }
+    }
 }
 
 impl NotificationQueue {
@@ -227,10 +237,12 @@ impl NotificationQueue {
     }
 
     pub fn notify(&mut self, figure_id: FigureId) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::Notify { figure_id });
     }
 
     pub fn emit_figure(&mut self, event: FigureEvent) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::EmitFigure(event));
     }
 
@@ -239,18 +251,22 @@ impl NotificationQueue {
     }
 
     pub fn emit_ancestor(&mut self, event: AncestorEvent) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::EmitAncestor(event));
     }
 
     pub fn emit_property(&mut self, event: PropertyChangeEvent) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::EmitProperty(event));
     }
 
     pub fn emit_action(&mut self, event: ActionEvent) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::EmitAction(event));
     }
 
     pub fn emit_layout(&mut self, event: LayoutEvent) {
+        self.advance_input_serial();
         self.effects.push(NotificationEffect::EmitLayout(event));
     }
 
@@ -267,7 +283,20 @@ impl NotificationQueue {
     }
 
     pub fn extend(&mut self, effects: impl IntoIterator<Item = NotificationEffect>) {
-        self.effects.extend(effects);
+        for effect in effects {
+            if !matches!(effect, NotificationEffect::EmitUpdate(_)) {
+                self.advance_input_serial();
+            }
+            self.effects.push(effect);
+        }
+    }
+
+    pub(crate) fn input_serial(&self) -> Option<u64> {
+        self.input_serial
+    }
+
+    fn advance_input_serial(&mut self) {
+        self.input_serial = self.input_serial.and_then(|serial| serial.checked_add(1));
     }
 
     pub fn retain_semantic_effects(&mut self) {

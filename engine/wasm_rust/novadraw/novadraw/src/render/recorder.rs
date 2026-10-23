@@ -51,7 +51,7 @@ impl CommandRecorder {
 
 /// Frozen commands and resource leases for an explicit snapshot replay session.
 /// A bare command slice does not retain fonts. This value does not submit frames.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RecordedDrawing {
     commands: Vec<RenderCommand>,
     resources: ResourceSnapshot,

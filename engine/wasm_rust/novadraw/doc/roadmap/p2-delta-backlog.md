@@ -191,6 +191,37 @@ K07 进入 `design-draft`：
 本批执行证据见
 [后续实施记录](../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
 
+K07 草案已按
+[2026-10-23 评审记录](../verification/reviews/k07-shared-scene-view-background-review-2026-10-23.md)
+形成修订 2，逐项采纳 K07-R01 至 K07-R08，处理说明见
+[修订响应](../verification/reviews/k07-shared-scene-view-background-revision-2026-10-23.md)。
+共享场景捕获与宿主背景统一合成作为两个独立决策，分别固化 ADR 和验收；
+当前仍为 `design-draft`、待复核，未获实施批准，不改变其他批次状态。
+
+K07 [修订 2 复核](../verification/reviews/k07-shared-scene-view-background-revision-2-review-2026-10-23.md)
+暂不通过：循环依赖按实际捕获内容统计，尚未覆盖普通几何与 derived commit 的写入前保证。
+原方案已形成修订 3，改为捕获根整棵子树的保守结构依赖，由 Runtime 统一提交器强制
+准入并在提交点重验 graph revision；同时补齐捕获根的最近值 alpha 继承。
+处理见 [修订 3 响应](../verification/reviews/k07-shared-scene-view-background-revision-3-response-2026-10-23.md)。
+当前仍为 `design-draft`、待复核，未获实施批准，保留原复核记录与其他批次状态。
+
+2026-10-23 [修订 3 设计复核通过](../verification/reviews/k07-shared-scene-view-background-revision-3-review-2026-10-23.md)，
+用户明确批准开始实施。已固化 [ADR-044](../adr/adr-044-shared-scene-capture-and-view.md)
+和 [ADR-045](../adr/adr-045-host-background-submission.md)；K07 从 `design-draft` 转为
+`in_progress`。下表是本批唯一执行切片，已批准契约不因切片安排缩减：
+
+| 顺序 | 切片 | 当前状态 | 最低退出证据 |
+|---|---|---|---|
+| K07-1 | source-local capture、完整资源闭包、身份/配置、订阅有界更新与终止交接 | `complete` | [捕获证据](../verification/reviews/k07-1-scene-capture-evidence-2026-10-23.md)：13 个外部契约测试、397 个库级测试；alpha/clip/精确资源、暂停/在途/错误隔离、独立终止和 API 28/28 已验证 |
+| K07-2 | binding group、保守结构依赖与 Runtime 强制提交准入 | `in_progress` | 直接/间接环、rect 外 view、callback reparent、typed/derived effect、过期候选与跨 Runtime 交错提交 |
+| K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `not_started` | 默认与外部 view 同模型；旧新 font/image 共存、尺寸提示、reset/Retry、释放 |
+| K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `not_started` | 一棵可变源树、拖拽、等比 overview resize、Native 图像与完整生命周期 |
+| K07-5 | 宿主背景候选、统一输入冻结与恢复 | `not_started` | 只变背景、版本拒绝、移除、迟到、lease、Retry/device reset |
+| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `not_started` | opaque/transparent root、Canvas 移动与内容滚动、DPI/repair，启用 backend 完整消费或明确拒绝 |
+
+同一时刻只执行一个切片。K07、两个官方阻塞入口和平台支持状态在各自验收前保持未完成；
+其他 K06/K08 与 S08/S09 的状态不因本次批准改变。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的

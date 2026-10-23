@@ -501,7 +501,10 @@ impl Runtime {
         &mut self,
         mut prefix: Option<&mut crate::runtime::update::PreparationUpdateCheckpoint>,
     ) -> Result<(), FramePreparationError> {
-        self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
+        self.derivation_epoch = self
+            .derivation_epoch
+            .checked_add(1)
+            .ok_or(FramePreparationError::EpochExhausted)?;
         self.last_stabilization_error = None;
         let preparation_budget =
             crate::figure::PreparationBudgetHandle::new(self.preparation_budget);
