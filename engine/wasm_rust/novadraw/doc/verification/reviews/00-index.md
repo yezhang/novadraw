@@ -74,6 +74,13 @@
 | 2026-10-19 | [全量文档知识修正](documentation-knowledge-revision-2026-10-19.md) |
 | 2026-10-19 | [Draw2D 样例与 API 组合性分析](draw2d-example-api-ergonomics-2026-10-19.md) |
 | 2026-10-22 | [ADR-043 草案审核意见](adr-043-draft-review-2026-10-22.md) |
+| 2026-10-22 | [图投影 preparation 增量评审](graph-projection-preparation-review-2026-10-22.md) |
+| 2026-10-23 | [K07 共享视图与宿主背景方案评审](k07-shared-scene-view-background-review-2026-10-23.md) |
+| 2026-10-23 | [K07 方案修订 2 响应（待复核）](k07-shared-scene-view-background-revision-2026-10-23.md) |
+| 2026-10-23 | [K07 修订 2 复核（暂不通过）](k07-shared-scene-view-background-revision-2-review-2026-10-23.md) |
+| 2026-10-23 | [K07 修订 3 响应（待复核）](k07-shared-scene-view-background-revision-3-response-2026-10-23.md) |
+| 2026-10-23 | [K07 修订 3 设计复核通过](k07-shared-scene-view-background-revision-3-review-2026-10-23.md) |
+| 2026-10-23 | [K07-1 场景捕获与订阅交接](k07-1-scene-capture-evidence-2026-10-23.md) |
 
 ## 专题核验
 
