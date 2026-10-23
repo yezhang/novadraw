@@ -1,0 +1,48 @@
+[
+  {
+    "source": "tests/font/evan_wallace/index_stencil_method.html",
+    "sha256": "9d8b7acc9fe5221c46f19beffedde254828e59c37148e66061cc49f3d2e25387"
+  },
+  {
+    "source": "tests/font/evan_wallace/index_blend_method.html",
+    "sha256": "d7abc2668dac0c78cacfa9428f13d17ad6852844b349ecb8189f9f999d3cc27c"
+  },
+  {
+    "source": "tests/font/evan_wallace/STSong.ttf",
+    "sha256": "c5cc2ed5e2c0e6385013fe82d950eee6960d805bd602b86c53ff454783f382c4"
+  },
+  {
+    "source": "tests/font/lengyel_method/render_char.html",
+    "sha256": "b635b1d14fd092c829dc5be93f6b0c13da1a77cbe54ef0926a6f3c26cf8dbc74"
+  },
+  {
+    "source": "tests/font/lengyel_method/STSong.ttf",
+    "sha256": "c5cc2ed5e2c0e6385013fe82d950eee6960d805bd602b86c53ff454783f382c4"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/index.html",
+    "sha256": "044a6efc98af61d463d1715ad2e66036a98469315222b6a06d39bb299ebec741"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/font.frag",
+    "sha256": "3c3c28af51a0631c092cf88fedc264b2c07dad5cd7043ae9149903f61abdbdd2"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/web.vert",
+    "sha256": "f880a12cc5275c8793bd16b83a3cab573b8369e46255f46037ad366388141561"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/atlas.bmp",
+    "sha256": "0d5dc85b19e10b4493b6ca87c55ca090b704ae7cdbc5db0f492102610ce305e1",
+    "restored_sha256": "3df123cec4e8107eeaac4162b300e86880846b777505f68ae8bcbe850c943840",
+    "integration": "Lossless xxd text dump decoding"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/vertices.bmp",
+    "sha256": "9e5da991998f7897b0a1ebcb769a4d35f4641ca37c20992ab0d0d89d2ecf551e"
+  },
+  {
+    "source": "tests/font/will_dobbie_method/pages.json",
+    "sha256": "19a432d9ce5371eefd8ae2afa9008aba70f3dbfbdee6f446e34035708bafbd1c"
+  }
+]

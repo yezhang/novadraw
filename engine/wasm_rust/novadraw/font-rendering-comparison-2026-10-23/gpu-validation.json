@@ -1,0 +1,184 @@
+[
+  {
+    "label": "evan",
+    "info": {
+      "gpu": true,
+      "renderer": null,
+      "status": "WebGPU 已提交 · 永 · 256×256",
+      "canvases": [
+        {
+          "id": "fontCanvas",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "id": "rulerX",
+          "width": 1000,
+          "height": 40
+        },
+        {
+          "id": "rulerY",
+          "width": 40,
+          "height": 1000
+        },
+        {
+          "id": "fontStencilCanvas",
+          "width": 256,
+          "height": 256
+        },
+        {
+          "id": "fontRenderCanvas",
+          "width": 256,
+          "height": 256
+        }
+      ]
+    },
+    "interactions": [
+      {
+        "action": "glyph change",
+        "pixelsChanged": true
+      },
+      {
+        "action": "raster size",
+        "size": 32
+      }
+    ],
+    "errors": []
+  },
+  {
+    "label": "blend",
+    "info": {
+      "gpu": true,
+      "renderer": null,
+      "status": "WebGPU 已提交 · 永 · 256×256",
+      "canvases": [
+        {
+          "id": "fontCanvas",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "id": "rulerX",
+          "width": 1000,
+          "height": 40
+        },
+        {
+          "id": "rulerY",
+          "width": 40,
+          "height": 1000
+        },
+        {
+          "id": "fontStencilCanvas",
+          "width": 256,
+          "height": 256
+        },
+        {
+          "id": "fontRenderCanvas",
+          "width": 256,
+          "height": 256
+        }
+      ]
+    },
+    "interactions": [
+      {
+        "action": "glyph change",
+        "pixelsChanged": true
+      },
+      {
+        "action": "raster size",
+        "size": 32
+      }
+    ],
+    "errors": []
+  },
+  {
+    "label": "dobbie",
+    "info": {
+      "gpu": true,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "loading": "Loading files...\nLoaded atlas: 256 x 128\nLoaded 164 page(s)\nLinking shader program\nLoaded 386230 glyphs\n",
+      "glError": 0,
+      "canvases": [
+        {
+          "id": "beziercanvas",
+          "width": 1280,
+          "height": 1000
+        }
+      ]
+    },
+    "interactions": [
+      {
+        "action": "hide grid",
+        "pixelsChanged": true
+      },
+      {
+        "action": "wheel zoom",
+        "pixelsChanged": true
+      }
+    ],
+    "errors": []
+  },
+  {
+    "label": "lengyel",
+    "info": {
+      "gpu": true,
+      "renderer": null,
+      "status": "WebGPU 已提交 · 永 · 256×256 · step0 baseline",
+      "canvases": [
+        {
+          "id": "fontCanvas",
+          "width": 256,
+          "height": 256
+        },
+        {
+          "id": "rulerX",
+          "width": 500,
+          "height": 40
+        },
+        {
+          "id": "rulerY",
+          "width": 40,
+          "height": 500
+        }
+      ]
+    },
+    "interactions": [
+      {
+        "action": "glyph change",
+        "pixelsChanged": true
+      },
+      {
+        "action": "raster size",
+        "size": 32
+      },
+      {
+        "action": "step1",
+        "submitted": true
+      },
+      {
+        "action": "step2",
+        "submitted": true
+      },
+      {
+        "action": "step3",
+        "submitted": true
+      },
+      {
+        "action": "step4",
+        "submitted": true
+      }
+    ],
+    "errors": []
+  },
+  {
+    "label": "report",
+    "desktop": {
+      "overflow": false,
+      "iframes": 3
+    },
+    "mobile": {
+      "overflow": false
+    },
+    "errors": []
+  }
+]

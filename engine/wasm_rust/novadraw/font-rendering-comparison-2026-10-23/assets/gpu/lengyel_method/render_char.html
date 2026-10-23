@@ -1,0 +1,1408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>渲染glyph数据（永）</title>
+    <style>
+      #container {
+        position: relative;
+        width: 540px; /* canvas width + 20px for the ruler */
+        height: 540px; /* canvas height + 20px for the ruler */
+      }
+      #fontCanvas {
+        position: absolute;
+        top: 40px;
+        left: 40px;
+        width: 500px;
+        height: 500px;
+        border: 1px dashed #000;
+        box-sizing: border-box;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      #rulerX,
+      #rulerY {
+        position: absolute;
+        background: #f0f0f0;
+        font-size: 10px;
+        color: #333;
+      }
+      #rulerX {
+        top: 0;
+        left: 40px;
+        width: 500px;
+        height: 40px;
+      }
+      #rulerY {
+        top: 40px;
+        left: 0;
+        width: 40px;
+        height: 500px;
+      }
+      #toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      #toolbar button {
+        padding: 6px 10px;
+      }
+      #status {
+        font-family: monospace;
+        font-size: 12px;
+      }
+    </style>
+  <link rel="icon" href="data:,">
+<style>
+body{margin:0;padding:14px;background:#fff;color:#172923;font:13px/1.6 system-ui,sans-serif}
+.demo-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+select,button{padding:5px;border:1px solid #d5ded7;border-radius:5px;background:white;color:#172923}
+#gpu-status{display:block;margin:10px 0;color:#52635c;overflow-wrap:anywhere}
+#rulerX,#rulerY,#html_text{display:none}
+</style>
+<style>
+#container{position:static;width:100%;height:auto}#fontCanvas{position:static;width:100%;height:auto;aspect-ratio:1;max-width:290px;margin:10px auto;display:block;border:1px solid #d5ded7;image-rendering:pixelated}
+#toolbar{gap:5px}#toolbar button{font-size:12px}#status{flex-basis:100%}
+</style></head>
+  <body>
+<div class="demo-controls"><label>字形 <select id="demo-char">
+<option>永</option><option>层</option><option>曲</option><option>国</option><option>A</option><option>8</option><option>g</option>
+</select></label><label>栅格边长 <select id="demo-size"><option>32</option><option>64</option><option>100</option><option selected>256</option><option>512</option></select> px</label></div>
+<span id="gpu-status" role="status">正在初始化 GPU…</span>
+<script>
+const demoParams = new URLSearchParams(location.search);
+const demoChar = demoParams.get("char") || "永";
+const demoSize = Number(demoParams.get("size")) || 256;
+document.querySelector("#demo-char").value = demoChar;
+document.querySelector("#demo-size").value = demoSize;
+for (const id of ["demo-char","demo-size"]) document.getElementById(id).addEventListener("change", () => {
+  location.search = new URLSearchParams({char:document.querySelector("#demo-char").value,size:document.querySelector("#demo-size").value});
+});
+window.demoStatus = text => document.getElementById("gpu-status").textContent = text;
+window.addEventListener("error", e => demoStatus("GPU 错误：" + e.message));
+window.addEventListener("unhandledrejection", e => demoStatus("GPU 错误：" + (e.reason?.message || e.reason)));
+if (!navigator.gpu) demoStatus("此浏览器没有 WebGPU；请通过 localhost 在支持 WebGPU 的浏览器打开。");
+</script>
+
+    <div id="toolbar">
+      <button data-step="0">基线</button>
+      <button data-step="1">判别式钳制</button>
+      <button data-step="2">网格索引钳制</button>
+      <button data-step="3">双向平均</button>
+      <button data-step="4">近零处理</button>
+      <span id="status"></span>
+    </div>
+    <div id="container">
+      <canvas id="fontCanvas" width="600" height="600"></canvas>
+      <canvas id="rulerX" width="500" height="40"></canvas>
+      <canvas id="rulerY" width="40" height="500"></canvas>
+    </div>
+    <script src="../vendor/opentype.min.js"></script>
+    <script type="x-shader" id="glyphshader">
+      struct GlobalInfo {
+        color: vec4f,
+        scale: vec2f,
+        offset: vec2f,
+        gridSizeH: vec2u,
+        gridSizeV: vec2u,
+        glyphSize: vec2f,
+      }
+      struct CurvesInCell {
+        offset: u32,
+        length: u32,
+      }
+      struct CurveData {
+        e0: vec2f,
+        c: vec2f,
+        e1: vec2f,
+      }
+      @group(0) @binding(0) var<uniform> global: GlobalInfo;
+
+      @group(0) @binding(1) var<storage> gridCellsH: array<CurvesInCell>;
+      @group(0) @binding(2) var<storage> curveIndexsH: array<u32>;
+      @group(0) @binding(3) var<storage> gridCellsV: array<CurvesInCell>;
+      @group(0) @binding(4) var<storage> curveIndexsV: array<u32>;
+
+      @group(0) @binding(5) var<storage> curvesData: array<CurveData>;
+
+      struct Vertex{
+        @location(0) glyphCBoxPos: vec2f, // EM-space，字体图元的包围盒位置
+        @location(1) uv: vec2f
+      }
+
+      struct VertexOutput {
+        @builtin(position) vtxPos: vec4f, // clip space 空间坐标
+        @location(0) texelNormCoord: vec2f,
+      }
+
+      @vertex fn vs(
+        vert: Vertex
+      ) -> VertexOutput {
+
+        let pos = vert.glyphCBoxPos * global.scale + global.offset;
+        var vertOut: VertexOutput = VertexOutput();
+
+        vertOut.vtxPos = vec4<f32>(pos, 0.0, 1.0);
+        vertOut.texelNormCoord = vert.uv;
+        return vertOut;
+      }
+
+      const kQuadraticEpsilon: f32 = 0.0001;
+
+      const USE_GRID_CLAMP: u32 = 1u;
+      const USE_NEARZERO_H: u32 = 1u;
+      const USE_NEARZERO_V: u32 = 1u;
+      const COVERAGE_MODE: u32 = 0u;
+
+      fn gridCoordOf(uv: vec2f, gridSize: vec2u) -> vec2u {
+        let coord_i = vec2i(floor(uv * vec2f(gridSize)));
+        if (USE_GRID_CLAMP == 1u) {
+          let max_i = vec2i(gridSize) - vec2i(1, 1);
+          return vec2u(clamp(coord_i, vec2i(0, 0), max_i));
+        }
+        return vec2u(coord_i);
+      }
+
+      fn rotate90(p: vec2f) -> vec2f {
+        return vec2f(p.y, -p.x);
+      }
+
+      fn makeSureZeroWhenProper(p: vec2f)-> vec2f {
+        let xMayBeZero: f32 = select(p.x, 0.0, abs(p.x) < kQuadraticEpsilon);
+        let yMayBeZero: f32 = select(p.y, 0.0, abs(p.y) < kQuadraticEpsilon);
+        return vec2f(xMayBeZero, yMayBeZero);
+      }
+
+      fn sampleCoverage(
+        uv: vec2f,
+        gridSize: vec2u,
+        glyphSize: vec2f,
+        gridCells: ptr<storage, array<CurvesInCell>>,
+        curveIndexs: ptr<storage, array<u32>>,
+        curvesData: ptr<storage, array<CurveData>>,
+      ) -> f32{
+
+        var coverage: f32 = 0.0;
+        let gridCoord = gridCoordOf(uv, gridSize);
+
+        // The effective pixel dimensions of the em square are computed
+        // independently for x and y directions with texcoord derivatives.
+        var pixelsPerEm: vec2f = vec2f(1.0 / fwidth(uv.x), 1.0 / fwidth(uv.y));
+
+        // 将uv坐标转换为归一化的glyph空间坐标,[0,1]
+        let texelNormCoord = uv * glyphSize;
+
+        let cellIndex = gridCoord.y * gridSize.x + gridCoord.x;
+        let curvesInCell = (*gridCells)[cellIndex];
+
+        for(var i: u32 = 0; i < curvesInCell.length; i++) {
+          let curveIndex = (*curveIndexs)[curvesInCell.offset + i];
+
+          // Fetch the three 2D control points for the current curve from the
+          // curve texture. The first texel contains both p1 and p2 in the
+          // (x,y) and (z,w) components, respectively, and the the second texel
+          // contains p3 in the (x,y) components. The quadratic Bézier curve
+          // C(t) is given by
+          //
+          //     C(t) = (1 - t)^2 p1 + 2t(1 - t) p2 + t^2 p3
+
+          let curve = (*curvesData)[curveIndex];
+          let e0 = curve.e0;
+          let c = curve.c;
+          let e1 = curve.e1;
+
+          let dist_e0: f32 = distance(texelNormCoord, e0);
+          let dist_c: f32 = distance(texelNormCoord, c);
+          let dist_e1: f32 = distance(texelNormCoord, e1);
+          if( dist_e0 <= 0.005 || dist_c <= 0.005 || dist_e1 <= 0.005) {
+            // return vec4f(0.0, 0.0, 1.0, 1.0);
+          }
+
+          // 将贝塞尔曲线坐标转换为相对于当前像素的坐标
+          var e0_to_texel = e0 - texelNormCoord;
+          var c_to_texel = c - texelNormCoord;
+          var e1_to_texel = e1 - texelNormCoord;
+
+          if (USE_NEARZERO_H == 1u) {
+            e0_to_texel = makeSureZeroWhenProper(e0_to_texel);
+            c_to_texel = makeSureZeroWhenProper(c_to_texel);
+            e1_to_texel = makeSureZeroWhenProper(e1_to_texel);
+          }
+
+          // 根据 lengyel 方法，判断当前像素是否在 glyph 的内部
+          // 计算偏移量
+          // ?: 三目运算符会引起语法错误，使用 select 函数代替
+          // let offset: u32 = ((e0_to_texel.y > 0.0) ? 2u : 0u) + ((c_to_texel.y > 0.0) ? 4u : 0u) + ((e1_to_texel.y > 0.0) ? 8u : 0u);
+          let offset: u32 = select(0u, 2u, e0_to_texel.y > 0.0) +
+                            select(0u, 4u, c_to_texel.y > 0.0) +
+                            select(0u, 8u, e1_to_texel.y > 0.0);
+
+          // 右移操作
+          let shiftedValue: u32 = 0x2E74u >> offset;
+
+          // 按位与操作
+          let code: u32 = shiftedValue & 3u;
+
+          if(code != 0u) {
+
+            // At least one root makes a contribution, so solve for the
+            // values of t where the curve crosses y = 0. The quadratic
+            // polynomial in t is given by
+            //
+            //     a t^2 - 2b t + c,
+            //
+            // where a = p1.y - 2 p2.y + p3.y, b = p1.y - p2.y, and c = p1.y.
+            // The discriminant b^2 - ac is clamped to zero, and imaginary
+            // roots are treated as a double root at the global minimum
+            // where t = b / a.
+
+            var ax: f32 = 0;
+            ax = e0_to_texel.x - c_to_texel.x * 2.0 + e1_to_texel.x;
+            let ay: f32 = e0_to_texel.y - c_to_texel.y * 2.0 + e1_to_texel.y;
+            let bx: f32 = e0_to_texel.x - c_to_texel.x;
+            let by: f32 = e0_to_texel.y - c_to_texel.y;
+            let ra: f32 = 1.0 / ay;
+
+            let d: f32 = sqrt(max(by * by - ay * e0_to_texel.y, 0.0));
+            var t1: f32 = (by - d) * ra;
+            var t2: f32 = (by + d) * ra;
+
+            // If the polynomial is nearly linear, then solve -2b t + c = 0.
+
+            if (abs(ay) < kQuadraticEpsilon) {
+              t2 = e0_to_texel.y * 0.5 / by;
+              t1 = t2;
+            }
+
+            // Calculate the x coordinates where C(t) = 0, and transform
+            // them so that the current pixel corresponds to the range
+            // [0,1]. Clamp the results and use them for root contributions.
+
+            var x1: f32 = (ax * t1 - bx * 2.0) * t1 + e0_to_texel.x;
+            var x2: f32 = (ax * t2 - bx * 2.0) * t2 + e0_to_texel.x;
+
+            // Bits in code tell which roots make a contribution.
+            // x1 * pixelsPerEm 表示 x1 位置占用整个像素的百分比，相当于 x1 / ( 1/unitsPerEm);
+            var x1_ratio = clamp(x1 * pixelsPerEm.x + 0.5, 0.0, 1.0);
+            var x2_ratio = clamp(x2 * pixelsPerEm.x + 0.5, 0.0, 1.0);
+
+            if ((code & 1u) != 0u) {
+              // 如果判断 x1 >= 0, 以及下面的判断 x2 >= 0, 可以实现基本渲染（无抗锯齿效果）。
+              // if(x1 >= 0) {
+              //   coverage += 1;
+              // }
+              coverage += x1_ratio;
+            }
+            if (code > 1u) {
+              // if( x2 >= 0) {
+              //   coverage -= 1;
+              // }
+              coverage -= x2_ratio;
+            }
+          }
+        }
+        return coverage;
+      }
+      fn sampleCoverageV(
+        uv: vec2f,
+        gridSize: vec2u,
+        glyphSize: vec2f,
+        gridCells: ptr<storage, array<CurvesInCell>>,
+        curveIndexs: ptr<storage, array<u32>>,
+        curvesData: ptr<storage, array<CurveData>>,
+      ) -> f32{
+
+        var coverage: f32 = 0.0;
+        let gridCoord = gridCoordOf(uv, gridSize);
+
+        // The effective pixel dimensions of the em square are computed
+        // independently for x and y directions with texcoord derivatives.
+        var pixelsPerEm: vec2f = vec2f(1.0 / fwidth(uv.x), 1.0 / fwidth(uv.y));
+
+        // 将uv坐标转换为归一化的glyph空间坐标,[0,1]
+        let texelNormCoord = uv * glyphSize;
+
+        let cellIndex = gridCoord.y * gridSize.x + gridCoord.x;
+        let curvesInCell = (*gridCells)[cellIndex];
+
+        for(var i: u32 = 0; i < curvesInCell.length; i++) {
+          let curveIndex = (*curveIndexs)[curvesInCell.offset + i];
+
+          // Fetch the three 2D control points for the current curve from the
+          // curve texture. The first texel contains both p1 and p2 in the
+          // (x,y) and (z,w) components, respectively, and the the second texel
+          // contains p3 in the (x,y) components. The quadratic Bézier curve
+          // C(t) is given by
+          //
+          //     C(t) = (1 - t)^2 p1 + 2t(1 - t) p2 + t^2 p3
+
+          let curve = (*curvesData)[curveIndex];
+          let e0 = curve.e0;
+          let c = curve.c;
+          let e1 = curve.e1;
+
+          let dist_e0: f32 = distance(texelNormCoord, e0);
+          let dist_c: f32 = distance(texelNormCoord, c);
+          let dist_e1: f32 = distance(texelNormCoord, e1);
+          if( dist_e0 <= 0.005 || dist_c <= 0.005 || dist_e1 <= 0.005) {
+            // return vec4f(0.0, 0.0, 1.0, 1.0);
+          }
+
+          // 将贝塞尔曲线坐标转换为相对于当前像素的坐标
+          var e0_to_texel = e0 - texelNormCoord;
+          var c_to_texel = c - texelNormCoord;
+          var e1_to_texel = e1 - texelNormCoord;
+          if (USE_NEARZERO_V == 1u) {
+            e0_to_texel = makeSureZeroWhenProper(e0_to_texel);
+            c_to_texel = makeSureZeroWhenProper(c_to_texel);
+            e1_to_texel = makeSureZeroWhenProper(e1_to_texel);
+          }
+          // 根据 lengyel 方法，判断当前像素是否在 glyph 的内部
+          // 计算偏移量
+          // ?: 三目运算符会引起语法错误，使用 select 函数代替
+          let offset: u32 = select(0u, 2u, e0_to_texel.x > 0.0) +
+                            select(0u, 4u, c_to_texel.x > 0.0) +
+                            select(0u, 8u, e1_to_texel.x > 0.0);
+
+          // 右移操作
+          let shiftedValue: u32 = 0x2E74u >> offset;
+
+          // 按位与操作
+          let code: u32 = shiftedValue & 3u;
+
+          if(code != 0u) {
+
+            // At least one root makes a contribution, so solve for the
+            // values of t where the curve crosses y = 0. The quadratic
+            // polynomial in t is given by
+            //
+            //     a t^2 - 2b t + c,
+            //
+            // where a = p1.y - 2 p2.y + p3.y, b = p1.y - p2.y, and c = p1.y.
+            // The discriminant b^2 - ac is clamped to zero, and imaginary
+            // roots are treated as a double root at the global minimum
+            // where t = b / a.
+
+            var ax: f32 = e0_to_texel.y - c_to_texel.y * 2.0 + e1_to_texel.y;
+            let ay: f32 = (e0_to_texel.x - c_to_texel.x * 2.0 + e1_to_texel.x);
+            let bx: f32 = e0_to_texel.y - c_to_texel.y;
+            let by: f32 = (e0_to_texel.x - c_to_texel.x);
+            let ra: f32 = 1.0 / ay;
+
+            let d: f32 = sqrt(max(by * by - ay * e0_to_texel.x, 0.0));
+            var t1: f32 = (by - d) * ra;
+            var t2: f32 = (by + d) * ra;
+
+            // If the polynomial is nearly linear, then solve -2b t + c = 0.
+
+            if (abs(ay) < kQuadraticEpsilon) {
+              t2 = e0_to_texel.x * 0.5 / by;
+              t1 = t2;
+            }
+
+            // Calculate the x coordinates where C(t) = 0, and transform
+            // them so that the current pixel corresponds to the range
+            // [0,1]. Clamp the results and use them for root contributions.
+
+            var x1: f32 = (ax * t1 - bx * 2.0) * t1 + e0_to_texel.y;
+            var x2: f32 = (ax * t2 - bx * 2.0) * t2 + e0_to_texel.y;
+
+            // Bits in code tell which roots make a contribution.
+            // x1 * pixelsPerEm 表示 x1 位置占用整个像素的百分比，相当于 x1 / ( 1/unitsPerEm);
+            var x1_ratio = clamp(x1 * pixelsPerEm.y + 0.5, 0.0, 1.0);
+            var x2_ratio = clamp(x2 * pixelsPerEm.y + 0.5, 0.0, 1.0);
+
+            if ((code & 1u) != 0u) {
+              // 如果判断 x1 >= 0, 以及下面的判断 x2 >= 0, 可以实现基本渲染（无抗锯齿效果）。
+              // if(x1 >= 0) {
+              //   coverage += 1;
+              // }
+              coverage += x1_ratio;
+            }
+            if (code > 1u) {
+              // if( x2 >= 0) {
+              //   coverage -= 1;
+              // }
+              coverage -= x2_ratio;
+            }
+          }
+        }
+        return coverage;
+      }
+
+      @fragment fn fs(@location(0) uv: vec2f) -> @location(0) vec4f {
+        var coverage: f32 = 0.0;
+
+        let gridCoord = gridCoordOf(uv, global.gridSizeH);
+
+
+        let isEven = (gridCoord.x + gridCoord.y) % 2 == 0;
+        // 根据奇偶性选择颜色
+        var color: vec4<f32>;
+        if (isEven) {
+            color = vec4<f32>(0.0, 0.0, 0.0, 1.0); // 黑色
+        } else {
+            color = vec4<f32>(1.0, 0.0, 0.0, 1.0); // 红色
+        }
+
+        var coverage1 = sampleCoverage(uv, global.gridSizeH, global.glyphSize, &gridCellsH, &curveIndexsH, &curvesData );
+        var coverage2 = sampleCoverageV(uv, global.gridSizeV, global.glyphSize, &gridCellsV, &curveIndexsV, &curvesData );
+
+        // Take the average of the horizontal and vertical results. The absolute
+        // value ensures that either winding convention works. The square root
+        // approximates gamma correction.
+
+
+        var alpha: f32 = 1.0;
+        var cov: f32 = 0.0;
+        if (COVERAGE_MODE == 0u) {
+          cov = (abs(coverage1) + abs(coverage2)) / 2.0;
+        } else if (COVERAGE_MODE == 1u) {
+          cov = coverage1;
+        } else {
+          cov = coverage2;
+        }
+        coverage = sqrt(clamp(abs(cov) , 0.0, 1.0));
+        alpha = coverage * color.w;
+
+
+        // if coverage == 0, is outer
+        if((coverage) == 0) {
+          // 有锯齿效果
+          // return vec4f(1.0, 1.0, 1.0, 0);
+        }
+        return vec4f(color.xyz , alpha);
+
+      }
+    </script>
+    <script type="module">
+      import {
+        vec3,
+        mat4,
+      } from "../vendor/wgpu-matrix.module.js";
+      import {
+        makeShaderDataDefinitions,
+        makeStructuredView,
+        createTextureFromImage,
+        createBuffersAndAttributesFromArrays,
+      } from "../vendor/webgpu-utils.module.js";
+
+      let gDiscClamp = false;
+
+      async function loadFont(url) {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const font = opentype.parse(arrayBuffer);
+        return font;
+      }
+      function drawGrid(ctx, width, height, gridSize) {
+        ctx.strokeStyle = "#ddd";
+        ctx.lineWidth = 1;
+
+        for (let x = 0; x <= width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+
+        for (let y = 0; y <= height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawRulerX(ctx, width, gridSize) {
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let x = 0; x <= width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, 10);
+          ctx.stroke();
+          ctx.fillText(x, x, 15);
+        }
+      }
+
+      function drawRulerY(ctx, height, gridSize) {
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let y = 0; y <= height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(10, y);
+          ctx.stroke();
+          ctx.fillText(y, 15, y);
+        }
+      }
+
+      // 根据glyph的pathCommands生成贝塞尔曲线列表
+      function convertToQuadraticBezierArray(commands) {
+        const quadraticBeziers = [];
+        let currentX, currentY; // 当前点坐标
+        let startX, startY; // 当前子路径的起点（用于闭合路径）
+
+        for (const cmd of commands) {
+          switch (cmd.type) {
+            case "M": // moveTo: 更新起点，不生成曲线
+              currentX = cmd.x;
+              currentY = cmd.y;
+              startX = currentX;
+              startY = currentY;
+              break;
+
+            case "L": {
+              // lineTo: 转换为二次曲线（控制点为中点）
+              const endX = cmd.x,
+                endY = cmd.y;
+              quadraticBeziers.push({
+                type: "quadratic",
+                start: { x: currentX, y: currentY },
+                control: { x: (currentX + endX) / 2, y: (currentY + endY) / 2 },
+                end: { x: endX, y: endY },
+              });
+              currentX = endX;
+              currentY = endY;
+              break;
+            }
+
+            case "Q": // quadraticCurveTo: 直接保留
+              quadraticBeziers.push({
+                type: "quadratic",
+                start: { x: currentX, y: currentY },
+                control: { x: cmd.x1, y: cmd.y1 },
+                end: { x: cmd.x, y: cmd.y },
+              });
+              currentX = cmd.x;
+              currentY = cmd.y;
+              break;
+
+            case "C": {
+              // cubicCurveTo: 分割为多个二次曲线
+              const p0 = { x: currentX, y: currentY };
+              const p1 = { x: cmd.x1, y: cmd.y1 };
+              const p2 = { x: cmd.x2, y: cmd.y2 };
+              const p3 = { x: cmd.x, y: cmd.y };
+
+              // 递归分割三次曲线为二次曲线（此处分割2次以减少误差）
+              splitCubicToQuadratics(p0, p1, p2, p3, 2).forEach((quad) => {
+                quadraticBeziers.push(quad);
+              });
+
+              currentX = p3.x;
+              currentY = p3.y;
+              break;
+            }
+
+            case "Z": // closePath: 生成闭合线段二次曲线
+              if (currentX !== startX || currentY !== startY) {
+                quadraticBeziers.push({
+                  type: "quadratic",
+                  start: { x: currentX, y: currentY },
+                  control: {
+                    x: (currentX + startX) / 2,
+                    y: (currentY + startY) / 2,
+                  },
+                  end: { x: startX, y: startY },
+                });
+                currentX = startX;
+                currentY = startY;
+              }
+              break;
+
+            default:
+              throw new error(`unknown command: ${cmd.type}`);
+          }
+        }
+
+        return quadraticBeziers;
+      }
+
+      // 辅助函数：递归分割三次曲线为二次曲线数组
+      function splitCubicToQuadratics(p0, p1, p2, p3, depth) {
+        if (depth <= 0) {
+          // 最后一次分割，生成一条近似二次曲线
+          const c1 = { x: (p0.x + 2 * p1.x) / 3, y: (p0.y + 2 * p1.y) / 3 };
+          const c2 = { x: (2 * p2.x + p3.x) / 3, y: (2 * p2.y + p3.y) / 3 };
+          return [
+            {
+              type: "quadratic",
+              start: p0,
+              control: c1,
+              end: {
+                x: (p0.x + 2 * p1.x + 2 * p2.x + p3.x) / 6,
+                y: (p0.y + 2 * p1.y + 2 * p2.y + p3.y) / 6,
+              },
+            },
+            {
+              type: "quadratic",
+              start: {
+                x: (p0.x + 2 * p1.x + 2 * p2.x + p3.x) / 6,
+                y: (p0.y + 2 * p1.y + 2 * p2.y + p3.y) / 6,
+              },
+              control: c2,
+              end: p3,
+            },
+          ];
+        }
+
+        // 使用 de Casteljau 算法分割三次曲线
+        const mid1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+        const mid2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const mid3 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+        const midA = { x: (mid1.x + mid2.x) / 2, y: (mid1.y + mid2.y) / 2 };
+        const midB = { x: (mid2.x + mid3.x) / 2, y: (mid2.y + mid3.y) / 2 };
+        const splitPoint = {
+          x: (midA.x + midB.x) / 2,
+          y: (midA.y + midB.y) / 2,
+        };
+
+        // 递归处理左右两段
+        const left = splitCubicToQuadratics(
+          p0,
+          mid1,
+          midA,
+          splitPoint,
+          depth - 1,
+        );
+        const right = splitCubicToQuadratics(
+          splitPoint,
+          midB,
+          mid3,
+          p3,
+          depth - 1,
+        );
+        return [...left, ...right];
+      }
+
+      function pointAdd(p0, p1) {
+        return {
+          x: p0.x + p1.x,
+          y: p0.y + p1.y,
+        };
+      }
+      function pointDivide(p0, p1) {
+        return {
+          x: p0.x / p1.x,
+          y: p0.y / p1.y,
+        };
+      }
+      /**
+       * 从字体文件中读取glyph数据，并获取归一化到em局部坐标的贝塞尔曲线数据。
+       * 1. 将glyph points 数据从 em 单位转换为 [0, 1]
+       * 2. 将单位坐标原点转换为em区域的左下角（即，如果glyph在基线以下有信息，则将坐标的原点继续向下移到 yMin 的位置）
+       */
+      function normalizeFontGlyphBezier(font, char) {
+        const glyph = font.charToGlyph(char);
+
+        const pathCommands = glyph.path.commands;
+        const curves = convertToQuadraticBezierArray(pathCommands);
+
+        // 平移所有点，使得左下角的点的坐标为 (0, 0)
+        //// 查询 cbox，计算 cbox 的 xMin, xMax, yMin, yMax
+        //// opentype.js 中使用 glyph.getMetrics() 获取 cbox
+        const cbox = glyph.getMetrics();
+        const { xMin, xMax, yMin, yMax } = cbox;
+        //// 计算平移的距离
+        const dx = -xMin;
+        const dy = -yMin;
+        const diffPoint = { x: dx, y: dy };
+        // 将所有曲线控制点按照 cbox 的位置重新定位，保障原点在左下角
+        curves.forEach((curve) => {
+          curve.start = pointAdd(curve.start, diffPoint);
+          curve.control = pointAdd(curve.control, diffPoint);
+          curve.end = pointAdd(curve.end, diffPoint);
+        });
+
+        //// cbox 的宽度和高度
+        const cboxWidth = cbox.xMax - cbox.xMin;
+        const cboxHeight = cbox.yMax - cbox.yMin;
+
+        // 归一化所有点的坐标, 归一化方法是 pos = pos / font.unitsPerEm
+        const unitsPerEm = font.unitsPerEm * 1.0; // 转换为浮点数
+        const normCBox = {
+          xMin: (xMin + dx) / unitsPerEm,
+          xMax: (xMax + dx) / unitsPerEm,
+          yMin: (yMin + dy) / unitsPerEm,
+          yMax: (yMax + dy) / unitsPerEm,
+        };
+        const dividePoint = { x: unitsPerEm, y: unitsPerEm };
+        curves.forEach((curve) => {
+          curve.start = pointDivide(curve.start, dividePoint);
+          curve.control = pointDivide(curve.control, dividePoint);
+          curve.end = pointDivide(curve.end, dividePoint);
+        });
+        return { curves: curves, cbox: normCBox };
+      }
+
+      function almostEqual(a, b, epsilon = 1e-4) {
+        return Math.abs(a - b) < epsilon;
+      }
+
+      function clamp(number, min, max) {
+        return Math.max(min, Math.min(number, max));
+      }
+
+      /*
+       * Taking a quadratic bezier curve and a horizontal line y=Y, finds the x
+       * values of intersection of the line and the curve. Returns 0, 1, or 2,
+       * depending on how many intersections were found, and outX is filled with
+       * that many x values of intersection.
+       *
+       * Quadratic bezier curves are represented by the function
+       * F(t) = (1-t)^2*A + 2*t*(1-t)*B + t^2*C
+       * where F is a vector function, A and C are the endpoint vectors, B is
+       * the control point vector, and 0 <= t <= 1.
+       * Solving the bezier function for t gives:
+       * t = (A - B [+-] sqrt(y*a + B^2 - A*C))/a , where  a = A - 2B + C.
+       * http://www.wolframalpha.com/input/?i=y+%3D+(1-t)%5E2a+%2B+2t(1-t)*b+%2B+t%5E2*c+solve+for+t
+       */
+      function bezierIntersectHorz(bezier, Y) {
+        const { start: A, control: B, end: C } = bezier;
+        const T_Valid = (t) => t >= 0 && t <= 1;
+        const X_From_T = (t) =>
+          (1 - t) ** 2 * A.x + 2 * t * (1 - t) * B.x + t ** 2 * C.x;
+
+        const outX = [];
+        let i = 0;
+
+        // 问题：使用宋体字，划分 1x5 网格时，会出现奇怪的长线。
+        // 推测，可能是网格划分时，曲线归属出现错误。
+        // 利用 slug 算法判断网格归属
+        if (A.y < 0 && B.y < 0 && C.y < 0) {
+          // 认为曲线与贝塞尔曲线没有交点，或无效交点
+          return { rootNum: i, roots: outX };
+        }
+
+        // Parts of the bezier function solved for t
+        const a = A.y - 2 * B.y + C.y;
+
+        // In the condition that a=0, the standard formulas won't work
+        if (almostEqual(a, 0)) {
+          const t = (2 * B.y - C.y - Y) / (2 * (B.y - C.y));
+          if (T_Valid(t)) {
+            outX[i++] = X_From_T(t);
+          }
+          return { rootNum: i, roots: outX };
+        }
+
+        let disc = Y * a + B.y * B.y - A.y * C.y;
+        if (gDiscClamp) {
+          disc = Math.max(disc, 0);
+        }
+        const sqrtExpr = Math.sqrt(disc);
+
+        const t1 = (A.y - B.y + sqrtExpr) / a;
+        const t2 = (A.y - B.y - sqrtExpr) / a;
+        if (T_Valid(t1)) {
+          outX[i++] = X_From_T(t1);
+        }
+        if (T_Valid(t2)) {
+          outX[i++] = X_From_T(t2);
+        }
+        return { rootNum: i, roots: outX };
+      }
+
+      function bezierIntersectVert(bezier, X) {
+        const { start, control, end } = bezier;
+
+        const bezierInverse = {
+          start: { x: start.y, y: start.x },
+          control: { x: control.y, y: control.x },
+          end: { x: end.y, y: end.x },
+        };
+        return bezierIntersectHorz(bezierInverse, X);
+      }
+
+      // 按照网格，将 glyph 贝塞尔曲线做逻辑上的切割，
+      // 如果网格单元格与曲线相交，则该曲线放入该单元格的列表中
+      // 曲线与网格单元相交，是指曲线穿过网格单元的边界。
+      function makeGridOnBezier(
+        font,
+        glyph,
+        normCurves,
+        normCBox,
+        gridWidth,
+        gridHeight,
+      ) {
+        function setgrid(grid, x, y, curveIndex) {
+          const xIndex = clamp(x, 0, gridWidth - 1);
+          const yIndex = clamp(y, 0, gridHeight - 1);
+          const index = yIndex * gridWidth + xIndex;
+          grid[index].push(curveIndex);
+        }
+
+        const cbox = normCBox;
+        const cboxWidth = cbox.xMax - cbox.xMin;
+        const cboxHeight = cbox.yMax - cbox.yMin;
+        const grid = new Array(gridWidth * gridHeight);
+        for (let i = 0; i < grid.length; i++) {
+          grid[i] = [];
+        }
+        // 遍历所有曲线，将曲线的索引放入网格中
+        normCurves.forEach((curve, curveIndex) => {
+          let hasIntersect = false;
+
+          // 检查垂直网格边界与曲线的交点，包含左右边界
+          for (let x = 0; x <= gridWidth; x++) {
+            const x0 = (x / gridWidth) * cboxWidth; // x0 为网格单元格的左边界，转换为归一化的 em 坐标.
+
+            const { rootNum, roots } = bezierIntersectVert(curve, x0);
+            if (rootNum > 0) {
+              for (let i = 0; i < rootNum; i++) {
+                let root = roots[i];
+                let y = Math.floor((root / cboxHeight) * gridHeight);
+                setgrid(grid, x, y, curveIndex); // right edge
+                setgrid(grid, x - 1, y, curveIndex); // left edge
+                hasIntersect = true;
+              }
+            }
+          }
+
+          for (let y = 0; y <= gridHeight; y++) {
+            const y0 = (y / gridHeight) * cboxHeight;
+            const { rootNum, roots } = bezierIntersectHorz(curve, y0);
+            if (rootNum > 0) {
+              for (let i = 0; i < rootNum; i++) {
+                let root = roots[i];
+                let x = Math.floor((root / cboxWidth) * gridWidth);
+                setgrid(grid, x, y, curveIndex); // top edge
+                setgrid(grid, x, y - 1, curveIndex); // bottom edge
+                hasIntersect = true;
+              }
+            }
+          }
+
+          if (!hasIntersect) {
+            // 如果曲线没有与网格相交，则将曲线放入最近的网格单元格
+            const x = Math.floor((curve.start.x / cboxWidth) * gridWidth);
+            const y = Math.floor((curve.start.y / cboxHeight) * gridHeight);
+            setgrid(grid, x, y, curveIndex);
+          }
+        });
+
+        // 对 grid 中的数据去重
+        for (let i = 0; i < grid.length; i++) {
+          grid[i] = [...new Set(grid[i])];
+        }
+        return grid;
+      }
+
+      // 将网格切割的数据存储到数组结构，后续用于上传到 GPU 中访问
+      // grid 是一个一维数组，数组长度由gridWidth 列 x gridHeight 行确定
+      // grid 的每个元素是一个数组，数组中存储了贝塞尔曲线的索引，该数组长度是不固定的
+      function buildGridBezierBuffer(
+        font,
+        glyph,
+        grid,
+        gridWidth,
+        gridHeight,
+        normCurves,
+      ) {
+        // grid 索引结构
+        // [offset, length, offset, length, ...]
+        const gridIndexArray = new Uint32Array(gridWidth * gridHeight * 2);
+
+        let offset = 0;
+        for (let i = 0; i < grid.length; i++) {
+          const curves = grid[i];
+          gridIndexArray[i * 2] = offset;
+          gridIndexArray[i * 2 + 1] = curves.length;
+          offset += curves.length;
+        }
+
+        // [curve0_index, curve1_index, | curve2_index, curve5_index, ...]
+        const curveIndexsArray = new Uint32Array(offset);
+        let index = 0;
+        for (let i = 0; i < grid.length; i++) {
+          const curves = grid[i];
+          for (let j = 0; j < curves.length; j++) {
+            curveIndexsArray[index++] = curves[j];
+          }
+        }
+
+        // [curve0_start, curve0_control, curve0_end, | curve1_start, curve1_control, curve1_end, ...]
+        // [float32x2, float32x2, float32x2, |  ...]
+        const curvesArray = new Float32Array(normCurves.length * 3 * 2);
+        for (let i = 0; i < normCurves.length; i++) {
+          const curve = normCurves[i];
+          const start = curve.start;
+          const control = curve.control;
+          const end = curve.end;
+          curvesArray[i * 6] = start.x;
+          curvesArray[i * 6 + 1] = start.y;
+          curvesArray[i * 6 + 2] = control.x;
+          curvesArray[i * 6 + 3] = control.y;
+          curvesArray[i * 6 + 4] = end.x;
+          curvesArray[i * 6 + 5] = end.y;
+        }
+
+        // Uint32Array, Uint32Array, Float32Array
+        // len = gridWidth * gridHeight, len = sum(grid[i].len), len = normCurves.len * 6
+        return { gridIndexArray, curveIndexsArray, curvesArray };
+      }
+
+      function getShader(id) {
+        var elem = document.getElementById(id);
+        if (!elem) {
+          log("Can't find shader element " + id);
+          return null;
+        }
+        return elem.textContent;
+      }
+
+      function prepareShaderCode(code, options) {
+        let out = code;
+        out = out.replace(
+          /const USE_GRID_CLAMP: u32 = \d+u;/,
+          `const USE_GRID_CLAMP: u32 = ${options.gridClamp ? 1 : 0}u;`,
+        );
+        out = out.replace(
+          /const USE_NEARZERO_H: u32 = \d+u;/,
+          `const USE_NEARZERO_H: u32 = ${options.nearZeroH ? 1 : 0}u;`,
+        );
+        out = out.replace(
+          /const USE_NEARZERO_V: u32 = \d+u;/,
+          `const USE_NEARZERO_V: u32 = ${options.nearZeroV ? 1 : 0}u;`,
+        );
+        out = out.replace(
+          /const COVERAGE_MODE: u32 = \d+u;/,
+          `const COVERAGE_MODE: u32 = ${options.coverageMode}u;`,
+        );
+        return out;
+      }
+
+      async function drawGlyph(fontUrl, char, options = {}) {
+        const font = await loadFont(fontUrl);
+        const glyph = font.charToGlyph(char);
+
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error("未找到 WebGPU adapter");
+        const device = await adapter.requestDevice();
+        device.addEventListener("uncapturederror", e => demoStatus("GPU validation：" + e.error.message));
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+
+        const canvas = document.getElementById("fontCanvas");
+        const ctx = canvas.getContext("webgpu");
+        ctx.configure({
+          device,
+          format: presentationFormat,
+        });
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        gDiscClamp = !!options.discClamp;
+        const glyphShaderCode = prepareShaderCode(getShader("glyphshader"), {
+          gridClamp: !!options.gridClamp,
+          nearZeroH: !!options.nearZeroH,
+          nearZeroV: !!options.nearZeroV,
+          coverageMode: options.coverageMode ?? 1,
+        });
+        const module = device.createShaderModule({
+          label: "glypy shader",
+          code: glyphShaderCode,
+        });
+
+        const bindGroupLayout = device.createBindGroupLayout({
+          entries: [
+            {
+              binding: 0,
+              visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "uniform", // default, when omit 'type'
+              },
+            },
+            {
+              binding: 1,
+              visibility: GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "read-only-storage",
+              },
+            },
+            {
+              binding: 2,
+              visibility: GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "read-only-storage",
+              },
+            },
+            {
+              binding: 3,
+              visibility: GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "read-only-storage",
+              },
+            },
+            {
+              binding: 4,
+              visibility: GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "read-only-storage",
+              },
+            },
+            {
+              binding: 5,
+              visibility: GPUShaderStage.FRAGMENT,
+              buffer: {
+                type: "read-only-storage",
+              },
+            },
+          ],
+        });
+
+        const pipelineLayout = device.createPipelineLayout({
+          bindGroupLayouts: [bindGroupLayout],
+        });
+        const pipeline = device.createRenderPipeline({
+          label: "glypy pipeline",
+          layout: pipelineLayout,
+          vertex: {
+            module: module,
+            buffers: [
+              {
+                arrayStride: 4 * 4, // 2 floats, 4 bytes each
+                attributes: [
+                  { shaderLocation: 0, offset: 0, format: "float32x2" },
+                  { shaderLocation: 1, offset: 8, format: "float32x2" },
+                ],
+              },
+            ],
+          },
+          fragment: {
+            module: module,
+            targets: [
+              {
+                format: presentationFormat,
+                blend: {
+                  color: {
+                    srcFactor: "src-alpha",
+                    dstFactor: "one-minus-src-alpha",
+                    operation: "add",
+                  },
+                  alpha: {
+                    srcFactor: "one",
+                    dstFactor: "one-minus-src-alpha",
+                    operation: "add",
+                  },
+                },
+              },
+            ],
+          },
+          primitive: {
+            topology: "triangle-strip",
+          },
+        });
+
+        const shadercode = glyphShaderCode;
+        const defs = makeShaderDataDefinitions(shadercode);
+
+        //  xMin = 35, xMax = 976, yMin = -169, yMax = 761
+        const cbox = glyph.getMetrics();
+        const vertexData = new Float32Array([
+          cbox.xMin,
+          cbox.yMin,
+          0,
+          0,
+          cbox.xMax,
+          cbox.yMin,
+          1,
+          0,
+          cbox.xMin,
+          cbox.yMax,
+          0,
+          1,
+          cbox.xMax,
+          cbox.yMax,
+          1,
+          1,
+        ]);
+
+        const vertexBuffer = device.createBuffer({
+          label: "vertex buffer",
+          size: vertexData.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+
+        device.queue.writeBuffer(vertexBuffer, 0, vertexData);
+
+        const uGlobalValues = makeStructuredView(defs.uniforms.global);
+
+        const uniformBuffer = device.createBuffer({
+          label: "uniform buffer",
+          size: uGlobalValues.arrayBuffer.byteLength,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        const normBezier = normalizeFontGlyphBezier(font, char);
+        const { curves: normCurves, cbox: normCBox } = normBezier;
+
+        const gridWidth = 1;
+        const gridHeight = 5;
+        uGlobalValues.set({
+          color: [1, 0, 0, 1],
+          scale: [1 / 1000, 1 / 1000],
+          offset: [0, 0],
+          gridSizeH: [gridWidth, gridHeight],
+          gridSizeV: [gridHeight, gridWidth],
+          glyphSize: [normCBox.xMax, normCBox.yMax],
+        });
+
+        device.queue.writeBuffer(uniformBuffer, 0, uGlobalValues.arrayBuffer);
+
+        // 按照水平条带划分数据
+        const gridDataH = makeGridOnBezier(
+          font,
+          glyph,
+          normCurves,
+          normCBox,
+          gridWidth,
+          gridHeight,
+        );
+
+        const {
+          gridIndexArray: gridIndexArrayH,
+          curveIndexsArray: curveIndexsArrayH,
+          curvesArray,
+        } = buildGridBezierBuffer(
+          font,
+          glyph,
+          gridDataH,
+          gridWidth,
+          gridHeight,
+          normCurves,
+        );
+        // 按照垂直条带划分数据
+        const gridDataV = makeGridOnBezier(
+          font,
+          glyph,
+          normCurves,
+          normCBox,
+          gridHeight,
+          gridWidth,
+        );
+
+        const {
+          gridIndexArray: gridIndexArrayV,
+          curveIndexsArray: curveIndexsArrayV,
+        } = buildGridBezierBuffer(
+          font,
+          glyph,
+          gridDataV,
+          gridHeight,
+          gridWidth,
+          normCurves,
+        );
+
+        const gridCellsBufferH = device.createBuffer({
+          label: "grid cells buffer horizontal",
+          size: gridIndexArrayH.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+        const curveIndexsBufferH = device.createBuffer({
+          label: "curve index list buffer horizontal",
+          size: curveIndexsArrayH.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+        const gridCellsBufferV = device.createBuffer({
+          label: "grid cells buffer vertical",
+          size: gridIndexArrayV.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+        const curveIndexsBufferV = device.createBuffer({
+          label: "curve index list buffer vertical",
+          size: curveIndexsArrayV.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+        const curvesDataBuffer = device.createBuffer({
+          label: "curve data buffer",
+          size: curvesArray.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+
+        device.queue.writeBuffer(gridCellsBufferH, 0, gridIndexArrayH);
+        device.queue.writeBuffer(curveIndexsBufferH, 0, curveIndexsArrayH);
+        device.queue.writeBuffer(gridCellsBufferV, 0, gridIndexArrayV);
+        device.queue.writeBuffer(curveIndexsBufferV, 0, curveIndexsArrayV);
+        device.queue.writeBuffer(curvesDataBuffer, 0, curvesArray);
+
+        const bindGroup = device.createBindGroup({
+          label: "glyph uniform bind group",
+          layout: bindGroupLayout,
+          entries: [
+            {
+              binding: 0,
+              resource: {
+                buffer: uniformBuffer,
+              },
+            },
+            {
+              binding: 1,
+              resource: {
+                buffer: gridCellsBufferH,
+              },
+            },
+            {
+              binding: 2,
+              resource: {
+                buffer: curveIndexsBufferH,
+              },
+            },
+            {
+              binding: 3,
+              resource: {
+                buffer: gridCellsBufferV,
+              },
+            },
+            {
+              binding: 4,
+              resource: {
+                buffer: curveIndexsBufferV,
+              },
+            },
+            {
+              binding: 5,
+              resource: {
+                buffer: curvesDataBuffer,
+              },
+            },
+          ],
+        });
+
+        const renderPassDescriptor = {
+          label: "glyph render pass",
+          colorAttachments: [
+            {
+              view: ctx.getCurrentTexture().createView(),
+              clearValue: [1, 1, 1, 1],
+              loadOp: "clear",
+              storeOp: "store",
+            },
+          ],
+        };
+
+        const encoder = device.createCommandEncoder({ label: "our encoder" });
+
+        const pass = encoder.beginRenderPass(renderPassDescriptor);
+        pass.setPipeline(pipeline);
+        pass.setVertexBuffer(0, vertexBuffer);
+        pass.setBindGroup(0, bindGroup);
+        pass.draw(4);
+        pass.end();
+
+        const commandBuffer = encoder.finish();
+        device.queue.submit([commandBuffer]);
+      }
+
+      function drawRulers() {
+        const rulerX = document.getElementById("rulerX");
+        const rulerY = document.getElementById("rulerY");
+        const ctxX = rulerX.getContext("2d");
+        const ctxY = rulerY.getContext("2d");
+        drawRulerX(ctxX, rulerX.width, 20); // 绘制 X 轴坐标尺，网格大小为 50
+        drawRulerY(ctxY, rulerY.height, 20); // 绘制 Y 轴坐标尺，网格大小为 50
+      }
+
+      drawRulers();
+
+      const steps = [
+        {
+          label: "step0 baseline",
+          options: {
+            discClamp: false,
+            gridClamp: false,
+            nearZeroH: false,
+            nearZeroV: false,
+            coverageMode: 1,
+          },
+        },
+        {
+          label: "step1 discriminant clamp",
+          options: {
+            discClamp: true,
+            gridClamp: false,
+            nearZeroH: false,
+            nearZeroV: false,
+            coverageMode: 1,
+          },
+        },
+        {
+          label: "step2 grid clamp",
+          options: {
+            discClamp: true,
+            gridClamp: true,
+            nearZeroH: false,
+            nearZeroV: false,
+            coverageMode: 1,
+          },
+        },
+        {
+          label: "step3 average H/V",
+          options: {
+            discClamp: true,
+            gridClamp: true,
+            nearZeroH: false,
+            nearZeroV: false,
+            coverageMode: 0,
+          },
+        },
+        {
+          label: "step4 near-zero on both axes",
+          options: {
+            discClamp: true,
+            gridClamp: true,
+            nearZeroH: true,
+            nearZeroV: true,
+            coverageMode: 0,
+          },
+        },
+      ];
+
+      async function renderStep(index) {
+        const step = steps[index];
+        document.getElementById("status").textContent = step.label;
+        await drawGlyph("./STSong.ttf", demoChar, step.options);
+        demoStatus("WebGPU 已提交 · " + demoChar + " · " + demoSize + "×" + demoSize + " · " + step.label);
+      }
+
+      document.querySelectorAll("[data-step]").forEach((button) => {
+        button.addEventListener("click", () => {
+          renderStep(Number(button.dataset.step));
+        });
+      });
+
+      const demoCanvas = document.getElementById("fontCanvas");
+      demoCanvas.width = demoCanvas.height = demoSize;
+      renderStep(0);
+
+      function drawContents() {
+        let contents = `白日依山尽，黄河入海流。欲穷千里目，更上一层楼。`;
+
+        let index = 0;
+        function drawChar() {
+          if (index < contents.length) {
+            let c = contents[index];
+            drawGlyph("./STSong.ttf", c);
+            index++;
+          }
+          setTimeout(drawChar, 1000);
+        }
+        drawChar();
+      }
+      // drawContents();
+    </script>
+  </body>
+</html>

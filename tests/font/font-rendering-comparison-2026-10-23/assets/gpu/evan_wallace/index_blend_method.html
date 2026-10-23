@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>渲染一个汉字（evan wallace）, blend 方法</title>
+    <style>
+      #container {
+        position: relative;
+        width: 440px; /* canvas width + 20px for the ruler */
+        height: 440px; /* canvas height + 20px for the ruler */
+      }
+      #fontCanvas {
+        position: absolute;
+        top: 40px;
+        left: 40px;
+        width: 400px;
+        height: 400px;
+        border: 1px dashed #000;
+        box-sizing: border-box;
+      }
+      #fontRenderCanvas {
+        width: 300px;
+        height: 300px;
+        border: 1px dashed #000;
+        image-rendering: pixelated; /* 配置 低分辨率画布, 参考这里 https://webgpufundamentals.org/webgpu/lessons/webgpu-textures.html#a-min-filter */
+        image-rendering: crisp-edges; /* 配置 低分辨率画布 */
+      }
+      #fontStencilCanvas {
+        width: 300px;
+        height: 300px;
+        border: 1px dashed violet;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      #rulerX,
+      #rulerY {
+        position: absolute;
+        background: #f0f0f0;
+        font-size: 10px;
+        color: #333;
+      }
+      #rulerX {
+        top: 0;
+        left: 40px;
+        width: 400px;
+        height: 40px;
+      }
+      #rulerY {
+        top: 40px;
+        left: 0;
+        width: 40px;
+        height: 400px;
+      }
+    </style>
+  <link rel="icon" href="data:,">
+<style>
+body{margin:0;padding:14px;background:#fff;color:#172923;font:13px/1.6 system-ui,sans-serif}
+.demo-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+select,button{padding:5px;border:1px solid #d5ded7;border-radius:5px;background:white;color:#172923}
+#gpu-status{display:block;margin:10px 0;color:#52635c;overflow-wrap:anywhere}
+#rulerX,#rulerY,#html_text{display:none}
+</style>
+<style>
+#container{display:none}#fontRenderCanvas,#fontStencilCanvas{display:block;position:static;width:100%;height:auto;aspect-ratio:1;max-width:290px;margin:10px auto;border:1px solid #d5ded7;image-rendering:pixelated}
+#fontStencilCanvas{max-width:100px}
+</style></head>
+  <body>
+<div class="demo-controls"><label>字形 <select id="demo-char">
+<option>永</option><option>层</option><option>曲</option><option>国</option><option>A</option><option>8</option><option>g</option>
+</select></label><label>栅格边长 <select id="demo-size"><option>32</option><option>64</option><option>100</option><option selected>256</option><option>512</option></select> px</label></div>
+<span id="gpu-status" role="status">正在初始化 GPU…</span>
+<script>
+const demoParams = new URLSearchParams(location.search);
+const demoChar = demoParams.get("char") || "永";
+const demoSize = Number(demoParams.get("size")) || 256;
+document.querySelector("#demo-char").value = demoChar;
+document.querySelector("#demo-size").value = demoSize;
+for (const id of ["demo-char","demo-size"]) document.getElementById(id).addEventListener("change", () => {
+  location.search = new URLSearchParams({char:document.querySelector("#demo-char").value,size:document.querySelector("#demo-size").value});
+});
+window.demoStatus = text => document.getElementById("gpu-status").textContent = text;
+window.addEventListener("error", e => demoStatus("GPU 错误：" + e.message));
+window.addEventListener("unhandledrejection", e => demoStatus("GPU 错误：" + (e.reason?.message || e.reason)));
+if (!navigator.gpu) demoStatus("此浏览器没有 WebGPU；请通过 localhost 在支持 WebGPU 的浏览器打开。");
+</script>
+
+    <div id="container">
+      <canvas id="fontCanvas" width="1000" height="1000"></canvas>
+      <canvas id="rulerX" width="1000" height="40"></canvas>
+      <canvas id="rulerY" width="40" height="1000"></canvas>
+    </div>
+
+    <p>GPU 中间覆盖附件</p><canvas id="fontStencilCanvas" width="100" height="100"></canvas>
+    <p>GPU 最终字形</p><canvas id="fontRenderCanvas" width="100" height="100"></canvas>
+    <script src="../vendor/opentype.min.js"></script>
+    <script type="x-shader" id="stencilShaderCode">
+
+      struct GlobalInfo {
+        color: vec4f,
+        scale: vec2f,
+        translate: vec2f,
+      }
+      @group(0) @binding(0) var<uniform> global: GlobalInfo;
+
+
+      // 该纹理表示字体 glyph 的颜色模板，当对应像素值是奇数时，表示在 glyph 内部。
+      @group(1) @binding(0) var glyphColorTemplate: texture_2d<f32>;
+
+      struct Vertex {
+        @location(0) point: vec2f, // 顶点坐标（以em空间为单位）
+      }
+      struct BarycentricVertex {
+        @location(0) point: vec2f, // 贝塞尔线段的三个控制点（em空间），用于选择文字边界
+        @location(1) uv: vec2f, // 每个顶点的纹理坐标，u^2 - v < 0，表示在字体内部
+      }
+      struct VertexOutput {
+        @builtin(position) pos: vec4f, // clip space, device space
+      }
+
+      struct BarycentricVertexOutput {
+        @builtin(position) pos: vec4f,
+        @location(0) uv: vec2f,
+      }
+
+      @vertex
+      fn vertex_main(
+        vert: Vertex,
+      ) -> VertexOutput {
+        let pos = vert.point * global.scale + global.translate;
+        var vertOut: VertexOutput = VertexOutput();
+        vertOut.pos = vec4f(pos, 0.0, 1.0);
+
+        return vertOut;
+      }
+      @fragment
+      fn frag_main(
+        @builtin(position) pos: vec4f
+      ) -> @location(0) vec4f {
+        return color_step();
+      }
+
+      fn color_step() -> vec4f {
+
+        let alpha:f32 = 1.0;
+        let colorStep: f32= 1.0/255.0;
+        return vec4f(colorStep, 0.0, 0.0, alpha);
+
+      }
+
+      @vertex
+      fn vertex_fix_edge(vert: BarycentricVertex) -> BarycentricVertexOutput {
+
+        let pos = vert.point * global.scale + global.translate;
+
+        var vertOut: BarycentricVertexOutput = BarycentricVertexOutput();
+        vertOut.pos = vec4f(pos, 0.0, 1.0);
+        vertOut.uv = vert.uv;
+
+        return vertOut;
+      }
+
+
+      fn isInside(u: f32, v: f32) -> bool{
+        return pow(u, 2) - v < 0;
+      }
+
+      @fragment
+      fn frag_fix_edge(
+        @builtin(position) pos: vec4f,
+        @location(0) uv: vec2f
+      ) -> @location(0) vec4f {
+        if(!isInside(uv.x, uv.y)) {
+          discard;
+        }
+        return color_step();
+
+      }
+
+      @fragment
+      fn frag_draw_by_colorbuffer(
+        @builtin(position) coord: vec4f
+      ) -> @location(0) vec4f {
+        // 将 [0,1] 范围的浮点数转换为 255 下的整数
+        let texcoord = vec2u(coord.xy);
+        let colorValue = textureLoad(glyphColorTemplate, texcoord, 0);
+        let colorInt = vec4u(colorValue * 255);
+        if(colorInt.x % 2 == 0) {
+            discard;
+        }
+        return vec4f(1.0, 0, 0, 1); // 红色
+      }
+    </script>
+    <script type="x-shader" id="glyphShaderCode"></script>
+    <script type="module">
+      import {
+        vec3,
+        mat4,
+      } from "../vendor/wgpu-matrix.module.js";
+      import {
+        makeShaderDataDefinitions,
+        makeStructuredView,
+        createTextureFromImage,
+        createBuffersAndAttributesFromArrays,
+      } from "../vendor/webgpu-utils.module.js";
+
+      function getShader(id) {
+        var elem = document.getElementById(id);
+        if (!elem) {
+          log("Can't find shader element " + id);
+          return null;
+        }
+        return elem.textContent;
+      }
+
+      async function loadFont(url) {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const font = opentype.parse(arrayBuffer);
+        return font;
+      }
+      function drawGrid(ctx, width, height, gridSize) {
+        ctx.strokeStyle = "#ddd";
+        ctx.lineWidth = 1;
+
+        for (let x = 0; x <= width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+
+        for (let y = 0; y <= height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawRulerX(ctx, width, gridSize) {
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let x = 0; x <= width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, 10);
+          ctx.stroke();
+          ctx.fillText(x, x, 15);
+        }
+      }
+
+      function drawRulerY(ctx, height, gridSize) {
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let y = height; y >= 0; y -= gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(10, y);
+          ctx.stroke();
+          ctx.fillText(height - y, 15, y);
+        }
+      }
+
+      function drawRulers() {
+        const rulerX = document.getElementById("rulerX");
+        const rulerY = document.getElementById("rulerY");
+        const ctxX = rulerX.getContext("2d");
+        const ctxY = rulerY.getContext("2d");
+        drawRulerX(ctxX, rulerX.width, 50); // 绘制 X 轴坐标尺，网格大小为 50
+        drawRulerY(ctxY, rulerY.height, 50); // 绘制 Y 轴坐标尺，网格大小为 50
+      }
+
+      drawRulers();
+
+      function mockPathCommands(glyph) {
+        return [
+          {
+            type: "M",
+            x: 800,
+            y: 0,
+          },
+          {
+            type: "L",
+            x: 400,
+            y: 400,
+          },
+          // {
+          //   type: "L",
+          //   x: 0,
+          //   y: 800,
+          // },
+          // {
+          //   type: "L",
+          //   x: 800,
+          //   y: 0,
+          // },
+          // {
+          //   type: "Z",
+          // },
+        ];
+      }
+      function prepareBufferDataByGlyphPath(glyph) {
+        const pathCommands = glyph.path.commands;
+
+        // const pathCommands = mockPathCommands(glyph); // TODO: 上线前需要更换为真实的 path.commands
+        const vertexDataList = [];
+        const vertexIndexList = [];
+        const vertexCurveDataList = []; // NOTE: 这里只存储曲线的控制点，一个曲线存储三个控制点(p0, p1, p2)
+        let p0 = { x: 0, y: 0 };
+        let p1 = p0,
+          p2 = p0;
+
+        const helperPoint = { x: 0, y: 0 };
+        vertexDataList.push(helperPoint);
+        let indexOffset = 1;
+        let relativeIndex = 0;
+        for (let i = 0; i < pathCommands.length; i++) {
+          const c = pathCommands[i];
+          switch (c.type) {
+            case "M":
+              vertexDataList.push(c);
+              relativeIndex = 0;
+
+              p0 = c; // 用于后续构造贝塞尔曲线的控制点使用
+              break;
+            case "L":
+              vertexDataList.push(c);
+              relativeIndex++;
+
+              // 生成三角形顶点数据、索引数据
+              vertexIndexList.push(
+                0,
+                relativeIndex + indexOffset - 1,
+                relativeIndex + indexOffset,
+              );
+
+              p0 = c;
+              break;
+            case "Q":
+              vertexDataList.push(c);
+              relativeIndex++;
+
+              // 生成三角形顶点数据、索引数据
+              vertexIndexList.push(
+                0,
+                relativeIndex + indexOffset - 1,
+                relativeIndex + indexOffset,
+              );
+
+              p1 = { x: c.x1, y: c.y1 };
+              p2 = { x: c.x, y: c.y };
+              vertexCurveDataList.push(p0, p1, p2);
+
+              p0 = c;
+              break;
+            case "Z":
+              indexOffset += relativeIndex + 1;
+              break;
+          }
+        }
+
+        return {
+          vertexDataList,
+          vertexCurveDataList,
+          vertexIndexList,
+        };
+      }
+      /**
+       * 将 glyph 存储的控制点展开为完全的贝塞尔控制点
+       * @returns {Array<Array>} 二维数组，表示 glyph 的所有轮廓线上的控制点。
+       */
+      function expandContourPoints(glyph) {
+        console.log("expand contour: ", glyph);
+
+        // 获取 glyph 的每个轮廓的 onCurve 顶点集合
+        const numberOfContours = glyph.numberOfContours;
+
+        if (!numberOfContours) {
+          throw new Error("numberOfContours not found in glyph");
+        }
+        const pathCommands = glyph.path.commands;
+        const contours = glyph.getContours();
+
+        const allContours = [];
+        let currContour = [];
+
+        for (
+          let contourIndex = 0;
+          contourIndex < numberOfContours;
+          contourIndex++
+        ) {
+          const contour = contours[contourIndex];
+
+          let curr = contour[contour.length - 1];
+          let next = contour[0];
+          if (curr.onCurve) {
+            currContour.push({ x: curr.x, y: curr.y, onCurve: true });
+          } else {
+            if (next.onCurve) {
+              currContour.push({ x: next.x, y: next.y, onCurve: true });
+            } else {
+              // 如果开始顶点和最后顶点都是 off-curve，则从中间点开始
+              const start = {
+                x: (curr.x + next.x) / 2,
+                y: (curr.y + next.y) / 2,
+                onCurve: true,
+              };
+              currContour.push(start);
+            }
+          }
+
+          for (let i = 0; i < contour.length; i++) {
+            curr = next;
+            next = contour[(i + 1) % contour.length];
+            if (curr.onCurve) {
+              // 直线绘制
+              currContour.push({ x: curr.x, y: curr.y, onCurve: true });
+            } else {
+              let next2 = next;
+              if (!next.onCurve) {
+                // next2 一定是 onCurve 的顶点
+                next2 = {
+                  x: (curr.x + next.x) * 0.5,
+                  y: (curr.y + next.y) * 0.5,
+                };
+              }
+
+              currContour.push({ x: curr.x, y: curr.y, onCurve: false });
+              currContour.push({ x: next2.x, y: next2.y, onCurve: true });
+            }
+          }
+
+          // 关闭曲线
+          allContours.push(currContour);
+          currContour = [];
+        }
+
+        if (allContours.length < 1) {
+          throw new Error("no glyph countour exists.");
+        }
+        return allContours;
+      }
+
+      /*
+       * 将展开的贝塞尔曲线控制点转换为顶点着色器需要的数据格式
+       * - 顶点坐标数组
+       * - 顶点索引（对应 drawIndexed + triangle-list）
+       */
+      function prepareBufferData(glyph, allContours) {
+        const onCurveAllContours = [];
+        let pointList = [];
+        for (let i = 0; i < allContours.length; i++) {
+          const contour = allContours[i];
+          for (let pIndex = 0; pIndex < contour.length; pIndex++) {
+            const p = contour[pIndex];
+            if (p.onCurve) {
+              pointList.push(p);
+            }
+          }
+          onCurveAllContours.push(pointList);
+          pointList = [];
+        }
+
+        let vertexDataList = []; // 存储实际的顶点数据
+        let vertexIndexList = []; // 用于索引绘制三角形
+        const start = {
+          x: 0,
+          y: 0,
+        };
+        vertexDataList.push(start);
+        let pointIndexBeginningOffset = 1;
+
+        for (let i = 0; i < onCurveAllContours.length; i++) {
+          const contour = onCurveAllContours[i];
+
+          for (let j = 0; j < contour.length; j++) {
+            vertexDataList.push(contour[j]); // 将曲线的所有顶点放入数据中
+          }
+          for (let j = 0; j < contour.length - 1; j++) {
+            const p1 = contour[j];
+            const p2 = contour[j + 1];
+            vertexIndexList.push(
+              0,
+              j + pointIndexBeginningOffset,
+              j + 1 + pointIndexBeginningOffset,
+            ); //
+          }
+
+          pointIndexBeginningOffset += contour.length;
+        }
+
+        // result :
+        // vertexDataList = [(0,0), c1_p0, c1_p1, c1_p2, c2_p0, c2_p1, c2_p2, ...]
+        // vertexIndexList = [0, 1, 2; 0, 2 ,3; 0, 4, 5; 0, 5, 6, ...  ]
+        return {
+          vertexDataList,
+          vertexIndexList,
+        };
+      }
+
+      function buildGlyphBuffer(device, glyph, options) {
+        const { vertexDataList, vertexIndexList, vertexCurveDataList } =
+          options;
+        const vertices = new Float32Array(
+          vertexDataList.flatMap((v) => [v.x, v.y]),
+        );
+        const indices = new Uint32Array(vertexIndexList);
+
+        // 创建顶点缓冲区
+        const vertexBuffer = device.createBuffer({
+          size: vertices.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        // console.log("glyph buffer", vertices);
+        device.queue.writeBuffer(vertexBuffer, 0, vertices);
+
+        // 创建索引缓冲区
+        const indexBuffer = device.createBuffer({
+          size: indices.byteLength,
+          usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        // console.log("index buffer", indices);
+        device.queue.writeBuffer(indexBuffer, 0, indices);
+
+        // 创建 glyph 曲线的控制点缓冲，(p0, p1, p2) & [(0,0), (1/2, 0), (1, 1)]
+        const curveControlPoints = new Float32Array(
+          vertexCurveDataList.flatMap((c, index) => {
+            let order = index % 3;
+            let uv_coords = [
+              [0.0, 0.0],
+              [1.0 / 2.0, 0.0],
+              [1.0, 1.0],
+            ];
+            return [c.x, c.y, uv_coords[order]].flat();
+          }),
+        );
+        const curveBuffer = device.createBuffer({
+          size: curveControlPoints.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(curveBuffer, 0, curveControlPoints);
+
+        return {
+          vertexBuffer,
+          indexBuffer,
+          indices,
+          curveBuffer,
+          vertexCurveDataList,
+        };
+      }
+
+      function createVertexBuffer(device, glyph) {
+        console.log("create vertex buffer: ", glyph);
+
+        // const allContours = expandContourPoints(glyph);
+        // const { vertexDataList, vertexIndexList } = prepareBufferData(
+        //   glyph,
+        //   allContours,
+        // );
+        const { vertexDataList, vertexIndexList, vertexCurveDataList } =
+          prepareBufferDataByGlyphPath(glyph);
+        // console.log("vertex data list", vertexDataList);
+        // console.log("vertex index list", vertexIndexList);
+        return buildGlyphBuffer(device, glyph, {
+          vertexDataList,
+          vertexIndexList,
+          vertexCurveDataList,
+        });
+      }
+
+      async function initDevice(device_label) {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error("未找到 WebGPU adapter");
+        const device = await adapter.requestDevice();
+        device.addEventListener("uncapturederror", e => demoStatus("GPU validation：" + e.error.message));
+        device.label = device_label;
+
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        return { device, presentationFormat };
+      }
+
+      async function initWebGPU(canvasId, device, presentationFormat) {
+        const fontRenderCanvas = document.getElementById(canvasId);
+        const context = fontRenderCanvas.getContext("webgpu");
+        context.configure({
+          device: device,
+          format: presentationFormat,
+          alphaMode: "premultiplied", // 启用 alpha 通道后才能实现透明效果,
+          usage:
+            GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        });
+
+        return {
+          canvas: fontRenderCanvas,
+          context,
+        };
+      }
+
+      function createBindGroupForUniform(device, shaderSource) {
+        const dataDefs = makeShaderDataDefinitions(shaderSource);
+        const uGlobalValues = makeStructuredView(dataDefs.uniforms.global);
+
+        const globalBindGroupLayout = device.createBindGroupLayout({
+          entries: [
+            {
+              binding: 0,
+              visibility: GPUShaderStage.VERTEX,
+              buffer: {
+                type: "uniform",
+              },
+            },
+          ],
+        });
+
+        const uniformBuffer = device.createBuffer({
+          label: "uniform buffer",
+          size: uGlobalValues.arrayBuffer.byteLength,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        const globalBindGroup = device.createBindGroup({
+          label: "global bind group",
+          layout: globalBindGroupLayout,
+          entries: [
+            {
+              binding: 0,
+              resource: {
+                buffer: uniformBuffer,
+              },
+            },
+          ],
+        });
+
+        uGlobalValues.set({
+          color: [1, 0, 0, 1],
+          scale: [1 / 1000, 1 / 1000],
+          translate: [0, 0],
+        });
+
+        device.queue.writeBuffer(uniformBuffer, 0, uGlobalValues.arrayBuffer);
+        return {
+          bindGroup: globalBindGroup,
+          uniformBuffer,
+          uniformValues: uGlobalValues,
+          bindGroupLayout: globalBindGroupLayout,
+        };
+      }
+
+      // function createDepthTexture(device, context) {
+      //   const canvasTexture = context.getCurrentTexture();
+      //   const depthTexture = device.createTexture({
+      //     label: device.label + "texture",
+      //     size: [canvasTexture.width, canvasTexture.height],
+      //     format: "depth24plus-stencil8", // stencil8
+      //     usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      //   });
+      //
+      //   return { canvasTexture, depthTexture };
+      // }
+
+      function createRenderPass(label, canvasTexture, encoder) {
+        console.log("begin", label);
+        const stencilPassDesc = {
+          label: label,
+          colorAttachments: [
+            {
+              view: canvasTexture.createView(),
+              clearValue: [0, 0, 0, 0],
+              loadOp: "clear",
+              storeOp: "store",
+            },
+          ],
+        };
+        const stencilPass = encoder.beginRenderPass(stencilPassDesc);
+
+        return { renderPass: stencilPass };
+      }
+
+      function createPipeline(
+        device,
+        format,
+        globalBindGroupLayout,
+        shaderCode,
+      ) {
+        const moduleDesc = {
+          label: "stencil shader code",
+          code: shaderCode,
+        };
+        const shaderModule = device.createShaderModule(moduleDesc);
+        const pipelineLayout = device.createPipelineLayout({
+          bindGroupLayouts: [globalBindGroupLayout],
+        });
+
+        const pipelineDesc = {
+          label: "stencil set pipeline",
+          layout: pipelineLayout,
+          vertex: {
+            module: shaderModule,
+            entryPoint: "vertex_main",
+            buffers: [
+              {
+                arrayStride: 2 * 4,
+                attributes: [
+                  { shaderLocation: 0, offset: 0, format: "float32x2" },
+                ],
+              },
+            ],
+          },
+          fragment: {
+            module: shaderModule,
+            entryPoint: "frag_main",
+            targets: [
+              {
+                format: format,
+                blend: {
+                  color: {
+                    operation: "add",
+                    srcFactor: "one",
+                    dstFactor: "one",
+                  },
+                  alpha: {
+                    operation: "add",
+                    srcFactor: "one",
+                    dstFactor: "zero",
+                  },
+                },
+              },
+            ],
+          },
+          primitive: {
+            topology: "triangle-list",
+            // cullMode: "back", // 需要禁用，以便glyph控制点正序逆序时都通过模板测试。
+          },
+        };
+        const blendSetPipeline = device.createRenderPipeline(pipelineDesc);
+
+        // 补充第一阶段的曲线边缘绘制
+        const curveDesc = {
+          label: "curve stencil set pipeline",
+          vertex: {
+            module: shaderModule,
+            entryPoint: "vertex_fix_edge",
+            buffers: [
+              {
+                arrayStride: 4 * 4,
+                attributes: [
+                  { shaderLocation: 0, offset: 0, format: "float32x2" },
+                  { shaderLocation: 1, offset: 2 * 4, format: "float32x2" },
+                ],
+              },
+            ],
+          },
+          fragment: {
+            module: shaderModule,
+            entryPoint: "frag_fix_edge",
+            targets: [
+              {
+                format: format,
+                blend: {
+                  color: {
+                    operation: "add",
+                    srcFactor: "one",
+                    dstFactor: "one",
+                  },
+                  alpha: {
+                    operation: "add",
+                    srcFactor: "one",
+                    dstFactor: "zero",
+                  },
+                },
+              },
+            ],
+          },
+        };
+        const curveStencilSetPipelineDesc = Object.assign(
+          {},
+          pipelineDesc,
+          curveDesc,
+        );
+
+        const curveSetPipeline = device.createRenderPipeline(
+          curveStencilSetPipelineDesc,
+        );
+
+        return {
+          blendSetPipeline,
+          curveSetPipeline,
+        };
+      }
+      async function renderWithStencil(glyph) {
+        const { device, presentationFormat: format } =
+          await initDevice("main_device");
+
+        const { canvas: fontStencilCanvas, context: colorBufferContext } =
+          await initWebGPU("fontStencilCanvas", device, format);
+        const { canvas: fontRenderCanvas, context: fontRenderContext } =
+          await initWebGPU("fontRenderCanvas", device, format);
+
+        const stencilShaderCode = getShader("stencilShaderCode");
+
+        const {
+          bindGroup: globalBindGroup,
+          uniformBuffer,
+          bindGroupLayout: globalBindGroupLayout,
+        } = createBindGroupForUniform(device, stencilShaderCode);
+
+        const { blendSetPipeline, curveSetPipeline } = createPipeline(
+          device,
+          format,
+          globalBindGroupLayout,
+          stencilShaderCode,
+        );
+
+        const {
+          vertexBuffer,
+          indexBuffer,
+          indices,
+          curveBuffer,
+          vertexCurveDataList,
+        } = createVertexBuffer(device, glyph);
+        const encoder = device.createCommandEncoder({ label: "glyph encoder" });
+
+        // 生成 stencil 模板使用
+        // const { canvasTexture, } = createDepthTexture(
+        //   device,
+        //   stencilContext,
+        // );
+        const canvasTexture = colorBufferContext.getCurrentTexture();
+
+        // 创建一个既可以作为绘制目标，有可以做纹理绑定的纹理
+
+        const { renderPass: colorBufferPass } = createRenderPass(
+          "stencil render pass",
+          canvasTexture,
+          encoder,
+        );
+
+        // 第一阶段：绘制区域并翻转模板
+        colorBufferPass.setPipeline(blendSetPipeline);
+
+        colorBufferPass.setBindGroup(0, globalBindGroup);
+        colorBufferPass.setVertexBuffer(0, vertexBuffer);
+        colorBufferPass.setIndexBuffer(indexBuffer, "uint32"); // NOTE: 注意这里的第二个参数类型，需要与 indexbuffer 中的类型保持一致。
+        colorBufferPass.drawIndexed(indices.length); // 应该是 indices.length, 这里使用 3 做测试
+
+        // 第一阶段：修补曲线边缘
+        colorBufferPass.setPipeline(curveSetPipeline);
+        colorBufferPass.setVertexBuffer(0, curveBuffer);
+        colorBufferPass.draw(vertexCurveDataList.length);
+
+        colorBufferPass.end();
+
+        const { renderPass: glyphPass } = createRenderPass(
+          "glyph render pass",
+          fontRenderContext.getCurrentTexture(),
+          encoder,
+        );
+        const fullscreenVertices = new Float32Array([
+          -1000, 3000, -1000, -1000, 3000, -1000,
+        ]);
+        const fullscreenBuffer = device.createBuffer({
+          size: fullscreenVertices.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(fullscreenBuffer, 0, fullscreenVertices);
+        //
+        // 第二阶段：使用颜色缓冲绘制文字
+
+        const glyphDrawBindGroupLayout = device.createBindGroupLayout({
+          label: "glyph draw by color buffer",
+          entries: [
+            {
+              binding: 0,
+              visibility: GPUShaderStage.FRAGMENT,
+              texture: {},
+            },
+          ],
+        });
+        const glyphDrawLayout = device.createPipelineLayout({
+          bindGroupLayouts: [globalBindGroupLayout, glyphDrawBindGroupLayout],
+        });
+
+        const shaderModule = device.createShaderModule({
+          code: stencilShaderCode,
+        });
+
+        const glyphDrawPipelineDesc = {
+          label: "glyph draw by color buffer",
+          layout: glyphDrawLayout,
+          vertex: {
+            module: shaderModule,
+            entryPoint: "vertex_main",
+            buffers: [
+              {
+                arrayStride: 2 * 4,
+                attributes: [
+                  { shaderLocation: 0, offset: 0, format: "float32x2" },
+                ],
+              },
+            ],
+          },
+          fragment: {
+            module: shaderModule,
+            entryPoint: "frag_draw_by_colorbuffer",
+            targets: [
+              {
+                format: format,
+              },
+            ],
+          },
+          primitive: {
+            topology: "triangle-list",
+          },
+        };
+
+        const glyphDrawPipeline = device.createRenderPipeline(
+          glyphDrawPipelineDesc,
+        );
+
+        const glyphDrawBindGroup = device.createBindGroup({
+          label: "glyph draw bind group",
+          layout: glyphDrawBindGroupLayout,
+          entries: [
+            {
+              binding: 0,
+              resource: canvasTexture.createView(),
+            },
+          ],
+        });
+        glyphPass.setPipeline(glyphDrawPipeline);
+        glyphPass.setBindGroup(0, globalBindGroup);
+        glyphPass.setBindGroup(1, glyphDrawBindGroup);
+        glyphPass.setVertexBuffer(0, fullscreenBuffer);
+        glyphPass.draw(3);
+
+        glyphPass.end();
+
+        device.queue.submit([encoder.finish()]);
+      }
+      async function drawGlyph(fontUrl, char) {
+        const font = await loadFont(fontUrl);
+        const glyph = font.charToGlyph(char);
+        const canvas = document.getElementById("fontCanvas");
+        const ctx = canvas.getContext("2d");
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const fontSize = Math.min(canvasWidth, canvasHeight) * 1.06; // 使字体大小适应画布
+
+        const scale = fontSize / font.unitsPerEm;
+
+        console.log("font", font);
+        // 将 glyph 的信息打印到控制台
+        console.log("glyph:", glyph);
+
+        // 计算边界框的中心位置
+        const bboxWidth = (glyph.xMax - glyph.xMin) * scale;
+        const bboxHeight = (glyph.yMax - glyph.yMin) * scale;
+        const x = (canvasWidth - bboxWidth) / 2 - glyph.xMin * scale;
+        const y = (canvasHeight - bboxHeight) / 2 + glyph.yMax * scale;
+
+        console.log("x:", x, "y:", y, "fontSize:", fontSize);
+
+        const path = glyph.getPath(x, y, fontSize); // x, y, fontSize
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid(ctx, canvasWidth, canvasHeight, canvasWidth / 5); // 绘制网格背景，网格大小为 50
+
+        path.stroke = "red";
+        path.fill = "transparent";
+        path.draw(ctx);
+
+        glyph.drawPoints(ctx, x, y, fontSize, font);
+        glyph.drawMetrics(ctx, x, y, fontSize);
+      }
+
+      async function drawGlyphWithStencil(fontUrl, char) {
+        const font = await loadFont(fontUrl);
+        const glyph = font.charToGlyph(char);
+        console.log("draw with stencil : ", glyph);
+        await renderWithStencil(glyph);
+        demoStatus("WebGPU 已提交 · " + char + " · " + demoSize + "×" + demoSize);
+      }
+
+      for (const id of ["fontStencilCanvas", "fontRenderCanvas"]) {
+        const canvas = document.getElementById(id);
+        canvas.width = canvas.height = demoSize;
+      }
+      let testChar = demoChar; // "永"
+      // The original Canvas2D outline helper is not invoked in the report.
+      drawGlyphWithStencil("./STSong.ttf", testChar);
+    </script>
+  </body>
+</html>
