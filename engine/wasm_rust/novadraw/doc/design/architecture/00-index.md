@@ -41,6 +41,7 @@
 | [official-example-border-output-increment.md](official-example-border-output-increment.md) | 官方样例的 SchemeBorder、字体下划线指标与 ICO/帧输出消费者增量 |
 | [shared-scene-view-background-proposal.md](shared-scene-view-background-proposal.md) | K07 修订 3 已批准，ADR-044/045 接受：保守结构依赖、Runtime 提交点版本校验、独立捕获与宿主背景统一提交；功能验收按切片推进 |
 | [text-layout.md](text-layout.md) | Text Layout、Label 与标题边框 |
+| [textflow-performance-proposal-2026-10-23.md](textflow-performance-proposal-2026-10-23.md) | 待评审性能提案：字体初始化、片段索引、段落缓存、共享布局数据、可见行绘制与后台重排 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |
 | [tooltip-accessibility.md](tooltip-accessibility.md) | Tooltip 与 Accessibility Bridge |
 
