@@ -13,9 +13,10 @@ use novadraw::connection::{
 use novadraw::event::MonotonicTime;
 use novadraw::{
     animation::{
-        AnimationError, AnimationPlan, AnimationStart, AnimationState, AnimationSuppression,
-        AnimationTransactionError, BoundsTransition, ConnectionPulse, ConnectionRouteTransition,
-        Easing, InteractionGeometryPolicy, Motion, Tween, ViewportTransition,
+        AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
+        AnimationSuppression, AnimationTransactionError, BoundsTransition, ConnectionPulse,
+        ConnectionRouteTransition, Easing, InteractionGeometryPolicy, Motion, Tween,
+        ViewportTransition,
     },
     figure::RectangleFigure,
     geometry::Affine2D,
@@ -297,6 +298,62 @@ fn nonzero_to_zero_bounds_transition_is_rejected_without_active_work() {
         runtime.tree().figure_bounds(figure),
         Ok(Rectangle::new(20.0, 0.0, 0.0, 10.0))
     );
+}
+
+#[test]
+fn static_animation_modes_allow_collapsed_layout_without_building_a_transform() {
+    for (mode, suppression) in [
+        (AnimationMode::Disabled, AnimationSuppression::Disabled),
+        (
+            AnimationMode::ReducedMotion,
+            AnimationSuppression::ReducedMotionStaticFallback,
+        ),
+    ] {
+        let mut runtime = Runtime::empty();
+        let figure = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 50.0)))
+            .unwrap();
+        runtime.animation().timeline().set_mode(mode);
+        let (_, start) = runtime
+            .animation()
+            .transition_bounds(
+                [figure],
+                BoundsTransition::new(Duration::from_millis(210)),
+                |runtime| runtime.figure(figure)?.set_bounds(Rectangle::ZERO),
+            )
+            .expect("static fallback must accept the final collapsed layout");
+        assert_eq!(start, AnimationStart::Suppressed(suppression));
+        assert_eq!(
+            runtime.tree().figure_bounds(figure).unwrap(),
+            Rectangle::ZERO
+        );
+        assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
+        assert_eq!(runtime.animation().timeline().temporary_visual_count(), 0);
+        assert_eq!(runtime.animation().timeline().next_wake_deadline(), None);
+        assert_eq!(runtime.animation().timeline().stats().tracks_sampled, 0);
+    }
+}
+
+#[test]
+fn static_bounds_fallback_still_rejects_a_disposed_capture_target() {
+    let mut runtime = Runtime::empty();
+    let figure = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 50.0)))
+        .unwrap();
+    let capture = runtime
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
+    runtime
+        .animation()
+        .timeline()
+        .set_mode(AnimationMode::Disabled);
+    runtime.dispose_subtree(figure).unwrap();
+    assert!(matches!(
+        runtime.animation().timeline().transition_bounds(capture, BoundsTransition::new(Duration::from_millis(210))),
+        Err(AnimationError::Identity(novadraw::tree::TreeQueryError::UnknownFigure(id))) if id == figure
+    ));
 }
 
 #[test]

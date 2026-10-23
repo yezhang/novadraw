@@ -2091,19 +2091,38 @@ impl AnimationMut<'_> {
             ));
         }
 
-        let mut targets = Vec::new();
+        let mut changed = Vec::new();
         for (figure, before) in capture.bounds {
             let after = self.tree.figure_bounds(figure)?;
             if before == after {
                 continue;
             }
-            targets.push((figure, bounds_transition_transform(before, after)?));
+            changed.push((figure, before, after));
         }
-        if targets.is_empty() {
+        if changed.is_empty() {
             return Ok(AnimationStart::Suppressed(
                 AnimationSuppression::NoVisualDelta,
             ));
         }
+        // Static modes validate target identity, but do not require an
+        // interpolable transform or allocate presentation channels.
+        match self.service.mode {
+            AnimationMode::Disabled => {
+                return Ok(AnimationStart::Suppressed(AnimationSuppression::Disabled));
+            }
+            AnimationMode::ReducedMotion => {
+                return Ok(AnimationStart::Suppressed(
+                    AnimationSuppression::ReducedMotionStaticFallback,
+                ));
+            }
+            AnimationMode::Enabled => {}
+        }
+        let targets = changed
+            .into_iter()
+            .map(|(figure, before, after)| {
+                bounds_transition_transform(before, after).map(|transform| (figure, transform))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let last_index =
             u64::try_from(targets.len() - 1).map_err(|_| AnimationError::TimeOverflow)?;
         stagger_micros
