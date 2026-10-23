@@ -534,6 +534,8 @@ module.render struct ResourceUpdate
 module.render struct SelectionQuad
 module.render struct StrokeStyle
 module.render struct SurfaceInfo
+module.render struct SvgImageSource
+module.render struct SvgRasterOptions
 module.render struct TextConstraints
 module.render struct TextInteractionMap
 module.render struct TextLayout

@@ -21,8 +21,10 @@ mod path_geometry;
 pub use paint::{GradientStop, LinearGradient, Paint};
 mod recorder;
 mod stroke;
+mod svg;
 pub use recorder::{CommandRecorder, RecordedDrawing};
 pub use stroke::{CustomDash, DashPattern, GraphicsInputError, StrokeStyle};
+pub use svg::{SvgImageSource, SvgRasterOptions};
 /// 渲染提交协议模块
 pub mod submission;
 /// Text shaping and immutable layout snapshots.

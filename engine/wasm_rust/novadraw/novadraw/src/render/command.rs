@@ -707,6 +707,10 @@ pub enum ImageDecodeError {
     InvalidIco,
     InvalidSvg,
     InvalidScale,
+    InvalidPixelDensity,
+    InvalidPixelBudget,
+    RasterDimensionsOverflow,
+    RasterPixelBudgetExceeded { required: u64, budget: u64 },
     RasterizationFailed,
 }
 
@@ -719,6 +723,15 @@ impl fmt::Display for ImageDecodeError {
             Self::InvalidIco => formatter.write_str("ICO data is invalid"),
             Self::InvalidSvg => formatter.write_str("SVG data is invalid"),
             Self::InvalidScale => formatter.write_str("image scale must be finite and positive"),
+            Self::InvalidPixelDensity => formatter.write_str("SVG pixel density must be positive"),
+            Self::InvalidPixelBudget => formatter.write_str("SVG pixel budget must be positive"),
+            Self::RasterDimensionsOverflow => formatter.write_str("SVG raster dimensions overflow"),
+            Self::RasterPixelBudgetExceeded { required, budget } => {
+                write!(
+                    formatter,
+                    "SVG raster requires {required} pixels, exceeding budget {budget}"
+                )
+            }
             Self::RasterizationFailed => formatter.write_str("SVG rasterization failed"),
         }
     }
@@ -782,29 +795,10 @@ impl ImageData {
 
     pub fn decode_svg(bytes: &[u8], scale: f64) -> Result<Self, ImageDecodeError> {
         validate_scale(scale)?;
-        let mut options = resvg::usvg::Options::default();
-        {
-            let fontdb = options.fontdb_mut();
-            for font in crate::render::text::BuiltinFont::ALL {
-                fontdb.load_font_data(font.bytes().to_vec());
-            }
-            fontdb.set_sans_serif_family(crate::render::text::BuiltinFont::Inter.family());
-            fontdb.set_serif_family(crate::render::text::BuiltinFont::Inter.family());
-            fontdb.set_monospace_family(crate::render::text::BuiltinFont::JetBrainsMono.family());
-        }
-        let tree = resvg::usvg::Tree::from_data(bytes, &options)
-            .map_err(|_| ImageDecodeError::InvalidSvg)?;
-        let size = tree.size().to_int_size();
-        let mut pixmap = resvg::tiny_skia::Pixmap::new(size.width(), size.height())
-            .ok_or(ImageDecodeError::RasterizationFailed)?;
-        resvg::render(
-            &tree,
-            resvg::tiny_skia::Transform::default(),
-            &mut pixmap.as_mut(),
-        );
-        let mut pixels = pixmap.take();
-        unpremultiply_rgba(&mut pixels);
-        Ok(Self::from_rgba(size.width(), size.height(), pixels, scale))
+        let source = super::SvgImageSource::decode(bytes)?;
+        let mut image = source.rasterize_intrinsic()?;
+        image.scale = scale;
+        Ok(image)
     }
 }
 
@@ -813,18 +807,6 @@ fn validate_scale(scale: f64) -> Result<(), ImageDecodeError> {
         Ok(())
     } else {
         Err(ImageDecodeError::InvalidScale)
-    }
-}
-
-fn unpremultiply_rgba(pixels: &mut [u8]) {
-    for pixel in pixels.chunks_exact_mut(4) {
-        let alpha = u32::from(pixel[3]);
-        if alpha == 0 || alpha == 255 {
-            continue;
-        }
-        for component in &mut pixel[..3] {
-            *component = ((u32::from(*component) * 255 + alpha / 2) / alpha).min(255) as u8;
-        }
     }
 }
 
