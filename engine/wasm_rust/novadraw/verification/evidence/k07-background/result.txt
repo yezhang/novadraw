@@ -1,0 +1,12 @@
+PASS
+Two independent Canvas Runtimes
+Native DPI: 2
+Synthetic DPI: 2.5
+Opaque/transparent: passed
+Content scroll: passed
+Canvas movement: passed
+Host-only change: passed
+Backend session repair: passed
+Suspend/resume: passed
+DPI repair/restoration: passed
+Background removal: passed

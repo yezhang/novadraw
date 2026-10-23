@@ -3,7 +3,16 @@ name = "draw2d-official-examples"
 version.workspace = true
 edition.workspace = true
 publish = false
+default-run = "draw2d-official-examples"
 
 [dependencies]
 novadraw = { path = "../../../novadraw", default-features = false }
 novadraw-example-support = { path = "../../support", features = ["egui-panel"] }
+novadraw-backend-vello = { path = "../../../novadraw-backend-vello" }
+novadraw-platform-winit = { path = "../../../novadraw-platform-winit", features = ["canvas"] }
+winit-canvas = { path = "../../../winit-canvas", features = ["gpu"] }
+vello.workspace = true
+winit.workspace = true
+pollster.workspace = true
+anyhow.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }

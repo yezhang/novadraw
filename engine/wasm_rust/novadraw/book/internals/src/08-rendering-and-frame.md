@@ -561,6 +561,9 @@ backend capability 与设备数值，再冻结资源同步前缀与 in-flight le
 清屏要求 Full repair，因此不会用完整清屏配合仅有局部 Figure 的录制结果。
 Retry 和 reset 复用 scene 导入表的恢复 lease，Presented 只确认旧前缀。
 实现见 [`background_submission.rs`](../../../novadraw/src/runtime/runtime/background_submission.rs)。
+外部 [双 Canvas 消费者](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+展示宿主分别维护 surface、position、dpi version；内容滚动只改变 Viewport，
+Canvas 移动才改变宿主变换。每个纹理消费者独立确认所属 Runtime 的冻结帧。
 
 ## 8.19 与后续章节的关系
 

@@ -9,6 +9,21 @@ fn main() {
         print_catalog();
         return;
     }
+    if std::env::args().any(|argument| {
+        argument == "--inherit-background" || argument == "--screenshot=InheritBackgroundExample"
+    }) {
+        let mut binary = std::env::current_exe().expect("current executable");
+        binary.set_file_name("inherit-background");
+        let mut command = std::process::Command::new(&binary);
+        if std::env::args().any(|argument| argument == "--screenshot=InheritBackgroundExample") {
+            command.arg("--verify");
+        }
+        let status = command.status().unwrap_or_else(|error| {
+            eprintln!("build the dedicated host with `cargo build -p draw2d-official-examples --bins`: {error}");
+            std::process::exit(2);
+        });
+        std::process::exit(status.code().unwrap_or(1));
+    }
 
     let cli = VerificationCli::parse().unwrap_or_else(|error| {
         eprintln!("{error}");
@@ -55,6 +70,9 @@ fn print_catalog() {
         );
         for gap in entry.gaps {
             println!("  gap: {gap}");
+        }
+        if let Some(binary) = entry.native_binary {
+            println!("  native: cargo run -p draw2d-official-examples --bin {binary}");
         }
     }
 }

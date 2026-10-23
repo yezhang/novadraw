@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`approved`；修订 3 已通过设计复核，2026-10-23 用户批准实施，功能验收未完成。
+状态：`approved`；修订 3 于 2026-10-23 获用户批准，六个切片与 macOS Native 消费已验收。
 
 日期：2026-10-23
 
@@ -388,9 +388,10 @@ Canvas drawing 与 Full damage 重建；失效 token 的迟到完成不得清除
 | K07-R07 | 无提示/单轴/双轴提示、显式 preferred、minimum、比例改变与零尺寸；Border insets 只扣加一次；外部 policy 错误可恢复 |
 | K07-R08 | rect 外/hidden/clipped 的 view 已登记结构边；移动、LayoutOutput、显示及 clip 放宽不增加边；直接/间接环、callback reparent、subtree/root/来源变更由 Runtime 整批拒绝；过期 graph 候选被拒绝，跨 Runtime 交错提交仍无环；derived 失败不回滚先前源输入，没有部分图更新、资源引用或持续 wakeup |
 
-上述为待执行验收，不是已通过证据。Native 分别提供 Thumbnail 拖拽与 overview resize、
-opaque/transparent 背景、Canvas 移动/滚动及 DPI/repair 图像证据。
-实际实现不得提前声明 Web/Windows/Linux 通过。
+上述反例的实现证据由 [K07 执行切片](../../roadmap/p2-delta-backlog.md)逐项链接。
+Native 已分别提供 Thumbnail 拖拽与 overview resize、opaque/transparent 背景、
+Canvas 移动/滚动及 DPI/repair 图像。Web 背景像素、Windows/Linux runner 和
+跨显示器系统 DPI 验收仍未完成。
 
 ## 两个决策分别批准与实施
 
@@ -401,4 +402,4 @@ backend 完整消费与 InheritBackground 验收。Thumbnail 通过不能替代�
 
 每个决策实施前分别补 ADR、API 账本、外部消费者、书籍与验证入口。
 执行队列仍只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护，
-本页不建立第二份执行状态表。已批准按两个决策实施，验收前不宣称完整功能完成。
+本页不建立第二份执行状态表。两个决策均已实施；各平台支持范围以切片证据为准。

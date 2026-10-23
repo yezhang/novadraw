@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod controls;
 mod examples;
+pub mod inherit_background;
 
 use novadraw::runtime::Runtime;
 
@@ -43,6 +44,8 @@ pub struct OfficialExample {
     pub upstream_path: &'static str,
     pub status: ParityStatus,
     pub gaps: &'static [&'static str],
+    /// Dedicated Native host for entries requiring multiple independent Canvases.
+    pub native_binary: Option<&'static str>,
     factory: Option<fn() -> Runtime>,
 }
 
@@ -60,6 +63,7 @@ impl OfficialExample {
             upstream_path,
             status: ParityStatus::InProgress,
             gaps,
+            native_binary: None,
             factory: Some(factory),
         }
     }
@@ -76,6 +80,7 @@ impl OfficialExample {
             upstream_path,
             status: ParityStatus::Complete,
             gaps: &[],
+            native_binary: None,
             factory: Some(factory),
         }
     }
@@ -92,6 +97,7 @@ impl OfficialExample {
             upstream_path,
             status: ParityStatus::Blocked,
             gaps,
+            native_binary: None,
             factory: None,
         }
     }
@@ -189,12 +195,15 @@ pub fn catalog() -> Vec<OfficialExample> {
             ],
             examples::scroll_pane_example,
         ),
-        OfficialExample::blocked(
-            "inherit-background",
-            "InheritBackgroundExample",
-            "org/eclipse/draw2d/examples/swt/InheritBackgroundExample.java",
-            &["transparent Canvas background-source composition remains to be implemented"],
-        ),
+        OfficialExample {
+            id: "inherit-background",
+            name: "InheritBackgroundExample",
+            upstream_path: "org/eclipse/draw2d/examples/swt/InheritBackgroundExample.java",
+            status: ParityStatus::Complete,
+            gaps: &[],
+            native_binary: Some("inherit-background"),
+            factory: Some(inherit_background::canvas),
+        },
         OfficialExample::blocked(
             "shape-styles",
             "ShapeStylesExample",
@@ -298,6 +307,7 @@ pub fn runnable_entries() -> Vec<SceneEntry> {
 pub fn panel_entries() -> Vec<novadraw_example_support::panel::PanelSceneEntry> {
     catalog()
         .into_iter()
+        .filter(|entry| entry.native_binary.is_none())
         .filter_map(|entry| {
             entry.factory.map(|factory| {
                 let name = entry.name;
@@ -363,7 +373,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            15
+            16
         );
 
         let mut ids = BTreeSet::new();

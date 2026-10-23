@@ -7,9 +7,9 @@
 范围：25 个入口的 Canvas / LightweightSystem 能力。执行队列仍只由
 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
-## 还有 10 个入口未收口
+## 还有 9 个入口未收口
 
-K07-4 验收后，当前 catalog 为 15 complete、8 in_progress、2 blocked，23 个可运行。
+K07-6 验收后，当前 catalog 为 16 complete、8 in_progress、1 blocked，24 个可运行。
 下表将待验证的消费者行为和确实缺失的 Core 能力分开记录。
 完成判据取自 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 不以可运行、测试数或一幅截图代替完整验收。
@@ -24,7 +24,6 @@ K07-4 验收后，当前 catalog 为 15 complete、8 in_progress、2 blocked，2
 | UMLClassDiagram | owner-aware 端点标签和重新测量已实现；类标题/成员字体、图标、StickyNote 的 DogEar 边框与窄宽度换行仍需视觉对等验收 | K02/K03/K05/H04 |
 | TreeExample | 19 节点、增删、样式/间距、选中渐变和非动画折叠已移植；动画中的 branch/line geometry、viewport 跟踪、取消与释放未闭合 | K06/K07/H04 |
 | ZoomExample | 原始 SVG 已加载；缩放/DPI 改变时仍使用固有尺寸的栅格，需保留矢量来源并按资源版本重栅格化 | K08/H01/H02 |
-| InheritBackgroundExample | 尚缺宿主背景输入与透明 Canvas 合成；需对照 opaque/transparent root，验证背景移动、DPI、alpha 与 repair | K07/H01/H02/H04 |
 | ShapeStylesExample | 尚缺 per-shape AA ON/OFF/DEFAULT 的 Graphics/IR/backend 完整链路；OFF 必须有像素证据，结构化拒绝不能视为完成 | K08/H02/H04 |
 
 ## 本批继续推进已有契约
@@ -43,14 +42,16 @@ Shape geometry，不只检查控制器布尔值。
 本批不将上述入口改为 complete；原始完整验收边界继续保留。
 执行结果见 [本批证据](../../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
 
-## K07 已批准实施
+## K07 已完成批准切片
 
 K07 的 [共享视图与背景设计](../../design/architecture/shared-scene-view-background-proposal.md)
 从上游 Thumbnail 的 source/update/deactivate 契约和 InheritBackground 的宿主背景来源
 推导，修订 3 已获用户批准。不可变源捕获、结构准入、资源导入和只读视图已实现；
 Thumbnail 的真实拖拽、等比 overview resize 与 Native 图像已验收，见
 [K07-4 证据](../reviews/k07-4-thumbnail-evidence-2026-10-23.md)。
-后续接入宿主背景与透明 Canvas，独立提供外部消费者和 Native 证据。
+宿主背景与透明 Canvas 也已完成独立消费者和 Native 验收，见
+[K07-6 证据](../reviews/k07-6-inherit-background-evidence-2026-10-23.md)。
+Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 验收仍未完成。
 
 K06 动画、K08 AA/SVG 重栅格化与混合字体段的通用文字装饰继续保留。
 Path 已消费单字体的下划线指标，不能据此关闭混合字体装饰增量。

@@ -498,7 +498,7 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 展示了宿主如何拥有 source 和 destination：主视图转交值输入，源提交后捕获，
 再将同一完整结果安装到主视图和 overview。overview resize 不触发源捕获。
 生命周期和图像证据见 [K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)；
-宿主背景继续按 [K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
+宿主背景的独立消费者见下节。
 
 ## 宿主背景也走帧准备入口
 
@@ -517,6 +517,9 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 内容滚动不改变 `host_to_canvas`，移动 Canvas 则需要新的位置版本。
 后端必须声明 `HostBackground` capability；不支持的后端在准备时明确拒绝。
 公开调用反例见 [`p2_host_background`](../../../novadraw/tests/p2_host_background.rs)。
+官方 [InheritBackground 宿主](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+拥有两个 Canvas Runtime，注册同一个背景提供者，再分别完成各自 request。
+运行 `cargo xtask verify example.inherit-background` 可检查滚动、移动、背景移除和重建。
 
 ## 4.15 验证入口
 

@@ -458,6 +458,22 @@ const SUITES: &[Suite] = &[
         ],
     },
     Suite {
+        id: "example.inherit-background",
+        description: "Official dual Canvas Host gradient, scrolling, movement and repair pixels",
+        steps: &[Step {
+            program: "cargo",
+            args: &[
+                "run",
+                "-p",
+                "draw2d-official-examples",
+                "--bin",
+                "inherit-background",
+                "--",
+                "--verify",
+            ],
+        }],
+    },
+    Suite {
         id: "web.build",
         description: "Release Wasm and wasm-bindgen browser artifacts",
         steps: &[Step {

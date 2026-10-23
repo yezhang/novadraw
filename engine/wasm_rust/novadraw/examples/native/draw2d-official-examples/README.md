@@ -42,7 +42,23 @@ NOVADRAW_THUMBNAIL_EVIDENCE=1 cargo run -p draw2d-official-examples -- --screens
 
 三阶段 Native 证据见
 [K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)。
-Thumbnail 的 Canvas 消费已完成；InheritBackground 的宿主合成另行推进。
+Thumbnail 的 Canvas 消费已完成。
+
+InheritBackground 使用独立 Native 宿主，在同一窗口内拥有两个 Canvas Runtime。
+左侧 root 绘制橙色，右侧 root 透明；宿主提供白色、浅绿色、白色的纵向渐变，
+通过 Core 的受检背景完成入口进入统一帧包。两侧显示同一段官方文字。
+滚轮滚动当前 Canvas 内容，Tab 切换焦点，方向键移动 Canvas，B 改背景，
+X 移除或恢复背景，R 重建后端 session。
+
+```sh
+cargo run -p draw2d-official-examples --bin inherit-background
+cargo xtask verify example.inherit-background
+```
+
+验证保存初始、滚动、移动、背景变化、重建、暂停恢复、DPI 与移除的 Native 图像。
+主程序的 `--inherit-background` 和 `--screenshot=InheritBackgroundExample` 可转到该
+二进制，需先运行 `cargo build -p draw2d-official-examples --bins`。
+通用单 Runtime 场景列表只展示其透明 Canvas 内容；背景对等验收以独立宿主为准。
 
 Obstruction 的组求解和交互按 [ADR-040](../../../doc/adr/adr-040-group-route-solving.md)
 实现。运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；

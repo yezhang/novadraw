@@ -217,10 +217,11 @@ K07 [修订 2 复核](../verification/reviews/k07-shared-scene-view-background-r
 | K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `complete` | [目标视图证据](../verification/reviews/k07-3-scene-view-evidence-2026-10-23.md)：11 个外部契约、13 个定向库级检查；完整库级 407 项通过；font/image 共存、Border/提示、stale/conflict、reset/Retry、释放及 API 28/28 |
 | K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `complete` | [消费者证据](../verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)：独立活源 Runtime、真实目标输入、两个只读视图、resize 不重新捕获、终止清理及三张 Native 截图 |
 | K07-5 | 宿主背景候选、统一输入冻结与恢复 | `complete` | [背景证据](../verification/reviews/k07-5-host-background-evidence-2026-10-23.md)：7 项外部契约、身份耗尽与 Native GPU 像素通过；版本拒绝、移除/迟到、lease、Retry/reset、明确清屏和后端拒绝，API 28/28 |
-| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `in_progress` | opaque/transparent root、Canvas 移动与内容滚动、DPI/repair，启用 backend 完整消费或明确拒绝 |
+| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `complete` | [双 Canvas 证据](../verification/reviews/k07-6-inherit-background-evidence-2026-10-23.md)：真实双 Runtime、宿主 typed provider、opaque/transparent、内容滚动与 Canvas 移动、背景移除、DPI、暂停恢复及 session repair 的 Native 像素通过 |
 
-同一时刻只执行一个切片。K07、两个官方阻塞入口和平台支持状态在各自验收前保持未完成；
-其他 K06/K08 与 S08/S09 的状态不因本次批准改变。
+K07 六个批准切片已完成，Thumbnail 与 InheritBackground 的 macOS Native 消费已验收。
+Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 仍未验收；
+其他 K06/K08 与 S08/S09 的状态保持不变。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依

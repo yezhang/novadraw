@@ -424,7 +424,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `resource.lifecycle` | `parts.Thumbnail` 的独立视图资源与释放 | 来源 revision 映射为不同目标不可变 ID；`InstalledScene`、prepared drawing、in-flight 与 recovery 前缀保留 CPU lease | verified | K07-3：font/image 共存、同键去重、闭包失败不安装、最后 lease 回收、reset 后 Snapshot 及 Retry；公开修改导入 ID 返回 `ImmutableImport` |
 | `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | Host 串行接管以 Snapshot + Full 建立基线；拒绝缺基线 Delta 与同域 stale generation | verified | D4.2/D4.4 已验证；并发 producer activation token 不在 Core 1.0 范围 |
 | `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime typed worklist 在 stable epoch 前收敛；公开 Ready/Idle/Suspended/AwaitingCompletion/Error，失败不提交 frame | verified | D4.1/D4.4 自动契约 |
-| `frame.preparation` | `FigureCanvas` 透明 root 继承宿主背景 | Host typed provider 输出 owned snapshot；RuntimeFrames 检查 request、surface/位置/DPI 后统一冻结背景、Canvas、清屏值及资源；背景参与时完整修复 | verified | K07-5：`p2_host_background` 验证独立变化、pending/失败、移除/迟到、stale/conflict、版本拒绝、Retry/reset 与 capability；官方 InheritBackground 平台消费另按 K07-6 验收 |
+| `frame.preparation` | `FigureCanvas` 透明 root 继承宿主背景 | Host typed provider 输出 owned snapshot；RuntimeFrames 检查 request、surface/位置/DPI 后统一冻结背景、Canvas、清屏值及资源；背景参与时完整修复 | verified | K07-5：`p2_host_background` 验证独立变化、pending/失败、移除/迟到、stale/conflict、版本拒绝、Retry/reset 与 capability；K07-6 的 `example.inherit-background` 验证官方双 Canvas、滚动/移动、DPI、暂停恢复与 repair 的 macOS Native 像素 |
 
 ### P2 Animation / Presentation
 
