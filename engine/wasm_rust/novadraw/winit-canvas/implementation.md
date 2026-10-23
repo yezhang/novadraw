@@ -68,3 +68,90 @@ Windows/Linux 尚未做原生人工验收。
 workspace 测试编译保留了既有 Core 测试代码的 warning；严格 Clippy 的范围为
 仓库要求的默认 workspace 目标。执行日志保存在
 `target/verification/winit-canvas/`。
+
+## 纯 WGPU 独立样例增量
+
+新增 `winit-canvas/examples/standalone/`，通过
+`cargo run -p winit-canvas --example standalone --features gpu` 启动。
+该 example 不依赖 Novadraw、novadraw-platform-winit 或 Vello。
+直接与开发依赖为 winit、WGPU、pollster 和 png；库的生产依赖未增加。
+
+示例把应用入口、绘制和截图分为 `main.rs`、`paint.rs`/`paint.wgsl`、
+`readback.rs`。CanvasHost 负责区域输入与重绘，WGPU shader 只绘制示例网格和矩形。
+焦点由 CanvasHost 路由，方向键通过 CanvasEvent::Keyboard 传给当前画布。
+窗口标题显示 Canvas 局部指针坐标。
+
+macOS 原生自检已通过跨区 capture、DPI 局部拖拽、未变化纹理复用、
+隐藏/恢复后的旧像素清除和两侧像素颜色检查，严格 example Clippy 通过。
+截图与自检结果为 `standalone.png` 和 `standalone-result.txt`，
+位于 `target/verification/winit-canvas/`。
+复制组件目录到 workspace 外后，example 的独立编译也通过。
+本增量的仓库文档检查被并行编辑的 K07 文档阻塞：
+`k07-1-scene-capture-evidence-2026-10-23.md` 使用了校验器不支持的
+`verification-report` 类型，因此不记为本增量文档门禁通过。
+
+两库的职责与当前接入限制已写入 README：它们互不依赖，
+`novadraw-platform-winit` 的现有 WinitPlatformHost 仍按整个窗口提供服务，
+尚未提供子 Canvas 的 Novadraw 宿主适配。
+
+## 独立样例 resize 呈现修复
+
+沿用 2026-09-12 已验收的 macOS 修复：左上角固定旧 drawable、
+配置 opaque 背景，以及仅 resize 帧采用 Core Animation 事务呈现。
+机制位于 `gpu::presentation`，不依赖 Novadraw。
+`SurfacePresentation` 在 acquire 前开启模式，在 present 后或提前退出时恢复。
+样例的 resize 标记保持到成功呈现；surface lost 重建后重新配置 layer。
+
+绘制前重新核对 Window 的实际尺寸和 DPI，处理 redraw 早于 Resized 的事件顺序，
+避免以旧 Canvas 几何获取新尺寸 drawable。
+`--verify-resize` 已通过七次真实窗口缩小/放大/恢复，
+并检查窗口、surface、Canvas 尺寸一致以及事务模式的开启/恢复。
+这证明了呈现策略与几何协议；自动截图不作为连续手动拖动无抖动的充分证据。
+原有交互自检和严格 example Clippy 另行运行。
+
+## Novadraw Canvas 宿主桥接
+
+`novadraw-platform-winit` 已新增可选 `canvas` feature，
+通过 `canvas::WinitCanvasHost` 和 `WinitCanvasCoordinator` 接入本组件。
+该 feature 只使用 CanvasHost，不引入 WGPU/Vello；本组件仍不依赖 Novadraw。
+此增量取代前面“尚未提供子 Canvas 宿主适配”的阶段状态。
+整窗 WinitPlatformHost 保持原有语义。
+
+双 Canvas Native 示例已使用新 Host 获取区域 SurfaceInfo、请求重绘，
+通过 Coordinator 路由输入和确认各纹理版本。
+当前工作区的 workspace check、13 项 canvas+editor 单元测试、
+平台库严格 Clippy 以及 Native 自检通过；文档与格式检查通过。
+中途并行 Core 变更引起编译失败，曾在已提交 Core 的临时副本验证，
+随后已在当前工作区重新完成上述代码验证。
+
+具体接线与窗口服务仲裁见
+[Winit 平台适配](../novadraw-platform-winit/README.md)。
+
+## 双 Canvas 样例统一使用 Novadraw
+
+`examples/native/winit-canvas-demo` 的两个区域现在都由 Novadraw 绘制，
+分别拥有 FigureTree、Runtime、字体资源与 VelloTextureRenderer。
+移除左侧直接编写 Vello Scene 的路径。矩形位置从各自 FigureTree 查询，
+拖拽通过 Runtime Figure mutation 修改，宿主仅保存指针偏移。
+两侧 Label 各自在 Runtime 中注册内置 Inter 字体。
+
+Native 自检覆盖独立 backend session、局部输入隔离、未变化纹理复用、
+Canvas 移动、矩形旧像素清除，以及两侧的矩形颜色与 glyph 提交。
+当前运行截图为 `target/verification/winit-canvas/native-after.png`。
+样例接线见
+[双 Canvas Novadraw 样例](../examples/native/winit-canvas-demo/README.md)。
+
+## Novadraw 双 Canvas 的 resize 呈现接入
+
+前面的 macOS 呈现修复最初只接入了纯 WGPU 独立样例。
+`winit-canvas-demo` 已补齐同一呈现策略：surface 创建/恢复时配置
+左上角固定与 opaque 背景，resize drawable 在 acquire 前启用事务呈现，
+成功后记录呈现尺寸，失败则保留待重试状态。
+绘制前核对实际窗口尺寸，避免旧 Canvas 几何与新 drawable 混用；
+零尺寸后恢复会重新走事务呈现，同尺寸输出纹理直接复用。
+
+九次真实窗口尺寸变化回归通过，覆盖宽度、高度、双轴缩放与恢复，
+并验证两个 Runtime/Canvas/纹理尺寸一致、Figure 位置保持及事务模式恢复。
+这验证了呈现协议，不将自动截图等同于连续手动缩放的视觉验收。
+证据为 `target/verification/winit-canvas/novadraw-resize-result.txt` 和
+`novadraw-resize.png`。

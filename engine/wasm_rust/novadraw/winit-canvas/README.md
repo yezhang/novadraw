@@ -5,6 +5,29 @@
 独立 Rust UI 组件，使用 winit 官方窗口、事件和 redraw 机制实现窗口内多个 Canvas。
 组件不依赖 Novadraw、Vello、Figure 或 Editor；WGPU 为可选渲染目标实现。
 
+## 与 novadraw-platform-winit 的关系
+
+`novadraw-platform-winit` 的可选 `canvas` feature 单向依赖本组件，
+提供 `canvas::WinitCanvasHost` 和 `canvas::WinitCanvasCoordinator`。
+本组件继续不依赖 Novadraw，纯 WGPU 独立样例无需该 feature。
+
+| 职责 | winit-canvas | novadraw-platform-winit |
+|---|---|---|
+| 面向谁 | 任意需要窗口内 Canvas 的应用 | Novadraw 应用 |
+| 输入 | 区域命中、焦点、capture、DPI 与画布局部坐标 | winit 输入到 Novadraw Key、Gesture、TextInput 等协议的适配 |
+| 绘图 | 可选独立 WGPU 纹理与窗口合成 | 不提供 GPU renderer |
+| 宿主服务 | Canvas 状态与重绘版本 | Novadraw PlatformHost、窗口重绘、cursor、IME、唤醒、tooltip 与 accessibility |
+| 引擎依赖 | 无 Novadraw/Vello 依赖 | 依赖 Novadraw，Editor 为可选依赖 |
+
+使用 Canvas 不需要 `novadraw-platform-winit`。把 Novadraw 放进 Canvas 时，
+应用先由 CanvasHost 确定目标与局部坐标，再交给 Novadraw 的事件与渲染入口。
+这种组合不改变 Canvas 库的依赖边界。
+
+`WinitPlatformHost` 保留整窗语义；子 Canvas 应使用 `WinitCanvasHost`，
+由 Coordinator 提供区域尺寸、独立重绘以及焦点/指针对应的窗口服务。
+不要再次对 Canvas 已归一化的局部点做窗口 DPI 转换。
+接入说明见 [Winit 平台适配](../novadraw-platform-winit/README.md)。
+
 ## 组件契约
 
 - 一个 `CanvasHost` 对应一个 winit `Window`；Canvas 按插入顺序确定绘制和命中顺序。
@@ -49,6 +72,17 @@ Runtime 的 complete_submission。资源缓存和绘制命令解释与窗口后�
 离屏提交成功后由宿主合成并呈现窗口；窗口呈现重试直接复用已生成纹理。
 设备丢失和异步 WGPU 错误由应用处理，不能用旧 device 的纹理接入新 device。
 
+### macOS resize 呈现
+
+WGPU 的窗口宿主可调用 `gpu::presentation::configure_surface(surface, background)`，
+将旧 drawable 固定在左上角，并配置新露出区域的背景。
+窗口 resize 后，在 `get_current_texture()` 前创建
+`SurfacePresentation::begin(surface, true)`，保持到 `present()` 后再释放。
+guard 释放时恢复普通呈现，提前返回和 surface 恢复分支也会执行恢复。
+只在 resize 帧开启该模式，其他平台不执行 Metal 设置。
+这沿用项目已验证的
+[macOS live resize 修复](../doc/verification/reviews/macos-live-resize-transaction-2026-09-12.md)。
+
 ## 生命周期与宿主接线
 
 在 `ApplicationHandler::window_event` 中将所属窗口事件交给 Host，
@@ -65,8 +99,39 @@ Canvas focus 与整个窗口的 OS focus 是不同层次。
 
 库的确定性测试覆盖 DPI 与局部坐标、重叠区域、跨区域 capture、多按钮释放、
 焦点/IME、隐藏和删除清理、空尺寸及重绘确认。
-独立 Native 示例演示一个窗口内多个纹理 Canvas，消费者在组件外接入 renderer。
 平台运行证据以实际执行记录为准，不以跨平台编译推断 Windows/Linux 已人工验收。
+
+### 纯 WGPU 独立样例
+
+```sh
+cargo run -p winit-canvas --example standalone --features gpu
+cargo run -p winit-canvas --example standalone --features gpu -- --verify
+cargo run -p winit-canvas --example standalone --features gpu -- --verify-resize
+```
+
+源码在 [examples/standalone/main.rs](examples/standalone/main.rs)。
+样例只使用本组件、winit 和 WGPU，异步初始化使用 pollster，截图使用 png；
+不依赖 Novadraw、Vello 或 novadraw-platform-winit。
+复制 `winit-canvas` 目录到仓库外也能直接运行：
+
+```sh
+cargo run --example standalone --features gpu
+```
+
+一个窗口内有两个网格 Canvas。拖拽橙色或蓝色矩形，跨出区域时仍由原 Canvas
+接收拖拽，绘图被区域裁剪。Tab 切换焦点，彩色边框标出当前目标；
+方向键移动获得焦点的矩形，H 隐藏/恢复右画布，R 恢复初始状态。
+窗口标题显示收到输入的 Canvas 与局部坐标。
+窗口 resize 后更新区域与纹理；suspend 时释放 GPU，resume 后重新创建。
+
+`--verify` 启动真实 winit 窗口，按 WindowEvent 路径检查跨区 capture、
+局部坐标拖拽、未变化纹理复用、隐藏后的旧像素清除及两个画布的像素颜色。
+截图与结果写到 `target/verification/winit-canvas/standalone.png` 和
+`standalone-result.txt`。
+`--verify-resize` 通过真实窗口尺寸变更检查连续缩小、放大和恢复后的
+surface/Canvas 尺寸，以及 macOS 事务模式的开启和恢复。
+
+### Novadraw 渲染接入样例
 
 ```sh
 cargo run -p winit-canvas-demo
@@ -74,7 +139,7 @@ cargo test -p winit-canvas --test host_contract
 cargo xtask verify canvas.native
 ```
 
-示例左侧直接使用 Vello，右侧使用 Novadraw Runtime。按住矩形拖拽；Tab 切换
+示例两侧分别使用独立 Novadraw Runtime 和离屏 backend。按住矩形拖拽；Tab 切换
 Canvas 焦点，方向键移动获得焦点的 Canvas，R 恢复 Canvas 布局。
 resize 按新窗口尺寸分配区域与纹理。示例的矩形拖拽是消费者自身行为；
 完整 Novadraw Figure 输入集成应在消费者中把 Canvas 局部点交给 Runtime 事件入口。

@@ -8,6 +8,7 @@ publish = false
 winit-canvas = { path = "../../../winit-canvas", features = ["gpu"] }
 novadraw = { path = "../../../novadraw" }
 novadraw-backend-vello = { path = "../../../novadraw-backend-vello" }
+novadraw-platform-winit = { path = "../../../novadraw-platform-winit", features = ["canvas"] }
 vello.workspace = true
 winit.workspace = true
 pollster.workspace = true

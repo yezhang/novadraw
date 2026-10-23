@@ -1,18 +1,17 @@
 use anyhow::{Context, Result, bail};
 use novadraw::{
-    figure::RectangleFigure,
+    figure::{FigureStyle, LabelFigure, RectangleFigure},
     geometry::Rectangle,
     graphics::Color,
-    render::{RenderBackend, RenderDisposition, SurfaceInfo},
+    host::PlatformHost,
+    render::{BuiltinFont, RenderBackend, RenderDisposition},
     runtime::{FramePreparation, Runtime, SubmissionAcknowledgement},
     tree::{FigureId, FigureTree},
 };
 use novadraw_backend_vello::texture::VelloTextureRenderer;
+use novadraw_platform_winit::canvas::{WinitCanvasCoordinator, WinitCanvasHost};
 use std::{path::Path, sync::Arc};
 use vello::{
-    AaConfig, Renderer, RendererOptions,
-    kurbo::{Affine, Circle, Rect, Stroke},
-    peniko::{Color as VelloColor, Fill},
     util::{RenderContext, RenderSurface},
     wgpu,
 };
@@ -26,8 +25,9 @@ use winit::{
 };
 use winit_canvas::{
     geometry::{CanvasRect, WindowMetrics},
+    gpu::presentation::{SurfacePresentation, configure_surface},
     gpu::{CANVAS_FORMAT, CanvasCompositor, CanvasLayer, CanvasTarget},
-    host::{CanvasEvent, CanvasHost, CanvasId, Delivery},
+    host::{CanvasEvent, CanvasId, Delivery},
 };
 
 const MARGIN: f64 = 24.0;
@@ -43,25 +43,80 @@ const BACKGROUND: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 const TITLE: &str =
-    "Canvas: left Vello / right Novadraw | drag shapes | Tab focus | arrows move Canvas | R reset";
+    "Novadraw Canvas A / B | drag shapes | Tab focus | arrows move Canvas | R reset";
+
+struct CanvasScene {
+    runtime: Runtime,
+    root: FigureId,
+    shape: FigureId,
+}
+
+impl CanvasScene {
+    fn new(rect: CanvasRect, color: Color, title: &str) -> Result<Self> {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                rect.width(),
+                rect.height(),
+                Color::rgba(0.07, 0.13, 0.20, 1.0),
+            )))?;
+        let shape = tree.builder().add_child(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                START.x,
+                START.y,
+                SHAPE_WIDTH,
+                SHAPE_HEIGHT,
+                color,
+            )),
+        )?;
+        let label = tree.builder().add_child(
+            root,
+            Box::new(
+                LabelFigure::new(title).with_bounds(Rectangle::new(MARGIN, MARGIN, 300.0, 32.0)),
+            ),
+        )?;
+        let mut runtime = Runtime::new(tree);
+        runtime
+            .resources()
+            .register_builtin_font(BuiltinFont::Inter)?;
+        runtime.figure(label)?.set_style(FigureStyle {
+            foreground: Some(Color::rgba(0.92, 0.95, 1.0, 1.0)),
+            font: Some("18px Inter Variable".to_string()),
+            ..FigureStyle::default()
+        })?;
+        Ok(Self {
+            runtime,
+            root,
+            shape,
+        })
+    }
+
+    fn position(&self) -> Result<LogicalPosition<f64>> {
+        let bounds = self.runtime.tree().figure_bounds(self.shape)?;
+        Ok(LogicalPosition::new(bounds.x, bounds.y))
+    }
+}
 
 struct Live {
     window: Arc<Window>,
     context: RenderContext,
     surface: Option<RenderSurface<'static>>,
-    host: CanvasHost,
+    host: WinitCanvasCoordinator,
+    canvas_hosts: [WinitCanvasHost; 2],
     ids: [CanvasId; 2],
     targets: [Option<CanvasTarget>; 2],
     output: Option<CanvasTarget>,
     compositor: CanvasCompositor,
-    vello: Renderer,
-    novadraw: VelloTextureRenderer,
-    runtime: Runtime,
-    root: FigureId,
-    shape: FigureId,
-    positions: [LogicalPosition<f64>; 2],
+    renderers: [VelloTextureRenderer; 2],
+    scenes: [CanvasScene; 2],
     drag: [Option<LogicalPosition<f64>>; 2],
     renders: [u32; 2],
+    glyph_runs: [usize; 2],
+    presented_metrics: Option<WindowMetrics>,
 }
 
 impl Live {
@@ -75,50 +130,45 @@ impl Live {
             size.height,
             wgpu::PresentMode::AutoVsync,
         ))?;
+        configure_surface(&surface.surface, BACKGROUND);
         let gpu = &context.devices[surface.dev_id];
-        let mut host = CanvasHost::new(window.id(), metrics);
+        let mut host = WinitCanvasCoordinator::new(window.clone())?;
         let rects = layout(metrics)?;
-        let ids = [host.insert(rects[0])?, host.insert(rects[1])?];
-        let mut tree = FigureTree::new();
-        let root = tree
-            .builder()
-            .set_contents(Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                rects[1].width(),
-                rects[1].height(),
-                Color::rgba(0.07, 0.13, 0.20, 1.0),
-            )))?;
-        let shape = tree.builder().add_child(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                START.x,
-                START.y,
-                SHAPE_WIDTH,
-                SHAPE_HEIGHT,
+        let canvas_hosts = [host.insert(rects[0])?, host.insert(rects[1])?];
+        let ids = [canvas_hosts[0].canvas_id(), canvas_hosts[1].canvas_id()];
+        let scenes = [
+            CanvasScene::new(
+                rects[0],
+                Color::rgba(0.95, 0.40, 0.12, 1.0),
+                "Novadraw Canvas A",
+            )?,
+            CanvasScene::new(
+                rects[1],
                 Color::rgba(0.15, 0.65, 0.95, 1.0),
-            )),
-        )?;
+                "Novadraw Canvas B",
+            )?,
+        ];
         let compositor = CanvasCompositor::new(&gpu.device, CANVAS_FORMAT);
-        let vello = Renderer::new(&gpu.device, RendererOptions::default())?;
-        let novadraw = VelloTextureRenderer::new(&gpu.device, &gpu.queue)?;
+        let renderers = [
+            VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+            VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+        ];
         let mut live = Self {
             window,
             context,
             surface: Some(surface),
             host,
+            canvas_hosts,
             ids,
             targets: [None, None],
             output: None,
             compositor,
-            vello,
-            novadraw,
-            runtime: Runtime::new(tree),
-            root,
-            shape,
-            positions: [START; 2],
+            renderers,
+            scenes,
             drag: [None, None],
             renders: [0; 2],
+            glyph_runs: [0; 2],
+            presented_metrics: None,
         };
         live.allocate()?;
         Ok(live)
@@ -127,9 +177,9 @@ impl Live {
     fn allocate(&mut self) -> Result<()> {
         let surface = self.surface.as_ref().context("surface is suspended")?;
         let device = &self.context.devices[surface.dev_id].device;
-        let metrics = self.host.metrics();
+        let metrics = self.host.canvases().metrics();
         for index in 0..2 {
-            let rect = self.host.canvas(&self.ids[index])?.rect();
+            let rect = self.host.canvases().canvas(&self.ids[index])?.rect();
             let size = metrics.texture_size(rect)?;
             if self.targets[index].as_ref().map(CanvasTarget::size)
                 != Some([size.width, size.height])
@@ -139,16 +189,18 @@ impl Live {
         }
         let pixels = metrics.pixels();
         let scale = metrics.scale_factor();
-        self.output = CanvasTarget::new(
-            device,
-            CanvasRect::new(
-                0.0,
-                0.0,
-                f64::from(pixels.width) / scale,
-                f64::from(pixels.height) / scale,
-            )?,
-            metrics,
-        )?;
+        if self.output.as_ref().map(CanvasTarget::size) != Some([pixels.width, pixels.height]) {
+            self.output = CanvasTarget::new(
+                device,
+                CanvasRect::new(
+                    0.0,
+                    0.0,
+                    f64::from(pixels.width) / scale,
+                    f64::from(pixels.height) / scale,
+                )?,
+                metrics,
+            )?;
+        }
         Ok(())
     }
 
@@ -158,13 +210,12 @@ impl Live {
                 continue;
             };
             match delivery.event {
-                CanvasEvent::Geometry { rect, .. } if index == 1 => {
-                    self.runtime.figure(self.root)?.set_bounds(Rectangle::new(
-                        0.0,
-                        0.0,
-                        rect.width(),
-                        rect.height(),
-                    ))?;
+                CanvasEvent::Geometry { rect, .. } => {
+                    let scene = &mut self.scenes[index];
+                    scene
+                        .runtime
+                        .figure(scene.root)?
+                        .set_bounds(Rectangle::new(0.0, 0.0, rect.width(), rect.height()))?;
                 }
                 CanvasEvent::MouseInput {
                     position,
@@ -172,7 +223,7 @@ impl Live {
                     state,
                 } => {
                     if state == ElementState::Pressed {
-                        let origin = self.positions[index];
+                        let origin = self.scenes[index].position()?;
                         if position.x >= origin.x
                             && position.y >= origin.y
                             && position.x < origin.x + SHAPE_WIDTH
@@ -189,21 +240,21 @@ impl Live {
                 }
                 CanvasEvent::PointerMoved { position } => {
                     if let Some(offset) = self.drag[index] {
-                        self.positions[index] =
-                            LogicalPosition::new(position.x - offset.x, position.y - offset.y);
-                        if index == 1 {
-                            self.runtime.figure(self.shape)?.set_bounds(Rectangle::new(
-                                self.positions[1].x,
-                                self.positions[1].y,
+                        let scene = &mut self.scenes[index];
+                        scene
+                            .runtime
+                            .figure(scene.shape)?
+                            .set_bounds(Rectangle::new(
+                                position.x - offset.x,
+                                position.y - offset.y,
                                 SHAPE_WIDTH,
                                 SHAPE_HEIGHT,
                             ))?;
-                        }
-                        self.host.request_redraw(&self.ids[index])?;
+                        self.canvas_hosts[index].request_redraw();
                     }
                 }
                 CanvasEvent::Cancelled | CanvasEvent::Suspended => self.drag[index] = None,
-                CanvasEvent::Focused(_) => self.host.request_redraw(&self.ids[index])?,
+                CanvasEvent::Focused(_) => self.canvas_hosts[index].request_redraw(),
                 _ => {}
             }
         }
@@ -212,14 +263,19 @@ impl Live {
 
     fn resize(&mut self) -> Result<()> {
         let metrics = WindowMetrics::new(self.window.inner_size(), self.window.scale_factor())?;
-        let events = self.host.set_metrics(metrics)?;
+        let events = self
+            .host
+            .update_canvases(|host| host.set_metrics(metrics))?;
         self.deliver(events)?;
         for (index, rect) in layout(metrics)?.into_iter().enumerate() {
-            let events = self.host.set_rect(&self.ids[index].clone(), rect)?;
+            let events = self
+                .host
+                .update_canvases(|host| host.set_rect(&self.ids[index], rect))?;
             self.deliver(events)?;
         }
         let pixels = metrics.pixels();
         if pixels.width == 0 || pixels.height == 0 {
+            self.presented_metrics = None;
             return Ok(());
         }
         if let Some(surface) = &mut self.surface {
@@ -231,13 +287,20 @@ impl Live {
     }
 
     fn render(&mut self, present: bool) -> Result<()> {
+        // A queued redraw may precede Resized. Synchronize native dimensions
+        // before rendering or acquiring a drawable for the new window bounds.
+        let current = WindowMetrics::new(self.window.inner_size(), self.window.scale_factor())?;
+        if current != self.host.canvases().metrics() {
+            self.resize()?;
+        }
+        self.host.synchronize()?;
         let Some(surface) = &self.surface else {
             return Ok(());
         };
         let Some(output) = &self.output else {
             return Ok(());
         };
-        let metrics = self.host.metrics();
+        let metrics = self.host.canvases().metrics();
         if metrics.pixels().width == 0 || metrics.pixels().height == 0 {
             return Ok(());
         }
@@ -246,59 +309,37 @@ impl Live {
             let Some(target) = &self.targets[index] else {
                 continue;
             };
-            let Some(token) = self.host.canvas(&self.ids[index])?.redraw_token() else {
+            let Some(token) = self
+                .host
+                .canvases()
+                .canvas(&self.ids[index])?
+                .redraw_token()
+            else {
                 continue;
             };
-            let [width, height] = target.size();
-            if index == 0 {
-                let mut scene = vello::Scene::new();
-                let scale = metrics.scale_factor();
-                let transform = Affine::scale(scale);
-                let p = self.positions[0];
-                scene.fill(
-                    Fill::NonZero,
-                    transform,
-                    VelloColor::new([0.95, 0.40, 0.12, 1.0]),
-                    None,
-                    &Rect::new(p.x, p.y, p.x + SHAPE_WIDTH, p.y + SHAPE_HEIGHT),
-                );
-                scene.stroke(
-                    &Stroke::new(3.0),
-                    transform,
-                    VelloColor::new([1.0, 0.76, 0.4, 1.0]),
-                    None,
-                    &Circle::new((p.x + SHAPE_WIDTH / 2.0, p.y + SHAPE_HEIGHT / 2.0), 28.0),
-                );
-                self.vello.render_to_texture(
-                    &gpu.device,
-                    &gpu.queue,
-                    &scene,
-                    target.view(),
-                    &vello::RenderParams {
-                        base_color: VelloColor::new([0.12, 0.09, 0.08, 1.0]),
-                        width,
-                        height,
-                        antialiasing_method: AaConfig::Msaa16,
-                    },
-                )?;
-            } else {
-                let mut backend = self.novadraw.bind(target.texture());
-                self.runtime.frames().request_full_redraw();
-                let submission = match self.runtime.frames().prepare_submission(
-                    SurfaceInfo {
-                        pixel_width: width,
-                        pixel_height: height,
-                        scale_factor: metrics.scale_factor(),
-                        logical_width: f64::from(width) / metrics.scale_factor(),
-                        logical_height: f64::from(height) / metrics.scale_factor(),
-                    },
+            {
+                let runtime = &mut self.scenes[index].runtime;
+                let mut backend = self.renderers[index].bind(target.texture());
+                runtime.frames().request_full_redraw();
+                let submission = match runtime.frames().prepare_submission(
+                    self.canvas_hosts[index].surface_info(),
                     backend.capabilities(),
                 ) {
                     FramePreparation::Ready(submission) => submission,
                     other => bail!("Novadraw preparation failed: {other:?}"),
                 };
+                self.glyph_runs[index] = submission
+                    .commands
+                    .iter()
+                    .filter(|command| {
+                        matches!(
+                            command.kind,
+                            novadraw::render::RenderCommandKind::DrawGlyphRun { .. }
+                        )
+                    })
+                    .count();
                 let result = backend.submit(&submission);
-                let acknowledgement = self.runtime.frames().complete_submission(
+                let acknowledgement = runtime.frames().complete_submission(
                     submission.session_id,
                     submission.frame_id,
                     result.clone(),
@@ -313,13 +354,13 @@ impl Live {
             self.renders[index] += 1;
             self.host.acknowledge_canvas(&self.ids[index], token)?;
         }
-        let token = self.host.composite_token();
+        let token = self.host.canvases().composite_token();
         let layers: Vec<_> = self
             .targets
             .iter()
             .enumerate()
             .filter_map(|(index, target)| {
-                let canvas = self.host.canvas(&self.ids[index]).ok()?;
+                let canvas = self.host.canvases().canvas(&self.ids[index]).ok()?;
                 canvas.visible().then_some(CanvasLayer {
                     target: target.as_ref()?,
                     rect: canvas.rect(),
@@ -337,11 +378,20 @@ impl Live {
         )?;
         gpu.queue.submit([encoder.finish()]);
         if present {
+            // WGPU snapshots presentsWithTransaction at drawable acquisition.
+            // Failed acquisition leaves presented_metrics unchanged for retry.
+            let presentation = SurfacePresentation::begin(
+                &surface.surface,
+                self.presented_metrics != Some(metrics),
+            );
             let (frame, reconfigure) = match surface.surface.get_current_texture() {
                 wgpu::CurrentSurfaceTexture::Success(frame) => (frame, false),
                 wgpu::CurrentSurfaceTexture::Suboptimal(frame) => (frame, true),
                 wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
+                    drop(presentation);
                     self.context.configure_surface(surface);
+                    configure_surface(&surface.surface, BACKGROUND);
+                    self.presented_metrics = None;
                     self.window.request_redraw();
                     return Ok(());
                 }
@@ -362,6 +412,8 @@ impl Live {
             gpu.queue.submit([encoder.finish()]);
             self.window.pre_present_notify();
             frame.present();
+            drop(presentation);
+            self.presented_metrics = Some(metrics);
             if reconfigure {
                 self.context.configure_surface(surface);
             }
@@ -426,12 +478,14 @@ impl Live {
 
     fn key(&mut self, key: &Key) -> Result<()> {
         if *key == Key::Named(NamedKey::Tab) {
-            let index = usize::from(self.host.focused().as_ref() == Some(&self.ids[0]));
-            let deliveries = self.host.set_focus(Some(&self.ids[index]))?;
+            let index = usize::from(self.host.canvases().focused().as_ref() == Some(&self.ids[0]));
+            let deliveries = self
+                .host
+                .update_canvases(|host| host.set_focus(Some(&self.ids[index])))?;
             self.deliver(deliveries)?;
         } else if key == &Key::Character("r".into()) {
             self.resize()?;
-        } else if let Some(id) = self.host.focused() {
+        } else if let Some(id) = self.host.canvases().focused() {
             let (dx, dy) = match key {
                 Key::Named(NamedKey::ArrowLeft) => (-STEP, 0.0),
                 Key::Named(NamedKey::ArrowRight) => (STEP, 0.0),
@@ -439,16 +493,18 @@ impl Live {
                 Key::Named(NamedKey::ArrowDown) => (0.0, STEP),
                 _ => return Ok(()),
             };
-            let rect = self.host.canvas(&id)?.rect();
-            let deliveries = self.host.set_rect(
-                &id,
-                CanvasRect::new(
-                    rect.origin().x + dx,
-                    rect.origin().y + dy,
-                    rect.width(),
-                    rect.height(),
-                )?,
-            )?;
+            let rect = self.host.canvases().canvas(&id)?.rect();
+            let deliveries = self.host.update_canvases(|host| {
+                host.set_rect(
+                    &id,
+                    CanvasRect::new(
+                        rect.origin().x + dx,
+                        rect.origin().y + dy,
+                        rect.width(),
+                        rect.height(),
+                    )?,
+                )
+            })?;
             self.deliver(deliveries)?;
         }
         Ok(())
@@ -476,6 +532,8 @@ fn layout(metrics: WindowMetrics) -> Result<[CanvasRect; 2]> {
 struct App {
     live: Option<Live>,
     verify: bool,
+    verify_resize: bool,
+    resize_step: usize,
     error: Option<anyhow::Error>,
 }
 
@@ -497,17 +555,23 @@ impl ApplicationHandler for App {
                     pixels.height.max(1),
                     wgpu::PresentMode::AutoVsync,
                 ))?);
+                configure_surface(&live.surface.as_ref().unwrap().surface, BACKGROUND);
+                live.presented_metrics = None;
                 // A replacement device requires fresh consumers and targets.
                 let gpu = &live.context.devices[live.surface.as_ref().unwrap().dev_id];
-                live.vello = Renderer::new(&gpu.device, RendererOptions::default())?;
-                live.novadraw = VelloTextureRenderer::new(&gpu.device, &gpu.queue)?;
+                live.renderers = [
+                    VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+                    VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+                ];
                 live.compositor = CanvasCompositor::new(&gpu.device, CANVAS_FORMAT);
                 live.targets = [None, None];
                 let deliveries = live
                     .host
                     .resume(WindowMetrics::new(pixels, live.window.scale_factor())?)?;
                 live.deliver(deliveries)?;
-                live.runtime.frames().reset_backend_session()?;
+                for scene in &mut live.scenes {
+                    scene.runtime.frames().reset_backend_session()?;
+                }
                 live.resize()?;
                 live.window.request_redraw();
             } else {
@@ -530,9 +594,13 @@ impl ApplicationHandler for App {
     }
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(live) = &mut self.live {
-            let deliveries = live.host.suspend();
-            let result = live.deliver(deliveries);
+            let result = live
+                .host
+                .suspend()
+                .map_err(anyhow::Error::from)
+                .and_then(|deliveries| live.deliver(deliveries));
             live.surface = None;
+            live.presented_metrics = None;
             live.output = None;
             live.targets = [None, None];
             if let Err(error) = result {
@@ -541,6 +609,9 @@ impl ApplicationHandler for App {
         }
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if event_loop.exiting() {
+            return;
+        }
         let Some(live) = &mut self.live else { return };
         if id != live.window.id() {
             return;
@@ -552,6 +623,24 @@ impl ApplicationHandler for App {
             }
             if event == WindowEvent::RedrawRequested {
                 live.render(true)?;
+                if self.verify_resize && verify_resize_frame(live, self.resize_step)? {
+                    self.resize_step += 1;
+                    if let Some(size) = RESIZE_SIZES.get(self.resize_step) {
+                        let _ = live.window.request_inner_size(*size);
+                    } else {
+                        self.verify_resize = false;
+                        let directory = Path::new("target/verification/winit-canvas");
+                        live.screenshot(&directory.join("novadraw-resize.png"))?;
+                        std::fs::write(
+                            directory.join("novadraw-resize-result.txt"),
+                            format!(
+                                "PASS\nNative resize frames: {}\nWindow/Canvas/Runtime/texture dimensions: passed\nFigure positions preserved: passed\nResize transaction reset: passed\n",
+                                self.resize_step,
+                            ),
+                        )?;
+                        event_loop.exit();
+                    }
+                }
                 if std::mem::take(&mut self.verify) {
                     verify(live)?;
                     event_loop.exit();
@@ -571,7 +660,8 @@ impl ApplicationHandler for App {
                     _ => {}
                 }
             }
-            if !event_loop.exiting() && live.host.needs_redraw() {
+            live.host.synchronize()?;
+            if !event_loop.exiting() && live.host.canvases().needs_redraw() {
                 live.window.request_redraw();
             }
             Ok(())
@@ -582,15 +672,82 @@ impl ApplicationHandler for App {
     }
 }
 
+// Width only, height only, both axes; shrink, enlarge, then restore.
+const RESIZE_SIZES: [LogicalSize<f64>; 9] = [
+    LogicalSize::new(960.0, 600.0),
+    LogicalSize::new(820.0, 600.0),
+    LogicalSize::new(820.0, 480.0),
+    LogicalSize::new(680.0, 400.0),
+    LogicalSize::new(1040.0, 680.0),
+    LogicalSize::new(1040.0, 520.0),
+    LogicalSize::new(760.0, 520.0),
+    LogicalSize::new(1120.0, 720.0),
+    LogicalSize::new(960.0, 600.0),
+];
+
+fn verify_resize_frame(live: &Live, step: usize) -> Result<bool> {
+    let expected = RESIZE_SIZES[step].to_physical::<u32>(live.window.scale_factor());
+    if live.window.inner_size() != expected {
+        return Ok(false);
+    }
+    let metrics = live.host.canvases().metrics();
+    if live.presented_metrics != Some(metrics) {
+        return Ok(false);
+    }
+    let surface = live.surface.as_ref().context("surface is suspended")?;
+    if metrics.pixels() != expected
+        || surface.config.width != expected.width
+        || surface.config.height != expected.height
+        || live.output.as_ref().map(CanvasTarget::size) != Some([expected.width, expected.height])
+    {
+        bail!("resize presented stale window geometry")
+    }
+    for (index, scene) in live.scenes.iter().enumerate() {
+        let rect = live.host.canvases().canvas(&live.ids[index])?.rect();
+        let size = metrics.texture_size(rect)?;
+        if scene.position()? != START
+            || scene.runtime.tree().figure_bounds(scene.root)?
+                != Rectangle::new(0.0, 0.0, rect.width(), rect.height())
+            || live.targets[index].as_ref().map(CanvasTarget::size)
+                != Some([size.width, size.height])
+        {
+            bail!("Canvas {index} geometry did not converge after resize")
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let metal = unsafe { surface.surface.as_hal::<wgpu::hal::api::Metal>() }
+            .context("resize check requires a Metal surface")?;
+        if metal.render_layer().lock().presentsWithTransaction() {
+            bail!("resize transaction did not reset after present")
+        }
+        {
+            let _guard = SurfacePresentation::begin(&surface.surface, true);
+            if !metal.render_layer().lock().presentsWithTransaction() {
+                bail!("resize transaction did not enable before acquire")
+            }
+        }
+        if metal.render_layer().lock().presentsWithTransaction() {
+            bail!("abandoned resize transaction did not reset")
+        }
+    }
+    Ok(true)
+}
+
 fn verify(live: &mut Live) -> Result<()> {
     use winit::{dpi::PhysicalPosition, event::DeviceId};
     let directory = Path::new("target/verification/winit-canvas");
     let before = live.screenshot(&directory.join("native-before.png"))?;
-    let original = live.positions;
+    let original = [live.scenes[0].position()?, live.scenes[1].position()?];
+    if live.scenes[0].runtime.frames().backend_session_id()
+        == live.scenes[1].runtime.frames().backend_session_id()
+    {
+        bail!("Canvas runtimes must have distinct backend sessions")
+    }
     let original_renders = live.renders;
     for index in 0..2 {
-        let rect = live.host.canvas(&live.ids[index])?.rect();
-        let scale = live.host.metrics().scale_factor();
+        let rect = live.host.canvases().canvas(&live.ids[index])?.rect();
+        let scale = live.host.canvases().metrics().scale_factor();
         let window_point =
             rect.local_to_window(LogicalPosition::new(START.x + STEP, START.y + STEP));
         let events = [
@@ -620,8 +777,9 @@ fn verify(live: &mut Live) -> Result<()> {
             let deliveries = live.host.handle_window_event(live.window.id(), &event)?;
             live.deliver(deliveries)?;
         }
-        if live.positions[index] != LogicalPosition::new(START.x + STEP * 3.0, START.y + STEP * 2.0)
-            || (index == 0 && live.positions[1] != original[1])
+        if live.scenes[index].position()?
+            != LogicalPosition::new(START.x + STEP * 3.0, START.y + STEP * 2.0)
+            || (index == 0 && live.scenes[1].position()? != original[1])
         {
             bail!("canvas input isolation failed")
         }
@@ -636,23 +794,32 @@ fn verify(live: &mut Live) -> Result<()> {
     if before == after {
         bail!("interactive rendering did not change pixels")
     }
-    let scale = live.host.metrics().scale_factor();
-    for index in 0..2 {
-        let rect = live.host.canvas(&live.ids[index])?.rect();
-        let p = rect.local_to_window(LogicalPosition::new(
-            live.positions[index].x + STEP,
-            live.positions[index].y + STEP,
-        ));
+    let scale = live.host.canvases().metrics().scale_factor();
+    for (index, original_position) in original.iter().enumerate() {
+        let rect = live.host.canvases().canvas(&live.ids[index])?.rect();
+        let position = live.scenes[index].position()?;
+        let p = rect.local_to_window(LogicalPosition::new(position.x + STEP, position.y + STEP));
         let pixel = after.get_pixel((p.x * scale) as u32, (p.y * scale) as u32);
         if (index == 0 && pixel[0] < 200) || (index == 1 && pixel[2] < 200) {
             bail!("renderer {index} did not produce its expected color: {pixel:?}")
+        }
+        let old = rect.local_to_window(LogicalPosition::new(
+            original_position.x + STEP,
+            original_position.y + STEP,
+        ));
+        let old_pixel = after.get_pixel((old.x * scale) as u32, (old.y * scale) as u32);
+        if old_pixel.0[..3].iter().any(|value| *value > 100) {
+            bail!("Canvas {index} did not erase the Figure's old location")
+        }
+        if live.glyph_runs[index] == 0 {
+            bail!("Canvas {index} did not submit Novadraw text")
         }
     }
     std::fs::write(
         directory.join("result.txt"),
         format!(
-            "PASS\nOne native winit Window; two independent textures\nDPI: {scale}\nInput isolation: passed\nDirty texture reuse: passed\nCanvas relocation: passed\nVello + Novadraw pixels: passed\nRender counts: {:?}\n",
-            live.renders,
+            "PASS\nOne native winit Window; two Novadraw runtimes and textures\nDPI: {scale}\nIndependent backend sessions: passed\nInput isolation: passed\nDirty texture reuse: passed\nCanvas relocation: passed\nFigure old area erasure: passed\nNovadraw pixels and glyphs in both Canvas: passed\nRender counts: {:?}\nGlyph runs: {:?}\n",
+            live.renders, live.glyph_runs,
         ),
     )?;
     println!("Canvas verification passed: {}", directory.display());
@@ -662,8 +829,12 @@ fn verify(live: &mut Live) -> Result<()> {
 fn main() -> Result<()> {
     let mut app = App {
         verify: std::env::args().any(|arg| arg == "--verify"),
+        verify_resize: std::env::args().any(|arg| arg == "--verify-resize"),
         ..Default::default()
     };
+    if app.verify && app.verify_resize {
+        bail!("run --verify and --verify-resize separately");
+    }
     let event_loop = EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Wait);
     event_loop.run_app(&mut app)?;
