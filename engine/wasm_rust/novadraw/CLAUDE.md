@@ -33,6 +33,9 @@ benchmarks/        - 无窗口性能基线
 Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，
 不得将 Novadraw 或 Vello 依赖加回 Canvas 库。契约与验证入口见
 `winit-canvas/README.md`。
+`novadraw-platform-winit` 的可选 `canvas` feature 单向依赖 `winit-canvas`，
+提供 `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`。原 WinitPlatformHost
+保留整窗语义；子 Canvas 接入见 `novadraw-platform-winit/README.md`。
 
 ## 核心禁止事项
 

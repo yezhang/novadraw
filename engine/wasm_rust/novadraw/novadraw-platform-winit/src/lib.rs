@@ -1,5 +1,7 @@
 //! Winit window, input, and host adapters for Novadraw applications.
 
+#[cfg(feature = "canvas")]
+pub mod canvas;
 mod host;
 mod input;
 mod resource;

@@ -154,6 +154,9 @@
   WGPU 实现窗口内 Canvas；不属于 backend-neutral Core。
   接入与验证入口见 `winit-canvas/README.md`，Novadraw 离屏接入在
   `novadraw-backend-vello::texture`。
+- **Canvas 宿主桥接**：`novadraw-platform-winit` 的可选 `canvas` feature 提供
+  `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`，按区域协调 Host 服务；
+  原 `WinitPlatformHost` 保留整窗语义，接入见 `novadraw-platform-winit/README.md`。
 - **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate
 
 ## 交互方式原则（摘要）

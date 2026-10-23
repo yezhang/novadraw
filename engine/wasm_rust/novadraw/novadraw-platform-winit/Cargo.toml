@@ -7,8 +7,10 @@ description = "Winit platform adapter for Novadraw"
 [features]
 default = []
 editor = ["dep:novadraw-editor"]
+canvas = ["dep:winit-canvas"]
 
 [dependencies]
 novadraw = { path = "../novadraw" }
 novadraw-editor = { path = "../novadraw-editor", optional = true }
 winit.workspace = true
+winit-canvas = { path = "../winit-canvas", optional = true, default-features = false }
