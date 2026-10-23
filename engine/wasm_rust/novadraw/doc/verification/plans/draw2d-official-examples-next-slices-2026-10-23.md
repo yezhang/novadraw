@@ -16,9 +16,9 @@ K07-6 验收后，当前 catalog 为 16 complete、8 in_progress、1 blocked，2
 
 | 入口 | 剩余工作 | 能力批次 |
 |---|---|---|
-| FlowLayoutExample | 11 个 Shape 的颜色、轮廓已移植；继续验证窄容器换行、双轴 alignment/spacing、stretch、方向切换后的尺寸恢复、窗口 resize 与旧新 damage | K02/H04 |
-| GridLayoutExample | 本批接入窗口 resize；继续验收真实面板的 span/grab/hints/indent、动态 Add/Clear 与选择释放、缩至最小空间后的 geometry/damage | K01/K02/H04 |
-| ToolbarLayoutExample | 5 个 Shape 的颜色、轮廓已移植；本批验证方向切换、stretch、收缩和恢复；窗口 resize、minimum 边界及 damage 仍待验收 | K02/H04 |
+| FlowLayoutExample | 窄容器换行、双轴 alignment/不等 spacing、真实面板 stretch/方向、窗口视口与零可用空间恢复、Native GPU 擦除已验证；连续 Native 窗口 resize、文字 minimum 与 retained-partial 像素仍待验收 | K02/H04 |
+| GridLayoutExample | span/grab/hints/indent 的真实面板、Add/Clear 与选择释放、零可用空间恢复、Native GPU 清空擦除已验证；连续 Native 窗口 resize、文字消费者与 retained-partial 像素仍待验收 | K01/K02/H04 |
+| ToolbarLayoutExample | 5 个 Shape 的真实面板 alignment/方向/stretch、窗口视口收缩和零可用空间恢复、Native GPU 擦除已验证；连续 Native 窗口 resize、文字 minimum 与 retained-partial 像素仍待验收 | K02/H04 |
 | PrintExample | Canvas 组合、原始 ICO 和通用命令输出已验证；三个上游系统字体目前均以 Inter 替代，需宿主字体来源及真实字体指标证据 | K09/H01/H04 |
 | ScrollPaneExample | 五部件 ScrollBar 已由 ADR-041 实现，不再作为缺失 Core 能力；现有拖拽、resize、自动显隐与 cursor 回归继续保留，尚需完整主题与 Canvas 视觉验收 | K02/K04/H04 |
 | UMLClassDiagram | owner-aware 端点标签和重新测量已实现；类标题/成员字体、图标、StickyNote 的 DogEar 边框与窄宽度换行仍需视觉对等验收 | K02/K03/K05/H04 |
@@ -41,6 +41,11 @@ Shape geometry，不只检查控制器布尔值。
 
 本批不将上述入口改为 complete；原始完整验收边界继续保留。
 执行结果见 [本批证据](../../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
+
+K07 后返回布局主线的新增修复与核验见
+[K02 消费者记录](../reviews/k02-layout-consumers-evidence-2026-10-23.md)。
+Flow/Toolbar 已使用同一 MarginBorder/FillLayout 机制；右侧工具面板跟随窗口边缘。
+旧实施记录属于先前批次证据，其当时 catalog 和 K07 草案状态保留原文。
 
 ## K07 已完成批准切片
 

@@ -223,6 +223,15 @@ K07 六个批准切片已完成，Thumbnail 与 InheritBackground 的 macOS Nati
 Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 仍未验收；
 其他 K06/K08 与 S08/S09 的状态保持不变。
 
+2026-10-23 返回 K02/H04 已批准的布局消费者契约，Flow/Toolbar/Grid
+[后续核验切片](../verification/reviews/k02-layout-consumers-evidence-2026-10-23.md)已完成：
+Flow 的官方 majorSpacing 映射到行间距、minorSpacing 映射到元素间距；
+Flow/Toolbar 通过普通 MarginBorder/FillLayout 随 Host 视口布局；验证实际 egui 输入、
+方向/双轴 alignment/stretch/尺寸恢复及连续 Native GPU 提交后的旧像素清理。
+真实面板、零可用空间恢复、Native GPU 擦除、两张窗口截图和最终 workspace 门禁通过。
+本批不新增 Core API；连续 Native 窗口 resize、文字 minimum 与 retained-partial
+像素仍待验收，不关闭三项完整入口或 K02 批次。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
