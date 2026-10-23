@@ -401,6 +401,77 @@ mod tests {
     use super::*;
 
     #[test]
+    fn stretch_orientation_shrink_and_reset_preserve_official_preferred_sizes() {
+        let mut fixture = canvas_fixture(false);
+        let shapes = fixture.runtime.tree().child_order(fixture.content).unwrap();
+        let sizes = [
+            (60.0, 40.0),
+            (30.0, 70.0),
+            (90.0, 30.0),
+            (50.0, 80.0),
+            (50.0, 50.0),
+        ];
+        for (horizontal, stretch, width, height) in [
+            (true, false, 540.0, 480.0),
+            (true, true, 540.0, 480.0),
+            (false, true, 540.0, 480.0),
+            (false, false, 540.0, 480.0),
+            (true, false, 120.0, 100.0),
+            (true, false, 540.0, 480.0),
+        ] {
+            let settings = ToolbarSettings {
+                horizontal,
+                stretch_minor_axis: stretch,
+                ..ToolbarSettings::default()
+            };
+            let mut container = fixture.runtime.figure(fixture.content).unwrap();
+            container
+                .set_bounds(Rectangle::new(10.0, 10.0, width, height))
+                .unwrap();
+            container
+                .set_layout_manager(Box::new(settings.layout()))
+                .unwrap();
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            let bounds: Vec<_> = shapes
+                .iter()
+                .map(|id| fixture.runtime.tree().figure_bounds(*id).unwrap())
+                .collect();
+            for (index, (rect, (preferred_width, preferred_height))) in
+                bounds.iter().zip(sizes).enumerate()
+            {
+                if horizontal {
+                    assert_eq!(
+                        rect.height,
+                        if stretch {
+                            height - 2.0
+                        } else {
+                            preferred_height
+                        }
+                    );
+                    if width > 300.0 {
+                        assert_eq!(rect.width, preferred_width);
+                    } else {
+                        assert!(rect.width <= preferred_width);
+                    }
+                    if index > 0 {
+                        assert_eq!(rect.x, bounds[index - 1].x + bounds[index - 1].width);
+                    }
+                } else {
+                    assert_eq!(
+                        rect.width,
+                        if stretch {
+                            width - 2.0
+                        } else {
+                            preferred_width
+                        }
+                    );
+                    assert_eq!(rect.height, preferred_height);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn official_shape_sequence_and_control_types_are_preserved() {
         let fixture = fixture();
         let shapes = fixture

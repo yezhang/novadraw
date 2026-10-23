@@ -135,7 +135,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "FlowLayoutExample",
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
-                "Canvas shape outlines/colors, Flow measurement and resize remain under verification",
+                "Official shape outlines/colors are ported; Flow wrap/alignment/stretch, window resize and damage remain under verification",
             ],
             examples::flow_layout_example,
         ),
@@ -144,7 +144,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "GridLayoutExample",
             "org/eclipse/draw2d/examples/layouts/GridLayoutExample.java",
             &[
-                "Canvas GridData measurement, span/grab and dynamic resize remain under verification",
+                "Canvas now follows host viewport resize; spanning/grabbing shape shrink/grow/reset geometry is verified",
+                "Full GridData hints/indent, selection lifecycle, minimal-space resize and damage remain under verification",
             ],
             examples::grid_layout_example,
         ),
@@ -153,7 +154,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ToolbarLayoutExample",
             "org/eclipse/draw2d/examples/layouts/ToolbarLayoutExample.java",
             &[
-                "Canvas shape outlines, Toolbar measurement and stretch/reset behavior remain under verification",
+                "Official shape outlines and stretch/orientation/shrink/reset geometry are verified",
+                "Host resize, minimum-size boundaries and damage remain under verification",
             ],
             examples::toolbar_layout_example,
         ),
@@ -178,7 +180,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/scrollpane/ScrollPaneExample.java",
             &[
                 "InternalFrame drag/resize, GroupBoxBorder, ExampleUtil composition and dynamic resize cursor transitions are ported",
-                "Core ScrollBar child composition/theme and upstream visual comparison remain pending",
+                "Core ScrollBar five-child composition is implemented by ADR-041; full theme and Canvas visual comparison remain pending",
             ],
             examples::scroll_pane_example,
         ),
