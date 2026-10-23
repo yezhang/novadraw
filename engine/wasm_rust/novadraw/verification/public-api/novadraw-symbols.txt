@@ -665,6 +665,7 @@ module.text enum TextMovement
 module.text mod outline
 module.text mod shaping
 module.text struct CaretGeometry
+module.text struct FontDecorationMetrics
 module.text struct FontDescriptor
 module.text struct FontFaceRef
 module.text struct FontMetrics

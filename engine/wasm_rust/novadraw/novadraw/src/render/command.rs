@@ -704,6 +704,7 @@ pub enum ImageDecodeError {
     EmptyInput,
     UnsupportedFormat,
     InvalidPng,
+    InvalidIco,
     InvalidSvg,
     InvalidScale,
     RasterizationFailed,
@@ -715,6 +716,7 @@ impl fmt::Display for ImageDecodeError {
             Self::EmptyInput => formatter.write_str("image data is empty"),
             Self::UnsupportedFormat => formatter.write_str("image format is not supported"),
             Self::InvalidPng => formatter.write_str("PNG data is invalid"),
+            Self::InvalidIco => formatter.write_str("ICO data is invalid"),
             Self::InvalidSvg => formatter.write_str("SVG data is invalid"),
             Self::InvalidScale => formatter.write_str("image scale must be finite and positive"),
             Self::RasterizationFailed => formatter.write_str("SVG rasterization failed"),
@@ -741,6 +743,18 @@ impl ImageData {
         }
         if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
             return Self::decode_png(bytes, scale);
+        }
+        if bytes.starts_with(b"\x00\x00\x01\x00") {
+            validate_scale(scale)?;
+            let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Ico)
+                .map_err(|_| ImageDecodeError::InvalidIco)?
+                .to_rgba8();
+            return Ok(Self::from_rgba(
+                image.width(),
+                image.height(),
+                image.into_raw(),
+                scale,
+            ));
         }
         let first_non_whitespace = bytes
             .iter()

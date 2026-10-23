@@ -9,7 +9,7 @@ default = []
 debug_render = []
 
 [dependencies]
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 kurbo.workspace = true
 parley.workspace = true
 resvg.workspace = true

@@ -200,6 +200,10 @@ local border box
 组合顺序不能交换，因为内层边框的绘制范围建立在外层扣除后的矩形上。复合边框的
 preferred size 和 client area 必须使用同一组累计 insets。
 
+`SchemeBorder` 将 top/left 与 bottom/right 分别定义为从外到内的色带，色带长度决定
+各侧 inset。空层保留布局空间但不绘制；透明色、不对称宽度不能被当成完整 opaque
+边框。它与外部 Border 一样经 `CompoundBorder` 组合，没有特殊绘制入口。
+
 圆角 Figure 仍有轴对齐 border box，但其可见形状和精确命中可以使用圆角几何。祖先
 裁剪若也是圆角，命中必须尊重同一裁剪；普通矩形 bounds 只能作为保守快速拒绝，不能
 证明角落像素一定可见。

@@ -24,6 +24,29 @@ pub use styled::{
 mod system;
 pub use system::{MeasureContext, TextSystem};
 
+/// Font-provided decoration geometry in Canvas logical units.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FontDecorationMetrics {
+    offset: f32,
+    thickness: f32,
+}
+
+impl FontDecorationMetrics {
+    /// Offset from the baseline in the downward-positive Canvas coordinate space.
+    pub fn new(offset: f32, thickness: f32) -> Result<Self, TextError> {
+        if !offset.is_finite() || !thickness.is_finite() || thickness <= 0.0 {
+            return Err(TextError::InvalidMetric);
+        }
+        Ok(Self { offset, thickness })
+    }
+    pub fn offset(&self) -> f32 {
+        self.offset
+    }
+    pub fn thickness(&self) -> f32 {
+        self.thickness
+    }
+}
+
 /// Metrics of one resolved font instance in logical units.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontMetrics {
@@ -33,6 +56,7 @@ pub struct FontMetrics {
     ascent: f32,
     descent: f32,
     leading: f32,
+    underline: Option<FontDecorationMetrics>,
 }
 
 impl FontMetrics {
@@ -58,6 +82,7 @@ impl FontMetrics {
             ascent,
             descent,
             leading,
+            underline: None,
         })
     }
 
@@ -78,6 +103,15 @@ impl FontMetrics {
     }
     pub fn leading(&self) -> f32 {
         self.leading
+    }
+    /// Attaches font-provided metrics; external engines use the same value contract.
+    pub fn with_underline(mut self, underline: FontDecorationMetrics) -> Self {
+        self.underline = Some(underline);
+        self
+    }
+    /// Missing font data or an external engine without decoration support fails explicitly.
+    pub fn underline(&self) -> Result<FontDecorationMetrics, TextError> {
+        self.underline.ok_or(TextError::FontMetricsUnsupported)
     }
 }
 

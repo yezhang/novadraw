@@ -14,6 +14,12 @@
 
 ## 7.1 文本管线的输入和输出
 
+`FontMetrics` 的下划线指标来自已解析字体实例，包含 size 与 normalized coordinates。
+`FontDecorationMetrics` 保存 Canvas 向下为正的 baseline offset 和线宽；缺少字体数据时，
+`underline()` 返回 `FontMetricsUnsupported`，不能用固定像素值冒充字体指标。默认引擎与
+外部引擎共用这一受检值。单行文字可将范围的水平几何与 baseline、offset、thickness
+组合绘制；混合字体的多段文字还需要逐段选择实际字体，本能力不替代该排版步骤。
+
 一次排版至少需要四类输入：
 
 - UTF-8 文本内容；

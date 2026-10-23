@@ -9,6 +9,7 @@ mod etched_border;
 mod line_border;
 mod margin_border;
 mod rectangle_border;
+mod scheme_border;
 mod title_bar_border;
 
 pub use bevel_border::{BevelBorder, BevelStyle};
@@ -17,6 +18,7 @@ pub use etched_border::EtchedBorder;
 pub use line_border::LineBorder;
 pub use margin_border::MarginBorder;
 pub use rectangle_border::RectangleBorder;
+pub use scheme_border::SchemeBorder;
 pub use title_bar_border::TitleBarBorder;
 
 use crate::Color;

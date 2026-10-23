@@ -1433,14 +1433,23 @@ impl TextLayoutEngine for ParleyTextEngine {
             .map(|value| NormalizedCoord::from_bits(*value))
             .collect();
         let metrics = face.metrics(Size::new(run.font_size), coords.as_slice());
-        crate::text::FontMetrics::new(
+        let result = crate::text::FontMetrics::new(
             run.font.clone(),
             run.font_size,
             run.normalized_coords.clone(),
             metrics.ascent,
             -metrics.descent,
             metrics.leading,
-        )
+        )?;
+        match metrics.underline {
+            Some(underline) => Ok(
+                result.with_underline(crate::text::FontDecorationMetrics::new(
+                    -underline.offset,
+                    underline.thickness,
+                )?),
+            ),
+            None => Ok(result),
+        }
     }
 
     fn register_font(
