@@ -8,6 +8,8 @@
 - [`gef/`](gef/00-index.md)：GEF 控制器、策略与命令体系
 - [SWT GC macOS](swt/gc-macos.md)：平台绘图实现
 - [Zed 响应式机制](zed/reactive-design.md)：通知与订阅生命周期
+- [字形轮廓存储与填充规范](fonts/glyph-outline-storage-conventions.md)：TrueType 与
+  CFF/CFF2 的方向、闭合、控制点、复合字形和填充规则
 - [字形渲染与彩色 Emoji](fonts/glyph-rendering-and-color-emoji.md)：三种轮廓算法、
   局限性、主流彩色字体格式及后端选型依据
 

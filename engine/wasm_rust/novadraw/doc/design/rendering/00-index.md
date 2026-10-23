@@ -22,3 +22,6 @@
 
 外部参考：[字形渲染算法与彩色 Emoji 字体](../../reference/fonts/glyph-rendering-and-color-emoji.md)，
 记录轮廓算法比较、局限性和彩色字体格式；其中选型建议不构成现行契约或交付状态。
+解码与填充前提见
+[字形轮廓存储规范](../../reference/fonts/glyph-outline-storage-conventions.md)，
+包含 TrueType 与 CFF/CFF2 的控制点、方向、闭合和填充规则差别。
