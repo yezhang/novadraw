@@ -14,6 +14,7 @@ members = [
 
   "examples/native/node-editor-demo",
   "examples/native/vello-app",
+  "examples/native/winit-canvas-demo",
   "examples/native/shape-app",
   "examples/native/style-app",
   "examples/native/ndcanvas-app",

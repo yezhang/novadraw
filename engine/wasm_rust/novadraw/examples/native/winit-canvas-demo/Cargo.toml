@@ -1,0 +1,15 @@
+[package]
+name = "winit-canvas-demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+winit-canvas = { path = "../../../winit-canvas", features = ["gpu"] }
+novadraw = { path = "../../../novadraw" }
+novadraw-backend-vello = { path = "../../../novadraw-backend-vello" }
+vello.workspace = true
+winit.workspace = true
+pollster.workspace = true
+anyhow.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }

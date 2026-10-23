@@ -150,6 +150,10 @@
   fmt、Clippy 与 test，不再通过 xtask 包装标准 Cargo 命令
 - **公开包**: `novadraw` Core、`novadraw-editor`、`novadraw-inspector`、
   `novadraw-backend-vello`、`novadraw-platform-winit`、`novadraw-platform-web`
+- **独立 UI 组件**：`winit-canvas` 不依赖 Novadraw/Vello，使用 winit 类型与可选
+  WGPU 实现窗口内 Canvas；不属于 backend-neutral Core。
+  接入与验证入口见 `winit-canvas/README.md`，Novadraw 离屏接入在
+  `novadraw-backend-vello::texture`。
 - **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate
 
 ## 交互方式原则（摘要）

@@ -21,12 +21,18 @@ novadraw-platform-winit/   - Winit 平台适配
 novadraw-platform-web/     - Web 平台适配
 novadraw-editor/   - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
 novadraw-inspector/ - 只读诊断与观测
+winit-canvas/      - 独立 winit Canvas UI 组件，不依赖 Novadraw/Vello
 examples/native/   - winit/macOS/桌面示例
 examples/web/      - Wasm/浏览器示例
 examples/scenes/   - Native/Web 共用的无平台示例场景
 examples/support/  - 示例共享宿主与工具
 benchmarks/        - 无窗口性能基线
 ```
+
+`winit-canvas` 使用 winit 类型与可选 WGPU，不属于 backend-neutral Core。
+Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，
+不得将 Novadraw 或 Vello 依赖加回 Canvas 库。契约与验证入口见
+`winit-canvas/README.md`。
 
 ## 核心禁止事项
 

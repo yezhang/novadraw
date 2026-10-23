@@ -19,6 +19,42 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "canvas.native",
+        description: "Native GPU pixels and two-Canvas Vello/Novadraw integration",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "winit-canvas",
+                    "--features",
+                    "gpu",
+                    "--test",
+                    "gpu_contract",
+                    "--",
+                    "--ignored",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw-backend-vello",
+                    "--test",
+                    "texture_contract",
+                    "--",
+                    "--ignored",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["run", "-p", "winit-canvas-demo", "--", "--verify"],
+            },
+        ],
+    },
+    Suite {
         id: "core.query-contracts",
         description: "Checked query identity, numerical failure, and recovery contracts",
         steps: &[
