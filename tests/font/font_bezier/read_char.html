@@ -464,8 +464,14 @@
         return bands;
       }
 
-      // Lengyel 根贡献分类：0x2e74 根据三个控制点相对扫描线的符号，
-      // 编码两个二次方程根是否分别对绕数产生 +1 / -1 贡献。
+      /**
+       * Eric Lengyel 字形渲染算法中“水平根贡献分类”的 CPU 解释示例。
+       *
+       * 0x2e74 根据二次贝塞尔三个控制点相对水平扫描线的符号，
+       * 编码两个方程根是否分别对绕数产生 +1 / -1 贡献。
+       * 此处只用 winding != 0 演示二值内外判定，不包含原算法的
+       * 连续像素覆盖率、垂直方向计算、双轴合并和抗锯齿。
+       */
       function lengyelCurveWindingContribution(curve, x, y) {
         const e0Local = {
           x: curve.start.x - x,
