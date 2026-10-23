@@ -39,6 +39,7 @@
 | [connection-routing.md](connection-routing.md) | Connection、Anchor 与 Router |
 | [reusable-shape-border.md](reusable-shape-border.md) | Shape 与 Border 扩展 |
 | [official-example-border-output-increment.md](official-example-border-output-increment.md) | 官方样例的 SchemeBorder、字体下划线指标与 ICO/帧输出消费者增量 |
+| [shared-scene-view-background-proposal.md](shared-scene-view-background-proposal.md) | K07 待评审草案：单一源状态、不可变快照、目标资源导入与宿主背景输入；未实施 |
 | [text-layout.md](text-layout.md) | Text Layout、Label 与标题边框 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |
 | [tooltip-accessibility.md](tooltip-accessibility.md) | Tooltip 与 Accessibility Bridge |

@@ -129,6 +129,15 @@ K07、K06 动画和 K08 AA/动态 SVG 重栅格化继续保留，混合字体装
 Print 的字体替代仍明确保留。图像和验证见
 [交付证据](../../../verification/evidence/official-examples-2026-10-23/implementation.md)。
 
+2026-10-23 后续工作见
+[剩余清单](draw2d-official-examples-next-slices-2026-10-23.md)。
+K02 的 Grid Native 入口已接入逻辑视口 resize，跨列 grab/fill 的缩小、放大和恢复
+有真实 Shape 回归；Toolbar 的方向/stretch/收缩/恢复也有 geometry 验证。
+ScrollPane 的 ScrollBar 五部件能力已实现，剩余项修订为主题与完整视觉验收。
+三个布局入口仍保留 in_progress。K07 的
+[共享视图与背景设计](../../design/architecture/shared-scene-view-background-proposal.md)
+已形成待评审草案，尚未进入实现。
+
 ## 全计划完成判定
 
 25 个入口都具备独立 Canvas 实现；Canvas 功能清单没有未移植或阻塞项；

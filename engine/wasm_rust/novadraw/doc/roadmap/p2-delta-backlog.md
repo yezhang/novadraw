@@ -177,6 +177,20 @@ ConnectionAndAnchor、Path、SimpleTree 已收口，入口状态为 14 complete�
 3 blocked；本批[交付证据](../../verification/evidence/official-examples-2026-10-23/implementation.md)
 保留真实 Native 截图与验证边界。
 
+2026-10-23 后续复核形成
+[11 个未收口入口的工作清单](../verification/plans/draw2d-official-examples-next-slices-2026-10-23.md)。
+Grid 的 Native Canvas 用普通 MarginBorder/FillLayout 跟随逻辑视口 resize；
+跨列 grab/fill Shape 的缩小、放大、恢复及 surface 原点通过真实入口回归。
+Toolbar 的方向切换、stretch、收缩和尺寸恢复通过真实 Shape geometry 回归。
+ScrollPane 的五部件 ScrollBar 已实现，清除将其列为缺失 Core 能力的过时描述。
+本批不关闭入口或 K02；当前仍为 14 complete、8 in_progress、3 blocked。
+K07 进入 `design-draft`：
+[共享视图与宿主背景草案](../design/architecture/shared-scene-view-background-proposal.md)
+提出不可变源快照、destination 资源导入与独立宿主背景帧输入，待用户评审，
+没有开始共享视图实现；K06 动画和 K08 AA/SVG 保留原状态。
+本批执行证据见
+[后续实施记录](../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
