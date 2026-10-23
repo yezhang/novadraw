@@ -13,6 +13,11 @@ pub fn graph_verification_entries() -> Vec<SceneEntry> {
     examples::graph_verification_entries()
 }
 
+/// Initial, dragged/resized and closed shared-view Native evidence.
+pub fn thumbnail_verification_entries() -> Vec<novadraw_example_support::panel::PanelSceneEntry> {
+    examples::thumbnail_verification_entries()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParityStatus {
     Complete,
@@ -235,11 +240,11 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/text/TextSurroundingFigureExample.java",
             examples::text_surrounding_figure_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::complete(
             "thumbnail",
             "ThumbnailExample",
             "org/eclipse/draw2d/examples/thumbnail/ThumbnailExample.java",
-            &["live secondary projection of one mutable Figure tree is absent"],
+            examples::thumbnail_example,
         ),
         OfficialExample::complete(
             "simple-tree",
@@ -358,7 +363,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            14
+            15
         );
 
         let mut ids = BTreeSet::new();

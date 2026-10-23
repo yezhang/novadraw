@@ -14,7 +14,11 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(2);
     });
-    let scenes = panel_entries();
+    let scenes = if std::env::var_os("NOVADRAW_THUMBNAIL_EVIDENCE").is_some() {
+        draw2d_official_examples::thumbnail_verification_entries()
+    } else {
+        panel_entries()
+    };
     let mut builder = AppBuilder::new(TITLE)
         .with_app_name(APP_NAME)
         .with_size(1200.0, 800.0);

@@ -77,7 +77,10 @@ deferred、typed reparent 反例见 `p2_scene_group`，内部候选交错与版�
 `scene::group::tests`。K07-3 的安装、外部 Figure/展示策略、配置切换、font/image
 版本共存和 reset 反例位于 `p2_scene_view`；导入候选、回收、内容冲突及尺寸提示
 反例位于 `scene::import::tests` 与 `scene::view::tests`。
-Native Thumbnail 仍未验收，K07 整体保持未完成。
+K07-4 的官方消费者持有独立活源 Runtime 和两个只读目标视图，真实输入、
+overview resize 不重新捕获、终止清理及三张 macOS Native 截图已通过，
+见 [消费者证据](../verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)。
+共享场景切片已完成；K07 的宿主背景决策继续按 ADR-045 推进。
 
 ## 关系与实施
 

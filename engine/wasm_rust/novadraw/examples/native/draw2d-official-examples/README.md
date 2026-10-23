@@ -30,6 +30,20 @@ cargo test -p draw2d-official-examples --test source_contracts
 当前计划见 [Canvas Core 计划](../../../doc/verification/plans/draw2d-official-examples-core-plan.md)。
 本轮新增的 Java 探针、运行脚本和生成基线已撤销。
 
+Thumbnail 的 Native entry 持有独立活源 Runtime；主视图转交真实鼠标输入，overview
+只消费同一源快照。拖动源区的绿色或蓝色矩形，两处同步变化。宿主面板可调整 overview
+宽高或取消订阅。主视图保持与源捕获域相同的逻辑尺寸；overview resize 不重新捕获源。
+宿主将上游两个 Shell 的 Canvas 内容放在一个窗口，单 Runtime 工厂只返回活源树。
+
+```sh
+cargo test -p draw2d-official-examples --lib thumbnail
+NOVADRAW_THUMBNAIL_EVIDENCE=1 cargo run -p draw2d-official-examples -- --screenshot-all
+```
+
+三阶段 Native 证据见
+[K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)。
+Thumbnail 的 Canvas 消费已完成；InheritBackground 的宿主合成另行推进。
+
 Obstruction 的组求解和交互按 [ADR-040](../../../doc/adr/adr-040-group-route-solving.md)
 实现。运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；
 左拖移动障碍或端点；障碍右键删除；端点中键删除整对，未配对端点中键只删除自身。

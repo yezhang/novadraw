@@ -14,6 +14,7 @@ mod text_examples;
 mod text_interaction;
 mod text_surrounding;
 mod text_test_border;
+mod thumbnail;
 mod toolbar_layout_example;
 mod tree_example;
 mod tree_layout;
@@ -39,6 +40,8 @@ pub use simple_tree_example::simple_tree_example;
 pub use text_examples::{multi_line_label_example, text_flow_example};
 pub use text_interaction::{caret_example, text_flow_large_example};
 pub use text_surrounding::text_surrounding_figure_example;
+pub use thumbnail::thumbnail_example;
+pub use thumbnail::verification_entries as thumbnail_verification_entries;
 pub use toolbar_layout_example::toolbar_layout_example;
 pub use tree_example::tree_example;
 pub use uml_class_diagram::uml_class_diagram;
@@ -79,6 +82,7 @@ pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelS
         "TreeExample" => tree_example::panel_scene(),
         "DirectedGraphDemo" => graph_examples::panel_scene(false),
         "CompoundGraphDemo" => graph_examples::panel_scene(true),
+        "ThumbnailExample" => thumbnail::panel_scene(),
         _ => return None,
     })
 }

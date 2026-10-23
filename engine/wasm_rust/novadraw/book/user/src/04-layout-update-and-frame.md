@@ -494,8 +494,11 @@ destination.scenes().install_view(binding, snapshot)?;
 `installed_view` 返回可保留的 `InstalledScene`，其中 drawing 已改写为目标资源 ID。
 旧、新来源 revision 使用不同 ID，可同时存活。保留该结果也保留 CPU 资源 lease；
 reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
-官方 Thumbnail 和宿主背景继续按
-[K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)验收。
+官方 Thumbnail 的 [Native 消费者](../../../examples/native/draw2d-official-examples/src/examples/thumbnail.rs)
+展示了宿主如何拥有 source 和 destination：主视图转交值输入，源提交后捕获，
+再将同一完整结果安装到主视图和 overview。overview resize 不触发源捕获。
+生命周期和图像证据见 [K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)；
+宿主背景继续按 [K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
 
 ## 4.15 验证入口
 

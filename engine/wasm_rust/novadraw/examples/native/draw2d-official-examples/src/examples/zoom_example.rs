@@ -31,8 +31,8 @@ const MAXIMUM: f64 = 200.0;
 const EXTENT: f64 = 25.0;
 const CLASS_COLOR: Color = Color::rgba(1.0, 1.0, 206.0 / 255.0, 1.0);
 
-struct GroupBoxBorder {
-    title: TextLayout,
+pub(super) struct GroupBoxBorder {
+    pub(super) title: TextLayout,
 }
 
 impl Border for GroupBoxBorder {

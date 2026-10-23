@@ -91,14 +91,14 @@ struct DragSession {
     bounds: Rectangle,
 }
 
-struct DraggableRectangle {
+pub(super) struct DraggableRectangle {
     bounds: Rectangle,
     fill: Color,
     drag: Mutex<Option<DragSession>>,
 }
 
 impl DraggableRectangle {
-    fn new(bounds: Rectangle, fill: Color) -> Self {
+    pub(super) fn new(bounds: Rectangle, fill: Color) -> Self {
         Self {
             bounds,
             fill,
