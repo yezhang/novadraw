@@ -1,0 +1,17 @@
+[package]
+name = "winit-canvas"
+version = "0.1.0"
+edition = "2024"
+description = "Independent canvas regions, input routing and optional GPU composition for winit"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = []
+gpu = ["dep:wgpu"]
+
+[dependencies]
+winit = "0.30.12"
+wgpu = { version = "29.0.4", optional = true }
+
+[dev-dependencies]
+pollster = "0.4.0"

@@ -7,6 +7,7 @@ members = [
   "novadraw-platform-web",
   "novadraw-editor",
   "novadraw-inspector",
+  "winit-canvas",
   "examples/support",
   "examples/scenes",
   "tools/xtask",
