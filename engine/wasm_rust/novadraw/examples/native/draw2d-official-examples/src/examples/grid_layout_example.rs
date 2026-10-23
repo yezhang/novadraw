@@ -24,7 +24,7 @@ use novadraw::{
     },
     geometry::{Dimension, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
-    layout::{GridAlignment, GridConstraint, GridLayout},
+    layout::{FillLayout, GridAlignment, GridConstraint, GridLayout},
     runtime::Runtime,
     tree::{FigureId, FigureSubtree},
 };
@@ -41,14 +41,12 @@ use novadraw_example_support::panel::{Panel, PanelScene, egui};
 pub fn panel_scene() -> PanelScene {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .with_border(canvas_margins()),
+        ))
         .expect("Grid root");
+    configure_canvas_layout(&mut runtime, root);
     let state = Arc::new(GridExampleState::default());
     let content = runtime
         .figure(root)
@@ -254,6 +252,26 @@ const GROUP_BORDER_INSET: f64 = 0.5;
 const GROUP_BORDER_TOP: f64 = 8.5;
 #[cfg(test)]
 const CONTROL_FONT: &str = "13px Inter Variable";
+
+fn canvas_margins() -> novadraw::figure::border::MarginBorder {
+    use novadraw::figure::border::MarginBorder;
+
+    MarginBorder::default_border().with_margins(
+        CONTENT_Y,
+        CONTENT_X,
+        HEIGHT - CONTENT_Y - CONTENT_HEIGHT,
+        WIDTH - CONTENT_X - CONTENT_WIDTH,
+    )
+}
+
+fn configure_canvas_layout(runtime: &mut Runtime, root: FigureId) {
+    // The first child is the Canvas; the remaining children are host test controls.
+    runtime
+        .figure(root)
+        .expect("Grid root")
+        .set_layout_manager(Box::new(FillLayout::new()))
+        .expect("Grid Canvas layout");
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct GridSettings {
@@ -1392,6 +1410,73 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn viewport_resize_reflows_spanning_grabbing_shapes_and_restores_geometry() {
+        let (mut runtime, _) = panel_scene();
+        let root = runtime.tree().contents().unwrap();
+        let content = runtime.tree().child_order(root).unwrap()[0];
+        let shapes = runtime.tree().child_order(content).unwrap();
+        for shape in &shapes {
+            runtime
+                .figure(*shape)
+                .unwrap()
+                .set_layout_constraint(GridConstraint {
+                    horizontal_span: 2,
+                    horizontal_alignment: GridAlignment::Fill,
+                    grab_horizontal: true,
+                    width_hint: Some(SHAPE_SIZE),
+                    height_hint: Some(SHAPE_SIZE),
+                    ..GridConstraint::default()
+                })
+                .unwrap();
+        }
+        let mut original = None;
+        for (width, height) in [
+            (WIDTH, HEIGHT),
+            (800.0, 400.0),
+            (1600.0, 1000.0),
+            (WIDTH, HEIGHT),
+        ] {
+            runtime
+                .frames()
+                .resize_logical_viewport(width, height)
+                .unwrap();
+            runtime.frames().stabilize_for_query().unwrap();
+            let canvas = runtime.tree().figure_bounds(content).unwrap();
+            assert_eq!(
+                canvas,
+                Rectangle::new(
+                    0.0,
+                    0.0,
+                    CONTENT_WIDTH + width - WIDTH,
+                    CONTENT_HEIGHT + height - HEIGHT,
+                )
+            );
+            let origin = runtime
+                .tree()
+                .local_to_surface_transform(content)
+                .unwrap()
+                .transform_point(Point::new(0.0, 0.0));
+            assert_eq!(origin, Point::new(CONTENT_X, CONTENT_Y));
+            let bounds: Vec<_> = shapes
+                .iter()
+                .map(|id| runtime.tree().figure_bounds(*id).unwrap())
+                .collect();
+            assert_eq!(bounds[0].width, canvas.width - 10.0);
+            assert_eq!(bounds[1].width, bounds[0].width);
+            assert_eq!(bounds[0].height, SHAPE_SIZE);
+            assert_eq!(bounds[1].y, bounds[0].y + bounds[0].height + 5.0);
+            if let Some(initial) = &original {
+                if width == WIDTH {
+                    assert_eq!(&bounds, initial, "resize must restore committed geometry");
+                }
+            } else {
+                original = Some(bounds);
+            }
+            assert!(runtime.take_deferred_mutation_errors().is_empty());
+        }
+    }
 
     #[test]
     fn egui_numeric_edit_commits_columns_without_canvas_key_dispatch() {
