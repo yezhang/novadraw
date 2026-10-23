@@ -19,3 +19,6 @@
 
 候选研究：[DisplayList](display-list-protocol.md)，包含探索顺序和晋级门禁，
 不作为现行渲染流程的前提。
+
+外部参考：[字形渲染算法与彩色 Emoji 字体](../../reference/fonts/glyph-rendering-and-color-emoji.md)，
+记录轮廓算法比较、局限性和彩色字体格式；其中选型建议不构成现行契约或交付状态。
