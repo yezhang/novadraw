@@ -1,4 +1,6 @@
 //! Optional WGPU render targets and premultiplied-alpha window composition.
+pub mod presentation;
+
 use crate::geometry::{CanvasError, CanvasRect, WindowMetrics};
 use wgpu::util::DeviceExt;
 

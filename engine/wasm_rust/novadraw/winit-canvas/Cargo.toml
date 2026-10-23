@@ -7,11 +7,21 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = []
-gpu = ["dep:wgpu"]
+gpu = ["dep:wgpu", "dep:objc2-core-graphics", "dep:objc2-quartz-core"]
 
 [dependencies]
 winit = "0.30.12"
 wgpu = { version = "29.0.4", optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3.2", features = ["CGColor"], optional = true }
+objc2-quartz-core = { version = "0.3.2", optional = true }
+
 [dev-dependencies]
 pollster = "0.4.0"
+png = "0.18"
+
+[[example]]
+name = "standalone"
+path = "examples/standalone/main.rs"
+required-features = ["gpu"]
