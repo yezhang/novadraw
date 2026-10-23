@@ -9,6 +9,10 @@
 2026-10-12 同步 ADR-033：帧方法属于 `RuntimeFrames` 子 facade，
 由 `runtime.frames()` 获取，Runtime 出版权威保持不变。
 
+2026-10-23 按已接受的 [ADR-044](adr-044-shared-scene-capture-and-view.md)增加独立、
+受检的 scene capture 出口；按 [ADR-045](adr-045-host-background-submission.md)
+将宿主背景纳入统一帧输入。这两项为已批准增量，功能实现与验收另行记录。
+
 本决策关闭临时概念审计 TC-01，并替代以下旧决定：
 
 - ADR-020 第 4 节“公开 `NdCanvas` 作为规范入口”；
@@ -101,6 +105,11 @@ deprecated 双入口。
 
 `Runtime::prepare_frame` 与 `record_full_frame` 退出公开 API。测试和内部算法直接检查
 crate 内录制结果；外部合同测试通过 `prepare_submission` 观察公开结果。
+
+ADR-044 的例外仅允许 scene facade 返回受检、不可变 `SceneSnapshot` 与完整资源闭包。
+它复用稳定化而不分配 source frame、不消费 source damage/资源前缀/确认 cursor，
+不公开内部 recorder 或可变命令容器，不成为第二个 surface 提交入口。
+ADR-045 的背景只能由同一 `prepare_submission` 预检并冻结，Host 不得在冻结后追加。
 
 ### 4. 本批次直接 breaking
 

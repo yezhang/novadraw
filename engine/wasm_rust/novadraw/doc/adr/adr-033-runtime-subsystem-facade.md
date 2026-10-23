@@ -67,10 +67,11 @@ impl Runtime {
     pub fn text(&mut self) -> RuntimeText<'_>;
     pub fn viewports(&mut self) -> RuntimeViewports<'_>;
     pub fn layers(&mut self) -> RuntimeLayers<'_>;
+    pub fn scenes(&mut self) -> RuntimeScenes<'_>;
 }
 ```
 
-Runtime 本体公开方法预算为 **不超过 27 个**。新增方法必须先证明其属于组合根，而不是
+Runtime 本体公开方法预算为 **不超过 28 个**。新增方法必须先证明其属于组合根，而不是
 既有子系统或具体内置类型。
 
 2026-10-19 按已批准的官方示例 K01 资源准入契约增加 `try_new` 与
@@ -78,6 +79,11 @@ Runtime 本体公开方法预算为 **不超过 27 个**。新增方法必须先
 attachment callback 前完成资源预检，因此属于组合根。原构造器保持返回 Self 并
 委托受检入口。预算仅为这两个受检构造方法从 25 调整至 27；不增加子系统业务方法。
 实现与外部消费者证据见 [ADR-009](adr-009-runtime-dynamic-mutation-contract.md#k01-完整子树与挂载回执增量)。
+
+2026-10-23 按已批准的 [ADR-044](adr-044-shared-scene-capture-and-view.md)增加
+`scenes()` 短借用入口，预算从 27 调整至 28。source、订阅和捕获属于独立 scene
+子系统，业务方法放在 `scene::RuntimeScenes`，不增加 Runtime 本体的捕获或安装方法。
+后续 scene view 与背景切片不得据此继续放宽业务方法预算。
 
 ### 2. 子系统 facade 是无状态短借用窗口
 
@@ -95,6 +101,7 @@ attachment callback 前完成资源预检，因此属于组合根。原构造器
 | `RuntimeText` | text layout、interaction geometry、revision 与 measurement statistics |
 | `RuntimeViewports` | viewport 关系、range/origin/zoom 协调 |
 | `RuntimeLayers` | keyed layer 关系及其生命周期协调 |
+| `RuntimeScenes` | source capture、订阅配置、owned snapshot 与终止交接 |
 
 每个 facade 只保存 `&mut Runtime`：
 
@@ -191,7 +198,7 @@ ADR-032 的 `ViewerDrive` 继续是 Editor 对宿主暴露的受限能力集。�
 
 ## 验证
 
-1. API snapshot：Runtime 本体公开方法数不超过 27；
+1. API snapshot：Runtime 本体公开方法数不超过 28；
 2. API snapshot：每个子 facade 独立冻结，root 不平铺这些类型；
 3. compile-fail：`runtime.prepare_submission(...)` 等旧入口不可用；
 4. compile-fail：`runtime.label(id)` 等 concrete facade 不可用；
