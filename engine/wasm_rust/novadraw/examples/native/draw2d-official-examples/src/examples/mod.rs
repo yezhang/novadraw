@@ -6,6 +6,8 @@ mod graph_examples;
 mod grid_layout_example;
 mod hello_world;
 mod obstruction;
+#[cfg(test)]
+mod panel_test;
 mod path_example;
 mod printing;
 mod scroll_pane_example;

@@ -11,6 +11,8 @@ type PanelDraw = Box<dyn FnMut(&mut egui::Ui, &mut Runtime)>;
 pub struct Panel {
     draw: PanelDraw,
     position: egui::Pos2,
+    anchor: Option<egui::Align2>,
+    width: f32,
 }
 
 impl Panel {
@@ -21,7 +23,17 @@ impl Panel {
         Self {
             draw: Box::new(draw),
             position: position.into(),
+            anchor: None,
+            width: 320.0,
         }
+    }
+
+    /// Keep a fixed-width host panel aligned with the reserved Canvas margin.
+    /// The constructor's position becomes an offset from the window anchor.
+    pub fn with_anchor(mut self, anchor: egui::Align2, width: f32) -> Self {
+        self.anchor = Some(anchor);
+        self.width = width;
+        self
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, runtime: &mut Runtime) {
@@ -86,13 +98,16 @@ impl PanelHost {
         let input = self.state.take_egui_input(window);
         // A host action must commit once even when egui asks for another sizing pass.
         self.context.begin_pass(input);
-        egui::Window::new("Example controls")
+        let mut controls = egui::Window::new("Example controls")
             .default_pos(panel.position)
-            .default_width(320.0)
+            .default_width(panel.width)
             .default_height(600.0)
-            .resizable(true)
-            .vscroll(true)
-            .show(&self.context, |ui| panel.show(ui, runtime));
+            .resizable(panel.anchor.is_none())
+            .vscroll(true);
+        if let Some(anchor) = panel.anchor {
+            controls = controls.anchor(anchor, panel.position.to_vec2());
+        }
+        controls.show(&self.context, |ui| panel.show(ui, runtime));
         let output = self.context.end_pass();
         let delay = output
             .viewport_output

@@ -9,11 +9,12 @@ use std::sync::{Arc, Mutex};
 
 use novadraw::{
     figure::{
-        EllipseFigure, RectangleFigure, RoundedRectangleFigure, TriangleFigure, border::LineBorder,
+        EllipseFigure, RectangleFigure, RoundedRectangleFigure, TriangleFigure,
+        border::{LineBorder, MarginBorder},
     },
     geometry::{Dimension, Rectangle},
     graphics::Color,
-    layout::{FlowAlignment, FlowDirection, FlowLayout},
+    layout::{FillLayout, FlowAlignment, FlowDirection, FlowLayout},
     runtime::Runtime,
     tree::FigureId,
 };
@@ -28,9 +29,10 @@ const WIDTH: f64 = 920.0;
 const HEIGHT: f64 = 620.0;
 const CONTENT_WIDTH: f64 = 620.0;
 const CONTENT_HEIGHT: f64 = 580.0;
-const CONTROL_X: f64 = 640.0;
 #[cfg(test)]
+const CONTROL_X: f64 = 640.0;
 const CONTROL_WIDTH: f64 = 250.0;
+const CANVAS_INSET: f64 = 10.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct FlowSettings {
@@ -65,8 +67,9 @@ impl FlowSettings {
         .with_stretch_minor_axis(self.stretch_minor_axis)
         .with_major_alignment(self.major_alignment)
         .with_minor_alignment(self.minor_alignment)
-        .with_spacing(self.major_spacing)
-        .with_row_spacing(self.minor_spacing)
+        // Draw2D uses minorSpacing between items and majorSpacing between rows.
+        .with_spacing(self.minor_spacing)
+        .with_row_spacing(self.major_spacing)
     }
 }
 
@@ -88,47 +91,58 @@ pub fn panel_scene() -> PanelScene {
     let settings = fixture.settings;
     (
         fixture.runtime,
-        Some(Panel::new([CONTROL_X as f32, 20.0], move |ui, runtime| {
-            let mut state = settings.lock().expect("Flow settings");
-            let before = *state;
-            ui.heading("FlowLayout");
-            ui.checkbox(&mut state.horizontal, "Horizontal");
-            ui.checkbox(&mut state.stretch_minor_axis, "Stretch Minor Axis");
-            ui.label("Major Axis");
-            for (label, value) in [
-                ("Start", FlowAlignment::Start),
-                ("Center", FlowAlignment::Center),
-                ("End", FlowAlignment::End),
-            ] {
-                ui.radio_value(&mut state.major_alignment, value, label);
-            }
-            ui.add(
-                egui::Slider::new(&mut state.major_spacing, 0.0..=20.0)
-                    .integer()
-                    .text("Spacing"),
-            );
-            ui.separator();
-            ui.label("Minor Axis");
-            for (label, value) in [
-                ("Start", FlowAlignment::Start),
-                ("Center", FlowAlignment::Center),
-                ("End", FlowAlignment::End),
-            ] {
-                ui.radio_value(&mut state.minor_alignment, value, label);
-            }
-            ui.add(
-                egui::Slider::new(&mut state.minor_spacing, 0.0..=20.0)
-                    .integer()
-                    .text("Spacing"),
-            );
-            if *state != before {
-                runtime
-                    .figure(content)
-                    .expect("Flow container")
-                    .set_layout_manager(Box::new(state.layout()))
-                    .expect("Flow layout");
-            }
-        })),
+        Some(
+            Panel::new([-CANVAS_INSET as f32, 20.0], move |ui, runtime| {
+                let mut state = settings.lock().expect("Flow settings");
+                let before = *state;
+                let state = &mut *state;
+                ui.heading("FlowLayout");
+                for (label, value) in [
+                    ("Horizontal", &mut state.horizontal),
+                    ("Stretch Minor Axis", &mut state.stretch_minor_axis),
+                ] {
+                    let response = ui.checkbox(value, label);
+                    #[cfg(test)]
+                    super::panel_test::record(ui, label, &response);
+                    let _ = response;
+                }
+                ui.label("Major Axis");
+                for (label, value) in [
+                    ("Start", FlowAlignment::Start),
+                    ("Center", FlowAlignment::Center),
+                    ("End", FlowAlignment::End),
+                ] {
+                    ui.radio_value(&mut state.major_alignment, value, label);
+                }
+                ui.add(
+                    egui::Slider::new(&mut state.major_spacing, 0.0..=20.0)
+                        .integer()
+                        .text("Spacing"),
+                );
+                ui.separator();
+                ui.label("Minor Axis");
+                for (label, value) in [
+                    ("Start", FlowAlignment::Start),
+                    ("Center", FlowAlignment::Center),
+                    ("End", FlowAlignment::End),
+                ] {
+                    ui.radio_value(&mut state.minor_alignment, value, label);
+                }
+                ui.add(
+                    egui::Slider::new(&mut state.minor_spacing, 0.0..=20.0)
+                        .integer()
+                        .text("Spacing"),
+                );
+                if *state != before {
+                    runtime
+                        .figure(content)
+                        .expect("Flow container")
+                        .set_layout_manager(Box::new(state.layout()))
+                        .expect("Flow layout");
+                }
+            })
+            .with_anchor(egui::Align2::RIGHT_TOP, CONTROL_WIDTH as f32),
+        ),
     )
 }
 
@@ -138,15 +152,25 @@ fn fixture() -> Fixture {
 
 fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
+    let mut root_figure = RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE);
+    if !_legacy_controls {
+        root_figure = root_figure.with_border(MarginBorder::default_border().with_margins(
+            CANVAS_INSET,
+            CANVAS_INSET,
+            HEIGHT - CANVAS_INSET - CONTENT_HEIGHT,
+            WIDTH - CANVAS_INSET - CONTENT_WIDTH,
+        ));
+    }
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(root_figure))
         .expect("FlowLayoutExample root");
+    if !_legacy_controls {
+        runtime
+            .figure(root)
+            .expect("Flow root")
+            .set_layout_manager(Box::new(FillLayout::new()))
+            .expect("Flow Canvas layout");
+    }
     let content = runtime
         .figure(root)
         .expect("root")
@@ -523,6 +547,235 @@ mod tests {
     use novadraw::event::MouseButton;
 
     use super::*;
+
+    #[test]
+    fn official_alignment_matrix_uses_each_wrapped_line_and_integer_center_offsets() {
+        let mut fixture = canvas_fixture(false);
+        let shapes = fixture.runtime.tree().child_order(fixture.content).unwrap();
+        for horizontal in [true, false] {
+            let (width, height) = if horizontal {
+                (102.0, 402.0)
+            } else {
+                (402.0, 122.0)
+            };
+            fixture
+                .runtime
+                .frames()
+                .resize_logical_viewport(
+                    WIDTH + width - CONTENT_WIDTH,
+                    HEIGHT + height - CONTENT_HEIGHT,
+                )
+                .unwrap();
+            for (major, major_offset) in [
+                (FlowAlignment::Start, 0.0),
+                (FlowAlignment::Center, 1.0),
+                (FlowAlignment::End, 3.0),
+            ] {
+                for (minor, minor_offset) in [
+                    (FlowAlignment::Start, 0.0),
+                    (FlowAlignment::Center, 15.0),
+                    (FlowAlignment::End, 30.0),
+                ] {
+                    fixture
+                        .runtime
+                        .figure(fixture.content)
+                        .unwrap()
+                        .set_layout_manager(Box::new(
+                            FlowSettings {
+                                horizontal,
+                                major_alignment: major,
+                                minor_alignment: minor,
+                                major_spacing: 13.0,
+                                minor_spacing: 7.0,
+                                ..FlowSettings::default()
+                            }
+                            .layout(),
+                        ))
+                        .unwrap();
+                    fixture.runtime.frames().stabilize_for_query().unwrap();
+                    let first = fixture.runtime.tree().figure_bounds(shapes[0]).unwrap();
+                    let second = fixture.runtime.tree().figure_bounds(shapes[1]).unwrap();
+                    if horizontal {
+                        assert_eq!(first.x, major_offset);
+                        assert_eq!(first.y, minor_offset);
+                        assert_eq!(second.y, 0.0);
+                    } else {
+                        assert_eq!(first.y, major_offset);
+                        assert_eq!(first.x, 0.0);
+                        assert_eq!(second.x, minor_offset);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_panel_direction_and_stretch_restore_natural_geometry() {
+        let mut driver = super::super::panel_test::Driver::new("FlowLayoutExample");
+        let root = driver.runtime.tree().contents().unwrap();
+        let content = driver.runtime.tree().child_order(root).unwrap()[0];
+        let shapes = driver.runtime.tree().child_order(content).unwrap();
+        driver
+            .runtime
+            .frames()
+            .resize_logical_viewport(WIDTH, HEIGHT)
+            .unwrap();
+        driver.draw(Vec::new());
+        let initial = driver.runtime.tree().figure_bounds(shapes[0]).unwrap();
+        driver.click("Stretch Minor Axis");
+        assert!(
+            driver
+                .runtime
+                .tree()
+                .figure_bounds(shapes[0])
+                .unwrap()
+                .height
+                > initial.height
+        );
+        driver.click("Horizontal");
+        assert!(
+            driver
+                .runtime
+                .tree()
+                .figure_bounds(shapes[1])
+                .unwrap()
+                .width
+                > 30.0
+        );
+        driver.click("Stretch Minor Axis");
+        driver.click("Horizontal");
+        assert_eq!(
+            driver.runtime.tree().figure_bounds(shapes[0]).unwrap(),
+            initial
+        );
+    }
+
+    #[test]
+    fn unequal_official_spacing_controls_apply_between_items_and_wrapped_rows() {
+        let mut fixture = canvas_fixture(false);
+        let shapes = fixture.runtime.tree().child_order(fixture.content).unwrap();
+        for horizontal in [true, false] {
+            let settings = FlowSettings {
+                horizontal,
+                major_spacing: 13.0,
+                minor_spacing: 7.0,
+                ..FlowSettings::default()
+            };
+            // The border leaves 100 units on the flow axis.
+            let (width, height) = if horizontal {
+                (102.0, 402.0)
+            } else {
+                (402.0, 122.0)
+            };
+            fixture
+                .runtime
+                .frames()
+                .resize_logical_viewport(
+                    WIDTH + width - CONTENT_WIDTH,
+                    HEIGHT + height - CONTENT_HEIGHT,
+                )
+                .unwrap();
+            fixture
+                .runtime
+                .figure(fixture.content)
+                .unwrap()
+                .set_layout_manager(Box::new(settings.layout()))
+                .unwrap();
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            let first = fixture.runtime.tree().figure_bounds(shapes[0]).unwrap();
+            let second = fixture.runtime.tree().figure_bounds(shapes[1]).unwrap();
+            let third = fixture.runtime.tree().figure_bounds(shapes[2]).unwrap();
+            if horizontal {
+                assert_eq!(second.x - first.x - first.width, 7.0);
+                assert_eq!(third.y - first.y, 70.0 + 13.0);
+                assert_eq!(third.x, first.x);
+            } else {
+                assert_eq!(second.y - first.y - first.height, 7.0);
+                assert_eq!(third.x - first.x, 60.0 + 13.0);
+                assert_eq!(third.y, first.y);
+            }
+        }
+    }
+
+    #[test]
+    fn window_resize_reflows_official_shapes_and_restores_natural_sizes() {
+        let mut fixture = canvas_fixture(false);
+        fixture
+            .runtime
+            .frames()
+            .resize_logical_viewport(WIDTH, HEIGHT)
+            .unwrap();
+        fixture.runtime.frames().stabilize_for_query().unwrap();
+        let shapes = fixture.runtime.tree().child_order(fixture.content).unwrap();
+        let initial: Vec<_> = shapes
+            .iter()
+            .map(|id| fixture.runtime.tree().figure_bounds(*id).unwrap())
+            .collect();
+        for (width, height, horizontal, stretch) in [
+            (400.0, 300.0, true, false),
+            (400.0, 300.0, true, true),
+            (400.0, 300.0, false, true),
+            (400.0, 300.0, false, false),
+            (1400.0, 900.0, true, false),
+            (WIDTH, HEIGHT, true, false),
+        ] {
+            fixture
+                .runtime
+                .frames()
+                .resize_logical_viewport(width, height)
+                .unwrap();
+            fixture
+                .runtime
+                .figure(fixture.content)
+                .unwrap()
+                .set_layout_manager(Box::new(
+                    FlowSettings {
+                        horizontal,
+                        stretch_minor_axis: stretch,
+                        ..FlowSettings::default()
+                    }
+                    .layout(),
+                ))
+                .unwrap();
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            assert_eq!(
+                fixture
+                    .runtime
+                    .tree()
+                    .figure_bounds(fixture.content)
+                    .unwrap(),
+                Rectangle::new(
+                    0.0,
+                    0.0,
+                    CONTENT_WIDTH + width - WIDTH,
+                    CONTENT_HEIGHT + height - HEIGHT
+                )
+            );
+            let current: Vec<_> = shapes
+                .iter()
+                .map(|id| fixture.runtime.tree().figure_bounds(*id).unwrap())
+                .collect();
+            for (actual, natural) in current.iter().zip(&initial) {
+                if !stretch {
+                    assert_eq!(
+                        (actual.width, actual.height),
+                        (natural.width, natural.height)
+                    );
+                } else if horizontal {
+                    assert_eq!(actual.width, natural.width);
+                    assert!(actual.height >= natural.height);
+                } else {
+                    assert!(actual.width >= natural.width);
+                    assert_eq!(actual.height, natural.height);
+                }
+            }
+            if width == WIDTH {
+                assert_eq!(current, initial);
+            } else if width == 400.0 && horizontal {
+                assert!(current[2].y > current[0].y, "narrow canvas must wrap");
+            }
+        }
+    }
 
     #[test]
     fn figure_composition_matches_the_official_shape_sequence_and_control_types() {

@@ -9,10 +9,13 @@ use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
-    figure::{EllipseFigure, RectangleFigure, RoundedRectangleFigure, border::LineBorder},
+    figure::{
+        EllipseFigure, RectangleFigure, RoundedRectangleFigure,
+        border::{LineBorder, MarginBorder},
+    },
     geometry::Dimension,
     graphics::Color,
-    layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation},
+    layout::{FillLayout, MinorAlignment, ToolbarLayout, ToolbarOrientation},
     runtime::Runtime,
     tree::FigureId,
 };
@@ -27,7 +30,10 @@ const WIDTH: f64 = 820.0;
 const HEIGHT: f64 = 520.0;
 const CONTENT_WIDTH: f64 = 540.0;
 const CONTENT_HEIGHT: f64 = 480.0;
+#[cfg(test)]
 const CONTROL_X: f64 = 560.0;
+const CONTROL_WIDTH: f64 = 240.0;
+const CANVAS_INSET: f64 = 10.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct ToolbarSettings {
@@ -80,32 +86,46 @@ pub fn panel_scene() -> PanelScene {
     let settings = fixture.settings;
     (
         fixture.runtime,
-        Some(Panel::new([CONTROL_X as f32, 20.0], move |ui, runtime| {
-            let mut state = settings.lock().expect("Toolbar settings");
-            let before = *state;
-            ui.heading("ToolbarLayout");
-            ui.checkbox(&mut state.horizontal, "Horizontal");
-            ui.checkbox(&mut state.stretch_minor_axis, "Stretch Minor Axis");
-            for (label, value) in [
-                ("Start", MinorAlignment::Start),
-                ("Center", MinorAlignment::Center),
-                ("End", MinorAlignment::End),
-            ] {
-                ui.radio_value(&mut state.minor_alignment, value, label);
-            }
-            ui.add(
-                egui::Slider::new(&mut state.spacing, 0.0..=20.0)
-                    .integer()
-                    .text("Spacing"),
-            );
-            if *state != before {
-                runtime
-                    .figure(content)
-                    .expect("Toolbar container")
-                    .set_layout_manager(Box::new(state.layout()))
-                    .expect("Toolbar layout");
-            }
-        })),
+        Some(
+            Panel::new([-CANVAS_INSET as f32, 20.0], move |ui, runtime| {
+                let mut state = settings.lock().expect("Toolbar settings");
+                let before = *state;
+                let state = &mut *state;
+                ui.heading("ToolbarLayout");
+                for (label, value) in [
+                    ("Horizontal", &mut state.horizontal),
+                    ("Stretch Minor Axis", &mut state.stretch_minor_axis),
+                ] {
+                    let response = ui.checkbox(value, label);
+                    #[cfg(test)]
+                    super::panel_test::record(ui, label, &response);
+                    let _ = response;
+                }
+                for (label, value) in [
+                    ("Start", MinorAlignment::Start),
+                    ("Center", MinorAlignment::Center),
+                    ("End", MinorAlignment::End),
+                ] {
+                    let response = ui.radio_value(&mut state.minor_alignment, value, label);
+                    #[cfg(test)]
+                    super::panel_test::record(ui, label, &response);
+                    let _ = response;
+                }
+                ui.add(
+                    egui::Slider::new(&mut state.spacing, 0.0..=20.0)
+                        .integer()
+                        .text("Spacing"),
+                );
+                if *state != before {
+                    runtime
+                        .figure(content)
+                        .expect("Toolbar container")
+                        .set_layout_manager(Box::new(state.layout()))
+                        .expect("Toolbar layout");
+                }
+            })
+            .with_anchor(egui::Align2::RIGHT_TOP, CONTROL_WIDTH as f32),
+        ),
     )
 }
 
@@ -115,15 +135,25 @@ fn fixture() -> Fixture {
 
 fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
+    let mut root_figure = RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE);
+    if !_legacy_controls {
+        root_figure = root_figure.with_border(MarginBorder::default_border().with_margins(
+            CANVAS_INSET,
+            CANVAS_INSET,
+            HEIGHT - CANVAS_INSET - CONTENT_HEIGHT,
+            WIDTH - CANVAS_INSET - CONTENT_WIDTH,
+        ));
+    }
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(root_figure))
         .expect("ToolbarLayoutExample root");
+    if !_legacy_controls {
+        runtime
+            .figure(root)
+            .expect("Toolbar root")
+            .set_layout_manager(Box::new(FillLayout::new()))
+            .expect("Toolbar Canvas layout");
+    }
     let content = runtime
         .figure(root)
         .expect("root")
@@ -401,6 +431,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native_panel_alignment_and_stretch_commit_geometry_without_mock_controls() {
+        let mut driver = super::super::panel_test::Driver::new("ToolbarLayoutExample");
+        let root = driver.runtime.tree().contents().unwrap();
+        let content = driver.runtime.tree().child_order(root).unwrap()[0];
+        let shapes = driver.runtime.tree().child_order(content).unwrap();
+        driver
+            .runtime
+            .frames()
+            .resize_logical_viewport(WIDTH, HEIGHT)
+            .unwrap();
+        driver.draw(Vec::new());
+        for (label, expected_y) in [("Center", 219.0), ("End", 438.0), ("Start", 0.0)] {
+            driver.click(label);
+            assert_eq!(
+                driver.runtime.tree().figure_bounds(shapes[0]).unwrap().y,
+                expected_y
+            );
+        }
+        driver.click("Stretch Minor Axis");
+        assert_eq!(
+            driver
+                .runtime
+                .tree()
+                .figure_bounds(shapes[0])
+                .unwrap()
+                .height,
+            CONTENT_HEIGHT - 2.0
+        );
+        driver.click("Horizontal");
+        assert_eq!(
+            driver
+                .runtime
+                .tree()
+                .figure_bounds(shapes[0])
+                .unwrap()
+                .width,
+            CONTENT_WIDTH - 2.0
+        );
+        driver.click("Stretch Minor Axis");
+        driver.click("Horizontal");
+        let first = driver.runtime.tree().figure_bounds(shapes[0]).unwrap();
+        assert_eq!((first.width, first.height), (60.0, 40.0));
+    }
+
+    #[test]
     fn stretch_orientation_shrink_and_reset_preserve_official_preferred_sizes() {
         let mut fixture = canvas_fixture(false);
         let shapes = fixture.runtime.tree().child_order(fixture.content).unwrap();
@@ -424,11 +499,18 @@ mod tests {
                 stretch_minor_axis: stretch,
                 ..ToolbarSettings::default()
             };
-            let mut container = fixture.runtime.figure(fixture.content).unwrap();
-            container
-                .set_bounds(Rectangle::new(10.0, 10.0, width, height))
+            fixture
+                .runtime
+                .frames()
+                .resize_logical_viewport(
+                    WIDTH + width - CONTENT_WIDTH,
+                    HEIGHT + height - CONTENT_HEIGHT,
+                )
                 .unwrap();
-            container
+            fixture
+                .runtime
+                .figure(fixture.content)
+                .unwrap()
                 .set_layout_manager(Box::new(settings.layout()))
                 .unwrap();
             fixture.runtime.frames().stabilize_for_query().unwrap();
