@@ -404,6 +404,19 @@ fn scratch_base_rgba() -> [f32; 4] {
     ]
 }
 
+fn submission_base_rgba(submission: &novadraw::render::RenderSubmission) -> [f32; 4] {
+    submission
+        .clear_color
+        .map_or_else(scratch_base_rgba, |color| {
+            [
+                color.red() as f32,
+                color.green() as f32,
+                color.blue() as f32,
+                color.alpha() as f32,
+            ]
+        })
+}
+
 fn vello_paint(paint: &Paint, scale_factor: f64) -> vello::peniko::Brush {
     use vello::peniko::color::ColorSpaceTag;
     use vello::peniko::{ColorStop, Extend, Gradient, InterpolationAlphaSpace};
@@ -1420,9 +1433,11 @@ impl RenderBackend for VelloRenderer {
             .with_custom_strokes()
             .with_path_clips()
             .with_linear_gradients()
+            .with_host_background()
     }
 
     fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderResult {
+        submission.validate_composition(self.capabilities())?;
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
         }
@@ -1504,7 +1519,7 @@ impl RenderBackend for VelloRenderer {
         let retained_view = retained_view.clone();
 
         let device_handle = &self.render_context.devices[self.surface.dev_id];
-        let base_color = VelloColor::new(scratch_base_rgba());
+        let base_color = VelloColor::new(submission_base_rgba(submission));
 
         // 使用 surface 背景重建临时纹理；后续只把 damage regions 复制到 retained texture。
         let Some(renderer) = self.renderers[self.surface.dev_id].as_mut() else {
@@ -1636,6 +1651,7 @@ impl VelloRenderer {
         &mut self,
         submission: &novadraw::render::RenderSubmission,
     ) -> RenderResult {
+        submission.validate_composition(self.capabilities())?;
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
         }
@@ -1694,7 +1710,7 @@ impl VelloRenderer {
             &self.encoder.scene,
             &retained_view,
             &vello::RenderParams {
-                base_color: VelloColor::new(scratch_base_rgba()),
+                base_color: VelloColor::new(submission_base_rgba(submission)),
                 width,
                 height,
                 antialiasing_method: AaConfig::Msaa16,

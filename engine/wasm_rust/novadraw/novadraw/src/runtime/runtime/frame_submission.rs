@@ -785,6 +785,19 @@ impl Runtime {
                 &mut self.faulted,
             )
             .set_surface_suspended(false);
+        if let Err(error) = self.validate_background_frame(surface) {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::HostBackground(error));
+        }
+        if self.background.base.is_some()
+            && let Err(error) =
+                capabilities.require(crate::render::RenderCapability::HostBackground)
+        {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(
+                error,
+            ));
+        }
         if let Err(error) = self.try_stabilize() {
             return FramePreparation::Error(error);
         }
@@ -833,6 +846,15 @@ impl Runtime {
                 canvas.damage_mut().set_full();
             }
         }
+        if self.background.base.is_some() {
+            // Clearing/compositing a host background requires a complete Canvas repair.
+            // Do not promote a partial command list to Full while leaving siblings unrecorded.
+            canvas = self.tree.render_with_presentation(presentation.as_ref());
+            if let Err(error) = self.compose_background(&mut canvas, surface) {
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::Graphics(error));
+            }
+        }
         if let Err(error) = canvas.validate_recording(&self.resources) {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::Graphics(error));
@@ -863,12 +885,14 @@ impl Runtime {
         } else {
             ResourceSync::Delta(self.resources.take_delta())
         };
-        let submission = canvas.to_submission_for_session(
+        let mut submission = canvas.to_submission_for_session(
             surface,
             resources.clone(),
             self.backend_session_id,
             frame_id,
         );
+        submission.clear_color = self.background.base;
+        submission.background_input = self.background.input.map(Box::new);
         self.full_redraw_pending = false;
         self.in_flight = Some(InFlightFrame {
             session_id: self.backend_session_id,

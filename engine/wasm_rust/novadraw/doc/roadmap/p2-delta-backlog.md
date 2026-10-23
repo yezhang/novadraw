@@ -216,8 +216,8 @@ K07 [修订 2 复核](../verification/reviews/k07-shared-scene-view-background-r
 | K07-2 | binding group、保守结构依赖与 Runtime 强制提交准入 | `complete` | [共享组证据](../verification/reviews/k07-2-scene-group-evidence-2026-10-23.md)：9 个外部反例、5 个内部准入反例与 28 个子树回归；交错候选、hidden/rect 外、callback/typed reparent、完整替换和耗尽批次已验证，API 28/28 |
 | K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `complete` | [目标视图证据](../verification/reviews/k07-3-scene-view-evidence-2026-10-23.md)：11 个外部契约、13 个定向库级检查；完整库级 407 项通过；font/image 共存、Border/提示、stale/conflict、reset/Retry、释放及 API 28/28 |
 | K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `complete` | [消费者证据](../verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)：独立活源 Runtime、真实目标输入、两个只读视图、resize 不重新捕获、终止清理及三张 Native 截图 |
-| K07-5 | 宿主背景候选、统一输入冻结与恢复 | `in_progress` | 只变背景、版本拒绝、移除、迟到、lease、Retry/device reset |
-| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `not_started` | opaque/transparent root、Canvas 移动与内容滚动、DPI/repair，启用 backend 完整消费或明确拒绝 |
+| K07-5 | 宿主背景候选、统一输入冻结与恢复 | `complete` | [背景证据](../verification/reviews/k07-5-host-background-evidence-2026-10-23.md)：7 项外部契约、身份耗尽与 Native GPU 像素通过；版本拒绝、移除/迟到、lease、Retry/reset、明确清屏和后端拒绝，API 28/28 |
+| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `in_progress` | opaque/transparent root、Canvas 移动与内容滚动、DPI/repair，启用 backend 完整消费或明确拒绝 |
 
 同一时刻只执行一个切片。K07、两个官方阻塞入口和平台支持状态在各自验收前保持未完成；
 其他 K06/K08 与 S08/S09 的状态不因本次批准改变。

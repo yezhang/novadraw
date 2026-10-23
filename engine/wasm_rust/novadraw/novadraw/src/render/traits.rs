@@ -15,6 +15,7 @@ pub enum RenderCapability {
     CustomStrokes,
     PathClips,
     LinearGradients,
+    HostBackground,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,6 +45,7 @@ pub struct BackendCapabilities {
     pub custom_strokes: bool,
     pub path_clips: bool,
     pub linear_gradients: bool,
+    pub host_background: bool,
 }
 
 impl BackendCapabilities {
@@ -56,6 +58,7 @@ impl BackendCapabilities {
         custom_strokes: false,
         path_clips: false,
         linear_gradients: false,
+        host_background: false,
     };
 
     pub const RETAINED_PARTIAL: Self = Self {
@@ -67,6 +70,7 @@ impl BackendCapabilities {
         custom_strokes: false,
         path_clips: false,
         linear_gradients: false,
+        host_background: false,
     };
 
     pub const fn supports_partial_damage(self) -> bool {
@@ -81,6 +85,7 @@ impl BackendCapabilities {
             RenderCapability::CustomStrokes => self.custom_strokes,
             RenderCapability::PathClips => self.path_clips,
             RenderCapability::LinearGradients => self.linear_gradients,
+            RenderCapability::HostBackground => self.host_background,
         }
     }
 
@@ -106,6 +111,11 @@ impl BackendCapabilities {
 
     pub const fn with_linear_gradients(mut self) -> Self {
         self.linear_gradients = true;
+        self
+    }
+
+    pub const fn with_host_background(mut self) -> Self {
+        self.host_background = true;
         self
     }
 

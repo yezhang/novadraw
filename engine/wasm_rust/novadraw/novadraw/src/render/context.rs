@@ -84,6 +84,17 @@ impl NdCanvas {
         self.state_stack.len()
     }
 
+    /// Both recordings have already closed their own state stacks.
+    pub(crate) fn prepend_recording(&mut self, mut prefix: Self) {
+        prefix.commands.append(&mut self.commands);
+        self.commands = prefix.commands;
+        self.font_dependencies.extend(prefix.font_dependencies);
+        if self.recording_error.is_none() {
+            self.recording_error = prefix.recording_error;
+        }
+        self.damage.set_full();
+    }
+
     pub(crate) fn stroke_paint(&self) -> Option<&Paint> {
         self.state.stroke_paint.as_ref()
     }
@@ -819,6 +830,8 @@ impl NdCanvas {
             damage: self.damage.clone(),
             resources,
             surface,
+            clear_color: None,
+            background_input: None,
             session_id,
             frame_id,
         }

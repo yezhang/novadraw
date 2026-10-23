@@ -47,6 +47,7 @@ use crate::{
     ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
 
+mod background_submission;
 mod capability_update;
 mod component_update;
 mod connection_service;
@@ -112,6 +113,7 @@ pub enum FramePreparationError {
     Accessibility(AccessibilityError),
     UnsupportedRenderCapability(UnsupportedRenderCapability),
     InvalidGraphicsInput(crate::render::InvalidGraphicsInput),
+    HostBackground(crate::host::HostBackgroundError),
     DidNotConverge,
 }
 
@@ -126,6 +128,7 @@ impl fmt::Display for FramePreparationError {
             Self::Accessibility(error) => error.fmt(formatter),
             Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
             Self::InvalidGraphicsInput(error) => error.fmt(formatter),
+            Self::HostBackground(error) => error.fmt(formatter),
             Self::DidNotConverge => formatter.write_str("derived state did not converge"),
         }
     }
@@ -362,6 +365,7 @@ pub struct Runtime {
     derivation_epoch: u64,
     stable_epoch: u64,
     scenes: crate::scene::SceneProducer,
+    background: crate::host::BackgroundState,
     last_stabilization_error: Option<FramePreparationError>,
     preparation_budget: crate::figure::PreparationBudget,
     faulted: bool,
@@ -665,6 +669,7 @@ impl Runtime {
             derivation_epoch: 0,
             stable_epoch: 0,
             scenes: crate::scene::SceneProducer::new(namespace),
+            background: crate::host::BackgroundState::default(),
             last_stabilization_error: None,
             preparation_budget: crate::figure::PreparationBudget::default(),
             faulted: false,

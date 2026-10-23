@@ -351,6 +351,24 @@ Runtime 拉取 payload。
 - session reset 后缺失资源 command 不会进入 Presented；
 - 不同 Runtime 的 ResourceId 与 BackendSessionId 不互相解释。
 
+## 宿主背景的资源与帧输入
+
+[ADR-045](../../adr/adr-045-host-background-submission.md)的宿主背景也使用不可变
+image/font 闭包。Host 提供者在 Runtime 外录制 owned drawing；
+`complete_background` 先完整检查闭包，再通过与 SceneView 相同的导入表创建候选
+Registry、重写命令引用，成功后一起安装。导入键包含背景来源 namespace、资源 ID、
+来源 revision 和 kind；不同 revision 不覆盖同一个目标 Ready ID。
+
+已安装背景保留 CPU lease，`prepare_submission` 再保留命令实际使用的 in-flight lease。
+Retry/Failed 接回恢复前缀，reset 先转交旧在途 lease，再释放旧 token。
+背景替换或移除不会提前回收仍在使用的导入资源；
+最后 lease 释放后，在成功帧准备中登记 Remove。背景 completion 与帧 completion
+分开比较 request 和 session/frame，不相互确认。
+
+`RenderSubmission` 统一冻结背景、Canvas、清屏值、坐标输入与资源同步前缀。
+Presented 只确认该在途前缀，之后收到的新背景仍保持 pending。
+位置/DPI 失配时准备失败，保留旧 CPU 数据与 pending work，待新输入修复。
+
 ## 14. 非目标
 
 - 多 backend 同时消费；

@@ -368,8 +368,46 @@ pub struct RenderSubmission {
     pub damage: DamageSet,
     pub resources: ResourceSync,
     pub surface: SurfaceInfo,
+    /// Explicit host clear, frozen with the composition. None uses backend default.
+    pub clear_color: Option<crate::graphics::Color>,
+    /// Coordinate versions used to prepare the host background.
+    pub background_input: Option<Box<crate::host::BackgroundFrameInput>>,
     pub session_id: BackendSessionId,
     pub frame_id: FrameId,
+}
+
+impl RenderSubmission {
+    /// Backends call this before accepting resources or recording composition.
+    pub fn validate_composition(
+        &self,
+        capabilities: super::BackendCapabilities,
+    ) -> Result<(), super::RenderFailure> {
+        if self.clear_color.is_some() {
+            capabilities
+                .require(super::RenderCapability::HostBackground)
+                .map_err(super::RenderFailure::Unsupported)?;
+            if !self.damage.is_full() {
+                return Err(super::RenderFailure::Fatal(
+                    super::RenderFailureDiagnostic::new(
+                        "host background requires a complete surface repair",
+                    ),
+                ));
+            }
+        }
+        if let Some(input) = &self.background_input {
+            if input.surface != self.surface {
+                return Err(super::RenderFailure::Fatal(
+                    super::RenderFailureDiagnostic::new(
+                        "host background input does not match the frozen surface",
+                    ),
+                ));
+            }
+            input.validate(None).map_err(|error| {
+                super::RenderFailure::Fatal(super::RenderFailureDiagnostic::from_error(&error))
+            })?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

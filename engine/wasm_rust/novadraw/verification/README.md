@@ -26,6 +26,7 @@ cargo xtask verify <suite-id>
 | `editor.replay` | G3、G4、G5.2-G5.5 单进程回放 |
 | `platform.text-input` | Winit/Web 文字输入与 wasm host |
 | `graphics.native` | Native 像素与 surface present |
+| `graphics.host-background` | Host 背景受检投递、帧恢复与 Vello 合成像素 |
 | `canvas.native` | 独立 Canvas 合成、Novadraw 离屏纹理与双 Canvas Native 自检 |
 | `web.build` | release Wasm 与 wasm-bindgen 产物 |
 | `web.performance` | Chrome/WebGPU 证据校验与采样 |

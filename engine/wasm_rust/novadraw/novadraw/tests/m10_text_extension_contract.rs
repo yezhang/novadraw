@@ -146,6 +146,8 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     let submission = RenderSubmission {
         commands: drawing.commands().to_vec(),
         damage,
+        clear_color: None,
+        background_input: None,
         surface: SurfaceInfo {
             logical_width: 200.0,
             logical_height: 80.0,

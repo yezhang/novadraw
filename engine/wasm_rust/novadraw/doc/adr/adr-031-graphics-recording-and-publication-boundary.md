@@ -110,6 +110,11 @@ ADR-044 的例外仅允许 scene facade 返回受检、不可变 `SceneSnapshot`
 它复用稳定化而不分配 source frame、不消费 source damage/资源前缀/确认 cursor，
 不公开内部 recorder 或可变命令容器，不成为第二个 surface 提交入口。
 ADR-045 的背景只能由同一 `prepare_submission` 预检并冻结，Host 不得在冻结后追加。
+背景由 `RuntimeFrames` 接收 owned candidate；提供者 registry 始终留在 Host。
+帧包冻结 `clear_color`、`background_input` 和已重写资源引用的背景命令，
+然后追加完整 Canvas recording。后端先检查 `HostBackground` capability 与组合输入，
+再同步资源和提交；显式清屏值在 Vello surface、截图与离屏路径一致消费。
+背景移除、失败后的重试及 session reset 延续相同单 in-flight 与 CPU lease 协议。
 
 ### 4. 本批次直接 breaking
 

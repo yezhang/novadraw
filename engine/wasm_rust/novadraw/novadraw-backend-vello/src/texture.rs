@@ -56,9 +56,11 @@ impl RenderBackend for TextureBackend<'_> {
             .with_custom_strokes()
             .with_path_clips()
             .with_linear_gradients()
+            .with_host_background()
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
+        submission.validate_composition(self.capabilities())?;
         self.capabilities()
             .validate_capabilities(&submission.commands)
             .map_err(RenderFailure::Unsupported)?;
@@ -120,7 +122,17 @@ impl RenderBackend for TextureBackend<'_> {
                 &renderer.encoder.scene,
                 &view,
                 &RenderParams {
-                    base_color: Color::new([0.0, 0.0, 0.0, 0.0]),
+                    base_color: Color::new(submission.clear_color.map_or(
+                        [0.0, 0.0, 0.0, 0.0],
+                        |color| {
+                            [
+                                color.red() as f32,
+                                color.green() as f32,
+                                color.blue() as f32,
+                                color.alpha() as f32,
+                            ]
+                        },
+                    )),
                     width: surface.pixel_width,
                     height: surface.pixel_height,
                     antialiasing_method: AaConfig::Msaa16,

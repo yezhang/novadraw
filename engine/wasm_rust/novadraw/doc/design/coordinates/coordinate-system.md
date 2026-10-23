@@ -384,6 +384,20 @@ Scene3D 可通过以下方式接入：
 - 浮点比较使用领域容差，不把容差写成散落的 magic number；
 - projective transform 的 near-plane 和 `w` 规则由合成协议统一定义。
 
+## 宿主背景使用帧内位置
+
+`host::BackgroundFrameInput` 由 Host 显式提供 surface、`surface/position/dpi`
+独立版本和 `host_to_canvas` 仿射变换。背景 coverage 与 drawing 使用宿主逻辑坐标；
+Runtime 先裁剪到 Canvas surface，再应用 `host_to_canvas` 和宿主 coverage，
+随后在同一帧绘制 Canvas。此变换不乘 Canvas 内容 Viewport 的 origin 或 scale。
+
+Host 移动 Canvas 时提升 position 版本并重新提供背景候选；
+滚动 Figure 内容只改变 Figure 坐标，不改变背景输入。surface extent 或 DPI
+改变必须提升相应版本。旧候选输入与当前输入或帧 surface 不匹配时，
+`prepare_submission` 返回 `HostBackground(InputMismatch)`，保留 pending work。
+输入版本不允许倒退，变换必须通过现有受检 inverse；帧录制继续进行设备数值检查。
+`RenderSubmission::background_input` 是该帧冻结的输入记录，后端不得补算新位置。
+
 ## 16. 验证契约
 
 至少覆盖：

@@ -98,6 +98,62 @@ impl<'a> RuntimeFrames<'a> {
     pub fn has_pending_update(&self) -> bool {
         self.runtime.has_pending_update()
     }
+
+    /// Registers a host wakeup for background work independently of Figure changes.
+    pub fn set_background_waker(&mut self, waker: std::task::Waker) {
+        self.runtime.background.waker = Some(waker.clone());
+        if self.runtime.has_pending_update() {
+            waker.wake();
+        }
+    }
+
+    pub fn set_background_input(
+        &mut self,
+        input: crate::host::BackgroundFrameInput,
+    ) -> Result<(), crate::host::HostBackgroundError> {
+        self.runtime.set_background_input(input)
+    }
+
+    pub fn background_input(&self) -> Option<crate::host::BackgroundFrameInput> {
+        self.runtime.background.input
+    }
+
+    /// Starts/replaces a host request. Initial Pending uses the explicit base clear.
+    pub fn begin_background(
+        &mut self,
+        source: crate::host::HostBackgroundId,
+        input: crate::host::BackgroundFrameInput,
+        base: crate::graphics::Color,
+    ) -> Result<crate::host::HostBackgroundRequest, crate::host::HostBackgroundError> {
+        self.runtime.begin_background(source, input, base)
+    }
+
+    pub fn complete_background(
+        &mut self,
+        request: crate::host::HostBackgroundRequest,
+        result: Result<crate::host::HostBackgroundSnapshot, crate::host::HostBackgroundError>,
+    ) -> Result<(), crate::host::HostBackgroundError> {
+        self.runtime.complete_background(request, result)
+    }
+
+    pub fn remove_background(
+        &mut self,
+        base: crate::graphics::Color,
+    ) -> Result<(), crate::host::HostBackgroundError> {
+        self.runtime.remove_background(base)
+    }
+
+    pub fn current_background(&self) -> Option<&crate::host::HostBackgroundSnapshot> {
+        self.runtime
+            .background
+            .current
+            .as_ref()
+            .map(|current| &current.snapshot)
+    }
+
+    pub fn background_error(&self) -> Option<&crate::host::HostBackgroundError> {
+        self.runtime.background.error.as_ref()
+    }
 }
 
 pub struct RuntimeResources<'a> {

@@ -546,6 +546,22 @@ reset 先把旧在途 lease 接入恢复前缀，再释放旧 token；新准备�
 [`p2_scene_group.rs`](../../../novadraw/tests/p2_scene_group.rs)以及
 [`p2_scene_view.rs`](../../../novadraw/tests/p2_scene_view.rs)。
 
+## 宿主背景在 Runtime 内合成
+
+`BackgroundState` 只保存受检输入、request、已接受 drawing 与 CPU lease；
+typed provider registry 留在 Host。`complete_background` 在候选副本中验证闭包、
+创建来源到目标的资源映射，成功后一次替换当前背景。
+request generation 和 content revision 与 backend session/frame 分别比较，
+移除或换源使旧投递失效。
+
+帧准备先检查当前背景输入与 surface，再稳定 Figure 场景。
+背景参与时完整录制 Canvas，将背景前缀拼在 Canvas 前，随后共同检查 Graphics、
+backend capability 与设备数值，再冻结资源同步前缀与 in-flight lease。
+`clear_color` 由后端清屏消费，`background_input` 保存该帧坐标版本。
+清屏要求 Full repair，因此不会用完整清屏配合仅有局部 Figure 的录制结果。
+Retry 和 reset 复用 scene 导入表的恢复 lease，Presented 只确认旧前缀。
+实现见 [`background_submission.rs`](../../../novadraw/src/runtime/runtime/background_submission.rs)。
+
 ## 8.19 与后续章节的关系
 
 本章从稳定场景状态走到像素提交。下一章在已提交场景状态与 RenderSubmission 之间

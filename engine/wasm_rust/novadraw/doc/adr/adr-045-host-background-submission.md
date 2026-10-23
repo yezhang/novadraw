@@ -35,6 +35,29 @@ opaque/transparent root、DPI、repair、Retry 和 device reset。
 
 ## 关系与实施
 
+K07-5 的公开领域为 `host`。`HostBackgroundRegistry` 由宿主拥有，使用
+`HostBackgroundProviderKey<P>` 和 `HostBackgroundProvider<P>` 注册提供者；
+默认 `RECORDED_BACKGROUND` 也走此路径。Runtime 不保存 registry 或调用 provider。
+`RuntimeFrames::{begin_background,complete_background,remove_background}` 管理受检交接；
+`set_background_input`、`background_input`、`current_background` 和 `background_error`
+提供独立输入与诊断，`set_background_waker` 唤醒宿主。
+
+`BackgroundFrameInput` 冻结 surface、位置与 DPI 的独立版本和 `host_to_canvas`。
+同来源的新 request 保留上次成功结果；更换来源或移除推进 generation。
+同 generation 的候选 revision 由宿主单调递增；同 request/revision 的完整内容
+重复可幂等，同版本异内容报错。未知 request、倒序输入及当前坐标失配分别返回
+`StaleRequest`、`StaleInput` 和 `InputMismatch`。背景闭包复用 scene 导入表，
+候选失败不改变当前结果、目标资源注册表或导入身份。
+
+帧包包含 `clear_color` 与 `background_input`，背景 drawing 排在 Canvas 命令前。
+基础清屏通过后端清屏输入完成，因此透明值能擦除旧像素。
+背景参与时完整录制 Canvas 并使用 Full damage；首批不承诺局部背景修复。
+后端必须声明 `RenderCapability::HostBackground` 并在资源接收前调用
+`RenderSubmission::validate_composition`。Vello surface、截图与离屏目标消费相同输入。
+Core 外部契约见 [`p2_host_background`](../../novadraw/tests/p2_host_background.rs)；
+GPU 像素反例见 [`host_background_pixels`](../../novadraw-backend-vello/tests/host_background_pixels.rs)。
+官方消费者及平台结论仍按 K07-6 记录。
+
 `api_semantics`：`frame.preparation`、`graphics.context`、`resource.lifecycle`、
 `render.backend_session`、`coordinate.conversion`、`figure.properties`、`damage.repaint`。
 

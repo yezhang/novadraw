@@ -500,6 +500,24 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 生命周期和图像证据见 [K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)；
 宿主背景继续按 [K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
 
+## 宿主背景也走帧准备入口
+
+透明 Canvas 需要宿主提供背景时，先建立 `host::BackgroundFrameInput`，
+明确 surface、位置与 DPI 版本，以及宿主到 Canvas 的变换。
+通过 `runtime.frames().begin_background(source, input, base)` 取得 request，
+宿主再运行 `HostBackgroundRegistry` 中的 typed provider，并将结果交给
+`complete_background`。Core 不负责 I/O 或轮询提供者。
+
+初次 Pending 使用显式基础清屏值。加载失败保留已接受背景；
+坐标失配时帧准备返回错误，直到宿主提供匹配的新候选。
+`remove_background(base)` 清空背景并请求完整修复，迟到 request 不可恢复旧背景。
+背景独立更新也产生 pending work，可通过 `set_background_waker` 通知宿主。
+
+背景、Canvas 与现有 overlay 按此顺序合成。背景参与时使用完整 Canvas recording；
+内容滚动不改变 `host_to_canvas`，移动 Canvas 则需要新的位置版本。
+后端必须声明 `HostBackground` capability；不支持的后端在准备时明确拒绝。
+公开调用反例见 [`p2_host_background`](../../../novadraw/tests/p2_host_background.rs)。
+
 ## 4.15 验证入口
 
 - [`m5_layout_contract.rs`](../../../novadraw/tests/m5_layout_contract.rs)

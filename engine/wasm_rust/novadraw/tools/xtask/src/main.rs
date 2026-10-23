@@ -426,6 +426,38 @@ const SUITES: &[Suite] = &[
         ],
     },
     Suite {
+        id: "graphics.host-background",
+        description: "Host provider admission, frame recovery and Vello composition pixels",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw", "--test", "p2_host_background"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--lib",
+                    "background_submission::tests",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw-backend-vello",
+                    "--test",
+                    "host_background_pixels",
+                    "--",
+                    "--ignored",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "web.build",
         description: "Release Wasm and wasm-bindgen browser artifacts",
         steps: &[Step {
