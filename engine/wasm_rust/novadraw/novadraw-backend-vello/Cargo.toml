@@ -34,3 +34,4 @@ web-sys = { version = "0.3.104", features = ["HtmlCanvasElement"], optional = tr
 
 [dev-dependencies]
 uuid.workspace = true
+pollster.workspace = true

@@ -4,6 +4,7 @@
 //! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
 mod glyph_outline;
+pub mod texture;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -463,7 +464,7 @@ fn append_glyph_run(
     if run.glyphs.is_empty() {
         return;
     }
-    let affine = VelloRenderer::transform_to_affine(transform, scale_factor);
+    let affine = SceneEncoder::transform_to_affine(transform, scale_factor);
     let brush = vello_paint(paint.paint(), scale_factor);
     let glyph_transform = run
         .skew_degrees
@@ -561,22 +562,93 @@ fn clip_restore_plan<'a>(
     )
 }
 
+struct SceneEncoder {
+    scene: vello::Scene,
+    scale_factor: f64,
+    state_stack: Vec<RenderState>,
+    font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
+}
+
+impl SceneEncoder {
+    fn new(scale_factor: f64) -> Self {
+        Self {
+            scene: vello::Scene::new(),
+            scale_factor,
+            state_stack: vec![RenderState::default()],
+            font_faces: HashMap::new(),
+            images: HashMap::new(),
+        }
+    }
+
+    fn encode(&mut self, commands: &[RenderCommand], clip: Rectangle, scale: f64) {
+        self.scale_factor = scale;
+        self.scene = vello::Scene::new();
+        self.state_stack.clear();
+        self.state_stack.push(RenderState::default());
+        self.push_clip_layer(&RenderClip {
+            transform: Affine2D::IDENTITY,
+            geometry: ClipGeometry::Rectangle(clip),
+        });
+        for command in commands {
+            self.render_command(command);
+        }
+        self.scene.pop_layer();
+    }
+
+    fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
+        commands.iter().all(|command| match &command.kind {
+            novadraw::render::RenderCommandKind::DrawGlyphRun { run, .. } => self
+                .font_faces
+                .contains_key(&(run.font.resource_id(), run.font.revision())),
+            novadraw::render::RenderCommandKind::Image { image, .. } => self
+                .images
+                .contains_key(&(image.resource_id(), image.revision())),
+            _ => true,
+        })
+    }
+
+    fn sync_resources(
+        &mut self,
+        gate: &mut BackendSessionGate,
+        submission: &novadraw::render::RenderSubmission,
+    ) -> Result<bool, RenderFailure> {
+        let replaced = match gate.accept(submission.session_id, &submission.resources) {
+            BackendSessionDecision::RejectStale => {
+                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "backend rejected a stale submission session",
+                )));
+            }
+            BackendSessionDecision::RejectMissingSnapshot => {
+                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "backend session replacement requires a resource snapshot",
+                )));
+            }
+            BackendSessionDecision::Continue => false,
+            BackendSessionDecision::Initialize | BackendSessionDecision::Replace => true,
+        };
+        if replaced {
+            self.font_faces.clear();
+            self.images.clear();
+        }
+        sync_font_face_cache(&mut self.font_faces, &submission.resources);
+        sync_image_cache(&mut self.images, &submission.resources);
+        Ok(replaced)
+    }
+}
+
 pub struct VelloRenderer {
     #[cfg(feature = "native-overlay")]
     overlay: Option<Box<dyn NativeOverlay>>,
     render_context: RenderContext,
     renderers: Vec<Option<Renderer>>,
-    scene: vello::Scene,
+    encoder: SceneEncoder,
     surface: RenderSurface<'static>,
     scale_factor: f64,
     surface_suspended: bool,
     pending_resize: Option<(u32, u32, f64)>,
-    /// 状态栈
-    state_stack: Vec<RenderState>,
     session_gate: BackendSessionGate,
     gpu_failure: Arc<Mutex<Option<PendingGpuFailure>>>,
-    font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
-    images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -634,16 +706,13 @@ impl VelloRenderer {
             overlay: None,
             render_context,
             renderers,
-            scene: vello::Scene::new(),
+            encoder: SceneEncoder::new(scale_factor),
             surface,
             scale_factor,
             surface_suspended: false,
             pending_resize: None,
-            state_stack: vec![RenderState::default()],
             session_gate: BackendSessionGate::default(),
             gpu_failure,
-            font_faces: HashMap::new(),
-            images: HashMap::new(),
             retained_texture: None,
             scratch_texture: None,
         })
@@ -662,43 +731,18 @@ impl VelloRenderer {
         &mut self,
         submission: &novadraw::render::RenderSubmission,
     ) -> Result<(), RenderFailure> {
-        match self
-            .session_gate
-            .accept(submission.session_id, &submission.resources)
+        if self
+            .encoder
+            .sync_resources(&mut self.session_gate, submission)?
         {
-            BackendSessionDecision::RejectStale => {
-                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
-                    "backend rejected a stale submission session",
-                )));
-            }
-            BackendSessionDecision::RejectMissingSnapshot => {
-                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
-                    "backend session replacement requires a resource snapshot",
-                )));
-            }
-            BackendSessionDecision::Continue => {}
-            BackendSessionDecision::Initialize | BackendSessionDecision::Replace => {
-                self.font_faces.clear();
-                self.images.clear();
-                self.retained_texture = None;
-                self.scratch_texture = None;
-            }
+            self.retained_texture = None;
+            self.scratch_texture = None;
         }
-        sync_font_face_cache(&mut self.font_faces, &submission.resources);
-        sync_image_cache(&mut self.images, &submission.resources);
         Ok(())
     }
 
     fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
-        commands.iter().all(|command| match &command.kind {
-            novadraw::render::RenderCommandKind::DrawGlyphRun { run, .. } => self
-                .font_faces
-                .contains_key(&(run.font.resource_id(), run.font.revision())),
-            novadraw::render::RenderCommandKind::Image { image, .. } => self
-                .images
-                .contains_key(&(image.resource_id(), image.revision())),
-            _ => true,
-        })
+        self.encoder.has_required_resources(commands)
     }
 
     fn apply_pending_resize(&mut self) {
@@ -975,7 +1019,9 @@ impl VelloRenderer {
             }
         }
     }
+}
 
+impl SceneEncoder {
     /// 获取当前状态
     fn current_state(&self) -> &RenderState {
         self.state_stack.last().unwrap()
@@ -1420,21 +1466,7 @@ impl RenderBackend for VelloRenderer {
             return Ok(RenderDisposition::Skipped);
         };
 
-        // self.scene.reset();
-        self.scene = vello::Scene::new();
-
-        // 重置状态栈
-        self.state_stack.clear();
-        self.state_stack.push(RenderState::default());
-
-        self.push_clip_layer(&RenderClip {
-            transform: Affine2D::IDENTITY,
-            geometry: ClipGeometry::Rectangle(clip_rect),
-        });
-        for cmd in commands {
-            self.render_command(cmd);
-        }
-        self.scene.pop_layer();
+        self.encoder.encode(commands, clip_rect, self.scale_factor);
 
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
@@ -1483,7 +1515,7 @@ impl RenderBackend for VelloRenderer {
         if let Err(error) = renderer.render_to_texture(
             &device_handle.device,
             &device_handle.queue,
-            &self.scene,
+            &self.encoder.scene,
             &scratch_view,
             &vello::RenderParams {
                 base_color,
@@ -1640,17 +1672,8 @@ impl VelloRenderer {
             width as f64 / self.scale_factor,
             height as f64 / self.scale_factor,
         );
-        self.scene = vello::Scene::new();
-        self.state_stack.clear();
-        self.state_stack.push(RenderState::default());
-        self.push_clip_layer(&RenderClip {
-            transform: Affine2D::IDENTITY,
-            geometry: ClipGeometry::Rectangle(full),
-        });
-        for command in &submission.commands {
-            self.render_command(command);
-        }
-        self.scene.pop_layer();
+        self.encoder
+            .encode(&submission.commands, full, self.scale_factor);
 
         self.ensure_retained_texture();
         let Some((_, retained_view, _, _)) = self.retained_texture.as_ref() else {
@@ -1668,7 +1691,7 @@ impl VelloRenderer {
         if let Err(error) = renderer.render_to_texture(
             &device_handle.device,
             &device_handle.queue,
-            &self.scene,
+            &self.encoder.scene,
             &retained_view,
             &vello::RenderParams {
                 base_color: VelloColor::new(scratch_base_rgba()),
