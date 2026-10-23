@@ -23,7 +23,7 @@ K07-6 验收后，当前 catalog 为 16 complete、8 in_progress、1 blocked，2
 | ScrollPaneExample | 五部件 ScrollBar 已由 ADR-041 实现，不再作为缺失 Core 能力；现有拖拽、resize、自动显隐与 cursor 回归继续保留，尚需完整主题与 Canvas 视觉验收 | K02/K04/H04 |
 | UMLClassDiagram | owner-aware 端点标签和重新测量已实现；类标题/成员字体、图标、StickyNote 的 DogEar 边框与窄宽度换行仍需视觉对等验收 | K02/K03/K05/H04 |
 | TreeExample | 19 节点、增删、样式/间距、选中渐变和非动画折叠已移植；动画中的 branch/line geometry、viewport 跟踪、取消与释放未闭合 | K06/K07/H04 |
-| ZoomExample | 原始 SVG 已加载；缩放/DPI 改变时仍使用固有尺寸的栅格，需保留矢量来源并按资源版本重栅格化 | K08/H01/H02 |
+| ZoomExample | 保留 SVG 源、缩放/DPI 密度选择、资源 revision 替换及 Native GPU 像素恢复已验证；跨显示器系统 DPI 与完整视觉对等仍待验收 | K08/H01/H02/H04 |
 | ShapeStylesExample | 尚缺 per-shape AA ON/OFF/DEFAULT 的 Graphics/IR/backend 完整链路；OFF 必须有像素证据，结构化拒绝不能视为完成 | K08/H02/H04 |
 
 ## 本批继续推进已有契约
@@ -58,6 +58,8 @@ Thumbnail 的真实拖拽、等比 overview resize 与 Native 图像已验收，
 [K07-6 证据](../reviews/k07-6-inherit-background-evidence-2026-10-23.md)。
 Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 验收仍未完成。
 
-K06 动画、K08 AA/SVG 重栅格化与混合字体段的通用文字装饰继续保留。
+K08 SVG 栅格密度切片已实现，见
+[SVG 证据](../reviews/k08-svg-density-evidence-2026-10-23.md)。
+K06 动画、K08 AA 与混合字体段的通用文字装饰继续保留。
 Path 已消费单字体的下划线指标，不能据此关闭混合字体装饰增量。
 依赖顺序和状态统一回写 P2 backlog。

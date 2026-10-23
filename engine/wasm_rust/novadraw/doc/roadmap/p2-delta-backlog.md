@@ -232,6 +232,20 @@ Flow/Toolbar 通过普通 MarginBorder/FillLayout 随 Host 视口布局；验证
 本批不新增 Core API；连续 Native 窗口 resize、文字 minimum 与 retained-partial
 像素仍待验收，不关闭三项完整入口或 K02 批次。
 
+2026-10-23 K08 SVG 密度切片按
+[纯解码契约](../design/rendering/svg-raster-density.md)实现：
+保留解析源，分配前校验像素预算，更新密度时自然尺寸不变；Zoom 通过普通资源 token
+替换三个共享图标，同密度不重复更新。Native GPU 替换与恢复像素已验证，
+见 [SVG 证据](../verification/reviews/k08-svg-density-evidence-2026-10-23.md)。
+同时修复 K06 Disabled/ReducedMotion 在零尺寸折叠布局中提前构造仿射变换的错误。
+Tree branch/lines/viewport 动画、逐 Shape AA 和混合字体装饰仍未完成；
+Zoom 的完整入口和跨显示器系统 DPI 验收不随此切片关闭。
+下一步进入 [Tree 表现几何](../design/animation/tree-layout-presentation-proposal.md)
+的 Design/Gate；现有 affine 过渡不能表达上游真实 bounds 重放。
+[逐图形 AA](../design/rendering/shape-antialias-proposal.md)也已形成待评审方案，
+先评审后端可行性切片，不将 hairline 或低 miter 隐式并入 AA。
+两份方案均未进入 Execute。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的

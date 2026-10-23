@@ -220,6 +220,18 @@ ResourceProvider，也不主动读取文件或轮询异步任务。
 平台 I/O。provider 读取错误、字节解码错误和 Runtime 资源 mutation 错误也属于不同
 失败域，不能压缩成一个字符串。
 
+### SVG 密度由消费者选择
+
+`render::SvgImageSource` 保存解析后的不可变 SVG。消费者根据已提交的缩放变换与
+宿主 DPI 选择整数密度，通过 `SvgRasterOptions` 显式提供像素预算，校验后再分配
+栅格。密度同时写入 `ImageData::scale`，因此像素宽高增加时自然逻辑尺寸保持不变。
+旧 `ImageData::decode_svg(bytes, scale)` 仍按固有像素尺寸解码，scale 只保存尺寸比例。
+
+矢量源与密度缓存由消费者持有。每次替换继续经过资源请求令牌，Runtime 和后端只
+接收普通 `ImageData`，不识别 SVG 专用资源路径。Zoom 消费者只在密度变化时更新
+三个共享图标；失败发生在开始资源替换之前，预算不足时保留旧图像。
+完整契约见 [SVG 栅格密度](../../../doc/design/rendering/svg-raster-density.md)。
+
 ### 图像的三组尺寸
 
 图像至少包含三组不能混用的几何：

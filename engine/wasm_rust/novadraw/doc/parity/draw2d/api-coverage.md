@@ -300,6 +300,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 | `border.protocol` | `SchemeBorder.Scheme` highlight/shadow color bands | `SchemeBorder` 经普通 Border/CompoundBorder 接入；不对称色带和空层独立占位 | verified | `scheme_border_contract` 外部消费者覆盖累计 inset、色带顺序、透明性和小矩形；Path/Zoom 消费 scrollbar scheme |
 | `graphics.context` | font-derived underline metrics | `FontDecorationMetrics` 与 `FontMetrics::underline`；默认/外部引擎共用受检值，缺失返回错误 | partial | `font_decoration_image_contract` 覆盖字体实例缩放和缺失指标；Path 单行范围下划线消费，混合字体段装饰尚未提供 |
 | `graphics.context` | ICO image resources in `PrintExample` | `ImageData::decode` 识别 ICO，经统一资源请求完成和 RGBA 输出 | verified | `font_decoration_image_contract` 覆盖原始 brazil.ico、截断数据、无效 scale；不新增 Core 文件 I/O |
+| `graphics.context`, `resource.lifecycle` | Zoom 原始 SVG 在缩放和 DPI 变化后保持自然尺寸 | `render::SvgImageSource` 保存解析源；`SvgRasterOptions` 校验整数密度与像素预算；普通 ImageData/token 替换 | verified | `svg_raster_density_contract`、Zoom 共享图标 revision/布局回归和 Native GPU 替换/恢复像素已验证；跨显示器系统 DPI 验收仍待完成 |
 | `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | `FigureMut::repaint`、`Runtime::request_full_redraw`、old/new visual erase 与内部 `UpdateManager` damage 聚合 | verified | `erase` 与树级 repaint primitive 保持 crate 内部；dirty merge、parent-chain 投影和 partial repair 已验证 |
 
 Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`LabeledBorder.java`。
