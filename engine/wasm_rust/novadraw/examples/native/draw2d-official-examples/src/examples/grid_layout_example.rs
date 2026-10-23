@@ -115,7 +115,10 @@ pub fn panel_scene() -> PanelScene {
                     .expect("Grid layout");
             }
             ui.horizontal(|ui| {
-                if ui.button("Add").clicked() {
+                let add = ui.button("Add");
+                #[cfg(test)]
+                super::panel_test::record(ui, "Add", &add);
+                if add.clicked() {
                     let figure = sequence.next(state.clone());
                     let receipt = runtime
                         .figure(content)
@@ -128,7 +131,10 @@ pub fn panel_scene() -> PanelScene {
                         .expect("constraints")
                         .insert(receipt.root(), GridConstraint::default());
                 }
-                if ui.button("Clear All").clicked() {
+                let clear = ui.button("Clear All");
+                #[cfg(test)]
+                super::panel_test::record(ui, "Clear All", &clear);
+                if clear.clicked() {
                     if let Some(previous) = state.selected.lock().expect("selection").take() {
                         previous.highlighted.store(false, Ordering::Relaxed);
                     }
@@ -173,7 +179,11 @@ pub fn panel_scene() -> PanelScene {
                     let mut value = hint.unwrap_or(-1.0);
                     ui.horizontal(|ui| {
                         ui.label(label);
-                        ui.add(egui::DragValue::new(&mut value).range(-1.0..=f64::MAX));
+                        let response =
+                            ui.add(egui::DragValue::new(&mut value).range(-1.0..=f64::MAX));
+                        #[cfg(test)]
+                        super::panel_test::record(ui, label, &response);
+                        let _ = response;
                     });
                     *hint = (value >= 0.0).then_some(value);
                 }
@@ -191,10 +201,13 @@ pub fn panel_scene() -> PanelScene {
                 }
                 ui.horizontal(|ui| {
                     ui.label("horizontalIndent");
-                    ui.add(
+                    let response = ui.add(
                         egui::DragValue::new(&mut constraint.horizontal_indent)
                             .range(0.0..=f64::MAX),
                     );
+                    #[cfg(test)]
+                    super::panel_test::record(ui, "horizontalIndent", &response);
+                    let _ = response;
                 });
                 for (label, span) in [
                     ("horizontalSpan", &mut constraint.horizontal_span),
@@ -202,11 +215,21 @@ pub fn panel_scene() -> PanelScene {
                 ] {
                     ui.horizontal(|ui| {
                         ui.label(label);
-                        ui.add(egui::DragValue::new(span).range(1..=usize::MAX));
+                        let response = ui.add(egui::DragValue::new(span).range(1..=usize::MAX));
+                        #[cfg(test)]
+                        super::panel_test::record(ui, label, &response);
+                        let _ = response;
                     });
                 }
-                ui.checkbox(&mut constraint.grab_horizontal, "grabExcessHorizontalSpace");
-                ui.checkbox(&mut constraint.grab_vertical, "grabExcessVerticalSpace");
+                for (label, value) in [
+                    ("grabExcessHorizontalSpace", &mut constraint.grab_horizontal),
+                    ("grabExcessVerticalSpace", &mut constraint.grab_vertical),
+                ] {
+                    let response = ui.checkbox(value, label);
+                    #[cfg(test)]
+                    super::panel_test::record(ui, label, &response);
+                    let _ = response;
+                }
                 if constraint != before
                     && let Some(id) = selected
                 {
@@ -1410,6 +1433,59 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn native_panel_grid_data_and_clear_follow_real_selection_lifecycle() {
+        let mut driver = super::super::panel_test::Driver::new("GridLayoutExample");
+        let root = driver.runtime.tree().contents().unwrap();
+        let content = driver.runtime.tree().child_order(root).unwrap()[0];
+        let selected = driver.runtime.tree().child_order(content).unwrap()[0];
+        assert!(!driver.enabled("widthHint"));
+        click_at(&mut driver.runtime, CONTENT_X + 35.0, CONTENT_Y + 35.0);
+        driver.draw(Vec::new());
+        assert!(driver.enabled("widthHint"));
+        driver.edit("widthHint", "91");
+        driver.edit("heightHint", "43");
+        driver.edit("horizontalIndent", "12");
+        driver.edit("horizontalSpan", "2");
+        driver.edit("verticalSpan", "2");
+        driver.click("grabExcessHorizontalSpace");
+        driver.click("grabExcessVerticalSpace");
+        let constraint = *driver
+            .runtime
+            .tree()
+            .layout_constraint::<GridConstraint>(selected)
+            .unwrap()
+            .unwrap();
+        assert_eq!(constraint.width_hint, Some(91.0));
+        assert_eq!(constraint.height_hint, Some(43.0));
+        assert_eq!(constraint.horizontal_indent, 12.0);
+        assert_eq!(constraint.horizontal_span, 2);
+        assert_eq!(constraint.vertical_span, 2);
+        assert!(constraint.grab_horizontal && constraint.grab_vertical);
+        driver.click("Add");
+        assert_eq!(driver.runtime.tree().child_order(content).unwrap().len(), 3);
+        driver.click("Clear All");
+        assert!(
+            driver
+                .runtime
+                .tree()
+                .child_order(content)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(!driver.enabled("widthHint"));
+        driver.click("Add");
+        let added = driver.runtime.tree().child_order(content).unwrap()[0];
+        assert_ne!(
+            added, selected,
+            "removed selection cannot alias the new figure"
+        );
+        let bounds = driver.runtime.tree().figure_bounds(added).unwrap();
+        assert_eq!((bounds.width, bounds.height), (SHAPE_SIZE, SHAPE_SIZE));
+        assert!(!driver.enabled("widthHint"));
+        assert!(driver.runtime.take_deferred_mutation_errors().is_empty());
+    }
 
     #[test]
     fn viewport_resize_reflows_spanning_grabbing_shapes_and_restores_geometry() {

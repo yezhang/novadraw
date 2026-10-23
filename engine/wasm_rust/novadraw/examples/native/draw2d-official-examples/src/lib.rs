@@ -146,7 +146,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "FlowLayoutExample",
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
-                "Official shape outlines/colors are ported; Flow wrap/alignment/stretch, window resize and damage remain under verification",
+                "Official shape spacing/alignment/wrap, host viewport resize, stretch/restore and Native GPU erasure are verified",
+                "Continuous Native window resize, text minimum and retained-partial pixels remain under verification",
             ],
             examples::flow_layout_example,
         ),
@@ -156,7 +157,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/layouts/GridLayoutExample.java",
             &[
                 "Canvas now follows host viewport resize; spanning/grabbing shape shrink/grow/reset geometry is verified",
-                "Full GridData hints/indent, selection lifecycle, minimal-space resize and damage remain under verification",
+                "Real-panel hints/indent/span/grab, selection release, zero-space restore and Native GPU clearing are verified",
+                "Continuous Native window resize, text consumers and retained-partial pixels remain under verification",
             ],
             examples::grid_layout_example,
         ),
@@ -166,7 +168,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/layouts/ToolbarLayoutExample.java",
             &[
                 "Official shape outlines and stretch/orientation/shrink/reset geometry are verified",
-                "Host resize, minimum-size boundaries and damage remain under verification",
+                "Real-panel alignment, host viewport and zero-space restore, and Native GPU erasure are verified",
+                "Continuous Native window resize, text minimum and retained-partial pixels remain under verification",
             ],
             examples::toolbar_layout_example,
         ),
