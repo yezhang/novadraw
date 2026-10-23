@@ -254,6 +254,69 @@ fn native_gpu_layout_changes_erase_old_pixels_and_restore_the_same_image() {
     }
 }
 
+#[test]
+#[ignore = "requires a native GPU adapter"]
+fn native_gpu_zoom_uses_replaced_svg_pixels_and_restores_original_layout() {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+    let target = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("SVG density evidence"),
+        size: wgpu::Extent3d {
+            width: 1200,
+            height: 800,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let mut entry = draw2d_official_examples::panel_entries()
+        .into_iter()
+        .find(|entry| entry.0 == "ZoomExample")
+        .unwrap();
+    let (mut runtime, panel) = entry.1();
+    let mut panel = panel.unwrap();
+    runtime
+        .frames()
+        .resize_logical_viewport(1200.0, 800.0)
+        .unwrap();
+    runtime.frames().stabilize_for_query().unwrap();
+    let root = runtime.tree().contents().unwrap();
+    let zoom = runtime
+        .tree()
+        .child_order(root)
+        .unwrap()
+        .into_iter()
+        .find(|id| runtime.tree().node(*id).unwrap().figure_name() == "ScalableLayeredPaneFigure")
+        .unwrap();
+    let mut renderer = VelloTextureRenderer::new(&device, &queue).unwrap();
+    let initial = submit(&mut runtime, &mut renderer, &device, &queue, &target);
+    save("ZoomExample", "initial", &initial);
+    runtime.viewports().set_scale(zoom, 3.0).unwrap();
+    let low_density = submit(&mut runtime, &mut renderer, &device, &queue, &target);
+    save("ZoomExample", "zoom-low-density", &low_density);
+    let context = novadraw_example_support::panel::egui::Context::default();
+    let _ = context.run_ui(Default::default(), |ui| panel.show(ui, &mut runtime));
+    let high_density = submit(&mut runtime, &mut renderer, &device, &queue, &target);
+    save("ZoomExample", "zoom-high-density", &high_density);
+    assert_ne!(
+        high_density, low_density,
+        "replacement pixels must reach Vello"
+    );
+    runtime.viewports().set_scale(zoom, 1.0).unwrap();
+    let _ = context.run_ui(Default::default(), |ui| panel.show(ui, &mut runtime));
+    let restored = submit(&mut runtime, &mut renderer, &device, &queue, &target);
+    save("ZoomExample", "restored", &restored);
+    assert_eq!(
+        initial, restored,
+        "density replacement must preserve logical size"
+    );
+}
+
 fn submit(
     runtime: &mut Runtime,
     renderer: &mut VelloTextureRenderer,

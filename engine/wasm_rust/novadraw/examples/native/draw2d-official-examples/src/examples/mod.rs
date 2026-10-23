@@ -85,6 +85,7 @@ pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelS
         "DirectedGraphDemo" => graph_examples::panel_scene(false),
         "CompoundGraphDemo" => graph_examples::panel_scene(true),
         "ThumbnailExample" => thumbnail::panel_scene(),
+        "ZoomExample" => zoom_example::panel_scene(),
         _ => return None,
     })
 }

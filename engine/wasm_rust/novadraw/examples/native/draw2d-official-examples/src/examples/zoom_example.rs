@@ -16,10 +16,12 @@ use novadraw::{
     geometry::{Dimension, Insets, Point, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
     layout::{MinorAlignment, StackLayout, ToolbarLayout, XYConstraint, XYLayout},
+    render::{SvgImageSource, SvgRasterOptions},
     runtime::{ImageId, Runtime},
     text::{FontDescriptor, TextConstraints, TextLayout},
     tree::FigureId,
 };
+use novadraw_example_support::panel::{Panel, PanelScene};
 
 use super::runtime_with_fonts;
 
@@ -30,6 +32,85 @@ const MINIMUM_THUMB: f64 = 70.0;
 const MAXIMUM: f64 = 200.0;
 const EXTENT: f64 = 25.0;
 const CLASS_COLOR: Color = Color::rgba(1.0, 1.0, 206.0 / 255.0, 1.0);
+const ICON_PIXEL_BUDGET: u64 = 1024 * 1024;
+
+struct ZoomIcons {
+    sources: [SvgImageSource; 3],
+    images: [ImageId; 3],
+    density: u32,
+}
+
+impl ZoomIcons {
+    fn new(runtime: &mut Runtime) -> Self {
+        let sources = [
+            include_bytes!("../../assets/zoom/class_obj.svg").as_slice(),
+            include_bytes!("../../assets/zoom/field_private_obj.svg").as_slice(),
+            include_bytes!("../../assets/zoom/methpub_obj.svg").as_slice(),
+        ]
+        .map(|bytes| SvgImageSource::decode(bytes).expect("official SVG"));
+        let images = sources.each_ref().map(|source| {
+            let image = runtime.resources().register_image().expect("icon resource");
+            let data = source
+                .rasterize(SvgRasterOptions::try_new(1, ICON_PIXEL_BUDGET).expect("budget"))
+                .expect("initial icon");
+            let token = runtime
+                .resources()
+                .begin_request(image.resource_id())
+                .expect("request");
+            runtime
+                .resources()
+                .complete_image_request(token, data)
+                .expect("icon");
+            image
+        });
+        Self {
+            sources,
+            images,
+            density: 1,
+        }
+    }
+
+    fn refresh(
+        &mut self,
+        runtime: &mut Runtime,
+        classes: [FigureId; 2],
+        pixels_per_point: f64,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            pixels_per_point.is_finite() && pixels_per_point > 0.0,
+            "invalid DPI"
+        );
+        runtime.frames().stabilize_for_query()?;
+        let mut magnification = 0.0_f64;
+        for class in classes {
+            let [a, b, c, d, _, _] = runtime.tree().local_to_surface_transform(class)?.coeffs();
+            // This example has uniform scale and translation only.
+            magnification = magnification.max(a.hypot(b).max(c.hypot(d)));
+        }
+        let required = (magnification * pixels_per_point).ceil().max(1.0);
+        anyhow::ensure!(
+            required.is_finite() && required <= f64::from(u32::MAX),
+            "icon density overflow"
+        );
+        let density = required as u32;
+        if density == self.density {
+            return Ok(());
+        }
+        let options = SvgRasterOptions::try_new(density, ICON_PIXEL_BUDGET)?;
+        // Prepare all images before starting replacement requests.
+        let data = self
+            .sources
+            .each_ref()
+            .map(|source| source.rasterize(options));
+        let [first, second, third] = data;
+        for (image, data) in self.images.into_iter().zip([first?, second?, third?]) {
+            let token = runtime.resources().begin_request(image.resource_id())?;
+            runtime.resources().complete_image_request(token, data)?;
+        }
+        self.density = density;
+        Ok(())
+    }
+}
 
 pub(super) struct GroupBoxBorder {
     pub(super) title: TextLayout,
@@ -132,28 +213,34 @@ struct Fixture {
     bar: FigureId,
     classes: [FigureId; 2],
     model: Arc<DefaultRangeModel>,
+    icons: ZoomIcons,
 }
 
 pub fn zoom_example() -> Runtime {
     fixture().runtime
 }
 
+pub(super) fn panel_scene() -> PanelScene {
+    let Fixture {
+        runtime,
+        classes,
+        mut icons,
+        ..
+    } = fixture();
+    let panel = Panel::new([610.0, 40.0], move |ui, runtime| {
+        let result = icons.refresh(runtime, classes, f64::from(ui.ctx().pixels_per_point()));
+        ui.label("SVG icons follow Canvas zoom and display DPI.");
+        if let Err(error) = result {
+            ui.label(error.to_string());
+        }
+    });
+    (runtime, Some(panel))
+}
+
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
-    let images = [
-        register_image(
-            &mut runtime,
-            include_bytes!("../../assets/zoom/class_obj.svg"),
-        ),
-        register_image(
-            &mut runtime,
-            include_bytes!("../../assets/zoom/field_private_obj.svg"),
-        ),
-        register_image(
-            &mut runtime,
-            include_bytes!("../../assets/zoom/methpub_obj.svg"),
-        ),
-    ];
+    let icons = ZoomIcons::new(&mut runtime);
+    let images = icons.images;
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -270,6 +357,7 @@ fn fixture() -> Fixture {
         bar,
         classes: [table, column],
         model,
+        icons,
     }
 }
 
@@ -342,22 +430,6 @@ fn add_class(
     class
 }
 
-fn register_image(runtime: &mut Runtime, bytes: &[u8]) -> ImageId {
-    let image = runtime
-        .resources()
-        .register_image()
-        .expect("official image");
-    let request = runtime
-        .resources()
-        .begin_request(image.resource_id())
-        .expect("image request");
-    runtime
-        .resources()
-        .complete_image_request_bytes(request, bytes, 1.0)
-        .expect("official PNG");
-    image
-}
-
 fn zoom_for(value: f64) -> f64 {
     // Java computes in float; preserve its rounding before passing the neutral API an f64.
     f64::from((value as f32 + 10.0) * 0.02_f32)
@@ -367,6 +439,73 @@ fn zoom_for(value: f64) -> f64 {
 mod tests {
     use super::*;
     use novadraw::event::MouseButton;
+    use novadraw::runtime::ResourceStatus;
+
+    #[test]
+    fn zoom_and_dpi_replace_shared_icons_only_when_density_changes() {
+        let mut fixture = fixture();
+        fixture.runtime.frames().stabilize_for_query().unwrap();
+        let bounds = fixture
+            .classes
+            .map(|id| fixture.runtime.tree().figure_bounds(id).unwrap());
+        let original = revisions(&mut fixture);
+        fixture
+            .icons
+            .refresh(&mut fixture.runtime, fixture.classes, 1.0)
+            .unwrap();
+        assert_eq!(revisions(&mut fixture), original);
+        for (scale, dpi, expected_density) in [(2.5, 1.0, 3), (2.5, 2.0, 5), (1.0, 1.0, 1)] {
+            fixture
+                .runtime
+                .viewports()
+                .set_scale(fixture.panel, scale)
+                .unwrap();
+            let before = revisions(&mut fixture);
+            fixture
+                .icons
+                .refresh(&mut fixture.runtime, fixture.classes, dpi)
+                .unwrap();
+            assert_eq!(fixture.icons.density, expected_density);
+            let after = revisions(&mut fixture);
+            assert!(before.into_iter().zip(after).all(|(a, b)| b > a));
+            fixture
+                .icons
+                .refresh(&mut fixture.runtime, fixture.classes, dpi)
+                .unwrap();
+            assert_eq!(revisions(&mut fixture), after);
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            assert_eq!(
+                fixture
+                    .classes
+                    .map(|id| fixture.runtime.tree().figure_bounds(id).unwrap()),
+                bounds
+            );
+        }
+        let before = revisions(&mut fixture);
+        assert!(
+            fixture
+                .icons
+                .refresh(&mut fixture.runtime, fixture.classes, 10000.0)
+                .is_err()
+        );
+        assert_eq!(revisions(&mut fixture), before);
+        assert_eq!(fixture.icons.density, 1);
+    }
+
+    fn revisions(fixture: &mut Fixture) -> [u64; 3] {
+        fixture.icons.images.map(|image| {
+            let ResourceStatus::Ready { revision } = fixture
+                .runtime
+                .resources()
+                .status(image.resource_id())
+                .unwrap()
+                .clone()
+            else {
+                panic!("icon must remain ready");
+            };
+            revision
+        })
+    }
 
     #[test]
     fn official_two_class_fixture_and_scroll_range_are_preserved() {

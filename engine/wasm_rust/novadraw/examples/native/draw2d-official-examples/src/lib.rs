@@ -289,7 +289,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/zoom/ZoomExample.java",
             &[
                 "ScrollBar composition/range/repeat and SchemeBorder are implemented",
-                "original SVG resources are decoded at intrinsic size; zoom/DPI-triggered rerasterization remains absent",
+                "retained SVG zoom/DPI raster density, shared-resource revision and Native GPU restore are verified; system DPI and full visual parity remain pending",
             ],
             examples::zoom_example,
         ),
