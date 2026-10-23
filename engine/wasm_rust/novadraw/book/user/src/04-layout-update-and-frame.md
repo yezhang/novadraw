@@ -468,8 +468,34 @@ Core 在结构写入前拒绝直接和间接循环。重挂载、组件 Effect�
 `SceneSnapshot::dependencies()` 记录捕获时的结构来源，目标不能把旧记录当作当前
 图的准入凭证。捕获根登记后保持固定；更换根应终止旧 source，再登记新身份。
 
-K07-1/2 已提供捕获、交接和结构准入。目标端安装、视图测量和宿主背景仍按
-[K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
+目标通过 `create_view` 创建只读句柄，将它移入 `SceneViewFigure` 或外部 Figure。
+句柄没有公开写入入口，绑定与安装由目标 Runtime 管理。
+
+```rust,ignore
+use novadraw::scene::{ASPECT_FIT_VIEW, AspectFitView, SceneViewFigure};
+
+let handle = destination.scenes().create_view(ASPECT_FIT_VIEW, AspectFitView::default())?;
+let figure = destination.figure(parent)?.add(Box::new(SceneViewFigure::new(handle)))?;
+let binding = destination.scenes().bind_view(figure, source, subscription, config_revision)?;
+destination.scenes().install_view(binding, snapshot)?;
+```
+
+默认展示保留 source 宽高比，以源逻辑尺寸作为自然 content size。无提示时返回自然
+尺寸，单轴或双轴提示限定可容纳比例；Border insets 由 Core 扣除和加回。
+调整目标 bounds 或 `configure_view` 只更新目标展示，不触发 source capture。
+外部展示策略通过 `SceneViewPolicyKey<P>` / `SceneViewPolicy<P>` 注册，外部 Figure
+通过 `SCENE_VIEW` descriptor 与 `SceneViewConsumer` 接入相同安装路径。
+
+同 epoch 的新捕获配置需要先调用 `expect_view_config`，再安装新结果。
+旧 binding、旧 source/config 和倒序 epoch 返回 `StaleSceneDelivery`；
+完整身份相同但内容不同返回 `SnapshotConflict`。捕获或导入失败保留当前有效结果。
+宿主收到 `Closed` 后调用 `close_view`；它移除绑定并请求完整清理帧，暂停时保留工作。
+
+`installed_view` 返回可保留的 `InstalledScene`，其中 drawing 已改写为目标资源 ID。
+旧、新来源 revision 使用不同 ID，可同时存活。保留该结果也保留 CPU 资源 lease；
+reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
+官方 Thumbnail 和宿主背景继续按
+[K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)验收。
 
 ## 4.15 验证入口
 
@@ -480,4 +506,5 @@ K07-1/2 已提供捕获、交接和结构准入。目标端安装、视图测量
 - [`runtime_resize_contract.rs`](../../../novadraw/tests/runtime_resize_contract.rs)
 - [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)
 - [`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)
+- [`p2_scene_view.rs`](../../../novadraw/tests/p2_scene_view.rs)
 - `cargo xtask verify runtime.apps`

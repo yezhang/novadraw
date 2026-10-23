@@ -493,7 +493,9 @@ clip。内部子树仍走 `FigureRenderer` 原有递归绘制，presentation 动
 只有完整校验成功的结果才能进入有界交接槽；资源 pending log 不被排空。
 因此 source surface 暂停或存在旧在途帧时，CPU 场景仍可独立捕获。
 
-捕获输入用 FigureTree 与 UpdateManager 通知队列的单调 serial 及宿主活动时间辨识。
+捕获输入用 FigureTree 与 UpdateManager 通知队列的单调 serial、宿主活动时间及
+TextEngine revision 辨识。字体替换即使没有显式 Figure dependency，也会重新稳定化，
+避免旧 glyph run 引用新的字体 payload。
 同一稳定输入只改订阅配置时复用稳定结果，不晋升 source epoch。
 serial 或 epoch 耗尽会返回错误，不回绕。失败尝试记住输入版本，宿主需等待新输入、
 变更配置或显式重试，不能因错误形成持续唤醒。
@@ -501,7 +503,7 @@ serial 或 epoch 耗尽会返回错误，不回绕。失败尝试记住输入版
 source、subscription 与配置版本分别由 producer 管理。删除 source Figure 时，
 Runtime 在结构释放后发布终止事件；释放 Runtime 时，producer 仍向 owned handoff
 写入 `Closed`。宿主接管事件与 destination 的帧呈现确认是两条独立协议。
-目标资源导入和背景合成不由捕获替代，仍按 ADR-044/045 的后续切片实现。
+目标资源导入独立于源帧确认；背景合成按 ADR-045 的后续切片实现。
 
 `SceneBindingGroup` 仅保存参与者的父关系、捕获根和视图来源，Core 根据完整子树
 生成依赖边，忽略绘制矩形和可见性。私有候选固定当前 graph revision；
@@ -516,13 +518,33 @@ Runtime 在结构释放后发布终止事件；释放 Runtime 时，producer 仍
 纯几何的 LayoutOutput 不改变成员关系；未来增加结构 Effect 时必须复用这个提交器。
 快照的结构证据只用于追溯，独立于 drawing 内容身份。
 
+目标按 producer namespace、source ResourceId、source revision 和资源 kind 建立导入键。
+同键复用目标 ID，不同 revision 使用不同 ID，每个 ID 只维护一个不可变 Ready revision。
+候选校验整棵 drawing 的精确闭包，再在私有 Registry 副本中分配资源并重写所有引用。
+安装前核验 binding、期望 source/subscription/config 和 epoch；实际提交再核验当前
+group 的 source 成员版本与完整结构边。候选失败不会替换可见结果或目标导入表。
+
+`SceneViewHandle` 只公开测量、准备和已安装结果的读取。默认与外部 Figure 通过
+同一个 typed descriptor 解析句柄；展示策略的回调在锁外运行，Core 保留写入权限。
+展示准备输出普通 `FigurePresentation`，其 drawing 在目标 Graphics 中回放冻结命令，
+保留外层 clip，并将 source 的绝对 transform 映射到目标入口。
+更新、重绑和终止请求完整重绘，因此跨多个 epoch 的 mailbox 合并也能擦除旧像素。
+
+导入表用弱引用观察 CPU lease，已安装结果、保留结果、准备缓存和在途帧持有强引用。
+公开资源修改拒绝不可变导入 ID。最后强引用释放后，在下一次成功帧准备中登记 Remove。
+reset 先把旧在途 lease 接入恢复前缀，再释放旧 token；新准备持有当前命令所需 lease
+后释放恢复前缀，新 session Snapshot 包含所有仍需保留的资源 ID。
+
 源码入口为
 [`scene.rs`](../../../novadraw/src/scene.rs)、
 [`scene/group.rs`](../../../novadraw/src/scene/group.rs)、
+[`scene/import.rs`](../../../novadraw/src/scene/import.rs)、
+[`scene/view.rs`](../../../novadraw/src/scene/view.rs)、
 [`scene_capture.rs`](../../../novadraw/src/runtime/runtime/scene_capture.rs)；
 外部消费者测试见
 [`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)和
-[`p2_scene_group.rs`](../../../novadraw/tests/p2_scene_group.rs)。
+[`p2_scene_group.rs`](../../../novadraw/tests/p2_scene_group.rs)以及
+[`p2_scene_view.rs`](../../../novadraw/tests/p2_scene_view.rs)。
 
 ## 8.19 与后续章节的关系
 

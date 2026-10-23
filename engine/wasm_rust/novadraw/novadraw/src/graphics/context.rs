@@ -300,6 +300,43 @@ impl<'a> PaintContext<'a> {
         self.canvas.record_checked(|gc| gc.clip_path(clip))
     }
 
+    /// Replays immutable commands in this context's local domain.
+    /// Destination resource identities must already be admitted by Runtime.
+    pub fn replay(
+        &mut self,
+        drawing: &crate::render::RecordedDrawing,
+    ) -> Result<(), GraphicsError> {
+        if let Some(resources) = self.resources {
+            for update in &drawing.resources().ready {
+                let actual = resources
+                    .snapshot_resource(update.id)
+                    .map_err(GraphicsError::Resource)?;
+                if actual != *update {
+                    return self.reject(GraphicsError::ConflictingResource(update.id));
+                }
+            }
+        }
+        if let Some(leases) = &mut self.leases {
+            for update in &drawing.resources().ready {
+                if leases
+                    .iter()
+                    .any(|old| old.id == update.id && old != update)
+                {
+                    return self.reject(GraphicsError::ConflictingResource(update.id));
+                }
+            }
+        }
+        self.canvas.replay(drawing)?;
+        if let Some(leases) = &mut self.leases {
+            for update in &drawing.resources().ready {
+                if !leases.iter().any(|old| old.id == update.id) {
+                    leases.push(update.clone());
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Draws an exact image resource revision into a logical destination rectangle.
     pub fn draw_image(
         &mut self,

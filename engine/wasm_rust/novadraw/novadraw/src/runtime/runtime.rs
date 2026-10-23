@@ -377,6 +377,7 @@ struct InFlightFrame {
     session_id: BackendSessionId,
     id: FrameId,
     resources: ResourceSync,
+    import_leases: Vec<std::sync::Arc<crate::scene::import::ImportLease>>,
 }
 
 impl FigureMut<'_> {

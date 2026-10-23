@@ -967,6 +967,7 @@ pub enum TextError {
     InvalidStyledLayout,
     InvalidPreparedScene(String),
     GraphProjection(Box<crate::layout::graph::GraphLayoutError>),
+    SceneView(String),
     PreparationMeasurement(Box<crate::figure::PreparationMeasureError>),
     PreparationRoute(Box<crate::figure::PreparationRouteError>),
     PreparationDependency(Box<crate::figure::PreparationDependencyError>),
@@ -1016,6 +1017,7 @@ impl fmt::Display for TextError {
             Self::PreparationRoute(error) => error.fmt(formatter),
             Self::PreparationDependency(error) => error.fmt(formatter),
             Self::GraphProjection(error) => error.fmt(formatter),
+            Self::SceneView(error) => write!(formatter, "scene view preparation failed: {error}"),
         }
     }
 }

@@ -77,6 +77,7 @@ pub enum ResourceError {
     RevisionExhausted,
     RequestGenerationExhausted,
     StaleRequest,
+    ImmutableImport,
 }
 
 impl fmt::Display for ResourceError {
@@ -100,6 +101,9 @@ impl fmt::Display for ResourceError {
             }
             Self::StaleRequest => {
                 formatter.write_str("resource request is stale or already completed")
+            }
+            Self::ImmutableImport => {
+                formatter.write_str("immutable imported resource is owned by its leases")
             }
         }
     }
@@ -143,6 +147,7 @@ impl From<ResourceError> for ImageCompletionError {
     }
 }
 
+#[derive(Clone)]
 struct ResourceEntry {
     kind: ResourceKind,
     status: ResourceStatus,
@@ -151,8 +156,10 @@ struct ResourceEntry {
     active_request: Option<u64>,
     payload: Option<ResourcePayload>,
     dependents: Vec<FigureId>,
+    immutable_import: bool,
 }
 
+#[derive(Clone)]
 pub struct ResourceRegistry {
     namespace: Uuid,
     entries: SlotMap<ResourceKey, ResourceEntry>,
@@ -190,6 +197,30 @@ impl ResourceRegistry {
         FontId(self.register(ResourceKind::Font))
     }
 
+    /// Installs a prevalidated immutable import under a fresh destination identity.
+    pub(crate) fn import_payload(&mut self, payload: ResourcePayload) -> ResourceUpdate {
+        let kind = match &payload {
+            ResourcePayload::Image(_) => ResourceKind::Image,
+            ResourcePayload::Font(_) => ResourceKind::Font,
+        };
+        let id = self.register(kind);
+        let entry = self
+            .entries
+            .get_mut(self.key(id).expect("new local resource"))
+            .unwrap();
+        entry.revision = 1;
+        entry.status = ResourceStatus::Ready { revision: 1 };
+        entry.payload = Some(payload.clone());
+        entry.immutable_import = true;
+        let update = ResourceUpdate {
+            id,
+            revision: 1,
+            payload,
+        };
+        self.pending_delta.upsert(update.clone());
+        update
+    }
+
     pub fn status(&self, id: ResourceId) -> Result<&ResourceStatus, ResourceError> {
         let key = self.key(id)?;
         self.entries
@@ -199,6 +230,7 @@ impl ResourceRegistry {
     }
 
     pub fn begin_request(&mut self, id: ResourceId) -> Result<ResourceRequestToken, ResourceError> {
+        self.ensure_mutable(id)?;
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -306,6 +338,7 @@ impl ResourceRegistry {
         id: ResourceId,
         expected: ResourceKind,
     ) -> Result<u64, ResourceError> {
+        self.ensure_mutable(id)?;
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -383,6 +416,7 @@ impl ResourceRegistry {
         id: ResourceId,
         reason: impl Into<String>,
     ) -> Result<Vec<FigureId>, ResourceError> {
+        self.ensure_mutable(id)?;
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -400,6 +434,15 @@ impl ResourceRegistry {
     }
 
     pub fn remove(&mut self, id: ResourceId) -> Result<Vec<FigureId>, ResourceError> {
+        self.ensure_mutable(id)?;
+        self.remove_owned(id)
+    }
+
+    pub(crate) fn remove_import(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+        self.remove_owned(id).map(|_| ())
+    }
+
+    fn remove_owned(&mut self, id: ResourceId) -> Result<Vec<FigureId>, ResourceError> {
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -462,6 +505,7 @@ impl ResourceRegistry {
             active_request: None,
             payload: None,
             dependents: Vec::new(),
+            immutable_import: false,
         });
         ResourceId::new(self.namespace, key.data().as_ffi())
     }
@@ -472,6 +516,7 @@ impl ResourceRegistry {
         expected: ResourceKind,
         payload: ResourcePayload,
     ) -> Result<Vec<FigureId>, ResourceError> {
+        self.ensure_mutable(id)?;
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -526,6 +571,18 @@ impl ResourceRegistry {
             return Err(ResourceError::WrongNamespace);
         }
         Ok(ResourceKey::from(KeyData::from_ffi(id.generation_key())))
+    }
+
+    pub(crate) fn ensure_mutable(&self, id: ResourceId) -> Result<(), ResourceError> {
+        let entry = self
+            .entries
+            .get(self.key(id)?)
+            .ok_or(ResourceError::UnknownResource)?;
+        if entry.immutable_import {
+            Err(ResourceError::ImmutableImport)
+        } else {
+            Ok(())
+        }
     }
 }
 

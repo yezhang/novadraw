@@ -851,6 +851,11 @@ impl Runtime {
             return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
         }
 
+        let import_leases = self.scenes.imports.retain_commands(canvas.commands());
+        // Successful preparation has transferred every needed recovery lease to
+        // either installed/prepared CPU state or this new in-flight prefix.
+        self.scenes.imports.recovery.clear();
+        self.scenes.imports.collect(&mut self.resources);
         let frame_id = self.next_frame_id;
         self.next_frame_id = self.next_frame_id.next();
         let resources = if self.session_sync_pending {
@@ -869,6 +874,7 @@ impl Runtime {
             session_id: self.backend_session_id,
             id: frame_id,
             resources,
+            import_leases,
         });
         self.updates.emit_update_event(UpdateEvent::Prepared {
             frame_id,
@@ -919,6 +925,9 @@ impl Runtime {
             .expect("validated in-flight submission must remain present");
 
         let presented = result == Ok(RenderDisposition::Presented);
+        if !presented {
+            self.scenes.imports.recovery.extend(in_flight.import_leases);
+        }
         match (presented, in_flight.resources) {
             (true, ResourceSync::Snapshot(_)) => {
                 self.session_sync_pending = false;

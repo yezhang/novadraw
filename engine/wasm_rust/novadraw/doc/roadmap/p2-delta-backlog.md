@@ -214,8 +214,8 @@ K07 [修订 2 复核](../verification/reviews/k07-shared-scene-view-background-r
 |---|---|---|---|
 | K07-1 | source-local capture、完整资源闭包、身份/配置、订阅有界更新与终止交接 | `complete` | [捕获证据](../verification/reviews/k07-1-scene-capture-evidence-2026-10-23.md)：13 个外部契约测试、397 个库级测试；alpha/clip/精确资源、暂停/在途/错误隔离、独立终止和 API 28/28 已验证 |
 | K07-2 | binding group、保守结构依赖与 Runtime 强制提交准入 | `complete` | [共享组证据](../verification/reviews/k07-2-scene-group-evidence-2026-10-23.md)：9 个外部反例、5 个内部准入反例与 28 个子树回归；交错候选、hidden/rect 外、callback/typed reparent、完整替换和耗尽批次已验证，API 28/28 |
-| K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `in_progress` | 默认与外部 view 同模型；旧新 font/image 共存、尺寸提示、reset/Retry、释放 |
-| K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `not_started` | 一棵可变源树、拖拽、等比 overview resize、Native 图像与完整生命周期 |
+| K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `complete` | [目标视图证据](../verification/reviews/k07-3-scene-view-evidence-2026-10-23.md)：11 个外部契约、13 个定向库级检查；完整库级 407 项通过；font/image 共存、Border/提示、stale/conflict、reset/Retry、释放及 API 28/28 |
+| K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `in_progress` | 一棵可变源树、拖拽、等比 overview resize、Native 图像与完整生命周期 |
 | K07-5 | 宿主背景候选、统一输入冻结与恢复 | `not_started` | 只变背景、版本拒绝、移除、迟到、lease、Retry/device reset |
 | K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `not_started` | opaque/transparent root、Canvas 移动与内容滚动、DPI/repair，启用 backend 完整消费或明确拒绝 |
 

@@ -46,6 +46,25 @@ Runtime 的直接、deferred、typed update 和关系 derived commit 共用图�
 子树替换和批量插入一次提交完整结构，用户回调随后执行。
 快照冻结的 `SceneDependencyEvidence` 与内容相等性分开，不作为当前图准入凭证。
 
+目标视图通过 `RuntimeScenes::create_view` 取得 owned、只读的 `SceneViewHandle`，
+移入 `SceneViewFigure` 或实现 `SceneViewConsumer` 的外部 Figure。
+`SCENE_VIEW` descriptor、`SceneViewPolicyKey<P>` 与策略 registry 对两者一致。
+句柄不公开 mutation authority，也不提供跨 Figure 克隆入口。
+目标 Runtime 的 `bind_view`、`expect_view_config`、`install_view` 和 `close_view`
+管理配置、版本、安装和终止；解绑同时移除结构边并清空结果。
+
+导入先在私有候选中校验整个资源闭包，克隆目标 Registry 元数据并重写所有 font/image
+引用；同来源 revision 使用相同 ID，不同 revision 分配不同目标 ID。
+实际安装重验当前 source 成员版本与结构依赖，再在共享组保护中一起替换 Registry、
+导入表和视图结果。旧值和用户配置析构在保护外释放。
+导入资源标记为不可变，公开 fail/remove/request 返回 `ImmutableImport`。
+`InstalledScene`、准备结果、在途帧和 reset 恢复前缀共同保留 CPU lease。
+最后 lease 释放后，下一次帧准备按 Remove 协议回收；新 session 同步仍需保留的 ID。
+
+Graphics 回放保留目标 transform/clip，source 的绝对 transform 乘以目标入口变换，
+不能覆盖目标坐标。目标更新采用完整重绘修复旧、新区域。
+捕获稳定输入还包含 TextEngine revision，字体替换后重新生成 glyph 与资源闭包。
+
 ## 外部消费者证据
 
 默认与外部 capture/view policy、Figure binding 共用 typed identity、payload trait
@@ -55,7 +74,10 @@ Runtime 的直接、deferred、typed update 和关系 derived commit 共用图�
 
 K07-1 的外部捕获消费者见 `p2_scene_capture`；K07-2 的外部依赖策略和直接、
 deferred、typed reparent 反例见 `p2_scene_group`，内部候选交错与版本耗尽见
-`scene::group::tests`。目标端安装、资源共存和 Native Thumbnail 仍未验收。
+`scene::group::tests`。K07-3 的安装、外部 Figure/展示策略、配置切换、font/image
+版本共存和 reset 反例位于 `p2_scene_view`；导入候选、回收、内容冲突及尺寸提示
+反例位于 `scene::import::tests` 与 `scene::view::tests`。
+Native Thumbnail 仍未验收，K07 整体保持未完成。
 
 ## 关系与实施
 

@@ -53,8 +53,8 @@ impl CommandRecorder {
 /// A bare command slice does not retain fonts. This value does not submit frames.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RecordedDrawing {
-    commands: Vec<RenderCommand>,
-    resources: ResourceSnapshot,
+    pub(crate) commands: Vec<RenderCommand>,
+    pub(crate) resources: ResourceSnapshot,
 }
 
 impl RecordedDrawing {

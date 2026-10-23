@@ -6,7 +6,14 @@
 pub use crate::runtime::runtime::scene_capture::RuntimeScenes;
 
 pub(crate) mod group;
+pub(crate) mod import;
+pub(crate) mod view;
 pub use group::{SceneAdmissionError, SceneBindingGroup, SceneDependencyEvidence};
+pub use view::{
+    ASPECT_FIT_VIEW, AspectFitView, InstalledScene, SCENE_VIEW, SceneViewCapability,
+    SceneViewConsumer, SceneViewFigure, SceneViewHandle, SceneViewPlacement, SceneViewPolicy,
+    SceneViewPolicyKey,
+};
 
 use std::{
     any::{Any, TypeId},
@@ -105,6 +112,10 @@ pub enum SceneError {
     UnknownSource,
     /// Subscription identity is unknown, foreign or closed.
     UnknownSubscription,
+    /// Delivery targets a retired binding or an unexpected source/configuration.
+    StaleSceneDelivery,
+    /// Equal complete content identity carries different immutable data.
+    SnapshotConflict,
     /// Policy identity was already registered.
     DuplicatePolicy,
     /// Policy identity and payload type were not registered together.
@@ -157,7 +168,7 @@ impl<P> SceneCapturePolicyKey<P> {
         }
     }
 
-    fn erased(self) -> PolicyIdentity
+    pub(crate) fn erased(self) -> PolicyIdentity
     where
         P: 'static,
     {
@@ -407,13 +418,15 @@ impl SceneHandoff {
     }
 }
 
+pub(crate) type CaptureInputs = (u64, u64, crate::event::MonotonicTime, u64);
+
 pub(crate) struct CaptureSubscription {
     pub(crate) source: SceneSourceId,
     pub(crate) config: CaptureConfigRevision,
     pub(crate) policy: PolicyIdentity,
     pub(crate) payload: Box<dyn Any>,
     pub(crate) handoff: SceneHandoff,
-    pub(crate) attempted_inputs: Option<(u64, u64, crate::event::MonotonicTime)>,
+    pub(crate) attempted_inputs: Option<CaptureInputs>,
     pub(crate) attempted_member_generation: Option<u64>,
 }
 
@@ -425,7 +438,10 @@ pub(crate) struct SceneProducer {
     policies: HashMap<PolicyIdentity, Rc<CaptureCallback>>,
     dependency_policies: HashMap<PolicyIdentity, Rc<DependencyCallback>>,
     pub(crate) bindings: HashMap<SceneViewBindingId, (FigureId, SceneSourceId)>,
-    pub(crate) stable_inputs: Option<(u64, u64, crate::event::MonotonicTime)>,
+    pub(crate) imports: import::ResourceImports,
+    pub(crate) view_policies: HashMap<PolicyIdentity, view::ViewPolicy>,
+    pub(crate) view_targets: HashMap<SceneViewBindingId, view::ViewTarget>,
+    pub(crate) stable_inputs: Option<CaptureInputs>,
 }
 
 type DependencyCallback = dyn Fn(&dyn Any) -> Result<SceneSourceId, SceneError>;
@@ -440,6 +456,9 @@ impl SceneProducer {
             policies: HashMap::new(),
             dependency_policies: HashMap::new(),
             bindings: HashMap::new(),
+            imports: import::ResourceImports::default(),
+            view_policies: HashMap::new(),
+            view_targets: HashMap::new(),
             stable_inputs: None,
         };
         producer
@@ -449,6 +468,46 @@ impl SceneProducer {
             .register_dependency_policy(SCENE_SOURCE_VIEW, SourceViewDependency)
             .expect("empty registry accepts the default dependency policy");
         producer
+            .register_view_policy(ASPECT_FIT_VIEW, view::AspectFitPolicy)
+            .expect("empty registry accepts the default display policy");
+        producer
+    }
+
+    pub(crate) fn register_view_policy<P: Send + Sync + 'static>(
+        &mut self,
+        key: SceneViewPolicyKey<P>,
+        policy: impl SceneViewPolicy<P>,
+    ) -> Result<(), SceneError> {
+        let identity = key.0.erased();
+        if self.view_policies.contains_key(&identity) {
+            return Err(SceneError::DuplicatePolicy);
+        }
+        let policy = Arc::new(policy);
+        let measure = policy.clone();
+        self.view_policies.insert(
+            identity,
+            view::ViewPolicy {
+                measure: Arc::new(move |payload, natural, constraints| {
+                    measure.measure(
+                        payload
+                            .downcast_ref::<P>()
+                            .ok_or(SceneError::UnknownPolicy)?,
+                        natural,
+                        constraints,
+                    )
+                }),
+                place: Arc::new(move |payload, natural, client| {
+                    policy.place(
+                        payload
+                            .downcast_ref::<P>()
+                            .ok_or(SceneError::UnknownPolicy)?,
+                        natural,
+                        client,
+                    )
+                }),
+            },
+        );
+        Ok(())
     }
 
     pub(crate) fn register_policy<P: 'static>(
@@ -662,6 +721,11 @@ impl SceneProducer {
     }
 
     pub(crate) fn retire_figures(&mut self, removed: &std::collections::HashSet<FigureId>) {
+        self.view_targets.retain(|binding, _| {
+            self.bindings
+                .get(binding)
+                .is_some_and(|(figure, _)| !removed.contains(figure))
+        });
         self.bindings
             .retain(|_, (figure, _)| !removed.contains(figure));
         let sources: Vec<_> = self

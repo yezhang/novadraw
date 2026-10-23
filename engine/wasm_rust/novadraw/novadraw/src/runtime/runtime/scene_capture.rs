@@ -23,7 +23,7 @@ impl Runtime {
         RuntimeScenes { runtime: self }
     }
 
-    fn scene_capture_inputs(&self) -> Result<(u64, u64, crate::event::MonotonicTime), SceneError> {
+    fn scene_capture_inputs(&self) -> Result<crate::scene::CaptureInputs, SceneError> {
         Ok((
             self.tree
                 .notification_input_serial()
@@ -32,6 +32,7 @@ impl Runtime {
                 .notification_input_serial()
                 .ok_or(SceneError::Exhausted)?,
             self.activity_now,
+            self.text.revision(),
         ))
     }
 
@@ -145,6 +146,345 @@ impl Runtime {
 }
 
 impl RuntimeScenes<'_> {
+    /// Registers an external display policy through the default registry.
+    pub fn register_view_policy<P: Send + Sync + 'static>(
+        &mut self,
+        key: crate::scene::SceneViewPolicyKey<P>,
+        policy: impl crate::scene::SceneViewPolicy<P>,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        self.runtime
+            .guarded(|runtime| runtime.scenes.register_view_policy(key, policy))
+    }
+
+    /// Creates an owned read-only consumer, moved into a default or external Figure.
+    pub fn create_view<P: Send + Sync + 'static>(
+        &mut self,
+        key: crate::scene::SceneViewPolicyKey<P>,
+        payload: P,
+    ) -> Result<crate::scene::SceneViewHandle, SceneError> {
+        self.check_runtime()?;
+        let policy = self
+            .runtime
+            .scenes
+            .view_policies
+            .get(&key.0.erased())
+            .ok_or(SceneError::UnknownPolicy)?
+            .clone();
+        Ok(crate::scene::SceneViewHandle {
+            namespace: self.runtime.tree.namespace(),
+            state: Arc::new(std::sync::Mutex::new(crate::scene::view::ViewState {
+                revision: 0,
+                policy,
+                payload: Arc::new(payload),
+                installed: None,
+            })),
+        })
+    }
+
+    /// Binds a registered Figure consumer before accepting its first snapshot.
+    pub fn bind_view(
+        &mut self,
+        figure: FigureId,
+        source: SceneSourceId,
+        subscription: SceneSubscriptionId,
+        config: CaptureConfigRevision,
+    ) -> Result<crate::scene::SceneViewBindingId, SceneError> {
+        self.check_runtime()?;
+        if source.namespace != subscription.namespace || config.get() == 0 {
+            return Err(SceneError::StaleSceneDelivery);
+        }
+        let state = self.view_state(figure)?;
+        let target = crate::scene::view::ViewTarget {
+            state,
+            subscription,
+            config,
+            epoch: None,
+            closed: false,
+        };
+        let binding = self.bind_dependency_inner(
+            figure,
+            crate::scene::SCENE_SOURCE_VIEW,
+            source,
+            Some(target),
+        )?;
+        self.invalidate_view(figure);
+        Ok(binding)
+    }
+
+    fn view_state(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<Arc<std::sync::Mutex<crate::scene::view::ViewState>>, SceneError> {
+        self.runtime.guarded(|runtime| {
+            let node = runtime.tree.node(figure).map_err(SceneError::Tree)?;
+            let descriptor = node
+                .capabilities
+                .get(crate::scene::SCENE_VIEW)
+                .map_err(|_| SceneError::UnknownPolicy)?
+                .ok_or(SceneError::UnknownPolicy)?;
+            let handle = descriptor
+                .resolve(node.figure.as_ref())
+                .ok_or(SceneError::UnknownPolicy)?;
+            if handle.namespace != runtime.tree.namespace() {
+                return Err(SceneError::StaleSceneDelivery);
+            }
+            Ok(handle.state.clone())
+        })
+    }
+
+    fn invalidate_view(&mut self, figure: FigureId) {
+        self.runtime
+            .tree
+            .mark_invalid(&mut self.runtime.updates, figure);
+        // Complete old/new coverage also repairs skipped mailbox updates and cleared views.
+        self.runtime.full_redraw_pending = true;
+        self.runtime
+            .tree
+            .repaint(&mut self.runtime.updates, figure, None);
+    }
+
+    /// Retains the accepted view and its imported resource versions.
+    pub fn installed_view(
+        &self,
+        binding: crate::scene::SceneViewBindingId,
+    ) -> Result<Option<Arc<crate::scene::InstalledScene>>, SceneError> {
+        self.check_runtime()?;
+        let target = self
+            .runtime
+            .scenes
+            .view_targets
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        Ok(target
+            .state
+            .lock()
+            .map_err(|_| SceneError::HandoffPoisoned)?
+            .installed
+            .clone())
+    }
+
+    /// Advances expected capture configuration without resetting the epoch baseline.
+    pub fn expect_view_config(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+        config: CaptureConfigRevision,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        let target = self
+            .runtime
+            .scenes
+            .view_targets
+            .get_mut(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        if target.closed || config < target.config {
+            return Err(SceneError::StaleSceneDelivery);
+        }
+        target.config = config;
+        Ok(())
+    }
+
+    /// Changes destination display configuration without requesting source capture.
+    pub fn configure_view<P: Send + Sync + 'static>(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+        key: crate::scene::SceneViewPolicyKey<P>,
+        payload: P,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        self.runtime.guarded(|runtime| {
+            RuntimeScenes { runtime }.configure_view_inner(binding, key, payload)
+        })
+    }
+
+    fn configure_view_inner<P: Send + Sync + 'static>(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+        key: crate::scene::SceneViewPolicyKey<P>,
+        payload: P,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        let &(figure, _) = self
+            .runtime
+            .scenes
+            .bindings
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        let target = self
+            .runtime
+            .scenes
+            .view_targets
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        if target.closed {
+            return Err(SceneError::StaleSceneDelivery);
+        }
+        let policy = self
+            .runtime
+            .scenes
+            .view_policies
+            .get(&key.0.erased())
+            .ok_or(SceneError::UnknownPolicy)?
+            .clone();
+        let retired = {
+            let mut state = target
+                .state
+                .lock()
+                .map_err(|_| SceneError::HandoffPoisoned)?;
+            let revision = state.revision.checked_add(1).ok_or(SceneError::Exhausted)?;
+            state.revision = revision;
+            (
+                std::mem::replace(&mut state.policy, policy),
+                std::mem::replace(&mut state.payload, Arc::new(payload)),
+            )
+        };
+        drop(retired);
+        self.invalidate_view(figure);
+        Ok(())
+    }
+
+    /// Atomically imports a complete candidate after checking current graph admission.
+    /// Returns false only for verified identical content; stale/conflict are errors.
+    pub fn install_view(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+        snapshot: Arc<SceneSnapshot>,
+    ) -> Result<bool, SceneError> {
+        self.check_runtime()?;
+        let &(figure, source) = self
+            .runtime
+            .scenes
+            .bindings
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        let target = self
+            .runtime
+            .scenes
+            .view_targets
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        if target.closed
+            || snapshot.source != source
+            || snapshot.subscription != target.subscription
+            || snapshot.config != target.config
+            || target
+                .epoch
+                .is_some_and(|epoch| snapshot.stable_epoch < epoch)
+        {
+            return Err(SceneError::StaleSceneDelivery);
+        }
+        let group = self
+            .runtime
+            .tree
+            .scene_group
+            .as_ref()
+            .ok_or(SceneError::Admission(
+                crate::scene::SceneAdmissionError::UnknownSceneMember,
+            ))?;
+        let evidence = snapshot.dependencies.as_ref().ok_or(SceneError::Admission(
+            crate::scene::SceneAdmissionError::UnknownSceneMember,
+        ))?;
+        group
+            .check_snapshot(source, evidence)
+            .map_err(SceneError::Admission)?;
+        let state = target.state.clone();
+        let installed = state
+            .lock()
+            .map_err(|_| SceneError::HandoffPoisoned)?
+            .installed
+            .clone();
+        if let Some(current) = &installed
+            && current.snapshot.source == snapshot.source
+            && current.snapshot.subscription == snapshot.subscription
+            && current.snapshot.config == snapshot.config
+            && current.snapshot.stable_epoch == snapshot.stable_epoch
+        {
+            if *current.snapshot != *snapshot {
+                return Err(SceneError::SnapshotConflict);
+            }
+            return Ok(false);
+        }
+        let revision = state
+            .lock()
+            .map_err(|_| SceneError::HandoffPoisoned)?
+            .revision
+            .checked_add(1)
+            .ok_or(SceneError::Exhausted)?;
+        let candidate = self.runtime.scenes.imports.prepare(
+            &self.runtime.resources,
+            source.namespace,
+            &snapshot.drawing,
+        )?;
+        let group = self
+            .runtime
+            .tree
+            .scene_group
+            .as_ref()
+            .ok_or(SceneError::Admission(
+                crate::scene::SceneAdmissionError::UnknownSceneMember,
+            ))?;
+        let evidence = snapshot.dependencies.as_ref().ok_or(SceneError::Admission(
+            crate::scene::SceneAdmissionError::UnknownSceneMember,
+        ))?;
+        let admission = group
+            .install(self.runtime.tree.namespace(), figure, source, evidence)
+            .map_err(SceneError::Admission)?;
+        let epoch = snapshot.stable_epoch;
+        let next = Arc::new(crate::scene::InstalledScene {
+            snapshot,
+            drawing: candidate.drawing,
+            _leases: candidate.leases,
+        });
+        // Lock acquisition is before metadata commit. No callback or user destructor
+        // runs while the group guard is held; retired values are dropped afterwards.
+        let mut view = state.lock().map_err(|_| SceneError::HandoffPoisoned)?;
+        let retired = admission
+            .commit(|| {
+                let registry = std::mem::replace(&mut self.runtime.resources, candidate.registry);
+                let imports =
+                    std::mem::replace(&mut self.runtime.scenes.imports, candidate.imports);
+                let previous = view.installed.replace(next);
+                view.revision = revision;
+                self.runtime
+                    .scenes
+                    .view_targets
+                    .get_mut(&binding)
+                    .expect("validated binding")
+                    .epoch = Some(epoch);
+                (registry, imports, previous)
+            })
+            .map_err(SceneError::Admission)?;
+        drop(view);
+        drop(retired);
+        self.invalidate_view(figure);
+        Ok(true)
+    }
+
+    /// Applies source termination independently of source or target surface presentation.
+    pub fn close_view(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+        closed: crate::scene::SceneClosed,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        let &(_, source) = self
+            .runtime
+            .scenes
+            .bindings
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        let target = self
+            .runtime
+            .scenes
+            .view_targets
+            .get(&binding)
+            .ok_or(SceneError::StaleSceneDelivery)?;
+        if source != closed.source || target.subscription != closed.subscription {
+            return Err(SceneError::StaleSceneDelivery);
+        }
+        self.unbind_view_dependency(binding)
+    }
+
     /// Joins a composition-root group before registering sources or bindings.
     pub fn join_group(&mut self, group: crate::scene::SceneBindingGroup) -> Result<(), SceneError> {
         self.check_runtime()?;
@@ -183,6 +523,16 @@ impl RuntimeScenes<'_> {
         key: crate::scene::SceneViewDependencyKey<P>,
         payload: P,
     ) -> Result<crate::scene::SceneViewBindingId, SceneError> {
+        self.bind_dependency_inner(figure, key, payload, None)
+    }
+
+    fn bind_dependency_inner<P: 'static>(
+        &mut self,
+        figure: FigureId,
+        key: crate::scene::SceneViewDependencyKey<P>,
+        payload: P,
+        mut target: Option<crate::scene::view::ViewTarget>,
+    ) -> Result<crate::scene::SceneViewBindingId, SceneError> {
         self.check_runtime()?;
         if !self
             .runtime
@@ -196,6 +546,33 @@ impl RuntimeScenes<'_> {
         }
         self.runtime.guarded(|runtime| {
             let source = runtime.scenes.dependency_source(key, &payload)?;
+            let old_binding = runtime
+                .scenes
+                .bindings
+                .iter()
+                .find_map(|(id, (bound, _))| (*bound == figure).then_some(*id));
+            if let Some(target) = target.as_mut() {
+                target.epoch = old_binding
+                    .filter(|id| runtime.scenes.bindings[id].1 == source)
+                    .and_then(|id| runtime.scenes.view_targets.get(&id))
+                    .and_then(|previous| previous.epoch);
+            }
+            let state = target
+                .as_ref()
+                .map(|target| target.state.clone())
+                .or_else(|| {
+                    old_binding
+                        .and_then(|id| runtime.scenes.view_targets.get(&id))
+                        .map(|target| target.state.clone())
+                });
+            let mut view = state
+                .as_ref()
+                .map(|state| state.lock().map_err(|_| SceneError::HandoffPoisoned))
+                .transpose()?;
+            let revision = view
+                .as_ref()
+                .map(|state| state.revision.checked_add(1).ok_or(SceneError::Exhausted))
+                .transpose()?;
             let group = runtime
                 .tree
                 .scene_group
@@ -210,15 +587,32 @@ impl RuntimeScenes<'_> {
                 namespace: runtime.tree.namespace(),
                 sequence: runtime.scenes.allocate_identity()?,
             };
-            admission
+            let retired = admission
                 .commit(|| {
                     runtime
                         .scenes
                         .bindings
                         .retain(|_, (bound, _)| *bound != figure);
                     runtime.scenes.bindings.insert(binding, (figure, source));
+                    let old_target =
+                        old_binding.and_then(|id| runtime.scenes.view_targets.remove(&id));
+                    if let Some(target) = target {
+                        runtime.scenes.view_targets.insert(binding, target);
+                    }
+                    let old_scene = view.as_mut().and_then(|state| {
+                        state.revision = revision.expect("checked view revision");
+                        state.installed.take()
+                    });
+                    (old_target, old_scene)
                 })
                 .map_err(SceneError::Admission)?;
+            drop(view);
+            drop(retired);
+            if state.is_some() {
+                runtime.tree.mark_invalid(&mut runtime.updates, figure);
+                runtime.full_redraw_pending = true;
+                runtime.tree.repaint(&mut runtime.updates, figure, None);
+            }
             Ok(binding)
         })
     }
@@ -248,11 +642,37 @@ impl RuntimeScenes<'_> {
         let admission = group
             .binding(self.runtime.tree.namespace(), figure, None)
             .map_err(SceneError::Admission)?;
-        admission
+        let state = self
+            .runtime
+            .scenes
+            .view_targets
+            .get(&binding)
+            .map(|target| target.state.clone());
+        let mut view = state
+            .as_ref()
+            .map(|state| state.lock().map_err(|_| SceneError::HandoffPoisoned))
+            .transpose()?;
+        let revision = view
+            .as_ref()
+            .map(|state| state.revision.checked_add(1).ok_or(SceneError::Exhausted))
+            .transpose()?;
+        let retired = admission
             .commit(|| {
                 self.runtime.scenes.bindings.remove(&binding);
+                let target = self.runtime.scenes.view_targets.remove(&binding);
+                let scene = view.as_mut().and_then(|state| {
+                    state.revision = revision.expect("checked view revision");
+                    state.installed.take()
+                });
+                (target, scene)
             })
-            .map_err(SceneError::Admission)
+            .map_err(SceneError::Admission)?;
+        drop(view);
+        drop(retired);
+        if state.is_some() {
+            self.invalidate_view(figure);
+        }
+        Ok(())
     }
 
     fn check_runtime(&self) -> Result<(), SceneError> {

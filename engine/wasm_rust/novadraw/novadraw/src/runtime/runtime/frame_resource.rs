@@ -47,7 +47,10 @@ impl Runtime {
             .next()
             .ok_or(BackendSessionError::Exhausted)?;
         self.backend_session_id = next;
-        self.in_flight = None;
+        if let Some(frame) = self.in_flight.take() {
+            // CPU ownership is restored before the obsolete submission token dies.
+            self.scenes.imports.recovery.extend(frame.import_leases);
+        }
         self.session_sync_pending = true;
         self.full_redraw_pending = true;
         Ok(next)
@@ -221,6 +224,7 @@ impl Runtime {
     }
 
     fn fail_resource_inner(&mut self, id: ResourceId, reason: String) -> Result<(), ResourceError> {
+        self.resources.ensure_mutable(id)?;
         if self.resources.kind(id)? == crate::ResourceKind::Font {
             self.text.remove_font(id);
         }
@@ -252,6 +256,7 @@ impl Runtime {
     }
 
     fn remove_resource_inner(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+        self.resources.ensure_mutable(id)?;
         if self.resources.kind(id)? == crate::ResourceKind::Font {
             self.text.remove_font(id);
             self.builtin_fonts

@@ -304,6 +304,94 @@ impl NdCanvas {
         self.transform_floor = Some(floor);
     }
 
+    /// Replays a frozen drawing relative to the current transform and enclosing clip.
+    /// The drawing's stack is isolated; absolute source transforms cannot escape.
+    pub(crate) fn replay(
+        &mut self,
+        drawing: &super::RecordedDrawing,
+    ) -> Result<(), crate::graphics::GraphicsError> {
+        let floor = self.state.transform;
+        let opacity = self.state.global_alpha;
+        let mut depth = 0_usize;
+        for command in drawing.commands() {
+            match command.kind {
+                RenderCommandKind::PushState => depth += 1,
+                RenderCommandKind::PopState => {
+                    depth = depth
+                        .checked_sub(1)
+                        .ok_or(crate::graphics::GraphicsError::UnbalancedState)?;
+                }
+                RenderCommandKind::RestoreState if depth == 0 => {
+                    return Err(crate::graphics::GraphicsError::UnbalancedState);
+                }
+                RenderCommandKind::ResetClip => {
+                    return Err(crate::graphics::GraphicsError::UnbalancedState);
+                }
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            return Err(crate::graphics::GraphicsError::UnbalancedState);
+        }
+        self.record_checked(|canvas| {
+            canvas.push_state();
+            for command in drawing.commands() {
+                let mut kind = match command.kind {
+                    RenderCommandKind::SetTransform { matrix } => RenderCommandKind::SetTransform {
+                        matrix: floor * matrix,
+                    },
+                    RenderCommandKind::ResetTransform => {
+                        RenderCommandKind::SetTransform { matrix: floor }
+                    }
+                    _ => command.kind.clone(),
+                };
+                match &mut kind {
+                    RenderCommandKind::FillRect { paint, .. }
+                    | RenderCommandKind::StrokeRect { paint, .. }
+                    | RenderCommandKind::Line { paint, .. }
+                    | RenderCommandKind::Polyline { paint, .. }
+                    | RenderCommandKind::FillPath { paint, .. }
+                    | RenderCommandKind::StrokePath { paint, .. } => {
+                        *paint = paint.with_global_alpha(opacity)
+                    }
+                    RenderCommandKind::Ellipse {
+                        fill_paint,
+                        stroke_paint,
+                        ..
+                    } => {
+                        for paint in [fill_paint, stroke_paint].into_iter().flatten() {
+                            *paint = paint.with_global_alpha(opacity);
+                        }
+                    }
+                    RenderCommandKind::DrawGlyphRun { paint, .. } => match paint {
+                        crate::render::GlyphPaint::Fill(paint)
+                        | crate::render::GlyphPaint::Stroke { paint, .. } => {
+                            *paint = paint.with_global_alpha(opacity);
+                        }
+                    },
+                    RenderCommandKind::Image { alpha, .. }
+                    | RenderCommandKind::SetGlobalAlpha { alpha } => *alpha *= opacity,
+                    RenderCommandKind::ClearRect { color, .. } => {
+                        *color = color.with_alpha(color.alpha() * opacity)
+                    }
+                    RenderCommandKind::PushState
+                    | RenderCommandKind::RestoreState
+                    | RenderCommandKind::PopState
+                    | RenderCommandKind::ConcatTransform { .. }
+                    | RenderCommandKind::SetTransform { .. }
+                    | RenderCommandKind::ResetTransform
+                    | RenderCommandKind::Clip { .. }
+                    | RenderCommandKind::ClipPath { .. }
+                    | RenderCommandKind::ResetClip => {}
+                }
+                // Frozen commands are self-contained. The outer canvas state is restored
+                // by the enclosing push/pop, without running live source Figure code.
+                canvas.create_command(kind);
+            }
+            canvas.pop_state();
+        })
+    }
+
     #[cfg(test)]
     pub fn reset_transform(&mut self) {
         self.state.transform = Affine2D::IDENTITY;

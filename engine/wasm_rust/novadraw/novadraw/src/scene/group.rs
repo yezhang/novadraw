@@ -222,6 +222,64 @@ impl SceneBindingGroup {
         })
     }
 
+    pub(crate) fn install(
+        &self,
+        namespace: RuntimeNamespace,
+        figure: FigureId,
+        source: SceneSourceId,
+        evidence: &SceneDependencyEvidence,
+    ) -> Result<SceneAdmission, SceneAdmissionError> {
+        self.prepare(|state| {
+            if !matches!(state.sources.get(&source), Some(Some(_))) {
+                return Err(SceneAdmissionError::UnknownSceneMember);
+            }
+            let producer = state
+                .members
+                .get(&source.namespace)
+                .ok_or(SceneAdmissionError::UnknownSceneMember)?;
+            let direct: HashSet<_> = evidence.direct_sources.iter().copied().collect();
+            if producer.generation != evidence.member_generation || edges(state)[&source] != direct
+            {
+                return Err(SceneAdmissionError::StaleSceneAdmission);
+            }
+            let destination = state
+                .members
+                .get_mut(&namespace)
+                .ok_or(SceneAdmissionError::UnknownSceneMember)?;
+            if destination.views.get(&figure) != Some(&source) {
+                return Err(SceneAdmissionError::UnknownSceneMember);
+            }
+            destination.generation = destination
+                .generation
+                .checked_add(1)
+                .ok_or(SceneAdmissionError::Exhausted)?;
+            Ok(())
+        })
+    }
+
+    pub(crate) fn check_snapshot(
+        &self,
+        source: SceneSourceId,
+        evidence: &SceneDependencyEvidence,
+    ) -> Result<(), SceneAdmissionError> {
+        let state = self
+            .inner
+            .lock()
+            .map_err(|_| SceneAdmissionError::GroupUnavailable)?;
+        if !matches!(state.sources.get(&source), Some(Some(_))) {
+            return Err(SceneAdmissionError::UnknownSceneMember);
+        }
+        let producer = state
+            .members
+            .get(&source.namespace)
+            .ok_or(SceneAdmissionError::UnknownSceneMember)?;
+        let direct: HashSet<_> = evidence.direct_sources.iter().copied().collect();
+        if producer.generation != evidence.member_generation || edges(&state)[&source] != direct {
+            return Err(SceneAdmissionError::StaleSceneAdmission);
+        }
+        validate_graph(&state)
+    }
+
     pub(crate) fn member_generation(
         &self,
         source: SceneSourceId,

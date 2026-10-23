@@ -216,7 +216,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` | M10.4 complete；P2-W01 pending | repeat scheduler、group/radio/slider 不污染 Core 状态机 |
 | `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `adapted` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router | P2-L01、[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) | 独立图与 FigureTree 分开；默认/外部算法共用投影，52 个组合、候选测量/整体发布/失败恢复、真实菜单及 Native 四幅截图已验证，不承诺平台字体逐像素一致 |
 | `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |
-| `CAP-SHARED-SCENE` | `parts.Thumbnail` source / update / deactivate | GOAL-CAP/EXT | `pending` | `scene::RuntimeScenes`、typed capture/dependency policy、owned `SceneSnapshot` 与有界交接 | K07、ADR-044 | K07-1/2 提供捕获、终止与共享组结构准入；目标端导入、view 与官方 Thumbnail 尚未验收 |
+| `CAP-SHARED-SCENE` | `parts.Thumbnail` source / update / deactivate | GOAL-CAP/EXT | `pending` | `scene::RuntimeScenes`、typed capture/dependency/view policy、owned `SceneSnapshot`、只读 `SceneViewHandle` 与有界交接 | K07、ADR-044 | K07-1/2 提供捕获、终止与结构准入；K07-3 提供目标导入和 view 契约，官方 Thumbnail 尚未验收 |
 | `CAP-ACCESSIBILITY` | Accessible / dispatcher / actions | GOAL-CAP/PORT | `pending` | Core snapshot/action；Web/Native provider | M10.5 complete；P2-A01 pending | Core 语义完成不等于原生 AT provider 完成 |
 | `CAP-LIVE-UNMOUNT` | remove 后由应用保活并再次挂载 | GOAL-EXT | `pending` | 目标待 ADR | P2-LC01 | 先定义所有权、ID、扫描参与和退出路径 |
 | `CAP-PLATFORM-HOST` | LightweightSystem / FigureCanvas | GOAL-PORT/EXT | `adapted` | `PlatformHost` + winit/web package | GA-3 | 不复制 SWT control；逐平台验证实际生命周期 |
@@ -291,7 +291,8 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 |---|---|---|---|---|
 | `paint.protocol` | `IFigure.paint(Graphics)` | `runtime.frames().prepare_submission` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)；TC-01 移除未出版帧旁路 |
 | `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint,paint_border}` 接收受限 `PaintContext` 并返回 `GraphicsError`；client-area 与 child traversal 只由递归 renderer固定执行 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
-| `paint.protocol` | `parts.Thumbnail` source 子树捕获 | `scene::RuntimeScenes::capture` 复用稳定化和递归绘制，独立 root-local clip/transform、继承 style、受检资源闭包 | partial | `p2_scene_capture` 已验证 producer，`p2_scene_group` 已验证共享组结构准入；目标端 view 与官方 Thumbnail 仍待后续验收 |
+| `paint.protocol` | `parts.Thumbnail` source 子树捕获 | `scene::RuntimeScenes::capture` 复用稳定化和递归绘制，独立 root-local clip/transform、继承 style、受检资源闭包；目标 `SceneViewFigure` 通过普通 preparation 与 Graphics 回放 | partial | `p2_scene_capture`、`p2_scene_group` 与 `p2_scene_view` 提供捕获、结构准入及安装反例；官方 Thumbnail Native 消费仍待验收 |
+| `layout.manager` | `parts.Thumbnail.getPreferredSize/adjustToAspectRatio` | typed `SceneViewPolicy` 的 content measurement 与 client placement；默认 `ASPECT_FIT_VIEW` 保持源比例，Core 统一应用 Border insets | verified | K07-3：无提示、单轴/双轴提示、显式 preferred、minimum/零尺寸与普通 Border；外部策略错误和恢复共用通道 |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`ContainerMut::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `PaintContext` | verified | Rust trait 不复制 Draw2D owner object 参数；绘制失败进入帧错误通道 |
 | `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 递归快照与共享 TitleBar 多 owner 契约已覆盖 |
@@ -420,6 +421,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 |---|---|---|---|---|
 | `runtime.identity` | LightweightSystem/Figure 所属图实例隔离；跨图引用不得命中 | Figure/Resource/Listener/Router/Anchor/BackendSession handle 均携带 Runtime namespace，跨 Runtime mutation 结构化拒绝 | verified | D4.3 已移除 `Runtime::into_tree` 有损重包装并验证完整 Runtime move |
 | `resource.lifecycle` | 图像/字体状态变化必须按提交因果顺序到达 renderer | ResourceRegistry revision + ordered `ResourceOp`；delta retry 恢复精确前缀，Ready -> Failed -> Ready 顺序闭合 | verified | D4.2 自动契约与 Vello cache 测试 |
+| `resource.lifecycle` | `parts.Thumbnail` 的独立视图资源与释放 | 来源 revision 映射为不同目标不可变 ID；`InstalledScene`、prepared drawing、in-flight 与 recovery 前缀保留 CPU lease | verified | K07-3：font/image 共存、同键去重、闭包失败不安装、最后 lease 回收、reset 后 Snapshot 及 Retry；公开修改导入 ID 返回 `ImmutableImport` |
 | `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | Host 串行接管以 Snapshot + Full 建立基线；拒绝缺基线 Delta 与同域 stale generation | verified | D4.2/D4.4 已验证；并发 producer activation token 不在 Core 1.0 范围 |
 | `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime typed worklist 在 stable epoch 前收敛；公开 Ready/Idle/Suspended/AwaitingCompletion/Error，失败不提交 frame | verified | D4.1/D4.4 自动契约 |
 
