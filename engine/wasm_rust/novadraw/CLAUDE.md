@@ -93,8 +93,38 @@ git diff --check
 
 ## Git 提交规范
 
-- 提交信息摘要必须使用中文。
-- 提交应按主题拆分，保持原子化，避免把无关改动混入同一提交。
+所有 Agent 新建的提交标题统一采用 Conventional Commits 格式：
+
+```text
+type(scope): 中文摘要
+```
+
+- `type` 与 `scope` 必填，使用小写英文；摘要必须用中文，源码标识符和产品名可保留英文。
+- 分隔符必须为半角冒号和一个空格 `: `。不得混用纯中文标题、
+  `文档：…`、省略 scope 的 `feat: …` 或全英文摘要。
+- `type` 按变更性质选择：`feat` 新增功能、`fix` 修复问题、`refactor` 重构、
+  `perf` 性能优化、`docs` 文档、`test` 测试、`build` 构建与依赖、
+  `ci` 自动化流程、`chore` 其他维护、`revert` 回退。
+- `scope` 表示主要影响的领域或模块，例如 `core`、`layout`、`input`、
+  `render`、`winit-canvas`、`platform-winit`、`examples`、`architecture`、
+  `adr`、`review`、`book`、`config`；新增作用域沿用小写英文与连字符命名。
+- 摘要直接说明具体改动，不写“更新代码”“一些修改”等泛化描述。
+- 提交按主题拆分，保持原子化；不得为满足一个 scope 而把无关改动合并。
+  同一主题跨模块时，选择主要职责的 scope，其他影响在正文中说明。
+- 需要正文时，标题后空一行，按实际需要说明原因、关键边界和验证结果。
+  破坏兼容性的变更使用 `type(scope)!: 中文摘要`，
+  并在正文末尾以 `BREAKING CHANGE: 中文说明` 写明迁移要求。
+- 每次提交前核对暂存文件与主题、标题格式、摘要语言及对应验证结果。
+  提交后读取 Git 中实际保存的标题；不得因历史提交格式不一致而沿用旧格式。
+
+有效示例：
+
+```text
+feat(platform-winit): 新增 WinitCanvasHost 与多画布服务协调
+fix(examples): 修复双 Canvas 样例窗口缩放抖动
+docs(architecture): 记录 TextFlow 性能优化提案
+test(winit-canvas): 覆盖跨画布捕获与焦点切换
+```
 
 ## Skills 与文档
 
