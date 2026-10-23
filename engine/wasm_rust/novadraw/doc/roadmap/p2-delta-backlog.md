@@ -165,6 +165,18 @@ Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figu
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
 和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。
 
+2026-10-23 官方示例继续消费现有 Core：ConnectionAndAnchor 改为 owner-aware
+端点标签并使用真实标题测量；PageNode 根据选中状态绘制蓝色渐变；PrintExample
+增加完整 Canvas 组合和图形输出消费者。K08 普通扩展增加 SchemeBorder 与受检字体
+下划线指标，Path/Zoom 滑块标签接入同一 Border 契约；K09 增加原始 ICO 解码；
+Zoom 使用原始 SVG，经已有解码器在固有尺寸栅格化。
+契约见[本批增量](../design/architecture/official-example-border-output-increment.md)。
+K07 的共享树投影和透明 Canvas 背景输入为下一批 Design；K06 动画、K08 AA 模式、
+SVG 随缩放/DPI 重栅格化与混合字体装饰仍保留未完成，不扩张本批完成范围。
+ConnectionAndAnchor、Path、SimpleTree 已收口，入口状态为 14 complete、8 in_progress、
+3 blocked；本批[交付证据](../../verification/evidence/official-examples-2026-10-23/implementation.md)
+保留真实 Native 截图与验证边界。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的

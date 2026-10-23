@@ -7,6 +7,7 @@ mod grid_layout_example;
 mod hello_world;
 mod obstruction;
 mod path_example;
+mod printing;
 mod scroll_pane_example;
 mod simple_tree_example;
 mod text_examples;
@@ -32,6 +33,7 @@ pub use grid_layout_example::grid_layout_example;
 pub use hello_world::hello_world;
 pub use obstruction::obstruction;
 pub use path_example::path_example;
+pub use printing::print_example;
 pub use scroll_pane_example::scroll_pane_example;
 pub use simple_tree_example::simple_tree_example;
 pub use text_examples::{multi_line_label_example, text_flow_example};
@@ -51,6 +53,22 @@ fn runtime_with_fonts() -> Runtime {
             .expect("built-in font");
     }
     runtime
+}
+
+/// Normal BUTTON_SCROLLBAR scheme; the final reserved row/column follows the
+/// source ButtonScheme inset calculation. System colors use a portable palette.
+fn scrollbar_label_border() -> novadraw::figure::border::CompoundBorder {
+    use novadraw::{
+        figure::border::{CompoundBorder, MarginBorder, SchemeBorder},
+        graphics::Color,
+    };
+    CompoundBorder::new(
+        SchemeBorder::new(
+            vec![Some(Color::rgba(0.94, 0.94, 0.94, 1.0)), Some(Color::WHITE)],
+            vec![Some(Color::BLACK), Some(Color::rgba(0.5, 0.5, 0.5, 1.0))],
+        ),
+        MarginBorder::new(Color::TRANSPARENT, 0.0).with_margins(0.0, 0.0, 1.0, 1.0),
+    )
 }
 
 pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelScene> {

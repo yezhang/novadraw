@@ -2,18 +2,19 @@ use std::sync::Mutex;
 
 use novadraw::{
     connection::{
-        ChopboxAnchor, ConnectionFigure, ConnectionId, CoordinateSpace, EndpointLocator,
-        MidpointLocator, PolygonDecorationFigure, RouterBinding,
+        ChopboxAnchor, ConnectionEndpointLocator, ConnectionFigure, ConnectionId, CoordinateSpace,
+        MidpointLocator, PolygonDecorationFigure, RouteEnd, RouterBinding,
     },
     event::{EventContext, FigureEventHandler, MouseButton, MouseEvent},
     figure::{
-        CONTAINER, ChildClippingStrategy, ContainerCapability, Figure, FigureCapabilityBuilder,
-        FigureCapabilityRegistrationError, FigureContainer, FigureStyle, INPUT, InputCapability,
-        LabelFigure, RectangleFigure, border::LineBorder,
+        Border, CONTAINER, ChildClippingStrategy, ContainerCapability, Figure,
+        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer, FigureStyle,
+        INPUT, InputCapability, LabelFigure, RectangleFigure, border::LineBorder,
     },
     geometry::{Point, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
     runtime::Runtime,
+    text::{FontDescriptor, TextConstraints},
     tree::{FigureId, FigureSubtree, SubtreeBindingNodes, SubtreeConnection},
 };
 
@@ -256,7 +257,9 @@ fn fixture() -> Fixture {
         .set_locator(
             second_connection,
             target_label,
-            Box::new(EndpointLocator::target(0.0, 0.0).expect("target locator")),
+            Box::new(ConnectionEndpointLocator::with_default_distances(
+                RouteEnd::Target,
+            )),
         )
         .expect("target endpoint locator");
     let source_label =
@@ -266,7 +269,10 @@ fn fixture() -> Fixture {
         .set_locator(
             second_connection,
             source_label,
-            Box::new(EndpointLocator::source(4.0, -3.0).expect("source locator")),
+            Box::new(
+                ConnectionEndpointLocator::new(RouteEnd::Source, 4.0, -3.0)
+                    .expect("source locator"),
+            ),
         )
         .expect("source endpoint locator");
     add_target_decoration(&mut runtime, second_connection, second_connection_figure);
@@ -278,13 +284,29 @@ fn fixture() -> Fixture {
         )
         .expect("endpoint route");
 
+    let instructions_text = " Drag the shapes to see the Locators in action ";
+    let instruction_layout = runtime
+        .text()
+        .layout(
+            instructions_text,
+            &FontDescriptor::parse("13px Inter Variable").expect("instruction font"),
+            TextConstraints::UNBOUNDED,
+        )
+        .expect("instruction measurement");
+    let instruction_border = LineBorder::default_border();
+    let insets = instruction_border.get_insets();
     let instructions = runtime
         .figure(root)
         .expect("root")
         .add(Box::new(
-            LabelFigure::new(" Drag the shapes to see the Locators in action ")
-                .with_bounds(Rectangle::new(10.0, 410.0, 330.0, 24.0))
-                .with_border(LineBorder::default_border()),
+            LabelFigure::new(instructions_text)
+                .with_bounds(Rectangle::new(
+                    10.0,
+                    420.0,
+                    f64::from(instruction_layout.width()) + insets.width(),
+                    f64::from(instruction_layout.height()) + insets.height(),
+                ))
+                .with_border(instruction_border),
         ))
         .expect("instructions");
     runtime
@@ -319,7 +341,15 @@ fn add_connected_group(
 ) -> (FigureId, FigureId, FigureId, ConnectionId) {
     let mut subtree = FigureSubtree::new(Box::new(GroupBoxFigure::new(bounds)));
     let group = subtree.root();
-    let title_width = title.len() as f64 * 7.5 + 12.0;
+    let title_layout = runtime
+        .text()
+        .layout(
+            title,
+            &FontDescriptor::parse("13px Inter Variable").expect("title font"),
+            TextConstraints::UNBOUNDED,
+        )
+        .expect("GroupBox title measurement");
+    let title_width = f64::from(title_layout.width());
     let label = subtree
         .add(
             group,
@@ -327,7 +357,7 @@ fn add_connected_group(
                 8.0,
                 0.0,
                 title_width,
-                20.0,
+                f64::from(title_layout.height()),
             ))),
         )
         .expect("GroupBox title");

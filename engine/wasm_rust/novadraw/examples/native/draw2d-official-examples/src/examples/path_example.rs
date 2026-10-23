@@ -9,15 +9,15 @@ use novadraw::{
     figure::{
         Figure, FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureDrawing,
         FigureMeasurement, FigurePreparation, FigurePresentation, LabelFigure, PREPARATION,
-        PreparationCapability, RectangleFigure, border::LineBorder,
+        PreparationCapability, RectangleFigure,
     },
     geometry::{Affine2D, Dimension, Point, Rectangle, Translatable},
     graphics::{Color, GraphicsError, PaintContext, Path},
     layout::{BorderConstraint, BorderLayout, BorderRegion, ToolbarLayout},
     runtime::Runtime,
     text::{
-        MeasureContext, SelectionQuad, TextAffinity, TextConstraints, TextError, TextLayout,
-        TextPosition, TextRange,
+        FontDecorationMetrics, MeasureContext, SelectionQuad, TextAffinity, TextConstraints,
+        TextError, TextLayout, TextPosition, TextRange,
     },
     tree::FigureId,
 };
@@ -29,8 +29,6 @@ const LINE: f64 = 3.0;
 const ROTATION: f64 = 45.0;
 const CENTER: f64 = 85.0;
 const TEXT_OFFSET: f64 = 20.0;
-// Static example decoration; font underline metrics remain a K08 contract gap.
-const UNDERLINE_THICKNESS: f64 = 1.0;
 
 struct ZoomValue(FigureId);
 impl ScrollBarValueConsumer for ZoomValue {
@@ -106,6 +104,7 @@ struct Drawing {
     text: TextLayout,
     selection: Vec<SelectionQuad>,
     underline: Vec<SelectionQuad>,
+    decoration: FontDecorationMetrics,
 }
 impl FigurePreparation for PathFigure {
     fn measure_scene(
@@ -133,6 +132,7 @@ impl FigurePreparation for PathFigure {
         let drawing = Drawing {
             selection: quads(&text, 0, 2)?,
             underline: quads(&text, 1, 3)?,
+            decoration: context.font_metrics()?.underline()?,
             path,
             origin,
             text,
@@ -142,7 +142,11 @@ impl FigurePreparation for PathFigure {
             origin.x(),
             origin.y(),
             f64::from(drawing.text.width()),
-            f64::from(drawing.text.height()),
+            f64::from(drawing.text.height().max(
+                drawing.text.baseline()
+                    + drawing.decoration.offset()
+                    + drawing.decoration.thickness(),
+            )),
         );
         envelope.transform(Affine2D::from_rotation_radians(ROTATION.to_radians()));
         let visual = bounds.union(envelope);
@@ -192,9 +196,9 @@ impl Drawing {
                 let b = quad.bounds();
                 context.fill_rect(Rectangle::new(
                     b.x + self.origin.x(),
-                    b.y + self.origin.y() + b.height - UNDERLINE_THICKNESS,
+                    self.origin.y() + f64::from(self.text.baseline() + self.decoration.offset()),
                     b.width,
-                    UNDERLINE_THICKNESS,
+                    f64::from(self.decoration.thickness()),
                 ))?;
             }
             Ok(())
@@ -264,7 +268,7 @@ pub fn path_example() -> Runtime {
             .with_consumer(Arc::new(ZoomValue(zoom)))
             .with_part(
                 ScrollBarPart::Thumb,
-                Box::new(LabelFigure::new("<Zoom>").with_border(LineBorder::default_border())),
+                Box::new(LabelFigure::new("<Zoom>").with_border(super::scrollbar_label_border())),
             )
             .into_subtree();
     let receipt = runtime
@@ -328,6 +332,29 @@ mod tests {
             .count();
         // Thumb + two original text passes and their white selected overlays.
         assert_eq!(glyphs, 5);
+        let underline_rects: Vec<_> = submission
+            .commands
+            .iter()
+            .filter_map(|command| {
+                if let RenderCommandKind::FillRect {
+                    rect,
+                    paint: novadraw::graphics::Paint::Solid(color),
+                    ..
+                } = &command.kind
+                    && *color == Color::BLUE
+                {
+                    Some(rect)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(underline_rects.len(), 2);
+        assert!(
+            underline_rects
+                .iter()
+                .all(|rect| rect.height > 0.0 && rect.height != 1.0)
+        );
         assert!(submission.commands.iter().any(|c| matches!(&c.kind, RenderCommandKind::StrokePath { stroke, .. } if stroke.width()==LINE)));
         assert_eq!(path_geometry().0.operations().len(), 5);
     }

@@ -143,15 +143,15 @@ fn fixture() -> Fixture {
     let images = [
         register_image(
             &mut runtime,
-            include_bytes!("../../assets/zoom/class_obj.png"),
+            include_bytes!("../../assets/zoom/class_obj.svg"),
         ),
         register_image(
             &mut runtime,
-            include_bytes!("../../assets/zoom/field_private_obj.png"),
+            include_bytes!("../../assets/zoom/field_private_obj.svg"),
         ),
         register_image(
             &mut runtime,
-            include_bytes!("../../assets/zoom/methpub_obj.png"),
+            include_bytes!("../../assets/zoom/methpub_obj.svg"),
         ),
     ];
     let root = runtime
@@ -245,7 +245,7 @@ fn fixture() -> Fixture {
         .with_consumer(Arc::new(ZoomValue(panel)))
         .with_part(
             ScrollBarPart::Thumb,
-            Box::new(LabelFigure::new("< Zoom >").with_border(LineBorder::default_border())),
+            Box::new(LabelFigure::new("< Zoom >").with_border(super::scrollbar_label_border())),
         )
         .into_subtree();
     let receipt = runtime

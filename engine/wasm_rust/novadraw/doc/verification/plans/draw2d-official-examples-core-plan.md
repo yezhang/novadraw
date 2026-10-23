@@ -119,6 +119,16 @@ K00/H04 随每批维护。
 证据见 [实施记录](../../../verification/evidence/adr043/implementation.md)。
 K06 的 tree contour 与 presentation 动画保留原状态；K07/K08 继续按依赖推进。
 
+2026-10-23 继续补充官方样例：ConnectionAndAnchor 接入已有 owner-aware Locator
+并使用真实标题测量；Tree 的 PageNode 增加选中渐变及选择恢复验证；PrintExample
+加入 Canvas 图文、Button、连接和原始 ICO。Core SchemeBorder 与字体下划线指标
+按[增量契约](../../design/architecture/official-example-border-output-increment.md)实施，
+Path/Zoom 消费同一普通 Border；Path 去掉固定像素下划线，Zoom 加载原始 SVG。
+K07、K06 动画和 K08 AA/动态 SVG 重栅格化继续保留，混合字体装饰尚未提供。
+本批收口 ConnectionAndAnchor、Path、SimpleTree，当前 14/25 complete、22/25 可运行；
+Print 的字体替代仍明确保留。图像和验证见
+[交付证据](../../../verification/evidence/official-examples-2026-10-23/implementation.md)。
+
 ## 全计划完成判定
 
 25 个入口都具备独立 Canvas 实现；Canvas 功能清单没有未移植或阻塞项；

@@ -6,7 +6,7 @@ use novadraw::{
     figure::{
         Border, CONTAINER, ChildClippingStrategy, ContainerCapability, Figure,
         FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer, FigureStyle,
-        HitParticipation, INPUT, InputCapability, LabelFigure,
+        HitParticipation, INPUT, InputCapability, LabelFigure, RectangleFigure,
         border::{CompoundBorder, MarginBorder},
     },
     geometry::{Insets, Point, Rectangle},
@@ -139,12 +139,24 @@ impl Figure for PageNode {
         if height <= 0.0 || bounds.width <= 3.0 {
             return Ok(());
         }
+        let selected = self
+            .selection
+            .as_ref()
+            .is_some_and(|(index, selection, _)| {
+                *selection.lock().expect("tree selection") == Some(*index)
+            });
+        // SWT system colors vary by theme; keep a deterministic blue title palette.
+        let (start, end) = if selected {
+            (rgb(49, 106, 197), rgb(100, 145, 215))
+        } else {
+            (rgb(232, 232, 240), rgb(176, 184, 216))
+        };
         let gradient = LinearGradient::try_new(
             Point::ZERO,
             Point::new(0.0, height),
             &[
-                GradientStop::try_new(0.0, rgb(232, 232, 240))?,
-                GradientStop::try_new(1.0, rgb(176, 184, 216))?,
+                GradientStop::try_new(0.0, start)?,
+                GradientStop::try_new(1.0, end)?,
             ],
         )?;
         g.set_fill_paint(gradient);
@@ -385,8 +397,22 @@ pub(super) fn branch_subtree(
 
 fn fixture(horizontal: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
+    let canvas = runtime
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            800.0,
+            600.0,
+            Color::WHITE,
+        )))
+        .expect("white Canvas");
+    runtime
+        .figure(canvas)
+        .unwrap()
+        .set_layout_manager(Box::new(StackLayout::new()))
+        .unwrap();
     let (root, root_contents, root_title, root_lines) =
-        add_branch(&mut runtime, None, "Graph Root");
+        add_branch_with_root(&mut runtime, Some(canvas), "Graph Root", true);
     let (first, first_contents, first_title, first_lines) =
         add_branch(&mut runtime, Some(root_contents), "Child 1");
     let (second, second_contents, second_title, second_lines) =
@@ -488,8 +514,56 @@ mod tests {
     }
 
     #[test]
+    fn page_gradient_follows_selection_and_restores_normal_palette() {
+        use novadraw::{
+            graphics::Paint,
+            render::{CommandRecorder, command::RenderCommandKind},
+        };
+        let fixture = fixture(true);
+        let selection = Arc::new(Mutex::new(None));
+        let mut page = PageNode::new();
+        page.selection = Some((1, selection.clone(), fixture.model));
+        for (selected, expected) in [
+            (None, rgb(232, 232, 240)),
+            (Some(1), rgb(49, 106, 197)),
+            (Some(2), rgb(232, 232, 240)),
+        ] {
+            *selection.lock().unwrap() = selected;
+            let mut recorder = CommandRecorder::new();
+            page.paint(&mut recorder.paint(), Rectangle::new(0.0, 0.0, 100.0, 50.0))
+                .unwrap();
+            let gradient = recorder
+                .commands()
+                .iter()
+                .find_map(|c| {
+                    if let RenderCommandKind::FillRect {
+                        paint: Paint::LinearGradient(g),
+                        ..
+                    } = &c.kind
+                    {
+                        Some(g)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
+            assert_eq!(gradient.stops()[0].color(), expected);
+        }
+    }
+
+    #[test]
     fn official_page_and_branch_composition() {
         let fixture = fixture(true);
+        let canvas = fixture.runtime.tree().contents().unwrap();
+        assert_eq!(
+            fixture
+                .runtime
+                .tree()
+                .figure_style(canvas)
+                .unwrap()
+                .background,
+            Some(Color::WHITE)
+        );
         for branch in &fixture.model.lock().unwrap().branches {
             assert_eq!(
                 fixture.runtime.tree().child_order(branch.figure).unwrap(),

@@ -293,6 +293,9 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `PaintContext` | verified | Rust trait 不复制 Draw2D owner object 参数；绘制失败进入帧错误通道 |
 | `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 递归快照与共享 TitleBar 多 owner 契约已覆盖 |
 | `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试；动态子 Border 可位于任意组合深度 |
+| `border.protocol` | `SchemeBorder.Scheme` highlight/shadow color bands | `SchemeBorder` 经普通 Border/CompoundBorder 接入；不对称色带和空层独立占位 | verified | `scheme_border_contract` 外部消费者覆盖累计 inset、色带顺序、透明性和小矩形；Path/Zoom 消费 scrollbar scheme |
+| `graphics.context` | font-derived underline metrics | `FontDecorationMetrics` 与 `FontMetrics::underline`；默认/外部引擎共用受检值，缺失返回错误 | partial | `font_decoration_image_contract` 覆盖字体实例缩放和缺失指标；Path 单行范围下划线消费，混合字体段装饰尚未提供 |
+| `graphics.context` | ICO image resources in `PrintExample` | `ImageData::decode` 识别 ICO，经统一资源请求完成和 RGBA 输出 | verified | `font_decoration_image_contract` 覆盖原始 brazil.ico、截断数据、无效 scale；不新增 Core 文件 I/O |
 | `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | `FigureMut::repaint`、`Runtime::request_full_redraw`、old/new visual erase 与内部 `UpdateManager` damage 聚合 | verified | `erase` 与树级 repaint primitive 保持 crate 内部；dirty merge、parent-chain 投影和 partial repair 已验证 |
 
 Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`LabeledBorder.java`。

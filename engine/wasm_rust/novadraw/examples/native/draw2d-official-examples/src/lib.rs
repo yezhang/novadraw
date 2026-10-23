@@ -106,13 +106,10 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/cg/ObstructionExample.java",
             examples::obstruction,
         ),
-        OfficialExample::in_progress(
+        OfficialExample::complete(
             "connection-and-anchor",
             "ConnectionAndAnchorExample",
             "org/eclipse/draw2d/examples/connections/ConnectionAndAnchorExample.java",
-            &[
-                "independent Figure/anchor/locator fixture and drag tests exist; upstream visual comparison remains pending",
-            ],
             examples::connection_and_anchor,
         ),
         OfficialExample::complete(
@@ -160,22 +157,20 @@ pub fn catalog() -> Vec<OfficialExample> {
             ],
             examples::toolbar_layout_example,
         ),
-        OfficialExample::in_progress(
+        OfficialExample::complete(
             "path",
             "PathExample",
             "org/eclipse/draw2d/examples/path/PathExample.java",
-            &[
-                "Canvas path, rotation, selection and range zoom are ported; SchemeBorder and font-derived underline metrics remain pending",
-            ],
             examples::path_example,
         ),
-        OfficialExample::blocked(
+        OfficialExample::in_progress(
             "printing",
             "PrintExample",
             "org/eclipse/draw2d/examples/printing/PrintExample.java",
             &[
-                "official Canvas Figure composition and graphics output consumption remain to be ported",
+                "Canvas composition, original ICO and graphics output are verified; built-in Inter substitutes the three upstream system font faces",
             ],
+            examples::print_example,
         ),
         OfficialExample::in_progress(
             "scroll-pane",
@@ -244,13 +239,10 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/thumbnail/ThumbnailExample.java",
             &["live secondary projection of one mutable Figure tree is absent"],
         ),
-        OfficialExample::in_progress(
+        OfficialExample::complete(
             "simple-tree",
             "SimpleTreeExample",
             "org/eclipse/draw2d/examples/tree/SimpleTreeExample.java",
-            &[
-                "official PageNode composition and normal/hanging contour layouts are ported; canvas background, upstream fonts and visual comparison remain pending",
-            ],
             examples::simple_tree_example,
         ),
         OfficialExample::in_progress(
@@ -259,7 +251,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/tree/TreeExample.java",
             &[
                 "official nineteen-node fixture, full branch insertion with parent style and commit receipt, selected label white/inherited reset, alignment/style/spacing, deletion and nonanimated collapse are ported",
-                "Canvas selected gradient, animation geometry and viewport tracking remain incomplete",
+                "selected gradient and label restoration are ported; animation geometry and viewport tracking remain incomplete",
             ],
             examples::tree_example,
         ),
@@ -277,8 +269,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ZoomExample",
             "org/eclipse/draw2d/examples/zoom/ZoomExample.java",
             &[
-                "ScrollBar composition/range/repeat are implemented; SchemeBorder still requires parity verification",
-                "original SVG resources and Canvas rendering remain under verification",
+                "ScrollBar composition/range/repeat and SchemeBorder are implemented",
+                "original SVG resources are decoded at intrinsic size; zoom/DPI-triggered rerasterization remains absent",
             ],
             examples::zoom_example,
         ),
@@ -364,7 +356,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            11
+            14
         );
 
         let mut ids = BTreeSet::new();

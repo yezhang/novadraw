@@ -582,6 +582,37 @@ mod tests {
     }
 
     #[test]
+    fn selecting_another_page_restores_gradient_and_inherited_text() {
+        let mut fixture = fixture();
+        prepare(&mut fixture.runtime);
+        let titles = {
+            let model = fixture.model.lock().unwrap();
+            [model.branches[1].title, model.branches[2].title]
+        };
+        for (index, title) in titles.into_iter().enumerate() {
+            click(&mut fixture.runtime, title);
+            prepare(&mut fixture.runtime);
+            for (other, other_title) in titles.into_iter().enumerate() {
+                let label = fixture.runtime.tree().child_order(other_title).unwrap()[0];
+                assert_eq!(
+                    fixture
+                        .runtime
+                        .tree()
+                        .figure_style(label)
+                        .unwrap()
+                        .foreground,
+                    if other == index {
+                        Some(Color::WHITE)
+                    } else {
+                        None
+                    }
+                );
+            }
+        }
+        assert!(fixture.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
     fn selection_style_collapse_and_delete_follow_official_actions() {
         let mut fixture = fixture();
         prepare(&mut fixture.runtime);
