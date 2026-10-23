@@ -39,12 +39,23 @@ Runtime 的直接、deferred、typed update 和关系 derived commit 共用图�
 在同一 group 提交保护下校验 graph revision 和本地 generations。
 循环或过期候选在写入前拒绝，不回滚此前已提交的源输入。
 
+实现中，捕获根随 source 身份固定；换根通过关闭旧 source、登记新身份完成。
+参与者先加入 composition-root 创建的 `SceneBindingGroup`，再登记 source。
+外部视图通过 typed dependency policy 注册来源，所有已绑定视图都参与结构统计。
+私有候选只使用一次，提交时再次检查同一共享组的 revision；纯几何不提升该版本。
+子树替换和批量插入一次提交完整结构，用户回调随后执行。
+快照冻结的 `SceneDependencyEvidence` 与内容相等性分开，不作为当前图准入凭证。
+
 ## 外部消费者证据
 
 默认与外部 capture/view policy、Figure binding 共用 typed identity、payload trait
 和 registry。独立消费者必须验证同一源的多个目标、旧新资源共存、布局/可见性
 不改变结构边、callback reparent、过期候选、取消与释放。Native Thumbnail
 提供真实拖拽和 overview resize 证据；测试及截图通过前不关闭 K07。
+
+K07-1 的外部捕获消费者见 `p2_scene_capture`；K07-2 的外部依赖策略和直接、
+deferred、typed reparent 反例见 `p2_scene_group`，内部候选交错与版本耗尽见
+`scene::group::tests`。目标端安装、资源共存和 Native Thumbnail 仍未验收。
 
 ## 关系与实施
 

@@ -5,6 +5,9 @@
 
 pub use crate::runtime::runtime::scene_capture::RuntimeScenes;
 
+pub(crate) mod group;
+pub use group::{SceneAdmissionError, SceneBindingGroup, SceneDependencyEvidence};
+
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -39,6 +42,47 @@ pub struct SceneSubscriptionId {
     pub(crate) sequence: u64,
 }
 
+/// Never-reused destination identity. Rebinding retires the preceding identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct SceneViewBindingId {
+    pub(crate) namespace: RuntimeNamespace,
+    pub(crate) sequence: u64,
+}
+
+/// Typed identity for external view dependency descriptors.
+pub struct SceneViewDependencyKey<P>(SceneCapturePolicyKey<P>);
+
+impl<P> SceneViewDependencyKey<P> {
+    /// Creates a namespaced descriptor identity.
+    pub const fn new(namespace: &'static str, name: &'static str) -> Self {
+        Self(SceneCapturePolicyKey::new(namespace, name))
+    }
+}
+impl<P> Copy for SceneViewDependencyKey<P> {}
+impl<P> Clone for SceneViewDependencyKey<P> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// Open structural source declaration. Drawing, visibility and clipping cannot
+/// override Core's subtree membership rule.
+pub trait SceneViewDependencyPolicy<P>: 'static {
+    /// Resolves the view's source from its typed immutable configuration.
+    fn source(&self, payload: &P) -> Result<SceneSourceId, SceneError>;
+}
+
+/// Default descriptor uses the same registry and admission as external views.
+pub const SCENE_SOURCE_VIEW: SceneViewDependencyKey<SceneSourceId> =
+    SceneViewDependencyKey::new("novadraw.scene", "source-view");
+
+struct SourceViewDependency;
+impl SceneViewDependencyPolicy<SceneSourceId> for SourceViewDependency {
+    fn source(&self, payload: &SceneSourceId) -> Result<SceneSourceId, SceneError> {
+        Ok(*payload)
+    }
+}
+
 /// Monotonically increasing configuration version within one subscription.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct CaptureConfigRevision(pub(crate) u64);
@@ -53,6 +97,8 @@ impl CaptureConfigRevision {
 /// Checked capture or handoff failure. Failures never publish partial drawings.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SceneError {
+    /// Shared structural dependencies rejected this candidate before commit.
+    Admission(SceneAdmissionError),
     /// The producer is faulted.
     Faulted,
     /// Source identity is unknown, foreign or retired.
@@ -171,8 +217,9 @@ type PolicyIdentity = (&'static str, &'static str, TypeId);
 type CaptureCallback = dyn Fn(&dyn Any, SceneCaptureInput<'_>) -> Result<Rectangle, SceneError>;
 
 /// Owned, immutable source-local drawing with an exact resource closure.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SceneSnapshot {
+    pub(crate) dependencies: Option<SceneDependencyEvidence>,
     pub(crate) source: SceneSourceId,
     pub(crate) subscription: SceneSubscriptionId,
     pub(crate) config: CaptureConfigRevision,
@@ -182,7 +229,23 @@ pub struct SceneSnapshot {
     pub(crate) drawing: RecordedDrawing,
 }
 
+impl PartialEq for SceneSnapshot {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.subscription == other.subscription
+            && self.config == other.config
+            && self.stable_epoch == other.stable_epoch
+            && self.rectangle == other.rectangle
+            && self.style == other.style
+            && self.drawing == other.drawing
+    }
+}
+
 impl SceneSnapshot {
+    /// Frozen structural evidence. Current admission always rechecks the group.
+    pub fn dependencies(&self) -> Option<&SceneDependencyEvidence> {
+        self.dependencies.as_ref()
+    }
     /// Source identity; never compare epochs across source namespaces.
     pub const fn source(&self) -> SceneSourceId {
         self.source
@@ -351,6 +414,7 @@ pub(crate) struct CaptureSubscription {
     pub(crate) payload: Box<dyn Any>,
     pub(crate) handoff: SceneHandoff,
     pub(crate) attempted_inputs: Option<(u64, u64, crate::event::MonotonicTime)>,
+    pub(crate) attempted_member_generation: Option<u64>,
 }
 
 pub(crate) struct SceneProducer {
@@ -359,8 +423,12 @@ pub(crate) struct SceneProducer {
     pub(crate) sources: HashMap<SceneSourceId, FigureId>,
     pub(crate) subscriptions: HashMap<SceneSubscriptionId, CaptureSubscription>,
     policies: HashMap<PolicyIdentity, Rc<CaptureCallback>>,
+    dependency_policies: HashMap<PolicyIdentity, Rc<DependencyCallback>>,
+    pub(crate) bindings: HashMap<SceneViewBindingId, (FigureId, SceneSourceId)>,
     pub(crate) stable_inputs: Option<(u64, u64, crate::event::MonotonicTime)>,
 }
+
+type DependencyCallback = dyn Fn(&dyn Any) -> Result<SceneSourceId, SceneError>;
 
 impl SceneProducer {
     pub(crate) fn new(namespace: RuntimeNamespace) -> Self {
@@ -370,11 +438,16 @@ impl SceneProducer {
             sources: HashMap::new(),
             subscriptions: HashMap::new(),
             policies: HashMap::new(),
+            dependency_policies: HashMap::new(),
+            bindings: HashMap::new(),
             stable_inputs: None,
         };
         producer
             .register_policy(SOURCE_LOCAL_CAPTURE, SourceLocalPolicy)
             .expect("empty registry accepts the default capture policy");
+        producer
+            .register_dependency_policy(SCENE_SOURCE_VIEW, SourceViewDependency)
+            .expect("empty registry accepts the default dependency policy");
         producer
     }
 
@@ -401,7 +474,7 @@ impl SceneProducer {
         Ok(())
     }
 
-    fn allocate_identity(&mut self) -> Result<u64, SceneError> {
+    pub(crate) fn allocate_identity(&mut self) -> Result<u64, SceneError> {
         let next = self
             .next_identity
             .checked_add(1)
@@ -410,6 +483,39 @@ impl SceneProducer {
         Ok(next)
     }
 
+    pub(crate) fn register_dependency_policy<P: 'static>(
+        &mut self,
+        key: SceneViewDependencyKey<P>,
+        policy: impl SceneViewDependencyPolicy<P>,
+    ) -> Result<(), SceneError> {
+        let identity = key.0.erased();
+        if self.dependency_policies.contains_key(&identity) {
+            return Err(SceneError::DuplicatePolicy);
+        }
+        self.dependency_policies.insert(
+            identity,
+            Rc::new(move |payload| {
+                policy.source(
+                    payload
+                        .downcast_ref::<P>()
+                        .ok_or(SceneError::UnknownPolicy)?,
+                )
+            }),
+        );
+        Ok(())
+    }
+
+    pub(crate) fn dependency_source<P: 'static>(
+        &self,
+        key: SceneViewDependencyKey<P>,
+        payload: &P,
+    ) -> Result<SceneSourceId, SceneError> {
+        self.dependency_policies
+            .get(&key.0.erased())
+            .ok_or(SceneError::UnknownPolicy)?(payload)
+    }
+
+    #[cfg(test)]
     pub(crate) fn register_source(
         &mut self,
         figure: FigureId,
@@ -450,6 +556,7 @@ impl SceneProducer {
                 payload: Box::new(payload),
                 handoff: handoff.clone(),
                 attempted_inputs: None,
+                attempted_member_generation: None,
             },
         );
         Ok((id, config, handoff))
@@ -480,6 +587,7 @@ impl SceneProducer {
         subscription.config = next;
         subscription.policy = policy;
         subscription.attempted_inputs = None;
+        subscription.attempted_member_generation = None;
         let previous = std::mem::replace(&mut subscription.payload, Box::new(payload));
         drop(previous);
         if let Some(waker) = waker {
@@ -554,6 +662,8 @@ impl SceneProducer {
     }
 
     pub(crate) fn retire_figures(&mut self, removed: &std::collections::HashSet<FigureId>) {
+        self.bindings
+            .retain(|_, (figure, _)| !removed.contains(figure));
         let sources: Vec<_> = self
             .sources
             .iter()

@@ -126,6 +126,13 @@ impl Runtime {
             }
         }
         Ok(Arc::new(SceneSnapshot {
+            dependencies: self
+                .tree
+                .scene_group
+                .as_ref()
+                .map(|group| group.evidence(subscription.source))
+                .transpose()
+                .map_err(SceneError::Admission)?,
             source: subscription.source,
             subscription: id,
             config: subscription.config,
@@ -138,6 +145,116 @@ impl Runtime {
 }
 
 impl RuntimeScenes<'_> {
+    /// Joins a composition-root group before registering sources or bindings.
+    pub fn join_group(&mut self, group: crate::scene::SceneBindingGroup) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        if self.runtime.tree.scene_group.is_some() || !self.runtime.scenes.sources.is_empty() {
+            return Err(SceneError::Admission(
+                crate::scene::SceneAdmissionError::UnknownSceneMember,
+            ));
+        }
+        let admission = group
+            .join(
+                self.runtime.tree.namespace(),
+                self.runtime.tree.scene_parents(),
+            )
+            .map_err(SceneError::Admission)?;
+        admission
+            .commit(|| self.runtime.tree.scene_group = Some(group.clone()))
+            .map_err(SceneError::Admission)
+    }
+
+    /// Registers a typed structural dependency policy for an external view.
+    pub fn register_view_dependency_policy<P: 'static>(
+        &mut self,
+        key: crate::scene::SceneViewDependencyKey<P>,
+        policy: impl crate::scene::SceneViewDependencyPolicy<P>,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        self.runtime
+            .guarded(|runtime| runtime.scenes.register_dependency_policy(key, policy))
+    }
+
+    /// Binds an attached view structurally, even if it has no visible drawing yet.
+    /// Rebinding invalidates the old destination identity.
+    pub fn bind_view_dependency<P: 'static>(
+        &mut self,
+        figure: FigureId,
+        key: crate::scene::SceneViewDependencyKey<P>,
+        payload: P,
+    ) -> Result<crate::scene::SceneViewBindingId, SceneError> {
+        self.check_runtime()?;
+        if !self
+            .runtime
+            .tree
+            .is_attached(figure)
+            .map_err(SceneError::Tree)?
+        {
+            return Err(SceneError::Admission(
+                crate::scene::SceneAdmissionError::UnknownSceneMember,
+            ));
+        }
+        self.runtime.guarded(|runtime| {
+            let source = runtime.scenes.dependency_source(key, &payload)?;
+            let group = runtime
+                .tree
+                .scene_group
+                .as_ref()
+                .ok_or(SceneError::Admission(
+                    crate::scene::SceneAdmissionError::UnknownSceneMember,
+                ))?;
+            let admission = group
+                .binding(runtime.tree.namespace(), figure, Some(source))
+                .map_err(SceneError::Admission)?;
+            let binding = crate::scene::SceneViewBindingId {
+                namespace: runtime.tree.namespace(),
+                sequence: runtime.scenes.allocate_identity()?,
+            };
+            admission
+                .commit(|| {
+                    runtime
+                        .scenes
+                        .bindings
+                        .retain(|_, (bound, _)| *bound != figure);
+                    runtime.scenes.bindings.insert(binding, (figure, source));
+                })
+                .map_err(SceneError::Admission)?;
+            Ok(binding)
+        })
+    }
+
+    /// Retires one current destination binding.
+    pub fn unbind_view_dependency(
+        &mut self,
+        binding: crate::scene::SceneViewBindingId,
+    ) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        let &(figure, _) =
+            self.runtime
+                .scenes
+                .bindings
+                .get(&binding)
+                .ok_or(SceneError::Admission(
+                    crate::scene::SceneAdmissionError::UnknownSceneMember,
+                ))?;
+        let group = self
+            .runtime
+            .tree
+            .scene_group
+            .as_ref()
+            .ok_or(SceneError::Admission(
+                crate::scene::SceneAdmissionError::UnknownSceneMember,
+            ))?;
+        let admission = group
+            .binding(self.runtime.tree.namespace(), figure, None)
+            .map_err(SceneError::Admission)?;
+        admission
+            .commit(|| {
+                self.runtime.scenes.bindings.remove(&binding);
+            })
+            .map_err(SceneError::Admission)
+    }
+
     fn check_runtime(&self) -> Result<(), SceneError> {
         if self.runtime.faulted {
             Err(SceneError::Faulted)
@@ -168,7 +285,21 @@ impl RuntimeScenes<'_> {
         {
             return Err(SceneError::UnknownSource);
         }
-        self.runtime.scenes.register_source(root)
+        let source = SceneSourceId {
+            namespace: self.runtime.tree.namespace(),
+            sequence: self.runtime.scenes.allocate_identity()?,
+        };
+        if let Some(group) = &self.runtime.tree.scene_group {
+            let admission = group
+                .source(source, Some(root))
+                .map_err(SceneError::Admission)?;
+            admission
+                .commit(|| self.runtime.scenes.sources.insert(source, root))
+                .map_err(SceneError::Admission)?;
+        } else {
+            self.runtime.scenes.sources.insert(source, root);
+        }
+        Ok(source)
     }
 
     /// Creates an independent subscription. Host drives initial capture explicitly.
@@ -204,8 +335,17 @@ impl RuntimeScenes<'_> {
             .subscriptions
             .get(&id)
             .ok_or(SceneError::UnknownSubscription)?;
+        let member_generation = self
+            .runtime
+            .tree
+            .scene_group
+            .as_ref()
+            .map(|group| group.member_generation(subscription.source))
+            .transpose()
+            .map_err(SceneError::Admission)?;
         Ok(
             subscription.attempted_inputs != Some(self.runtime.scene_capture_inputs()?)
+                || subscription.attempted_member_generation != member_generation
                 || !self.runtime.mutations.is_empty(),
         )
     }
@@ -222,12 +362,29 @@ impl RuntimeScenes<'_> {
                 .guarded(|runtime| runtime.capture_subscription_inner(id))
         });
         let inputs = self.runtime.scene_capture_inputs()?;
-        self.runtime
+        let source = self
+            .runtime
+            .scenes
+            .subscriptions
+            .get(&id)
+            .ok_or(SceneError::UnknownSubscription)?
+            .source;
+        let member_generation = self
+            .runtime
+            .tree
+            .scene_group
+            .as_ref()
+            .map(|group| group.member_generation(source))
+            .transpose()
+            .map_err(SceneError::Admission)?;
+        let subscription = self
+            .runtime
             .scenes
             .subscriptions
             .get_mut(&id)
-            .ok_or(SceneError::UnknownSubscription)?
-            .attempted_inputs = Some(inputs);
+            .ok_or(SceneError::UnknownSubscription)?;
+        subscription.attempted_inputs = Some(inputs);
+        subscription.attempted_member_generation = member_generation;
         self.runtime
             .guarded(|runtime| runtime.scenes.publish(id, result.clone()))?;
         result
@@ -241,6 +398,18 @@ impl RuntimeScenes<'_> {
 
     /// Retires a source and every subscription observing that source.
     pub fn remove_source(&mut self, id: SceneSourceId) -> Result<(), SceneError> {
+        self.check_runtime()?;
+        if !self.runtime.scenes.sources.contains_key(&id) {
+            return Err(SceneError::UnknownSource);
+        }
+        if let Some(group) = &self.runtime.tree.scene_group {
+            // Metadata retires before any host waker or user payload destructor.
+            group
+                .source(id, None)
+                .map_err(SceneError::Admission)?
+                .commit(|| ())
+                .map_err(SceneError::Admission)?;
+        }
         self.runtime.guarded(|runtime| {
             runtime
                 .scenes

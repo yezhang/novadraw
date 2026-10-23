@@ -3,6 +3,9 @@ use std::{
     fmt,
 };
 
+type SubtreeRetirement = (FigureId, crate::graph::RetiredSubtree, Vec<Rectangle>);
+type SubtreePublication = (Vec<(FigureId, FigureId)>, Option<SubtreeRetirement>);
+
 use crate::render::{
     BackendCapabilities, BackendSessionId, BuiltinFont, CaretGeometry, DamageMode, FontDescriptor,
     FrameId, NdCanvas, RenderDisposition, RenderFailure, RenderFailureDiagnostic, RenderResult,
@@ -1080,7 +1083,8 @@ impl Runtime {
             .map_err(|_| RuntimeMutationError::Rejected)?;
         let previous = self.tree.contents();
         let owner = subtree.owner;
-        let inserted = self.publish_subtree(self.tree.synthetic_root(), subtree, previous)?;
+        let (inserted, retired) =
+            self.publish_subtree(self.tree.synthetic_root(), subtree, previous)?;
         let id = inserted[0].0;
         self.tree.designate_contents(id);
         self.accessibility.reset();
@@ -1092,8 +1096,8 @@ impl Runtime {
         };
         self.tree.mark_invalid(&mut self.updates, validation_root);
         self.tree.repaint(&mut self.updates, id, None);
-        if let Some(previous) = previous {
-            self.dispose_subtree(previous)?;
+        if let Some((parent, retired, damage)) = retired {
+            self.complete_subtree_retirement(parent, retired, damage);
         }
         if let Err(error) = self.connections.invalidate_all() {
             self.connection_error = Some(error);
@@ -1118,8 +1122,8 @@ impl Runtime {
     ///
     /// Each tuple supplies an attached parent, a detached Figure and an optional local style.
     /// Capability descriptors are registered once and retained privately for this call.
-    /// Installation callbacks run after validation; a callback panic faults the Runtime and
-    /// may leave an attached prefix. This operation does not roll back callbacks or topology.
+    /// The complete topology and resource dependencies publish before installation callbacks.
+    /// A callback panic faults Runtime and retains this committed batch.
     pub fn add_figures(
         &mut self,
         figures: Vec<(FigureId, Box<dyn Figure>, Option<FigureStyle>)>,
@@ -1151,14 +1155,22 @@ impl Runtime {
                 })?;
                 prepared.push((parent, child.0, child.1));
             }
-            let mut ids = Vec::with_capacity(prepared.len());
+            let mut children = Vec::with_capacity(prepared.len());
+            let mut dependencies = Vec::with_capacity(prepared.len());
             for (parent, child, resources) in prepared {
-                let id = runtime
-                    .tree
-                    .attach_prepared_child(&mut runtime.updates, parent, child);
-                ids.push(id);
-                runtime.complete_figure_insertion(parent, id, resources);
+                children.push((parent, child));
+                dependencies.push((parent, resources));
             }
+            let ids = runtime
+                .tree
+                .attach_prepared_children(&mut runtime.updates, children)?;
+            let mut attachments = Vec::with_capacity(ids.len());
+            for (&id, (parent, resources)) in ids.iter().zip(dependencies) {
+                runtime.publish_figure_resources(id, resources);
+                runtime.register_layered_pane(id);
+                attachments.push((id, parent));
+            }
+            runtime.complete_subtree_attachment(&attachments);
             Ok(ids)
         })
     }
@@ -1247,7 +1259,7 @@ impl Runtime {
             self.admit_figure_resources(child.figure.as_ref(), &child.capabilities, &[])?;
         let id = self
             .tree
-            .attach_prepared_child(&mut self.updates, parent, child);
+            .attach_prepared_child(&mut self.updates, parent, child)?;
         self.complete_figure_insertion(parent, id, resources);
         Ok(id)
     }
@@ -1317,7 +1329,7 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| {
             runtime.validate_container_figure(parent)?;
             let owner = subtree.owner;
-            let inserted = runtime.publish_subtree(parent, subtree, None)?;
+            let (inserted, _) = runtime.publish_subtree(parent, subtree, None)?;
             runtime.complete_subtree_attachment(&inserted);
             Ok(crate::tree::SubtreeReceipt::new(
                 owner,
@@ -1331,7 +1343,7 @@ impl Runtime {
         parent: FigureId,
         subtree: crate::tree::FigureSubtree,
         replacing: Option<FigureId>,
-    ) -> Result<Vec<(FigureId, FigureId)>, RuntimeMutationError> {
+    ) -> Result<SubtreePublication, RuntimeMutationError> {
         let runtime = self;
         let owner = subtree.owner;
         let bindings = subtree.connections;
@@ -1339,7 +1351,16 @@ impl Runtime {
         let subsequent_invalidations =
             u64::from(replacing.is_some()) + u64::from(parent == runtime.tree.synthetic_root());
         let mut dependencies = Vec::with_capacity(subtree.nodes.len());
-        let inserted = runtime.tree.insert_subtree(
+        let damage = replacing
+            .map(|root| {
+                let ids = runtime
+                    .tree
+                    .disposal_ids(root)
+                    .expect("validated replacement root");
+                runtime.updates.freeze_removed_damage(&runtime.tree, &ids)
+            })
+            .unwrap_or_default();
+        let (inserted, retired) = runtime.tree.insert_subtree(
             parent,
             subtree.nodes,
             replacing,
@@ -1418,7 +1439,7 @@ impl Runtime {
         for (id, _) in &inserted {
             runtime.register_layered_pane(*id);
         }
-        Ok(inserted)
+        Ok((inserted, retired.map(|retired| (parent, retired, damage))))
     }
 
     fn complete_subtree_attachment(&mut self, inserted: &[(FigureId, FigureId)]) {
@@ -1504,7 +1525,7 @@ impl Runtime {
             })?;
         let child = self
             .tree
-            .attach_prepared_child(&mut self.updates, pane_id, prepared);
+            .attach_prepared_child(&mut self.updates, pane_id, prepared)?;
         let last_index = self
             .tree
             .child_order(pane_id)
@@ -1638,7 +1659,7 @@ impl Runtime {
         }
         if !self
             .tree
-            .reparent_layer_child(&mut self.updates, child, new_pane)
+            .reparent_layer_child(&mut self.updates, child, new_pane)?
         {
             return Ok(false);
         }
@@ -1745,45 +1766,52 @@ impl Runtime {
             .map_err(|_| RuntimeMutationError::Rejected)?;
         self.guarded(|runtime| {
             let damage = runtime.updates.freeze_removed_damage(&runtime.tree, &ids);
-            let removed: std::collections::HashSet<_> = ids.iter().copied().collect();
-            runtime.animations.retire_figures(&removed);
-            let focused = runtime
-                .interaction
-                .focus_owner()
-                .filter(|id| removed.contains(id));
-            let retired = runtime.tree.extract_subtree(&ids, &mut runtime.updates);
-            runtime.interaction.forget_figures(&removed);
-            runtime.updates.forget_figures(&removed);
-            let listeners = runtime.updates.retire_listeners(&removed);
-            let connections = runtime.connections.retire_figures(&removed);
-            runtime
-                .resources
-                .retain_dependencies(|id| !removed.contains(&id));
-            runtime.layered_panes.retain(|id, state| {
-                state.retain_children(|child| !removed.contains(&child));
-                !removed.contains(id)
-            });
-            runtime
-                .anchor_geometries
-                .retain(|(id, _), _| !removed.contains(id));
-            for rect in damage {
-                runtime.updates.add_frozen_surface_region(rect);
-            }
-            runtime.tree.mark_invalid(&mut runtime.updates, parent);
-            runtime.scenes.retire_figures(&removed);
-            if let Some(node) = retired.nodes.iter().find(|node| Some(node.id) == focused) {
-                crate::EventContext::retired_focus_lost(
-                    node,
-                    &mut runtime.mutations,
-                    &mut runtime.updates,
-                    &mut runtime.tree,
-                );
-            }
-            retired.complete();
-            drop(connections);
-            drop(listeners);
+            let retired = runtime.tree.extract_subtree(&ids, &mut runtime.updates)?;
+            runtime.complete_subtree_retirement(parent, retired, damage);
+            Ok(())
+        })
+    }
+
+    fn complete_subtree_retirement(
+        &mut self,
+        parent: FigureId,
+        retired: crate::graph::RetiredSubtree,
+        damage: Vec<Rectangle>,
+    ) {
+        let removed: HashSet<_> = retired.nodes.iter().map(|node| node.id).collect();
+        let focused = self
+            .interaction
+            .focus_owner()
+            .filter(|id| removed.contains(id));
+        self.animations.retire_figures(&removed);
+        self.interaction.forget_figures(&removed);
+        self.updates.forget_figures(&removed);
+        let listeners = self.updates.retire_listeners(&removed);
+        let connections = self.connections.retire_figures(&removed);
+        self.resources
+            .retain_dependencies(|id| !removed.contains(&id));
+        self.layered_panes.retain(|id, state| {
+            state.retain_children(|child| !removed.contains(&child));
+            !removed.contains(id)
         });
-        Ok(())
+        self.anchor_geometries
+            .retain(|(id, _), _| !removed.contains(id));
+        for rect in damage {
+            self.updates.add_frozen_surface_region(rect);
+        }
+        self.tree.mark_invalid(&mut self.updates, parent);
+        self.scenes.retire_figures(&removed);
+        if let Some(node) = retired.nodes.iter().find(|node| Some(node.id) == focused) {
+            crate::EventContext::retired_focus_lost(
+                node,
+                &mut self.mutations,
+                &mut self.updates,
+                &mut self.tree,
+            );
+        }
+        retired.complete();
+        drop(connections);
+        drop(listeners);
     }
 
     fn guarded<T>(&mut self, operation: impl FnOnce(&mut Self) -> T) -> T {
@@ -3329,8 +3357,10 @@ impl Runtime {
                 .validate_disposal()
                 .map_err(|_| RuntimeMutationError::Rejected)?;
             let owner = subtree.owner;
-            let inserted = runtime.publish_subtree(parent, subtree, Some(child))?;
-            runtime.dispose_subtree(child)?;
+            let (inserted, retired) = runtime.publish_subtree(parent, subtree, Some(child))?;
+            if let Some((parent, retired, damage)) = retired {
+                runtime.complete_subtree_retirement(parent, retired, damage);
+            }
             runtime.complete_subtree_attachment(&inserted);
             Ok(crate::tree::SubtreeReceipt::new(
                 owner,

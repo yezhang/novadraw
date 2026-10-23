@@ -457,7 +457,18 @@ source 外部的位置、裁剪和视口变换不进入结果。`SourceLocalCapt
 这次交接不确认 GPU 呈现。取消订阅、删除 source 和释放 Runtime 都会结束订阅；
 终止会清除未消费的普通结果，迟到捕获不能重新激活它。
 
-K07-1 已提供捕获与交接。目标端安装、视图测量和宿主背景仍按
+跨 Runtime 共享视图还需要同一个 `SceneBindingGroup`。宿主在登记 source 前，
+通过 `runtime.scenes().join_group(group.clone())` 登记每个参与者。
+视图通过 `bind_view_dependency` 声明来源；默认 `SCENE_SOURCE_VIEW` 和外部
+`SceneViewDependencyKey<P>` / `SceneViewDependencyPolicy<P>` 使用相同准入。
+登记是结构声明，当前是否可见、是否在捕获矩形内、是否已有快照都不影响依赖边。
+
+Core 在结构写入前拒绝直接和间接循环。重挂载、组件 Effect、回调延迟修改、
+子树替换和批量插入都受检；失败保留此前已接受的输入。
+`SceneSnapshot::dependencies()` 记录捕获时的结构来源，目标不能把旧记录当作当前
+图的准入凭证。捕获根登记后保持固定；更换根应终止旧 source，再登记新身份。
+
+K07-1/2 已提供捕获、交接和结构准入。目标端安装、视图测量和宿主背景仍按
 [K07 执行队列](../../../doc/roadmap/p2-delta-backlog.md)推进。
 
 ## 4.15 验证入口

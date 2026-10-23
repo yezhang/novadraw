@@ -70,25 +70,27 @@ impl Runtime {
                 previous_revision
             };
 
-            let receipt = runtime.commit_prepared_figure_update(
-                figure,
-                FigureUpdateRevisionContext {
-                    previous_revision,
-                    revision,
-                    old_visual_bounds,
-                    visible,
-                },
-                prepared,
-                effects,
-                |value, node| {
-                    let capability = node
-                        .capabilities
-                        .get(U::KEY)
-                        .expect("validated capability descriptor must remain valid")
-                        .expect("Figure capability registry cannot change after attach");
-                    U::commit(capability, value, node.figure.as_mut());
-                },
-            );
+            let receipt = runtime
+                .commit_prepared_figure_update(
+                    figure,
+                    FigureUpdateRevisionContext {
+                        previous_revision,
+                        revision,
+                        old_visual_bounds,
+                        visible,
+                    },
+                    prepared,
+                    effects,
+                    |value, node| {
+                        let capability = node
+                            .capabilities
+                            .get(U::KEY)
+                            .expect("validated capability descriptor must remain valid")
+                            .expect("Figure capability registry cannot change after attach");
+                        U::commit(capability, value, node.figure.as_mut());
+                    },
+                )
+                .map_err(CapabilityUpdateError::Effect)?;
             Ok(CapabilityUpdateReceipt {
                 figure: receipt.figure,
                 previous_revision: receipt.previous_revision,

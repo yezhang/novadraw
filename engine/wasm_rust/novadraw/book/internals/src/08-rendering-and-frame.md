@@ -501,13 +501,28 @@ serial 或 epoch 耗尽会返回错误，不回绕。失败尝试记住输入版
 source、subscription 与配置版本分别由 producer 管理。删除 source Figure 时，
 Runtime 在结构释放后发布终止事件；释放 Runtime 时，producer 仍向 owned handoff
 写入 `Closed`。宿主接管事件与 destination 的帧呈现确认是两条独立协议。
-目标资源导入、循环准入和背景合成不由捕获替代，仍按 ADR-044/045 的后续切片实现。
+目标资源导入和背景合成不由捕获替代，仍按 ADR-044/045 的后续切片实现。
+
+`SceneBindingGroup` 仅保存参与者的父关系、捕获根和视图来源，Core 根据完整子树
+生成依赖边，忽略绘制矩形和可见性。私有候选固定当前 graph revision；
+提交保护中再次检查版本和环，然后一起安装本地结构与依赖元数据。
+另一个 Runtime 已提交时，旧候选返回 `StaleSceneAdmission`，不运行本地写入。
+组件批次先完成所有 Effect 的预检，结构和资源写入先提交；扩展组件的 `commit`、
+挂载回调和用户对象析构随后执行，避免在持有共享组保护时重入。
+回调 panic 仍使 Runtime faulted，已提交结构保持一致。
+
+整棵子树替换在一次准入中移除旧树并发布新树，旧节点作为 owned retired value
+交回 Runtime，之后清理资源引用、通知和生命周期。批量插入同样只晋升一次图版本。
+纯几何的 LayoutOutput 不改变成员关系；未来增加结构 Effect 时必须复用这个提交器。
+快照的结构证据只用于追溯，独立于 drawing 内容身份。
 
 源码入口为
 [`scene.rs`](../../../novadraw/src/scene.rs)、
+[`scene/group.rs`](../../../novadraw/src/scene/group.rs)、
 [`scene_capture.rs`](../../../novadraw/src/runtime/runtime/scene_capture.rs)；
 外部消费者测试见
-[`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)。
+[`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)和
+[`p2_scene_group.rs`](../../../novadraw/tests/p2_scene_group.rs)。
 
 ## 8.19 与后续章节的关系
 

@@ -122,9 +122,9 @@ impl<'a> RuntimeViewports<'a> {
                 .validate_disposal()
                 .map_err(|_| RuntimeMutationError::Rejected)?;
             let owner = subtree.owner;
-            let inserted = runtime.publish_subtree(viewport, subtree, previous)?;
-            if let Some(previous) = previous {
-                runtime.dispose_subtree(previous)?;
+            let (inserted, retired) = runtime.publish_subtree(viewport, subtree, previous)?;
+            if let Some((parent, retired, damage)) = retired {
+                runtime.complete_subtree_retirement(parent, retired, damage);
             }
             runtime.complete_subtree_attachment(&inserted);
             Ok(crate::tree::SubtreeReceipt::new(

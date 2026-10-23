@@ -50,6 +50,7 @@ pub use query::{CoordinateFailure, CoordinateQueryError};
 mod render_recursive;
 mod search;
 mod topology;
+pub(crate) use topology::commit_scene_admission;
 
 use render_recursive::{FigureRenderer, FigureTreeRenderRef};
 pub use search::{ExclusionSearch, IdentitySearch, TreeQueryError, TreeSearch, TreeSearchContext};
@@ -114,6 +115,7 @@ fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rect
 /// Figure 树结构变更失败。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphMutationError {
+    SceneAdmission(crate::scene::SceneAdmissionError),
     FigureNotFound(FigureId),
     InvalidInitialBounds,
     InvalidInitialStyle,
@@ -141,6 +143,9 @@ pub enum GraphMutationError {
 impl fmt::Display for GraphMutationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SceneAdmission(error) => {
+                write!(f, "scene dependency admission failed: {error:?}")
+            }
             Self::FigureNotFound(figure) => write!(f, "Figure does not exist: {figure:?}"),
             Self::InvalidInitialBounds => {
                 write!(f, "Figure initial bounds must be finite and non-negative")
@@ -951,6 +956,7 @@ impl FigureNode {
 /// scene.builder().add_child(contents_id, Box::new(child)).expect("valid FigureTree construction");
 /// ```
 pub struct FigureTree {
+    pub(crate) scene_group: Option<crate::scene::SceneBindingGroup>,
     blocks: RuntimeArena<FigureId, FigureNode>,
     uuid_map: std::collections::HashMap<Uuid, FigureId>,
     /// 根块（内部使用）
@@ -961,6 +967,14 @@ pub struct FigureTree {
     derived_checkpoint: Option<derived::DerivedCheckpoint>,
     prepared_scene_serial: u64,
     preparation_text_revision: u64,
+}
+
+impl Drop for FigureTree {
+    fn drop(&mut self) {
+        if let Some(group) = &self.scene_group {
+            group.retire_member(self.namespace());
+        }
+    }
 }
 
 pub(crate) struct TextLayoutRefreshResult {
@@ -1289,6 +1303,7 @@ impl FigureTree {
             notification_effects: NotificationQueue::new(),
             derived_checkpoint: None,
             prepared_scene_serial: 0,
+            scene_group: None,
             preparation_text_revision: 0,
         }
     }

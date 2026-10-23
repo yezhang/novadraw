@@ -1,6 +1,20 @@
 use super::*;
 use crate::figure::Figure;
 
+type SubtreePublication = (Vec<(FigureId, FigureId)>, Option<RetiredSubtree>);
+
+pub(crate) fn commit_scene_admission<T>(
+    admission: Option<crate::scene::group::SceneAdmission>,
+    local: impl FnOnce() -> T,
+) -> Result<T, GraphMutationError> {
+    match admission {
+        Some(admission) => admission
+            .commit(local)
+            .map_err(GraphMutationError::SceneAdmission),
+        None => Ok(local()),
+    }
+}
+
 pub(crate) struct PreparedChild {
     pub(crate) figure: Box<dyn Figure>,
     state: NodeState,
@@ -9,6 +23,42 @@ pub(crate) struct PreparedChild {
 }
 
 impl FigureTree {
+    pub(crate) fn take_child_constraint(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Option<Box<dyn LayoutConstraint>> {
+        self.blocks[parent].layout.constraints.remove(&child)
+    }
+
+    pub(crate) fn scene_parents(&self) -> std::collections::HashMap<FigureId, Option<FigureId>> {
+        self.blocks
+            .iter()
+            .map(|(id, node)| (id, node.parent))
+            .collect()
+    }
+
+    pub(crate) fn prepare_scene_topology(
+        &self,
+        changes: &[(FigureId, Option<FigureId>)],
+        removed: &[FigureId],
+    ) -> Result<Option<crate::scene::group::SceneAdmission>, GraphMutationError> {
+        let Some(group) = &self.scene_group else {
+            return Ok(None);
+        };
+        let mut parents = self.scene_parents();
+        for &(child, parent) in changes {
+            parents.insert(child, parent);
+        }
+        for id in removed {
+            parents.remove(id);
+        }
+        group
+            .topology(self.namespace(), parents)
+            .map(Some)
+            .map_err(GraphMutationError::SceneAdmission)
+    }
+
     pub(super) fn validate_direct_child(
         &self,
         parent: FigureId,
@@ -45,6 +95,7 @@ impl FigureTree {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn attach_child_checked(
         &mut self,
         parent_id: FigureId,
@@ -53,6 +104,7 @@ impl FigureTree {
         self.attach_child_checked_admission(parent_id, child_id, false)
     }
 
+    #[cfg(test)]
     pub(super) fn attach_child_checked_admission(
         &mut self,
         parent_id: FigureId,
@@ -264,6 +316,7 @@ impl FigureTree {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn contains_direct_child(&self, parent_id: FigureId, child_id: FigureId) -> bool {
         self.blocks
             .get(parent_id)
@@ -401,7 +454,17 @@ impl FigureTree {
         &mut self,
         ids: &[FigureId],
         updates: &mut UpdateManager,
-    ) -> RetiredSubtree {
+    ) -> Result<RetiredSubtree, GraphMutationError> {
+        let admission = self.prepare_scene_topology(&[], ids)?;
+        let parent = self.blocks[ids[0]]
+            .parent
+            .expect("validated subtree parent");
+        let retired = commit_scene_admission(admission, || self.extract_subtree_committed(ids))?;
+        updates.add_invalid_figure(parent);
+        Ok(retired)
+    }
+
+    fn extract_subtree_committed(&mut self, ids: &[FigureId]) -> RetiredSubtree {
         let root = ids[0];
         let parent = self.blocks[root].parent.expect("validated subtree parent");
         let mut nodes = Vec::with_capacity(ids.len());
@@ -416,7 +479,6 @@ impl FigureTree {
             self.contents = None;
         }
         // No component callbacks until Runtime has retired its other references.
-        updates.add_invalid_figure(parent);
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Removed,
             figure_id: root,
@@ -461,7 +523,7 @@ impl FigureTree {
         if let Some(previous) = self.contents {
             let ids = self.disposal_ids(previous).expect("attached contents");
             let mut updates = UpdateManager::with_namespace(self.namespace());
-            drop(self.extract_subtree(&ids, &mut updates));
+            drop(self.extract_subtree(&ids, &mut updates)?);
         }
         self.contents = Some(contents_id);
         self.invalidate();
@@ -644,12 +706,14 @@ impl FigureTree {
             return Err(GraphMutationError::LayerKeyRequired);
         }
         self.validate_attachment(new_parent, child)?;
-        let changed = self.apply_reparent_mutation(
-            update_manager,
-            PendingMutationKind::Reparent { child, new_parent },
-        );
-        debug_assert!(changed, "validated reparent must commit");
-        Ok(changed)
+        let admission = self.prepare_scene_topology(&[(child, Some(new_parent))], &[])?;
+        let retired = commit_scene_admission(admission, || {
+            let retired = self.blocks[old_parent].layout.constraints.remove(&child);
+            self.commit_effect_reparent(update_manager, child, new_parent);
+            retired
+        })?;
+        drop(retired);
+        Ok(true)
     }
 
     fn new_block_with_parent(
@@ -805,7 +869,19 @@ impl FigureTree {
                 std::panic::resume_unwind(payload);
             }
         };
-        self.publish_reserved_child(id, parent_id, index, constraint);
+        let admission = match self.prepare_scene_topology(&[(id, Some(parent_id))], &[]) {
+            Ok(admission) => admission,
+            Err(error) => {
+                drop(self.blocks.remove(id));
+                return Err(error.into());
+            }
+        };
+        if let Err(error) = commit_scene_admission(admission, || {
+            self.publish_reserved_child(id, parent_id, index, constraint);
+        }) {
+            drop(self.blocks.remove(id));
+            return Err(error.into());
+        }
         Ok(id)
     }
 
@@ -881,10 +957,14 @@ impl FigureTree {
         ) -> Result<(), E>,
         reject: impl Fn(usize, E) -> E,
         prepare_bindings: impl FnOnce(&Self, &[FigureId]) -> Result<(), E>,
-    ) -> Result<Vec<(FigureId, FigureId)>, E>
+    ) -> Result<SubtreePublication, E>
     where
         E: From<GraphMutationError> + From<LayoutError>,
     {
+        let removed = replacing
+            .map(|root| self.disposal_ids(root))
+            .transpose()?
+            .unwrap_or_default();
         let mut ids = Vec::with_capacity(nodes.len());
         let mut parents = Vec::with_capacity(nodes.len());
         let mut constraints = Vec::with_capacity(nodes.len());
@@ -946,11 +1026,41 @@ impl FigureTree {
                 }
             }
         }
-        for ((id, target), constraint) in ids.iter().zip(&parents).zip(constraints) {
-            let index = self.blocks[*target].children.len();
-            self.publish_reserved_child(*id, *target, index, constraint);
-        }
-        Ok(ids.into_iter().zip(parents).collect())
+        let changes: Vec<_> = ids
+            .iter()
+            .zip(&parents)
+            .map(|(&id, &parent)| (id, Some(parent)))
+            .collect();
+        let admission = self
+            .prepare_scene_topology(&changes, &removed)
+            .map_err(E::from);
+        let result = admission.and_then(|admission| {
+            commit_scene_admission(admission, || {
+                let retired = if removed.is_empty() {
+                    None
+                } else {
+                    // Runtime adds frozen damage and retires its references before
+                    // it invokes callbacks or drops any retired user-owned values.
+                    Some(self.extract_subtree_committed(&removed))
+                };
+                for ((id, target), constraint) in ids.iter().zip(&parents).zip(constraints) {
+                    let index = self.blocks[*target].children.len();
+                    self.publish_reserved_child(*id, *target, index, constraint);
+                }
+                retired
+            })
+            .map_err(E::from)
+        });
+        let retired = match result {
+            Ok(retired) => retired,
+            Err(error) => {
+                for id in ids.into_iter().rev() {
+                    drop(self.blocks.remove(id));
+                }
+                return Err(error);
+            }
+        };
+        Ok((ids.into_iter().zip(parents).collect(), retired))
     }
 
     pub(crate) fn attach_prepared_child(
@@ -958,12 +1068,50 @@ impl FigureTree {
         updates: &mut UpdateManager,
         parent: FigureId,
         child: PreparedChild,
-    ) -> FigureId {
-        let id = self
-            .insert_prepared_child::<GraphMutationError>(child, parent, None, |_, _| Ok(None))
-            .expect("prepared append has no remaining admission step");
+    ) -> Result<FigureId, GraphMutationError> {
+        let id =
+            self.insert_prepared_child::<GraphMutationError>(child, parent, None, |_, _| Ok(None))?;
         self.invalidate_child_insertion(updates, parent, id);
-        id
+        Ok(id)
+    }
+
+    /// Publishes a prevalidated atomic append batch under one dependency admission.
+    pub(crate) fn attach_prepared_children(
+        &mut self,
+        updates: &mut UpdateManager,
+        children: Vec<(FigureId, PreparedChild)>,
+    ) -> Result<Vec<FigureId>, GraphMutationError> {
+        if children.is_empty() {
+            return Ok(Vec::new());
+        }
+        let reserved: Vec<_> = children
+            .into_iter()
+            .map(|(parent, child)| (self.reserve_prepared_child(child), parent))
+            .collect();
+        let changes: Vec<_> = reserved
+            .iter()
+            .map(|&(id, parent)| (id, Some(parent)))
+            .collect();
+        let result = self
+            .prepare_scene_topology(&changes, &[])
+            .and_then(|admission| {
+                commit_scene_admission(admission, || {
+                    for &(id, parent) in &reserved {
+                        let index = self.blocks[parent].children.len();
+                        self.publish_reserved_child(id, parent, index, None);
+                    }
+                })
+            });
+        if let Err(error) = result {
+            for (id, _) in reserved.into_iter().rev() {
+                drop(self.blocks.remove(id));
+            }
+            return Err(error);
+        }
+        for &(id, parent) in &reserved {
+            self.invalidate_child_insertion(updates, parent, id);
+        }
+        Ok(reserved.into_iter().map(|(id, _)| id).collect())
     }
 
     fn apply_remove_mutation(
@@ -1007,6 +1155,7 @@ impl FigureTree {
         true
     }
 
+    #[cfg(test)]
     pub(super) fn apply_reparent_mutation(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -1055,33 +1204,22 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         child: FigureId,
         new_parent: FigureId,
-    ) -> bool {
+    ) -> Result<bool, GraphMutationError> {
         let Some(old_parent) = self.blocks.get(child).and_then(|block| block.parent) else {
-            return false;
+            return Err(GraphMutationError::InvalidParentRelation);
         };
-        if old_parent == new_parent
-            || !self.contains_direct_child(old_parent, child)
-            || self.contains_direct_child(new_parent, child)
-            || self
-                .validate_attachment_admission(new_parent, child, true)
-                .is_err()
-        {
-            return false;
+        if old_parent == new_parent {
+            return Ok(false);
         }
-        let visual_bounds = self.blocks[child].visual_bounds();
-        self.detach_child(old_parent, child);
-        self.mark_invalid(update_manager, old_parent);
-        self.repaint(update_manager, old_parent, None);
-        if self
-            .attach_child_checked_admission(new_parent, child, true)
-            .is_err()
-        {
-            return false;
-        }
-        self.mark_invalid(update_manager, new_parent);
-        update_manager.add_dirty_region(child, visual_bounds);
-        self.repaint(update_manager, new_parent, None);
-        true
+        self.validate_attachment_admission(new_parent, child, true)?;
+        let admission = self.prepare_scene_topology(&[(child, Some(new_parent))], &[])?;
+        let retired = commit_scene_admission(admission, || {
+            let retired = self.take_child_constraint(old_parent, child);
+            self.commit_effect_reparent(update_manager, child, new_parent);
+            retired
+        })?;
+        drop(retired);
+        Ok(true)
     }
 
     #[cfg(test)]

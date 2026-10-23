@@ -25,21 +25,61 @@ impl Runtime {
         prepared: PreparedFigureUpdate<T>,
         effects: Vec<ValidatedFigureEffect>,
         commit: impl FnOnce(T, &mut crate::FigureNode),
-    ) -> ComponentUpdateReceipt {
+    ) -> Result<ComponentUpdateReceipt, RuntimeMutationError> {
         let (value, invalidation, changed, _) = prepared.into_parts();
         if !changed {
-            return ComponentUpdateReceipt {
+            return Ok(ComponentUpdateReceipt {
                 figure,
                 previous_revision: context.previous_revision,
                 revision: context.previous_revision,
                 invalidation,
                 changed: false,
-            };
+            });
         }
-        if context.visible {
-            self.updates
-                .freeze_figure_damage(&self.tree, figure, context.old_visual_bounds);
-        }
+        let changes: Vec<_> = effects
+            .iter()
+            .filter_map(|effect| match effect {
+                ValidatedFigureEffect::Reparent { parent, .. } => Some((figure, Some(*parent))),
+                _ => None,
+            })
+            .collect();
+        let admission = if changes.is_empty() {
+            None
+        } else {
+            self.tree.prepare_scene_topology(&changes, &[])?
+        };
+        // Structural effects are infallible internal writes. Component commit and
+        // lifecycle hooks run afterwards, outside the exclusive metadata guard.
+        let mut remaining = Vec::with_capacity(effects.len());
+        let mut attachments = Vec::new();
+        let mut retired_constraints = Vec::new();
+        crate::graph::commit_scene_admission(admission, || {
+            if context.visible {
+                self.updates
+                    .freeze_figure_damage(&self.tree, figure, context.old_visual_bounds);
+            }
+            for effect in effects {
+                match effect {
+                    ValidatedFigureEffect::Reparent { parent, constraint } => {
+                        let old_parent = self
+                            .tree
+                            .parent_id(figure)
+                            .expect("validated effect target")
+                            .expect("attached effect target");
+                        retired_constraints
+                            .push(self.tree.take_child_constraint(old_parent, figure));
+                        self.tree
+                            .commit_effect_reparent(&mut self.updates, figure, parent);
+                        attachments.push((old_parent, parent, constraint));
+                    }
+                    effect @ ValidatedFigureEffect::Resource { .. } => {
+                        self.commit_figure_effect(figure, effect)
+                    }
+                    effect => remaining.push(effect),
+                }
+            }
+        })?;
+        drop(retired_constraints);
 
         {
             let node = self
@@ -50,8 +90,18 @@ impl Runtime {
             node.component_revision = context.revision;
         }
 
-        for effect in effects {
+        for effect in remaining {
             self.commit_figure_effect(figure, effect);
+        }
+        for (old_parent, parent, constraint) in attachments {
+            if let Some(constraint) = constraint {
+                self.connections
+                    .commit_reparent_constraint(ConnectionId::from_figure(figure), constraint);
+            }
+            self.invalidate_connection_figure_change(figure, true);
+            self.retain_interactive_figures();
+            self.tree.complete_detachment(figure, old_parent);
+            self.tree.complete_attachment(figure, parent);
         }
 
         if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
@@ -62,13 +112,13 @@ impl Runtime {
         }
         self.tree.repaint(&mut self.updates, figure, None);
 
-        ComponentUpdateReceipt {
+        Ok(ComponentUpdateReceipt {
             figure,
             previous_revision: context.previous_revision,
             revision: context.revision,
             invalidation,
             changed: true,
-        }
+        })
     }
 
     pub(crate) fn update_component<U>(
@@ -137,23 +187,25 @@ impl Runtime {
                 previous_revision
             };
 
-            Ok(runtime.commit_prepared_figure_update(
-                figure,
-                FigureUpdateRevisionContext {
-                    previous_revision,
-                    revision,
-                    old_visual_bounds,
-                    visible,
-                },
-                prepared,
-                effects,
-                |value, node| {
-                    let target = node
-                        .component_mut::<U::Figure>()
-                        .expect("Figure type cannot change during component update");
-                    U::commit(value, target);
-                },
-            ))
+            runtime
+                .commit_prepared_figure_update(
+                    figure,
+                    FigureUpdateRevisionContext {
+                        previous_revision,
+                        revision,
+                        old_visual_bounds,
+                        visible,
+                    },
+                    prepared,
+                    effects,
+                    |value, node| {
+                        let target = node
+                            .component_mut::<U::Figure>()
+                            .expect("Figure type cannot change during component update");
+                        U::commit(value, target);
+                    },
+                )
+                .map_err(ComponentUpdateError::Effect)
         })
     }
 

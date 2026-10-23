@@ -524,7 +524,7 @@ impl FigureTree {
                     runtime: Arc::clone(&runtime),
                 }))
                 .into_subtree();
-            let inserted = self.insert_subtree(
+            let (inserted, _) = self.insert_subtree(
                 pane_id,
                 description.subtree.nodes,
                 None,
