@@ -20,9 +20,32 @@
         box-sizing: border-box;
       }
       #fontRasterCanvas {
-        width: 800px;
-        height: 800px;
+        width: min(72vw, 720px);
+        height: min(72vw, 720px);
         border: 1px dashed #000;
+        image-rendering: pixelated;
+        cursor: crosshair;
+      }
+      #fontRasterCanvas:focus-visible {
+        outline: 3px solid #1473e6;
+        outline-offset: 2px;
+      }
+      #fontDetailCanvas {
+        width: min(72vw, 520px);
+        height: min(72vw, 520px);
+        border: 1px dashed #000;
+        image-rendering: pixelated;
+      }
+      #cpuViews {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .canvasLabel {
+        margin: 0 0 6px;
+        font: 13px/1.4 Arial, sans-serif;
+        color: #333;
       }
       #rulerX,
       #rulerY {
@@ -52,7 +75,23 @@
       <canvas id="rulerY" width="40" height="1000"></canvas>
     </div>
 
-    <canvas id="fontRasterCanvas" width="1000" height="1000"></canvas>
+    <div id="cpuViews">
+      <div>
+        <div class="canvasLabel">CPU raster · 5 × 5 grid</div>
+        <canvas
+          id="fontRasterCanvas"
+          width="1000"
+          height="1000"
+          tabindex="0"
+          role="grid"
+          aria-label="CPU raster grid"
+        ></canvas>
+      </div>
+      <div>
+        <div class="canvasLabel" id="detailLabel">Cell (1, 0)</div>
+        <canvas id="fontDetailCanvas" width="600" height="600"></canvas>
+      </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.3/opentype.min.js"></script>
     <script>
       async function loadFont(url) {
@@ -159,8 +198,7 @@
               const p2 = { x: cmd.x2, y: cmd.y2 };
               const p3 = { x: cmd.x, y: cmd.y };
 
-              // 递归分割三次曲线为二次曲线（此处分割2次以减少误差）
-              splitCubicToQuadratics(p0, p1, p2, p3, 2).forEach((quad) => {
+              splitCubicToQuadratics(p0, p1, p2, p3, 3).forEach((quad) => {
                 quadraticBeziers.push(quad);
               });
 
@@ -186,50 +224,108 @@
               break;
 
             default:
-              throw new error(`unknown command: ${cmd.type}`);
+              throw new Error(`unknown command: ${cmd.type}`);
           }
         }
 
         return quadraticBeziers;
       }
+
+      // 使用 de Casteljau 细分，再把每段三次曲线降阶为二次曲线。
+      function splitCubicToQuadratics(p0, p1, p2, p3, depth) {
+        if (depth <= 0) {
+          return [
+            {
+              type: "quadratic",
+              start: p0,
+              control: {
+                x: (3 * p1.x + 3 * p2.x - p0.x - p3.x) / 4,
+                y: (3 * p1.y + 3 * p2.y - p0.y - p3.y) / 4,
+              },
+              end: p3,
+            },
+          ];
+        }
+
+        const p01 = midpoint(p0, p1);
+        const p12 = midpoint(p1, p2);
+        const p23 = midpoint(p2, p3);
+        const p012 = midpoint(p01, p12);
+        const p123 = midpoint(p12, p23);
+        const split = midpoint(p012, p123);
+
+        return [
+          ...splitCubicToQuadratics(p0, p01, p012, split, depth - 1),
+          ...splitCubicToQuadratics(split, p123, p23, p3, depth - 1),
+        ];
+      }
+
+      function midpoint(a, b) {
+        return {
+          x: (a.x + b.x) / 2,
+          y: (a.y + b.y) / 2,
+        };
+      }
+
       function clamp(number, min, max) {
         return Math.max(min, Math.min(number, max));
       }
       function almostEqual(a, b, epsilon = 1e-6) {
-        return Math.abs(a - b) < epsilon;
+        return Math.abs(a - b) <= epsilon;
       }
-      function bezierIntersectHorz(bezier, Y) {
-        const { start: A, control: B, end: C } = bezier;
-        const T_Valid = (t) => t >= 0 && t <= 1;
-        const X_From_T = (t) =>
-          (1 - t) ** 2 * A.x + 2 * t * (1 - t) * B.x + t ** 2 * C.x;
 
-        const outX = [];
-        let i = 0;
+      function pointOnQuadratic(bezier, t) {
+        const mt = 1 - t;
+        return {
+          x:
+            mt * mt * bezier.start.x +
+            2 * mt * t * bezier.control.x +
+            t * t * bezier.end.x,
+          y:
+            mt * mt * bezier.start.y +
+            2 * mt * t * bezier.control.y +
+            t * t * bezier.end.y,
+        };
+      }
 
-        // Parts of the bezier function solved for t
-        const a = A.y - 2 * B.y + C.y;
+      function quadraticRoots(p0, p1, p2, value) {
+        const a = p0 - 2 * p1 + p2;
+        const b = 2 * (p1 - p0);
+        const c = p0 - value;
+        const epsilon = 1e-9;
 
-        // In the condition that a=0, the standard formulas won't work
-        if (almostEqual(a, 0)) {
-          const t = (2 * B.y - C.y - Y) / (2 * (B.y - C.y));
-          if (T_Valid(t)) {
-            outX[i++] = X_From_T(t);
+        if (almostEqual(a, 0, epsilon)) {
+          if (almostEqual(b, 0, epsilon)) {
+            return [];
           }
-          return { rootNum: i, roots: outX };
+          return [-c / b];
         }
 
-        const sqrtExpr = Math.sqrt(Y * a + B.y * B.y - A.y * C.y);
+        const discriminant = b * b - 4 * a * c;
+        if (discriminant < -epsilon) {
+          return [];
+        }
+        if (almostEqual(discriminant, 0, epsilon)) {
+          return [-b / (2 * a)];
+        }
 
-        const t1 = (A.y - B.y + sqrtExpr) / a;
-        const t2 = (A.y - B.y - sqrtExpr) / a;
-        if (T_Valid(t1)) {
-          outX[i++] = X_From_T(t1);
-        }
-        if (T_Valid(t2)) {
-          outX[i++] = X_From_T(t2);
-        }
-        return { rootNum: i, roots: outX };
+        const sqrtDiscriminant = Math.sqrt(discriminant);
+        return [
+          (-b - sqrtDiscriminant) / (2 * a),
+          (-b + sqrtDiscriminant) / (2 * a),
+        ];
+      }
+
+      function bezierIntersectHorz(bezier, Y) {
+        const roots = quadraticRoots(
+          bezier.start.y,
+          bezier.control.y,
+          bezier.end.y,
+          Y,
+        )
+          .filter((t) => t >= 0 && t <= 1)
+          .map((t) => pointOnQuadratic(bezier, t).x);
+        return { rootNum: roots.length, roots };
       }
 
       function bezierIntersectVert(bezier, X) {
@@ -243,65 +339,81 @@
         return bezierIntersectHorz(bezierInverse, X);
       }
       // 按照网格，将 glyph 贝塞尔曲线做逻辑上的切割，
-      // 如果网格单元格与曲线相交，则该曲线放入该单元格的列表中
-      // 曲线与网格单元相交，是指曲线穿过网格单元的边界。
+      // 每个单元格保存可能与它相交的曲线，供局部观察使用。
       function makeGridOnBezier(normCurves, cboxSize, gridSize) {
         const { w: gridWidth, h: gridHeight } = gridSize;
 
-        function setgrid(grid, x, y, curveIndex) {
-          const xIndex = clamp(x, 0, gridWidth - 1);
-          const yIndex = clamp(y, 0, gridHeight - 1);
-          const index = yIndex * gridWidth + xIndex;
-          grid[index].push(curveIndex);
-        }
-
-        const grid = new Array(gridWidth * gridHeight);
-        for (let i = 0; i < grid.length; i++) {
-          grid[i] = [];
-        }
-
-        // 遍历所有曲线，将曲线的索引放入网格中
+        const grid = Array.from(
+          { length: gridWidth * gridHeight },
+          () => [],
+        );
         normCurves.forEach((curve, curveIndex) => {
-          let hasIntersect = false;
+          const bounds = quadraticBounds(curve);
+          const minX = clamp(
+            Math.floor((bounds.minX / cboxSize.w) * gridWidth),
+            0,
+            gridWidth - 1,
+          );
+          const maxX = clamp(
+            Math.floor((bounds.maxX / cboxSize.w) * gridWidth),
+            0,
+            gridWidth - 1,
+          );
+          const minY = clamp(
+            Math.floor((bounds.minY / cboxSize.h) * gridHeight),
+            0,
+            gridHeight - 1,
+          );
+          const maxY = clamp(
+            Math.floor((bounds.maxY / cboxSize.h) * gridHeight),
+            0,
+            gridHeight - 1,
+          );
 
-          // 检查垂直网格边界与曲线的交点，包含左右边界
-          for (let x = 0.0; x <= gridWidth; x++) {
-            const x0 = (x / gridWidth) * cboxSize.w;
-
-            const { rootNum, roots } = bezierIntersectVert(curve, x0);
-            if (rootNum > 0) {
-              for (let i = 0; i < rootNum; i++) {
-                let root = roots[i];
-                let y = Math.floor((root / cboxSize.h) * gridHeight);
-                setgrid(grid, x, y, curveIndex); // right edge
-                setgrid(grid, x - 1, y, curveIndex); // left edge
-                hasIntersect = true;
-              }
+          for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+              grid[y * gridWidth + x].push(curveIndex);
             }
-          }
-
-          for (let y = 0.0; y <= gridHeight; y++) {
-            const y0 = (y / gridHeight) * cboxSize.h;
-            const { rootNum, roots } = bezierIntersectHorz(curve, y0);
-            if (rootNum > 0) {
-              for (let i = 0; i < rootNum; i++) {
-                let root = roots[i];
-                let x = Math.floor((root / cboxSize.w) * gridWidth);
-                setgrid(grid, x, y, curveIndex); // top edge
-                setgrid(grid, x, y - 1, curveIndex); // bottom edge
-                hasIntersect = true;
-              }
-            }
-          }
-
-          if (!hasIntersect) {
-            // 如果曲线没有与网格相交，则将曲线放入最近的网格单元格
-            const x = Math.floor((curve.start.x / cboxSize.w) * gridWidth);
-            const y = Math.floor((curve.start.y / cboxSize.h) * gridHeight);
-            setgrid(grid, x, y, curveIndex);
           }
         });
         return grid;
+      }
+
+      function quadraticBounds(curve) {
+        const xs = [curve.start.x, curve.end.x];
+        const ys = [curve.start.y, curve.end.y];
+
+        addQuadraticExtremum(
+          curve.start.x,
+          curve.control.x,
+          curve.end.x,
+          xs,
+        );
+        addQuadraticExtremum(
+          curve.start.y,
+          curve.control.y,
+          curve.end.y,
+          ys,
+        );
+
+        return {
+          minX: Math.min(...xs),
+          maxX: Math.max(...xs),
+          minY: Math.min(...ys),
+          maxY: Math.max(...ys),
+        };
+      }
+
+      function addQuadraticExtremum(p0, p1, p2, values) {
+        const denominator = p0 - 2 * p1 + p2;
+        if (almostEqual(denominator, 0)) {
+          return;
+        }
+        const t = (p0 - p1) / denominator;
+        if (t > 0 && t < 1) {
+          const mt = 1 - t;
+          values.push(mt * mt * p0 + 2 * mt * t * p1 + t * t * p2);
+        }
       }
 
       function relativeTo(srcPoint, origin) {
@@ -328,246 +440,377 @@
           curve.end = relativeTo(curve.end, origin);
         });
       }
-      // 将 curves 中的坐标转换为 cbox 空间，[0,1]
-      function normCurvesToCBox(cboxSize, curves) {
-        const cbWidth = cboxSize.w;
-        const cbHeight = cboxSize.h;
+      const cpuGridSize = { w: 5, h: 5 };
+      let cpuRasterState = null;
 
-        const transformScalePoint = (p) => {
-          return {
-            x: p.x / cbWidth,
-            y: p.y / cbHeight,
-          };
-        };
-        curves.forEach((c) => {
-          c.start = transformScalePoint(c.start);
-          c.control = transformScalePoint(c.control);
-          c.end = transformScalePoint(c.end);
+      function buildHorizontalBands(curves, cboxSize, bandCount) {
+        const bands = Array.from({ length: bandCount }, () => []);
+        curves.forEach((curve, curveIndex) => {
+          const bounds = quadraticBounds(curve);
+          const minBand = clamp(
+            Math.floor((bounds.minY / cboxSize.h) * bandCount),
+            0,
+            bandCount - 1,
+          );
+          const maxBand = clamp(
+            Math.floor((bounds.maxY / cboxSize.h) * bandCount),
+            0,
+            bandCount - 1,
+          );
+          for (let band = minBand; band <= maxBand; band++) {
+            bands[band].push(curveIndex);
+          }
         });
+        return bands;
       }
-      function drawGlyphByGPU(canvas, font, glyph) {
-        const ctx = canvas.getContext("2d");
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
 
+      // Lengyel 根贡献分类：0x2e74 根据三个控制点相对扫描线的符号，
+      // 编码两个二次方程根是否分别对绕数产生 +1 / -1 贡献。
+      function lengyelCurveWindingContribution(curve, x, y) {
+        const e0Local = {
+          x: curve.start.x - x,
+          y: curve.start.y - y,
+        };
+        const controlLocal = {
+          x: curve.control.x - x,
+          y: curve.control.y - y,
+        };
+        const e1Local = {
+          x: curve.end.x - x,
+          y: curve.end.y - y,
+        };
+
+        const offset =
+          (e0Local.y > 0 ? 2 : 0) +
+          (controlLocal.y > 0 ? 4 : 0) +
+          (e1Local.y > 0 ? 8 : 0);
+        const code = (0x2e74 >> offset) & 3;
+        if (code === 0) {
+          return 0;
+        }
+
+        // y(t) = ay*t^2 - 2*by*t + e0Local.y
+        const ax = e0Local.x - 2 * controlLocal.x + e1Local.x;
+        const ay = e0Local.y - 2 * controlLocal.y + e1Local.y;
+        const bx = e0Local.x - controlLocal.x;
+        const by = e0Local.y - controlLocal.y;
+        let t1;
+        let t2;
+
+        if (almostEqual(ay, 0, 1e-9)) {
+          if (almostEqual(by, 0, 1e-9)) {
+            return 0;
+          }
+          t1 = e0Local.y / (2 * by);
+          t2 = t1;
+        } else {
+          const discriminant = Math.max(
+            by * by - ay * e0Local.y,
+            0,
+          );
+          const root = Math.sqrt(discriminant);
+          t1 = (by - root) / ay;
+          t2 = (by + root) / ay;
+        }
+
+        // 修改前误把 y 常数项用于 x(t)；这里应当使用 e0Local.x。
+        const x1 = (ax * t1 - 2 * bx) * t1 + e0Local.x;
+        const x2 = (ax * t2 - 2 * bx) * t2 + e0Local.x;
+        let contribution = 0;
+        if ((code & 1) !== 0 && x1 >= 0) {
+          contribution++;
+        }
+        if ((code & 2) !== 0 && x2 >= 0) {
+          contribution--;
+        }
+        return contribution;
+      }
+
+      function windingAtPoint(x, y, curves, curveIndices) {
+        let winding = 0;
+
+        for (const curveIndex of curveIndices) {
+          winding += lengyelCurveWindingContribution(
+            curves[curveIndex],
+            x,
+            y,
+          );
+        }
+        return winding;
+      }
+
+      function rasterizeGlyphCPU(curves, cboxSize, horizontalBands) {
+        const width = Math.ceil(cboxSize.w);
+        const height = Math.ceil(cboxSize.h);
+        const source = document.createElement("canvas");
+        source.width = width;
+        source.height = height;
+        const sourceCtx = source.getContext("2d");
+        const image = sourceCtx.createImageData(width, height);
+
+        for (let y = 0; y < height; y++) {
+          const sampleY = y + 0.5;
+          const band = clamp(
+            Math.floor((sampleY / cboxSize.h) * horizontalBands.length),
+            0,
+            horizontalBands.length - 1,
+          );
+          const candidates = horizontalBands[band];
+          const imageY = height - 1 - y;
+
+          for (let x = 0; x < width; x++) {
+            const gridX = clamp(
+              Math.floor(((x + 0.5) / cboxSize.w) * cpuGridSize.w),
+              0,
+              cpuGridSize.w - 1,
+            );
+            const gridY = clamp(
+              Math.floor((sampleY / cboxSize.h) * cpuGridSize.h),
+              0,
+              cpuGridSize.h - 1,
+            );
+            const checker = (gridX + gridY) % 2 === 0;
+            const inside =
+              windingAtPoint(x + 0.5, sampleY, curves, candidates) !== 0;
+            const value = inside ? 28 : checker ? 248 : 232;
+            const pixel = (imageY * width + x) * 4;
+            image.data[pixel] = value;
+            image.data[pixel + 1] = inside ? value : checker ? 248 : 238;
+            image.data[pixel + 2] = inside ? value : checker ? 248 : 242;
+            image.data[pixel + 3] = 255;
+          }
+        }
+
+        sourceCtx.putImageData(image, 0, 0);
+        return source;
+      }
+
+      function drawGlyphByCPU(canvas, font, glyph) {
+        const ctx = canvas.getContext("2d");
         const pathCommands = glyph.path.commands;
         const curves = convertToQuadraticBezierArray(pathCommands);
         translateCurveOrigin(font, glyph, curves);
 
-        // 转换为 cbox max 坐标系，但是维持 y 轴向上
         const cbox = glyph.getMetrics();
         const cboxSize = {
           w: cbox.xMax - cbox.xMin,
           h: cbox.yMax - cbox.yMin,
         };
-        // normCurvesToCBox(cboxSize, curves);
-
-        const gridWidth = 5;
-        const gridHeight = 5;
-        const gridSize = {
-          w: gridWidth,
-          h: gridHeight,
-        };
-        const grid = makeGridOnBezier(curves, cboxSize, gridSize);
-
-        // 将 canvas y 轴翻转后绘制
-        function paintDot(ctx, p, canvasSize, color) {
-          const x = p.x;
-          const y = p.y;
-          const canvasHeight = canvasSize.h;
-          // 设置填充颜色
-          ctx.fillStyle = color || "rgba(255, 0, 255, 1)";
-          // ctx.fillStyle = "rgba(255, 0, 255, 1)";
-          ctx.fillRect(x - 0.5, canvasHeight - y - 0.5, 1, 1);
-        }
-
-        function paintGridCell(ctx, cellLoc, canvasSize, color) {
-          const { x, y, w, h } = cellLoc;
-          const canvasHeight = canvasSize.h;
-
-          ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
-          ctx.lineWidth = 1;
-          // strokeRect(x, y, width, height)
-          ctx.strokeRect(x, y, w, h);
-        }
-
-        function paintCurve(ctx, curve, canvasSize) {
-          paintDot(ctx, curve.start, canvasSize);
-          paintDot(ctx, curve.control, canvasSize);
-          paintDot(ctx, curve.end, canvasSize);
-        }
-
-        const canvasSize = {
-          w: canvas.width,
-          h: canvas.height,
-        };
-        // DEBUG 将所有曲线绘制出来
-        for (let i = 0; i < curves.length; i++) {
-          // paintCurve(ctx, curves[i], canvasSize);
-        }
-
-        function distance(p1, p2) {
-          let dx = p1.x - p2.x;
-          let dy = p1.y - p2.y;
-          return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        // 用于存储去重后的 gridCoord 对象
-        const uniqueGridCoords = [];
-        // 用于存储唯一的标识符
-        const seen = new Set();
-
-        function decideColor(x, y, grid, curves) {
-          let gridCoord = {
-            x: Math.floor((x / cboxSize.w) * gridWidth),
-            y: Math.floor((y / cboxSize.h) * gridHeight),
-          };
-
-          // 生成唯一标识符
-          const key = `${gridCoord.x},${gridCoord.y}`;
-
-          // 如果标识符不存在于 Set 中，则添加到结果数组和 Set 中
-          if (!seen.has(key)) {
-            seen.add(key);
-            uniqueGridCoords.push(gridCoord);
-          }
-
-          let isEven = (gridCoord.x + gridCoord.y) % 2 == 0;
-
-          let color = "";
-          if (isEven) {
-            color = "rgba(0, 0, 0, 0.5)";
-          } else {
-            color = "rgba(255, 0, 0, 0.5)";
-          }
-          let cellIdx = gridCoord.y * gridWidth + gridCoord.x;
-          let curveIdxList = grid[cellIdx];
-
-          let windingNumber = 0;
-
-          for (let i = 0; i < curveIdxList.length; i++) {
-            let curve = curves[curveIdxList[i]];
-
-            let e0 = curve.start;
-            let c = curve.control;
-            let e1 = curve.end;
-
-            let dist_e0 = distance({ x, y }, e0);
-            let dist_c = distance({ x, y }, c);
-            let dist_e1 = distance({ x, y }, e1);
-            if (dist_e0 <= 3 || dist_e1 <= 3) {
-              color = "blue";
-            }
-            if (dist_c <= 3) {
-              color = "rgba(0, 255, 0, 1)"; // 绿色
-            }
-
-            // 以当前像素为中心，计算贝塞尔曲线的解
-            let e0_local = {
-              x: e0.x - x,
-              y: e0.y - y,
-            };
-            let c_local = {
-              x: c.x - x,
-              y: c.y - y,
-            };
-            let e1_local = {
-              x: e1.x - x,
-              y: e1.y - y,
-            };
-
-            // 如果曲线在当前点左侧，不会贡献windingNumber
-            // if (Math.max(e0_local.x, Math.max(c_local.x, e1_local.x)) < 0) {
-            //   continue;
-            // }
-            // if (Math.max(e0_local.y, Math.max(c_local.y, e1_local.y)) < 0) {
-            //   continue;
-            // }
-            // if (Math.min(e0_local.y, Math.min(c_local.y, e1_local.y)) > 0) {
-            //   continue;
-            // }
-
-            let offset =
-              (e0_local.y > 0 ? 2 : 0) +
-              (c_local.y > 0 ? 4 : 0) +
-              (e1_local.y > 0 ? 8 : 0);
-            let shifedValue = 0x2e74 >> offset;
-            let code = shifedValue & 3;
-            if (code != 0) {
-              let ax = e0_local.x - 2.0 * c_local.x + e1_local.x;
-              let ay = e0_local.y - 2.0 * c_local.y + e1_local.y;
-              let bx = e0_local.x - c_local.x;
-              let by = e0_local.y - c_local.y;
-              let c = e0_local.y;
-
-              let ra = 1.0 / ay;
-
-              let d = Math.sqrt(Math.max(by ** 2 - ay * c, 0));
-              let t1 = (by - d) * ra;
-              let t2 = (by + d) * ra;
-
-              let x1 = (ax * t1 - 2.0 * bx) * t1 + c;
-              let x2 = (ax * t2 - 2.0 * bx) * t2 + c;
-              if ((code & 1) > 0) {
-                // t1 is congtribute
-                if (x1 >= 0) {
-                  windingNumber++;
-                }
-              }
-              if ((code & 2) > 0) {
-                if (x2 >= 0) {
-                  windingNumber--;
-                }
-              }
-            }
-          }
-          if (windingNumber != 0) {
-            // inner
-            color = "rgba(255, 255, 0, 1)";
-          }
-          return color;
-        }
-
-        // 手动光栅化
-        // for (let y = 0.5; y < cboxSize.h; y++) {
-        //   for (let x = 0.5; x < cboxSize.w; x++) {
-        //     let color = decideColor(x, y, grid, curves);
-        //     paintDot(ctx, { x, y }, canvasSize, color);
-        //   }
-        // }
-
-        function rasterGridCell(
-          ctx,
-          grid_x,
-          grid_y,
-          cboxSize,
-          canvasSize,
-          gridData,
+        const grid = makeGridOnBezier(curves, cboxSize, cpuGridSize);
+        const horizontalBands = buildHorizontalBands(
           curves,
-        ) {
-          let grid_x_unit = cboxSize.w / gridWidth;
-          let grid_y_unit = cboxSize.h / gridHeight;
-          for (
-            let y = grid_y * grid_y_unit;
-            y < (grid_y + 1) * grid_y_unit;
-            y++
-          ) {
-            for (
-              let x = grid_x * grid_x_unit;
-              x < (grid_x + 1) * grid_x_unit;
-              x++
-            ) {
-              let color = decideColor(x, y, gridData, curves);
-              paintDot(ctx, { x, y }, canvasSize, color);
-            }
-          }
-        }
+          cboxSize,
+          cpuGridSize.h,
+        );
+        const rasterSource = rasterizeGlyphCPU(
+          curves,
+          cboxSize,
+          horizontalBands,
+        );
 
-        rasterGridCell(ctx, 1, 0, cboxSize, canvasSize, grid, curves);
-
-        // DEBUG
-        console.log(uniqueGridCoords);
+        cpuRasterState = {
+          canvas,
+          ctx,
+          curves,
+          cboxSize,
+          grid,
+          rasterSource,
+          selectedCell: { x: 1, y: 0 },
+        };
+        renderCPUViews();
       }
+
+      function renderCPUViews() {
+        if (!cpuRasterState) {
+          return;
+        }
+        const {
+          canvas,
+          ctx,
+          cboxSize,
+          rasterSource,
+          selectedCell,
+        } = cpuRasterState;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          rasterSource,
+          0,
+          canvas.height - rasterSource.height,
+        );
+
+        const cellWidth = cboxSize.w / cpuGridSize.w;
+        const cellHeight = cboxSize.h / cpuGridSize.h;
+        ctx.strokeStyle = "rgba(180, 30, 30, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= cpuGridSize.w; x++) {
+          const canvasX = x * cellWidth;
+          ctx.moveTo(canvasX, canvas.height - cboxSize.h);
+          ctx.lineTo(canvasX, canvas.height);
+        }
+        for (let y = 0; y <= cpuGridSize.h; y++) {
+          const canvasY = canvas.height - y * cellHeight;
+          ctx.moveTo(0, canvasY);
+          ctx.lineTo(cboxSize.w, canvasY);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "#1473e6";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(
+          selectedCell.x * cellWidth,
+          canvas.height - (selectedCell.y + 1) * cellHeight,
+          cellWidth,
+          cellHeight,
+        );
+        renderCPUDetail();
+      }
+
+      function renderCPUDetail() {
+        const detail = document.getElementById("fontDetailCanvas");
+        const detailCtx = detail.getContext("2d");
+        const {
+          curves,
+          cboxSize,
+          grid,
+          rasterSource,
+          selectedCell,
+        } = cpuRasterState;
+        const cellWidth = cboxSize.w / cpuGridSize.w;
+        const cellHeight = cboxSize.h / cpuGridSize.h;
+        const x0 = selectedCell.x * cellWidth;
+        const y0 = selectedCell.y * cellHeight;
+        const sourceY = rasterSource.height - y0 - cellHeight;
+        const curveIndices =
+          grid[selectedCell.y * cpuGridSize.w + selectedCell.x];
+
+        detailCtx.clearRect(0, 0, detail.width, detail.height);
+        detailCtx.imageSmoothingEnabled = false;
+        detailCtx.drawImage(
+          rasterSource,
+          x0,
+          sourceY,
+          cellWidth,
+          cellHeight,
+          0,
+          0,
+          detail.width,
+          detail.height,
+        );
+
+        const transform = (point) => ({
+          x: ((point.x - x0) / cellWidth) * detail.width,
+          y: detail.height - ((point.y - y0) / cellHeight) * detail.height,
+        });
+
+        detailCtx.save();
+        detailCtx.beginPath();
+        detailCtx.rect(0, 0, detail.width, detail.height);
+        detailCtx.clip();
+
+        for (const curveIndex of curveIndices) {
+          const curve = curves[curveIndex];
+          const start = transform(curve.start);
+          const control = transform(curve.control);
+          const end = transform(curve.end);
+
+          detailCtx.strokeStyle = "rgba(0, 150, 170, 0.75)";
+          detailCtx.lineWidth = 1;
+          detailCtx.setLineDash([5, 4]);
+          detailCtx.beginPath();
+          detailCtx.moveTo(start.x, start.y);
+          detailCtx.lineTo(control.x, control.y);
+          detailCtx.lineTo(end.x, end.y);
+          detailCtx.stroke();
+
+          detailCtx.strokeStyle = "#ff6b00";
+          detailCtx.lineWidth = 2;
+          detailCtx.setLineDash([]);
+          detailCtx.beginPath();
+          detailCtx.moveTo(start.x, start.y);
+          detailCtx.quadraticCurveTo(control.x, control.y, end.x, end.y);
+          detailCtx.stroke();
+
+          drawDetailPoint(detailCtx, start, "#1473e6");
+          drawDetailPoint(detailCtx, end, "#1473e6");
+          drawDetailPoint(detailCtx, control, "#00a36c");
+        }
+        detailCtx.restore();
+
+        document.getElementById("detailLabel").textContent =
+          `Cell (${selectedCell.x}, ${selectedCell.y}) · ${curveIndices.length} curves`;
+      }
+
+      function drawDetailPoint(ctx, point, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      document
+        .getElementById("fontRasterCanvas")
+        .addEventListener("click", (event) => {
+          if (!cpuRasterState) {
+            return;
+          }
+          event.currentTarget.focus();
+          const { canvas, cboxSize } = cpuRasterState;
+          const rect = canvas.getBoundingClientRect();
+          const canvasX =
+            ((event.clientX - rect.left) / rect.width) * canvas.width;
+          const canvasY =
+            ((event.clientY - rect.top) / rect.height) * canvas.height;
+          const glyphY = canvas.height - canvasY;
+          if (
+            canvasX < 0 ||
+            canvasX >= cboxSize.w ||
+            glyphY < 0 ||
+            glyphY >= cboxSize.h
+          ) {
+            return;
+          }
+          cpuRasterState.selectedCell = {
+            x: clamp(
+              Math.floor((canvasX / cboxSize.w) * cpuGridSize.w),
+              0,
+              cpuGridSize.w - 1,
+            ),
+            y: clamp(
+              Math.floor((glyphY / cboxSize.h) * cpuGridSize.h),
+              0,
+              cpuGridSize.h - 1,
+            ),
+          };
+          renderCPUViews();
+        });
+
+      document
+        .getElementById("fontRasterCanvas")
+        .addEventListener("keydown", (event) => {
+          if (!cpuRasterState) {
+            return;
+          }
+          const delta = {
+            ArrowLeft: { x: -1, y: 0 },
+            ArrowRight: { x: 1, y: 0 },
+            ArrowDown: { x: 0, y: -1 },
+            ArrowUp: { x: 0, y: 1 },
+          }[event.key];
+          if (!delta) {
+            return;
+          }
+          event.preventDefault();
+          const selected = cpuRasterState.selectedCell;
+          cpuRasterState.selectedCell = {
+            x: clamp(selected.x + delta.x, 0, cpuGridSize.w - 1),
+            y: clamp(selected.y + delta.y, 0, cpuGridSize.h - 1),
+          };
+          renderCPUViews();
+        });
       async function drawGlyph(fontUrl, char) {
         const font = await loadFont(fontUrl);
         const glyph = font.charToGlyph(char);
@@ -605,7 +848,7 @@
         glyph.drawMetrics(ctx, x, y, fontSize);
 
         const rasterCanvas = document.getElementById("fontRasterCanvas");
-        drawGlyphByGPU(rasterCanvas, font, glyph);
+        drawGlyphByCPU(rasterCanvas, font, glyph);
       }
 
       function drawRulers() {
