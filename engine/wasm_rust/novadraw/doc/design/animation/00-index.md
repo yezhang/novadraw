@@ -12,8 +12,10 @@
 | 3 | [Behavior/Trigger](behavior-trigger-contract.md) | stable fact、scope、coalescing、factory 和触发阶段 |
 | 4 | [领域集成矩阵](capability-integration.md) | 属性、布局、route、viewport、持续效果及能力毕业 |
 
-待评审增量：[Tree 表现几何](tree-layout-presentation-proposal.md)，
-定义展开/折叠中的真实 bounds、线端点与 viewport 同步；未进入实施。
+已接受增量：[Tree 表现几何](tree-layout-presentation-proposal.md)，
+定义展开/折叠中的真实 bounds、线端点与 viewport 同步；
+修订 3 已批准，决策见 [ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)，
+当前推进 T-1，完整切片状态见 P2 backlog。
 
 决策见 [ADR-026](../../adr/adr-026-animation-and-presentation-plane.md)，
 外部事实见 [Draw2D Animation](../../reference/draw2d/figure/animation.md)。

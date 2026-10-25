@@ -81,6 +81,9 @@
 | 2026-10-23 | [K07 修订 3 响应（待复核）](k07-shared-scene-view-background-revision-3-response-2026-10-23.md) |
 | 2026-10-23 | [K07 修订 3 设计复核通过](k07-shared-scene-view-background-revision-3-review-2026-10-23.md) |
 | 2026-10-23 | [K07-1 场景捕获与订阅交接](k07-1-scene-capture-evidence-2026-10-23.md) |
+| 2026-10-24 | [Tree 表现几何方案与 Rust 实现评审（待修订）](tree-layout-presentation-review-2026-10-24.md) |
+| 2026-10-24 | [Tree 修订 2 复核（暂不通过）](tree-layout-presentation-revision-2-review-2026-10-24.md) |
+| 2026-10-24 | [Tree 修订 3 设计复核通过](tree-layout-presentation-revision-3-review-2026-10-24.md) |
 
 ## 专题核验
 

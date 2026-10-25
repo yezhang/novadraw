@@ -189,6 +189,12 @@ Runtime
 Host 只通过统一单调时间入口驱动 Runtime。动画不创建第二个 run loop、线程、全局 clock
 或 Figure 私有 timer。
 
+`AnimationMut::sample_version()` 只读取基础 Motion 缓存的身份：
+尚未 advance 时，`time` 为 `None`（Unanchored）；成功推进后，记录最后接受的单调时间。
+同时间重复 advance 不再次调用 Motion，也不增加采样计数。准入、retarget 或终止会改变
+`active_revision`，因此相同时间可以对应不同活动集合。这个基础身份不代表完整几何
+版本或已录制帧；ADR-046 的完整 E 还需要冻结合法源依赖。
+
 active set 为空时：
 
 - 不扫描 FigureTree；
@@ -303,8 +309,10 @@ damage =
 已接受设计还定义了 Queue 和 Additive，但当前公开 API 尚未实现。Queue 需要显式等待
 当前 owner 结束；Additive 还要求通道声明组合代数。书稿不能把这两项写成当前可用策略。
 
-交互状态通常使用 Replace。Retarget 必须先完整预检 replacement，再采样当前表现并
-转移 owner。若预检失败，旧计划原样继续，不能短暂闪到已提交最终状态。
+交互状态通常使用 Replace。Retarget 从最后成功时间对应的缓存值构造起点，先完成
+replacement 预检与整组初始采样，再转移 owner。初始采样不能推迟到旧 owner 被取消后。
+每次基础采样也先收集整组受检值，再一次发布；不会把已通过的前半组写入后才发现
+后半组失败。若候选失败，旧计划原样继续。
 
 ## 9.13 Cancel 不回滚事实
 
@@ -428,6 +436,13 @@ damage merge = O(sampled visual effects)
 
 性能降级不能改变最终已提交状态。预算耗尽只拒绝新计划，不能驱逐无关 active
 plan 或静默修改组合语义。
+
+`AnimationMut::limits()` 与 `set_limits()` 管理当前 timeline 的活动 owner、活动轨道
+和独立候选轨道容量。`reservations()` 返回存活 owner 的准入预留；容量不会随单次采样
+少用而释放。新 plan 检查总预留加候选，替换检查扣除旧组后的净预留。配置下调低于
+存活预留时原子拒绝；staging 不足只拒绝候选，原 owner、缓存值和 wakeup 保留。
+这层轨道账目是 ADR-046 几何容量扩展的基础，尚不证明节点、派生输出或快照 lease
+容量已经完成。
 
 ## 9.20 必须保持的不变量
 

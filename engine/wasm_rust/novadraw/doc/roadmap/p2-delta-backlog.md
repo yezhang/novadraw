@@ -246,6 +246,38 @@ Zoom 的完整入口和跨显示器系统 DPI 验收不随此切片关闭。
 先评审后端可行性切片，不将 hairline 或低 miter 隐式并入 AA。
 两份方案均未进入 Execute。
 
+2026-10-24 Tree 方案已按
+[首轮评审 R01–R10](../verification/reviews/tree-layout-presentation-review-2026-10-24.md)
+完成修订 2，逐项响应在方案正文。当前仍为 Design/Gate、待复核，未批准实施；
+T-1–T-4 与其他批次状态不因文档修订改变。
+
+2026-10-24 [修订 2 复核](../verification/reviews/tree-layout-presentation-revision-2-review-2026-10-24.md)
+暂不通过，F01/F02 要求明确采样时刻与预算失败归属。当前方案已形成修订 3，
+以最后成功 Runtime 采样的完整表现版本作为锚点，按准入预留容量并区分单组违约
+和共享不可用；逐项响应与退出证据见方案正文。仍为 Design/Gate、待复核，未批准实施。
+
+2026-10-24 [修订 3 设计复核通过](../verification/reviews/tree-layout-presentation-revision-3-review-2026-10-24.md)，
+用户明确批准落地，接受 [ADR-046](../adr/adr-046-sampled-geometry-and-animation-reservations.md)。
+K06 Tree 几何按下表单链进入 Execute，不缩减批准契约；逐 Shape AA 与混合字体装饰
+不在本次 Tree 实施范围。
+
+| 顺序 | 切片 | 当前状态 | 最低退出证据 |
+|---|---|---|---|
+| T-1 | typed 真实几何、S/E 物化、capture/retarget、派生依赖与容量预留 | `in_progress` | 完整绘制读取、同 E 锚点、外部同底层值多语义/provider、循环/失败/净容量替换、无动画零额外扫描 |
+| T-2 | Tree 静态/动画同源端点、冻结内容与资源版本 | `pending` | Normal/Hanging 中间帧端点一致，不逐帧 layout/shaping/写 Lines，派生失败清除整组 |
+| T-3 | 显式 Viewport、收拢与兄弟重排、直接输入接管 | `pending` | 双轴 clamp、反向锚点、wheel/drag/scrollbar/公开写入与 owner 仲裁 |
+| T-4 | 默认关闭的真实面板与完整 Native 验收 | `pending` | 中间帧、retained-partial 擦除、Retry/reset、资源释放、静态等价与工作量 |
+
+T-1 已完成基础 Motion 缓存的同时间幂等、整组样本预检后发布，以及活动轨道预留、
+净容量替换、独立 staging 和配置下调拒绝。公开 `sample_version()` 区分 Unanchored
+与最后接受的时间，并标识同时间的活动集合变化。定向测试
+`p2_animation_sample_reservation_contract` 的 4 项、原有 `p2_animation_contract` 的
+29 项与 `p2_animation_transition_contract` 的 15 项通过。
+2026-10-25 基础切片通过 workspace fmt/check、严格 Clippy 和完整测试：
+1,420 项通过、0 失败、6 项按原有配置忽略；文档门禁通过 373 份 Markdown。
+真实 bounds、完整 E、几何 provider、节点/输出工作上限和快照 lease 尚未完成；
+这些基础证据不代替 T-1 退出验证，状态继续为 `in_progress`。
+
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依
 [审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
