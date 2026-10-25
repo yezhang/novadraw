@@ -1,6 +1,7 @@
 //! Runtime-owned animation clock and timeline primitives.
 
 mod behavior;
+mod capacity;
 mod service;
 mod timeline;
 mod value;
@@ -24,6 +25,7 @@ pub use behavior::{
     AnimationFact, AnimationFactCoalescing, AnimationLifecycle, AnimationPlanFactory,
     AnimationTrigger, PropertySelector, StatePropertySelector,
 };
+pub use capacity::{AnimationLimits, AnimationReservations};
 pub use service::AnimationMut;
 pub(crate) use service::{AnimationService, FigurePresentationEffect, PresentationSnapshot};
 pub use timeline::{AnimationPlan, RepeatBehavior};
@@ -43,6 +45,18 @@ pub const DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS: usize = 4_096;
 pub const DEFAULT_MAX_TEMPORARY_VISUALS: usize = 1_024;
 /// Number of terminal animation states retained for diagnostics and queries.
 pub const DEFAULT_ANIMATION_TERMINAL_HISTORY: usize = 256;
+
+/// Identity of the cached base Motion samples.
+///
+/// This is not a recorded frame or a complete geometry version. Geometry materialization must
+/// additionally freeze its legal source dependencies. Querying this value never samples Motion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AnimationSampleVersion {
+    /// Last accepted Runtime time, or `None` before the first advance (Unanchored).
+    pub time: Option<crate::event::MonotonicTime>,
+    /// Changes when an owner is admitted, replaced, or terminated at the same time.
+    pub active_revision: u64,
+}
 
 type CommittedPresentationValue<V> = dyn Fn(&dyn Figure) -> Option<V> + Send + Sync;
 type PreparePresentationValue = dyn for<'a> Fn(&dyn Figure, PresentationValues<'a>, Rectangle) -> Option<FigurePresentation>
@@ -253,6 +267,8 @@ pub enum AnimationBudgetKind {
     ActiveAnimations,
     /// Tracks owned by active timelines.
     ActiveTracks,
+    /// Tracks sampled while an admission or replacement candidate is being prepared.
+    StagingTracks,
     /// Runtime-owned temporary visuals.
     TemporaryVisuals,
 }

@@ -40,8 +40,11 @@ module.animation struct AnimationBehaviorFailure
 module.animation struct AnimationBehaviorId
 module.animation struct AnimationChannel
 module.animation struct AnimationId
+module.animation struct AnimationLimits
 module.animation struct AnimationMut
 module.animation struct AnimationPlan
+module.animation struct AnimationReservations
+module.animation struct AnimationSampleVersion
 module.animation struct AnimationStats
 module.animation struct BoundsTransition
 module.animation struct ConnectionPulse

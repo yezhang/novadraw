@@ -5,7 +5,7 @@ use crate::identity::AnimationChannelId;
 use super::{
     AnimationBudgetKind, AnimationChannel, AnimationError, AnimationValue,
     DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS, InterruptionPolicy, SuspensionPolicy,
-    service::ChannelState,
+    service::{ChannelState, PreparedChannelValue},
     value::{Motion, PreparedMotion, duration_micros},
 };
 
@@ -306,24 +306,18 @@ impl<V: AnimationValue> ErasedTrackSpec for TypedTrackSpec<V> {
             motion: self.motion.prepare(current),
         };
         for elapsed in [0, duration / 2, duration] {
-            prepared.validate_sample(elapsed, channel)?;
+            prepared.sample(elapsed, channel)?;
         }
         Ok(Box::new(prepared))
     }
 }
 
 pub(crate) trait PreparedTrack: Send {
-    fn validate_sample(
-        &self,
-        elapsed_micros: u64,
-        channel: &ChannelState,
-    ) -> Result<(), AnimationError>;
-
     fn sample(
         &self,
         elapsed_micros: u64,
-        channel: &mut ChannelState,
-    ) -> Result<bool, AnimationError>;
+        channel: &ChannelState,
+    ) -> Result<PreparedChannelValue, AnimationError>;
 }
 
 struct TypedPreparedTrack<V> {
@@ -331,20 +325,12 @@ struct TypedPreparedTrack<V> {
 }
 
 impl<V: AnimationValue> PreparedTrack for TypedPreparedTrack<V> {
-    fn validate_sample(
-        &self,
-        elapsed_micros: u64,
-        channel: &ChannelState,
-    ) -> Result<(), AnimationError> {
-        channel.validate_value(&self.motion.sample(elapsed_micros))
-    }
-
     fn sample(
         &self,
         elapsed_micros: u64,
-        channel: &mut ChannelState,
-    ) -> Result<bool, AnimationError> {
-        channel.set_override(self.motion.sample(elapsed_micros))
+        channel: &ChannelState,
+    ) -> Result<PreparedChannelValue, AnimationError> {
+        channel.prepare_override(self.motion.sample(elapsed_micros))
     }
 }
 

@@ -19,14 +19,14 @@ use crate::{
 
 use super::{
     AnimationBehavior, AnimationBehaviorFailure, AnimationBehaviorScope, AnimationBudgetKind,
-    AnimationChannel, AnimationError, AnimationMode, AnimationStart, AnimationState,
-    AnimationStats, AnimationSuppression, AnimationValue, BoundsTransition,
-    CONNECTION_DASH_PRESENTATION, CONNECTION_ROUTE_PRESENTATION, ConnectionPulse,
-    DEFAULT_ANIMATION_TERMINAL_HISTORY, DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS,
-    DEFAULT_MAX_ACTIVE_ANIMATIONS, DEFAULT_MAX_ANIMATION_BEHAVIORS, DEFAULT_MAX_ANIMATION_CHANNELS,
-    DEFAULT_MAX_TEMPORARY_VISUALS, FigurePresentationChannels, FigureTransitionCapture,
-    InteractionGeometryPolicy, InterruptionPolicy, Motion, Opacity, PresentationBinding,
-    PresentationValues, Procedural, SuspensionPolicy, TemporaryVisual, Tween, facts_from_effects,
+    AnimationChannel, AnimationError, AnimationLimits, AnimationMode, AnimationReservations,
+    AnimationSampleVersion, AnimationStart, AnimationState, AnimationStats, AnimationSuppression,
+    AnimationValue, BoundsTransition, CONNECTION_DASH_PRESENTATION, CONNECTION_ROUTE_PRESENTATION,
+    ConnectionPulse, DEFAULT_ANIMATION_TERMINAL_HISTORY, DEFAULT_MAX_ANIMATION_BEHAVIORS,
+    DEFAULT_MAX_ANIMATION_CHANNELS, DEFAULT_MAX_TEMPORARY_VISUALS, FigurePresentationChannels,
+    FigureTransitionCapture, InteractionGeometryPolicy, InterruptionPolicy, Motion, Opacity,
+    PresentationBinding, PresentationValues, Procedural, SuspensionPolicy, TemporaryVisual, Tween,
+    facts_from_effects,
     timeline::{AnimationPlan, PreparedPlanTrack},
 };
 
@@ -93,6 +93,12 @@ pub(crate) struct ChannelState {
     presentation_revision: u64,
 }
 
+/// A validated value awaiting the atomic publication of its complete group.
+pub(crate) struct PreparedChannelValue {
+    value: Box<dyn Any + Send + Sync>,
+    changed: bool,
+}
+
 impl ChannelState {
     fn new<V: AnimationValue>(value: V) -> Self {
         Self::new_bound(value, ChannelBinding::Detached)
@@ -124,17 +130,24 @@ impl ChannelState {
         )
     }
 
-    pub(crate) fn set_override<V: AnimationValue>(
-        &mut self,
+    pub(crate) fn prepare_override<V: AnimationValue>(
+        &self,
         value: V,
-    ) -> Result<bool, AnimationError> {
+    ) -> Result<PreparedChannelValue, AnimationError> {
         self.validate_value(&value)?;
         let changed = self.effective::<V>()? != &value;
-        self.presentation = Some(Box::new(value));
-        if changed {
+        Ok(PreparedChannelValue {
+            value: Box::new(value),
+            changed,
+        })
+    }
+
+    fn publish_override(&mut self, value: PreparedChannelValue) -> bool {
+        self.presentation = Some(value.value);
+        if value.changed {
             self.presentation_revision = self.presentation_revision.saturating_add(1);
         }
-        Ok(changed)
+        value.changed
     }
 
     pub(crate) fn validate_value<V: AnimationValue>(
@@ -335,6 +348,7 @@ struct ActiveAnimation {
 
 struct PreparedAnimation {
     tracks: Vec<PreparedPlanTrack>,
+    initial_values: Vec<(AnimationChannelId, PreparedChannelValue)>,
     duration_micros: u64,
     interruption: InterruptionPolicy,
     suspension: SuspensionPolicy,
@@ -356,6 +370,8 @@ pub(crate) struct AnimationService {
     channel_owners: HashMap<AnimationChannelId, AnimationId>,
     terminal: VecDeque<(AnimationId, AnimationState)>,
     active_track_count: usize,
+    limits: AnimationLimits,
+    active_revision: u64,
     stats: AnimationStats,
 }
 
@@ -377,6 +393,8 @@ impl AnimationService {
             channel_owners: HashMap::new(),
             terminal: VecDeque::new(),
             active_track_count: 0,
+            limits: AnimationLimits::default(),
+            active_revision: 0,
             stats: AnimationStats::default(),
         }
     }
@@ -403,6 +421,11 @@ impl AnimationService {
                 previous: self.now,
                 next: now,
             });
+        }
+        // Admission and retarget already initialize their samples at the current time.
+        // Repeating that time must not invoke extension Motion code again.
+        if self.time_initialized && now == self.now {
+            return Ok(false);
         }
         self.now = now;
         self.time_initialized = true;
@@ -866,6 +889,7 @@ impl AnimationService {
         if plan.tracks.is_empty() {
             return Err(AnimationError::EmptyPlan);
         }
+        self.limits.validate_staging(plan.tracks.len())?;
         let mut final_tracks: HashMap<AnimationChannelId, (u64, usize)> = HashMap::new();
         let mut presentation_families = HashMap::new();
         for (index, track) in plan.tracks.iter().enumerate() {
@@ -923,8 +947,11 @@ impl AnimationService {
                 sampler,
             });
         }
+        // Resolve the complete initial sample before changing any live owner or value.
+        let initial_values = self.prepare_samples(&tracks, 0)?;
         Ok(PreparedAnimation {
             tracks,
+            initial_values,
             duration_micros: plan.duration_micros,
             interruption: plan.interruption,
             suspension: plan.suspension,
@@ -1009,6 +1036,7 @@ impl AnimationService {
             surface_suspended: self.surface_suspended,
             target_hidden: false,
         });
+        self.active_revision = self.active_revision.saturating_add(1);
         let track_count = self
             .active
             .get(id)
@@ -1027,11 +1055,7 @@ impl AnimationService {
             self.channel_owners.insert(channel, id);
         }
         self.assign_temporary_visuals(id);
-        if let Err(error) = self.sample(id, 0) {
-            self.finish_preserving_temporaries(id, AnimationState::Failed, &temporary_targets);
-            self.terminal.retain(|(candidate, _)| *candidate != id);
-            return Err(error);
-        }
+        self.publish_samples(prepared.initial_values);
         self.set_suspension_reason(id, None, None);
         Ok(AnimationStart::Running(id))
     }
@@ -1123,11 +1147,12 @@ impl AnimationService {
             surface_suspended,
             target_hidden,
         };
+        self.active_revision = self.active_revision.saturating_add(1);
         for visual in old_temporaries.difference(&new_temporaries) {
             changed |= self.remove_temporary_visual_state(*visual);
         }
         self.assign_temporary_visuals(id);
-        changed |= self.sample(id, 0)?;
+        changed |= self.publish_samples(prepared.initial_values);
         changed |= self.set_suspension_reason(id, None, None);
         Ok(changed)
     }
@@ -1144,17 +1169,26 @@ impl AnimationService {
     }
 
     fn sample(&mut self, id: AnimationId, elapsed_micros: u64) -> Result<bool, AnimationError> {
-        let (active, channels) = (&self.active, &mut self.channels);
-        let animation = active
+        let animation = self
+            .active
             .get(id)
             .expect("sampled animation must remain active");
+        let values = self.prepare_samples(&animation.tracks, elapsed_micros)?;
+        Ok(self.publish_samples(values))
+    }
+
+    fn prepare_samples(
+        &self,
+        tracks: &[PreparedPlanTrack],
+        elapsed_micros: u64,
+    ) -> Result<Vec<(AnimationChannelId, PreparedChannelValue)>, AnimationError> {
         let mut selected: HashMap<AnimationChannelId, usize> = HashMap::new();
-        for (index, track) in animation.tracks.iter().enumerate() {
+        for (index, track) in tracks.iter().enumerate() {
             let Some(current) = selected.get(&track.channel).copied() else {
                 selected.insert(track.channel, index);
                 continue;
             };
-            let current_track = &animation.tracks[current];
+            let current_track = &tracks[current];
             let current_started = current_track.start_micros <= elapsed_micros;
             let candidate_started = track.start_micros <= elapsed_micros;
             if (candidate_started && track.start_micros >= current_track.start_micros)
@@ -1164,21 +1198,34 @@ impl AnimationService {
             }
         }
 
-        let mut changed = false;
         let mut selected: Vec<_> = selected.into_values().collect();
         selected.sort_unstable();
+        let mut values = Vec::with_capacity(selected.len());
         for index in selected {
-            let track = &animation.tracks[index];
+            let track = &tracks[index];
             let local = elapsed_micros
                 .saturating_sub(track.start_micros)
                 .min(track.duration_micros);
-            let channel = channels
-                .get_mut(track.channel)
+            let channel = self
+                .channels
+                .get(track.channel)
                 .expect("prepared channel must remain registered");
-            changed |= track.sampler.sample(local, channel)?;
+            values.push((track.channel, track.sampler.sample(local, channel)?));
+        }
+        Ok(values)
+    }
+
+    fn publish_samples(&mut self, values: Vec<(AnimationChannelId, PreparedChannelValue)>) -> bool {
+        let mut changed = false;
+        for (id, value) in values {
+            changed |= self
+                .channels
+                .get_mut(id)
+                .expect("prepared channel must remain registered")
+                .publish_override(value);
             self.stats.tracks_sampled = self.stats.tracks_sampled.saturating_add(1);
         }
-        Ok(changed)
+        changed
     }
 
     fn finish(&mut self, id: AnimationId, state: AnimationState) -> bool {
@@ -1194,6 +1241,7 @@ impl AnimationService {
         let Some(animation) = self.active.remove(id) else {
             return false;
         };
+        self.active_revision = self.active_revision.saturating_add(1);
         let temporary_visuals = self.temporary_targets(&animation.tracks);
         self.active_track_count = self
             .active_track_count
@@ -1241,28 +1289,22 @@ impl AnimationService {
         replaced_animations: usize,
         replaced_tracks: usize,
     ) -> Result<(), AnimationError> {
-        if self
-            .active
-            .len()
-            .saturating_sub(replaced_animations)
-            .saturating_add(1)
-            > DEFAULT_MAX_ACTIVE_ANIMATIONS
-        {
-            return Err(AnimationError::BudgetExceeded(
-                AnimationBudgetKind::ActiveAnimations,
-            ));
+        self.limits.validate_replacement(
+            self.reservations(),
+            AnimationReservations {
+                active_animations: replaced_animations,
+                active_tracks: replaced_tracks,
+            },
+            new_tracks,
+            true,
+        )
+    }
+
+    fn reservations(&self) -> AnimationReservations {
+        AnimationReservations {
+            active_animations: self.active.len(),
+            active_tracks: self.active_track_count,
         }
-        if self
-            .active_track_count
-            .saturating_sub(replaced_tracks)
-            .saturating_add(new_tracks)
-            > DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS
-        {
-            return Err(AnimationError::BudgetExceeded(
-                AnimationBudgetKind::ActiveTracks,
-            ));
-        }
-        Ok(())
     }
 
     fn temporary_targets(&self, tracks: &[PreparedPlanTrack]) -> HashSet<TemporaryVisualId> {
@@ -1439,6 +1481,9 @@ pub struct AnimationMut<'a> {
 
 impl AnimationMut<'_> {
     pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
+        if self.service.time_initialized && now <= self.service.now {
+            return self.service.advance_time(now);
+        }
         if self.service.active.len() == 0 {
             return self.service.advance_time(now);
         }
@@ -1487,6 +1532,34 @@ impl AnimationMut<'_> {
     /// Returns the Runtime-wide mode.
     pub fn mode(&self) -> AnimationMode {
         self.service.mode
+    }
+
+    /// Returns the configured ownership and candidate preparation limits.
+    pub fn limits(&self) -> AnimationLimits {
+        self.service.limits
+    }
+
+    /// Atomically updates limits, rejecting capacity below existing reservations.
+    ///
+    /// No healthy owner, cached value, or wake deadline is evicted by this operation.
+    pub fn set_limits(&mut self, limits: AnimationLimits) -> Result<(), AnimationError> {
+        self.ensure_not_faulted()?;
+        limits.validate_live(self.service.reservations())?;
+        self.service.limits = limits;
+        Ok(())
+    }
+
+    /// Returns live reservations without advancing time or executing extension code.
+    pub fn reservations(&self) -> AnimationReservations {
+        self.service.reservations()
+    }
+
+    /// Returns the current base-sample identity without preparing geometry or recording a frame.
+    pub fn sample_version(&self) -> AnimationSampleVersion {
+        AnimationSampleVersion {
+            time: self.service.time_initialized.then_some(self.service.now),
+            active_revision: self.service.active_revision,
+        }
     }
 
     /// Changes the Runtime-wide mode and clears active presentation when disabling motion.
