@@ -19,6 +19,34 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "example.zoom-input",
+        description: "Floating panel ownership and native Zoom ScrollBar capture lifecycle",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw-example-support",
+                    "--features",
+                    "egui-panel",
+                    "--lib",
+                    "panel::tests",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "zoom_example",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "animation.tree",
         description: "Sampled geometry, reservations, Tree operations and Native retained pixels",
         steps: &[

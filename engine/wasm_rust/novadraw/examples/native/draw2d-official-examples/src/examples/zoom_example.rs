@@ -442,6 +442,167 @@ mod tests {
     use novadraw::runtime::ResourceStatus;
 
     #[test]
+    fn native_thumb_drag_survives_panel_frames_and_clock_ticks() {
+        use novadraw::event::MonotonicTime;
+        use novadraw_example_support::panel::egui;
+        use novadraw_platform_winit::WinitPointerAdapter;
+        use std::time::Duration;
+        use winit::event::{ElementState, MouseButton as NativeButton};
+
+        let (mut runtime, panel) = panel_scene();
+        let mut panel = panel.unwrap();
+        let context = egui::Context::default();
+        runtime
+            .frames()
+            .resize_logical_viewport(1200.0, 800.0)
+            .unwrap();
+        runtime.frames().stabilize_for_query().unwrap();
+        let root = runtime.tree().contents().unwrap();
+        let bar = runtime
+            .tree()
+            .child_order(root)
+            .unwrap()
+            .iter()
+            .copied()
+            .find(|id| runtime.tree().node(*id).unwrap().figure_name() == "ScrollBar")
+            .unwrap();
+        let zoom = runtime
+            .tree()
+            .child_order(root)
+            .unwrap()
+            .iter()
+            .copied()
+            .find(|id| *id != bar)
+            .unwrap();
+        let thumb = runtime
+            .tree()
+            .child_order(bar)
+            .unwrap()
+            .iter()
+            .copied()
+            .find(|id| {
+                runtime
+                    .tree()
+                    .layout_constraint::<ScrollBarPart>(*id)
+                    .unwrap()
+                    == Some(&ScrollBarPart::Thumb)
+            })
+            .unwrap();
+        let bounds = runtime.tree().figure_bounds(thumb).unwrap();
+        let start = runtime
+            .tree()
+            .local_to_surface_transform(thumb)
+            .unwrap()
+            .transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0));
+        let initial = runtime.viewports().scale_handle(zoom).unwrap().scale();
+        let panel_position = egui::pos2(650.0, 80.0);
+        let input = |events| egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1200.0, 800.0),
+            )),
+            events,
+            ..Default::default()
+        };
+        for _ in 0..4 {
+            let _ = panel.prepare_ui(
+                &context,
+                input(vec![egui::Event::PointerMoved(panel_position)]),
+                &mut runtime,
+            );
+        }
+        assert!(context.egui_wants_pointer_input());
+        // Native move and press arrive before egui renders the queued movement.
+        let start_position = egui::pos2(start.x() as f32, start.y() as f32);
+        assert!(!panel.owns_pointer_input(&context, start_position));
+        let mut adapter = WinitPointerAdapter::new();
+        adapter
+            .dispatch_button_input(
+                &mut runtime,
+                ElementState::Pressed,
+                NativeButton::Left,
+                start,
+                Duration::ZERO,
+            )
+            .unwrap();
+        assert_eq!(runtime.input().state().captured(), Some(bar));
+        let _ = panel.prepare_ui(
+            &context,
+            input(vec![
+                egui::Event::PointerMoved(start_position),
+                egui::Event::PointerButton {
+                    pos: start_position,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ]),
+            &mut runtime,
+        );
+        let mut previous_scale = initial;
+        for step in 1..=3 {
+            runtime
+                .animation()
+                .advance_time(MonotonicTime::from_micros(step * 16_000))
+                .unwrap();
+            let position = Point::new(start.x() + step as f64 * 30.0, start.y());
+            let _ = panel.prepare_ui(
+                &context,
+                input(vec![egui::Event::PointerMoved(egui::pos2(
+                    position.x() as f32,
+                    position.y() as f32,
+                ))]),
+                &mut runtime,
+            );
+            adapter.pointer_moved(position).unwrap();
+            assert!(
+                runtime
+                    .input()
+                    .dispatch_mouse_moved(position.x(), position.y())
+                    .is_handled()
+            );
+            let scale = runtime.viewports().scale_handle(zoom).unwrap().scale();
+            assert!(scale > previous_scale, "drag step {step}");
+            previous_scale = scale;
+        }
+        // Canvas capture continues across the panel and releases there.
+        assert!(panel.owns_pointer_input(&context, panel_position));
+        let end = Point::new(f64::from(panel_position.x), f64::from(panel_position.y));
+        adapter.pointer_moved(end).unwrap();
+        runtime.input().dispatch_mouse_moved(end.x(), end.y());
+        assert_eq!(runtime.input().state().captured(), Some(bar));
+        adapter
+            .dispatch_button_input(
+                &mut runtime,
+                ElementState::Released,
+                NativeButton::Left,
+                end,
+                Duration::from_millis(60),
+            )
+            .unwrap();
+        assert_eq!(runtime.input().state().captured(), None);
+        let _ = panel.prepare_ui(
+            &context,
+            input(vec![
+                egui::Event::PointerMoved(panel_position),
+                egui::Event::PointerButton {
+                    pos: panel_position,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ]),
+            &mut runtime,
+        );
+        let released_scale = runtime.viewports().scale_handle(zoom).unwrap().scale();
+        runtime.input().dispatch_mouse_moved(start.x(), start.y());
+        assert_eq!(
+            runtime.viewports().scale_handle(zoom).unwrap().scale(),
+            released_scale
+        );
+    }
+
+    #[test]
     fn zoom_and_dpi_replace_shared_icons_only_when_density_changes() {
         let mut fixture = fixture();
         fixture.runtime.frames().stabilize_for_query().unwrap();

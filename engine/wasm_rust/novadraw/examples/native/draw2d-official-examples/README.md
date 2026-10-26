@@ -84,9 +84,12 @@ cargo run -p draw2d-official-examples --example obstruction_verification
 
 Zoom 的连续缩放验证使用真实 ScrollBar 按钮输入，依次截图初始、最小、最大、
 再次最小四个状态。子布局使用反算后的逻辑区域，滚动条按自身最小尺寸保持厚度。
+共享宿主按最新鼠标位置判断面板输入归属；鼠标离开面板后无需等待重绘即可按下滑块。
+滑块捕获期间移入面板仍继续拖动，松开后停止缩放。无窗口回归覆盖实际 Zoom 面板、
+平台按钮适配与 Core 捕获链路，窗口操作仍需人工核验。
 
 ```sh
-cargo test -p draw2d-official-examples --lib zoom_example
+cargo xtask verify example.zoom-input
 cargo run -p draw2d-official-examples --example zoom_verification
 ```
 
