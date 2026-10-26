@@ -25,10 +25,26 @@ pub fn panel_scene() -> PanelScene {
     (
         fixture.runtime,
         Some(Panel::new([PANEL_X as f32, 20.0], move |ui, runtime| {
+            super::tree_animation::process(runtime, &model);
             ui.heading("Tree");
             let mut changed = false;
             {
                 let mut tree = model.lock().expect("tree model");
+                if ui
+                    .checkbox(&mut tree.use_animation, "Use Animation")
+                    .changed()
+                    && !tree.use_animation
+                    && let Some(id) = tree.animation.take()
+                {
+                    runtime
+                        .animation()
+                        .timeline()
+                        .cancel(id)
+                        .expect("tree animation cancellation");
+                }
+                if let Some(error) = &tree.animation_error {
+                    ui.label(error);
+                }
                 changed |= ui
                     .checkbox(&mut tree.horizontal, "Horizontal Orientation")
                     .changed();
@@ -66,7 +82,10 @@ pub fn panel_scene() -> PanelScene {
                         .radio_value(&mut branch.style, BranchStyle::Hanging, "Hanging")
                         .changed();
                     if !branch.children.is_empty() {
-                        changed |= ui.checkbox(&mut branch.expanded, "Expanded").changed();
+                        let mut expanded = branch.expanded;
+                        if ui.checkbox(&mut expanded, "Expanded").changed() {
+                            tree.pending_toggle = Some(index);
+                        }
                     }
                 }
                 if ui.button("More Children").clicked() {
@@ -118,7 +137,16 @@ pub fn panel_scene() -> PanelScene {
                 }
             });
             if changed {
-                let root = model.lock().expect("tree model").branches[0].contents;
+                let mut tree = model.lock().expect("tree model");
+                if let Some(id) = tree.animation.take() {
+                    runtime
+                        .animation()
+                        .timeline()
+                        .cancel(id)
+                        .expect("tree animation cancellation");
+                }
+                let root = tree.branches[0].contents;
+                drop(tree);
                 runtime
                     .figure(root)
                     .expect("tree contents")
@@ -128,6 +156,7 @@ pub fn panel_scene() -> PanelScene {
                     }))
                     .expect("tree layout");
             }
+            super::tree_animation::process(runtime, &model);
         })),
     )
 }
@@ -146,9 +175,9 @@ const SPACING_DEFAULT: f64 = 10.0;
 const SPACING_INCREMENT: f64 = 5.0;
 
 #[cfg_attr(not(test), allow(dead_code))]
-struct Fixture {
-    runtime: Runtime,
-    model: Arc<Mutex<TreeModel>>,
+pub(super) struct Fixture {
+    pub(super) runtime: Runtime,
+    pub(super) model: Arc<Mutex<TreeModel>>,
     selection: Arc<Mutex<Option<usize>>>,
     controls: Vec<FigureId>,
 }
@@ -173,7 +202,7 @@ fn fixture() -> Fixture {
     canvas_fixture(cfg!(test))
 }
 
-fn canvas_fixture(_legacy_controls: bool) -> Fixture {
+pub(super) fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
     let host = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
@@ -184,6 +213,11 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
             Color::WHITE,
         )))
         .expect("white FigureCanvas");
+    let viewport = runtime
+        .viewports()
+        .add(host, Rectangle::new(0.0, 0.0, CANVAS_WIDTH, 780.0))
+        .expect("Tree viewport")
+        .figure_id();
     // Parent indices preserve TreeExample.createContents insertion order,
     // including the two standalone Child siblings between Normal Style branches.
     let source = [
@@ -210,7 +244,7 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut branches: Vec<Branch> = Vec::new();
     let mut lines: Vec<Lines> = Vec::new();
     for (index, (parent, text, style)) in source.into_iter().enumerate() {
-        let parent_figure = parent.map(|p| branches[p].contents).unwrap_or(host);
+        let parent_figure = parent.map(|p| branches[p].contents).unwrap_or(viewport);
         let (figure, contents, title, branch_lines) =
             add_branch_with_root(&mut runtime, Some(parent_figure), text, parent.is_none());
         branches.push(Branch {
@@ -233,7 +267,9 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
         .unwrap()
         .set_bounds(Rectangle::new(0.0, 0.0, CANVAS_WIDTH, 780.0))
         .unwrap();
-    let model = Arc::new(Mutex::new(TreeModel::new(branches)));
+    let mut tree = TreeModel::new(branches);
+    tree.viewport = Some(viewport);
+    let model = Arc::new(Mutex::new(tree));
     let selection = Arc::new(Mutex::new(None));
     {
         let locked = model.lock().unwrap();
@@ -507,6 +543,96 @@ mod tests {
     use super::*;
     use novadraw::render::{BackendCapabilities, SurfaceInfo};
     use novadraw::{event::MouseButton, geometry::Point};
+
+    #[test]
+    fn shared_connector_providers_replay_static_normal_hanging_and_nested_endpoints() {
+        use novadraw::animation::{AnimationPlan, GeometryBinding, LayoutBounds, Motion, Tween};
+        use novadraw::event::MonotonicTime;
+        use novadraw::render::RenderCommandKind;
+        use std::time::Duration;
+
+        fn lines(runtime: &mut Runtime) -> Vec<[f64; 4]> {
+            runtime.frames().request_full_redraw();
+            let submission = runtime
+                .frames()
+                .prepare_submission(
+                    SurfaceInfo {
+                        logical_width: 1200.0,
+                        logical_height: 800.0,
+                        pixel_width: 1200,
+                        pixel_height: 800,
+                        scale_factor: 1.0,
+                    },
+                    BackendCapabilities::RETAINED_PARTIAL.with_linear_gradients(),
+                )
+                .into_ready()
+                .unwrap();
+            let mut result = submission
+                .commands
+                .iter()
+                .filter_map(|command| {
+                    if let RenderCommandKind::Line { p1, p2, .. } = command.kind {
+                        Some([p1.x(), p1.y(), p2.x(), p2.y()])
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            result.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let _ = runtime
+                .frames()
+                .complete_submission(
+                    submission.session_id,
+                    submission.frame_id,
+                    Ok(novadraw::render::RenderDisposition::Presented),
+                )
+                .unwrap();
+            result
+        }
+        for horizontal in [true, false] {
+            let mut fixture = canvas_fixture(false);
+            fixture.model.lock().unwrap().horizontal = horizontal;
+            let before = lines(&mut fixture.runtime);
+            let root = fixture.model.lock().unwrap().branches[0].figure;
+            let bounds = fixture.runtime.tree().figure_bounds(root).unwrap();
+            let channel = fixture
+                .runtime
+                .animation()
+                .timeline()
+                .bind_geometry(root, GeometryBinding::layout_bounds())
+                .unwrap();
+            let plan = AnimationPlan::track(
+                channel,
+                Motion::Tween(
+                    Tween::between(
+                        LayoutBounds::try_new(bounds).unwrap(),
+                        LayoutBounds::try_new(bounds).unwrap(),
+                        Duration::from_millis(210),
+                    )
+                    .unwrap(),
+                ),
+            )
+            .unwrap();
+            let plan = super::super::tree_layout::with_tree_connectors(
+                plan,
+                &fixture.model.lock().unwrap(),
+            );
+            fixture.runtime.animation().timeline().start(plan).unwrap();
+            fixture
+                .runtime
+                .animation()
+                .advance_time(MonotonicTime::from_micros(0))
+                .unwrap();
+            let animated = lines(&mut fixture.runtime);
+            assert_eq!(before, animated, "orientation {horizontal}");
+            fixture
+                .runtime
+                .animation()
+                .advance_time(MonotonicTime::from_micros(210_000))
+                .unwrap();
+            assert_eq!(before, lines(&mut fixture.runtime));
+        }
+    }
 
     #[test]
     fn full_official_tree_has_nineteen_nodes_and_five_root_branches() {

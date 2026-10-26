@@ -19,6 +19,40 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "animation.tree",
+        description: "Sampled geometry, reservations, Tree operations and Native retained pixels",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_animation_geometry_contract",
+                    "--test",
+                    "p2_animation_sample_reservation_contract",
+                    "--test",
+                    "m8_viewport_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "draw2d-official-examples", "--lib", "tree"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "run",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--bin",
+                    "tree-animation-proof",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "canvas.native",
         description: "Native GPU pixels and two-Canvas Vello/Novadraw integration",
         steps: &[

@@ -18,6 +18,7 @@ mod text_surrounding;
 mod text_test_border;
 mod thumbnail;
 mod toolbar_layout_example;
+pub(crate) mod tree_animation;
 mod tree_example;
 mod tree_layout;
 mod uml_class_diagram;

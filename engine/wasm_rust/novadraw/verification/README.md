@@ -15,6 +15,7 @@ cargo xtask verify <suite-id>
 
 | Suite | 覆盖范围 |
 |---|---|
+| `animation.tree` | 表现几何与容量预留、Tree 操作、Native GPU 中间帧及 retained-partial 像素；需要本机图形会话 |
 | `core.query-contracts` | Query identity、数值失败与恢复 |
 | `core.facade` | 公开 API、依赖、热路径和 backend feature |
 | `core.resources` | Core token、Native/Web provider 与 Vello image lowering |

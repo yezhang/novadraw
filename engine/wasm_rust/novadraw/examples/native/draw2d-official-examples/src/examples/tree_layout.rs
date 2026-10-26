@@ -2,8 +2,13 @@
 //! Derived from Eclipse Draw2D examples (IBM and contributors, EPL-2.0).
 //! Coordinates below are in the upstream Transposer's normalized domain.
 use novadraw::{
+    animation::{
+        AnimationError, AnimationPlan, AnimationValue, GeometryLine, GeometryPatch,
+        GeometryProvider, GeometryProviderContext, GeometryProviderKey,
+    },
     figure::{FigureMeasurement, MeasureConstraints},
-    geometry::{Dimension, Rectangle},
+    geometry::{Dimension, Point, Rectangle, Translatable},
+    graphics::Color,
     layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery},
     tree::FigureId,
 };
@@ -11,6 +16,272 @@ use std::sync::{Arc, Mutex};
 
 const CONTOUR_CLEARANCE: f64 = 5.0;
 const DEFAULT_SPACING: f64 = 10.0;
+const LINE_WIDTH: f64 = 1.0;
+
+/// Shared upstream endpoint arithmetic, in the normalized branch-local domain.
+#[derive(Clone, Copy, PartialEq)]
+struct ConnectorGeometry {
+    title: Rectangle,
+    contents: Rectangle,
+    style: BranchStyle,
+    minor: f64,
+}
+
+#[derive(Clone, Copy)]
+struct ConnectorSpan {
+    line: (Point, Point),
+    minimum: f64,
+    maximum: f64,
+    previous: Option<GeometryProviderKey<Self>>,
+}
+
+impl PartialEq for ConnectorSpan {
+    fn eq(&self, other: &Self) -> bool {
+        self.line == other.line
+            && self.minimum == other.minimum
+            && self.maximum == other.maximum
+            && self.previous.map(|key| key.dependency())
+                == other.previous.map(|key| key.dependency())
+    }
+}
+
+impl AnimationValue for ConnectorSpan {
+    fn is_valid(&self) -> bool {
+        [
+            self.line.0.x(),
+            self.line.0.y(),
+            self.line.1.x(),
+            self.line.1.y(),
+            self.minimum,
+            self.maximum,
+        ]
+        .into_iter()
+        .all(f64::is_finite)
+    }
+    fn interpolate(&self, _: &Self, _: f64) -> Self {
+        *self
+    }
+}
+
+impl ConnectorGeometry {
+    fn seed(self) -> ConnectorSpan {
+        let coordinate = match self.style {
+            BranchStyle::Normal => self.title.x + (self.title.width / 2.0).trunc(),
+            BranchStyle::Hanging => self.title.bottom(),
+        };
+        ConnectorSpan {
+            line: (Point::ZERO, Point::ZERO),
+            minimum: coordinate,
+            maximum: coordinate,
+            previous: None,
+        }
+    }
+
+    fn child(self, title: Rectangle, mut span: ConnectorSpan) -> ConnectorSpan {
+        match self.style {
+            BranchStyle::Normal => {
+                let bottom = self.contents.y - LINE_WIDTH;
+                let middle = ((self.title.bottom() + bottom) / 2.0).trunc();
+                let x = title.x + (title.width / 2.0).trunc();
+                span.line = (Point::new(x, middle), Point::new(x, bottom));
+                span.minimum = span.minimum.min(x);
+                span.maximum = span.maximum.max(x);
+            }
+            BranchStyle::Hanging => {
+                let x = self.title.x + self.minor;
+                let y = title.y + (title.height / 2.0).trunc();
+                span.line = (Point::new(x, y), Point::new(title.x, y));
+                span.maximum = span.maximum.max(y);
+            }
+        }
+        span
+    }
+
+    fn trunks(self, span: ConnectorSpan) -> impl Iterator<Item = (Point, Point)> {
+        match self.style {
+            BranchStyle::Normal => {
+                let x = self.title.x + (self.title.width / 2.0).trunc();
+                let middle = ((self.title.bottom() + self.contents.y - LINE_WIDTH) / 2.0).trunc();
+                [
+                    Some((Point::new(x, self.title.bottom()), Point::new(x, middle))),
+                    Some((
+                        Point::new(span.minimum, middle),
+                        Point::new(span.maximum, middle),
+                    )),
+                ]
+            }
+            BranchStyle::Hanging => {
+                let x = self.title.x + self.minor;
+                [
+                    Some((
+                        Point::new(x, self.title.bottom()),
+                        Point::new(x, span.maximum),
+                    )),
+                    None,
+                ]
+            }
+        }
+        .into_iter()
+        .flatten()
+    }
+}
+
+fn transpose_rect(rect: Rectangle, horizontal: bool) -> Rectangle {
+    if horizontal {
+        rect
+    } else {
+        Rectangle::new(rect.y, rect.x, rect.height, rect.width)
+    }
+}
+
+fn transpose_point(point: Point, horizontal: bool) -> Point {
+    if horizontal {
+        point
+    } else {
+        Point::new(point.y(), point.x())
+    }
+}
+
+fn connector_lines(
+    geometry: ConnectorGeometry,
+    children: impl IntoIterator<Item = Rectangle>,
+    horizontal: bool,
+) -> Vec<(Point, Point)> {
+    let mut span = geometry.seed();
+    let mut lines = Vec::new();
+    for title in children {
+        span = geometry.child(title, span);
+        lines.push(span.line);
+    }
+    if !lines.is_empty() {
+        lines.extend(geometry.trunks(span));
+    }
+    lines
+        .into_iter()
+        .map(|(a, b)| {
+            (
+                transpose_point(a, horizontal),
+                transpose_point(b, horizontal),
+            )
+        })
+        .collect()
+}
+
+fn presented_rectangle(
+    context: &GeometryProviderContext<'_>,
+    figure: FigureId,
+    branch: FigureId,
+    horizontal: bool,
+) -> Result<Rectangle, AnimationError> {
+    let bounds = context.figure(figure)?.bounds;
+    let transform = context
+        .relative_transform(figure, branch)?
+        .ok_or(AnimationError::InvalidValue)?;
+    let mut local = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+    local.transform(transform);
+    Ok(transpose_rect(local, horizontal))
+}
+
+/// Inline provider inputs and an explicitly declared chain bound storage and query work.
+/// The final drawing owns all lines; no per-frame write reaches the static Lines store.
+pub(super) fn with_tree_connectors(mut plan: AnimationPlan, model: &TreeModel) -> AnimationPlan {
+    for branch in model.branches.iter().filter(|branch| branch.active) {
+        if branch.children.is_empty() {
+            continue;
+        }
+        let owner = branch.figure;
+        let title = branch.title;
+        let contents = branch.contents;
+        let horizontal = model.horizontal;
+        let style = branch.style;
+        let minor = model.minor;
+        let mut previous = None::<GeometryProviderKey<ConnectorSpan>>;
+        let mut dependencies = Vec::new();
+        for child in &branch.children {
+            let child_title = model.branches[*child].title;
+            let key = GeometryProviderKey::<ConnectorSpan>::new(child_title);
+            plan = plan.with_geometry_provider(GeometryProvider::new(
+                key,
+                [owner, title, contents, child_title],
+                previous.into_iter().map(|key| key.dependency()).collect(),
+                move |context| {
+                    let geometry = ConnectorGeometry {
+                        title: presented_rectangle(context, title, owner, horizontal)?,
+                        contents: presented_rectangle(context, contents, owner, horizontal)?,
+                        style,
+                        minor,
+                    };
+                    let span = match previous {
+                        Some(key) => *context.value(key)?,
+                        None => geometry.seed(),
+                    };
+                    let mut span = geometry.child(
+                        presented_rectangle(context, child_title, owner, horizontal)?,
+                        span,
+                    );
+                    span.previous = previous;
+                    Ok(span)
+                },
+                |_| Ok(GeometryPatch::default()),
+            ));
+            dependencies.push(key.dependency());
+            previous = Some(key);
+        }
+        let tail = previous.expect("nonempty child chain");
+        plan = plan.with_geometry_provider(GeometryProvider::drawing(
+            GeometryProviderKey::<ConnectorGeometry>::new(owner),
+            [owner, title, contents],
+            dependencies,
+            branch.children.len() + 2,
+            move |context| {
+                Ok(ConnectorGeometry {
+                    title: presented_rectangle(context, title, owner, horizontal)?,
+                    contents: presented_rectangle(context, contents, owner, horizontal)?,
+                    style,
+                    minor,
+                })
+            },
+            move |geometry, context, drawing| {
+                // Local visibility of contents is retained for collapse, never inferred from
+                // mutable model state. External ancestor hiding remains engine-owned.
+                if !context.figure(contents)?.effective_visible {
+                    return Ok(());
+                }
+                let mut key = Some(tail);
+                let span = *context.value(tail)?;
+                while let Some(current) = key {
+                    let value = context.value(current)?;
+                    drawing.line(GeometryLine {
+                        start: transpose_point(value.line.0, horizontal),
+                        end: transpose_point(value.line.1, horizontal),
+                        width: LINE_WIDTH,
+                        color: Color::BLACK,
+                    })?;
+                    key = value.previous;
+                }
+                for (a, b) in geometry.trunks(span) {
+                    drawing.line(GeometryLine {
+                        start: transpose_point(a, horizontal),
+                        end: transpose_point(b, horizontal),
+                        width: LINE_WIDTH,
+                        color: Color::BLACK,
+                    })?;
+                }
+                Ok(())
+            },
+        ));
+    }
+    plan
+}
+
+impl AnimationValue for ConnectorGeometry {
+    fn is_valid(&self) -> bool {
+        self.title.is_valid() && self.contents.is_valid() && self.minor.is_finite()
+    }
+    fn interpolate(&self, _: &Self, _: f64) -> Self {
+        *self
+    }
+}
 
 // Preserve the upstream Rectangle edge arithmetic in the algorithm translation.
 pub(super) trait RectEdges {
@@ -49,6 +320,11 @@ pub(super) struct TreeModel {
     pub compressed: bool,
     pub major: f64,
     pub minor: f64,
+    pub use_animation: bool,
+    pub pending_toggle: Option<usize>,
+    pub animation: Option<novadraw::animation::AnimationId>,
+    pub viewport: Option<FigureId>,
+    pub animation_error: Option<String>,
 }
 
 impl TreeModel {
@@ -59,6 +335,11 @@ impl TreeModel {
             compressed: false,
             major: DEFAULT_SPACING,
             minor: DEFAULT_SPACING,
+            use_animation: false,
+            pending_toggle: None,
+            animation: None,
+            viewport: None,
+            animation_error: None,
         }
     }
 
@@ -424,49 +705,32 @@ impl LayoutManager for BranchLayout {
         out.set_child_bounds(branch.contents, model.transpose_rect(contents));
         out.set_child_visible(branch.contents, branch.expanded);
 
-        // NormalLayout.paintLines / HangingLayout.paintLines, in local coordinates.
-        use novadraw::geometry::Point;
-        let mut lines = Vec::new();
-        if branch.expanded && !branch.children.is_empty() {
-            if branch.style == BranchStyle::Normal {
-                let x_mid = title.x + (title.width / 2.0).trunc();
-                let top = title.bottom();
-                let bottom = contents.y - 1.0;
-                let y_mid = ((top + bottom) / 2.0).trunc();
-                lines.push((Point::new(x_mid, top), Point::new(x_mid, y_mid)));
-                let (mut x_min, mut x_max) = (x_mid, x_mid);
-                for (child, location) in branch.children.iter().zip(&plan.children) {
-                    let child_title = plans[*child].title;
-                    let x =
-                        contents.x + location.x + child_title.x + (child_title.width / 2.0).trunc();
-                    lines.push((Point::new(x, y_mid), Point::new(x, bottom)));
-                    x_min = x_min.min(x);
-                    x_max = x_max.max(x);
-                }
-                lines.push((Point::new(x_min, y_mid), Point::new(x_max, y_mid)));
-            } else {
-                let x = title.x + model.minor;
-                let y = title.bottom();
-                let mut bottom = y;
-                for (child, location) in branch.children.iter().zip(&plan.children) {
-                    let child_title = plans[*child].title;
-                    let cy = contents.y
-                        + location.y
-                        + child_title.y
-                        + (child_title.height / 2.0).trunc();
-                    let cx = contents.x + location.x + child_title.x;
-                    lines.push((Point::new(x, cy), Point::new(cx, cy)));
-                    bottom = bottom.max(cy);
-                }
-                lines.push((Point::new(x, y), Point::new(x, bottom)));
-            }
-        }
-        if !model.horizontal {
-            for (a, b) in &mut lines {
-                *a = Point::new(a.y(), a.x());
-                *b = Point::new(b.y(), b.x());
-            }
-        }
+        let lines = if branch.expanded {
+            connector_lines(
+                ConnectorGeometry {
+                    title,
+                    contents,
+                    style: branch.style,
+                    minor: model.minor,
+                },
+                branch
+                    .children
+                    .iter()
+                    .zip(&plan.children)
+                    .map(|(child, location)| {
+                        let child_title = plans[*child].title;
+                        Rectangle::new(
+                            contents.x + location.x + child_title.x,
+                            contents.y + location.y + child_title.y,
+                            child_title.width,
+                            child_title.height,
+                        )
+                    }),
+                model.horizontal,
+            )
+        } else {
+            Vec::new()
+        };
         *self.lines.lock().expect("branch lines") = lines;
         Ok(())
     }

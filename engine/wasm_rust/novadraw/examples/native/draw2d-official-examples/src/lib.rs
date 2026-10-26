@@ -5,6 +5,11 @@ mod controls;
 mod examples;
 pub mod inherit_background;
 
+/// Runs fixed-time Tree animation evidence on a native Vello device.
+pub fn verify_tree_animation(window: std::sync::Arc<winit::window::Window>) {
+    examples::tree_animation::verify_native(window);
+}
+
 use novadraw::runtime::Runtime;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
@@ -264,14 +269,10 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/tree/SimpleTreeExample.java",
             examples::simple_tree_example,
         ),
-        OfficialExample::in_progress(
+        OfficialExample::complete(
             "tree",
             "TreeExample",
             "org/eclipse/draw2d/examples/tree/TreeExample.java",
-            &[
-                "official nineteen-node fixture, full branch insertion with parent style and commit receipt, selected label white/inherited reset, alignment/style/spacing, deletion and nonanimated collapse are ported",
-                "selected gradient and label restoration are ported; animation geometry and viewport tracking remain incomplete",
-            ],
             examples::tree_example,
         ),
         OfficialExample::in_progress(
@@ -376,7 +377,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            16
+            17
         );
 
         let mut ids = BTreeSet::new();

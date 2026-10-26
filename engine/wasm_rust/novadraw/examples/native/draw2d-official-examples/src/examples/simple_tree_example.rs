@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex};
 use novadraw::{
     event::{EventContext, FigureEventHandler, MouseEvent},
     figure::{
-        Border, CONTAINER, ChildClippingStrategy, ContainerCapability, Figure,
+        BOUNDS_SNAPSHOT, Border, BoundsDrawing, BoundsSnapshotCapability, CONTAINER,
+        ChildClippingStrategy, ContainerCapability, Figure, FigureBoundsSnapshot,
         FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer, FigureStyle,
         HitParticipation, INPUT, InputCapability, LabelFigure, RectangleFigure,
         border::{CompoundBorder, MarginBorder},
@@ -22,6 +23,9 @@ use super::{
 };
 
 const CORNER_SIZE: f64 = 10.0;
+const PAGE_RECORDING_BYTES: usize = 4096;
+const FOLDED_BORDER_RECORDING_BYTES: usize = 16384;
+const SHADOW_OUTSET: f64 = 3.0;
 fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::rgba(
         f64::from(r) / 255.0,
@@ -34,6 +38,24 @@ fn rgb(r: u8, g: u8, b: u8) -> Color {
 struct FoldedPageBorder;
 
 impl Border for FoldedPageBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _: Option<&novadraw::figure::border::BorderSnapshot>,
+    ) -> Result<BoundsDrawing, GraphicsError> {
+        Ok(BoundsDrawing::new(
+            (),
+            FOLDED_BORDER_RECORDING_BYTES,
+            |_, bounds, g| FoldedPageBorder.paint(bounds, g),
+            |_, bounds| {
+                Ok(Rectangle::new(
+                    bounds.x - SHADOW_OUTSET,
+                    bounds.y - SHADOW_OUTSET,
+                    bounds.width + SHADOW_OUTSET * 2.0,
+                    bounds.height + SHADOW_OUTSET * 2.0,
+                ))
+            },
+        ))
+    }
     fn get_insets(&self) -> Insets {
         Insets::new(CORNER_SIZE, 2.0, 4.0, 4.0)
     }
@@ -105,6 +127,54 @@ impl PageNode {
             ),
         }
     }
+
+    fn selected(&self) -> bool {
+        self.selection
+            .as_ref()
+            .is_some_and(|(index, selection, _)| {
+                *selection.lock().expect("tree selection") == Some(*index)
+            })
+    }
+
+    fn paint_page(
+        selected: &bool,
+        bounds: Rectangle,
+        g: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        let height = bounds.height - 3.0;
+        if height <= 0.0 || bounds.width <= 3.0 {
+            return Ok(());
+        }
+        let (start, end) = if *selected {
+            (rgb(49, 106, 197), rgb(100, 145, 215))
+        } else {
+            (rgb(232, 232, 240), rgb(176, 184, 216))
+        };
+        let gradient = LinearGradient::try_new(
+            Point::ZERO,
+            Point::new(0.0, height),
+            &[
+                GradientStop::try_new(0.0, start)?,
+                GradientStop::try_new(1.0, end)?,
+            ],
+        )?;
+        g.set_fill_paint(gradient);
+        g.fill_rect(Rectangle::new(0.0, 0.0, bounds.width - 3.0, height))
+    }
+}
+
+impl FigureBoundsSnapshot for PageNode {
+    fn bounds_drawing_revision(&self) -> u64 {
+        u64::from(self.selected())
+    }
+    fn snapshot_bounds_drawing(&self) -> Result<BoundsDrawing, GraphicsError> {
+        Ok(BoundsDrawing::new(
+            self.selected(),
+            PAGE_RECORDING_BYTES,
+            Self::paint_page,
+            |_, bounds| Ok(bounds),
+        ))
+    }
 }
 
 impl Figure for PageNode {
@@ -132,35 +202,11 @@ impl Figure for PageNode {
         out: &mut FigureCapabilityBuilder,
     ) -> Result<(), FigureCapabilityRegistrationError> {
         out.register(INPUT, InputCapability::of::<Self>())?;
+        out.register(BOUNDS_SNAPSHOT, BoundsSnapshotCapability::of::<Self>())?;
         out.register(CONTAINER, ContainerCapability::of::<Self>())
     }
     fn paint(&self, g: &mut PaintContext<'_>, bounds: Rectangle) -> Result<(), GraphicsError> {
-        let height = bounds.height - 3.0;
-        if height <= 0.0 || bounds.width <= 3.0 {
-            return Ok(());
-        }
-        let selected = self
-            .selection
-            .as_ref()
-            .is_some_and(|(index, selection, _)| {
-                *selection.lock().expect("tree selection") == Some(*index)
-            });
-        // SWT system colors vary by theme; keep a deterministic blue title palette.
-        let (start, end) = if selected {
-            (rgb(49, 106, 197), rgb(100, 145, 215))
-        } else {
-            (rgb(232, 232, 240), rgb(176, 184, 216))
-        };
-        let gradient = LinearGradient::try_new(
-            Point::ZERO,
-            Point::new(0.0, height),
-            &[
-                GradientStop::try_new(0.0, start)?,
-                GradientStop::try_new(1.0, end)?,
-            ],
-        )?;
-        g.set_fill_paint(gradient);
-        g.fill_rect(Rectangle::new(0.0, 0.0, bounds.width - 3.0, height))
+        Self::paint_page(&self.selected(), bounds, g)
     }
 }
 impl FigureContainer for PageNode {}
@@ -206,6 +252,10 @@ impl FigureEventHandler for PageNode {
         if let Some(index) = *selection.lock().expect("tree selection")
             && !model.branches[index].children.is_empty()
         {
+            if model.use_animation {
+                model.pending_toggle = Some(index);
+                return true;
+            }
             model.branches[index].expanded = !model.branches[index].expanded;
             let root = &model.branches[0];
             context.effects().set_layout_manager_later(
