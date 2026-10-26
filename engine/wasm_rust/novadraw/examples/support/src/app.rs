@@ -54,6 +54,7 @@ const TOOLTIP_BORDER_WIDTH: f64 = 1.0;
 ///
 // 场景创建函数类型
 type SceneCreator = Box<dyn FnMut() -> Runtime>;
+type SceneTitleFormatter = Box<dyn Fn(&str) -> String>;
 
 struct DemoUpdateListener;
 
@@ -88,6 +89,7 @@ pub struct DemoApp {
     renderer: Option<VelloRenderer>,
     host: Option<WinitPlatformHost>,
     title: String,
+    scene_title_formatter: Option<SceneTitleFormatter>,
     app_name: String,
     width: f64,
     height: f64,
@@ -131,6 +133,7 @@ impl DemoApp {
             renderer: None,
             host: None,
             title: title.to_string(),
+            scene_title_formatter: None,
             app_name: app_name.to_string(),
             width,
             height,
@@ -180,9 +183,7 @@ impl DemoApp {
             self.initial_frame_attempts = 0;
             eprintln!("切换到场景: {}", self.scenes[idx].0);
 
-            // 更新窗口标题显示当前场景（只显示场景名称）
-            let scene_name = self.scenes[idx].0;
-            let new_title = format!("{} - {}", self.title, scene_name);
+            let new_title = self.window_title();
             eprintln!("设置窗口标题: {}", new_title);
             if let Some(host) = &self.host {
                 host.window().set_title(&new_title);
@@ -201,6 +202,17 @@ impl DemoApp {
         self.scenes
             .get(self.current_scene_idx)
             .map(|(name, _)| *name)
+    }
+
+    fn window_title(&self) -> String {
+        let Some(name) = self.current_scene_name() else {
+            return self.title.clone();
+        };
+        let label = self
+            .scene_title_formatter
+            .as_ref()
+            .map_or_else(|| name.to_string(), |formatter| formatter(name));
+        format!("{} - {label}", self.title)
     }
 
     /// 获取场景数量
@@ -573,7 +585,7 @@ impl ApplicationHandler<()> for DemoApp {
                     event_loop
                         .create_window(
                             WindowAttributes::default()
-                                .with_title(&self.title)
+                                .with_title(self.window_title())
                                 .with_inner_size(LogicalSize::new(self.width, self.height))
                                 .with_resizable(true),
                         )
@@ -1132,6 +1144,7 @@ pub struct AppBuilder {
     #[cfg(feature = "egui-panel")]
     panel_scenes: Vec<crate::panel::PanelSceneEntry>,
     title: String,
+    scene_title_formatter: Option<SceneTitleFormatter>,
     app_name: String,
     scenes: Vec<(&'static str, SceneCreator)>,
     width: f64,
@@ -1147,6 +1160,7 @@ impl AppBuilder {
             #[cfg(feature = "egui-panel")]
             panel_scenes: Vec::new(),
             title: title.to_string(),
+            scene_title_formatter: None,
             app_name: String::new(),
             scenes: Vec::new(),
             width: 800.0,
@@ -1165,6 +1179,15 @@ impl AppBuilder {
     /// 设置应用名称（用于截图目录和文件名）
     pub fn with_app_name(mut self, name: &str) -> Self {
         self.app_name = name.to_string();
+        self
+    }
+
+    /// Formats window scene labels while preserving scene and screenshot identities.
+    pub fn with_scene_title_formatter(
+        mut self,
+        formatter: impl Fn(&str) -> String + 'static,
+    ) -> Self {
+        self.scene_title_formatter = Some(Box::new(formatter));
         self
     }
 
@@ -1258,6 +1281,7 @@ impl AppBuilder {
             &app_name,
             self.screenshot_mode,
         );
+        app.scene_title_formatter = self.scene_title_formatter;
         #[cfg(feature = "egui-panel")]
         {
             app.panel_scenes = self.panel_scenes;

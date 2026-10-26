@@ -19,6 +19,79 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "render.antialias",
+        description: "Per-operation AA public contracts, Native Msaa16 pixels and ShapeStyles axes",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "per_operation_antialias_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw-backend-vello", "--lib", "antialias"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "shape_styles",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "shape_styles_native_matrix_pixels",
+                    "--",
+                    "--ignored",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "check",
+                    "-p",
+                    "novadraw-backend-vello",
+                    "--lib",
+                    "--target",
+                    "wasm32-unknown-unknown",
+                    "--features",
+                    "web",
+                ],
+            },
+        ],
+    },
+    Suite {
+        id: "render.antialias-cost",
+        description: "Release CPU preparation/encoding and cache payload costs for 25-cell AA scenes",
+        steps: &[Step {
+            program: "cargo",
+            args: &[
+                "test",
+                "--release",
+                "-p",
+                "novadraw-backend-vello",
+                "--lib",
+                "antialias_release_cost",
+                "--",
+                "--ignored",
+                "--nocapture",
+            ],
+        }],
+    },
+    Suite {
         id: "example.zoom-input",
         description: "Floating panel ownership and native Zoom ScrollBar capture lifecycle",
         steps: &[

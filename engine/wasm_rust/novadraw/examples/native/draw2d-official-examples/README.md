@@ -20,6 +20,18 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 历史 complete 只保留当时证据范围，其他状态在 Canvas 功能验收后更新；
 移除原生控件需求不会自动关闭尚未核对的 Canvas 差额。
 
+窗口标题按完整官方目录显示固定序号，例如 `[01/25] HelloWorld`、
+`[23/25] TreeExample`、`[25/25] ZoomExample`。独立 InheritBackground 窗口使用
+`[13/25]`，ShapeStyles 使用 `[14/25]`；场景列表跳过独立宿主条目时不重编号。
+`--list` 的首列是同一序号，后续列给出状态、ID、原始类名和上游源码路径。
+截图继续使用原始场景名；数字截图参数仍是运行列表中从 0 开始的索引。
+
+ShapeStyles 已接入 8 个原始参数轴、5 种图形及真实控制面板，图形
+ON/OFF/DEFAULT 使用公开 Graphics API。宽度 0 和 miter < 1 显示不支持；
+部分图形几何仍为近似，入口保留 `in_progress`；启用后目录为
+16 个 complete、9 个 in_progress、0 个 blocked。验证入口：
+`cargo xtask verify render.antialias`，其中包含 40 个离屏 GPU 矩阵场景及旧区域清理。
+
 TreeExample 的 Use Animation 默认关闭。单击标题会选中节点，并启用 Selected Node
 控件；双击有子节点的标题可立即展开/折叠；
 开启动画后，双击进入同一 queued toggle 管线，也可使用面板的 Expanded 控件。

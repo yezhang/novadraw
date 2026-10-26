@@ -524,7 +524,12 @@ impl ApplicationHandler for App {
                 let window = Arc::new(
                     event_loop.create_window(
                         Window::default_attributes()
-                            .with_title(TITLE)
+                            .with_title(format!(
+                                "Draw2D Official Examples - {} — {TITLE}",
+                                draw2d_official_examples::official_scene_title(
+                                    "InheritBackgroundExample"
+                                )
+                            ))
                             .with_inner_size(LogicalSize::new(WIDTH, HEIGHT)),
                     )?,
                 );

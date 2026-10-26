@@ -11,6 +11,7 @@ mod panel_test;
 mod path_example;
 mod printing;
 mod scroll_pane_example;
+mod shape_styles;
 mod simple_tree_example;
 mod text_examples;
 mod text_interaction;
@@ -39,6 +40,7 @@ pub use obstruction::obstruction;
 pub use path_example::path_example;
 pub use printing::print_example;
 pub use scroll_pane_example::scroll_pane_example;
+pub use shape_styles::shape_styles_example;
 pub use simple_tree_example::simple_tree_example;
 pub use text_examples::{multi_line_label_example, text_flow_example};
 pub use text_interaction::{caret_example, text_flow_large_example};
@@ -87,6 +89,7 @@ pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelS
         "CompoundGraphDemo" => graph_examples::panel_scene(true),
         "ThumbnailExample" => thumbnail::panel_scene(),
         "ZoomExample" => zoom_example::panel_scene(),
+        "ShapeStylesExample" => shape_styles::panel_scene(),
         _ => return None,
     })
 }

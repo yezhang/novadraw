@@ -14,6 +14,18 @@ use novadraw::runtime::Runtime;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
+/// Stable, one-based labels from the complete official catalog, including blocked entries.
+pub fn official_scene_title(name: &str) -> String {
+    let entries = catalog();
+    entries
+        .iter()
+        .position(|entry| entry.name == name)
+        .map_or_else(
+            || name.to_string(),
+            |index| format!("[{:02}/{}] {name}", index + 1, entries.len()),
+        )
+}
+
 /// Representative official inputs for Native visual verification.
 pub fn graph_verification_entries() -> Vec<SceneEntry> {
     examples::graph_verification_entries()
@@ -87,23 +99,6 @@ impl OfficialExample {
             gaps: &[],
             native_binary: None,
             factory: Some(factory),
-        }
-    }
-
-    const fn blocked(
-        id: &'static str,
-        name: &'static str,
-        upstream_path: &'static str,
-        gaps: &'static [&'static str],
-    ) -> Self {
-        Self {
-            id,
-            name,
-            upstream_path,
-            status: ParityStatus::Blocked,
-            gaps,
-            native_binary: None,
-            factory: None,
         }
     }
 }
@@ -212,14 +207,15 @@ pub fn catalog() -> Vec<OfficialExample> {
             native_binary: Some("inherit-background"),
             factory: Some(inherit_background::canvas),
         },
-        OfficialExample::blocked(
+        OfficialExample::in_progress(
             "shape-styles",
             "ShapeStylesExample",
             "org/eclipse/draw2d/examples/swt/ShapeStylesExample.java",
             &[
-                "backend-neutral StrokeStyle has no per-shape ON/OFF/DEFAULT antialias mode",
-                "Render IR and Vello lowering cannot reproduce the SWT.OFF matrix cells",
+                "Eight axes and five shapes exercise public Graphics ON/OFF/DEFAULT; unsupported cells are explicit",
+                "Device hairline, miter below 1, exact upstream shape geometry and Native visual comparison remain pending",
             ],
+            examples::shape_styles_example,
         ),
         OfficialExample::complete(
             "bidi-block",

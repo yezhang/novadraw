@@ -1,4 +1,4 @@
-use draw2d_official_examples::{catalog, panel_entries};
+use draw2d_official_examples::{catalog, official_scene_title, panel_entries};
 use novadraw_example_support::{AppBuilder, VerificationCli};
 
 const APP_NAME: &str = "draw2d-official-examples";
@@ -36,6 +36,7 @@ fn main() {
     };
     let mut builder = AppBuilder::new(TITLE)
         .with_app_name(APP_NAME)
+        .with_scene_title_formatter(official_scene_title)
         .with_size(1200.0, 800.0);
     builder = if cli.screenshot_all {
         builder.with_screenshot(true)
@@ -60,9 +61,10 @@ fn main() {
 }
 
 fn print_catalog() {
-    for entry in catalog() {
+    for (index, entry) in catalog().into_iter().enumerate() {
         println!(
-            "{}\t{}\t{}\t{}",
+            "{:02}\t{}\t{}\t{}\t{}",
+            index + 1,
             entry.status.as_str(),
             entry.id,
             entry.name,
