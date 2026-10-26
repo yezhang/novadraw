@@ -20,6 +20,12 @@ pub struct VelloTextureRenderer {
 }
 
 impl VelloTextureRenderer {
+    /// Sets OFF preparation budgets and discards completed coverage caches.
+    pub fn set_antialias_config(&mut self, config: crate::AntialiasConfig) {
+        self.encoder.antialias_config = config;
+        self.encoder.antialias_cache = crate::antialias_frame::Cache::default();
+    }
+
     /// Device and queue must belong to the same WGPU device.
     /// Device-lost and uncaptured-error callbacks remain application-owned.
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Result<Self, vello::Error> {
@@ -57,6 +63,7 @@ impl RenderBackend for TextureBackend<'_> {
             .with_path_clips()
             .with_linear_gradients()
             .with_host_background()
+            .with_per_operation_antialias()
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
@@ -90,6 +97,25 @@ impl RenderBackend for TextureBackend<'_> {
             )));
         }
         let renderer = &mut self.renderer;
+        let mut gate = renderer.session_gate;
+        let decision = gate.accept(submission.session_id, &submission.resources);
+        if matches!(
+            decision,
+            novadraw::render::BackendSessionDecision::RejectStale
+                | novadraw::render::BackendSessionDecision::RejectMissingSnapshot
+        ) {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "invalid backend submission session",
+            )));
+        }
+        let Some(prepared) = crate::antialias_frame::prepare(
+            &renderer.encoder,
+            submission,
+            decision == novadraw::render::BackendSessionDecision::Continue,
+        )?
+        else {
+            return Ok(RenderDisposition::Retry);
+        };
         renderer
             .encoder
             .sync_resources(&mut renderer.session_gate, submission)?;
@@ -108,6 +134,7 @@ impl RenderBackend for TextureBackend<'_> {
                 f64::from(surface.pixel_height) / surface.scale_factor,
             ),
             surface.scale_factor,
+            prepared,
         );
         let view = self.texture.create_view(&wgpu::TextureViewDescriptor {
             mip_level_count: Some(1),

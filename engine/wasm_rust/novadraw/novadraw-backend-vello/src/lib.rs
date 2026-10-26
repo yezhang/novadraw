@@ -3,8 +3,14 @@
 //! 实现 RenderCommand 解释器，维护独立的状态栈。
 //! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
+mod antialias;
+mod antialias_frame;
+mod antialias_stroke;
+#[cfg(test)]
+mod antialias_tests;
 mod glyph_outline;
 pub mod texture;
+pub use antialias::{AntialiasConfig, AntialiasWorkLimits};
 
 use std::collections::HashMap;
 use std::fmt;
@@ -581,6 +587,8 @@ struct SceneEncoder {
     state_stack: Vec<RenderState>,
     font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
     images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
+    antialias_config: AntialiasConfig,
+    antialias_cache: antialias_frame::Cache,
 }
 
 impl SceneEncoder {
@@ -591,10 +599,20 @@ impl SceneEncoder {
             state_stack: vec![RenderState::default()],
             font_faces: HashMap::new(),
             images: HashMap::new(),
+            antialias_config: AntialiasConfig::default(),
+            antialias_cache: antialias_frame::Cache::default(),
         }
     }
 
-    fn encode(&mut self, commands: &[RenderCommand], clip: Rectangle, scale: f64) {
+    fn encode(
+        &mut self,
+        commands: &[RenderCommand],
+        clip: Rectangle,
+        scale: f64,
+        prepared: antialias_frame::PreparedFrame,
+    ) {
+        let draws = prepared.publish(self);
+        let mut prepared = draws.iter().peekable();
         self.scale_factor = scale;
         self.scene = vello::Scene::new();
         self.state_stack.clear();
@@ -603,8 +621,39 @@ impl SceneEncoder {
             transform: Affine2D::IDENTITY,
             geometry: ClipGeometry::Rectangle(clip),
         });
-        for command in commands {
-            self.render_command(command);
+        for (index, command) in commands.iter().enumerate() {
+            if prepared
+                .peek()
+                .is_some_and(|(command_index, _)| *command_index == index)
+            {
+                let (_, draws) = prepared.next().expect("prepared command");
+                for draw in draws {
+                    let paint = match &command.kind {
+                        novadraw::render::RenderCommandKind::Ellipse {
+                            fill_paint,
+                            stroke_paint,
+                            ..
+                        } => {
+                            if draw.paint_slot == 0 {
+                                fill_paint.as_ref()
+                            } else {
+                                stroke_paint.as_ref()
+                            }
+                        }
+                        _ => command.kind.paints().next(),
+                    }
+                    .expect("prepared paint matches original command");
+                    self.scene.fill(
+                        vello::peniko::Fill::NonZero,
+                        vello::kurbo::Affine::IDENTITY,
+                        &vello_paint(paint, scale),
+                        Some(draw.brush_transform),
+                        draw.path.as_ref(),
+                    );
+                }
+            } else {
+                self.render_command(command);
+            }
         }
         self.scene.pop_layer();
     }
@@ -643,6 +692,7 @@ impl SceneEncoder {
         if replaced {
             self.font_faces.clear();
             self.images.clear();
+            self.antialias_cache = antialias_frame::Cache::default();
         }
         sync_font_face_cache(&mut self.font_faces, &submission.resources);
         sync_image_cache(&mut self.images, &submission.resources);
@@ -669,6 +719,31 @@ pub struct VelloRenderer {
 }
 
 impl VelloRenderer {
+    /// Configures finite OFF preparation budgets; clears completed coverage caches.
+    pub fn set_antialias_config(&mut self, config: AntialiasConfig) {
+        self.encoder.antialias_config = config;
+        self.encoder.antialias_cache = antialias_frame::Cache::default();
+    }
+
+    fn prepare_antialias(
+        &self,
+        submission: &novadraw::render::RenderSubmission,
+    ) -> Result<Option<antialias_frame::PreparedFrame>, RenderFailure> {
+        let mut gate = self.session_gate;
+        match gate.accept(submission.session_id, &submission.resources) {
+            BackendSessionDecision::RejectStale | BackendSessionDecision::RejectMissingSnapshot => {
+                Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "invalid backend submission session",
+                )))
+            }
+            decision => antialias_frame::prepare(
+                &self.encoder,
+                submission,
+                decision == BackendSessionDecision::Continue,
+            ),
+        }
+    }
+
     #[cfg(any(feature = "native", target_arch = "wasm32"))]
     async fn new_for_surface(
         target: vello::wgpu::SurfaceTarget<'static>,
@@ -1151,7 +1226,12 @@ impl SceneEncoder {
                 );
             }
 
-            novadraw::render::command::RenderCommandKind::FillRect { rect, paint, rule } => {
+            novadraw::render::command::RenderCommandKind::FillRect {
+                antialias: _,
+                rect,
+                paint,
+                rule,
+            } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -1165,6 +1245,7 @@ impl SceneEncoder {
             }
 
             novadraw::render::command::RenderCommandKind::StrokeRect {
+                antialias: _,
                 rect,
                 paint,
                 stroke,
@@ -1186,6 +1267,7 @@ impl SceneEncoder {
             }
 
             novadraw::render::command::RenderCommandKind::Line {
+                antialias: _,
                 p1,
                 p2,
                 paint,
@@ -1218,6 +1300,7 @@ impl SceneEncoder {
             }
 
             novadraw::render::command::RenderCommandKind::Polyline {
+                antialias: _,
                 points,
                 paint,
                 stroke,
@@ -1246,6 +1329,7 @@ impl SceneEncoder {
             }
 
             novadraw::render::command::RenderCommandKind::Ellipse {
+                antialias: _,
                 cx,
                 cy,
                 rx,
@@ -1281,7 +1365,12 @@ impl SceneEncoder {
                 }
             }
 
-            novadraw::render::command::RenderCommandKind::FillPath { path, paint, rule } => {
+            novadraw::render::command::RenderCommandKind::FillPath {
+                antialias: _,
+                path,
+                paint,
+                rule,
+            } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let brush = vello_paint(paint, self.scale_factor);
@@ -1293,6 +1382,7 @@ impl SceneEncoder {
             }
 
             novadraw::render::command::RenderCommandKind::StrokePath {
+                antialias: _,
                 path,
                 paint,
                 stroke,
@@ -1311,7 +1401,12 @@ impl SceneEncoder {
                 self.scene.stroke(&stroke, affine, &brush, None, &bez_path);
             }
 
-            novadraw::render::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
+            novadraw::render::command::RenderCommandKind::DrawGlyphRun {
+                antialias: _,
+                run,
+                origin,
+                paint,
+            } => {
                 let Some(font_data) = self
                     .font_faces
                     .get(&(run.font.resource_id(), run.font.revision()))
@@ -1434,6 +1529,7 @@ impl RenderBackend for VelloRenderer {
             .with_path_clips()
             .with_linear_gradients()
             .with_host_background()
+            .with_per_operation_antialias()
     }
 
     fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderResult {
@@ -1453,6 +1549,9 @@ impl RenderBackend for VelloRenderer {
         ) {
             return Err(RenderFailure::InvalidInput(error));
         }
+        let Some(prepared) = self.prepare_antialias(submission)? else {
+            return Ok(RenderDisposition::Retry);
+        };
         self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
             return Ok(RenderDisposition::Retry);
@@ -1481,7 +1580,8 @@ impl RenderBackend for VelloRenderer {
             return Ok(RenderDisposition::Skipped);
         };
 
-        self.encoder.encode(commands, clip_rect, self.scale_factor);
+        self.encoder
+            .encode(commands, clip_rect, self.scale_factor, prepared);
 
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
@@ -1666,6 +1766,9 @@ impl VelloRenderer {
         ) {
             return Err(RenderFailure::InvalidInput(error));
         }
+        let Some(prepared) = self.prepare_antialias(submission)? else {
+            return Ok(RenderDisposition::Retry);
+        };
         self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
             return Ok(RenderDisposition::Retry);
@@ -1691,7 +1794,7 @@ impl VelloRenderer {
             return Ok(RenderDisposition::Skipped);
         };
         self.encoder
-            .encode(&submission.commands, clip_rect, self.scale_factor);
+            .encode(&submission.commands, clip_rect, self.scale_factor, prepared);
 
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
