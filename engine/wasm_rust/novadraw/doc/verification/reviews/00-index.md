@@ -101,6 +101,9 @@
 | 2026-10-09 | [Viewer 编辑与驱动](tc07-viewer-edit-boundary-completion-2026-10-09.md) |
 | 2026-10-09 | [ResourceProvider](tc11-resource-provider-completion-2026-10-09.md) |
 | 2026-10-16 | [Draw2D 官方示例对等审计](draw2d-official-examples-parity-2026-10-16.md) |
+| 2026-10-26 | [官方样例剩余能力](draw2d-official-examples-remaining-audit-2026-10-26.md) |
+| 2026-10-26 | [逐操作 AA 可行性实验](shape-aa-feasibility-2026-10-26.md) |
+| 2026-10-26 | [逐操作 AA 实施与成本](per-operation-antialias-implementation-2026-10-26.md) |
 
 ## 平台与产品验收
 

@@ -32,6 +32,11 @@
 不增加 package、全局服务、任意 shader/plugin trait 或序列化 ABI。Runtime 继续拥有
 提交权威；本项不修改递归 traversal、Figure 树坐标协议或 child clipping strategy。
 
+逐操作抗锯齿由后续 [ADR-047](../../adr/adr-047-per-operation-antialias.md)定义：
+图形和文字分别记录 `AntialiasMode`，提示随状态栈恢复，在 draw payload 中冻结。
+OFF 使用二值几何覆盖，paint/clip alpha 保留原语义；不改变本契约的零宽度与 miter
+边界。后端实施和验收状态见 P2 backlog。
+
 ## 2. 需求与参考证据
 
 Draw2D/GEF 基线：`4463d9d0ce13c19d10fbe769d29f28b7345a8cba`。

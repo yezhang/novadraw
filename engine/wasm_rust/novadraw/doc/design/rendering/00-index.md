@@ -21,8 +21,8 @@
 候选研究：[DisplayList](display-list-protocol.md)，包含探索顺序和晋级门禁，
 不作为现行渲染流程的前提。
 
-待评审增量：[逐图形抗锯齿](shape-antialias-proposal.md)，定义 K08 的 OFF 覆盖率、
-独立文字提示与后端可行性切片；未进入实施。
+已批准增量：[逐图形抗锯齿](shape-antialias-proposal.md)，按 ADR-047 实施 K08 的 OFF
+覆盖率、独立文字提示和后端受预算约束的覆盖准备；完成状态见 P2 backlog。
 
 外部参考：[字形渲染算法与彩色 Emoji 字体](../../reference/fonts/glyph-rendering-and-color-emoji.md)，
 记录轮廓算法比较、局限性和彩色字体格式；其中选型建议不构成现行契约或交付状态。

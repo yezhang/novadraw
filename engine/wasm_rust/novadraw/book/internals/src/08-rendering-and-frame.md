@@ -141,6 +141,14 @@ in-flight 管理的正式提交包。把两个边界合并，会允许 Figure �
 
 不平衡应在提交前被诊断为录制错误，而不是交给后端猜测。
 
+图形与文字抗锯齿分别使用 `graphics::AntialiasMode`，通过
+`PaintContext::set_antialias` 与 `set_text_antialias` 更新。状态栈保存两种提示，
+实际 draw 命令冻结各自的提示；SceneView 回放也保留该值。文字以预备轮廓录制为
+FillPath/StrokePath 时，仍使用文字提示。clip、图像和 clear 不继承图形 AA。
+Core 录制契约与 ADR-047 的 Vello OFF 路径已实现。后端在资源同步前有界准备
+设备像素游程，并保留原 paint 与 clip；Native 离屏像素验证已通过。
+窗口呈现与浏览器像素尚未验收，高 DPI 连续变换也未保证 60 fps。
+
 ## 8.8 RenderSubmission
 
 一次提交携带后端完成当前帧所需的全部拥有数据：

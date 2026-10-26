@@ -246,6 +246,39 @@ Zoom 的完整入口和跨显示器系统 DPI 验收不随此切片关闭。
 先评审后端可行性切片，不将 hairline 或低 miter 隐式并入 AA。
 两份方案均未进入 Execute。
 
+2026-10-26 逐图形 AA 的独立后端实验已通过，证据见
+[设备像素游程实验](../verification/reviews/shape-aa-feasibility-2026-10-26.md)。
+[方案修订 2](../design/rendering/shape-antialias-proposal.md)改为受预算约束的设备
+像素中心采样与整数游程路径，复用现有 Vello 合成；不引入依赖 fork。
+AA-0 只关闭实验，AA-1–AA-4 仍为 Design/Gate、待批准，Core 与生产 backend
+未实施；ShapeStyles 仍为 blocked。Hairline、低 miter 和混合字体装饰保持独立。
+
+2026-10-26 用户批准按方案修订 2 实施，接受
+[ADR-047](../adr/adr-047-per-operation-antialias.md)。AA-1 进入 `in_progress`，
+AA-2–AA-4 为 `pending`；按顺序推进，每次最多一个实施切片。
+ShapeStyles 的完整入口状态待实际契约与像素证据裁定，hairline 与低 miter 保留原边界。
+
+AA-1 Core 契约与外部消费者验证已完成，见
+[实施记录](../verification/reviews/per-operation-antialias-implementation-2026-10-26.md)。
+Native/Wasm Core check、严格 lib Clippy、workspace check 及 49 项定向测试通过；
+公共快照与全量门禁随完整增量退出核验。随后按单链推进 AA-2–AA-4，
+截至下述实施复核的状态为：
+
+| 切片 | 当前状态 | 退出内容 |
+|---|---|---|
+| AA-1 | `complete` | 独立提示、命令冻结、状态恢复、外部消费者与两级拒绝 |
+| AA-2 | `complete` | 预算扫描线、完整缓存身份、描边/文字准备与提交前检查 |
+| AA-3 | `complete` | 默认回归、混合像素、DPI/恢复、release 性能与体积 |
+| AA-4 | `complete` | 原始样式矩阵消费者、受支持输入与清理恢复 |
+
+2026-10-26 AA-1–AA-4 的实现及既定自动验证切片完成，最终 API/workspace 门禁
+通过；workspace 测试通过 1,501 项，8 项忽略。40 个 GPU 矩阵通过，
+ShapeStyles 改为 `in_progress`；
+窗口呈现、浏览器像素及完整上游几何仍待验收。目录当前为
+16 complete、9 in_progress、0 blocked。持续变换 DPI 2 的帧等待 P95
+实测为 19.7–28.9 ms，不保证 60 fps；成本与产物增量见上述实施记录。
+Hairline、低 miter 与混合字体装饰未实施，不将这些输入夹值后登记为对等。
+
 2026-10-24 Tree 方案已按
 [首轮评审 R01–R10](../verification/reviews/tree-layout-presentation-review-2026-10-24.md)
 完成修订 2，逐项响应在方案正文。当前仍为 Design/Gate、待复核，未批准实施；
