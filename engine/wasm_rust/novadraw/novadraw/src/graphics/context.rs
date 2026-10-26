@@ -82,6 +82,18 @@ impl<'a> PaintContext<'a> {
         Err(error)
     }
 
+    pub fn set_antialias(&mut self, mode: AntialiasMode) {
+        self.canvas.set_antialias(mode);
+    }
+    pub fn antialias(&self) -> AntialiasMode {
+        self.canvas.antialias()
+    }
+    pub fn set_text_antialias(&mut self, mode: AntialiasMode) {
+        self.canvas.set_text_antialias(mode);
+    }
+    pub fn text_antialias(&self) -> AntialiasMode {
+        self.canvas.text_antialias()
+    }
     pub fn set_fill_paint(&mut self, paint: impl Into<Paint>) {
         self.canvas.set_fill_paint(paint.into());
     }
@@ -469,6 +481,18 @@ impl<'a> Graphics<'a> {
             self.paint.resources,
             self.paint.leases.as_deref_mut(),
         )
+    }
+    pub fn set_antialias(&mut self, mode: AntialiasMode) {
+        self.paint.set_antialias(mode);
+    }
+    pub fn antialias(&self) -> AntialiasMode {
+        self.paint.antialias()
+    }
+    pub fn set_text_antialias(&mut self, mode: AntialiasMode) {
+        self.paint.set_text_antialias(mode);
+    }
+    pub fn text_antialias(&self) -> AntialiasMode {
+        self.paint.text_antialias()
     }
     pub fn set_fill_paint(&mut self, paint: impl Into<Paint>) {
         self.paint.set_fill_paint(paint);

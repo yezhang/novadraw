@@ -41,6 +41,14 @@ pub enum GraphicsInputError {
     },
     InvalidDeviceScale,
     DegenerateDeviceGradient,
+    AntialiasOutlineUnavailable {
+        glyph_id: u32,
+    },
+    AntialiasPreparationLimit {
+        kind: &'static str,
+        requested: usize,
+        limit: usize,
+    },
 }
 
 impl fmt::Display for GraphicsInputError {
@@ -75,6 +83,19 @@ impl fmt::Display for GraphicsInputError {
                 f.write_str("device scale must be positive and representable")
             }
             Self::DegenerateDeviceGradient => f.write_str("gradient collapses in device precision"),
+            Self::AntialiasOutlineUnavailable { glyph_id } => {
+                write!(
+                    f,
+                    "antialias OFF requires a valid vector outline for glyph {glyph_id}"
+                )
+            }
+            Self::AntialiasPreparationLimit {
+                kind,
+                requested,
+                limit,
+            } => {
+                write!(f, "antialias {kind} work {requested} exceeds limit {limit}")
+            }
         }
     }
 }

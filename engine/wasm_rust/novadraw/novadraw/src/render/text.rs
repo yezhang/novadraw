@@ -2045,8 +2045,12 @@ mod tests {
 
         let commands = canvas.commands();
         assert!(commands.len() > 1);
-        let crate::render::RenderCommandKind::DrawGlyphRun { paint, run, origin } =
-            &commands[1].kind
+        let crate::render::RenderCommandKind::DrawGlyphRun {
+            antialias: _,
+            paint,
+            run,
+            origin,
+        } = &commands[1].kind
         else {
             panic!("expected glyph run");
         };

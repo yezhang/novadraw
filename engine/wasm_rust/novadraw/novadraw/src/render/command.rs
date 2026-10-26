@@ -6,6 +6,7 @@ use std::fmt;
 
 use crate::Color;
 use crate::geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
+use crate::graphics::AntialiasMode;
 
 use super::stroke::StrokeStyle;
 use super::{ClipPath, FillRule, Paint};
@@ -76,6 +77,8 @@ pub enum RenderCommandKind {
 
     /// 填充矩形
     FillRect {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         rect: Rectangle,
         paint: Paint,
         rule: FillRule,
@@ -83,6 +86,8 @@ pub enum RenderCommandKind {
 
     /// 描边矩形
     StrokeRect {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         rect: Rectangle,
         paint: Paint,
         stroke: StrokeStyle,
@@ -90,6 +95,8 @@ pub enum RenderCommandKind {
 
     /// 绘制椭圆
     Ellipse {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         /// 椭圆中心 x
         cx: f64,
         /// 椭圆中心 y
@@ -108,6 +115,8 @@ pub enum RenderCommandKind {
 
     /// 绘制直线
     Line {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         /// 起点
         p1: Point,
         /// 终点
@@ -119,6 +128,8 @@ pub enum RenderCommandKind {
 
     /// 绘制折线
     Polyline {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         /// 点列表
         points: PointList,
         /// 线条颜色
@@ -128,6 +139,8 @@ pub enum RenderCommandKind {
 
     /// 填充路径
     FillPath {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         /// 路径数据
         path: Path,
         /// 填充颜色
@@ -137,6 +150,8 @@ pub enum RenderCommandKind {
 
     /// 描边路径
     StrokePath {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         /// 路径数据
         path: Path,
         /// 描边颜色
@@ -158,6 +173,8 @@ pub enum RenderCommandKind {
 
     /// 绘制 backend-neutral、已完成 shaping 和定位的 glyph run。
     DrawGlyphRun {
+        /// Frozen coverage hint for this draw operation.
+        antialias: AntialiasMode,
         run: GlyphRun,
         origin: Point,
         paint: GlyphPaint,
@@ -165,6 +182,21 @@ pub enum RenderCommandKind {
 }
 
 impl RenderCommandKind {
+    /// Coverage hint; state, clips, clear and images have no shape AA hint.
+    pub fn antialias(&self) -> Option<AntialiasMode> {
+        match self {
+            Self::FillRect { antialias, .. }
+            | Self::StrokeRect { antialias, .. }
+            | Self::Ellipse { antialias, .. }
+            | Self::Line { antialias, .. }
+            | Self::Polyline { antialias, .. }
+            | Self::FillPath { antialias, .. }
+            | Self::StrokePath { antialias, .. }
+            | Self::DrawGlyphRun { antialias, .. } => Some(*antialias),
+            _ => None,
+        }
+    }
+
     /// All paints consumed by this command, including both ellipse branches.
     pub fn paints(&self) -> impl Iterator<Item = &Paint> {
         let paints = match self {
@@ -206,7 +238,7 @@ impl RenderCommandKind {
 
     pub fn required_capabilities(&self) -> impl Iterator<Item = crate::RenderCapability> {
         use crate::RenderCapability;
-        let mut required = [None; 3];
+        let mut required = [None; 4];
         match self {
             Self::ClipPath { .. } => required[0] = Some(RenderCapability::PathClips),
             Self::Image { .. } => required[0] = Some(RenderCapability::ImageResources),
@@ -221,6 +253,12 @@ impl RenderCommandKind {
         }
         if self.paints().any(Paint::requires_linear_gradients) {
             required[2] = Some(RenderCapability::LinearGradients);
+        }
+        if self
+            .antialias()
+            .is_some_and(|mode| mode != AntialiasMode::Default)
+        {
+            required[3] = Some(RenderCapability::PerOperationAntialias);
         }
         required.into_iter().flatten()
     }

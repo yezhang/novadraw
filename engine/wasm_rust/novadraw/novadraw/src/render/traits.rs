@@ -16,6 +16,7 @@ pub enum RenderCapability {
     PathClips,
     LinearGradients,
     HostBackground,
+    PerOperationAntialias,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,6 +47,7 @@ pub struct BackendCapabilities {
     pub path_clips: bool,
     pub linear_gradients: bool,
     pub host_background: bool,
+    pub per_operation_antialias: bool,
 }
 
 impl BackendCapabilities {
@@ -59,6 +61,7 @@ impl BackendCapabilities {
         path_clips: false,
         linear_gradients: false,
         host_background: false,
+        per_operation_antialias: false,
     };
 
     pub const RETAINED_PARTIAL: Self = Self {
@@ -71,6 +74,7 @@ impl BackendCapabilities {
         path_clips: false,
         linear_gradients: false,
         host_background: false,
+        per_operation_antialias: false,
     };
 
     pub const fn supports_partial_damage(self) -> bool {
@@ -86,6 +90,7 @@ impl BackendCapabilities {
             RenderCapability::PathClips => self.path_clips,
             RenderCapability::LinearGradients => self.linear_gradients,
             RenderCapability::HostBackground => self.host_background,
+            RenderCapability::PerOperationAntialias => self.per_operation_antialias,
         }
     }
 
@@ -116,6 +121,11 @@ impl BackendCapabilities {
 
     pub const fn with_host_background(mut self) -> Self {
         self.host_background = true;
+        self
+    }
+
+    pub const fn with_per_operation_antialias(mut self) -> Self {
+        self.per_operation_antialias = true;
         self
     }
 

@@ -438,6 +438,7 @@ module.geometry struct Vec2
 module.geometry trait ApproxEq
 module.geometry trait Translatable
 module.graphics constant DEFAULT_STROKE_MITER_LIMIT
+module.graphics enum AntialiasMode
 module.graphics enum ColorError
 module.graphics enum DashPattern
 module.graphics enum FillRule

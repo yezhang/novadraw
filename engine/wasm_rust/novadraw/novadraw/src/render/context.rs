@@ -19,6 +19,8 @@ use crate::runtime::ResourceRegistry;
 
 #[derive(Clone, Debug)]
 struct GraphicsState {
+    antialias: crate::graphics::AntialiasMode,
+    text_antialias: crate::graphics::AntialiasMode,
     font: crate::text::FontDescriptor,
     fill_paint: Option<Paint>,
     stroke_paint: Option<Paint>,
@@ -32,6 +34,8 @@ struct GraphicsState {
 impl Default for GraphicsState {
     fn default() -> Self {
         Self {
+            antialias: crate::graphics::AntialiasMode::Default,
+            text_antialias: crate::graphics::AntialiasMode::Default,
             font: crate::text::FontDescriptor::default(),
             fill_paint: None,
             stroke_paint: None,
@@ -100,6 +104,19 @@ impl NdCanvas {
             self.recording_error = prefix.recording_error;
         }
         self.damage.set_full();
+    }
+
+    pub(crate) fn set_antialias(&mut self, mode: crate::graphics::AntialiasMode) {
+        self.state.antialias = mode;
+    }
+    pub(crate) fn antialias(&self) -> crate::graphics::AntialiasMode {
+        self.state.antialias
+    }
+    pub(crate) fn set_text_antialias(&mut self, mode: crate::graphics::AntialiasMode) {
+        self.state.text_antialias = mode;
+    }
+    pub(crate) fn text_antialias(&self) -> crate::graphics::AntialiasMode {
+        self.state.text_antialias
     }
 
     pub(crate) fn stroke_paint(&self) -> Option<&Paint> {
@@ -215,12 +232,14 @@ impl NdCanvas {
             if paint.is_visible() {
                 let kind = if stroke {
                     RenderCommandKind::StrokePath {
+                        antialias: self.state.antialias,
                         path: path.clone(),
                         paint,
                         stroke: self.state.stroke.clone(),
                     }
                 } else {
                     RenderCommandKind::FillPath {
+                        antialias: self.state.antialias,
                         path: path.clone(),
                         paint,
                         rule: self.state.fill_rule,
@@ -456,7 +475,12 @@ impl NdCanvas {
     ) {
         let rect = Rectangle::new(x, y, width, height);
         let paint = paint.with_global_alpha(self.state.global_alpha);
-        self.create_command(RenderCommandKind::FillRect { rect, paint, rule });
+        self.create_command(RenderCommandKind::FillRect {
+            antialias: self.state.antialias,
+            rect,
+            paint,
+            rule,
+        });
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -472,6 +496,7 @@ impl NdCanvas {
         let rect = Rectangle::new(x, y, width, height);
         let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::StrokeRect {
+            antialias: self.state.antialias,
             rect,
             paint,
             stroke,
@@ -532,6 +557,7 @@ impl NdCanvas {
         let stroke_paint =
             stroke_paint.map(|paint| paint.with_global_alpha(self.state.global_alpha));
         self.create_command(RenderCommandKind::Ellipse {
+            antialias: self.state.antialias,
             cx,
             cy,
             rx,
@@ -581,6 +607,7 @@ impl NdCanvas {
     ) {
         let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::Line {
+            antialias: self.state.antialias,
             p1,
             p2,
             paint,
@@ -602,6 +629,7 @@ impl NdCanvas {
         }
         let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::Polyline {
+            antialias: self.state.antialias,
             points: PointList::from_points(points.to_vec()),
             paint,
             stroke,
@@ -717,6 +745,7 @@ impl NdCanvas {
                 // 跳过完全透明的颜色
                 if paint.is_visible() {
                     self.create_command(RenderCommandKind::FillPath {
+                        antialias: self.state.antialias,
                         path,
                         paint,
                         rule: self.state.fill_rule,
@@ -734,6 +763,7 @@ impl NdCanvas {
             if let Some(paint) = &self.state.stroke_paint {
                 let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::StrokePath {
+                    antialias: self.state.antialias,
                     path,
                     paint,
                     stroke: self.state.stroke.clone(),
@@ -749,6 +779,7 @@ impl NdCanvas {
             if let Some(paint) = &self.state.fill_paint {
                 let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::FillPath {
+                    antialias: self.state.antialias,
                     path: path.clone(),
                     paint,
                     rule: self.state.fill_rule,
@@ -757,6 +788,7 @@ impl NdCanvas {
             if let Some(paint) = &self.state.stroke_paint {
                 let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::StrokePath {
+                    antialias: self.state.antialias,
                     path,
                     paint,
                     stroke: self.state.stroke.clone(),
@@ -1006,12 +1038,14 @@ impl NdCanvas {
             if !path.operations().is_empty() {
                 let kind = match paint {
                     crate::render::text::GlyphPaint::Fill(paint) => RenderCommandKind::FillPath {
+                        antialias: self.state.text_antialias,
                         path,
                         paint,
                         rule: FillRule::NonZero,
                     },
                     crate::render::text::GlyphPaint::Stroke { paint, stroke } => {
                         RenderCommandKind::StrokePath {
+                            antialias: self.state.text_antialias,
                             path,
                             paint,
                             stroke,
@@ -1027,6 +1061,7 @@ impl NdCanvas {
                 continue;
             }
             self.create_command(RenderCommandKind::DrawGlyphRun {
+                antialias: self.state.text_antialias,
                 run: run.clone(),
                 origin: Point::new(x, y),
                 paint: paint.clone(),
