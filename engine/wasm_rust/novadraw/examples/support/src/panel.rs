@@ -40,6 +40,14 @@ impl Panel {
         (self.draw)(ui, runtime);
     }
 
+    /// Routes native pointer events using the latest host position.
+    pub fn owns_pointer_input(&self, context: &egui::Context, position: egui::Pos2) -> bool {
+        context.egui_is_using_pointer()
+            || context
+                .layer_id_at(position)
+                .is_some_and(|layer| layer.order != egui::Order::Background)
+    }
+
     /// Prepares the same control UI used by the native overlay, without requiring a window.
     pub fn prepare_ui(
         &mut self,
@@ -224,6 +232,72 @@ mod tests {
     use std::time::{Duration, Instant};
 
     #[test]
+    fn canvas_press_after_leaving_panel_does_not_wait_for_a_redraw() {
+        let context = egui::Context::default();
+        let mut runtime = Runtime::empty();
+        let mut panel = Panel::new([610.0, 40.0], |ui, _| {
+            ui.label("Zoom icons");
+        });
+        for _ in 0..4 {
+            let _ = panel.prepare_ui(
+                &context,
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1200.0, 800.0),
+                    )),
+                    events: vec![egui::Event::PointerMoved(egui::pos2(650.0, 80.0))],
+                    ..Default::default()
+                },
+                &mut runtime,
+            );
+        }
+        assert!(context.egui_wants_pointer_input());
+        // CursorMoved is queued in egui-winit; no egui pass runs before MouseInput.
+        assert!(!panel.owns_pointer_input(&context, egui::pos2(300.0, 12.0)));
+        assert!(panel.owns_pointer_input(&context, egui::pos2(650.0, 80.0)));
+    }
+
+    #[test]
+    fn active_panel_drag_keeps_pointer_ownership_outside_panel() {
+        let context = egui::Context::default();
+        let mut runtime = Runtime::empty();
+        let slider_rect = std::rc::Rc::new(std::cell::Cell::new(egui::Rect::NOTHING));
+        let drawn_rect = slider_rect.clone();
+        let mut value = 0.5;
+        let mut panel = Panel::new([610.0, 40.0], move |ui, _| {
+            drawn_rect.set(ui.add(egui::Slider::new(&mut value, 0.0..=1.0)).rect);
+        });
+        let input = |events| egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1200.0, 800.0),
+            )),
+            events,
+            ..Default::default()
+        };
+        for _ in 0..4 {
+            let _ = panel.prepare_ui(&context, input(vec![]), &mut runtime);
+        }
+        let position = slider_rect.get().left_center() + egui::vec2(40.0, 0.0);
+        let _ = panel.prepare_ui(
+            &context,
+            input(vec![
+                egui::Event::PointerMoved(position),
+                egui::Event::PointerButton {
+                    pos: position,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ]),
+            &mut runtime,
+        );
+        assert!(context.egui_is_using_pointer());
+        assert!(panel.owns_pointer_input(&context, egui::pos2(300.0, 12.0)));
+    }
+
+    #[test]
     fn floating_panel_does_not_claim_canvas_pointer_input() {
         let context = egui::Context::default();
         let mut runtime = Runtime::empty();
@@ -248,6 +322,7 @@ mod tests {
             !context.egui_wants_pointer_input(),
             "Canvas hover must not be owned by the floating panel"
         );
+        assert!(panel.owns_pointer_input(&context, egui::pos2(900.0, 60.0)));
         for _ in 0..4 {
             let _ = panel.prepare_ui(
                 &context,

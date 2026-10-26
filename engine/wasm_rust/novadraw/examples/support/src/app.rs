@@ -643,8 +643,16 @@ impl ApplicationHandler<()> for DemoApp {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        // Track all host movement, including events owned by the control panel.
+        match &event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor_position = Some((position.x, position.y));
+            }
+            WindowEvent::CursorLeft { .. } => self.cursor_position = None,
+            _ => {}
+        }
         #[cfg(feature = "egui-panel")]
-        if self.panel.is_some()
+        if let Some(panel) = &self.panel
             && self.screenshot_mode.is_none()
             && let (Some(panel_host), Some(host)) = (&mut self.panel_host, &self.host)
         {
@@ -660,20 +668,18 @@ impl ApplicationHandler<()> for DemoApp {
                 &event,
                 WindowEvent::CursorMoved { .. } | WindowEvent::MouseInput { .. }
             );
-            let over_panel = match &event {
-                WindowEvent::CursorMoved { position, .. } => {
-                    let scale = host.window().scale_factor();
-                    panel_host
-                        .context
-                        .layer_id_at(crate::panel::egui::pos2(
-                            (position.x / scale) as f32,
-                            (position.y / scale) as f32,
-                        ))
-                        .is_some_and(|layer| layer.order != crate::panel::egui::Order::Background)
-                }
-                _ => false,
+            let consumed = if pointer_event || matches!(&event, WindowEvent::MouseWheel { .. }) {
+                let scale = host.window().scale_factor();
+                self.cursor_position.is_some_and(|(x, y)| {
+                    panel.owns_pointer_input(
+                        &panel_host.context,
+                        crate::panel::egui::pos2((x / scale) as f32, (y / scale) as f32),
+                    )
+                })
+            } else {
+                response.consumed
             };
-            if (response.consumed || over_panel) && !(canvas_captured && pointer_event) {
+            if consumed && !(canvas_captured && pointer_event) {
                 if pointer_event {
                     self.pointer_adapter.reset();
                 }
@@ -731,7 +737,6 @@ impl ApplicationHandler<()> for DemoApp {
                 self.request_surface_redraw();
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.cursor_position = Some((position.x, position.y));
                 let scale_factor = self
                     .host
                     .as_ref()
@@ -753,7 +758,6 @@ impl ApplicationHandler<()> for DemoApp {
                 });
             }
             WindowEvent::CursorLeft { .. } => {
-                self.cursor_position = None;
                 self.pointer_adapter.reset();
                 self.dispatch_input(|runtime| runtime.input().pointer_exited());
             }
