@@ -606,6 +606,60 @@ mod tests {
     }
 
     #[test]
+    fn native_press_release_pairs_toggle_tree_with_animation_on_and_off() {
+        use novadraw_platform_winit::WinitPointerAdapter;
+        use winit::event::{ElementState, MouseButton};
+        for animated in [false, true] {
+            let mut fixture = super::super::tree_example::canvas_fixture(false);
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            fixture.model.lock().unwrap().use_animation = animated;
+            let (title, child) = {
+                let tree = fixture.model.lock().unwrap();
+                (tree.branches[1].title, tree.branches[6].title)
+            };
+            let mut adapter = WinitPointerAdapter::new();
+            for (base_time, expected_expanded) in [(0, false), (600, true)] {
+                let bounds = fixture.runtime.tree().figure_bounds(title).unwrap();
+                let position = fixture
+                    .runtime
+                    .tree()
+                    .local_to_surface_transform(title)
+                    .unwrap()
+                    .transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0));
+                for (state, offset) in [
+                    (ElementState::Pressed, 0),
+                    (ElementState::Released, 10),
+                    (ElementState::Pressed, 100),
+                    (ElementState::Released, 110),
+                ] {
+                    adapter
+                        .dispatch_button_input(
+                            &mut fixture.runtime,
+                            state,
+                            MouseButton::Left,
+                            position,
+                            Duration::from_millis(base_time + offset),
+                        )
+                        .unwrap();
+                }
+                process(&mut fixture.runtime, &fixture.model);
+                fixture.runtime.frames().stabilize_for_query().unwrap();
+                let tree = fixture.model.lock().unwrap();
+                assert_eq!(tree.branches[1].expanded, expected_expanded);
+                assert_eq!(
+                    fixture
+                        .runtime
+                        .tree()
+                        .is_effectively_visible(child)
+                        .unwrap(),
+                    expected_expanded
+                );
+                assert_eq!(tree.animation.is_some(), animated);
+            }
+        }
+    }
+
+    #[test]
     fn tree_collapse_preserves_first_frame_and_converges_all_descendant_centers() {
         for horizontal in [true, false] {
             let mut fixture = super::super::tree_example::canvas_fixture(false);

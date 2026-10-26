@@ -67,9 +67,30 @@ Native 在窗口 RedrawRequested 后使用 Vello 的真实 GPU retained texture 
 retained repair 修正后的 Native GPU 40 幅截图比较通过；窗口 surface present 保留未通过。
 公开 API 的 host/wasm rustdoc 边界通过，新增符号只归 animation/figure 领域，
 Runtime 方法预算保持 28/28；workspace fmt/check 与严格 Clippy 通过。
-`animation.tree` 的 94 项定向回归及 Native GPU 图像验证通过。
-最终 workspace test 为 1,472 项通过、0 失败、6 项既有忽略；374 份 Markdown、
+首次退出验证时，`animation.tree` 的 94 项定向回归及 Native GPU 图像验证通过。
+当时 workspace test 为 1,472 项通过、0 失败、6 项既有忽略；374 份 Markdown、
 三本书的 HTML/PDF 构建和 `git diff --check` 通过。T-1 至 T-4 已关闭。
 中文复读与机械标点扫描完成：四处字面命中均为 Mermaid 的 `-.文字.->` 连线
 语法，书稿三处、本文示例一处；正文半角标点命中为零。技术术语和原有查阅编号保留。
 AA、混合字体装饰及其他 M01-C consumer 不在本次关闭范围。
+
+## Native 双击输入补充修复
+
+人工复查发现默认关闭动画时，真实窗口双击没有展开或折叠。根因是共享 winit 宿主
+只转发 Pressed/Released，没有识别和投递 DoubleClicked；原有 Tree 回归直接调用
+Core 入口，没有覆盖这一桥接缺口。上文的几何与 GPU 证据保持原范围，不能作为
+真实鼠标双击链路已经验证的证明。
+
+平台新增 `WinitPointerAdapter`，共享宿主统一调用它处理按钮输入。识别使用调用方
+提供的单调时间和逻辑坐标，按 Pressed → DoubleClicked → Released 投递；离窗、
+失焦、场景切换、面板接管与滚动会中断点击序列，拖拽不能被识别为双击。
+默认 500 ms / 4 逻辑像素为可替换 fallback，没有查询 OS 的双击设置。
+该修复没有新增依赖、资源或 Core/Wasm 入口；识别使用固定大小的局部状态和 O(1)
+比较，不扫描 FigureTree，也不推进 Runtime 动画时钟。
+
+新增平台按钮序列、共享宿主桥接和 Tree 动画开/关回归。Tree 消费者回归通过平台
+适配器输入 winit 按下/释放，断言折叠、再展开及后代源可见性，不直接调用 Core
+双击入口。稳定 `animation.tree` 已纳入这三层检查，99 项定向回归与 40 幅 GPU
+图像比较通过。修复后 workspace fmt/check、严格 Clippy 与 test 通过：
+1,477 项通过、0 失败、6 项既有忽略；374 份 Markdown 与差异空白检查通过。
+本次没有 Desktop 自动操作工具，未把程序化按钮序列回归表述为物理鼠标人工验收。

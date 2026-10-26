@@ -27,6 +27,28 @@ const SUITES: &[Suite] = &[
                 args: &[
                     "test",
                     "-p",
+                    "novadraw-platform-winit",
+                    "--lib",
+                    "pointer::tests",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw-example-support",
+                    "--features",
+                    "egui-panel",
+                    "--lib",
+                    "shared_host_mouse_button_path_emits_double_click",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
                     "novadraw",
                     "--test",
                     "p2_animation_geometry_contract",

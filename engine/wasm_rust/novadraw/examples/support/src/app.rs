@@ -23,8 +23,8 @@ pub use novadraw::{
 };
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
-    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_event,
-    adapt_key_input, adapt_modifiers, adapt_mouse_button, adapt_physical_key,
+    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, WinitPointerAdapter,
+    adapt_key_event, adapt_key_input, adapt_modifiers, adapt_physical_key,
 };
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
@@ -97,6 +97,7 @@ pub struct DemoApp {
     cursor_position: Option<(f64, f64)>,
     modifiers: KeyModifiers,
     gesture_adapter: WinitGestureAdapter,
+    pointer_adapter: WinitPointerAdapter,
     clock_origin: Instant,
     initial_frame_presented: bool,
     initial_frame_attempts: usize,
@@ -139,6 +140,7 @@ impl DemoApp {
             cursor_position: None,
             modifiers: KeyModifiers::default(),
             gesture_adapter: WinitGestureAdapter::new(),
+            pointer_adapter: WinitPointerAdapter::new(),
             clock_origin: Instant::now(),
             initial_frame_presented: false,
             initial_frame_attempts: 0,
@@ -153,6 +155,7 @@ impl DemoApp {
                 runtime.input().pointer_exited();
             }
             self.sync_platform_effects();
+            self.pointer_adapter.reset();
             self.clock_origin = Instant::now();
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
@@ -351,6 +354,24 @@ impl DemoApp {
         }
     }
 
+    fn dispatch_pointer_button(
+        &mut self,
+        state: winit::event::ElementState,
+        button: winit::event::MouseButton,
+        position: novadraw::geometry::Point,
+        time: Duration,
+    ) {
+        let mut adapter = std::mem::take(&mut self.pointer_adapter);
+        self.dispatch_input(|runtime| {
+            if let Err(error) =
+                adapter.dispatch_button_input(runtime, state, button, position, time)
+            {
+                error!("pointer input rejected: {error}");
+            }
+        });
+        self.pointer_adapter = adapter;
+    }
+
     fn dispatch_key_pressed(&mut self, key: Key) -> bool {
         let modifiers = self.modifiers;
         let mut handled = false;
@@ -415,6 +436,7 @@ impl DemoApp {
             return;
         }
         self.gesture_adapter.cancel_all();
+        self.pointer_adapter.reset();
         self.dispatch_input(|runtime| {
             runtime.input().cancel_gestures();
             runtime.input().pointer_exited();
@@ -652,6 +674,9 @@ impl ApplicationHandler<()> for DemoApp {
                 _ => false,
             };
             if (response.consumed || over_panel) && !(canvas_captured && pointer_event) {
+                if pointer_event {
+                    self.pointer_adapter.reset();
+                }
                 if let Some(runtime) = &mut self.runtime {
                     runtime.input().pointer_exited();
                     if matches!(
@@ -712,6 +737,15 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
+                if let Err(error) =
+                    self.pointer_adapter
+                        .pointer_moved(novadraw::geometry::Point::new(
+                            position.x / scale_factor,
+                            position.y / scale_factor,
+                        ))
+                {
+                    error!("pointer movement rejected: {error}");
+                }
                 self.dispatch_input(|runtime| {
                     runtime
                         .input()
@@ -720,6 +754,7 @@ impl ApplicationHandler<()> for DemoApp {
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor_position = None;
+                self.pointer_adapter.reset();
                 self.dispatch_input(|runtime| runtime.input().pointer_exited());
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -731,29 +766,19 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
-                let button = adapt_mouse_button(button);
-                self.dispatch_input(|runtime| match state {
-                    winit::event::ElementState::Pressed => {
-                        runtime.input().dispatch_mouse_pressed(
-                            x / scale_factor,
-                            y / scale_factor,
-                            button,
-                        );
-                    }
-                    winit::event::ElementState::Released => {
-                        runtime.input().dispatch_mouse_released(
-                            x / scale_factor,
-                            y / scale_factor,
-                            button,
-                        );
-                    }
-                });
+                self.dispatch_pointer_button(
+                    state,
+                    button,
+                    novadraw::geometry::Point::new(x / scale_factor, y / scale_factor),
+                    self.clock_origin.elapsed(),
+                );
             }
             WindowEvent::MouseWheel {
                 device_id,
                 delta,
                 phase,
             } => {
+                self.pointer_adapter.reset();
                 let scale_factor = self
                     .host
                     .as_ref()
@@ -789,6 +814,7 @@ impl ApplicationHandler<()> for DemoApp {
                 delta,
                 phase,
             } => {
+                self.pointer_adapter.reset();
                 let scale_factor = self
                     .host
                     .as_ref()
@@ -1343,6 +1369,60 @@ fn run_runtime_demo_app_with_options(
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn shared_host_mouse_button_path_emits_double_click() {
+        use novadraw::{
+            event::{EventContext, MouseEvent},
+            figure::{
+                Figure, FigureCapabilityBuilder, FigureCapabilityRegistrationError,
+                FigureEventHandler, INPUT, InputCapability,
+            },
+            geometry::Point,
+        };
+        struct Target(Arc<AtomicUsize>);
+        impl Figure for Target {
+            fn name(&self) -> &'static str {
+                "DoubleClickTarget"
+            }
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::new(0.0, 0.0, 100.0, 100.0)
+            }
+            fn register_capabilities(
+                &self,
+                out: &mut FigureCapabilityBuilder,
+            ) -> Result<(), FigureCapabilityRegistrationError> {
+                out.register(INPUT, InputCapability::of::<Self>())
+            }
+        }
+        impl FigureEventHandler for Target {
+            fn on_mouse_double_clicked(&self, _: &MouseEvent, _: &mut EventContext<'_>) -> bool {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                true
+            }
+        }
+        let count = Arc::new(AtomicUsize::new(0));
+        let mut runtime = Runtime::empty();
+        runtime
+            .set_contents(Box::new(Target(count.clone())))
+            .unwrap();
+        runtime.frames().stabilize_for_query().unwrap();
+        let mut app = DemoApp::new("test", Vec::new(), 100.0, 100.0, "test", None);
+        app.runtime = Some(runtime);
+        for (pressed, time) in [(true, 0), (false, 10), (true, 100), (false, 110)] {
+            app.dispatch_pointer_button(
+                if pressed {
+                    winit::event::ElementState::Pressed
+                } else {
+                    winit::event::ElementState::Released
+                },
+                winit::event::MouseButton::Left,
+                Point::new(10.0, 10.0),
+                Duration::from_millis(time),
+            );
+        }
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+    }
 
     #[cfg(feature = "egui-panel")]
     #[test]

@@ -20,6 +20,12 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 历史 complete 只保留当时证据范围，其他状态在 Canvas 功能验收后更新；
 移除原生控件需求不会自动关闭尚未核对的 Canvas 差额。
 
+TreeExample 的 Use Animation 默认关闭。双击有子节点的标题可立即展开/折叠；
+开启动画后，双击进入同一 queued toggle 管线，也可使用面板的 Expanded 控件。
+共享 winit 宿主通过平台 `WinitPointerAdapter` 识别真实按下/释放序列中的双击，
+无需应用手动调用 Core 的双击入口。`animation.tree` 同时覆盖平台识别、宿主投递
+以及动画开/关两种 Tree 消费者回归。
+
 `source-contracts.tsv` 保留官方入口/helper/resource 的只读来源清单；
 `completion-contracts.tsv` 只登记 Canvas 完成范围。普通本地验证：
 
