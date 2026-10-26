@@ -39,6 +39,30 @@ impl Panel {
     pub fn show(&mut self, ui: &mut egui::Ui, runtime: &mut Runtime) {
         (self.draw)(ui, runtime);
     }
+
+    /// Prepares the same control UI used by the native overlay, without requiring a window.
+    pub fn prepare_ui(
+        &mut self,
+        context: &egui::Context,
+        input: egui::RawInput,
+        runtime: &mut Runtime,
+    ) -> egui::FullOutput {
+        // `run_ui` registers the root available rectangle used by pointer arbitration.
+        // Runtime actions still execute once, even if a control requests a sizing retry.
+        context.options_mut(|options| options.max_passes = std::num::NonZeroUsize::MIN);
+        context.run_ui(input, |root| {
+            let mut controls = egui::Window::new("Example controls")
+                .default_pos(self.position)
+                .default_width(self.width)
+                .default_height(600.0)
+                .resizable(self.anchor.is_none())
+                .vscroll(true);
+            if let Some(anchor) = self.anchor {
+                controls = controls.anchor(anchor, self.position.to_vec2());
+            }
+            controls.show(root.ctx(), |ui| self.show(ui, runtime));
+        })
+    }
 }
 pub type PanelScene = (Runtime, Option<Panel>);
 pub type PanelSceneEntry = (&'static str, Box<dyn FnMut() -> PanelScene>);
@@ -96,19 +120,7 @@ impl PanelHost {
         runtime: &mut Runtime,
     ) -> bool {
         let input = self.state.take_egui_input(window);
-        // A host action must commit once even when egui asks for another sizing pass.
-        self.context.begin_pass(input);
-        let mut controls = egui::Window::new("Example controls")
-            .default_pos(panel.position)
-            .default_width(panel.width)
-            .default_height(600.0)
-            .resizable(panel.anchor.is_none())
-            .vscroll(true);
-        if let Some(anchor) = panel.anchor {
-            controls = controls.anchor(anchor, panel.position.to_vec2());
-        }
-        controls.show(&self.context, |ui| panel.show(ui, runtime));
-        let output = self.context.end_pass();
+        let output = panel.prepare_ui(&self.context, input, runtime);
         let delay = output
             .viewport_output
             .get(&egui::ViewportId::ROOT)
@@ -211,6 +223,72 @@ mod tests {
     use super::*;
     use std::time::{Duration, Instant};
 
+    #[test]
+    fn floating_panel_does_not_claim_canvas_pointer_input() {
+        let context = egui::Context::default();
+        let mut runtime = Runtime::empty();
+        let mut panel = Panel::new([860.0, 20.0], |ui, _| {
+            ui.label("Controls");
+        });
+        for _ in 0..4 {
+            let _ = panel.prepare_ui(
+                &context,
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1200.0, 800.0),
+                    )),
+                    events: vec![egui::Event::PointerMoved(egui::pos2(100.0, 100.0))],
+                    ..Default::default()
+                },
+                &mut runtime,
+            );
+        }
+        assert!(
+            !context.egui_wants_pointer_input(),
+            "Canvas hover must not be owned by the floating panel"
+        );
+        for _ in 0..4 {
+            let _ = panel.prepare_ui(
+                &context,
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1200.0, 800.0),
+                    )),
+                    events: vec![egui::Event::PointerMoved(egui::pos2(900.0, 60.0))],
+                    ..Default::default()
+                },
+                &mut runtime,
+            );
+        }
+        assert!(
+            context.egui_wants_pointer_input(),
+            "Controls must still own their pointer input"
+        );
+    }
+
+    #[test]
+    fn panel_runtime_actions_execute_once_even_when_layout_requests_discard() {
+        let context = egui::Context::default();
+        let mut runtime = Runtime::empty();
+        let calls = std::rc::Rc::new(std::cell::Cell::new(0));
+        let callback_calls = calls.clone();
+        let mut panel = Panel::new([20.0, 20.0], move |ui, _| {
+            callback_calls.set(callback_calls.get() + 1);
+            ui.label("Controls");
+            ui.ctx().request_discard("control sizing");
+        });
+        // Settle the floating window's first invisible sizing pass.
+        let _ = panel.prepare_ui(&context, egui::RawInput::default(), &mut runtime);
+        calls.set(0);
+        let _ = panel.prepare_ui(&context, egui::RawInput::default(), &mut runtime);
+        assert_eq!(
+            calls.get(),
+            1,
+            "Runtime mutations cannot be replayed by egui"
+        );
+    }
     #[test]
     fn idle_egui_has_no_deadline_and_due_repaint_is_consumed_once() {
         let now = Instant::now();
