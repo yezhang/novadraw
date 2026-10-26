@@ -34,23 +34,33 @@ Figure 需要：
 
 ## 12.2 ModelAdapter
 
-Editor 不应假设所有业务模型都使用同一种对象系统。`ModelAdapter` 提供最小稳定读取：
+Editor 不应假设所有业务模型都使用同一种对象系统。`ModelAdapter` 是业务系统与
+Editor 的只读边界，实际提供：
 
-```text
-snapshot() -> ModelSnapshot
-subscribe(after_revision) -> ordered changes
-apply(command) -> new revision
+```rust
+trait ModelAdapter {
+    type ModelId: Copy + Eq + Hash + Debug + 'static;
+    type Event;
+    type Error: Error + 'static;
+
+    fn root(&self) -> Self::ModelId;
+    fn revision(&self) -> ModelRevision;
+    fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error>;
+    fn connections(&self) -> Result<Vec<ModelConnection<Self::ModelId>>, Self::Error>;
+    fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>>;
+}
 ```
 
-快照应提供：
+它提供：
 
-- 稳定 `ModelId`；
-- containment 关系；
-- connection 关系；
-- 创建 Part 所需的领域属性；
-- 单调或可比较的 `ModelRevision`。
+- 稳定 `ModelId` 与根身份；
+- 非零、单调递增的 `ModelRevision`；
+- 按稳定展示顺序返回的直接 children；
+- 按连接层稳定顺序返回的 `ModelConnection { id, source, target }`；
+- 按顺序排队的 `ModelEvent { revision, subject, payload }` 通知批次。
 
-Adapter 是业务系统与 Editor 的边界，不应把 Figure 或 Runtime 类型写回模型。
+`ModelAdapter` 不拥有模型，也不提供 `apply(command)`。命令经 `CommandStack` 直接
+写入应用模型；Adapter 只负责读取与通知。Figure 或 Runtime 类型不得写回模型。
 
 ## 12.3 EditPart 的职责
 
@@ -80,14 +90,16 @@ Viewer 拥有由 `PartNode` 组成的 Part 树（`PartTree`）。行为对象参
 
 ### 三种 Part 角色
 
+`PartKind` 显式区分三种结构角色：
+
 | 角色 | 含义 | 是否进入 containment children |
 |---|---|---|
-| Root Part | Viewer 创建的合成根，承载图层和顶层视图，不代表业务模型 | 作为树根 |
-| Containment Part | 为业务 containment 中的对象构建视图 | 是 |
-| Connection Part | 为业务连接及其 source/target 关系构建视图 | 否 |
+| `PartKind::Root` | Viewer 创建的合成根，承载图层和顶层视图，不代表业务模型 | 作为树根 |
+| `PartKind::Containment` | 为业务 containment 中的对象构建视图 | 是 |
+| `PartKind::Connection` | 为业务连接及其 source/target 关系构建视图 | 否 |
 
 Root Part 没有业务模型身份。Connection Part 仍使用 `EditPartId`，只是经过角色校验后
-以 `ConnectionPart` 参与连接 API；它不建立第四种身份域。
+包装成 `ConnectionPartId(EditPartId)` 参与连接 API；它不建立第四种身份域。
 
 ## 12.4 三个身份域
 
@@ -126,7 +138,7 @@ pane，不表示 content pane 获得新的 Part 身份。
 - Part 删除时清理哪些视觉；
 - 哪些 Overlay Figure 不属于稳定 Part。
 
-树父级不一定等于视觉所有者。例如连接 Figure 可以挂在连接层，却由 ConnectionPart
+树父级不一定等于视觉所有者。例如连接 Figure 可以挂在连接层，却由 `ConnectionPartId`
 拥有。所有权和拓扑必须分别记录。
 
 ### Overlay 与稳定 Part 视觉
@@ -143,12 +155,15 @@ Overlay 包含两类主要对象：
 | Feedback | `FeedbackId` | 当前手势的候选结果、提示或拒绝视觉 | 随手势创建、替换和清理 |
 
 Handle 和 Feedback 可以关联某个 owner Part，但该关联只表达 targeting 与清理责任，
-不把它们变成 Part 的 containment children。Viewer 维护从 `FigureId` 到 Part、Handle
-或 Feedback 所有者的映射；命中内部 Figure 时，可以沿祖先链找到最近的已登记所有者。
+不把它们变成 Part 的 containment children。Viewer 维护从 `FigureId` 到
+`VisualOwner` 的映射；`VisualOwner` 的三种内部种类是 `Part`、`Handle` 与
+`Feedback`。命中内部 Figure 时，可以沿祖先链找到最近的已登记所有者。
 
-“Overlay”也不等于一个固定图层。缩放反馈、非缩放反馈和 Handle 可以使用不同根图层，
-以获得不同坐标和叠放语义。Part 被删除时，Viewer 必须同步清理选择、焦点和与其关联的
-Overlay，不能等待孤立 Figure 自行失效。
+“Overlay”也不等于一个固定图层。标准 `RootLayers` 已经提供 root、viewport layer、
+viewport、scalable、grid、printable、primary、connection、scaled feedback、feedback
+与 handles 等 Figure 身份，缩放反馈、普通反馈和 Handle 使用不同根图层，以获得不同
+坐标和叠放语义。Part 被删除时，Viewer 必须同步清理选择、焦点和与其关联的 Overlay，
+不能等待孤立 Figure 自行失效。
 
 ## 12.6 Containment 视图构建
 
@@ -165,87 +180,77 @@ Overlay，不能等待孤立 Figure 自行失效。
 8. 发布完整 Viewer revision。
 
 Part 树与 Figure 树通常相关，但不要求完全同构。图层、装饰和连接会引入额外 Figure。
+构建受 `MAX_PART_TREE_DEPTH` 限制；超过上限返回 `ViewerError::DepthLimitExceeded`，
+不会截断或跳过模型子树。
 
 ## 12.7 连接视图构建
 
 业务连接通常引用 source/target ModelId。Viewer 只有在端点 Part 可解析后，才能建立
-连接视图。代码标识符和检索词中常写作 connection projection。ConnectionPart 是
-`EditPartId` 的受检角色视图，而不是新的身份：它与其他 Part 共用 registry、Policy
-和生命周期协议，但不作为 source 或 target 的 containment child。Viewer 另行维护
+连接视图。代码标识符和检索词中常写作 connection projection。`ConnectionPartId` 包装
+同一 `EditPartId`，是受检的连接视图角色，而不是新的身份：它与其他 Part 共用 registry、
+Policy 和生命周期协议，但不作为 source 或 target 的 containment child。Viewer 另行维护
 source/target 以及 incoming/outgoing 关系索引。
 
 过程是：
 
 1. 读取连接模型及端点身份；
 2. 解析 source/target Part；
-3. 创建或复用 ConnectionPart；
+3. 创建或复用 `ConnectionPartId`；
 4. 选择 anchor 描述并创建 Connection Figure；
 5. 把 Figure 挂到连接层；
 6. 原子登记 source/target 关系和视觉所有权；
 7. 由 Core 稳定化路径。
 
-端点暂时缺失时，连接视图应进入显式 pending/unresolved，而不是把任意现有 Figure
-当作端点。Core 路径进入 unresolved 也只表示当前场景依赖尚不可解析，不会自行删除
-业务连接或 ConnectionPart。
+端点缺失不是可容忍的 pending 状态。`ModelSnapshot::capture` 在连接端点不属于当前
+containment 快照时直接返回 `ViewerError::MissingConnectionEndpoint`，Viewer 构建或
+同步失败并锁定；它不会把任意现有 Figure 当作端点。Core 连接路径的
+`ConnectionResolution::Unresolved` 描述的是场景依赖尚不可解析，不会自行删除业务连接
+或 `ConnectionPartId`，与 Editor 的端点身份错误是不同层次的问题。
+
+Viewer 同时用 `DuplicateConnectionModel`、`ConnectionModelCollision` 和
+`InvalidConnectionFigure` 拒绝重复连接身份、containment/connection 身份冲突以及工厂
+返回非连接 Figure 的情况。
 
 ## 12.8 稳定快照
 
 视图派生必须基于单一 model revision。若读取 children 后模型又变化，再读取连接会得到
 混合快照。
 
-ModelAdapter 应提供：
+`ModelSnapshot::capture` 采用“读前后 revision 并比较”的一致性检查：
 
-- 不可变快照；
-- 或带 revision 的多次读取，并在结束时验证 revision 未漂移；
-- 或能重试的一致读取事务。
+1. 读取起始 `ModelRevision` 与 root；
+2. 递归读取 children；
+3. 读取 connections；
+4. 读取结束 `ModelRevision`；
+5. 若结束 revision 与起始不一致，返回 `ViewerError::SnapshotRevisionChanged`。
 
-Viewer 不能把“每次查询都成功”误认为整体一致。
+当前实现不自动重试。Viewer 不能把“每次查询都成功”误认为整体一致；一致性检查失败
+时 Viewer 进入故障锁定，由宿主在重建 Viewer 或修复模型后重新派生。
 
-## 12.9 Plan、Validate、Commit、Publish
+## 12.9 单一同步事务
 
-视图同步同样采用四阶段事务。
+视图同步没有具名的 Plan、Validate、Commit、Publish 四阶段协议。ADR-037 明确把
+“完整事务回滚”排除在验收目标之外；当前实现是 `synchronize_projection` 内的一段
+顺序流程：
 
-### Plan
+1. `drain_events` 读取有序通知，`validate_revisions` 检查 revision 连续；
+2. `ModelSnapshot::capture` 读取单一快照，并校验 root 与 revision 未漂移；
+3. `parts_to_retire` 找出被删除或改变父级的 Part 子树；
+4. `prepare_connections_for_containment_change` 先解绑受影响连接的端点或移除已不存在的
+   连接；
+5. `remove_reparented_subtrees` 删除因移动而需要重建的旧子树；
+6. `synchronize_subtree` 递归删除多余 child、创建缺失 child、按目标顺序调用
+   `move_child_to_index` 与 `reorder_child`，并刷新 Part 视觉；
+7. `synchronize_connections` 重建连接投影；
+8. 同步直接文本编辑输入区域，成功后更新 `applied_revision`。
 
-比较当前 Viewer 状态与目标快照，形成操作计划：
+任一步失败，Viewer 调用 `mark_faulted_with_cause` 并进入 `Faulted` 状态；已经完成的
+结构修改不会整体回滚。失败隔离的目标是“不再继续发布”，不是“恢复到同步前状态”。
+因此 `ViewerEditSession` 的 `reject` 会在拒绝后再次同步，并检查模型是否真的未变化；
+若模型已被改动，返回 `RejectedEditChangedModel` 并把 Viewer 置为故障。
 
-- create parts；
-- update parts；
-- reorder children；
-- remove parts；
-- create/remove connections；
-- restore or clear selection。
-
-Plan 不修改现有 Viewer。
-
-### Validate
-
-检查：
-
-- ModelId 唯一；
-- containment 无环；
-- Part 类型可创建；
-- 视觉父级可接纳；
-- connection 端点可解析或允许 pending；
-- source revision 仍有效。
-
-### Commit
-
-按能保持引用完整的顺序应用：
-
-1. 创建新 Part 和基础视觉；
-2. 建立 containment；
-3. 刷新属性；
-4. 建立连接；
-5. 删除不再存在的连接；
-6. 删除旧 Part 和视觉；
-7. 修复选择、焦点和工具会话。
-
-具体顺序可以变化，但不能让已发布关系指向未创建或已销毁对象。
-
-### Publish
-
-派生视图和 Core 场景稳定后，Viewer 发布新 revision、选择变化和可观察事件。
+派生视图和 Core 场景稳定后，Viewer 才更新已应用 revision，并让新的选择增量、视觉
+所有权和可观察事件对外生效。
 
 ## 12.10 为什么视图派生要确定
 
@@ -257,10 +262,10 @@ derive_view(snapshot, config) -> equivalent view
 
 确定性要求：
 
-- child 顺序有明确来源；
+- child 顺序来自 `ModelAdapter::children` 返回的稳定顺序；
+- connection 顺序来自 `ModelAdapter::connections` 返回的稳定顺序；
 - Part 类型选择不依赖哈希遍历偶然顺序；
 - 相同关系不重复创建；
-- connection 分组和路由输入稳定；
 - ID 分配差异不影响可见语义。
 
 这使重建、测试和回放具有可比较结果。
@@ -270,10 +275,10 @@ derive_view(snapshot, config) -> equivalent view
 模型只改变同一父级 children 顺序时，Viewer 应：
 
 1. 读取新 revision；
-2. 识别身份集合未变；
-3. 生成 reorder 计划；
-4. 保留 Part 和 Figure 身份；
-5. 原子更新 Part 顺序和 Figure Z-order；
+2. `synchronize_subtree` 识别身份集合未变；
+3. 对每个目标 child 调用 `move_child_to_index` 更新 Figure Z-order；
+4. 调用 `parts.reorder_child` 更新 Part 顺序；
+5. 保留 Part 和 Figure 身份；
 6. 重新计算受影响命中与 damage；
 7. 发布一个 Viewer revision。
 
@@ -281,18 +286,20 @@ derive_view(snapshot, config) -> equivalent view
 
 ## 12.12 删除
 
-删除模型节点时，计划必须同时处理：
+删除模型节点时，`remove_subtree` 实际处理：
 
-- containment descendants；
-- 以其为端点的连接；
-- Viewer 选择；
-- 活跃 Tool 会话；
-- Part registry；
-- Figure visual ownership；
-- Core 输入和 damage。
+- 若被删子树包含直接文本编辑源，取消该编辑会话；
+- `selection.reconcile` 从选择中移除该子树内的 Part；
+- 清理关联的 Handle/Feedback Overlay；
+- 逐项反激活 Part，并从 `model_registry` 与 `visual_registry` 移除；
+- 移除 Policy 与 Behavior；
+- 销毁 primary Figure 子树并退役 Part 子树；
+- 连接由 `prepare_connections_for_containment_change` 与
+  `synchronize_connections` 另行解绑或删除。
 
-模型通知只描述业务事实，Viewer 负责把影响扩展到当前视图。删除不能依赖各 Part 收到
-无序回调后自行清理。
+Tool 会话不属于 Viewer 的删除路径：`EditorDomain` 是活跃 Tool 的唯一所有者，删除模型
+节点后需要由领域层显式取消或替换 Tool。模型通知只描述业务事实，Viewer 负责把影响
+扩展到当前视图；删除不能依赖各 Part 收到无序回调后自行清理。
 
 ## 12.13 撤销和重建
 
@@ -308,14 +315,25 @@ derive_view(snapshot, config) -> equivalent view
 
 ## 12.14 Revision 连续性
 
-增量通知应声明前后 revision：
+通知不是独立的 `ChangeBatch`，而是有序的 `ModelEvent` 批次：
 
 ```text
-ChangeBatch { from_revision, to_revision, changes }
+ModelEvent { revision, subject, payload }
+drain_events() -> Vec<ModelEvent<ModelId, Event>>
 ```
 
-Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量执行。若丢失批次或
-顺序不连续，应放弃增量并从新快照重建。
+`validate_revisions` 要求事件 revision 严格覆盖从 `applied_revision + 1` 开始的每个
+连续值。同一批次中后续事件可以重复当前 revision（属于同一 revision 的多个 subject），
+但不得出现旧 revision 或跳号：
+
+- 旧 revision → `ViewerError::StaleRevision { applied, actual }`；
+- 跳号 → `ViewerError::RevisionGap { expected, actual }`；
+- 没有事件但 `ModelAdapter::revision` 已变化 → 按实际值返回 stale 或 gap；
+- 事件最终 revision 必须等于读取快照时的 revision，否则
+  `SnapshotRevisionChanged`。
+
+任一失败都会把 Viewer 置为 `Faulted`，不会“尽量应用剩余事件”后继续运行。Viewer 由
+宿主重建后才重新从新快照派生。
 
 “尽量应用剩余事件”会让 Viewer 永久偏离模型。
 
@@ -358,12 +376,12 @@ flowchart TD
 
 查看器驱动 facade（`ViewerDrive`）提供短借用，只允许宿主执行：
 
-- 准备和完成渲染提交；
-- 重置 backend session；
-- 调整逻辑视口和请求完整重绘；
-- 推进时间和查询下一唤醒时刻；
-- 取消手势和释放焦点；
-- 注册宿主初始化所需的 packaged resources。
+- `prepare_submission` 与 `complete_submission`；
+- `reset_backend_session`；
+- `resize_logical_viewport` 与 `request_full_redraw`；
+- `has_pending_update`、`advance_time` 与 `next_wake_deadline`；
+- `cancel_gestures` 与 `release_focus`；
+- `register_builtin_font`。
 
 它不暴露 Runtime、图形对象树、模型可变引用、CommandStack、EditorDomain、Part registry、
 Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `ViewerDrive` 中
@@ -375,19 +393,26 @@ Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `V
 ## 12.17 重复身份
 
 同一快照中若两个对象声明相同 ModelId，Viewer 无法建立双射。正确结果是拒绝构建视图，
-保留上一稳定 Viewer 或进入明确故障状态。
+保留上一稳定 Viewer 或进入明确故障状态。实际错误包括：
+
+- `DuplicateModel`：同一 containment ModelId 出现多次；
+- `DuplicateConnectionModel`：同一连接 ModelId 出现多次；
+- `ConnectionModelCollision`：同一 ModelId 同时用于 containment 与 connection；
+- `RootChanged`：运行期间根身份变化。
 
 自动给其中一个对象换 ID 会篡改业务语义，不能由视图层完成。
 
 ## 12.18 读取期间漂移
 
-若 Adapter 不能提供不可变快照，Viewer 应：
+Adapter 读取不是原子快照时，Viewer 的实际处理是：
 
-1. 读取起始 revision；
+1. 记录起始 revision；
 2. 收集完整视图派生输入；
-3. 读取结束 revision；
-4. 若不一致，丢弃计划并重试；
-5. 达到重试预算后报告模型繁忙或一致性失败。
+3. 再次读取 revision；
+4. 若前后不一致，返回 `SnapshotRevisionChanged` 并进入故障锁定。
+
+当前实现不做自动重试，也不维护重试预算。需要恢复时，由宿主重建新的 Viewer 实例，
+从当时的稳定模型重新派生。
 
 不能把不同 revision 的 containment 和 connection 拼在一起。
 
@@ -412,12 +437,13 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 4. Command 不保存 PartId 或 FigureId；
 5. visual ownership 与 Figure 拓扑分别明确；
 6. Viewer 只发布完整的新 revision；
-7. revision 断裂时重建，不猜测；
+7. revision 断裂或快照漂移时停止发布并锁定，由宿主重建，不猜测；
 8. Viewer 不暴露长期模型可变引用；
 9. 每次模型变化都以通知校验和视图同步关闭；
 10. 宿主只通过 `ViewerDrive` 驱动平台职责，不取得编辑内部所有权；
-11. ConnectionPart 复用 EditPartId 身份域，不进入 containment children；
-12. Overlay 仍是统一 Figure 树中的临时 Figure 子树，不成为稳定 Part。
+11. `ConnectionPartId` 包装 EditPartId 并复用同一身份域，不进入 containment children；
+12. Overlay 仍是统一 Figure 树中的临时 Figure 子树，不成为稳定 Part；
+13. 视图同步失败不承诺整体回滚，已完成的修改保留并停止发布。
 
 ## 12.21 常见错误设计
 
@@ -441,7 +467,7 @@ Viewer 重建后命令历史失效。
 
 临时交互视觉进入稳定派生视图后，选择变化和取消手势都会被误解为模型结构变化。
 
-### 让 ConnectionPart 成为端点的 containment child
+### 让 ConnectionPartId 成为端点的 containment child
 
 业务 containment 与连接关系混在一棵树中，重排或删除父子结构时会错误改变连接语义。
 
@@ -473,5 +499,5 @@ Part 如何通过类型化扩展保持开放。
 5. revision 断裂后全量重建为何比补猜事件更可靠？
 6. 为什么 `synchronize_model` 不能替代普通编辑命令？
 7. `ViewerDrive` 为什么不能暴露 selection 或 CommandStack？
-8. ConnectionPart 为什么使用 EditPartId，却不进入 containment children？
+8. `ConnectionPartId` 为什么包装 EditPartId，却不进入 containment children？
 9. Overlay Figure 与 Part 的 internal visual 有什么所有权差异？

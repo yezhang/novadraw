@@ -123,7 +123,7 @@ Policy 不应执行 Command，也不应直接持久化模型。
 - 文本 preedit。
 
 Feedback 具有 `FeedbackId`，可以关联 owner Part 以便定位和清理，但它不接收稳定业务
-身份，也不成为 ConnectionPart。它由 Viewer 中具有匹配缩放语义的 feedback layer
+身份，也不成为 `ConnectionPartId`。它由 Viewer 中具有匹配缩放语义的 feedback layer
 持有，可在每次 move 后替换，并在完成或取消时清理。
 
 ```mermaid
@@ -154,9 +154,9 @@ Overlay 的典型生命周期按因果顺序发生：
 Feedback 不是模型，也不应被命令历史记录。若预览需要计算布局或坐标，应查询稳定
 场景状态并使用候选数据，不能先改真实 Figure 再观察效果。
 
-连接预览尤其不能提前创建稳定 ConnectionPart。它可以复用 Core 的连接 Figure 与路由
+连接预览尤其不能提前创建稳定 `ConnectionPartId`。它可以复用 Core 的连接 Figure 与路由
 能力，但其所有者仍是 Feedback；只有最终 Command 创建业务连接后，Viewer 才在下一次
-稳定视图中创建 ConnectionPart。
+稳定视图中创建 `ConnectionPartId`。
 
 ## 13.6 Command
 
@@ -221,7 +221,7 @@ Command 不负责刷新 Figure。模型变化发布后，Viewer 走第 12 章的
 4. Feedback 显示 resolved 或 rejected 预览；
 5. up 时再次验证 source、target 和 revision；
 6. Command 创建业务连接；
-7. Viewer 构建新的 ConnectionPart；
+7. Viewer 构建新的 `ConnectionPartId`；
 8. Core 计算 anchor 和 route。
 
 预览连接可以是 Figure，但它位于反馈层，不是最终业务连接的提前实例。
@@ -502,7 +502,7 @@ undo 伪装成取消。
 10. reject 必须证明模型、revision 和待发布事件均未改变；
 11. `has_*` 是纯查询，`check_*` 的扩展故障必须结构化暴露；
 12. Handle 与 Feedback 都由 Viewer 管理，不进入稳定 Part 树；
-13. 连接预览不能提前创建业务连接或稳定 ConnectionPart；
+13. 连接预览不能提前创建业务连接或稳定 `ConnectionPartId`；
 14. Selection 与 focus 分别拥有状态，primary 由有序选择集合决定；
 15. 跨容器拖放只在最终 Command 中修改模型；
 16. 粘贴创建新的 ModelId，不复用任何 Viewer 或 Runtime 身份。
@@ -525,7 +525,7 @@ undo 伪装成取消。
 
 预览污染稳定场景状态，取消需要猜测如何恢复。
 
-### 把连接预览注册为 ConnectionPart
+### 把连接预览注册为 ConnectionPartId
 
 候选关系获得了稳定视图身份，取消手势时只能模拟一次结构删除，也可能被选择和 Policy
 误认为已提交业务连接。

@@ -148,12 +148,12 @@ stateDiagram-v2
 
 ## 15.9 稳定通知
 
-通知应在 commit 和必要稳定化完成后发布。一个属性批次至少可表达：
+通知应在 commit 和必要稳定化完成后发布。通知日志中的一条记录携带 `source_epoch`、
+`sequence` 和 typed effect；属性 effect 再携带：
 
-- transaction/revision；
-- typed property identity；
-- before/after；
-- source；
+- 所属 `FigureId`；
+- 擦除后的属性身份（namespace、name 与 `TypeId`）；
+- 类型化 before/after；
 - 合并后的最终值。
 
 同一事务多次修改同一属性，应按合同合并。观察者不应被迫重建中间变化过程来猜最终

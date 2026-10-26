@@ -153,6 +153,8 @@ RenderSubmission {
     damage,
     commands,
     resources,
+    clear_color,
+    background_input,
 }
 ```
 
@@ -161,7 +163,14 @@ RenderSubmission {
 - `surface` 描述本次提交使用的逻辑和物理表面信息；
 - `damage` 指示需要修复的表面区域；
 - `commands` 是后端中立绘制记录；
-- `resources` 是当前 session 的完整快照或相对已确认基线的增量。
+- `resources` 是当前 session 的完整快照或相对已确认基线的增量；
+- `clear_color` 是可选的显式宿主清屏颜色，`None` 使用后端默认值；
+- `background_input` 保存准备宿主背景时使用的坐标版本。
+
+后端在接受资源和录制组合前调用 `validate_composition`。若存在 `clear_color`，后端必须
+具备 `HostBackground` 能力，且 damage 必须是完整表面修复；局部 damage 配全屏清屏会
+被拒绝。`background_input` 的 surface 必须与冻结的 `surface` 一致，并通过自身校验。
+这些检查把“提交包字段自洽”放在后端消费之前，避免后端在已上传资源后才发现组合无效。
 
 `stable_epoch` 属于 Runtime 内部因果边界：Runtime 只允许从一个稳定 epoch 生成上述
 提交，但后端不需要据此查询场景。后端只消费提交，不获得 Runtime 所有权。
@@ -251,17 +260,21 @@ ResourceProvider，也不主动读取文件或轮询异步任务。
 ```
 
 源矩形使用像素坐标，目标矩形使用逻辑坐标。把二者都解释成逻辑单位，会在高 DPI 或
-spritesheet 场景中重复缩放。若没有显式源矩形，默认选择完整像素范围；若没有显式目标
-尺寸，Figure 才可以采用图像的逻辑自然尺寸。
+spritesheet 场景中重复缩放。`ImageRegion::full(image)` 表示完整像素范围，是默认选择；
+需要裁剪时再显式给出源矩形。绘制入口是 `draw_image_region(region, destination)`，
+`draw_image` 只是 `ImageRegion::full` 的便利包装。若没有显式目标尺寸，Figure 才可以
+采用图像的逻辑自然尺寸。
 
 ### 替换图像的失效级别
 
-资源内容和布局尺寸是两个不同事实。图像 revision 变化时，Runtime 先比较新旧逻辑
-尺寸和绘制内容：
+资源内容和布局尺寸是两个不同事实。像素尺寸或 scale 改变逻辑尺寸时，必须重新测量和
+布局；bytes 改变但逻辑尺寸不变时，Runtime 仍会把所有已挂载的依赖 Figure 标记失效并
+请求重绘，而不是先逐项比较新旧内容再决定是否通知。这样处理更保守，也避免在失效阶段
+引入额外的内容比较成本：
 
 | 变化 | 必需动作 |
 |---|---|
-| bytes 改变，逻辑尺寸不变 | 资源 revision 更新并重绘 |
+| bytes 改变，逻辑尺寸不变 | 依赖 Figure 失效并重绘 |
 | 像素尺寸或 scale 使逻辑尺寸改变 | 重新测量、布局并重绘 |
 | `ImageRegion` 改变但目标尺寸固定 | 重绘，并重算可能的采样边界 |
 | 目标逻辑矩形改变 | 更新 Figure 几何和旧新 damage |
@@ -271,8 +284,10 @@ spritesheet 场景中重复缩放。若没有显式源矩形，默认选择完�
 
 ### 异步加载状态与错误分域
 
-异步图像 Figure 应显式表达当前内容状态，例如未请求、加载中、已就绪或失败。占位内容
-是 Figure 或应用策略，不是 Runtime 隐式伪造的成功图像。状态变化按时间顺序发生：
+异步图像 Figure 必须显式表达当前内容状态。Core 的 `ImageFigure` 使用
+`ImageDisplayState` 的四个取值：`Pending`（资源尚未就绪）、`Ready`、`Failed`（资源
+失败）和 `Unavailable`（没有登记资源状态）。占位内容是 Figure 或应用策略，不是
+Runtime 隐式伪造的成功图像。状态变化按时间顺序发生：
 
 ```text
 创建 ResourceRequestToken
@@ -383,6 +398,12 @@ acknowledgement 执行重新调度、surface reconfigure、backend rebuild 或�
 
 失败诊断必须保持 backend-neutral。Core 可以接收稳定摘要和 source chain 文本，但不能
 把 Vello、WGPU 或平台错误类型放进公共签名，也不能通过字符串匹配决定失败分类。
+
+当前 Graphics 扩展（path clip、gradient、自定义 dash/offset、miter 与 XOR）的 Core
+Render IR、Vello lowering、失败语义和离屏/WebGPU 像素证据已经完成。但 Native surface
+在重绘事件后的首帧仍可能返回 `Skipped`，局部 retained repair 不能拿离屏完整重绘结果
+替代，因此 P2-G01 的 surface 验收仍是未完成项。本章的提交协议与后端边界已经成立，
+“所有平台 surface 路径都已闭环”则还不能这样表述。
 
 ## 8.14 部分重绘与完整场景
 
@@ -515,7 +536,8 @@ serial 或 epoch 耗尽会返回错误，不回绕。失败尝试记住输入版
 source、subscription 与配置版本分别由 producer 管理。删除 source Figure 时，
 Runtime 在结构释放后发布终止事件；释放 Runtime 时，producer 仍向 owned handoff
 写入 `Closed`。宿主接管事件与 destination 的帧呈现确认是两条独立协议。
-目标资源导入独立于源帧确认；背景合成按 ADR-045 的后续切片实现。
+目标资源导入独立于源帧确认；宿主背景合成已按 ADR-045 落地，见本章末尾的
+“宿主背景在 Runtime 内合成”。
 
 `SceneBindingGroup` 仅保存参与者的父关系、捕获根和视图来源，Core 根据完整子树
 生成依赖边，忽略绘制矩形和可见性。私有候选固定当前 graph revision；
@@ -576,6 +598,11 @@ Retry 和 reset 复用 scene 导入表的恢复 lease，Presented 只确认旧�
 外部 [双 Canvas 消费者](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
 展示宿主分别维护 surface、position、dpi version；内容滚动只改变 Viewport，
 Canvas 移动才改变宿主变换。每个纹理消费者独立确认所属 Runtime 的冻结帧。
+
+平台验收边界需要特别说明：宿主背景的 Native/macOS 合成、透明与不透明双源、内容滚动
+与 Canvas 移动都已通过像素验收；Web 背景像素、Windows/Linux 原生 runner 以及跨显示器
+系统 DPI 尚未验收。书中描述的是已提交的 Core 协议与 Native 证据，不能据此宣称所有
+平台都已等价通过。
 
 ## 8.19 与后续章节的关系
 

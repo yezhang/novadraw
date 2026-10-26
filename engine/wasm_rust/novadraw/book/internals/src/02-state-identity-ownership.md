@@ -139,8 +139,8 @@ Viewer 中，因此一个 `ModelId` 可能对应多个不同命名空间中的 `
 
 ```text
 长期保存：FigureId
-执行查询：Runtime::with_figure(FigureId, |figure| ...)
-调用结束：借用失效
+执行查询：Runtime::figure(FigureId) -> FigureMut
+调用结束：FigureMut 借用失效
 ```
 
 ## 2.5 代际身份
@@ -151,10 +151,12 @@ Viewer 中，因此一个 `ModelId` 可能对应多个不同命名空间中的 `
 代际 ID 把身份写成：
 
 ```text
-FigureId = (slot, generation)
+FigureId = (RuntimeNamespace, slot, generation)
 ```
 
-删除时，槽位的 generation 增加。解析 ID 时必须同时匹配槽位和代次。
+删除时，槽位的 generation 增加。解析 ID 时必须同时匹配命名空间、槽位和代次。
+源码中的 `FigureId` 保存 `RuntimeNamespace` 与槽位表的 `KeyData`，后者同时携带
+槽位与代次；这里的公式是它的概念分解。
 
 ```mermaid
 sequenceDiagram
@@ -186,7 +188,7 @@ sequenceDiagram
 
 错误语义取决于调用阶段，而不是取决于容器查询 API 返回了 `None`。
 
-## 2.7 detached、build、attached、drive
+## 2.7 detached、build、attached、drive 与 query
 
 Figure 和 Editor 对象的生命周期应分阶段，而不是一创建就获得全部权限。
 
@@ -197,6 +199,8 @@ stateDiagram-v2
     Built --> Attached: Runtime 校验并分配身份
     Attached --> Driven: 通过所属 facade 驱动
     Driven --> Attached: 一次调用结束
+    Attached --> Queried: 只读稳定快照
+    Queried --> Attached: 查询结束
     Attached --> Detached: 明确移除并清理关系
     Attached --> Destroyed: 销毁
     Detached --> Destroyed: 放弃构造
@@ -220,11 +224,17 @@ Runtime 分配 ID、校验接纳规则、建立拓扑和索引，然后原子发
 
 ### Drive
 
-外部代码通过短生命周期 facade 执行一次查询或修改。facade 可以暴露当前阶段允许的
-能力，但不能被长期保存，也不能让内部可变引用逃逸。
+外部代码通过短生命周期 facade 执行一次修改。facade 可以暴露当前阶段允许的能力，
+但不能被长期保存，也不能让内部可变引用逃逸。
+
+### Query
+
+只读查询同样有独立边界。`StableSceneQuery` 从一个稳定 epoch 读取场景数据项，不触发
+隐式 mutation、布局或 damage。查询结果可以拥有，也可以由调用方立即消费；无论哪种
+形式，都不能把查询借用带出稳定边界。
 
 这种阶段划分让“不可能的操作”在接口层消失。detached 对象不能触发运行时副作用；
-attached 对象不能绕过 Runtime 随意改父级。
+attached 对象不能绕过 Runtime 随意改父级；只读查询不能借机提交变化。
 
 ## 2.8 为什么挂载后只给短借用
 

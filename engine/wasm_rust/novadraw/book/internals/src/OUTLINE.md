@@ -222,7 +222,7 @@
 - 语义图层与叠放；
 - freeform 内容范围；
 - viewport、range model、缩放约束和 zoom-to-fit；
-- 业务连接、ConnectionPart 与 Core Connection 的三层边界；
+- 业务连接、`ConnectionPartId` 与 Core Connection 的三层边界；
 - 锚点、SceneQuery 和依赖追踪；
 - 路由器的纯计算边界与内置算法分类；
 - 分组路由、连接失效和自环。
@@ -239,10 +239,10 @@
 - ModelAdapter 和稳定快照；
 - PartNode、EditPartBehavior 与 PartTree 的职责；
 - Root、Containment 与 Connection 三种 Part 角色；
-- containment 视图构建、连接视图构建，以及 ConnectionPart 的身份边界；
+- containment 视图构建、连接视图构建，以及 `ConnectionPartId` 的身份边界；
 - primary Figure、content pane、registry 和 visual ownership；
 - Overlay、Handle 与 Feedback 的所有权和生命周期；
-- plan、validate、commit 与 revision 发布；
+- `synchronize_projection` 的单一同步事务、失败隔离与 revision 发布；
 - synchronize/synchronize_model 的受控模型入口；
 - ViewerDrive 的宿主驱动边界。
 
@@ -261,7 +261,7 @@
 - ViewerEditSession 的 commit/reject/fault 关闭动作；
 - CommandStack 的 has/check 查询分层；
 - Overlay 中 Handle 与 Feedback 的交互边界；
-- Feedback 和连接预览不提前写入模型或创建稳定 ConnectionPart；
+- Feedback 和连接预览不提前写入模型或创建稳定 `ConnectionPartId`；
 - 创建、移动、连接和直接编辑的共同结构；
 - Selection、focus、多 Viewer 隔离与删除修复；
 - 跨容器拖放和复制粘贴的协议边界。
@@ -277,8 +277,9 @@
 - 基础协议、横切 Capability、共享模型和具体组件；
 - capability 成立的消费者判据；
 - descriptor-typed key、owned descriptor 和冻结 registry；
+- 当前 attach 只冻结已登记能力，descriptor-specific admission 仍为设计目标；
 - 私有组件的 typed update；
-- namespace/name/type 组成的 PropertyKey；
+- namespace/name 组成的 typed `PropertyKey`，擦除身份再附加值类型；
 - Runtime 统一提交副作用；
 - 外部能力发现与类型安全。
 

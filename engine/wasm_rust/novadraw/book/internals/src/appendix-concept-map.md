@@ -123,7 +123,7 @@ flowchart LR
     subgraph Viewer[Viewer]
         RootPart[Root Part]
         Part[Containment Part]
-        ConnectionPart[Connection Part]
+        ConnectionPart[ConnectionPartId]
         Overlay[Overlay]
         Handle[Handle]
         Feedback[Feedback]
@@ -154,7 +154,7 @@ flowchart LR
 | 概念 | 属于哪一层 | 负责什么 | 不负责什么 |
 |---|---|---|---|
 | Part | Viewer | 控制模型到稳定 Figure 的视图派生、Policy 和视觉所有权 | 不保存业务事实，不直接绘制 |
-| ConnectionPart | Viewer | 控制业务连接的 source/target 关系与连接视觉 | 不成为端点 Part 的 containment child |
+| `ConnectionPartId` | Viewer | 控制业务连接的 source/target 关系与连接视觉 | 不成为端点 Part 的 containment child |
 | Connection Figure | Core | 解析 anchor、保存派生路径并绘制 | 不决定业务连接是否存在 |
 | Overlay | Viewer | 统称稳定内容之上的临时 Figure 子树所有权 | 不是单一图层，也不是平行 Figure 树 |
 | Handle | Viewer | 提供可命中的类型化交互入口 | 不直接修改模型 |
@@ -173,8 +173,8 @@ Part 树、视觉所有权和 Figure 树是三种不同关系。Part 树表达�
 | Handle | Viewer | 是 | 可命中并产生类型化动作 |
 | Feedback | Viewer | 是 | 通常只表达候选结果 |
 
-“Connection”还跨越三个层次：业务连接是持久事实，ConnectionPart 是单个 Viewer 的
-视图控制器，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
+“Connection”还跨越三个层次：业务连接是持久事实，`ConnectionPartId` 是单个 Viewer 的
+连接视图控制器，Connection Figure 是 Runtime 中可重建的场景对象。只有第一层应进入业务
 Command；后两层可以随 Viewer 或 Runtime 重建。
 
 ## 四种版本域

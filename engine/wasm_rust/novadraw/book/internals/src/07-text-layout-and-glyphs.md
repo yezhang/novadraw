@@ -212,6 +212,41 @@ UTF-8 byte offset、affinity 和 layout revision，不能用 Rust `char` 序号�
 revision 可以拒绝迟到的文本位置。布局刷新后，旧 revision 的 caret 或 selection
 不得静默解释到新排版。
 
+### 结构化流：贡献协议
+
+`TextFlowFigure` 以一棵结构化的 `FlowPage` 描述整段文本。Core 另外提供
+`FlowPageFigure` 作为同一排版服务在 Figure 树上的入口：容器不直接持有完整字符串，
+而是让每个子 Figure 通过 `FlowContributor` 提交贡献。
+
+贡献身份是 typed 的 `ContributionKey<P>`，payload 实现 `FlowContributionPayload`。
+标准库通过 `FlowContributionRegistry::standard()` 注册 `TEXT_CONTRIBUTION`、
+`GROUP_CONTRIBUTION`、`BLOCK_CONTRIBUTION`、`BORDERED_BLOCK_CONTRIBUTION`、
+`FIGURE_BOX_CONTRIBUTION` 和 `BORDER_CONTRIBUTION`；它使用的是与外部实现完全相同的
+`register` 入口，没有内建快路径。key 的 `name` 只用于诊断，实际分派按 payload 类型
+进行。外部 crate 可以注册新的贡献类型，并进入同一冻结、验证和排版流程。
+
+贡献在冻结的 `PreparationScene` 上展开。`FlowAssembly` 收集文本、子组、块级样式、
+片段边框和内联 Figure box；排版后得到 `FlowSnapshot`，其中包含：
+
+- 按段落保存的 `StyledTextLayout` 与来源范围；
+- 每个 `FlowFragment` 的 `source`、段落、行和局部 bounds；
+- 供外部 Figure 使用的 `placements`；
+- 整个流的内容尺寸和片段边框绘制数据。
+
+文本位置由 `SourceTextPosition` 表达，同时携带来源 `FigureId`、byte offset、
+affinity 和快照 revision。命中先落到实际片段而不是包围盒，再换算回来源 Figure 的
+偏移；这样同一段落里的多个来源不会互相串位。
+
+`FlowFragmentBorder` 让块级或内联片段拥有独立边框，边框绘制数据随快照一起发布。
+文本样式由继承的 `FigureStyle` 解析为 `TextStyle`（字体与颜色），排版结果
+`StyledTextLayout` 保留按样式切分的 glyph run 与内联 box 位置。绘制时
+`fill_styled_text` 逐个 run 设置颜色并复用同一 `TextLayout` 坐标，不在绘制阶段
+重新 shaping。
+
+旧的 `TextFlowFigure` 与新的 `FlowPageFigure` 当前并存：前者接收完整 `FlowPage`
+描述，后者从 Figure 子树收集贡献。二者共享同一 `FlowLayoutService::measure` 入口
+与 `FlowSnapshot` 语义，因此测量、绘制和交互不会出现两套排版结果。
+
 ## 7.9 多语言文本的基本约束
 
 多语言排版必须保持以下边界：
@@ -242,8 +277,11 @@ TextLayout
 轮廓提供者不能重新选择字体、执行 fallback 或改变 advance。分网格、GPU buffer 和
 片段着色器格式属于具体后端，不进入 `TextLayout`，也不改变布局结果。
 
-默认 glyph 路径和自定义轮廓路径不能同时执行同一个 glyph。选择哪条执行路径属于后端
-能力和配置，不属于单个 Figure。
+默认 glyph 路径和自定义轮廓路径不能同时执行同一个 glyph。选择哪条路径由运行时安装的
+`TextLayoutEngine` 决定：默认 Runtime 使用原生 glyph 路径；需要轮廓时，用
+`OutlineTextEngine` 包装原引擎并安装 `GlyphOutlineProvider`。它保持 shaping 不变，
+只把选定 glyph 的轮廓附加到排版结果上。换 provider 会产生新的引擎 revision，使依赖
+旧轮廓的缓存失效。这个选择不进入单个 Figure，也不是后端凭能力自行切换。
 
 ## 7.11 缓存键与失效
 
@@ -261,7 +299,7 @@ TextLayout
 |---|---|
 | 文本、字体、字号、字重 | 重新排版、重新测量并重绘 |
 | 最大宽度或 Figure 宽度 | 重新换行、重新测量并重绘 |
-| 对齐 | 更新 origin 和视觉范围；必要时重绘 |
+| 对齐 | 对齐进入 `FlowLayoutKey`，按新键重新排版并重绘 |
 | 前景色 | 保留排版，重绘 |
 | 字体资源 revision | 重新解析字体并排版 |
 

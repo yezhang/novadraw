@@ -13,13 +13,12 @@
 
 ## 11.1 语义图层
 
-图层是具有稳定角色的普通容器：
+图层是带稳定键的普通容器，而不是一组固定角色：
 
-- 内容层保存业务视觉；
-- 连接层保存跨节点连线；
-- 反馈层保存手势预览；
-- 手柄层保存选中装饰；
-- 辅助层保存网格或参考线。
+- `LayerKey` 是任意非空字符串标识，Core 不提供“内容层/连接层/反馈层”等内置角色常量；
+- `LayerPlacement::{Last, Before(LayerKey), After(LayerKey)}` 决定新图层的叠放位置；
+- 应用按需创建内容、连接、反馈、手柄或辅助层，它们都走同一 `LayeredPane` /
+  `FreeformLayeredPane` 机制。
 
 图层仍服从 Figure 树、坐标链、裁剪和生命周期。它的特殊性来自接纳规则、叠放位置和
 更新策略，不来自一套平行渲染系统。
@@ -73,15 +72,32 @@ extent >= 0
 当内容范围、视口尺寸或缩放变化时，旧 value 可能不再合法。Runtime 应在同一事务中
 归一化，而不是让滚动条和内容分别修正。
 
+`DefaultRangeModel` 的每次 mutation 返回 `RangeChangeSet`，并保持 Draw2D 的监听顺序：
+
+```text
+Maximum -> Extent -> Minimum -> Value
+```
+
+`RangeModelSnapshot::is_enabled()` 用 `maximum - minimum > extent` 判断滚动是否可用。
+扩展只改变一个属性时，仍通过同一 `normalize_range` 重新夹取 extent 与 value。
+
 ## 11.5 Viewport 与 ScrollPane
 
 Viewport 负责裁剪和内容偏移；ScrollPane 负责组合 viewport、滚动条和交互策略。二者
 不应混成一个拥有所有行为的巨大 Figure。
 
-Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更新控制部件。滚动条
-修改 range model，再由统一视口路径改变内容变换。
+Viewport 的滚动值进入子内容变换。`ScrollPaneLayout` 每轮 layout 基于
+`LayoutSceneQuery` 重新计算 viewport 与滚动条的可见性和 bounds，而不是依赖范围变化
+监听；`ScrollBar` 只读取 `RangeModel::snapshot()` 并绘制当前状态。滚动条修改 range
+model，再由统一视口路径改变内容变换。
 
 这样程序滚动、滚轮、拖动滚动条和自动暴露共享同一事实。
+
+`ScrollBar` 把普通子部件按 `ScrollBarPart` 分为五个角色：`Decrement`、
+`PageDecrement`、`Thumb`、`PageIncrement` 与 `Increment`。应用可以通过
+`ScrollBarBuilder::with_part` 替换任一部件，也可以挂载 `ScrollBarValueConsumer`；
+值变化回调与其他 Figure 回调一样通过 `EventContext` 提交受检 effect。整组部件可用
+`ScrollBarSubtree::into_subtree` 一次性发布。
 
 ## 11.6 Scalable pane
 
@@ -100,8 +116,13 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 `ZoomManager` 组合共享缩放句柄、viewport 句柄、滚动策略与离散级别。当前 zoom 从缩放
 句柄读取，不在管理器中重复保存。离散级别必须非空、有限、为正且严格递增；min/max
-边界由该级别序列的首尾值确定。放大、缩小、直接设值和程序适配都通过 Runtime 作用域
-修改同一缩放状态，不能让滚轮和工具栏分别保存倍率。
+边界由该级别序列的首尾值确定。默认级别是 `DEFAULT_ZOOM_LEVELS`（0.5 到 4.0 的八档）。
+放大、缩小、直接设值和程序适配都通过 Runtime 作用域修改同一缩放状态，不能让滚轮和
+工具栏分别保存倍率。
+
+滚动策略是显式的 `ZoomScrollPolicy`：`DefaultScrollPolicy` 保持既有滚动位置，
+`MouseLocationZoomScrollPolicy` 让鼠标位置对应的内容点在缩放前后保持不动；滚轮缩放
+路径使用后者。
 
 以某个表面点为锚缩放时，要同时调整 viewport range，使该点对应的内容位置在缩放前后
 保持不动：
@@ -168,6 +189,9 @@ ZoomManager 自动执行的统一规则。
 缩放动画遵循第 9 章的顺序：先提交最终 zoom 和 range model，再从变化前后的状态采样
 临时 viewport 表现覆盖。已提交状态始终保留最终值，中间帧不逐帧改写业务 bounds。
 
+不过临时 viewport 表现覆盖属于 ADR-046 T-3，当前尚未完成验收；现有可用能力是已提交
+zoom/range 的原子归一化，不应把 viewport 动画写成已交付功能。
+
 ## 11.7 自动暴露
 
 拖拽接近视口边缘时，Editor 可能请求自动滚动。每个 tick：
@@ -188,7 +212,7 @@ ZoomManager 自动执行的统一规则。
 | 层次 | 身份 | 表达的事实 | 长期所有者 |
 |---|---|---|---|
 | 业务模型 | `ModelConnection` 或领域连接 ID | 哪两个业务对象存在何种关系 | 应用模型 |
-| Editor 视图 | `ConnectionPart` / `EditPartId` | 当前 Viewer 如何控制这条关系的视图 | Viewer |
+| Editor 视图 | `ConnectionPartId` / `EditPartId` | 当前 Viewer 如何控制这条关系的视图 | Viewer |
 | 图形核心 | Connection Figure / `ConnectionId` | 端点如何依附、路径如何路由和绘制 | Runtime |
 
 三层对象按因果顺序建立：
@@ -196,11 +220,11 @@ ZoomManager 自动执行的统一规则。
 ```text
 业务连接
 -> Viewer 解析 source/target Part
--> ConnectionPart 构建连接视图
+-> `ConnectionPartId` 构建连接视图
 -> Core Connection 解析 anchor 并计算路径
 ```
 
-业务连接是可撤销、可持久化的事实。`ConnectionPart` 是单个 Viewer 中的控制器角色。
+业务连接是可撤销、可持久化的事实。`ConnectionPartId` 是单个 Viewer 中的控制器角色。
 Core Connection 是可重建的场景对象和派生路径。删除或暂时无法解析 Core 路径，不等于
 删除业务连接；反过来，预览中画出一条临时路径，也不等于已经创建业务关系。
 
@@ -221,7 +245,7 @@ Core Connection 是可重建的场景对象和派生路径。删除或暂时无�
 
 #### 路由算法不是同一种折线
 
-当前内置路由器覆盖五种不同约束：
+当前内置路由器覆盖六种不同约束：
 
 | 路由器 | 输入重点 | 输出语义 |
 |---|---|---|
@@ -230,6 +254,7 @@ Core Connection 是可重建的场景对象和派生路径。删除或暂时无�
 | Manhattan | 端点和正交约束 | 只含水平、垂直线段的路径 |
 | Fan | 同组连接与稳定次序 | 为重合连接分配可辨识偏移 |
 | ShortestPath | 端点和显式障碍物快照 | 在当前障碍约束下寻找合法短路径 |
+| VisibilityGraph | 端点和可见性图 | 在障碍可见图中搜索折线路径 |
 
 手动自由路径可以由 Bendpoint 的显式控制点表达；曲线路由可以由外部 Router 实现。二者
 仍必须返回统一的受检路由输出，不能在 Connection 绘制阶段私自改路径。
@@ -264,16 +289,23 @@ flowchart LR
 
 ## 11.9 依赖追踪
 
-SceneQuery 在计算端点时同时记录依赖：
+SceneQuery 在计算端点时同时记录 `DependencyObservation { subject, generation }`。
+`DependencySubject` 当前有八种：
 
-- source owner identity；
-- target owner identity；
-- 相关祖先坐标版本；
-- 可选障碍物集合版本；
-- router 配置版本。
+```text
+PreparedScene(FigureId)
+FigureMeasurement(FigureId)
+FigureMeasurementSource(FigureId)
+FigureGeometry(FigureId)
+FigureVisibility(FigureId)
+NamedAnchorRegion(FigureId, AnchorGeometryKey)
+RelativeTransform(CoordinateSpace, CoordinateSpace)
+Topology(FigureId)
+```
 
 节点移动、换父、缩放、隐藏或销毁时，Runtime 根据依赖使对应连接失效。连接不需要
-订阅所有 Figure 的泛化通知。
+订阅所有 Figure 的泛化通知。障碍物快照属于一次分组路由的不可变输入，不是全局
+`DependencySubject`；Router 配置或绑定的变化走单独的连接 revision。
 
 查询依赖项必须来自实际读取或明确声明，不能靠路由器私下保存未知对象引用。
 
@@ -299,11 +331,16 @@ group，而不是单条连接。
 
 分组路由必须定义：
 
-- 分组键；
-- 稳定成员顺序；
-- 输入 revision；
-- 批量输出；
-- 一个成员失败时的原子策略。
+- 分组键：`RoutingGroupScope::{None, AnchorPair, RoutingDomain}`；
+- 稳定成员顺序：`RouteGroupInput::members` 由 Runtime 按稳定顺序提供；
+- 输入 revision 与障碍物快照：`RouteGroupInput::obstacles`；
+- 批量输出：`RouteGroupOutput` 携带 `(ConnectionId, RouteOutput)` 全集；
+- 一个成员失败时的原子策略：输出不完整或身份不匹配时返回
+  `RouteError::InvalidGroupOutput`。
+
+`RoutingGroupScope::AnchorPair` 按无序 source/target anchor 对分组；
+`RoutingDomain` 按同一 routing domain 内使用同一 `RouterId` 的成员分组。Runtime 在
+帧准备时通过 `required_route_groups` 收集需要批量求解的组。
 
 逐条提交会让后计算连接读取前一条新路径，结果依赖遍历顺序。
 
@@ -321,17 +358,22 @@ source 与 target 指向同一 Figure 时，普通两端点直线路由可能退
 
 ## 11.13 Unresolved 状态
 
-端点可能暂时不存在，例如模型连接先于目标视图出现，或目标正在被删除。连接需要显式
-状态：
+端点可能暂时不存在，例如模型连接先于目标视图出现，或目标正在被删除。连接状态由
+`ConnectionResolution` 表达：
 
 ```text
-Resolved(path)
-Unresolved(reason, dependencies)
-Invalid(error)
+Dirty { revision }          - 输入已变化，需要重新路由
+Resolved { generation }     - 已成功计算当前路径
+Unresolved(UnresolvedConnection)
 ```
 
+`UnresolvedConnection` 区分 `MissingSource`、`MissingTarget`、`RouteFailed`、
+`InvalidGeometry`、`LocatorFailed`、`DecorationFailed`、`InvalidLocatorChild` 与
+`PreparationInvalidated`。
+
 Unresolved 不等于沿用旧路径。框架可以选择隐藏连接、绘制诊断反馈或等待下一 revision，
-但必须避免把旧几何误认为当前事实。
+但必须避免把旧几何误认为当前事实。Dirty 表示输入已经变化、但新路径尚未准备好；
+它同样不能继续消费旧路径作为当前结果。
 
 ## 11.14 三个事件的共同传播
 
@@ -373,7 +415,7 @@ target local -> common surface/root -> connection layer local
 5. 跨节点查询记录身份与版本依赖；
 6. Router 只返回候选路径，Runtime 提交；
 7. unresolved 不复用未经证明的旧几何；
-8. 业务连接、ConnectionPart 和 Core Connection 不互相冒充身份；
+8. 业务连接、`ConnectionPartId` 和 Core Connection 不互相冒充身份；
 9. zoom、range model 和锚点缩放在同一事务中归一化；
 10. 路由输出从 source 指向 target，失败不会伪装成合法空路径。
 

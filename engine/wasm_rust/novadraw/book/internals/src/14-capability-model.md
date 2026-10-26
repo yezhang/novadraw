@@ -90,40 +90,50 @@ Polyline 编辑器需要修改 PointList，不存在“任意 Figure 的点列�
 
 ```rust
 struct CapabilityKey<C> {
-    diagnostic_name: &'static str,
+    name: &'static str,
     descriptor: PhantomData<fn() -> C>,
 }
 ```
 
 `C` 是拥有数据的具体 descriptor 类型，例如 `InputCapability`、`LayerCapability` 或
 应用自定义的 `CounterCapability`。调用者持有 `CapabilityKey<InputCapability>` 时，
-只能查询同一 descriptor 类型。
+只能查询同一 descriptor 类型。预定义常量包括 `INPUT`、`LIFECYCLE`、`LAYER`、
+`CONTAINER`、`SCALE`、`ACCESSIBILITY`、`PREPARATION`、`BORDER`、`CLICKABLE`、
+`CONNECTION` 等。
 
-运行时身份来自 `TypeId::of::<C>()`。字符串名称只用于错误和工具诊断，不参与 registry
+运行时身份来自 `TypeId::of::<C>()`。`name()` 只用于错误和工具诊断，不参与 registry
 查找。重命名诊断文本不应改变能力身份；同一 Figure 也不能登记两个相同 descriptor
 类型来伪装成两个能力实例。
 
 ## 14.6 Owned descriptor
 
-挂载前，Figure 以拥有数据的 descriptor 声明能力：
+挂载前，Figure 通过 `FigureCapabilityBuilder::register(CapabilityKey<C>, C)` 以拥有
+数据的 descriptor 声明能力。现有 descriptor 大多是函数指针 adapter，例如：
 
 ```text
-InputDescriptor { handler, options }
-AnchorDescriptor { provider, roles }
+InputCapability::of::<T>()
+LifecycleCapability::of::<T>()
+ContainerCapability::of::<T>()
 ```
 
-descriptor 在 detached/build 阶段构造，Runtime attach 时验证：
+它们把对具体 `T` 的受检适配封装在 descriptor 内部，调用方只持有 typed key。
 
-- 同一 descriptor 类型不重复；
-- registration 在 topology 发布前成功；
-- descriptor-specific admission 条件成立；
+当前 builder 已保证：
+
+- 同一 descriptor 类型最多登记一次，重复返回
+  `FigureCapabilityRegistrationError::DuplicateCapability`；
+- registration 在 topology 发布前完成；
 - 能力集合能够与 FigureNode 一起冻结。
+
+尚未实现、列为设计目标（P2-S08 `not_started`）：descriptor-specific admission 合同，
+例如同一 descriptor 的额外依赖、生命周期或线程约束，以及 attach 时对这些条件统一
+验证。当前 attach 只冻结已登记的能力集合，不执行额外的 admission 检查。
 
 运行时调用通过 ID 和短借用访问，descriptor 不暴露 Runtime 内部引用。
 
 类型匹配由 `CapabilityKey<C>` 与 `TypeId::of::<C>()` 建立。若内部存储无法恢复 `C`，
-这是 registry 一致性故障，不应降级为“能力不存在”。必需依赖、生命周期或线程约束
-若存在，应由具体 descriptor 的 admission 合同声明，而不是由通用 registry 猜测。
+这是 registry 一致性故障，不应降级为“能力不存在”。需要依赖、生命周期或线程约束的
+能力，未来应由具体 descriptor 的 admission 合同声明，而不是由通用 registry 猜测。
 
 descriptor 可以保存函数指针或无捕获 typed adapter。执行时由引擎把短生命周期的
 Figure 借用交给 adapter，由 adapter 在私有边界完成受检 concrete type 适配。调用方
@@ -182,27 +192,32 @@ Runtime 解析 FigureId 和 CapabilityKey
 
 ## 14.10 Typed component update
 
-具体 Figure 的状态变化可以用类型化更新表达：
+具体 Figure 的状态变化用类型化更新表达，实际入口是 `FigureMut`：
 
 ```text
-SetPolylinePoints { points: PointList }
-ReplaceTextRuns { runs: TextRuns }
-SetViewportRange { axis, value }
+runtime.figure(id)?.update_component(update) -> ComponentUpdateReceipt
+runtime.figure(id)?.update_capability(update) -> CapabilityUpdateReceipt
 ```
 
-调用形式概念上是：
+`FigureComponentUpdate` 与 `FigureCapabilityUpdate` 都采用 prepare/commit 两段：
 
 ```text
-runtime.figure(id)?.update_component(update)
+prepare(self, current, context) -> PreparedFigureUpdate<Prepared>
+commit(prepared, target)
 ```
 
 Runtime 负责：
 
-- 校验目标身份和组件类型；
-- 验证输入；
+- 校验目标身份和组件/能力类型；
+- 验证输入并整批预检 effect；
 - 原子应用；
 - 产生属性通知；
-- 触发布局、连接和 damage 失效。
+- 触发布局、连接和 damage 失效；
+- 返回带 revision、invalidation 与 `changed` 的 receipt。
+
+`PreparedFigureUpdate` 提供 `with_property_change`、`with_effect`、
+`with_resource_dependency_change` 等构建入口，把属性变化和资源依赖声明为提交期
+effect，而不是在 prepare 阶段直接写树。
 
 这比给每种数据定义一个“Behavior trait”更准确，因为更新的目标是具体组件状态，不是
 跨类型统一调用的行为。
@@ -243,11 +258,16 @@ typed update。
 
 ## 14.14 Connection 的分类
 
-Connection Figure 保存路径并参与基础绘制。Anchor provider 或可连接端点可以成为
-Capability，因为连接系统需要跨节点类型统一发现。
+Connection Figure 保存路径并参与基础绘制。Core 通过 `CONNECTION` capability 跨类型
+发现连接 Figure 行为，可见连接参与统一的连接路由和场景稳定化。
 
 但 Connection 的 bendpoints、router 配置和路径模型仍是具体组件数据。不能因为一个
 功能叫“连接”，就把所有相关字段塞进单一 Connection Capability。
+
+Anchor provider 目前不是 Core Figure Capability：Editor 通过
+`EditPartBehavior::connection_anchor` 返回 `ConnectionAnchorDescriptor`，由 Viewer
+解析后向连接 Runtime 注册 `AnchorId`。因此锚点语义属于 Part 行为与连接运行时，
+不能误写成“任意 Figure 都能动态发现的 Capability”。
 
 ## 14.15 Input 与 Lifecycle
 
@@ -258,11 +278,13 @@ Input 符合 Capability 判据：
 - 调用阶段和处理结果统一；
 - 缺失表示不消费。
 
-Lifecycle 是否成为 Capability 要更谨慎。如果所有 Figure 都必须经历 attach/detach，
-该阶段属于基础协议或 Runtime 所有权；只有某类可选资源需要独立生命周期回调时，才
-需要附加能力。
+Lifecycle 也已经以 `LIFECYCLE: CapabilityKey<LifecycleCapability>` 形式存在。它承载
+的是 Figure 可选的 attach、detach、validate 与 invalidate 回调；Runtime 仍拥有统一
+的挂载和销毁阶段，只把可选钩子通过 capability 发现出来。
 
-不要用 Capability 重复表达 Runtime 已经统一拥有的生命周期。
+这不等于“用 Capability 重复表达 Runtime 已经统一拥有的生命周期”。基础阶段由 Runtime
+驱动，可选回调由 capability 提供；若未来出现新的可选资源生命周期，沿用同一模型，
+而不是扩张基础 Figure trait。
 
 ## 14.16 Scale 的两种含义
 
@@ -297,14 +319,18 @@ PropertyKey<V>
 ErasedPropertyKey
 ```
 
-`PropertyKey<V>` 由稳定 namespace、稳定 name 和值类型组成。泛型参数让生产者和
-消费者对值类型达成编译期契约；擦除后继续保留 namespace、name 与运行时 `TypeId`，
-用于异构日志、匹配、合并和诊断。
+`PropertyKey<V>` 由稳定 namespace、稳定 name 和 `PhantomData<fn() -> V>` 组成。
+泛型参数让生产者和消费者对值类型达成编译期契约；但 typed key 的 `PartialEq` 与
+`Hash` 只比较 namespace 与 name，值类型不参与比较。
+
+`ErasedPropertyKey` 面向异构日志，保留 namespace、name、运行时 `TypeId` 和诊断用
+类型名；它的相等与哈希额外包含 `TypeId`。因此同一个 namespace/name 的不同值类型在
+typed 路径中可共用 key 身份，但在擦除身份中必须区分。
 
 这里与 CapabilityKey 不同：
 
 - Capability 的行为身份是 descriptor 类型，名称只用于诊断；
-- Property 的身份显式包含 namespace、name 和值类型；
+- Property 的 typed 身份是 namespace 与 name，擦除身份再附加值类型；
 - Rust `TypeId` 只用于进程内比较，不进入持久化或跨进程协议；
 - 诊断 payload 不能替代 typed old/new value 参与等价判定。
 
@@ -332,14 +358,15 @@ ErasedPropertyKey
 | 概念 | 分类 | 原因 |
 |---|---|---|
 | Paint | 基础协议 | 每个可见 Figure 都参与主流程 |
-| Input | Capability | 输入分发器跨类型发现 |
-| Anchor provider | Capability | 连接系统跨类型查询统一语义 |
+| Input | Capability（`INPUT`） | 输入分发器跨类型发现 |
+| Connection behavior | Capability（`CONNECTION`） | 连接 Runtime 跨类型发现连接 Figure |
+| Editor Anchor provider | Part 行为 + 连接 Runtime | `ConnectionAnchorDescriptor` 注册为 `AnchorId`，不是 Figure Capability |
 | PointList | 共享模型 | 复用数据，无独立动态消费者 |
 | TextFlow | 具体组件/共享模型 | 文本 Figure 的领域数据 |
 | Viewport range | 具体组件更新 | 属于 Viewport 状态 |
 | Scroll action | 可选 Capability | 若存在跨实现统一消费者 |
 | Polyline points update | typed update | 面向具体组件的变化 |
-| Attach/detach | Runtime 生命周期 | 不应重复为可选行为 |
+| Attach/detach 基础阶段 | Runtime 生命周期 | 可选钩子由 `LIFECYCLE` capability 提供 |
 
 ## 14.21 必须保持的不变量
 
@@ -350,7 +377,7 @@ ErasedPropertyKey
 5. attach 后发现结构稳定；
 6. Capability 回调不持有 Runtime 长借用；
 7. 所有副作用回到统一 mutation 管线；
-8. PropertyKey 的 namespace、name 和值类型共同定义属性身份；
+8. Property 的 typed 身份是 namespace 与 name，擦除身份再附加值类型；
 9. 公共更新表达意图，不暴露任意内部存储。
 
 ## 14.22 常见错误设计
@@ -373,8 +400,8 @@ ErasedPropertyKey
 
 ### 用字符串作为属性或能力身份
 
-Capability 名称不能取代 descriptor 类型；Property name 也不能脱离 namespace 和值
-类型单独比较。
+Capability 名称不能取代 descriptor 类型；Property name 也不能脱离 namespace 单独
+比较。进入异构日志时还必须使用 `ErasedPropertyKey`，让值类型参与身份。
 
 ## 14.23 与前后章节的关系
 

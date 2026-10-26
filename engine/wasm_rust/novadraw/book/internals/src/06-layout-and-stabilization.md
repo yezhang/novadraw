@@ -58,25 +58,24 @@ Edge(parent, child) {
 
 换父时，旧关系约束不能自动被新父解释。结构事务必须验证或重建约束。
 
-## 6.4 LayoutSnapshot
+## 6.4 LayoutSceneQuery
 
-Runtime 在调用布局器前建立不可变快照：
+Runtime 在调用布局器时提供只读 `LayoutSceneQuery`。它不是一次性复制的完整快照，而是
+对当前准备视图的受检查询视图：
 
 ```rust
-struct LayoutSnapshot {
-    parent: FigureId,
-    parent_client_size: Size,
-    children: Vec<ChildLayoutInput>,
-    epoch: LayoutEpoch,
-}
+struct LayoutSceneQuery<'a> { /* 借用 Runtime 的准备场景 */ }
 ```
 
-每个 child 输入包含身份、测量结果、可见性和关系约束。快照隔离布局计算与活跃树：
+通过它可以读取：
 
-- 布局器无法在计算中改树；
-- 输出可以绑定 epoch；
-- 测试可以直接构造快照；
-- 过期结果可以丢弃。
+- 容器的直接 children 及其当前 bounds；
+- 每个 child 的 layout constraint；
+- preferred measurement、minimum size 和 maximum size；
+- 容器 bounds、freeform extent 与 content scale。
+
+查询按需发生，调用方不能借此改树、改 bounds 或触发稳定化。布局器看到的是一组受检
+数据项，而不是 Runtime 内部可变容器。
 
 ## 6.5 LayoutOutput
 
@@ -84,21 +83,20 @@ struct LayoutSnapshot {
 
 ```rust
 struct LayoutOutput {
-    placements: Vec<(FigureId, Rect)>,
-    parent_extent: Option<Size>,
-    source_epoch: LayoutEpoch,
+    changes: Vec<LayoutChange>,
 }
 ```
 
-Runtime 验证：
+`LayoutChange` 可表达 child bounds、可见性、失效、属性变化、坐标系变化、重绘和
+viewport 副作用。Runtime 在应用前验证：
 
-- 每个目标确实是当前 child；
-- 没有重复或遗漏必需 child；
-- bounds 数值有限且满足尺寸合同；
-- source epoch 仍匹配；
-- 输出没有越权修改其他子树。
+- `Bounds` 目标确实是该容器的直接 child；
+- bounds 数值有限，宽高非负；
+- 属性变化的目标是当前容器；
+- 重绘、坐标系和 viewport 副作用的目标没有越权。
 
-通过后才原子应用。
+验证不通过时整批拒绝。当前实现没有独立的 epoch 字段，也没有“无重复或遗漏必需
+child”的全集检查；布局器只提交它负责的变化，未提到的 child 保持原值。
 
 ## 6.6 失效传播
 
@@ -304,6 +302,18 @@ Runtime 稳定化，再读取光标和选区几何，避免把新 offset 与旧�
 和 tracked viewport 测量/滚动。真实 Label、边框、箭头与宿主菜单切换见
 [`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
 
+### 图算法的统一注册
+
+图算法不是一组写死的分支。`GraphLayoutService` 以 `GraphAlgorithmKey<P>`、能力声明
+和 `GraphLayoutAlgorithm<P>` 实现注册；内置的 `DIRECTED_GRAPH`、`COMPOUND_GRAPH`
+与 `LAYERED` 走的都是同一个 `register` 入口。key 的 `name` 只用于诊断，真正的分派
+按 payload 类型的 `TypeId` 进行，因此外部 crate 不修改 Core 也能注册新算法，并获得
+同样的请求校验、能力检查、求解上下文和错误通道。
+
+约束和 capability 同样走 typed 注册：`register_constraint` 与 `register_capability`
+分别接收 `GraphConstraintKey<P>`、`GraphCapabilityKey<P>`。注册会更换服务的
+generation，使依赖“哪些算法可用”的结果失效，而不是依赖调用方手动清缓存。
+
 ## 6.10 稳定 epoch
 
 每轮稳定化使用 epoch 标识其输入和发布边界。epoch 完成意味着：
@@ -331,18 +341,33 @@ Runtime 需要工作量或迭代上限，并在失败时报告依赖链。不能
 
 更根本的解决是让算法单调、使用明确固定点规则，或打破循环依赖。
 
+### 派生检查点
+
+失败恢复不能把整棵树深拷贝。Core 的 `DerivedCheckpoint` 只保存源组件不变时可能被
+本次稳定化改写的派生数据：节点 bounds、insets、边框快照、可见性、测量代数、
+freeform 状态、prepared 结果、路由点和连接装饰几何，另加通知队列与 viewport 效果。
+源组件、拓扑、资源输入和 capability 不会被回滚。
+
+只有本次存在 preparation owner 时才建立检查点：`begin_derived_preparation` 在需要
+跨反馈轮次保留回滚前缀时返回 true。期间其他反馈轮次可以 `rebase_preparation_sources`
+只重定位已提交的活动变化，同时保留更早的前缀。稳定化失败时
+`finish_derived_preparation(false)` 把派生值恢复到前缀，并重新标记几何失效，避免缓存
+继续服务被拒绝的几何；成功时丢弃检查点，不做额外写入。成功路径不复制源状态，失败
+路径也不会让旧 owner 的 prepared 结果复活到已移动或已分离的节点上。
+
 ## 6.12 原子应用
 
-布局器返回多个 child placements 时，应整批验证和应用。逐个调用 `set_bounds` 会让
-观察者看到部分新布局，也可能重复触发父级失效。
+布局器返回多个 child changes 时，应先整批验证，再按稳定顺序应用。当前实现先调用
+`validate_layout_output` 检查所有变化，随后逐条应用：
 
-原子应用应：
-
-1. 保存每个受影响节点的旧表面视觉包围盒；
-2. 更新所有候选 bounds；
+1. 验证目标身份、bounds 数值和副作用归属；
+2. 按 `LayoutChange` 顺序更新 bounds、可见性和失效标记；
 3. 合并属性通知；
 4. 标记坐标、连接和 damage 后继；
 5. 在稳定化完成后统一发布。
+
+这里没有“先保存整批旧表面包围盒”的独立阶段；每条 bounds 更新走既有 erase→set→
+repaint 路径。观察者不会在应用中途读取场景：通知和帧准备都要等稳定化完成后才发布。
 
 移动与 resize 属于一次 bounds 变化，不应拆成互相可见的多个事件。
 

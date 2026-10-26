@@ -89,11 +89,15 @@
 | 查看器 | Viewer | 模型、编辑部件和派生视图的当前所有者 |
 | 视图派生 | model-to-view derivation | Viewer 根据单一模型 revision 构建或同步 Part/Figure 视图 |
 | 视图同步 | view synchronization | 已有 Viewer 消费模型变化并更新稳定视图 |
+| 模型适配器 | ModelAdapter | 为 Viewer 提供根身份、revision、children、connections 和事件流的只读模型边界 |
+| 模型 revision | ModelRevision | 非零、单调递增的业务变化前缀标识 |
+| 模型事件 | ModelEvent | 绑定 revision、subject 与 payload 的一次模型通知 |
 | 坐标变换 | coordinate transform | 把几何从一个明确坐标域映射到另一个坐标域 |
 | 表面包围盒 | surface bounds | 几何变换到逻辑表面域后的保守轴对齐包围盒 |
 | 编辑部件 | EditPart、Part | Viewer 内连接模型身份、编辑行为与稳定视觉的视图控制器 |
-| 连接部件 | ConnectionPart | 使用 EditPartId 的连接视图角色，不建立新的身份域 |
-| 连接 | Connection | 按上下文指业务关系、ConnectionPart 或 Core 中的连接 Figure |
+| 连接部件 | ConnectionPartId | 包装同一 EditPartId 的连接视图角色，不建立新的身份域 |
+| 连接 | Connection | 按上下文指业务关系、ConnectionPartId 或 Core 中的连接 Figure |
+| 视觉所有者 | VisualOwner | Viewer 记录 Part、Handle 或 Feedback 对 Figure 子树的所有权与清理关系 |
 | 覆盖视觉 | Overlay | Viewer 管理、位于稳定 Part 视觉之上的临时 Figure 子树 |
 | 控制柄 | Handle | 具有 HandleId 和类型化动作的可交互 Overlay |
 | 反馈图形 | Feedback | 表达当前候选结果、完成或取消后清理的 Overlay |

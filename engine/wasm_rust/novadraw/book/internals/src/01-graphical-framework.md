@@ -272,6 +272,11 @@ sequenceDiagram
 必须把完整结果交回 Runtime。反过来，后端和宿主都不能因为提交失败就私自改写已提交
 场景状态或 backend session。
 
+`FramePreparation` 共有五种结果：`Ready`、`Idle`、`Suspended`、`AwaitingCompletion`
+和 `Error`。只有 `Ready` 携带提交包；`Idle` 表示没有待提交工作，`Suspended` 表示表面
+暂时不可呈现但仍保留已提交场景状态，`AwaitingCompletion` 表示上一帧尚未确认，
+`Error` 携带结构化失败原因。Host 不能把非 `Ready` 结果当成“没有绘制”或“已完成”。
+
 ## 1.6 编辑闭环
 
 编辑闭环把用户输入变成模型变化，再回到图形闭环：

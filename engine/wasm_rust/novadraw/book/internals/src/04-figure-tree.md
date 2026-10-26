@@ -111,6 +111,19 @@ flowchart LR
 接纳规则也不能依赖尚未发布的副作用。例如“先插入，再调用父级看看是否接受”会让
 拒绝路径承担复杂回滚。
 
+当前 Core 把最常见的数量约束收敛为 `ChildPolicy`，由 FigureTree 在所有添加与换父入口
+统一执行：
+
+| 取值 | 语义 |
+|---|---|
+| `Multiple` | 默认值，允许任意数量直接子节点 |
+| `Single` | 只允许一个直接子节点，典型是 Viewport 的内容 |
+| `Layered` | 只允许带 Layer capability 的子节点，且 key 在同一个 pane 内唯一 |
+
+`Layered` 的准入由 FigureTree 与 LayeredPane 的 key 索引共同保证，容器实现不需要
+自己实现“先插入再检查”的补偿逻辑。数量策略属于结构不变量，不是某种内置容器的
+特权路径：外部容器只要返回同一个 `ChildPolicy`，就获得完全相同的检查。
+
 ## 4.5 添加节点
 
 添加 detached 节点的完整流程是：
@@ -127,6 +140,19 @@ flowchart LR
 
 步骤 1 至 4 是 prepare/validate，步骤 5 至 8 是原子 commit。任何前置检查失败，原树
 保持不变。
+
+### 整棵子树的一次性描述
+
+逐个添加节点会让调用者在任意中间步骤看到只挂了一半的结构。Core 为此提供
+`FigureSubtree`：调用者先在同一份描述里声明根、子节点、样式、布局管理器、约束和
+资源依赖，再通过 `add_subtree`、`replace_child_subtree` 或 `set_contents_subtree`
+一次提交。描述内部使用 `SubtreeNodeId`，它只在本次构造内有意义，不暴露给已发布
+拓扑。
+
+提交成功后返回 `SubtreeReceipt`，把每个 `SubtreeNodeId` 映射到真正的 `FigureId`。
+Receipt 只证明“整份描述已原子发布”，不是稳定 epoch 或帧票据；后续所有读写仍以
+`FigureId` 为准。外部构造 ID 与发布后的运行时身份刻意分离，避免构造期 ID 泄漏成
+长期身份。
 
 ## 4.6 换父
 
@@ -217,15 +243,21 @@ child 自身。
 
 ## 4.11 图层仍是 Figure
 
-内容层、连接层、反馈层和手柄层可以具有不同语义，但仍是同一树中的容器节点：
+内容、连接、反馈和手柄可以分别放在不同图层里，但这些图层仍是同一棵树中的容器节点：
 
 ```text
 Root
-├── ContentLayer
-├── ConnectionLayer
-├── FeedbackLayer
-└── HandleLayer
+├── Layer("content")
+├── Layer("connection")
+├── Layer("feedback")
+└── Layer("handle")
 ```
+
+当前 Core 不内置固定的图层角色常量。图层由 `LayerKey` 标识，它只是一个非空字符串；
+`LayeredPane` 保证同一 pane 内 key 唯一，`LayerPlacement::{Last, Before, After}` 决定
+插入位置。框架不规定哪些 key 必须存在，应用可以按自己的语义命名和排序。这避免了
+“内置图层名”成为特权路径：外部扩展定义的 `LayerKey` 与框架示例使用同一套准入、
+排序和查询机制。
 
 图层提供稳定叠放位置、可见性策略和特定接纳规则。它不是绕开树的平行渲染列表。连接
 和反馈仍通过普通坐标链变换到逻辑表面域。
@@ -266,16 +298,16 @@ Root
 
 ## 4.14 结构通知
 
-结构通知必须描述已经完成的变化，而不是邀请观察者参与提交。通知可以包含：
+结构通知必须描述已经完成的变化，而不是邀请观察者参与提交。通知日志中的一条记录携带
+`source_epoch`、`sequence` 和 typed effect；结构 effect 表达：
 
-- 事务 revision；
-- 被添加、移除或换父的身份；
-- 旧父、新父和索引；
-- 是否包含整个子树；
-- 稳定化 epoch。
+- 被添加、移除或换父的 `FigureId` 与其 `parent_id`；
+- layout 事件中的 `container_id` 与可选 `child_id`；
+- 通知类别，例如 Added、Moved、Removed。
 
-观察者收到通知时，查询 Runtime 应得到完整新结构。若需要审计中间计划，应使用独立
-诊断记录，不能把中间态伪装成稳定通知。
+旧父、索引和“是否包含整个子树”属于 preparation 或诊断记录，不会自动出现在稳定
+通知里。观察者收到通知时，查询 Runtime 应得到完整新结构；若需要审计中间计划，应使用
+独立的诊断记录，不能把中间态伪装成稳定通知。
 
 ## 4.15 常见错误设计
 

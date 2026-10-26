@@ -107,12 +107,12 @@ Prepare 最适合使用不可变输入和拥有输出：
 
 ```rust
 struct LayoutOutput {
-    placements: Vec<(FigureId, Rect)>,
-    source_epoch: LayoutEpoch,
+    changes: Vec<LayoutChange>,
 }
 ```
 
-这段示意强调输出携带身份和值，而不携带对 Runtime 内部的可变借用。
+`LayoutChange` 可以表达 child bounds、可见性、失效、属性变化、坐标系变化、重绘和
+viewport 副作用。这段示意强调输出携带身份和值，而不携带对 Runtime 内部的可变借用。
 
 ### Validate
 
@@ -181,11 +181,11 @@ sequenceDiagram
 
 | Facade | 允许 | 不允许 |
 |---|---|---|
-| `SceneQuery` | 读取身份、几何、坐标转换 | 改树、改 bounds |
-| `LayoutContext` | 读取测量和子节点约束 | 发布通知 |
-| `InputContext` | 请求 capture、focus、effects | 长期保存节点借用 |
-| `MutationContext` | 提交类型化局部更新 | 绕过校验改 arena |
-| `Graphics` | 录制绘制命令 | 访问业务模型 |
+| `StableSceneQuery` | 读取稳定场景数据项、几何、坐标转换 | 改树、改 bounds、触发稳定化 |
+| `LayoutSceneQuery` | 读取 children、约束和 preferred/minimum 测量 | 发布通知、改树 |
+| `RuntimeInput` | 分发输入事件、读取交互状态 | 长期保存节点借用 |
+| `FigureMut` | 提交类型化 component/capability 更新 | 绕过校验改 arena |
+| `MeasureContext`、`PaintContext` | 测量、录制绘制命令 | 访问业务模型、提交结构变更 |
 
 facade 的价值不只是隐藏字段，而是表达当前生命周期阶段的权限。
 
@@ -385,10 +385,10 @@ Policy 不应直接改模型，Tool 不应直接改 Figure 作为最终结果，
 
 1. build 阶段把布局器作为策略挂到容器；
 2. 容器失效后，Runtime 收集子节点身份、测量结果和约束；
-3. Runtime 形成不可变 `LayoutSnapshot`；
-4. 时间轴布局器计算 placements；
-5. Runtime 检查所有目标属于该父级、没有重复、数值有限且 revision 未变化；
-6. Runtime 原子更新子节点 bounds；
+3. Runtime 提供只读 `LayoutSceneQuery`，按需读取子节点、约束和测量；
+4. 时间轴布局器返回 `LayoutOutput`，其中主要是 `LayoutChange::Bounds`；
+5. Runtime 校验每个目标确实是该容器的直接 child，bounds 有限且宽高非负；
+6. Runtime 按变更序列更新子节点 bounds，失败时由 preparation checkpoint 恢复；
 7. 受影响的连接、freeform 范围和 damage 进入后继队列；
 8. 场景收敛后统一发布。
 
@@ -400,12 +400,12 @@ Policy 不应直接改模型，Tool 不应直接改 Figure 作为最终结果，
 把固定管线具体化：
 
 - 第 4 章把结构变更建模为树事务；
-- 第 6 章把布局建模为 snapshot 与 output；
+- 第 6 章把布局建模为只读查询视图与 candidate output；
 - 第 7 章把文本布局建模为可共享的派生结果；
 - 第 8 章把稳定场景状态转成帧提交；
 - 第 9 章把动画限制在 Runtime 拥有的表现状态层；
 - 第 10 章把回调效果排队后统一应用；
-- 第 12 章把视图同步拆成 plan、validate、commit；
+- 第 12 章把视图同步建模为单一同步事务，并讨论失败隔离；
 - 第 14 章进一步区分基础协议、Capability 和组件更新；
 - 第 15 章统一讨论提交故障和可验证演进。
 
