@@ -19,6 +19,11 @@
 [Canvas Core 计划](draw2d-official-examples-core-plan.md) 和本地 Canvas 收口清单。
 原始需求描述保留为来源记录，不能作为当前执行门禁。
 
+2026-10-26 TreeExample 已按 ADR-046 与 `animation.tree` 完成真实 bounds、线条、
+Viewport 跟踪、反向及取消/隐藏/释放验证；Native GPU 明确验证 retained-partial。
+下文 Tree 行的待闭合项保留为原始需求快照，当前状态见
+[实施复核](../reviews/tree-layout-presentation-implementation-2026-10-26.md)与 P2 backlog。
+
 ## 范围与判断依据
 
 完整分母是 `org.eclipse.draw2d.examples` 中 **25 个 public static main 入口**，

@@ -138,6 +138,14 @@ ScrollPane 的 ScrollBar 五部件能力已实现，剩余项修订为主题与�
 [共享视图与背景设计](../../design/architecture/shared-scene-view-background-proposal.md)
 已形成待评审草案，尚未进入实现。
 
+2026-10-26 K06 的 Tree 表现几何按 ADR-046 落地：普通 Viewport、默认关闭的
+Use Animation、真实 bounds 收拢、Normal/Hanging 同源线条、当前采样反向与输入接管。
+`animation.tree` 已通过 Core/Viewport/Tree 契约及 Native GPU retained-partial 像素验证；
+中间帧和最终清理帧明确断言 Partial。TreeExample 在目录中改为 complete，当前
+17/25 complete；完整门禁和 surface present 限制见
+[实施复核](../reviews/tree-layout-presentation-implementation-2026-10-26.md)。
+该结果不关闭 AA、混合字体装饰或其余未完成入口。
+
 ## 全计划完成判定
 
 25 个入口都具备独立 Canvas 实现；Canvas 功能清单没有未移植或阻塞项；

@@ -7,9 +7,9 @@
 范围：25 个入口的 Canvas / LightweightSystem 能力。执行队列仍只由
 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
-## 还有 9 个入口未收口
+## 还有 8 个入口未收口
 
-K07-6 验收后，当前 catalog 为 16 complete、8 in_progress、1 blocked，24 个可运行。
+2026-10-26 Tree 验收后，当前 catalog 为 17 complete、7 in_progress、1 blocked，24 个可运行。
 下表将待验证的消费者行为和确实缺失的 Core 能力分开记录。
 完成判据取自 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 不以可运行、测试数或一幅截图代替完整验收。
@@ -22,7 +22,6 @@ K07-6 验收后，当前 catalog 为 16 complete、8 in_progress、1 blocked，2
 | PrintExample | Canvas 组合、原始 ICO 和通用命令输出已验证；三个上游系统字体目前均以 Inter 替代，需宿主字体来源及真实字体指标证据 | K09/H01/H04 |
 | ScrollPaneExample | 五部件 ScrollBar 已由 ADR-041 实现，不再作为缺失 Core 能力；现有拖拽、resize、自动显隐与 cursor 回归继续保留，尚需完整主题与 Canvas 视觉验收 | K02/K04/H04 |
 | UMLClassDiagram | owner-aware 端点标签和重新测量已实现；类标题/成员字体、图标、StickyNote 的 DogEar 边框与窄宽度换行仍需视觉对等验收 | K02/K03/K05/H04 |
-| TreeExample | 19 节点、增删、样式/间距、选中渐变和非动画折叠已移植；动画中的 branch/line geometry、viewport 跟踪、取消与释放未闭合 | K06/K07/H04 |
 | ZoomExample | 保留 SVG 源、缩放/DPI 密度选择、资源 revision 替换及 Native GPU 像素恢复已验证；跨显示器系统 DPI 与完整视觉对等仍待验收 | K08/H01/H02/H04 |
 | ShapeStylesExample | 尚缺 per-shape AA ON/OFF/DEFAULT 的 Graphics/IR/backend 完整链路；OFF 必须有像素证据，结构化拒绝不能视为完成 | K08/H02/H04 |
 
@@ -60,6 +59,8 @@ Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 验收仍未�
 
 K08 SVG 栅格密度切片已实现，见
 [SVG 证据](../reviews/k08-svg-density-evidence-2026-10-23.md)。
-K06 动画、K08 AA 与混合字体段的通用文字装饰继续保留。
+K06 Tree 动画已按 ADR-046 完成，契约与 Native retained-partial 证据见
+[实施复核](../reviews/tree-layout-presentation-implementation-2026-10-26.md)。
+K08 AA 与混合字体段的通用文字装饰继续保留。
 Path 已消费单字体的下划线指标，不能据此关闭混合字体装饰增量。
 依赖顺序和状态统一回写 P2 backlog。

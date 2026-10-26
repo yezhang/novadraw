@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：修订 3，已批准实施，T-1 进行中。承接 K06 与 ADR-026 的领域消费者目标。
+状态：修订 3，已实施并通过 T-1 至 T-4 退出验证。承接 K06 与 ADR-026 的领域消费者目标。
 
 2026-10-24 按 R01–R10 补齐实施契约，处理结果见文末“评审响应”。
 首轮方案与 Rust 实现核对的原始判断、源码证据和验证结果见
@@ -18,6 +18,10 @@
 
 2026-10-24 修订 3 的设计复核通过，F01/F02 已收口；结论与实施验证范围见
 [修订 3 复核记录](../../verification/reviews/tree-layout-presentation-revision-3-review-2026-10-24.md)。
+
+2026-10-26 的 Rust 契约、Native GPU 像素和最终门禁记录见
+[实施复核](../../verification/reviews/tree-layout-presentation-implementation-2026-10-26.md)。
+Native retained texture 像素验证与窗口 surface present 分开记录。
 
 `api_semantics`：`animation.presentation`、`animation.timeline`、
 `layout.manager`、`coordinate.conversion`、`viewport.scroll_zoom`、`damage.repaint`、

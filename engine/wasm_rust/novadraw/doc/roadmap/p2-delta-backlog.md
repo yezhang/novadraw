@@ -263,10 +263,10 @@ K06 Tree 几何按下表单链进入 Execute，不缩减批准契约；逐 Shape
 
 | 顺序 | 切片 | 当前状态 | 最低退出证据 |
 |---|---|---|---|
-| T-1 | typed 真实几何、S/E 物化、capture/retarget、派生依赖与容量预留 | `in_progress` | 完整绘制读取、同 E 锚点、外部同底层值多语义/provider、循环/失败/净容量替换、无动画零额外扫描 |
-| T-2 | Tree 静态/动画同源端点、冻结内容与资源版本 | `pending` | Normal/Hanging 中间帧端点一致，不逐帧 layout/shaping/写 Lines，派生失败清除整组 |
-| T-3 | 显式 Viewport、收拢与兄弟重排、直接输入接管 | `pending` | 双轴 clamp、反向锚点、wheel/drag/scrollbar/公开写入与 owner 仲裁 |
-| T-4 | 默认关闭的真实面板与完整 Native 验收 | `pending` | 中间帧、retained-partial 擦除、Retry/reset、资源释放、静态等价与工作量 |
+| T-1 | typed 真实几何、S/E 物化、capture/retarget、派生依赖与容量预留 | `complete` | 完整读取与外部 typed 扩展、S/E/留存/净替换/失败回归、公开 API 和全量门禁通过 |
+| T-2 | Tree 静态/动画同源端点、冻结内容与资源版本 | `complete` | Normal/Hanging 静态端点与动画同源；字形和线条回归通过 |
+| T-3 | 显式 Viewport、收拢与兄弟重排、直接输入接管 | `complete` | 当前 S 反向、后代中心收拢、wheel/scrollbar/公开写入、旧 owner 冲突通过 |
+| T-4 | 默认关闭的真实面板与完整 Native 验收 | `complete` | Native GPU 中间帧与 partial/full 擦除、模式最终像素、Retry/reset/释放通过；surface present 独立保留 |
 
 T-1 已完成基础 Motion 缓存的同时间幂等、整组样本预检后发布，以及活动轨道预留、
 净容量替换、独立 staging 和配置下调拒绝。公开 `sample_version()` 区分 Unanchored
@@ -277,6 +277,127 @@ T-1 已完成基础 Motion 缓存的同时间幂等、整组样本预检后发�
 1,420 项通过、0 失败、6 项按原有配置忽略；文档门禁通过 373 份 Markdown。
 真实 bounds、完整 E、几何 provider、节点/输出工作上限和快照 lease 尚未完成；
 这些基础证据不代替 T-1 退出验证，状态继续为 `in_progress`。
+
+2026-10-26 T-1 新增独立 `LayoutBounds`、typed 几何 descriptor、缓存表现几何与
+Runtime capture/真实 bounds 事务入口，保留旧 affine 过渡。派生协议先发布几何，
+再通过受检 builder 生成 owned 线条；循环、未声明查询、重复输出和内容 owner 冲突
+在预检拒绝。输出越限保留 provider 身份与声明/实际计数，清除所属整组；共享分配
+失败返回准备错误，不驱逐合法组。静态重建不再次运行失败 provider，并复用无关组
+已成功的派生结果。route/dash 原有家族组合回归保持通过。
+
+定向证据：`p2_animation_geometry_contract` 17 项、
+`p2_animation_sample_reservation_contract` 4 项、原有 animation 29 项、
+behavior 7 项与 transition 15 项均通过；几何与预留目标的严格 Clippy 通过。
+仍需完成快照/capture/提交与资源的真实留存容量、完整冻结绘制输入以及实际工作量
+证明。当前容量实现包含多维准入与线条输出声明，但不能替代这些剩余条件，
+T-1 继续为 `in_progress`，T-2 至 T-4 保持 `pending`。
+
+T-1 后续增量为 owned capture 增加独立 `capture_bytes` 配额和随 capture 释放的
+留存凭证。共享同一几何对象的多个 capture 也分别承担留存责任；额度不足拒绝新
+capture，配置下调低于存活 capture 时原子拒绝。当前字节统计覆盖几何集合、子顺序、
+源依赖集合与字符串，不包含 opaque drawing、边框内部数据及字体/图像 payload；
+提交包和恢复前缀的独立留存记账仍待完成，不能据此关闭 F02。
+静态 capture 也执行节点、边与集合存储预检；祖先 child order 在克隆前检查边上限。
+几何数据由不可变 Arc 共享，无关源 epoch 变化只替换版本包装，不再深拷贝几何表；
+最大根归并缓存父链判断，避免重叠目标重复扫描相同祖先。样式、opaque、裁剪策略和
+可取得的边框对象从冻结输入读取；任意 Figure 自绘及 visual bounds 的完整冻结
+仍属 T-1 剩余条件。
+本增量定向回归为几何 19 项、采样预留 4 项、原 affine transition 15 项通过；
+上述两个新协议目标与 Core lib 的严格 Clippy、373 份 Markdown 文档门禁及
+`git diff --check` 通过。这些结果未覆盖剩余的 payload/资源留存和 Native 验收。
+
+内容冻结增量新增 `FigureContentSnapshot` 与 typed `CONTENT_SNAPSHOT` capability。
+Label 和外部 Figure 使用同一注册入口，将已准备的自绘输入复制到不可变 drawing；
+采样与录制不再读取这些 Figure 的当前内容。内容 revision 变化取消关联组；仅布局
+位置或尺寸变化仍可使用原冻结输入。静态 capture 也保留预检时取得的内容快照。
+Label 定向测试直接统计 TextLayoutEngine 调用，并比较各采样帧的完整 glyph runs；
+外部消费者测试覆盖单次冻结、连续录制和 revision 失效后切回静态绘制。
+本增量回归为几何 21 项、采样预留 4 项、原 affine transition 15 项通过。
+该能力仍不提供 opaque drawing 或字体/图像 payload 的字节统计与资源 lease；
+这些留存条件和通用 bounds-dependent 自绘仍待完成，T-1 状态不变。
+
+资源冻结增量在准入边界将内容 drawing 录制为不可变命令，继承解析后的画笔样式；
+录制器在追加命令时检查存储额度，回调忽略错误也不能发布截断内容。不透明回调及其
+domain data 不进入动画快照；glyph、路径、渐变、dash 和精确字体/图像 payload 纳入
+留存字节统计，同一冻结源内的资源版本去重。捕获不消耗资源同步前缀，资源 revision
+变化取消关联组，即使消费者未手工注册 resource dependency。
+新增外部消费者回归验证 capture 保留旧图像版本，Runtime 销毁后该资源仍由 capture
+持有，最后一个 capture 释放后资源才释放；另一回归验证不透明绘图回调中的共享数据
+变化不会污染已冻结命令。边框数据、提交与恢复前缀的独立存储保证、通用自绘冻结
+和工作量证明仍待完成，T-1 不关闭。
+
+提交留存增量新增 `AnimationLimits::submission_bytes` 与公开
+`RenderSubmission::retention`，提交包、in-flight 和 Retry 恢复前缀共享独立存储凭证。
+准备失败不消耗帧编号或资源同步前缀，不清理合法活动组；新提交成功取得额度后才
+移交旧恢复责任。damage 基线缩减为版本与 surface envelope，不保留 drawing。
+几何 binding 与 provider 统一使用固定 `Copy` 值表示，值的 Arc 分配纳入字节统计。
+新 capture 在冻结内容前取得有限存储预留，完成后归还未使用额度；owner 结束时清理
+无查询权限的旧缓存。边框、通用自绘与缓存/候选的完整峰值证明、实际工作计数仍待完成。
+
+冻结自绘增量新增 typed `BOUNDS_SNAPSHOT` 与 `BoundsDrawing`：固定 `Copy` 输入、
+函数指针和有限命令存储声明共同描述 sampled border box 下的绘制。矩形、
+Line/Margin/Rectangle/Bevel/Etched/Compound 边框使用同一扩展接口；复合描述显式
+累计子描述存储和 inset，不保留可变 Border 对象或旧私有边框枚举的堆数据。
+未提供尺寸描述的普通 Figure 自绘在捕获时录制为固定内容，动画录制不调用原 Figure。
+自绘输出越限携带 Figure 与声明/实际字节数，只清理关联组并重建静态内容。
+静态 capture 缓存持有共享留存凭证，几何与节点视图不提供公开 Clone，独立留存
+必须通过 capture 或提交包取得额度。标题与 Scheme 边框的冻结描述、完整峰值预检
+和实际工作计数仍待完成，T-1 保持 `in_progress`。
+
+后续冻结绘制增量补齐椭圆、SchemeBorder 与 TitleBarBorder。Scheme 的各层端点和静态
+协议一致；标题通过 `BoundsDrawing::recorded` 保留排好的字形和精确字体资源，只按
+采样宽度调整位置。继承颜色经通用边框入口冻结，CompoundBorder 使用同一接口递交
+子边框，不保留可变文本布局或边框对象。记录描述和复合描述累计命令、作用域及资源
+存储上限；资源版本冲突在冻结阶段拒绝。
+capture 在候选集合分配和尺寸相关绘制前检查合并依赖闭包及源/候选共存峰值；
+活动预留使用同一集合与命令上限。Disabled/ReducedMotion 通用 start 在内容冻结与
+provider 预检前返回静态 fallback，仍校验 channel 身份和最终值。几何定向回归 28 项、
+采样预留 4 项、原有 animation 29 项、behavior 7 项与 affine transition 15 项通过；
+新增标题字形/颜色/字体留存、峰值不足时不执行绘制回调和静态模式不调用冻结/派生
+接口的反例。完整物化工作计数与 provider 配置存储证明
+仍待完成，T-1 保持 `in_progress`，T-2 至 T-4 尚未启动。
+
+工作量与配置增量将 provider 回调收紧为固定 `Copy` 捕获，配置、依赖容器容量、
+调度临时表和结果表纳入预留。调度使用线性拓扑队列；查询及坐标操作逐次计数，
+忽略越限错误仍拒绝发布。几何遍历提供 `materialization_work()` 实际节点、child
+order、矩阵、clip 与 envelope 计数，发布前核对上界；capture 核对合并源工作容量。
+活动存储增加 provider 阶段重建与当前/候选共存预留。旧 typed Motion 通过
+`AnimationValue::storage_bytes()` 计入内联与堆存储，PointList 包含 Vec 容量；
+采样超过端点/当前值声明时以 `TrackStorageExceeded` 终止所属组。
+新增配置拒绝、查询越限被忽略、嵌套节点去重与旧轨道堆值越限反例，退出验证待运行。
+
+`AnimationPlan::geometry_track()` 显式区分表现终点与已提交最终几何，只接受
+GeometryBinding 通道。完成/取消清除覆盖后显示源状态；普通 track 的最终值校验
+保持不变。该入口承接批准方案的非零收拢终点，不引入 Tree 特殊通道。
+
+上述增量已通过 Core lib 与五个 animation integration target 的严格 Clippy、
+33 项几何、4 项采样预留、29 项基础动画、7 项 behavior 与 15 项旧 transition
+回归；373 份文档检查及差异空白检查通过。T-1 关闭前仍需总体验证与 API 证据复核，
+本记录不代替后续 Tree 消费者及 Native 像素验收。
+
+Tree 消费者接入准备已提取 Normal/Hanging 共用端点算法。静态布局继续写最终
+Lines；动画使用固定 `Copy` 配置和显式依赖链派生端点，由受检 drawing
+发布各分支的线条，不逐帧写 Lines。PageNode 冻结选中颜色，折角边框提供受检的
+尺寸相关绘制描述。19 节点树的两个方向已通过首帧与静态线段逐项等价测试。
+展开/折叠、Viewport 与 Native 中间帧仍待接入，不以这项测试关闭 T-2。
+
+2026-10-26 最终实现已补齐 Tree 展开/折叠、普通 Viewport、默认关闭的真实 checkbox、
+queued toggle 与同 S 反向。直接输入经 Runtime 物化/预检后接管整个关联计划。
+外部 visibility revision 撤销旧保留，按 Advance/Pause/Finish 处理；topology/dispose、
+字体/内容/边框和 viewport extent/scale 变化按冻结依赖取消。
+
+稳定退出入口为 `animation.tree`：41 项几何、4 项采样预留、28 项 Viewport、21 项
+Tree 定向测试通过。Native GPU 横纵方向、DPI 1/2 的中间/最终 retained-partial 与
+Full 逐像素等价，最终与默认关闭、Disabled、ReducedMotion 像素等价。40 幅截图及
+`geometry-work.csv` 位于 `target/verification/tree-animation/`；每个活动 E 最终遍历
+79 节点、78 边、1,181 次矩阵/角点操作、213 次 clip、157 次 envelope。
+8/32/128 层重叠 target 回归证明节点/边去重；资源/capture/submission/recovery
+按各自留存期释放。真实 surface 提交在本机基线返回 Skipped，不声明 present 通过。
+完整边界、证据与限制见
+[实施复核](../verification/reviews/tree-layout-presentation-implementation-2026-10-26.md)。
+最终 workspace fmt/check、严格 Clippy 与 test 通过：1,472 项通过、0 失败、6 项既有
+忽略。host/wasm API 边界通过，Runtime 保持 28/28；374 份 Markdown、三本书
+HTML/PDF 与差异空白检查通过。T-1 至 T-4 全部关闭；上文各增量的“待完成”均为当时快照。
 
 承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
 的 R01、R02、R05 发现。顺序依

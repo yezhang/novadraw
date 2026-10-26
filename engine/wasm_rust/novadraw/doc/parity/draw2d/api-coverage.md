@@ -431,8 +431,8 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 
 | Family ID | Draw2D 方法级 API / 合理变体 | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `animation.timeline` | `Animation.markBegin/run`、Animator playback 与共享 session | Runtime-owned typed channel、Tween/Keyframes/Spring/Decay、Parallel/Sequence/Stagger/Repeat、模式、cancel/retarget 与单调时间 | partial | M01-A/B 已验证；M01-C 已完成 Figure bounds capture，route/viewport/continuous consumer 待实现 |
-| `animation.presentation` | LayoutAnimator/RoutingAnimator 的 before/after 表现过渡 | committed truth + Runtime presentation override/temporary visual；layout/route/viewport/continuous effect 共享 channel | partial | M01-B 已验证，M01-C 进行中；动画不得逐帧修改 source bounds、route、通知或 history |
+| `animation.timeline` | `Animation.markBegin/run`、Animator playback 与共享 session | Runtime-owned typed channel、Tween/Keyframes/Spring/Decay、Parallel/Sequence/Stagger/Repeat、模式、cancel/retarget 与单调时间 | partial | M01-A/B 已验证；ADR-046 新增 S/E、真实 bounds 与 Tree viewport 跟踪，证据入口 `animation.tree`；route/continuous consumer 仍待实现 |
+| `animation.presentation` | LayoutAnimator/RoutingAnimator 的 before/after 表现过渡 | committed truth + Runtime presentation override/temporary visual；typed bounds/visibility/origin、冻结内容、派生 drawing 与容量预留 | partial | ADR-046 的统一绘制读取和外部 typed 扩展由 `animation.tree` 覆盖；不逐帧修改 source bounds、Lines、通知或 history；未关闭全部 M01-C 能力 |
 
 ### M9 Connection / Anchor / Router / Locator
 

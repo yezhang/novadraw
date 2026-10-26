@@ -46,7 +46,13 @@ typed 真实几何入口，不通过改变旧方法含义获得支持。
 T-1 必须在独立测试 crate 中注册同底层 Rectangle 的不同语义 channel、几何派生
 provider 和自定义容器。它们与框架提供的 channel 共用 typed 注册、完整几何查询、
 循环/失败/预算和 owner 语义，不使用内部 hook 或具体 Figure 名称。
-证据尚待实施，不宣称已经通过。
+公开入口已落到 `animation` 领域：`GeometryBinding<V>`、`GeometryProvider<V>`、
+`GeometryDrawingBuilder` 与 `GeometryCapture`。外部 Figure 通过 `BOUNDS_SNAPSHOT`
+提供有界自绘，Border 通过同一 bounds snapshot 协议提供冻结绘图。
+独立 integration target `p2_animation_geometry_contract` 注册两个 Rectangle 语义、
+自定义容器、内容/边框快照和派生线条，并覆盖循环、未声明查询、panic 与容量拒绝。
+Tree 示例 crate 使用这些公开入口，不依赖 Core 私有类型或名称判断。
+执行证据由 `animation.tree` suite 和后续实施复核记录维护。
 
 ## 验证与关系
 
