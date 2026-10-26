@@ -44,6 +44,14 @@ fn create_hosts(window: Arc<Window>) -> Result<WinitCanvasCoordinator, CanvasErr
 
 ## 输入与提交顺序
 
+原生 `MouseInput` 只提供按下/释放，不提供双击事件。每个 Runtime 的输入域可持有一个
+`WinitPointerAdapter`，将逻辑坐标、单调经过时间、按钮和状态交给
+`dispatch_button_input`。它按顺序投递 Pressed、必要的 DoubleClicked 和 Released；
+默认识别间隔为 500 ms、移动容差为 4 个逻辑像素，可用
+`with_double_click_limits` 覆盖。默认值是适配层 fallback，不表示读取了系统设置。
+拖拽超出容差时调用 `pointer_moved`；离窗、失焦、场景切换或输入由其他 UI 接管时
+调用 `reset`，避免不同交互被拼成双击。该适配器不推进 Runtime 动画时钟。
+
 应用将所属窗口的 WindowEvent 交给 `handle_window_event`，再按 Delivery 的
 CanvasId 转交对应消费者。输入点已经是 Canvas 局部逻辑坐标；
 不要再次减去 Canvas 原点或再次除以 DPI。
