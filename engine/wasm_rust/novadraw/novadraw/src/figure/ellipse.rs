@@ -230,7 +230,49 @@ impl Figure for EllipseFigure {
         out: &mut crate::FigureCapabilityBuilder,
     ) -> Result<(), crate::FigureCapabilityRegistrationError> {
         out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(
+            super::BOUNDS_SNAPSHOT,
+            super::BoundsSnapshotCapability::of::<Self>(),
+        )?;
         out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
+    }
+}
+
+impl super::FigureBoundsSnapshot for EllipseFigure {
+    fn snapshot_bounds_drawing(&self) -> Result<super::BoundsDrawing, GraphicsError> {
+        #[derive(Clone, Copy)]
+        struct Inputs {
+            fill: Color,
+            stroke: Option<Color>,
+            width: f64,
+            cap: crate::render::command::LineCap,
+            join: crate::render::command::LineJoin,
+        }
+        const ELLIPSE_RECORDING_BYTES: usize = 4096;
+        Ok(super::BoundsDrawing::new(
+            Inputs {
+                fill: self.fill_color,
+                stroke: self.stroke_color,
+                width: self.stroke_width,
+                cap: self.line_cap,
+                join: self.line_join,
+            },
+            ELLIPSE_RECORDING_BYTES,
+            |inputs, bounds, context| {
+                let figure = EllipseFigure {
+                    bounds,
+                    fill_color: inputs.fill,
+                    stroke_color: inputs.stroke,
+                    stroke_width: inputs.width,
+                    line_cap: inputs.cap,
+                    line_join: inputs.join,
+                    child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
+                    border: None,
+                };
+                Shape::paint_shape(&figure, context)
+            },
+            |_, bounds| Ok(bounds),
+        ))
     }
 }
 
@@ -307,6 +349,41 @@ impl Shape for EllipseFigure {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn frozen_ellipse_uses_sampled_radii_without_scaling_stroke() {
+        let ellipse = EllipseFigure::new(0.0, 0.0, 100.0, 60.0).with_stroke(Color::BLACK, 3.0);
+        let frozen = super::super::FigureBoundsSnapshot::snapshot_bounds_drawing(&ellipse).unwrap();
+        for bounds in [
+            Rectangle::new(0.0, 0.0, 50.0, 30.0),
+            Rectangle::new(0.0, 0.0, 2.0, 1.0),
+            Rectangle::new(0.0, 0.0, 0.0, 0.0),
+        ] {
+            let mut expected = crate::render::CommandRecorder::new();
+            expected.canvas.set_foreground_color(Color::BLACK);
+            expected.canvas.set_background_color(Color::WHITE);
+            Figure::paint(&ellipse, &mut expected.paint(), bounds).unwrap();
+            let mut actual = crate::render::CommandRecorder::new();
+            frozen
+                .materialize(bounds, Color::BLACK, Color::WHITE)
+                .unwrap()
+                .paint(&mut actual.paint())
+                .unwrap();
+            let ellipses = |commands: &[crate::render::RenderCommand]| {
+                commands
+                    .iter()
+                    .filter(|command| {
+                        matches!(
+                            command.kind,
+                            crate::render::RenderCommandKind::Ellipse { .. }
+                        )
+                    })
+                    .map(|command| command.kind.clone())
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(ellipses(expected.commands()), ellipses(actual.commands()));
+        }
+    }
 
     #[test]
     fn contains_point_uses_ellipse_geometry_not_only_bounds() {

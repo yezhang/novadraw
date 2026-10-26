@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::Color;
-use crate::geometry::{Dimension, Insets, Point, Rectangle};
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 
 use crate::figure::{Border, BorderedFigure, Bounded, Figure, FigureEventHandler};
@@ -16,7 +16,7 @@ use crate::{
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
-const DEFAULT_STEP_INCREMENT: f64 = 24.0;
+pub(crate) const DEFAULT_STEP_INCREMENT: f64 = 24.0;
 const PANE_BACKGROUND: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
 
 fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -81,8 +81,6 @@ struct ScrollPaneRuntime {
     pane_bounds: Rectangle,
     viewport_id: Option<FigureId>,
     viewport_bounds: Rectangle,
-    horizontal: Arc<dyn RangeModel>,
-    vertical: Arc<dyn RangeModel>,
     horizontal_visibility: ScrollBarVisibility,
     vertical_visibility: ScrollBarVisibility,
     scroll_bar_thickness: f64,
@@ -91,15 +89,13 @@ struct ScrollPaneRuntime {
 impl ScrollPaneRuntime {
     fn new(
         bounds: Rectangle,
-        horizontal: Arc<dyn RangeModel>,
-        vertical: Arc<dyn RangeModel>,
+        _horizontal: Arc<dyn RangeModel>,
+        _vertical: Arc<dyn RangeModel>,
     ) -> Self {
         Self {
             pane_bounds: bounds,
             viewport_id: None,
             viewport_bounds: bounds,
-            horizontal,
-            vertical,
             horizontal_visibility: ScrollBarVisibility::Automatic,
             vertical_visibility: ScrollBarVisibility::Automatic,
             scroll_bar_thickness: DEFAULT_SCROLL_BAR_THICKNESS,
@@ -199,50 +195,6 @@ impl ScrollPaneFigure {
             border: None,
         }
     }
-
-    fn scroll_model(model: &dyn RangeModel, delta: f64, delta_kind: ScrollDeltaKind) -> bool {
-        if !delta.is_finite() || delta == 0.0 || !model.is_enabled() {
-            return false;
-        }
-        let distance = match delta_kind {
-            ScrollDeltaKind::Lines => delta * DEFAULT_STEP_INCREMENT,
-            ScrollDeltaKind::LogicalPixels => delta,
-        };
-        let old = model.value();
-        let _ = model.set_value(old - distance);
-        model.value() != old
-    }
-
-    fn notify_viewport_change(
-        runtime: &ScrollPaneRuntime,
-        old_location: Point,
-        ctx: &mut EventContext<'_>,
-    ) {
-        let Some(viewport_id) = runtime.viewport_id else {
-            return;
-        };
-        let new_location = Point::new(runtime.horizontal.value(), runtime.vertical.value());
-        if old_location == new_location {
-            return;
-        }
-        ctx.effects().emit_property_change(
-            viewport_id,
-            property::VIEW_LOCATION,
-            old_location,
-            new_location,
-        );
-        ctx.effects()
-            .coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.effects().repaint_figure(
-            viewport_id,
-            Rectangle::new(
-                0.0,
-                0.0,
-                runtime.viewport_bounds.width,
-                runtime.viewport_bounds.height,
-            ),
-        );
-    }
 }
 
 impl Bounded for ScrollPaneFigure {
@@ -315,15 +267,18 @@ impl FigureEventHandler for ScrollPaneFigure {
 
     fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut EventContext<'_>) -> bool {
         let runtime = lock_unpoisoned(&self.runtime);
-        let old_location = Point::new(runtime.horizontal.value(), runtime.vertical.value());
-        let vertical_changed =
-            Self::scroll_model(runtime.vertical.as_ref(), event.delta_y, event.delta_kind);
-        let horizontal_changed =
-            Self::scroll_model(runtime.horizontal.as_ref(), event.delta_x, event.delta_kind);
-        if !vertical_changed && !horizontal_changed {
+        let Some(viewport) = runtime.viewport_id else {
             return false;
-        }
-        Self::notify_viewport_change(&runtime, old_location, ctx);
+        };
+        let factor = match event.delta_kind {
+            ScrollDeltaKind::Lines => DEFAULT_STEP_INCREMENT,
+            ScrollDeltaKind::LogicalPixels => 1.0,
+        };
+        ctx.effects().scroll_viewport_by_later(
+            viewport,
+            -event.delta_x * factor,
+            -event.delta_y * factor,
+        );
         let target_id = ctx.target_id();
         ctx.effects().repaint_figure(
             target_id,
@@ -340,6 +295,20 @@ struct PaneScrollValue {
 }
 
 impl super::ScrollBarValueConsumer for PaneScrollValue {
+    fn request_value(&self, value: f64, relative: bool, context: &mut EventContext<'_>) -> bool {
+        let runtime = lock_unpoisoned(&self.runtime);
+        let Some(viewport) = runtime.viewport_id else {
+            return false;
+        };
+        context.effects().set_viewport_axis_later(
+            viewport,
+            self.orientation == ScrollOrientation::Horizontal,
+            value,
+            relative,
+        );
+        true
+    }
+
     fn value_changed(&self, old: f64, new: f64, context: &mut EventContext<'_>) {
         let runtime = lock_unpoisoned(&self.runtime);
         if let Some(viewport) = runtime.viewport_id {

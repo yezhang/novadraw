@@ -32,6 +32,12 @@ use super::{
 
 enum ChannelBinding {
     Detached,
+    FigureGeometry {
+        figure: FigureId,
+        value_type: TypeId,
+        binding: Arc<dyn super::geometry::ErasedGeometryBinding>,
+        fields: super::geometry::GeometryFields,
+    },
     FigureOpacity(FigureId),
     FigureTransform(FigureId),
     FigurePresentation {
@@ -91,15 +97,21 @@ pub(crate) struct ChannelState {
     presentation: Option<Box<dyn Any + Send + Sync>>,
     binding: ChannelBinding,
     presentation_revision: u64,
+    presentation_patch: super::GeometryPatch,
 }
 
 /// A validated value awaiting the atomic publication of its complete group.
 pub(crate) struct PreparedChannelValue {
     value: Box<dyn Any + Send + Sync>,
     changed: bool,
+    patch: super::GeometryPatch,
 }
 
 impl ChannelState {
+    pub(crate) fn supports_geometry_endpoint(&self) -> bool {
+        matches!(self.binding, ChannelBinding::FigureGeometry { .. })
+    }
+
     fn new<V: AnimationValue>(value: V) -> Self {
         Self::new_bound(value, ChannelBinding::Detached)
     }
@@ -110,6 +122,7 @@ impl ChannelState {
             presentation: None,
             binding,
             presentation_revision: 0,
+            presentation_patch: super::GeometryPatch::default(),
         }
     }
 
@@ -134,16 +147,18 @@ impl ChannelState {
         &self,
         value: V,
     ) -> Result<PreparedChannelValue, AnimationError> {
-        self.validate_value(&value)?;
+        let patch = self.validated_patch(&value)?;
         let changed = self.effective::<V>()? != &value;
         Ok(PreparedChannelValue {
             value: Box::new(value),
             changed,
+            patch,
         })
     }
 
     fn publish_override(&mut self, value: PreparedChannelValue) -> bool {
         self.presentation = Some(value.value);
+        self.presentation_patch = value.patch;
         if value.changed {
             self.presentation_revision = self.presentation_revision.saturating_add(1);
         }
@@ -154,8 +169,25 @@ impl ChannelState {
         &self,
         value: &V,
     ) -> Result<(), AnimationError> {
+        self.validated_patch(value).map(|_| ())
+    }
+
+    fn validated_patch<V: AnimationValue>(
+        &self,
+        value: &V,
+    ) -> Result<super::GeometryPatch, AnimationError> {
+        let mut patch = super::GeometryPatch::default();
+        if let ChannelBinding::FigureGeometry {
+            binding, fields, ..
+        } = &self.binding
+        {
+            patch = binding.patch(value)?;
+            if patch.fields() != *fields {
+                return Err(AnimationError::InvalidValue);
+            }
+        }
         if value.is_valid() && self.binding.accepts(value) {
-            Ok(())
+            Ok(patch)
         } else {
             Err(AnimationError::InvalidValue)
         }
@@ -171,6 +203,7 @@ impl ChannelState {
     }
 
     fn clear_override(&mut self) -> bool {
+        self.presentation_patch = super::GeometryPatch::default();
         let changed = self.presentation.take().is_some();
         if changed {
             self.presentation_revision = self.presentation_revision.saturating_add(1);
@@ -208,6 +241,7 @@ impl ChannelBinding {
             Self::FigurePresentation { binding, .. } => {
                 binding.value_type_id() == TypeId::of::<V>()
             }
+            Self::FigureGeometry { value_type, .. } => *value_type == TypeId::of::<V>(),
             Self::Detached => true,
         }
     }
@@ -216,6 +250,7 @@ impl ChannelBinding {
         match self {
             Self::FigureOpacity(figure)
             | Self::FigureTransform(figure)
+            | Self::FigureGeometry { figure, .. }
             | Self::FigurePresentation { figure, .. } => Some(*figure),
             _ => None,
         }
@@ -240,11 +275,12 @@ impl ChannelBinding {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct FigurePresentationEffect {
     pub(crate) opacity: Option<f64>,
     pub(crate) transform: Option<Affine2D>,
     pub(crate) content: Option<FigurePresentation>,
+    pub(crate) geometry: super::GeometryPatch,
 }
 
 #[derive(Clone)]
@@ -259,6 +295,7 @@ pub(crate) struct TemporaryVisualSnapshot {
 pub(crate) struct PresentationSnapshot {
     figures: HashMap<FigureId, FigurePresentationEffect>,
     temporaries: Vec<TemporaryVisualSnapshot>,
+    pub(crate) geometry: Option<Arc<super::PresentationGeometry>>,
 }
 
 impl PresentationSnapshot {
@@ -344,6 +381,10 @@ struct ActiveAnimation {
     paused_at: Option<MonotonicTime>,
     surface_suspended: bool,
     target_hidden: bool,
+    geometry_source: Option<Arc<super::frozen::FrozenGeometrySource>>,
+    work: super::AnimationWork,
+    providers: super::provider::ProviderGraph,
+    derived_fields: HashMap<FigureId, super::geometry::GeometryFields>,
 }
 
 struct PreparedAnimation {
@@ -352,6 +393,15 @@ struct PreparedAnimation {
     duration_micros: u64,
     interruption: InterruptionPolicy,
     suspension: SuspensionPolicy,
+    geometry_source: Option<Arc<super::frozen::FrozenGeometrySource>>,
+    work: super::AnimationWork,
+    providers: super::provider::ProviderGraph,
+    derived_fields: HashMap<FigureId, super::geometry::GeometryFields>,
+}
+
+struct RecordedGeometry {
+    version: super::PresentationVersion,
+    envelopes: Vec<(FigureId, Option<crate::Rectangle>)>,
 }
 
 pub(crate) struct AnimationService {
@@ -366,12 +416,20 @@ pub(crate) struct AnimationService {
     behavior_failures: VecDeque<AnimationBehaviorFailure>,
     figure_channels: HashMap<FigureId, FigureChannels>,
     presentation_channels: HashMap<FigurePresentationChannelKey, AnimationChannelId>,
+    geometry_channels: HashMap<FigurePresentationChannelKey, AnimationChannelId>,
     temporary_visuals: RuntimeArena<TemporaryVisualId, TemporaryVisualState>,
     channel_owners: HashMap<AnimationChannelId, AnimationId>,
     terminal: VecDeque<(AnimationId, AnimationState)>,
+    failures: HashMap<AnimationId, AnimationError>,
     active_track_count: usize,
     limits: AnimationLimits,
+    capture_storage: super::storage::CaptureStorage,
+    submission_storage: super::storage::CaptureStorage,
     active_revision: u64,
+    binding_revision: u64,
+    geometry_cache: Option<Arc<super::PresentationGeometry>>,
+    snapshot_cache: Option<(super::PresentationVersion, Option<PresentationSnapshot>)>,
+    recorded_geometry: Option<RecordedGeometry>,
     stats: AnimationStats,
 }
 
@@ -389,12 +447,24 @@ impl AnimationService {
             behavior_failures: VecDeque::new(),
             figure_channels: HashMap::new(),
             presentation_channels: HashMap::new(),
+            geometry_channels: HashMap::new(),
             temporary_visuals: RuntimeArena::new(namespace),
             channel_owners: HashMap::new(),
             terminal: VecDeque::new(),
+            failures: HashMap::new(),
             active_track_count: 0,
             limits: AnimationLimits::default(),
+            capture_storage: super::storage::CaptureStorage::new(
+                AnimationLimits::default().capture_bytes,
+            ),
+            submission_storage: super::storage::CaptureStorage::new(
+                AnimationLimits::default().submission_bytes,
+            ),
             active_revision: 0,
+            binding_revision: 0,
+            geometry_cache: None,
+            snapshot_cache: None,
+            recorded_geometry: None,
             stats: AnimationStats::default(),
         }
     }
@@ -402,6 +472,7 @@ impl AnimationService {
     pub(crate) fn access_mut<'a>(
         &'a mut self,
         tree: &'a FigureTree,
+        resources: &'a crate::runtime::ResourceRegistry,
         updates: &'a mut UpdateManager,
         full_redraw_pending: &'a mut bool,
         faulted: &'a mut bool,
@@ -409,6 +480,7 @@ impl AnimationService {
         AnimationMut {
             service: self,
             tree,
+            resources,
             updates,
             full_redraw_pending,
             faulted,
@@ -453,8 +525,8 @@ impl AnimationService {
             let elapsed = now.as_micros().saturating_sub(start.as_micros());
             match self.sample(id, elapsed) {
                 Ok(sampled) => changed |= sampled,
-                Err(_) => {
-                    failed.push(id);
+                Err(error) => {
+                    failed.push((id, error));
                     continue;
                 }
             }
@@ -469,8 +541,8 @@ impl AnimationService {
         for id in completed {
             changed |= self.finish(id, AnimationState::Completed);
         }
-        for id in failed {
-            changed |= self.finish(id, AnimationState::Failed);
+        for (id, error) in failed {
+            changed |= self.finish_failed(id, error);
         }
         Ok(changed)
     }
@@ -482,14 +554,467 @@ impl AnimationService {
             .then_some(self.now)
     }
 
-    pub(crate) fn snapshot(&self, tree: &FigureTree) -> Option<PresentationSnapshot> {
+    pub(crate) fn sample_version(&self) -> AnimationSampleVersion {
+        AnimationSampleVersion {
+            time: self.time_initialized.then_some(self.now),
+            active_revision: self.active_revision,
+        }
+    }
+
+    pub(crate) fn geometry(
+        &self,
+        source_epoch: u64,
+    ) -> Result<&super::PresentationGeometry, AnimationError> {
+        let geometry = self
+            .geometry_cache
+            .as_deref()
+            .ok_or(AnimationError::GeometryNotPrepared)?;
+        if geometry.version() != self.geometry_version(source_epoch) {
+            return Err(AnimationError::GeometryNotPrepared);
+        }
+        Ok(geometry)
+    }
+
+    pub(crate) fn capture_geometry(
+        &mut self,
+        tree: &FigureTree,
+        resources: &crate::runtime::ResourceRegistry,
+        source_epoch: u64,
+        dependencies: Vec<FigureId>,
+    ) -> Result<super::GeometryCapture, AnimationError> {
+        if dependencies.is_empty() {
+            return Err(AnimationError::EmptyCapture);
+        }
+        let mut unique = HashSet::new();
+        for figure in &dependencies {
+            if figure.namespace() != self.namespace {
+                return Err(AnimationError::ForeignTarget);
+            }
+            tree.node(*figure)?;
+            if !unique.insert(*figure) {
+                return Err(AnimationError::DuplicateTarget);
+            }
+        }
+        let snapshot = self.snapshot(tree, resources, source_epoch)?;
+        if let Ok(geometry) = self.geometry(source_epoch)
+            && geometry.sources_valid(tree, resources)
+            && dependencies
+                .iter()
+                .all(|figure| geometry.data.covered.contains(figure))
+        {
+            let geometry = self
+                .geometry_cache
+                .as_ref()
+                .expect("validated cache")
+                .clone();
+            let retention = self.capture_storage.acquire(geometry.collection_bytes()?)?;
+            return Ok(super::GeometryCapture {
+                geometry,
+                _retention: Arc::new(retention),
+            });
+        }
+        // Establish ownership before source/content allocations. The frozen recorder receives
+        // the same finite bound; unused capacity is returned only after the candidate is complete.
+        let reserved_bytes = self
+            .capture_storage
+            .available_bytes()
+            .min(self.limits.staging_work.bytes);
+        let mut retention = self.capture_storage.acquire(reserved_bytes)?;
+        let preflight = super::frozen::FrozenGeometrySource::capture(
+            tree,
+            resources,
+            dependencies.clone(),
+            super::AnimationWork {
+                bytes: reserved_bytes,
+                ..self.limits.staging_work
+            },
+        )?;
+        let preflight_work = super::AnimationWork {
+            nodes: preflight.nodes.len(),
+            bytes: preflight.collection_bytes()?,
+            operations: preflight
+                .nodes
+                .len()
+                .checked_mul(super::capacity::GEOMETRY_OPERATIONS_PER_NODE)
+                .ok_or(AnimationError::BudgetExceeded(
+                    AnimationBudgetKind::GeometryOperations,
+                ))?,
+            ..super::AnimationWork::default()
+        };
+        preflight_work.validate(self.limits.staging_work)?;
+        let empty = HashMap::new();
+        let effects = snapshot
+            .as_ref()
+            .map(|snapshot| &snapshot.figures)
+            .unwrap_or(&empty);
+        let mut sources = self.geometry_sources();
+        sources.push(preflight);
+        // The frozen source and candidate geometry coexist. Check the complete combined
+        // closure before allocating candidate maps or materializing bounded self-paint.
+        let mut peak_bytes = 0usize;
+        let mut seen = HashSet::new();
+        let mut combined_nodes = HashSet::new();
+        let mut combined_edges = 0usize;
+        for source in &sources {
+            if seen.insert(Arc::as_ptr(source)) {
+                for (id, node) in &source.nodes {
+                    if combined_nodes.insert(*id) {
+                        if combined_nodes.len() > self.limits.staging_work.nodes {
+                            return Err(AnimationError::BudgetExceeded(
+                                AnimationBudgetKind::GeometryNodes,
+                            ));
+                        }
+                        combined_edges = combined_edges.checked_add(node.children.len()).ok_or(
+                            AnimationError::BudgetExceeded(AnimationBudgetKind::DependencyEdges),
+                        )?;
+                        if combined_edges > self.limits.staging_work.edges {
+                            return Err(AnimationError::BudgetExceeded(
+                                AnimationBudgetKind::DependencyEdges,
+                            ));
+                        }
+                    }
+                }
+                let geometry_bytes = source.materialization_bytes()?;
+                peak_bytes = peak_bytes
+                    .checked_add(source.collection_bytes()?)
+                    .and_then(|bytes| bytes.checked_add(geometry_bytes))
+                    .ok_or(AnimationError::BudgetExceeded(
+                        AnimationBudgetKind::SnapshotBytes,
+                    ))?;
+            }
+        }
+        let combined_operations = combined_nodes
+            .len()
+            .checked_mul(super::capacity::GEOMETRY_OPERATIONS_PER_NODE)
+            .and_then(|n| n.checked_add(combined_edges))
+            .ok_or(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::GeometryOperations,
+            ))?;
+        if combined_operations > self.limits.staging_work.operations {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::GeometryOperations,
+            ));
+        }
+        let value_slots = snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.geometry.as_ref())
+            .map_or(self.geometry_channels.len(), |geometry| {
+                geometry.data.values.len()
+            });
+        let mut add_value = |value: &dyn Any| -> Result<(), AnimationError> {
+            peak_bytes = peak_bytes
+                .checked_add(std::mem::size_of_val(value) + 2 * std::mem::size_of::<usize>())
+                .ok_or(AnimationError::BudgetExceeded(
+                    AnimationBudgetKind::SnapshotBytes,
+                ))?;
+            Ok(())
+        };
+        if let Some(geometry) = snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.geometry.as_ref())
+        {
+            for value in geometry.data.values.values() {
+                add_value(value.as_ref())?;
+            }
+        } else {
+            for channel in self.geometry_channels.values() {
+                if let Some(channel) = self.channels.get(*channel) {
+                    add_value(channel.effective_any())?;
+                }
+            }
+        }
+        let value_bytes = value_slots
+            .checked_mul(
+                4 * (std::mem::size_of::<((FigureId, TypeId), Arc<dyn Any + Send + Sync>)>() + 1),
+            )
+            .and_then(|bytes| peak_bytes.checked_add(bytes))
+            .ok_or(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::SnapshotBytes,
+            ))?;
+        if value_bytes > reserved_bytes {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::SnapshotBytes,
+            ));
+        }
+        let values = snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.geometry.as_ref())
+            .map(|geometry| geometry.data.values.clone())
+            .map_or_else(|| self.geometry_values(), Ok)?;
+        // Active sources keep their sampled content. Newly captured static dependencies
+        // use the immutable inputs already checked above, rather than live Figure paint.
+        let dependencies = dependencies
+            .into_iter()
+            .chain(effects.keys().copied())
+            .chain(
+                sources
+                    .iter()
+                    .flat_map(|source| source.roots.iter().copied()),
+            );
+        let mut geometry = super::PresentationGeometry::freeze_sources(
+            tree,
+            effects,
+            dependencies,
+            self.geometry_version(source_epoch),
+            values,
+            &sources,
+        )?;
+        retention.shrink_to(geometry.collection_bytes()?)?;
+        let retention = Arc::new(retention);
+        geometry.retain_capture(retention.clone());
+        let geometry = Arc::new(geometry);
+        self.geometry_cache = Some(geometry.clone());
+        Ok(super::GeometryCapture {
+            geometry,
+            _retention: retention,
+        })
+    }
+
+    fn geometry_values(&self) -> Result<super::geometry_view::GeometryValues, AnimationError> {
+        let mut values = HashMap::new();
+        for (key, channel) in &self.geometry_channels {
+            let Some(channel) = self.channels.get(*channel) else {
+                continue;
+            };
+            if let ChannelBinding::FigureGeometry { binding, .. } = &channel.binding {
+                values.insert(
+                    (key.figure, key.value_type),
+                    binding.clone_value(channel.effective_any())?,
+                );
+            }
+        }
+        Ok(values)
+    }
+
+    fn geometry_sources(&self) -> Vec<Arc<super::frozen::FrozenGeometrySource>> {
+        self.active
+            .iter()
+            .filter_map(|(_, group)| group.geometry_source.clone())
+            .collect()
+    }
+
+    /// Compares against the last recorded geometry, never against a capture-only materialization.
+    pub(crate) fn geometry_damage(
+        &self,
+        tree: &FigureTree,
+        source_epoch: u64,
+        snapshot: Option<&PresentationSnapshot>,
+        updates: &mut UpdateManager,
+    ) -> Result<(), AnimationError> {
+        let old = self.recorded_geometry.as_ref();
+        let new = snapshot.and_then(|snapshot| snapshot.geometry.as_deref());
+        if old.is_none() && new.is_none() {
+            return Ok(());
+        }
+        if let (Some(old), Some(new)) = (old, new)
+            && old.version == new.version()
+        {
+            return Ok(());
+        }
+        let fallback;
+        let new = if new.is_none() {
+            let roots = old
+                .expect("old geometry exists")
+                .envelopes
+                .iter()
+                .map(|(figure, _)| *figure)
+                .filter(|figure| tree.node(*figure).is_ok());
+            fallback = super::PresentationGeometry::freeze(
+                tree,
+                &HashMap::new(),
+                roots,
+                self.geometry_version(source_epoch),
+                HashMap::new(),
+            )?;
+            Some(&fallback)
+        } else {
+            new
+        };
+        if let Some(old) = old {
+            for (_, envelope) in &old.envelopes {
+                if let Some(envelope) = envelope {
+                    updates.add_frozen_surface_region(*envelope);
+                }
+            }
+        }
+        if let Some(view) = new {
+            for root in &view.data.roots {
+                if let Some(envelope) = view
+                    .data
+                    .nodes
+                    .get(root)
+                    .and_then(|geometry| geometry.visual_envelope)
+                {
+                    updates.add_frozen_surface_region(envelope);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn record_geometry(&mut self, snapshot: Option<&PresentationSnapshot>) {
+        self.recorded_geometry = snapshot
+            .and_then(|snapshot| snapshot.geometry.as_ref())
+            .map(|geometry| RecordedGeometry {
+                version: geometry.version(),
+                envelopes: geometry
+                    .data
+                    .roots
+                    .iter()
+                    .map(|root| {
+                        (
+                            *root,
+                            geometry
+                                .data
+                                .nodes
+                                .get(root)
+                                .and_then(|node| node.visual_envelope),
+                        )
+                    })
+                    .collect(),
+            });
+    }
+
+    pub(crate) fn retain_submission(
+        &self,
+        snapshot: Option<&PresentationSnapshot>,
+    ) -> Result<Option<crate::render::submission::SubmissionRetention>, AnimationError> {
+        let Some(geometry) = snapshot.and_then(|snapshot| snapshot.geometry.as_ref()) else {
+            return Ok(None);
+        };
+        let bytes = geometry.collection_bytes()?;
+        let lease = self.submission_storage.acquire(bytes)?;
+        Ok(Some(crate::render::submission::SubmissionRetention::new(
+            bytes,
+            geometry.clone(),
+            lease,
+        )))
+    }
+
+    fn geometry_version(&self, source_epoch: u64) -> super::PresentationVersion {
+        super::PresentationVersion {
+            sample: self.sample_version(),
+            source_epoch,
+            binding_revision: self.binding_revision,
+        }
+    }
+
+    pub(crate) fn snapshot(
+        &mut self,
+        tree: &FigureTree,
+        resources: &crate::runtime::ResourceRegistry,
+        source_epoch: u64,
+    ) -> Result<Option<PresentationSnapshot>, AnimationError> {
+        let mut successful = HashMap::new();
+        loop {
+            let result =
+                self.snapshot_with_provider_cache(tree, resources, source_epoch, &mut successful);
+            let Err(
+                error @ AnimationError::ProviderOutputExceeded {
+                    figure, value_type, ..
+                },
+            ) = &result
+            else {
+                return result;
+            };
+            if *value_type != TypeId::of::<crate::figure::BoundsDrawing>() {
+                return result;
+            }
+            let failed: Vec<_> = self
+                .active
+                .iter()
+                .filter_map(|(id, group)| {
+                    group
+                        .geometry_source
+                        .as_ref()
+                        .is_some_and(|source| source.nodes.contains_key(figure))
+                        .then_some(id)
+                })
+                .collect();
+            if failed.is_empty() {
+                return result;
+            }
+            for id in failed {
+                self.finish_failed(id, error.clone());
+                successful.remove(&id);
+            }
+        }
+    }
+
+    fn snapshot_with_provider_cache(
+        &mut self,
+        tree: &FigureTree,
+        resources: &crate::runtime::ResourceRegistry,
+        source_epoch: u64,
+        successful: &mut HashMap<AnimationId, super::provider::ProviderEvaluation>,
+    ) -> Result<Option<PresentationSnapshot>, AnimationError> {
+        let invalid: Vec<_> = self
+            .active
+            .iter()
+            .filter_map(|(id, animation)| {
+                animation
+                    .geometry_source
+                    .as_ref()
+                    .is_some_and(|source| !source.is_valid(tree, resources))
+                    .then_some(id)
+            })
+            .collect();
+        for id in invalid {
+            self.finish(id, AnimationState::Cancelled);
+        }
+        let version = self.geometry_version(source_epoch);
+        if let Some((cached_version, snapshot)) = &self.snapshot_cache
+            && *cached_version == version
+        {
+            return Ok(snapshot.clone());
+        }
+        if let Some((cached_version, snapshot)) = &self.snapshot_cache
+            && cached_version.sample == version.sample
+            && cached_version.binding_revision == version.binding_revision
+            && self.active.len() != 0
+            && self
+                .active
+                .iter()
+                .all(|(_, group)| group.geometry_source.is_some())
+        {
+            let mut snapshot = snapshot.clone();
+            if let Some(snapshot) = &mut snapshot {
+                snapshot.geometry = snapshot
+                    .geometry
+                    .as_ref()
+                    .map(|geometry| Arc::new(geometry.with_version(version)));
+                self.geometry_cache = snapshot.geometry.clone();
+            }
+            self.snapshot_cache = Some((version, snapshot.clone()));
+            return Ok(snapshot);
+        }
         if self.active.len() == 0 {
-            return None;
+            if self.geometry_cache.as_ref().is_some_and(|geometry| {
+                geometry.version() != version || !geometry.sources_valid(tree, resources)
+            }) {
+                self.geometry_cache = None;
+            }
+            return Ok(None);
         }
         let (active_figures, active_temporaries) = self.active_subjects();
         let active_presentations = self.active_presentation_channels_by_figure();
         let mut figures = HashMap::new();
+        let mut patches: HashMap<FigureId, super::GeometryPatch> = HashMap::new();
+        for (key, channel) in &self.geometry_channels {
+            let Some(channel) = self.channels.get(*channel) else {
+                continue;
+            };
+            if channel.has_override()
+                && let ChannelBinding::FigureGeometry { .. } = &channel.binding
+            {
+                patches
+                    .entry(key.figure)
+                    .or_default()
+                    .merge(channel.presentation_patch)?;
+            }
+        }
         for figure in active_figures {
+            let geometry = patches.remove(&figure).unwrap_or_default();
             let opacity = self.figure_channels.get(&figure).and_then(|channels| {
                 self.channels.get(channels.opacity).and_then(|channel| {
                     channel
@@ -528,13 +1053,18 @@ impl AnimationService {
                     PresentationValues::new(&values),
                 )
             });
-            if opacity.is_some() || transform.is_some() || content.is_some() {
+            if opacity.is_some()
+                || transform.is_some()
+                || content.is_some()
+                || geometry != super::GeometryPatch::default()
+            {
                 figures.insert(
                     figure,
                     FigurePresentationEffect {
                         opacity,
                         transform,
                         content,
+                        geometry,
                     },
                 );
             }
@@ -564,10 +1094,130 @@ impl AnimationService {
             })
             .collect();
         temporaries.sort_by_key(|visual| visual.id);
-        (!figures.is_empty() || !temporaries.is_empty()).then_some(PresentationSnapshot {
-            figures,
-            temporaries,
-        })
+        let geometry = if figures
+            .values()
+            .any(|effect| effect.geometry != super::GeometryPatch::default())
+            || self
+                .active
+                .iter()
+                .any(|(_, group)| group.providers.len() != 0)
+        {
+            let sources = self.geometry_sources();
+            let roots: Vec<_> = figures
+                .keys()
+                .copied()
+                .chain(
+                    sources
+                        .iter()
+                        .flat_map(|source| source.roots.iter().copied()),
+                )
+                .collect();
+            let base = super::PresentationGeometry::freeze_sources(
+                tree,
+                &figures,
+                roots.clone(),
+                version,
+                self.geometry_values()?,
+                &sources,
+            )?;
+            let mut failed = Vec::new();
+            let mut values = self.geometry_values()?;
+            for (id, group) in self.active.iter() {
+                if group.providers.len() == 0 {
+                    continue;
+                }
+                let result = if let Some(cached) = successful.get(&id) {
+                    Ok(cached.clone())
+                } else {
+                    group
+                        .providers
+                        .evaluate(&base, |patches| {
+                            let source = group
+                                .geometry_source
+                                .as_ref()
+                                .ok_or(AnimationError::GeometryNotPrepared)?;
+                            let mut staged: HashMap<_, _> = source
+                                .nodes
+                                .keys()
+                                .filter_map(|id| {
+                                    figures.get(id).map(|effect| (*id, effect.clone()))
+                                })
+                                .collect();
+                            for (figure, patch) in patches {
+                                staged.entry(*figure).or_default().geometry.merge(*patch)?;
+                            }
+                            super::PresentationGeometry::freeze_sources(
+                                tree,
+                                &staged,
+                                source.roots.iter().copied(),
+                                version,
+                                HashMap::new(),
+                                std::slice::from_ref(source),
+                            )
+                        })
+                        .and_then(|result| {
+                            if result.patches.iter().any(|(figure, patch)| {
+                                group.derived_fields.get(figure) != Some(&patch.fields())
+                            }) {
+                                return Err(AnimationError::InvalidValue);
+                            }
+                            Ok(result)
+                        })
+                };
+                match result {
+                    Ok(result) => {
+                        successful.insert(id, result.clone());
+                        for (figure, patch) in result.patches {
+                            figures.entry(figure).or_default().geometry.merge(patch)?;
+                        }
+                        for (figure, content) in result.content {
+                            if figures
+                                .entry(figure)
+                                .or_default()
+                                .content
+                                .replace(content)
+                                .is_some()
+                            {
+                                return Err(AnimationError::ChannelConflict);
+                            }
+                        }
+                        for (key, value) in result.values {
+                            if values.insert(key, value).is_some() {
+                                return Err(AnimationError::ChannelConflict);
+                            }
+                        }
+                    }
+                    // Shared allocation failure never terminates a group within its declaration.
+                    Err(error @ AnimationError::BudgetExceeded(_)) => return Err(error),
+                    Err(error) => failed.push((id, error)),
+                }
+            }
+            if !failed.is_empty() {
+                for (id, error) in failed {
+                    self.finish_failed(id, error);
+                }
+                return self.snapshot_with_provider_cache(
+                    tree,
+                    resources,
+                    source_epoch,
+                    successful,
+                );
+            }
+            Some(Arc::new(super::PresentationGeometry::freeze_sources(
+                tree, &figures, roots, version, values, &sources,
+            )?))
+        } else {
+            None
+        };
+        self.geometry_cache = geometry.clone();
+        let snapshot =
+            (!figures.is_empty() || !temporaries.is_empty()).then_some(PresentationSnapshot {
+                figures,
+                temporaries,
+                geometry,
+            });
+        self.snapshot_cache = Some((version, snapshot.clone()));
+        Ok(snapshot)
     }
 
     fn active_presentation_channels_by_figure(&self) -> HashMap<FigureId, Vec<&ChannelState>> {
@@ -693,16 +1343,66 @@ impl AnimationService {
         (figures, temporaries)
     }
 
-    pub(crate) fn reconcile_visibility(&mut self, tree: &FigureTree) -> bool {
+    pub(crate) fn reconcile_visibility(
+        &mut self,
+        tree: &FigureTree,
+        resources: &crate::runtime::ResourceRegistry,
+    ) -> bool {
         let ids: Vec<_> = self.active.iter().map(|(id, _)| id).collect();
         let mut changed = false;
         for id in ids {
+            if self.active.get(id).is_some_and(|animation| {
+                animation
+                    .geometry_source
+                    .as_ref()
+                    .is_some_and(|source| !source.is_valid(tree, resources))
+            }) {
+                changed |= self.finish(id, AnimationState::Cancelled);
+                continue;
+            }
             let target_hidden = self.active.get(id).is_some_and(|animation| {
+                // A locally retained visible node must not suspend its own collapse group.
+                // A later visibility revision revokes retention, without invalidating content.
+                let visibility: HashMap<_, _> = animation
+                    .tracks
+                    .iter()
+                    .filter_map(|track| {
+                        let channel = self.channels.get(track.channel)?;
+                        Some((
+                            channel.binding.figure()?,
+                            channel.presentation_patch.visible?,
+                        ))
+                    })
+                    .collect();
                 animation.tracks.iter().any(|track| {
                     self.channels
                         .get(track.channel)
                         .and_then(|channel| channel.binding.figure())
-                        .is_some_and(|figure| tree.is_effectively_visible(figure) != Ok(true))
+                        .is_some_and(|figure| {
+                            let mut current = Some(figure);
+                            while let Some(figure) = current {
+                                let Ok(node) = tree.node(figure) else {
+                                    return true;
+                                };
+                                let external_visibility = animation
+                                    .geometry_source
+                                    .as_ref()
+                                    .and_then(|source| source.nodes.get(&figure))
+                                    .is_some_and(|frozen| {
+                                        frozen.visibility_revision != node.visibility_revision
+                                    });
+                                let visible = if external_visibility {
+                                    node.is_visible
+                                } else {
+                                    visibility.get(&figure).copied().unwrap_or(node.is_visible)
+                                };
+                                if !visible {
+                                    return true;
+                                }
+                                current = node.parent;
+                            }
+                            false
+                        })
                 })
             });
             changed |= self.set_suspension_reason(id, None, Some(target_hidden));
@@ -734,6 +1434,12 @@ impl AnimationService {
                 .filter(|(key, _)| figures.contains(&key.figure))
                 .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
         );
+        owners.extend(
+            self.geometry_channels
+                .iter()
+                .filter(|(key, _)| figures.contains(&key.figure))
+                .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
+        );
         for owner in owners {
             self.finish(owner, AnimationState::Cancelled);
         }
@@ -757,6 +1463,17 @@ impl AnimationService {
             .collect();
         for key in retired_presentations {
             if let Some(channel) = self.presentation_channels.remove(&key) {
+                self.channels.remove(channel);
+            }
+        }
+        let retired_geometry: Vec<_> = self
+            .geometry_channels
+            .keys()
+            .copied()
+            .filter(|key| figures.contains(&key.figure))
+            .collect();
+        for key in retired_geometry {
+            if let Some(channel) = self.geometry_channels.remove(&key) {
                 self.channels.remove(channel);
             }
         }
@@ -789,6 +1506,7 @@ impl AnimationService {
         effects: &[NotificationEffect],
         epoch: u64,
         scene: StableSceneQuery<'_>,
+        tree: &FigureTree,
     ) -> bool {
         let facts = facts_from_effects(effects);
         if facts.is_empty() || self.mode == AnimationMode::Disabled {
@@ -817,7 +1535,7 @@ impl AnimationService {
                 }
             };
             match result {
-                Ok(Some(plan)) => match self.start_from_behavior(plan) {
+                Ok(Some(plan)) => match self.start_from_behavior(plan, tree) {
                     Ok(AnimationStart::Running(_)) => changed = true,
                     Ok(AnimationStart::Existing(_) | AnimationStart::Suppressed(_)) => {}
                     Err(error) => self.record_behavior_failure(id, epoch, error),
@@ -885,11 +1603,98 @@ impl AnimationService {
         }
     }
 
-    fn prepare(&self, plan: AnimationPlan) -> Result<PreparedAnimation, AnimationError> {
+    fn prepare(
+        &self,
+        mut plan: AnimationPlan,
+        tree: &FigureTree,
+    ) -> Result<PreparedAnimation, AnimationError> {
         if plan.tracks.is_empty() {
             return Err(AnimationError::EmptyPlan);
         }
         self.limits.validate_staging(plan.tracks.len())?;
+        // Reject oversized owned configuration and scheduling scratch before building the DAG.
+        plan.providers.work()?.validate(self.limits.staging_work)?;
+        plan.providers.validate()?;
+        if plan.geometry_source.is_none() {
+            let roots: Vec<_> = plan
+                .tracks
+                .iter()
+                .filter_map(
+                    |track| match &self.channels.get(track.spec.channel())?.binding {
+                        ChannelBinding::FigureGeometry { figure, .. } => Some(*figure),
+                        _ => None,
+                    },
+                )
+                .chain(plan.providers.figures())
+                .collect();
+            if !roots.is_empty() {
+                // Public admission freezes through AnimationMut, where resource versions
+                // are available. Internal preparation cannot silently borrow live content.
+                return Err(AnimationError::GeometryNotPrepared);
+            }
+        }
+        let mut work = super::AnimationWork::for_tracks(plan.tracks.len());
+        for track in &plan.tracks {
+            if track.spec.channel().namespace() != self.namespace {
+                return Err(AnimationError::ForeignChannel);
+            }
+            let channel = self
+                .channels
+                .get(track.spec.channel())
+                .ok_or(AnimationError::UnknownChannel)?;
+            work = work.combine(
+                super::AnimationWork::default(),
+                track.spec.storage_work(channel)?,
+            )?;
+            if let ChannelBinding::FigureGeometry { binding, .. } = &channel.binding {
+                work.bytes = work.bytes.checked_add(binding.storage_bytes()).ok_or(
+                    AnimationError::BudgetExceeded(AnimationBudgetKind::SnapshotBytes),
+                )?;
+            }
+        }
+        work.calls =
+            work.calls
+                .checked_add(plan.providers.len())
+                .ok_or(AnimationError::BudgetExceeded(
+                    AnimationBudgetKind::ProviderCalls,
+                ))?;
+        work = work.combine(super::AnimationWork::default(), plan.providers.work()?)?;
+        work.edges = plan.providers.edges()?;
+        if let Some(source) = &plan.geometry_source {
+            work.nodes = source.nodes.len();
+            work.edges = source.nodes.values().try_fold(work.edges, |count, node| {
+                count
+                    .checked_add(node.children.len())
+                    .ok_or(AnimationError::BudgetExceeded(
+                        AnimationBudgetKind::DependencyEdges,
+                    ))
+            })?;
+            // Current and next presentation coexist with the owned source. Checked arithmetic
+            // preserves the peak reservation even if address-space arithmetic would overflow.
+            let source_bytes = source.collection_bytes()?;
+            let geometry_bytes = source.materialization_bytes()?;
+            work.bytes = work
+                .bytes
+                .checked_mul(2)
+                .and_then(|bytes| bytes.checked_add(source_bytes))
+                .and_then(|bytes| {
+                    geometry_bytes
+                        .checked_mul(4)
+                        .and_then(|recordings| bytes.checked_add(recordings))
+                })
+                .ok_or(AnimationError::BudgetExceeded(
+                    AnimationBudgetKind::SnapshotBytes,
+                ))?;
+            work.operations = work
+                .nodes
+                .checked_mul(super::capacity::GEOMETRY_OPERATIONS_PER_NODE)
+                .and_then(|operations| operations.checked_add(work.edges))
+                .and_then(|operations| operations.checked_add(work.operations))
+                .ok_or(AnimationError::BudgetExceeded(
+                    AnimationBudgetKind::GeometryOperations,
+                ))?;
+        }
+        work.validate(self.limits.staging_work)?;
         let mut final_tracks: HashMap<AnimationChannelId, (u64, usize)> = HashMap::new();
         let mut presentation_families = HashMap::new();
         for (index, track) in plan.tracks.iter().enumerate() {
@@ -949,43 +1754,131 @@ impl AnimationService {
         }
         // Resolve the complete initial sample before changing any live owner or value.
         let initial_values = self.prepare_samples(&tracks, 0)?;
+        let mut fields: HashMap<FigureId, Vec<super::geometry::GeometryFields>> = HashMap::new();
+        let mut seen = HashSet::new();
+        for track in &tracks {
+            if !seen.insert(track.channel) {
+                continue;
+            }
+            if let Some(ChannelState {
+                binding:
+                    ChannelBinding::FigureGeometry {
+                        figure,
+                        fields: output,
+                        ..
+                    },
+                ..
+            }) = self.channels.get(track.channel)
+            {
+                let previous = fields.entry(*figure).or_default();
+                if previous.iter().any(|fields| fields.overlaps(*output)) {
+                    return Err(AnimationError::ChannelConflict);
+                }
+                previous.push(*output);
+            }
+        }
+        let mut derived_fields = HashMap::new();
+        if plan.geometry_source.is_some() {
+            let mut effects = HashMap::new();
+            for (id, value) in &initial_values {
+                if let ChannelBinding::FigureGeometry { figure, .. } =
+                    &self.channels.get(*id).expect("prepared channel").binding
+                {
+                    let effect = effects
+                        .entry(*figure)
+                        .or_insert_with(FigurePresentationEffect::default);
+                    effect.geometry.merge(value.patch)?;
+                }
+            }
+            let sources: Vec<_> = plan.geometry_source.iter().cloned().collect();
+            let geometry = super::PresentationGeometry::freeze_sources(
+                tree,
+                &effects,
+                plan.providers.figures().chain(effects.keys().copied()),
+                self.geometry_version(0),
+                HashMap::new(),
+                &sources,
+            )?;
+            let result = if plan.providers.len() == 0 {
+                super::provider::ProviderEvaluation::default()
+            } else {
+                plan.providers.evaluate(&geometry, |patches| {
+                    let mut staged = effects.clone();
+                    for (figure, patch) in patches {
+                        staged.entry(*figure).or_default().geometry.merge(*patch)?;
+                    }
+                    super::PresentationGeometry::freeze_sources(
+                        tree,
+                        &staged,
+                        plan.providers.figures().chain(effects.keys().copied()),
+                        self.geometry_version(0),
+                        HashMap::new(),
+                        &sources,
+                    )
+                })?
+            };
+            for figure in result.content.keys() {
+                if presentation_families.contains_key(figure) {
+                    return Err(AnimationError::ChannelConflict);
+                }
+            }
+            for (figure, patch) in result.patches {
+                if fields.get(&figure).is_some_and(|outputs| {
+                    outputs.iter().any(|output| output.overlaps(patch.fields()))
+                }) {
+                    return Err(AnimationError::ChannelConflict);
+                }
+                derived_fields.insert(figure, patch.fields());
+            }
+            if result.values.keys().any(|(figure, value_type)| {
+                self.geometry_channels
+                    .contains_key(&FigurePresentationChannelKey {
+                        figure: *figure,
+                        value_type: *value_type,
+                    })
+            }) {
+                return Err(AnimationError::ChannelConflict);
+            }
+        }
         Ok(PreparedAnimation {
             tracks,
             initial_values,
             duration_micros: plan.duration_micros,
             interruption: plan.interruption,
             suspension: plan.suspension,
+            geometry_source: plan.geometry_source,
+            work,
+            providers: plan.providers,
+            derived_fields,
         })
     }
 
-    fn start(&mut self, plan: AnimationPlan) -> Result<AnimationStart, AnimationError> {
-        self.start_with_mode(plan, false)
+    fn start(
+        &mut self,
+        plan: AnimationPlan,
+        tree: &FigureTree,
+    ) -> Result<AnimationStart, AnimationError> {
+        self.start_with_mode(plan, false, tree)
     }
 
     fn start_from_behavior(
         &mut self,
         plan: AnimationPlan,
+        tree: &FigureTree,
     ) -> Result<AnimationStart, AnimationError> {
-        self.start_with_mode(plan, true)
+        self.start_with_mode(plan, true, tree)
     }
 
     fn start_with_mode(
         &mut self,
         plan: AnimationPlan,
         reduced_motion_fallback: bool,
+        tree: &FigureTree,
     ) -> Result<AnimationStart, AnimationError> {
-        let prepared = self.prepare(plan)?;
-        match self.mode {
-            AnimationMode::Disabled => {
-                return Ok(AnimationStart::Suppressed(AnimationSuppression::Disabled));
-            }
-            AnimationMode::ReducedMotion if !reduced_motion_fallback => {
-                return Ok(AnimationStart::Suppressed(
-                    AnimationSuppression::ReducedMotionStaticFallback,
-                ));
-            }
-            AnimationMode::Enabled | AnimationMode::ReducedMotion => {}
+        if let Some(suppressed) = self.suppressed_start(&plan, reduced_motion_fallback)? {
+            return Ok(suppressed);
         }
+        let prepared = self.prepare(plan, tree)?;
         if prepared.duration_micros == 0 {
             return Ok(AnimationStart::Suppressed(
                 AnimationSuppression::NoVisualDelta,
@@ -1006,6 +1899,8 @@ impl AnimationService {
             }
         }
         existing.extend(self.conflicting_presentation_owners(&prepared.tracks, None));
+        existing.extend(self.conflicting_geometry_owners(&prepared.tracks, None));
+        existing.extend(self.conflicting_derived_owners(&prepared, None)?);
         if let (InterruptionPolicy::Ignore, Some(owner)) =
             (prepared.interruption, existing.iter().next().copied())
         {
@@ -1017,6 +1912,7 @@ impl AnimationService {
             .map(|animation| animation.tracks.len())
             .sum();
         self.validate_active_budget(prepared.tracks.len(), existing.len(), replaced_tracks)?;
+        self.validate_work_budget(&prepared, existing.iter().copied())?;
         let temporary_targets = self.temporary_targets(&prepared.tracks);
         for owner in existing {
             self.finish_preserving_temporaries(
@@ -1035,6 +1931,10 @@ impl AnimationService {
             paused_at: None,
             surface_suspended: self.surface_suspended,
             target_hidden: false,
+            geometry_source: prepared.geometry_source,
+            work: prepared.work,
+            providers: prepared.providers,
+            derived_fields: prepared.derived_fields,
         });
         self.active_revision = self.active_revision.saturating_add(1);
         let track_count = self
@@ -1060,9 +1960,58 @@ impl AnimationService {
         Ok(AnimationStart::Running(id))
     }
 
-    fn retarget(&mut self, id: AnimationId, plan: AnimationPlan) -> Result<bool, AnimationError> {
+    fn suppressed_start(
+        &self,
+        plan: &AnimationPlan,
+        reduced_motion_fallback: bool,
+    ) -> Result<Option<AnimationStart>, AnimationError> {
+        let suppression = match self.mode {
+            AnimationMode::Disabled => AnimationSuppression::Disabled,
+            AnimationMode::ReducedMotion if !reduced_motion_fallback => {
+                AnimationSuppression::ReducedMotionStaticFallback
+            }
+            AnimationMode::Enabled | AnimationMode::ReducedMotion => return Ok(None),
+        };
+        if plan.tracks.is_empty() {
+            return Err(AnimationError::EmptyPlan);
+        }
+        let mut terminal = HashMap::new();
+        for (index, track) in plan.tracks.iter().enumerate() {
+            let channel_id = track.spec.channel();
+            if channel_id.namespace() != self.namespace {
+                return Err(AnimationError::ForeignChannel);
+            }
+            if !self.channels.contains_key(channel_id) {
+                return Err(AnimationError::UnknownChannel);
+            }
+            let end = track
+                .start_micros
+                .checked_add(track.duration_micros)
+                .ok_or(AnimationError::TimeOverflow)?;
+            let last = terminal.entry(channel_id).or_insert((end, index));
+            if (end, index) > *last {
+                *last = (end, index);
+            }
+        }
+        for (channel, (_, index)) in terminal {
+            if !plan.tracks[index]
+                .spec
+                .terminal_matches(self.channels.get(channel).expect("validated channel"))?
+            {
+                return Err(AnimationError::FinalValueMismatch);
+            }
+        }
+        Ok(Some(AnimationStart::Suppressed(suppression)))
+    }
+
+    fn retarget(
+        &mut self,
+        id: AnimationId,
+        plan: AnimationPlan,
+        tree: &FigureTree,
+    ) -> Result<bool, AnimationError> {
         self.validate_animation_id(id)?;
-        let prepared = self.prepare(plan)?;
+        let prepared = self.prepare(plan, tree)?;
         if prepared.duration_micros == 0 {
             return Ok(self.finish(id, AnimationState::Cancelled));
         }
@@ -1078,6 +2027,7 @@ impl AnimationService {
             .map(|animation| (animation.surface_suspended, animation.target_hidden))
             .expect("validated animation must exist");
         self.validate_active_budget(prepared.tracks.len(), 1, old_track_count)?;
+        self.validate_work_budget(&prepared, [id])?;
         if prepared.tracks.iter().any(|track| {
             self.channel_owners
                 .get(&track.channel)
@@ -1099,6 +2049,15 @@ impl AnimationService {
         }
         if !self
             .conflicting_presentation_owners(&prepared.tracks, Some(id))
+            .is_empty()
+            || !self
+                .conflicting_geometry_owners(&prepared.tracks, Some(id))
+                .is_empty()
+        {
+            return Err(AnimationError::ChannelConflict);
+        }
+        if !self
+            .conflicting_derived_owners(&prepared, Some(id))?
             .is_empty()
         {
             return Err(AnimationError::ChannelConflict);
@@ -1146,6 +2105,10 @@ impl AnimationService {
             paused_at: None,
             surface_suspended,
             target_hidden,
+            geometry_source: prepared.geometry_source,
+            work: prepared.work,
+            providers: prepared.providers,
+            derived_fields: prepared.derived_fields,
         };
         self.active_revision = self.active_revision.saturating_add(1);
         for visual in old_temporaries.difference(&new_temporaries) {
@@ -1232,6 +2195,12 @@ impl AnimationService {
         self.finish_preserving_temporaries(id, state, &HashSet::new())
     }
 
+    fn finish_failed(&mut self, id: AnimationId, error: AnimationError) -> bool {
+        let changed = self.finish(id, AnimationState::Failed);
+        self.failures.insert(id, error);
+        changed
+    }
+
     fn finish_preserving_temporaries(
         &mut self,
         id: AnimationId,
@@ -1242,6 +2211,10 @@ impl AnimationService {
             return false;
         };
         self.active_revision = self.active_revision.saturating_add(1);
+        // A stale cache has no query authority after the owner revision changes. Its resources
+        // may survive only through independent capture/submission retention responsibilities.
+        self.geometry_cache = None;
+        self.snapshot_cache = None;
         let temporary_visuals = self.temporary_targets(&animation.tracks);
         self.active_track_count = self
             .active_track_count
@@ -1271,7 +2244,9 @@ impl AnimationService {
     fn record_terminal(&mut self, id: AnimationId, state: AnimationState) {
         self.terminal.push_back((id, state));
         while self.terminal.len() > DEFAULT_ANIMATION_TERMINAL_HISTORY {
-            self.terminal.pop_front();
+            if let Some((id, _)) = self.terminal.pop_front() {
+                self.failures.remove(&id);
+            }
         }
     }
 
@@ -1294,6 +2269,9 @@ impl AnimationService {
             AnimationReservations {
                 active_animations: replaced_animations,
                 active_tracks: replaced_tracks,
+                work: super::AnimationWork::default(),
+                capture_bytes: 0,
+                submission_bytes: 0,
             },
             new_tracks,
             true,
@@ -1304,7 +2282,146 @@ impl AnimationService {
         AnimationReservations {
             active_animations: self.active.len(),
             active_tracks: self.active_track_count,
+            work: self
+                .active
+                .iter()
+                .fold(super::AnimationWork::default(), |sum, (_, group)| {
+                    sum.combine(super::AnimationWork::default(), group.work)
+                        .expect("admitted work reservations cannot overflow")
+                }),
+            capture_bytes: self.capture_storage.live_bytes(),
+            submission_bytes: self.submission_storage.live_bytes(),
         }
+    }
+
+    fn validate_work_budget(
+        &self,
+        prepared: &PreparedAnimation,
+        retired: impl IntoIterator<Item = AnimationId>,
+    ) -> Result<(), AnimationError> {
+        let mut removed = super::AnimationWork::default();
+        for id in retired {
+            if let Some(group) = self.active.get(id) {
+                removed = removed.combine(super::AnimationWork::default(), group.work)?;
+            }
+        }
+        self.reservations()
+            .work
+            .combine(removed, prepared.work)?
+            .validate(self.limits.active_work)
+    }
+
+    fn conflicting_derived_owners(
+        &self,
+        prepared: &PreparedAnimation,
+        except: Option<AnimationId>,
+    ) -> Result<HashSet<AnimationId>, AnimationError> {
+        let mut requested = prepared.derived_fields.clone();
+        for track in &prepared.tracks {
+            if let Some(ChannelState {
+                binding: ChannelBinding::FigureGeometry { figure, fields, .. },
+                ..
+            }) = self.channels.get(track.channel)
+            {
+                // Track/derived overlap in a candidate was already rejected during prepare.
+                requested
+                    .entry(*figure)
+                    .and_modify(|output| *output = output.union(*fields))
+                    .or_insert(*fields);
+            }
+        }
+        let mut dependencies: HashSet<_> = prepared.providers.figures().collect();
+        if (prepared.providers.len() != 0
+            || requested.values().any(|fields| fields.child_transform))
+            && let Some(source) = &prepared.geometry_source
+        {
+            // World/client queries depend on each captured ancestor mapping too.
+            dependencies.extend(source.nodes.keys().copied());
+        }
+        let requested_channels: HashSet<_> =
+            prepared.tracks.iter().map(|track| track.channel).collect();
+        let requested_drawings: HashSet<_> = prepared.providers.drawing_figures().collect();
+        let mut requested_content = requested_drawings.clone();
+        requested_content.extend(prepared.tracks.iter().filter_map(|track| {
+            self.channels
+                .get(track.channel)?
+                .binding
+                .figure_presentation()
+                .map(|(figure, _)| figure)
+        }));
+        let mut conflicts = HashSet::new();
+        for (id, group) in self.active.iter() {
+            if Some(id) == except {
+                continue;
+            }
+            let replaces_group = group
+                .providers
+                .drawing_figures()
+                .any(|figure| requested_content.contains(&figure))
+                || group.derived_fields.iter().any(|(figure, fields)| {
+                    requested
+                        .get(figure)
+                        .is_some_and(|output| output.overlaps(*fields))
+                });
+            if replaces_group {
+                conflicts.insert(id);
+                continue;
+            }
+            for track in &group.tracks {
+                if let Some(ChannelState {
+                    binding: ChannelBinding::FigureTransform(figure),
+                    ..
+                }) = self.channels.get(track.channel)
+                    && dependencies.contains(figure)
+                    && !requested_channels.contains(&track.channel)
+                {
+                    return Err(AnimationError::ChannelConflict);
+                }
+                if let Some((figure, _)) = self
+                    .channels
+                    .get(track.channel)
+                    .and_then(|channel| channel.binding.figure_presentation())
+                    && requested_drawings.contains(&figure)
+                {
+                    conflicts.insert(id);
+                }
+                if let Some(ChannelState {
+                    binding: ChannelBinding::FigureGeometry { figure, fields, .. },
+                    ..
+                }) = self.channels.get(track.channel)
+                {
+                    if dependencies.contains(figure) && !requested_channels.contains(&track.channel)
+                    {
+                        return Err(AnimationError::ChannelConflict);
+                    }
+                    if requested
+                        .get(figure)
+                        .is_some_and(|output| output.overlaps(*fields))
+                    {
+                        conflicts.insert(id);
+                    }
+                }
+            }
+            if group
+                .providers
+                .drawing_figures()
+                .any(|figure| requested_content.contains(&figure))
+            {
+                conflicts.insert(id);
+            }
+            for (figure, fields) in &group.derived_fields {
+                if dependencies.contains(figure) {
+                    return Err(AnimationError::ChannelConflict);
+                }
+                if requested
+                    .get(figure)
+                    .is_some_and(|output| output.overlaps(*fields))
+                {
+                    conflicts.insert(id);
+                }
+            }
+        }
+        Ok(conflicts)
     }
 
     fn temporary_targets(&self, tracks: &[PreparedPlanTrack]) -> HashSet<TemporaryVisualId> {
@@ -1357,6 +2474,81 @@ impl AnimationService {
                             })
                     })
                     .then_some(owner)
+            })
+            .collect()
+    }
+
+    fn conflicting_geometry_owners(
+        &self,
+        tracks: &[PreparedPlanTrack],
+        except: Option<AnimationId>,
+    ) -> HashSet<AnimationId> {
+        let requested: Vec<_> = tracks
+            .iter()
+            .filter_map(|track| {
+                if let ChannelBinding::FigureGeometry { figure, fields, .. } =
+                    &self.channels.get(track.channel)?.binding
+                {
+                    Some((*figure, *fields))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.active
+            .iter()
+            .filter(|(owner, _)| Some(*owner) != except)
+            .filter_map(|(owner, animation)| {
+                animation
+                    .tracks
+                    .iter()
+                    .any(|track| {
+                        let Some(channel) = self.channels.get(track.channel) else {
+                            return false;
+                        };
+                        if let ChannelBinding::FigureGeometry { figure, fields, .. } =
+                            &channel.binding
+                        {
+                            requested.iter().any(|(target, output)| {
+                                target == figure && fields.overlaps(*output)
+                            })
+                        } else {
+                            false
+                        }
+                    })
+                    .then_some(owner)
+            })
+            .collect()
+    }
+
+    /// Both typed geometry and legacy contents transforms participate in origin arbitration.
+    pub(crate) fn viewport_owners(
+        &self,
+        viewport: FigureId,
+        contents: Option<FigureId>,
+    ) -> Vec<AnimationId> {
+        self.active
+            .iter()
+            .filter_map(|(id, group)| {
+                let owns = group
+                    .derived_fields
+                    .get(&viewport)
+                    .is_some_and(|fields| fields.child_transform)
+                    || group.tracks.iter().any(|track| {
+                        self.channels.get(track.channel).is_some_and(|channel| {
+                            match &channel.binding {
+                                ChannelBinding::FigureGeometry { figure, fields, .. } => {
+                                    *figure == viewport && fields.child_transform
+                                        || Some(*figure) == contents && fields.local_transform
+                                }
+                                ChannelBinding::FigureTransform(figure) => {
+                                    Some(*figure) == contents
+                                }
+                                _ => false,
+                            }
+                        })
+                    });
+                owns.then_some(id)
             })
             .collect()
     }
@@ -1474,6 +2666,7 @@ fn transformed_envelope(transform: Affine2D, rectangle: Rectangle) -> Option<Rec
 pub struct AnimationMut<'a> {
     service: &'a mut AnimationService,
     tree: &'a FigureTree,
+    resources: &'a crate::runtime::ResourceRegistry,
     updates: &'a mut UpdateManager,
     full_redraw_pending: &'a mut bool,
     faulted: &'a mut bool,
@@ -1498,7 +2691,7 @@ impl AnimationMut<'_> {
             return false;
         }
         let before = self.service.damage_state(self.tree);
-        let changed = self.service.reconcile_visibility(self.tree);
+        let changed = self.service.reconcile_visibility(self.tree, self.resources);
         self.reconcile_damage(before);
         changed
     }
@@ -1523,8 +2716,10 @@ impl AnimationMut<'_> {
         }
         let before = self.service.damage_state(self.tree);
         let scene = StableSceneQuery::new(stable_epoch, self.tree);
-        let changed =
-            self.guarded_service(|service| service.process_behaviors(effects, stable_epoch, scene));
+        let tree = self.tree;
+        let changed = self.guarded_service(|service| {
+            service.process_behaviors(effects, stable_epoch, scene, tree)
+        });
         self.reconcile_damage(before);
         changed
     }
@@ -1545,6 +2740,12 @@ impl AnimationMut<'_> {
     pub fn set_limits(&mut self, limits: AnimationLimits) -> Result<(), AnimationError> {
         self.ensure_not_faulted()?;
         limits.validate_live(self.service.reservations())?;
+        self.service
+            .capture_storage
+            .set_limit(limits.capture_bytes)?;
+        self.service
+            .submission_storage
+            .set_limit(limits.submission_bytes)?;
         self.service.limits = limits;
         Ok(())
     }
@@ -1745,10 +2946,87 @@ impl AnimationMut<'_> {
         ))
     }
 
+    /// Creates or returns a Runtime-managed channel identified by Figure and semantic value type.
+    ///
+    /// The descriptor freezes its output fields at registration. Input and accessibility keep
+    /// reading committed geometry; external descriptors use the same registration path.
+    pub fn bind_geometry<V: AnimationValue + Copy>(
+        &mut self,
+        figure: FigureId,
+        binding: super::GeometryBinding<V>,
+    ) -> Result<AnimationChannel<V>, AnimationError> {
+        self.ensure_not_faulted()?;
+        if figure.namespace() != self.service.namespace {
+            return Err(AnimationError::ForeignTarget);
+        }
+        let tree = self.tree;
+        let node = tree.node(figure)?;
+        let key = FigurePresentationChannelKey {
+            figure,
+            value_type: TypeId::of::<V>(),
+        };
+        if let Some(channel) = self.service.geometry_channels.get(&key) {
+            return Ok(AnimationChannel::new(*channel));
+        }
+        if self.service.channels.len() >= DEFAULT_MAX_ANIMATION_CHANNELS {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::Channels,
+            ));
+        }
+        let committed = self.guarded_service(|_| {
+            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(node))
+        })?;
+        let erased = binding.erased();
+        let fields = self.guarded_service(|_| erased.patch(&committed))?.fields();
+        let state = ChannelState::new_bound(
+            committed,
+            ChannelBinding::FigureGeometry {
+                figure,
+                value_type: TypeId::of::<V>(),
+                binding: erased,
+                fields,
+            },
+        );
+        self.guarded_service(|_| state.validate_value(state.committed::<V>()?))?;
+        let channel = self.service.channels.insert(state);
+        self.service.geometry_channels.insert(key, channel);
+        self.service.binding_revision = self.service.binding_revision.saturating_add(1);
+        Ok(AnimationChannel::new(channel))
+    }
+
+    /// Updates the terminal source value before admitting a geometry transition.
+    ///
+    /// This only updates the channel's source input; it never writes Figure state.
+    pub fn refresh_geometry<V: AnimationValue + Copy>(
+        &mut self,
+        figure: FigureId,
+        binding: super::GeometryBinding<V>,
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        let tree = self.tree;
+        let node = tree.node(figure)?;
+        let committed = self.guarded_service(|_| {
+            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(node))
+        })?;
+        let channel = self.bind_geometry(figure, binding)?;
+        self.guarded_service(|service| {
+            let state = service
+                .channels
+                .get_mut(channel.id())
+                .ok_or(AnimationError::UnknownChannel)?;
+            state.validate_value(&committed)?;
+            let source_changed = state.committed::<V>()? != &committed;
+            let changed = state.set_committed(committed)?;
+            if source_changed {
+                service.binding_revision = service.binding_revision.saturating_add(1);
+            }
+            Ok(changed)
+        })
+    }
+
     /// Creates or returns a Runtime-managed typed content-presentation channel.
     ///
-    /// The Figure must register the same key at attach time. Input and accessibility remain on
-    /// committed geometry; the sampled value only replaces immutable self-content for recording.
+    /// The Figure must register the same key at attach time.
     pub fn bind_presentation<V: AnimationValue>(
         &mut self,
         figure: FigureId,
@@ -2145,6 +3423,8 @@ impl AnimationMut<'_> {
     }
 
     /// Animates captured Figure bounds toward their already committed current bounds.
+    ///
+    /// This legacy entry preserves affine size scaling.
     pub fn transition_bounds(
         &mut self,
         capture: FigureTransitionCapture,
@@ -2244,6 +3524,149 @@ impl AnimationMut<'_> {
         self.start(plan)
     }
 
+    /// Consumes complete sampled geometry and animates real bounds toward stable source bounds.
+    ///
+    /// All captured dependency identities and child order are checked before channel preparation.
+    /// Unlike the affine transition, finite zero-sized endpoints are supported.
+    pub fn transition_layout_bounds(
+        &mut self,
+        capture: super::GeometryCapture,
+        transition: BoundsTransition,
+    ) -> Result<AnimationStart, AnimationError> {
+        self.ensure_not_faulted()?;
+        if capture
+            .geometry
+            .data
+            .roots
+            .iter()
+            .any(|figure| figure.namespace() != self.service.namespace)
+        {
+            return Err(AnimationError::ForeignCapture);
+        }
+        let mut changed = Vec::new();
+        for id in &capture.geometry.data.order {
+            let before = capture.geometry.figure(*id)?;
+            let node = self.tree.node(*id)?;
+            if node.parent != before.parent || node.children != before.children {
+                return Err(AnimationError::GeometryTopologyChanged { figure: *id });
+            }
+            if capture.geometry.data.covered.contains(id) && before.bounds != node.figure_bounds() {
+                changed.push((
+                    *id,
+                    super::LayoutBounds::try_new(before.bounds)?,
+                    super::LayoutBounds::try_new(node.figure_bounds())?,
+                ));
+            }
+        }
+        if changed.is_empty() || transition.duration.is_zero() {
+            return Ok(AnimationStart::Suppressed(
+                AnimationSuppression::NoVisualDelta,
+            ));
+        }
+        match self.service.mode {
+            AnimationMode::Disabled => {
+                return Ok(AnimationStart::Suppressed(AnimationSuppression::Disabled));
+            }
+            AnimationMode::ReducedMotion => {
+                return Ok(AnimationStart::Suppressed(
+                    AnimationSuppression::ReducedMotionStaticFallback,
+                ));
+            }
+            AnimationMode::Enabled => {}
+        }
+        // Validate all Motion parameters before creating or refreshing any channels.
+        let motions = changed
+            .iter()
+            .map(|(_, before, after)| {
+                Tween::between(*before, *after, transition.duration)
+                    .map(|tween| Motion::Tween(tween.with_easing(transition.easing)))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let required = changed
+            .iter()
+            .filter(|(figure, _, _)| {
+                !self
+                    .service
+                    .geometry_channels
+                    .contains_key(&FigurePresentationChannelKey {
+                        figure: *figure,
+                        value_type: TypeId::of::<super::LayoutBounds>(),
+                    })
+            })
+            .count();
+        if self.service.channels.len().saturating_add(required) > DEFAULT_MAX_ANIMATION_CHANNELS {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::Channels,
+            ));
+        }
+        self.service.limits.validate_staging(changed.len())?;
+        let tree = self.tree;
+        let resources = self.resources;
+        let source = self.guarded_service(|service| {
+            super::frozen::FrozenGeometrySource::capture(
+                tree,
+                resources,
+                capture.geometry.data.roots.clone(),
+                service.limits.staging_work,
+            )
+        })?;
+        let revision = self.service.binding_revision;
+        let mut restored = Vec::new();
+        let mut created = Vec::new();
+        let mut plans = Vec::with_capacity(changed.len());
+        for ((figure, _, after), motion) in changed.into_iter().zip(motions) {
+            let key = FigurePresentationChannelKey {
+                figure,
+                value_type: TypeId::of::<super::LayoutBounds>(),
+            };
+            let existed = self.service.geometry_channels.contains_key(&key);
+            let channel = self.bind_geometry(figure, super::GeometryBinding::layout_bounds())?;
+            if existed {
+                let state = self
+                    .service
+                    .channels
+                    .get_mut(channel.id())
+                    .expect("bound channel");
+                restored.push((
+                    channel.id(),
+                    std::mem::replace(&mut state.committed, Box::new(after)),
+                ));
+            } else {
+                created.push((key, channel.id()));
+            }
+            plans.push(AnimationPlan::track(channel, motion)?);
+        }
+        let result = (|| {
+            let mut plan = if transition.stagger.is_zero() {
+                AnimationPlan::parallel(plans)?
+            } else {
+                AnimationPlan::stagger(transition.stagger, plans)?
+            };
+            plan.geometry_source = Some(source);
+            self.start(
+                plan.with_interruption(transition.interruption)
+                    .with_suspension(transition.suspension),
+            )
+        })();
+        if !matches!(result, Ok(AnimationStart::Running(_))) {
+            for (id, committed) in restored {
+                self.service
+                    .channels
+                    .get_mut(id)
+                    .expect("existing channel")
+                    .committed = committed;
+            }
+            for (key, id) in created {
+                self.service.geometry_channels.remove(&key);
+                self.service.channels.remove(id);
+            }
+            self.service.binding_revision = revision;
+        } else {
+            self.service.binding_revision = self.service.binding_revision.saturating_add(1);
+        }
+        result
+    }
+
     /// Creates a dormant non-interactive visual that activates atomically with its first plan.
     pub fn create_temporary_visual(
         &mut self,
@@ -2336,12 +3759,17 @@ impl AnimationMut<'_> {
     }
 
     /// Admits and starts a finite or continuous plan.
-    pub fn start(&mut self, plan: AnimationPlan) -> Result<AnimationStart, AnimationError> {
+    pub fn start(&mut self, mut plan: AnimationPlan) -> Result<AnimationStart, AnimationError> {
         if *self.faulted {
             return Err(AnimationError::RuntimeFaulted);
         }
+        if let Some(suppressed) = self.service.suppressed_start(&plan, false)? {
+            return Ok(suppressed);
+        }
+        self.freeze_plan_source(&mut plan)?;
         let before = self.service.damage_state(self.tree);
-        let result = self.guarded_service(|service| service.start(plan));
+        let tree = self.tree;
+        let result = self.guarded_service(|service| service.start(plan, tree));
         if result.is_ok() {
             self.reconcile_damage(before);
         }
@@ -2352,17 +3780,49 @@ impl AnimationMut<'_> {
     pub fn retarget(
         &mut self,
         animation: AnimationId,
-        replacement: AnimationPlan,
+        mut replacement: AnimationPlan,
     ) -> Result<bool, AnimationError> {
         if *self.faulted {
             return Err(AnimationError::RuntimeFaulted);
         }
+        self.freeze_plan_source(&mut replacement)?;
         let before = self.service.damage_state(self.tree);
-        let result = self.guarded_service(|service| service.retarget(animation, replacement));
+        let tree = self.tree;
+        let result = self.guarded_service(|service| service.retarget(animation, replacement, tree));
         if result.is_ok() {
             self.reconcile_damage(before);
         }
         result
+    }
+
+    fn freeze_plan_source(&mut self, plan: &mut AnimationPlan) -> Result<(), AnimationError> {
+        if plan.geometry_source.is_some() {
+            return Ok(());
+        }
+        let roots: Vec<_> = plan
+            .tracks
+            .iter()
+            .filter_map(
+                |track| match &self.service.channels.get(track.spec.channel())?.binding {
+                    ChannelBinding::FigureGeometry { figure, .. } => Some(*figure),
+                    _ => None,
+                },
+            )
+            .chain(plan.providers.figures())
+            .collect();
+        if !roots.is_empty() {
+            let tree = self.tree;
+            let resources = self.resources;
+            plan.geometry_source = Some(self.guarded_service(|service| {
+                super::frozen::FrozenGeometrySource::capture(
+                    tree,
+                    resources,
+                    roots,
+                    service.limits.staging_work,
+                )
+            })?);
+        }
+        Ok(())
     }
 
     /// Cancels an active plan and clears its presentation overrides.
@@ -2394,6 +3854,18 @@ impl AnimationMut<'_> {
             .rev()
             .find_map(|(candidate, state)| (*candidate == animation).then_some(*state))
             .ok_or(AnimationError::UnknownAnimation)
+    }
+
+    /// Reads the checked failure of an active or retained terminal group.
+    ///
+    /// Provider limit errors include the provider's typed identity and declared/actual counts.
+    /// Diagnostics share the bounded terminal-history lifetime; this query runs no callbacks.
+    pub fn failure(
+        &self,
+        animation: AnimationId,
+    ) -> Result<Option<&AnimationError>, AnimationError> {
+        self.state(animation)?;
+        Ok(self.service.failures.get(&animation))
     }
 
     /// Returns the earliest animation wake deadline.

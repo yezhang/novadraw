@@ -656,6 +656,7 @@ impl FigureTree {
                 | PendingMutationKind::SetSizeOverride { .. }
                 | PendingMutationKind::SetBounds { .. }
                 | PendingMutationKind::ScrollViewport { .. }
+                | PendingMutationKind::SetViewportAxis { .. }
                 | PendingMutationKind::SetScale { .. }
                 | PendingMutationKind::SetStyle { .. }
                 | PendingMutationKind::MoveChildToIndex { .. }
@@ -902,6 +903,7 @@ impl FigureTree {
             depth,
             figure,
             component_revision: 0,
+            visibility_revision: 0,
             resource_inputs: Vec::new(),
             source_bounds: state.bounds,
             capabilities,

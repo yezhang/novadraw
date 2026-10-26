@@ -435,12 +435,14 @@ pub enum RuntimeMutationError {
     Graph(GraphMutationError),
     Connection(ConnectionRuntimeError),
     Resource(ResourceError),
+    Animation(crate::animation::AnimationError),
     Rejected,
 }
 
 impl fmt::Display for RuntimeMutationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Animation(error) => error.fmt(formatter),
             Self::ForeignRuntime(figure) => write!(formatter, "foreign Runtime Figure: {figure:?}"),
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::FigureBatch { index, source } => {
@@ -527,6 +529,7 @@ impl Error for RuntimeMutationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::FigureBatch { source, .. } => Some(source.as_ref()),
+            Self::Animation(error) => Some(error),
             _ => None,
         }
     }
@@ -652,6 +655,12 @@ type SubtreeCompletion =
     Box<dyn FnOnce(Result<crate::tree::SubtreeReceipt, &RuntimeMutationError>)>;
 
 pub(crate) enum PendingMutationKind {
+    SetViewportAxis {
+        viewport: FigureId,
+        horizontal: bool,
+        value: f64,
+        relative: bool,
+    },
     ScrollViewport {
         viewport: FigureId,
         dx: f64,
@@ -960,6 +969,22 @@ impl PendingMutation {
     pub(crate) fn scroll_viewport(viewport: FigureId, dx: f64, dy: f64) -> Self {
         Self {
             kind: PendingMutationKind::ScrollViewport { viewport, dx, dy },
+        }
+    }
+
+    pub(crate) fn viewport_axis(
+        viewport: FigureId,
+        horizontal: bool,
+        value: f64,
+        relative: bool,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::SetViewportAxis {
+                viewport,
+                horizontal,
+                value,
+                relative,
+            },
         }
     }
 

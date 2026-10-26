@@ -54,6 +54,11 @@ const PARTS: [ScrollBarPart; 5] = [
 /// Value consumption runs with the same checked effects as any Figure callback.
 pub trait ScrollBarValueConsumer: Send + Sync {
     fn value_changed(&self, old: f64, new: f64, context: &mut EventContext<'_>);
+    /// Returns true when the owner accepts a deferred absolute or incremental request.
+    /// The range model has not been written when this callback runs.
+    fn request_value(&self, _value: f64, _relative: bool, _context: &mut EventContext<'_>) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -323,7 +328,7 @@ impl ScrollBarFigure {
         }
     }
 
-    fn change(&self, role: ScrollBarPart) {
+    fn change(&self, role: ScrollBarPart, context: &mut EventContext<'_>) {
         let model = self.range_model();
         let increment = match role {
             ScrollBarPart::Decrement => -self.config.step_increment,
@@ -332,7 +337,13 @@ impl ScrollBarFigure {
             ScrollBarPart::PageIncrement => self.config.page_increment,
             ScrollBarPart::Thumb => return,
         };
-        let _ = model.set_value(model.value() + increment);
+        if !self
+            .consumer
+            .as_ref()
+            .is_some_and(|consumer| consumer.request_value(increment, true, context))
+        {
+            let _ = model.set_value(model.value() + increment);
+        }
     }
     fn sync(&self, context: &mut EventContext<'_>) {
         let change = {
@@ -461,7 +472,7 @@ impl FigureEventHandler for ScrollBarFigure {
         };
         drop(state);
         context.effects().set_pressed(true);
-        self.change(role);
+        self.change(role, context);
         self.sync(context);
         true
     }
@@ -474,9 +485,14 @@ impl FigureEventHandler for ScrollBarFigure {
                 value,
                 ratio,
             }) => {
-                let _ = self
-                    .range_model()
-                    .set_value(value + (current - pointer) * ratio);
+                let requested = value + (current - pointer) * ratio;
+                if !self
+                    .consumer
+                    .as_ref()
+                    .is_some_and(|consumer| consumer.request_value(requested, false, context))
+                {
+                    let _ = self.range_model().set_value(requested);
+                }
                 self.sync(context);
             }
             Some(Session::Repeat { role, deadline, .. }) => {
@@ -552,7 +568,7 @@ impl FigureActivity for ScrollBarFigure {
             }
         };
         if let Some(role) = repeat {
-            self.change(role);
+            self.change(role, context);
         }
         self.sync(context);
     }

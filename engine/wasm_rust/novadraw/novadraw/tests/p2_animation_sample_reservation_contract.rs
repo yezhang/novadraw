@@ -40,11 +40,13 @@ fn limits(tracks: usize) -> AnimationLimits {
         active_animations: 2,
         active_tracks: tracks,
         staging_tracks: 4,
+        ..AnimationLimits::default()
     }
 }
 
 #[test]
 fn full_capacity_rejects_new_work_and_downsize_without_evicting_either_order() {
+    let mut reference_bytes = None;
     for reverse in [false, true] {
         let mut runtime = Runtime::empty();
         runtime.animation().advance_time(time(0)).unwrap();
@@ -69,9 +71,19 @@ fn full_capacity_rejects_new_work_and_downsize_without_evicting_either_order() {
         runtime.animation().advance_time(time(50)).unwrap();
         let wake = runtime.animation().next_wake_deadline();
         let version = runtime.animation().timeline().sample_version();
+        let storage_bytes = runtime.animation().timeline().reservations().work.bytes;
+        assert!(storage_bytes >= 2 * std::mem::size_of::<f64>());
+        assert_eq!(*reference_bytes.get_or_insert(storage_bytes), storage_bytes);
         let reserved = AnimationReservations {
             active_animations: 2,
             active_tracks: 2,
+            work: novadraw::animation::AnimationWork {
+                calls: 2,
+                bytes: storage_bytes,
+                ..Default::default()
+            },
+            capture_bytes: 0,
+            submission_bytes: 0,
         };
         assert_eq!(runtime.animation().timeline().reservations(), reserved);
         assert!(matches!(

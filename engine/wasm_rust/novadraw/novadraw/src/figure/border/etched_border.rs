@@ -29,6 +29,13 @@ impl EtchedBorder {
 }
 
 impl Border for EtchedBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        self.compound.snapshot_bounds_drawing(snapshot)
+    }
+
     fn get_insets(&self) -> Insets {
         self.compound.get_insets()
     }

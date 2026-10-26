@@ -67,6 +67,19 @@ impl LineBorder {
 }
 
 impl Border for LineBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        const LINE_BORDER_RECORDING_BYTES: usize = 4096;
+        Ok(crate::figure::BoundsDrawing::new(
+            *self,
+            LINE_BORDER_RECORDING_BYTES,
+            |inputs, bounds, context| inputs.paint(bounds, context),
+            |_, bounds| Ok(bounds),
+        ))
+    }
+
     fn get_insets(&self) -> Insets {
         self.insets
     }

@@ -34,6 +34,10 @@ impl PointList {
         self.points.len()
     }
 
+    pub(crate) fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>() + self.points.capacity() * std::mem::size_of::<Point>()
+    }
+
     /// 是否为空。
     #[inline]
     pub fn is_empty(&self) -> bool {

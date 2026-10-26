@@ -89,6 +89,7 @@ pub struct LabelFigure {
     icon_ref: Option<ImageResourceRef>,
     intrinsic: Option<LabelIntrinsicLayout>,
     presentation: Option<LabelPresentation>,
+    content_revision: u64,
 }
 
 impl LabelFigure {
@@ -107,6 +108,7 @@ impl LabelFigure {
             icon_ref: None,
             intrinsic: None,
             presentation: None,
+            content_revision: 0,
         }
     }
 
@@ -256,6 +258,9 @@ impl LabelFigure {
         self.intrinsic = Some(next);
         self.presentation = None;
         self.icon_ref = icon;
+        if changed {
+            self.content_revision = self.content_revision.wrapping_add(1);
+        }
         Ok(changed)
     }
 
@@ -333,24 +338,71 @@ impl LabelFigure {
         context: &mut PaintContext<'_>,
         icon: Option<ImageResourceRef>,
     ) -> Result<(), GraphicsError> {
-        let Some(presentation) = &self.presentation else {
-            return Ok(());
-        };
-        if let (Some(origin), Some(image)) = (presentation.icon_origin, icon) {
-            let (width, height) = image.logical_size();
-            context.draw_image(image, Rectangle::new(origin.0, origin.1, width, height))?;
-        }
-        if let Some(foreground) = context.stroke_paint().cloned() {
-            context.push_state();
-            context.set_fill_paint(foreground);
-            let paint_result = context.fill_text(
-                &presentation.text,
-                crate::Point::new(presentation.text_origin.0, presentation.text_origin.1),
-            );
-            let pop_result = context.pop_state();
-            paint_result.and(pop_result)?;
-        }
-        Ok(())
+        paint_presentation(self.presentation.as_ref(), icon, context)
+    }
+}
+
+fn paint_presentation(
+    presentation: Option<&LabelPresentation>,
+    icon: Option<ImageResourceRef>,
+    context: &mut PaintContext<'_>,
+) -> Result<(), GraphicsError> {
+    let Some(presentation) = presentation else {
+        return Ok(());
+    };
+    if let (Some(origin), Some(image)) = (presentation.icon_origin, icon) {
+        let (width, height) = image.logical_size();
+        context.draw_image(image, Rectangle::new(origin.0, origin.1, width, height))?;
+    }
+    if let Some(foreground) = context.stroke_paint().cloned() {
+        context.push_state();
+        context.set_fill_paint(foreground);
+        let paint_result = context.fill_text(
+            &presentation.text,
+            crate::Point::new(presentation.text_origin.0, presentation.text_origin.1),
+        );
+        let pop_result = context.pop_state();
+        paint_result.and(pop_result)?;
+    }
+    Ok(())
+}
+
+struct LabelContentDrawing {
+    presentation: Option<LabelPresentation>,
+    icon: Option<ImageResourceRef>,
+}
+
+impl super::FigureDrawing for LabelContentDrawing {
+    fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        paint_presentation(self.presentation.as_ref(), self.icon, context)
+    }
+}
+
+impl super::FigureContentSnapshot for LabelFigure {
+    fn content_revision(&self) -> u64 {
+        self.content_revision
+    }
+
+    fn snapshot_content(&self, bounds: Rectangle) -> Result<super::FigurePresentation, TextError> {
+        let measurement = self.presentation.as_ref().map_or(
+            super::FigureMeasurement::new(0.0, 0.0, None),
+            |presentation| {
+                super::FigureMeasurement::new(
+                    f64::from(presentation.text.width()),
+                    f64::from(presentation.text.height()),
+                    None,
+                )
+            },
+        );
+        super::FigurePresentation::new(
+            measurement,
+            self.intrinsic_content_minimum_size(),
+            self.visual_bounds_in(bounds),
+            Arc::new(LabelContentDrawing {
+                presentation: self.presentation.clone(),
+                icon: self.icon_ref,
+            }),
+        )
     }
 }
 
@@ -457,6 +509,10 @@ impl Figure for LabelFigure {
             crate::AccessibilityCapability::of::<Self>(),
         )?;
         out.register(crate::BORDER, crate::BorderCapability::of::<Self>())?;
+        out.register(
+            super::CONTENT_SNAPSHOT,
+            super::ContentSnapshotCapability::of::<Self>(),
+        )?;
         out.register(
             super::RESOURCE_DEPENDENCIES,
             super::ResourceDependenciesCapability::of::<Self>(),

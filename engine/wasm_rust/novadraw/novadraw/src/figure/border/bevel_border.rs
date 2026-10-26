@@ -40,6 +40,23 @@ impl BevelBorder {
 }
 
 impl Border for BevelBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        const BEVEL_LAYER_RECORDING_BYTES: usize = 4096;
+        let bytes = usize::try_from(self.width)
+            .ok()
+            .and_then(|layers| layers.checked_mul(BEVEL_LAYER_RECORDING_BYTES))
+            .ok_or(GraphicsError::ImmutableDrawingUnavailable)?;
+        Ok(crate::figure::BoundsDrawing::new(
+            *self,
+            bytes,
+            |inputs, bounds, context| inputs.paint(bounds, context),
+            |_, bounds| Ok(bounds),
+        ))
+    }
+
     fn get_insets(&self) -> Insets {
         let width = f64::from(self.width);
         Insets::uniform(width)

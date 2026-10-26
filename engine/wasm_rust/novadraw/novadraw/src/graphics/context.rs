@@ -14,6 +14,8 @@ pub enum GraphicsError {
     Font(crate::text::outline::FontError),
     ConflictingResource(crate::ResourceId),
     UnbalancedState,
+    RecordingBudgetExceeded { limit: usize, actual: usize },
+    ImmutableDrawingUnavailable,
     InvalidOpacity,
     Image(crate::render::ImageDrawError),
 }
@@ -25,6 +27,15 @@ impl std::fmt::Display for GraphicsError {
             Self::Font(e) => e.fmt(f),
             Self::ConflictingResource(id) => write!(f, "resource {id:?} has conflicting revisions"),
             Self::UnbalancedState => f.write_str("unbalanced graphics state stack"),
+            Self::RecordingBudgetExceeded { limit, actual } => {
+                write!(
+                    f,
+                    "drawing storage {actual} exceeds recording limit {limit}"
+                )
+            }
+            Self::ImmutableDrawingUnavailable => {
+                f.write_str("drawing does not provide immutable bounded inputs")
+            }
             Self::InvalidOpacity => f.write_str("opacity must be finite and in [0, 1]"),
             Self::Image(e) => e.fmt(f),
         }

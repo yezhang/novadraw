@@ -20,6 +20,64 @@ impl SchemeBorder {
 }
 
 impl Border for SchemeBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        #[derive(Clone, Copy)]
+        struct Layer {
+            color: Color,
+            highlight: bool,
+        }
+        const LAYER_RECORDING_BYTES: usize = 4096;
+        let mut parts = Vec::new();
+        for (colors, highlight) in [(&self.shadow, false), (&self.highlight, true)] {
+            for (index, color) in colors.iter().enumerate() {
+                let Some(color) = color else { continue };
+                parts.push((
+                    Insets::uniform(index as f64),
+                    crate::figure::BoundsDrawing::new(
+                        Layer {
+                            color: *color,
+                            highlight,
+                        },
+                        LAYER_RECORDING_BYTES,
+                        |layer, bounds, context| {
+                            let left = bounds.x + 0.5;
+                            let top = bounds.y + 0.5;
+                            let corner = if layer.highlight { 1.0 } else { 0.0 };
+                            let right = bounds.x + bounds.width - 0.5 - corner;
+                            let bottom = bounds.y + bounds.height - 0.5 - corner;
+                            if right < left || bottom < top {
+                                return Ok(());
+                            }
+                            context.set_stroke_style(StrokeStyle::default());
+                            context.set_stroke_paint(layer.color);
+                            if layer.highlight {
+                                context
+                                    .stroke_line(Point::new(left, top), Point::new(right, top))?;
+                                context
+                                    .stroke_line(Point::new(left, top), Point::new(left, bottom))?;
+                            } else {
+                                context.stroke_line(
+                                    Point::new(right, bottom),
+                                    Point::new(right, top),
+                                )?;
+                                context.stroke_line(
+                                    Point::new(right, bottom),
+                                    Point::new(left, bottom),
+                                )?;
+                            }
+                            Ok(())
+                        },
+                        |_, bounds| Ok(bounds),
+                    ),
+                ));
+            }
+        }
+        crate::figure::BoundsDrawing::compose(parts)
+    }
+
     fn get_insets(&self) -> Insets {
         let tl = self.highlight.len() as f64;
         let br = self.shadow.len() as f64;
@@ -75,5 +133,47 @@ impl Border for SchemeBorder {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frozen_layers_match_static_endpoints_at_each_sampled_size() {
+        let border = SchemeBorder::new(
+            vec![Some(Color::WHITE), None, Some(Color::BLACK)],
+            vec![Some(Color::BLACK), Some(Color::WHITE)],
+        );
+        let frozen = border.snapshot_bounds_drawing(None).unwrap();
+        for bounds in [
+            Rectangle::new(0.0, 0.0, 80.0, 40.0),
+            Rectangle::new(0.0, 0.0, 20.0, 10.0),
+            Rectangle::new(0.0, 0.0, 1.0, 1.0),
+            Rectangle::new(0.0, 0.0, 0.0, 0.0),
+        ] {
+            let mut static_recorder = crate::render::CommandRecorder::new();
+            border.paint(bounds, &mut static_recorder.paint()).unwrap();
+            let mut frozen_recorder = crate::render::CommandRecorder::new();
+            frozen
+                .materialize(bounds, Color::BLACK, Color::WHITE)
+                .unwrap()
+                .paint(&mut frozen_recorder.paint())
+                .unwrap();
+            let lines = |commands: &[crate::render::RenderCommand]| {
+                commands
+                    .iter()
+                    .filter(|command| {
+                        matches!(command.kind, crate::render::RenderCommandKind::Line { .. })
+                    })
+                    .map(|command| command.kind.clone())
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(
+                lines(static_recorder.commands()),
+                lines(frozen_recorder.commands())
+            );
+        }
     }
 }

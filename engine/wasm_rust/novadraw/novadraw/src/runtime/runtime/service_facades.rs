@@ -654,6 +654,132 @@ impl<'a> RuntimeAnimation<'a> {
         self.runtime.next_wake_deadline()
     }
 
+    /// Materializes the last accepted samples after source stabilization, without recording.
+    pub fn capture_geometry(
+        &mut self,
+        dependencies: impl IntoIterator<Item = FigureId>,
+    ) -> Result<crate::animation::GeometryCapture, crate::animation::GeometryCaptureError> {
+        use crate::animation::{AnimationError, GeometryCaptureError};
+        if self.runtime.faulted {
+            return Err(GeometryCaptureError::Animation(
+                AnimationError::RuntimeFaulted,
+            ));
+        }
+        let max_nodes = self.runtime.animations().limits().staging_work.nodes;
+        let dependencies = dependencies
+            .into_iter()
+            .try_fold(Vec::new(), |mut nodes, id| {
+                if nodes.len() >= max_nodes {
+                    return Err(GeometryCaptureError::Animation(
+                        AnimationError::BudgetExceeded(
+                            crate::animation::AnimationBudgetKind::GeometryNodes,
+                        ),
+                    ));
+                }
+                nodes.push(id);
+                Ok(nodes)
+            })?;
+        self.runtime.guarded(|runtime| {
+            runtime.apply_pending_mutations_for_frame();
+            runtime
+                .try_stabilize()
+                .map_err(GeometryCaptureError::Source)?;
+            runtime
+                .animations
+                .capture_geometry(
+                    &runtime.tree,
+                    &runtime.resources,
+                    runtime.stable_epoch,
+                    dependencies,
+                )
+                .map_err(GeometryCaptureError::Animation)
+        })
+    }
+
+    /// Cache-only query. A new sample or source revision requires explicit materialization.
+    pub fn geometry(
+        &self,
+    ) -> Result<&crate::animation::PresentationGeometry, crate::animation::AnimationError> {
+        if self.runtime.faulted {
+            return Err(crate::animation::AnimationError::RuntimeFaulted);
+        }
+        if !self.runtime.mutations.is_empty() {
+            return Err(crate::animation::AnimationError::GeometryNotPrepared);
+        }
+        self.runtime
+            .animations
+            .geometry(self.runtime.derivation_epoch)
+    }
+
+    /// Commits the final viewport origin for a prepared geometry plan, then admits the plan.
+    /// This is an animation source boundary, rather than direct input takeover. Admission
+    /// failure leaves valid old owners running and does not roll back committed source.
+    pub fn start_viewport_plan(
+        &mut self,
+        viewport: FigureId,
+        final_origin: crate::geometry::Point,
+        plan: crate::animation::AnimationPlan,
+    ) -> Result<AnimationStart, crate::animation::AnimationError> {
+        use crate::animation::AnimationError;
+        let handle = self
+            .runtime
+            .viewports()
+            .handle(viewport)
+            .map_err(|_| AnimationError::InvalidValue)?;
+        self.runtime.guarded(|runtime| {
+            handle
+                .set_view_location(
+                    &mut runtime.tree,
+                    &mut runtime.updates,
+                    final_origin.x(),
+                    final_origin.y(),
+                )
+                .map_err(|_| AnimationError::InvalidValue)?;
+            runtime.animations().start(plan)
+        })
+    }
+
+    /// Captures complete current samples, commits source once, then admits real bounds tracks.
+    pub fn transition_layout_bounds<I, F, T, E>(
+        &mut self,
+        dependencies: I,
+        transition: BoundsTransition,
+        mutation: F,
+    ) -> Result<(T, AnimationStart), AnimationTransactionError<E>>
+    where
+        I: IntoIterator<Item = FigureId>,
+        F: FnOnce(&mut Runtime) -> Result<T, E>,
+    {
+        use crate::animation::GeometryCaptureError;
+        let capture = self
+            .capture_geometry(dependencies)
+            .map_err(|error| match error {
+                GeometryCaptureError::Source(error) => {
+                    AnimationTransactionError::BeforeStabilization(error)
+                }
+                GeometryCaptureError::Animation(error) => AnimationTransactionError::Capture(error),
+            })?;
+        self.runtime.guarded(|runtime| {
+            let result = mutation(runtime).map_err(AnimationTransactionError::Mutation)?;
+            runtime.apply_pending_mutations_for_frame();
+            runtime
+                .try_stabilize()
+                .map_err(AnimationTransactionError::AfterStabilization)?;
+            let start = runtime
+                .animations
+                .access_mut(
+                    &runtime.tree,
+                    &runtime.resources,
+                    &mut runtime.updates,
+                    &mut runtime.full_redraw_pending,
+                    &mut runtime.faulted,
+                )
+                .transition_layout_bounds(capture, transition)
+                .map_err(AnimationTransactionError::Transition)?;
+            Ok((result, start))
+        })
+    }
+
     pub fn transition_bounds<I, F, T, E>(
         &mut self,
         figures: I,

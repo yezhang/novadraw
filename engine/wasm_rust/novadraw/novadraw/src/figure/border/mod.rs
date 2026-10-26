@@ -110,6 +110,26 @@ impl BorderSnapshot {
 /// 参考 draw2d: Border 接口
 /// 所有边框类型都需要实现此 trait。
 pub trait Border: Send + Sync {
+    /// Freezes bounded paint inputs for sampled border-box geometry.
+    ///
+    /// The ordinary static protocol remains available without this descriptor.
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&BorderSnapshot>,
+    ) -> Result<super::BoundsDrawing, GraphicsError> {
+        Err(GraphicsError::ImmutableDrawingUnavailable)
+    }
+
+    /// Freezes inherited colors alongside size-dependent border content.
+    fn snapshot_bounds_drawing_with_colors(
+        &self,
+        snapshot: Option<&BorderSnapshot>,
+        _foreground: Color,
+        _background: Color,
+    ) -> Result<super::BoundsDrawing, GraphicsError> {
+        self.snapshot_bounds_drawing(snapshot)
+    }
+
     /// 获取边框内边距
     ///
     /// 对应 draw2d: getInsets()

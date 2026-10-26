@@ -564,6 +564,8 @@ pub struct FigureNode {
     pub(crate) figure: Box<dyn super::Figure>,
     /// Runtime 提交的私有组件状态版本。
     pub(crate) component_revision: u64,
+    /// Changes only when committed local visibility changes.
+    pub(crate) visibility_revision: u64,
     /// Committed resource inputs; derived checkpoints never restore these values.
     pub(crate) resource_inputs: Vec<(crate::render::ResourceId, Option<crate::ResourceStatus>)>,
     /// Bounds supplied by source mutations, excluding unpublished layout output.
@@ -1283,6 +1285,7 @@ impl FigureTree {
             depth: 0,
             figure: root_figure,
             component_revision: 0,
+            visibility_revision: 0,
             resource_inputs: Vec::new(),
             source_bounds: root_bounds,
             capabilities: root_capabilities,
@@ -1759,6 +1762,7 @@ impl FigureTree {
 
             old_value = block.is_visible;
             block.is_visible = visible;
+            block.visibility_revision = block.visibility_revision.saturating_add(1);
         }
 
         self.record_property_change(id, property::VISIBLE, old_value, visible);

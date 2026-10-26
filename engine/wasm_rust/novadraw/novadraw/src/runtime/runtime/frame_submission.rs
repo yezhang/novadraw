@@ -438,7 +438,7 @@ impl Runtime {
         Ok(())
     }
 
-    fn apply_pending_mutations_for_frame(&mut self) {
+    pub(super) fn apply_pending_mutations_for_frame(&mut self) {
         let mutations = self.mutations.drain();
         if !mutations.is_empty() {
             self.apply_runtime_mutations(mutations);
@@ -660,7 +660,7 @@ impl Runtime {
         Ok(())
     }
 
-    fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
+    pub(super) fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
         self.poll_activities();
         // Commit source activities before opening the unpublished derived transaction.
         let mut prefix = if self.tree.begin_derived_preparation() {
@@ -730,6 +730,7 @@ impl Runtime {
         self.animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
@@ -769,6 +770,7 @@ impl Runtime {
             self.animations
                 .access_mut(
                     &self.tree,
+                    &self.resources,
                     &mut self.updates,
                     &mut self.full_redraw_pending,
                     &mut self.faulted,
@@ -780,6 +782,7 @@ impl Runtime {
         self.animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
@@ -805,12 +808,30 @@ impl Runtime {
         self.animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot(&self.tree);
+        let presentation =
+            match self
+                .animations
+                .snapshot(&self.tree, &self.resources, self.stable_epoch)
+            {
+                Ok(presentation) => presentation,
+                Err(error) => {
+                    return FramePreparation::Error(FramePreparationError::Animation(error));
+                }
+            };
+        if let Err(error) = self.animations.geometry_damage(
+            &self.tree,
+            self.stable_epoch,
+            presentation.as_ref(),
+            &mut self.updates,
+        ) {
+            return FramePreparation::Error(FramePreparationError::Animation(error));
+        }
         if let Err(error) =
             self.accessibility
                 .publish(&self.tree, &self.interaction, self.stable_epoch, surface)
@@ -873,10 +894,20 @@ impl Runtime {
             return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
         }
 
+        // Acquire independent ownership before consuming a frame identity or resource prefix.
+        // Capacity failure leaves the current sample, active owners, and recovery prefix intact.
+        let retention = match self.animations.retain_submission(presentation.as_ref()) {
+            Ok(retention) => retention,
+            Err(error) => {
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::Animation(error));
+            }
+        };
         let import_leases = self.scenes.imports.retain_commands(canvas.commands());
         // Successful preparation has transferred every needed recovery lease to
         // either installed/prepared CPU state or this new in-flight prefix.
         self.scenes.imports.recovery.clear();
+        self.submission_recovery = None;
         self.scenes.imports.collect(&mut self.resources);
         let frame_id = self.next_frame_id;
         self.next_frame_id = self.next_frame_id.next();
@@ -893,13 +924,16 @@ impl Runtime {
         );
         submission.clear_color = self.background.base;
         submission.background_input = self.background.input.map(Box::new);
+        submission.retention = retention.clone();
         self.full_redraw_pending = false;
         self.in_flight = Some(InFlightFrame {
             session_id: self.backend_session_id,
             id: frame_id,
             resources,
+            retention,
             import_leases,
         });
+        self.animations.record_geometry(presentation.as_ref());
         self.updates.emit_update_event(UpdateEvent::Prepared {
             frame_id,
             damage: submission.damage.mode(),
@@ -951,6 +985,7 @@ impl Runtime {
         let presented = result == Ok(RenderDisposition::Presented);
         if !presented {
             self.scenes.imports.recovery.extend(in_flight.import_leases);
+            self.submission_recovery = in_flight.retention;
         }
         match (presented, in_flight.resources) {
             (true, ResourceSync::Snapshot(_)) => {
@@ -1022,12 +1057,24 @@ impl Runtime {
         self.animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot(&self.tree);
+        let presentation = self
+            .animations
+            .snapshot(&self.tree, &self.resources, self.stable_epoch)
+            .ok()?;
+        self.animations
+            .geometry_damage(
+                &self.tree,
+                self.stable_epoch,
+                presentation.as_ref(),
+                &mut self.updates,
+            )
+            .ok()?;
         self.updates.set_publication_epoch(self.stable_epoch);
         let frame = if self.updates.is_update_queued() {
             let incremental = self
@@ -1045,6 +1092,9 @@ impl Runtime {
         };
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
+        if frame.is_some() {
+            self.animations.record_geometry(presentation.as_ref());
+        }
         frame
     }
 
@@ -1064,16 +1114,29 @@ impl Runtime {
         self.animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot(&self.tree);
+        let presentation = self
+            .animations
+            .snapshot(&self.tree, &self.resources, self.stable_epoch)
+            .expect("full-frame recording requires valid presentation geometry");
+        self.animations
+            .geometry_damage(
+                &self.tree,
+                self.stable_epoch,
+                presentation.as_ref(),
+                &mut self.updates,
+            )
+            .expect("full-frame recording requires valid geometry damage");
         self.updates.set_publication_epoch(self.stable_epoch);
         let frame = self.tree.render_with_presentation(presentation.as_ref());
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
+        self.animations.record_geometry(presentation.as_ref());
         frame
     }
 }

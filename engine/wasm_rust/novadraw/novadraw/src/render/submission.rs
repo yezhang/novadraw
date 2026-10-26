@@ -362,11 +362,56 @@ impl DamageSet {
     }
 }
 
+/// Shared ownership of immutable preparation storage and its independent capacity lease.
+/// Cloning a submission keeps this responsibility alive until its last owner releases it.
+#[derive(Clone)]
+pub struct SubmissionRetention {
+    inner: Arc<SubmissionRetentionData>,
+}
+
+struct SubmissionRetentionData {
+    bytes: usize,
+    _owner: Arc<dyn std::any::Any + Send + Sync>,
+    _lease: Box<dyn std::any::Any + Send + Sync>,
+}
+
+impl SubmissionRetention {
+    pub(crate) fn new(
+        bytes: usize,
+        owner: Arc<dyn std::any::Any + Send + Sync>,
+        lease: impl std::any::Any + Send + Sync,
+    ) -> Self {
+        Self {
+            inner: Arc::new(SubmissionRetentionData {
+                bytes,
+                _owner: owner,
+                _lease: Box::new(lease),
+            }),
+        }
+    }
+
+    /// Storage charged once for this shared retention responsibility.
+    pub fn retained_bytes(&self) -> usize {
+        self.inner.bytes
+    }
+}
+
+impl std::fmt::Debug for SubmissionRetention {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SubmissionRetention")
+            .field("bytes", &self.retained_bytes())
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
     pub resources: ResourceSync,
+    /// Immutable preparation ownership, shared with in-flight and recovery state.
+    pub retention: Option<SubmissionRetention>,
     pub surface: SurfaceInfo,
     /// Explicit host clear, frozen with the composition. None uses backend default.
     pub clear_color: Option<crate::graphics::Color>,

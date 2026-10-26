@@ -287,6 +287,20 @@ impl<'a> EventContext<'a> {
 }
 
 impl EventEffects<'_> {
+    /// Defers one-axis origin input to Runtime's complete-group ownership arbitration.
+    pub fn set_viewport_axis_later(
+        &mut self,
+        viewport: FigureId,
+        horizontal: bool,
+        value: f64,
+        relative: bool,
+    ) {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::viewport_axis(
+                viewport, horizontal, value, relative,
+            )));
+    }
+
     /// Records the pointer-pressed state for the callback target.
     pub fn set_pressed(&mut self, pressed: bool) {
         self.pointer_pressed = pressed;
@@ -764,7 +778,22 @@ impl<'a> SceneDispatchContext<'a> {
                 .pin_scroll_controller(event.session_id, controller)
         };
         let Some(scroll_pane_id) = controller else {
-            return false;
+            let Some(viewport) = self.nearest_viewport_parent(target_id) else {
+                return false;
+            };
+            let factor = match event.delta_kind {
+                crate::ScrollDeltaKind::Lines => {
+                    crate::container::scroll_pane::DEFAULT_STEP_INCREMENT
+                }
+                crate::ScrollDeltaKind::LogicalPixels => 1.0,
+            };
+            self.pending_mutations
+                .enqueue(PendingMutation::scroll_viewport(
+                    viewport,
+                    -event.delta_x * factor,
+                    -event.delta_y * factor,
+                ));
+            return true;
         };
         DispatchContext::dispatch_to_target(self, Some(scroll_pane_id), &Event::Wheel(*event))
     }

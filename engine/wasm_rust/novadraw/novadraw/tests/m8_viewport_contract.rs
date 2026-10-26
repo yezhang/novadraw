@@ -666,52 +666,30 @@ fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
 
 #[test]
 fn unhandled_wheel_uses_nearest_scroll_pane_fallback() {
-    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
-    let mut interaction = InteractionState::default();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_mouse_wheel(&mut context, 120.0, 100.0, 0.0, -1.0);
-    }
-
+    let (graph, pane, _) = large_scroll_pane_scene();
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .input()
+        .dispatch_scroll(WheelEvent::new(120.0, 100.0, 0.0, -1.0));
+    runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(pane.viewport().view_location().y(), 24.0);
-    assert!(update_manager.has_pending_repaint());
 }
 
 #[test]
 fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
-    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
-    let mut interaction = InteractionState::default();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_scroll(
-            &mut context,
-            WheelEvent::with_details(
-                120.0,
-                100.0,
-                0.0,
-                -7.5,
-                ScrollDeltaKind::LogicalPixels,
-                GesturePhase::Impulse,
-                KeyModifiers::default(),
-                GestureSessionId::IMPULSE,
-            ),
-        );
-    }
-
+    let (graph, pane, _) = large_scroll_pane_scene();
+    let mut runtime = Runtime::new(graph);
+    runtime.input().dispatch_scroll(WheelEvent::with_details(
+        120.0,
+        100.0,
+        0.0,
+        -7.5,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Impulse,
+        KeyModifiers::default(),
+        GestureSessionId::IMPULSE,
+    ));
+    runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(pane.viewport().view_location().y(), 7.5);
 }
 
@@ -837,52 +815,33 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
     assert_eq!(pane.viewport().horizontal_range().maximum, 1280.0);
     assert_eq!(pane.viewport().vertical_range().maximum, 960.0);
 
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_scroll(
-            &mut context,
-            WheelEvent::with_details(
-                250.0,
-                180.0,
-                10_000.0,
-                10_000.0,
-                ScrollDeltaKind::LogicalPixels,
-                GesturePhase::Impulse,
-                KeyModifiers::default(),
-                GestureSessionId::IMPULSE,
-            ),
-        );
-    }
+    let mut runtime = Runtime::new(graph);
+    runtime.input().dispatch_scroll(WheelEvent::with_details(
+        250.0,
+        180.0,
+        10_000.0,
+        10_000.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Impulse,
+        KeyModifiers::default(),
+        GestureSessionId::IMPULSE,
+    ));
+    runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(pane.viewport().view_location(), Point::new(0.0, 0.0));
-    let top_left = point_in_surface(&graph, content, Point::new(0.0, 0.0));
+    let top_left = point_in_surface(runtime.tree(), content, Point::new(0.0, 0.0));
     assert_eq!(top_left, Point::new(100.0, 80.0));
 
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_scroll(
-            &mut context,
-            WheelEvent::with_details(
-                250.0,
-                180.0,
-                -10_000.0,
-                -10_000.0,
-                ScrollDeltaKind::LogicalPixels,
-                GesturePhase::Impulse,
-                KeyModifiers::default(),
-                GestureSessionId::IMPULSE,
-            ),
-        );
-    }
+    runtime.input().dispatch_scroll(WheelEvent::with_details(
+        250.0,
+        180.0,
+        -10_000.0,
+        -10_000.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Impulse,
+        KeyModifiers::default(),
+        GestureSessionId::IMPULSE,
+    ));
+    runtime.frames().stabilize_for_query().unwrap();
     let horizontal = pane.viewport().horizontal_range();
     let vertical = pane.viewport().vertical_range();
     assert_eq!(
@@ -892,16 +851,18 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
             vertical.maximum - vertical.extent
         )
     );
-    let bottom_right = point_in_surface(&graph, content, Point::new(640.0, 480.0));
+    let bottom_right = point_in_surface(runtime.tree(), content, Point::new(640.0, 480.0));
     assert_eq!(
         bottom_right,
         Point::new(100.0 + horizontal.extent, 80.0 + vertical.extent)
     );
 
-    graph
-        .builder()
-        .validate_subtree(pane.pane_id())
-        .expect("valid FigureTree construction");
+    runtime
+        .figure(pane.pane_id())
+        .unwrap()
+        .revalidate()
+        .unwrap();
+    runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(pane.viewport().horizontal_range(), horizontal);
     assert_eq!(pane.viewport().vertical_range(), vertical);
 }
@@ -989,32 +950,102 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
 }
 
 #[test]
+fn wheel_and_scrollbar_take_over_sampled_origin_and_cancel_the_complete_group() {
+    use novadraw::animation::{
+        AnimationPlan, AnimationStart, AnimationState, GeometryBinding, Motion, Tween,
+        ViewportOrigin,
+    };
+    use novadraw::event::MonotonicTime;
+    for scrollbar in [false, true] {
+        let (graph, pane, _) = large_scroll_pane_scene();
+        let viewport = pane.viewport().figure_id();
+        let bar = pane.vertical_scroll_bar();
+        let bar_bounds = graph.figure_bounds(bar).unwrap();
+        let point = point_in_surface(
+            &graph,
+            bar,
+            Point::new(bar_bounds.width / 2.0, bar_bounds.height - 2.0),
+        );
+        let mut runtime = Runtime::new(graph);
+        runtime.frames().stabilize_for_query().unwrap();
+        runtime
+            .viewports()
+            .set_view_location(viewport, 100.0, 100.0)
+            .unwrap();
+        let channel = runtime
+            .animation()
+            .timeline()
+            .bind_geometry(viewport, GeometryBinding::viewport_origin(1.0).unwrap())
+            .unwrap();
+        let plan = AnimationPlan::geometry_track(
+            channel,
+            Motion::Tween(
+                Tween::between(
+                    ViewportOrigin(Point::ZERO),
+                    ViewportOrigin(Point::new(100.0, 100.0)),
+                    std::time::Duration::from_millis(100),
+                )
+                .unwrap(),
+            ),
+        )
+        .unwrap();
+        let AnimationStart::Running(owner) = runtime.animation().timeline().start(plan).unwrap()
+        else {
+            panic!("owner");
+        };
+        runtime
+            .animation()
+            .advance_time(MonotonicTime::from_micros(0))
+            .unwrap();
+        runtime
+            .animation()
+            .advance_time(MonotonicTime::from_micros(50_000))
+            .unwrap();
+        if scrollbar {
+            runtime
+                .input()
+                .dispatch_mouse_pressed(point.x(), point.y(), MouseButton::Left);
+        } else {
+            runtime
+                .input()
+                .dispatch_scroll(WheelEvent::new(120.0, 100.0, 0.0, -1.0));
+        }
+        runtime.frames().stabilize_for_query().unwrap();
+        assert_eq!(
+            runtime.animation().timeline().state(owner).unwrap(),
+            AnimationState::Cancelled
+        );
+        assert_eq!(pane.viewport().view_location(), Point::new(50.0, 74.0));
+        assert_eq!(
+            runtime.animation().timeline().sample_version().time,
+            Some(MonotonicTime::from_micros(50_000))
+        );
+    }
+}
+
+#[test]
 fn vertical_scroll_bar_step_updates_shared_viewport_model() {
-    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let (graph, pane, _) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
     let point = point_in_surface(
         &graph,
         pane.vertical_scroll_bar(),
         Point::new(bounds.width / 2.0, bounds.height - 2.0),
     );
-    let mut interaction = InteractionState::default();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
-    let mut context = SceneDispatchContext::new(
-        &mut graph,
-        &mut interaction,
-        &mut update_manager,
-        &mut pending,
-    );
-    dispatcher.dispatch_mouse_pressed(&mut context, point.x(), point.y(), MouseButton::Left);
-    dispatcher.dispatch_mouse_released(&mut context, point.x(), point.y(), MouseButton::Left);
-
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(point.x(), point.y(), MouseButton::Left);
+    runtime.frames().stabilize_for_query().unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_released(point.x(), point.y(), MouseButton::Left);
     assert_eq!(pane.viewport().view_location().y(), 24.0);
 }
 
 #[test]
 fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
-    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let (graph, pane, _) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
     let local_start = Point::new(bounds.width / 2.0, 20.0);
     let start = point_in_surface(&graph, pane.vertical_scroll_bar(), local_start);
@@ -1033,34 +1064,33 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
         pane.vertical_scroll_bar(),
         Point::new(local_start.x(), local_start.y() + 75.0),
     );
-    let mut interaction = InteractionState::default();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
-    let mut context = SceneDispatchContext::new(
-        &mut graph,
-        &mut interaction,
-        &mut update_manager,
-        &mut pending,
-    );
-
-    dispatcher.dispatch_mouse_pressed(&mut context, start.x(), start.y(), MouseButton::Left);
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
     assert_eq!(pane.viewport().view_location().y(), 0.0);
 
-    dispatcher.dispatch_mouse_moved(&mut context, first_move.x(), first_move.y());
+    runtime
+        .input()
+        .dispatch_mouse_moved(first_move.x(), first_move.y());
+    runtime.frames().stabilize_for_query().unwrap();
     let first_value = pane.viewport().view_location().y();
     assert!(first_value > 0.0);
 
-    dispatcher.dispatch_mouse_moved(&mut context, second_move.x(), second_move.y());
+    runtime
+        .input()
+        .dispatch_mouse_moved(second_move.x(), second_move.y());
+    runtime.frames().stabilize_for_query().unwrap();
     let second_value = pane.viewport().view_location().y();
     assert!(second_value > first_value);
 
-    dispatcher.dispatch_mouse_released(
-        &mut context,
-        second_move.x(),
-        second_move.y(),
-        MouseButton::Left,
-    );
-    dispatcher.dispatch_mouse_moved(&mut context, after_release.x(), after_release.y());
+    runtime
+        .input()
+        .dispatch_mouse_released(second_move.x(), second_move.y(), MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_moved(after_release.x(), after_release.y());
+    runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(pane.viewport().view_location().y(), second_value);
 }
 

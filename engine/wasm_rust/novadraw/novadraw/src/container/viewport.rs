@@ -276,6 +276,10 @@ impl ViewportHandle {
         Point::new(runtime.horizontal.value(), runtime.vertical.value())
     }
 
+    pub(crate) fn content_scale(&self) -> f64 {
+        lock_unpoisoned(&self.runtime).content_scale
+    }
+
     pub(crate) fn set_view_location(
         &self,
         graph: &mut FigureTree,

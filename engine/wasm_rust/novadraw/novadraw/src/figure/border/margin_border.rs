@@ -111,6 +111,18 @@ fn assert_valid_margin(margin: f64) {
 }
 
 impl Border for MarginBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        Ok(crate::figure::BoundsDrawing::new(
+            *self,
+            0,
+            |inputs, bounds, context| inputs.paint(bounds, context),
+            |_, bounds| Ok(bounds),
+        ))
+    }
+
     fn get_insets(&self) -> Insets {
         Insets::new(self.top, self.left, self.bottom, self.right)
     }

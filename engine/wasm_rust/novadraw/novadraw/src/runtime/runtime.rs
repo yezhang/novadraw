@@ -110,6 +110,7 @@ pub enum FramePreparationError {
     Text(TextError),
     Graphics(crate::graphics::GraphicsError),
     Validation(ValidationError),
+    Animation(crate::animation::AnimationError),
     Accessibility(AccessibilityError),
     UnsupportedRenderCapability(UnsupportedRenderCapability),
     InvalidGraphicsInput(crate::render::InvalidGraphicsInput),
@@ -125,6 +126,7 @@ impl fmt::Display for FramePreparationError {
             Self::Text(error) => error.fmt(formatter),
             Self::Graphics(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
+            Self::Animation(error) => error.fmt(formatter),
             Self::Accessibility(error) => error.fmt(formatter),
             Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
             Self::InvalidGraphicsInput(error) => error.fmt(formatter),
@@ -351,6 +353,7 @@ pub struct Runtime {
     session_sync_pending: bool,
     next_frame_id: FrameId,
     in_flight: Option<InFlightFrame>,
+    submission_recovery: Option<crate::render::submission::SubmissionRetention>,
     last_surface: Option<SurfaceInfo>,
     logical_viewport: Option<Rectangle>,
     resources: ResourceRegistry,
@@ -381,6 +384,7 @@ struct InFlightFrame {
     session_id: BackendSessionId,
     id: FrameId,
     resources: ResourceSync,
+    retention: Option<crate::render::submission::SubmissionRetention>,
     import_leases: Vec<std::sync::Arc<crate::scene::import::ImportLease>>,
 }
 
@@ -655,6 +659,7 @@ impl Runtime {
             session_sync_pending: true,
             next_frame_id: FrameId::INITIAL,
             in_flight: None,
+            submission_recovery: None,
             last_surface: None,
             logical_viewport: None,
             resources,
@@ -771,6 +776,7 @@ impl Runtime {
     pub(crate) fn animations(&mut self) -> AnimationMut<'_> {
         self.animations.access_mut(
             &self.tree,
+            &self.resources,
             &mut self.updates,
             &mut self.full_redraw_pending,
             &mut self.faulted,
@@ -786,6 +792,7 @@ impl Runtime {
             .animations
             .access_mut(
                 &self.tree,
+                &self.resources,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
@@ -2373,6 +2380,7 @@ impl Runtime {
             self.animations
                 .access_mut(
                     &self.tree,
+                    &self.resources,
                     &mut self.updates,
                     &mut self.full_redraw_pending,
                     &mut self.faulted,
@@ -2997,10 +3005,64 @@ impl Runtime {
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
             runtime.validate_attached_figure(viewport.figure_id())?;
+            if !x.is_finite() || !y.is_finite() {
+                return Err(RuntimeMutationError::Rejected);
+            }
+            // Materialization can fail; preserve every owner and source value until it succeeds.
+            runtime.viewport_input_location(viewport)?;
+            let contents = viewport
+                .contents(&runtime.tree)
+                .map_err(|_| RuntimeMutationError::Rejected)?;
+            let owners = runtime
+                .animations
+                .viewport_owners(viewport.figure_id(), contents);
+            for owner in owners {
+                runtime
+                    .animations()
+                    .cancel(owner)
+                    .map_err(RuntimeMutationError::Animation)?;
+            }
             viewport
                 .set_view_location(&mut runtime.tree, &mut runtime.updates, x, y)
                 .map_err(|_| RuntimeMutationError::Rejected)
         })
+    }
+
+    pub(crate) fn viewport_input_location(
+        &mut self,
+        viewport: &ViewportHandle,
+    ) -> Result<crate::geometry::Point, RuntimeMutationError> {
+        let contents = viewport
+            .contents(&self.tree)
+            .map_err(|_| RuntimeMutationError::Rejected)?;
+        if self
+            .animations
+            .viewport_owners(viewport.figure_id(), contents)
+            .is_empty()
+        {
+            return Ok(viewport.view_location());
+        }
+        let capture = self
+            .animation()
+            .capture_geometry([viewport.figure_id()])
+            .map_err(|error| match error {
+                crate::animation::GeometryCaptureError::Animation(error) => {
+                    RuntimeMutationError::Animation(error)
+                }
+                crate::animation::GeometryCaptureError::Source(_) => RuntimeMutationError::Rejected,
+            })?;
+        let geometry = capture
+            .geometry()
+            .figure(viewport.figure_id())
+            .map_err(RuntimeMutationError::Animation)?;
+        let offset = geometry
+            .child_transform
+            .transform_point(crate::geometry::Point::ZERO);
+        let scale = viewport.content_scale();
+        Ok(crate::geometry::Point::new(
+            (geometry.client_box.x - offset.x()) / scale,
+            (geometry.client_box.y - offset.y()) / scale,
+        ))
     }
 
     pub(crate) fn set_zoom_at(
@@ -3223,6 +3285,24 @@ impl Runtime {
         mutation: PendingMutationKind,
     ) -> Result<bool, RuntimeMutationError> {
         match mutation {
+            PendingMutationKind::SetViewportAxis {
+                viewport,
+                horizontal,
+                value,
+                relative,
+            } => {
+                if relative {
+                    self.viewports().scroll_by(
+                        viewport,
+                        if horizontal { value } else { 0.0 },
+                        if horizontal { 0.0 } else { value },
+                    )
+                } else if horizontal {
+                    self.viewports().set_horizontal_location(viewport, value)
+                } else {
+                    self.viewports().set_vertical_location(viewport, value)
+                }
+            }
             PendingMutationKind::SetLayoutManager { container, manager } => {
                 self.replace_layout_manager(container, manager)
             }

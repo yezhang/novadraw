@@ -16,6 +16,12 @@
 mod activity;
 pub use activity::{ACTIVITY, ActivityCapability, FigureActivity};
 pub(crate) mod capability;
+mod content_snapshot;
+pub use content_snapshot::{CONTENT_SNAPSHOT, ContentSnapshotCapability, FigureContentSnapshot};
+mod bounds_drawing;
+pub use bounds_drawing::{
+    BOUNDS_SNAPSHOT, BoundsDrawing, BoundsSnapshotCapability, FigureBoundsSnapshot,
+};
 mod ellipse;
 pub mod flow;
 mod graph_projection;

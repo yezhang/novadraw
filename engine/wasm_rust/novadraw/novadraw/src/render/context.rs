@@ -54,6 +54,7 @@ pub struct NdCanvas {
     recording_error: Option<crate::graphics::GraphicsError>,
     font_dependencies: Vec<crate::text::FontFaceRef>,
     transform_floor: Option<Affine2D>,
+    recording_budget: Option<(usize, usize)>,
 }
 
 impl Default for NdCanvas {
@@ -73,11 +74,17 @@ impl NdCanvas {
             recording_error: None,
             font_dependencies: Vec::new(),
             transform_floor: None,
+            recording_budget: None,
         }
     }
 
     pub(crate) fn recording_error(&self) -> Option<&crate::graphics::GraphicsError> {
         self.recording_error.as_ref()
+    }
+
+    pub(crate) fn limit_recording_storage(&mut self, bytes: usize) {
+        debug_assert!(self.commands.is_empty());
+        self.recording_budget = Some((bytes, 0));
     }
 
     pub(crate) fn state_depth(&self) -> usize {
@@ -225,10 +232,26 @@ impl NdCanvas {
     }
 
     fn create_command(&mut self, kind: RenderCommandKind) {
+        if self.recording_error.is_some() {
+            return;
+        }
+        let command = RenderCommand { kind };
+        if let Some((limit, used)) = self.recording_budget {
+            let actual = super::RecordedDrawing::command_bytes(&command)
+                .and_then(|bytes| used.checked_add(bytes))
+                .unwrap_or(usize::MAX);
+            if actual > limit || self.commands.try_reserve_exact(1).is_err() {
+                self.reject_recording(crate::graphics::GraphicsError::RecordingBudgetExceeded {
+                    limit,
+                    actual,
+                });
+                return;
+            }
+            self.recording_budget = Some((limit, actual));
+        }
         if self.damage.is_empty() {
             self.damage.set_full();
         }
-        let command = RenderCommand { kind };
         self.commands.push(command);
     }
 
@@ -786,6 +809,10 @@ impl NdCanvas {
         &self.commands
     }
 
+    pub(crate) fn into_commands(self) -> Vec<RenderCommand> {
+        self.commands
+    }
+
     #[cfg(test)]
     pub fn to_submission(&self) -> RenderSubmission {
         self.to_submission_for_surface(Default::default())
@@ -829,6 +856,7 @@ impl NdCanvas {
             commands: self.commands.clone(),
             damage: self.damage.clone(),
             resources,
+            retention: None,
             surface,
             clear_color: None,
             background_input: None,

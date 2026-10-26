@@ -6,6 +6,13 @@ use super::AnimationError;
 
 /// A validated, backend-neutral value that can be sampled by a typed animation track.
 pub trait AnimationValue: Clone + PartialEq + Send + Sync + 'static {
+    /// Complete owned storage, including retained heap capacity. The default applies to
+    /// inline values; heap-owning implementations must override it. Interpolation must not
+    /// produce storage larger than the largest declared endpoint/current value.
+    fn storage_bytes(&self) -> usize {
+        std::mem::size_of_val(self)
+    }
+
     /// Returns whether the value can safely enter an animation plan.
     fn is_valid(&self) -> bool;
 
@@ -56,6 +63,10 @@ impl AnimationValue for Point {
 }
 
 impl AnimationValue for PointList {
+    fn storage_bytes(&self) -> usize {
+        self.retained_bytes()
+    }
+
     fn is_valid(&self) -> bool {
         self.len() >= 2
             && self
@@ -451,6 +462,69 @@ pub enum Motion<V> {
 }
 
 impl<V: AnimationValue> Motion<V> {
+    pub(crate) fn storage_bound(&self, current: &V) -> Result<(usize, usize), AnimationError> {
+        let mut bytes = std::mem::size_of::<Self>();
+        let mut maximum = current.storage_bytes();
+        let mut add =
+            |value: &V| -> Result<(), AnimationError> {
+                maximum = maximum.max(value.storage_bytes());
+                bytes = bytes.checked_add(value.storage_bytes()).ok_or(
+                    AnimationError::BudgetExceeded(super::AnimationBudgetKind::SnapshotBytes),
+                )?;
+                Ok(())
+            };
+        match self {
+            Self::Tween(motion) => {
+                if let Some(start) = &motion.start {
+                    add(start)?;
+                }
+                add(&motion.end)?;
+            }
+            Self::Spring(motion) => {
+                if let Some(start) = &motion.start {
+                    add(start)?;
+                }
+                add(&motion.end)?;
+            }
+            Self::Decay(motion) => {
+                if let Some(start) = &motion.start {
+                    add(start)?;
+                }
+                add(&motion.end)?;
+            }
+            Self::Procedural(motion) => {
+                add(&motion.start)?;
+                add(&motion.end)?;
+            }
+            Self::Keyframes(motion) => {
+                for frame in &motion.frames {
+                    add(&frame.value)?;
+                }
+                bytes = bytes
+                    .checked_add(
+                        motion
+                            .frames
+                            .capacity()
+                            .checked_mul(std::mem::size_of::<Keyframe<V>>())
+                            .ok_or(AnimationError::BudgetExceeded(
+                                super::AnimationBudgetKind::SnapshotBytes,
+                            ))?,
+                    )
+                    .ok_or(AnimationError::BudgetExceeded(
+                        super::AnimationBudgetKind::SnapshotBytes,
+                    ))?;
+            }
+        }
+        // Current, committed, two sampled values and stage scratch can coexist.
+        bytes = maximum
+            .checked_mul(6)
+            .and_then(|values| bytes.checked_add(values))
+            .ok_or(AnimationError::BudgetExceeded(
+                super::AnimationBudgetKind::SnapshotBytes,
+            ))?;
+        Ok((bytes, maximum))
+    }
+
     pub(crate) fn duration_micros(&self) -> u64 {
         match self {
             Self::Tween(tween) => tween.duration_micros,

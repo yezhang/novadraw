@@ -63,6 +63,19 @@ impl RectangleBorder {
 }
 
 impl Border for RectangleBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        _snapshot: Option<&super::BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        const RECTANGLE_BORDER_RECORDING_BYTES: usize = 4096;
+        Ok(crate::figure::BoundsDrawing::new(
+            *self,
+            RECTANGLE_BORDER_RECORDING_BYTES,
+            |inputs, bounds, context| inputs.paint(bounds, context),
+            |_, bounds| Ok(bounds),
+        ))
+    }
+
     fn get_insets(&self) -> Insets {
         self.insets
     }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use crate::identity::AnimationChannelId;
 
@@ -24,6 +24,8 @@ pub struct AnimationPlan {
     pub(crate) duration_micros: u64,
     pub(crate) interruption: InterruptionPolicy,
     pub(crate) suspension: SuspensionPolicy,
+    pub(crate) geometry_source: Option<Arc<super::frozen::FrozenGeometrySource>>,
+    pub(crate) providers: super::provider::ProviderGraph,
 }
 
 impl AnimationPlan {
@@ -31,6 +33,24 @@ impl AnimationPlan {
     pub fn track<V: AnimationValue>(
         channel: AnimationChannel<V>,
         motion: Motion<V>,
+    ) -> Result<Self, AnimationError> {
+        Self::track_with_endpoint(channel, motion, false)
+    }
+
+    /// Runs a geometry track with an explicit presentation endpoint distinct from committed
+    /// source geometry. Completion/cancellation clears the override and reveals committed
+    /// state. Only a channel registered with `GeometryBinding` can use this contract.
+    pub fn geometry_track<V: AnimationValue + Copy>(
+        channel: AnimationChannel<V>,
+        motion: Motion<V>,
+    ) -> Result<Self, AnimationError> {
+        Self::track_with_endpoint(channel, motion, true)
+    }
+
+    fn track_with_endpoint<V: AnimationValue>(
+        channel: AnimationChannel<V>,
+        motion: Motion<V>,
+        presentation_endpoint: bool,
     ) -> Result<Self, AnimationError> {
         let duration_micros = motion.duration_micros();
         Ok(Self {
@@ -40,11 +60,14 @@ impl AnimationPlan {
                 spec: Box::new(TypedTrackSpec {
                     channel: channel.id(),
                     motion,
+                    presentation_endpoint,
                 }),
             }],
             duration_micros,
             interruption: InterruptionPolicy::Replace,
             suspension: SuspensionPolicy::Advance,
+            geometry_source: None,
+            providers: super::provider::ProviderGraph::default(),
         })
     }
 
@@ -129,6 +152,15 @@ impl AnimationPlan {
         self
     }
 
+    /// Adds a pure derived provider to this plan's atomic group.
+    pub fn with_geometry_provider<V: AnimationValue + Copy>(
+        mut self,
+        provider: super::GeometryProvider<V>,
+    ) -> Self {
+        self.providers.push(provider);
+        self
+    }
+
     /// Returns the finite timeline duration.
     pub fn duration(&self) -> Duration {
         Duration::from_micros(self.duration_micros)
@@ -155,6 +187,8 @@ impl AnimationPlan {
             duration_micros: self.duration_micros,
             interruption: self.interruption,
             suspension: self.suspension,
+            geometry_source: self.geometry_source.clone(),
+            providers: self.providers.clone(),
         })
     }
 }
@@ -166,6 +200,8 @@ impl Clone for AnimationPlan {
             duration_micros: self.duration_micros,
             interruption: self.interruption,
             suspension: self.suspension,
+            geometry_source: self.geometry_source.clone(),
+            providers: self.providers.clone(),
         }
     }
 }
@@ -190,7 +226,16 @@ fn compose_with_explicit_offsets(
 ) -> Result<AnimationPlan, AnimationError> {
     let mut tracks = Vec::new();
     let mut duration_micros = 0_u64;
+    let mut geometry_source = None;
+    let mut providers = super::provider::ProviderGraph::default();
     for (plan, offset) in plans.into_iter().zip(offsets) {
+        providers.append(plan.providers);
+        if plan.geometry_source.is_some() {
+            if geometry_source.is_some() {
+                return Err(AnimationError::InvalidComposition);
+            }
+            geometry_source = plan.geometry_source.clone();
+        }
         duration_micros = duration_micros.max(
             offset
                 .checked_add(plan.duration_micros)
@@ -210,6 +255,8 @@ fn compose_with_explicit_offsets(
         duration_micros,
         interruption: InterruptionPolicy::Replace,
         suspension: SuspensionPolicy::Advance,
+        geometry_source,
+        providers,
     })
 }
 
@@ -255,6 +302,8 @@ impl Clone for PlanTrack {
 pub(crate) trait ErasedTrackSpec: Send {
     fn channel(&self) -> AnimationChannelId;
 
+    fn storage_work(&self, channel: &ChannelState) -> Result<super::AnimationWork, AnimationError>;
+
     fn clone_box(&self) -> Box<dyn ErasedTrackSpec>;
 
     fn reversed_box(&self) -> Result<Box<dyn ErasedTrackSpec>, AnimationError>;
@@ -271,11 +320,30 @@ pub(crate) trait ErasedTrackSpec: Send {
 struct TypedTrackSpec<V> {
     channel: AnimationChannelId,
     motion: Motion<V>,
+    presentation_endpoint: bool,
 }
 
 impl<V: AnimationValue> ErasedTrackSpec for TypedTrackSpec<V> {
     fn channel(&self) -> AnimationChannelId {
         self.channel
+    }
+
+    fn storage_work(&self, channel: &ChannelState) -> Result<super::AnimationWork, AnimationError> {
+        let (bytes, _) = self.motion.storage_bound(channel.effective::<V>()?)?;
+        let bytes = bytes
+            .checked_add(
+                std::mem::size_of::<PlanTrack>()
+                    + std::mem::size_of::<PreparedPlanTrack>()
+                    + std::mem::size_of::<TypedPreparedTrack<V>>()
+                    + 8 * std::mem::size_of::<usize>(),
+            )
+            .ok_or(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::SnapshotBytes,
+            ))?;
+        Ok(super::AnimationWork {
+            bytes,
+            ..Default::default()
+        })
     }
 
     fn clone_box(&self) -> Box<dyn ErasedTrackSpec> {
@@ -286,10 +354,18 @@ impl<V: AnimationValue> ErasedTrackSpec for TypedTrackSpec<V> {
         Ok(Box::new(Self {
             channel: self.channel,
             motion: self.motion.reversed()?,
+            presentation_endpoint: self.presentation_endpoint,
         }))
     }
 
     fn terminal_matches(&self, channel: &ChannelState) -> Result<bool, AnimationError> {
+        if self.presentation_endpoint {
+            return if channel.supports_geometry_endpoint() {
+                Ok(true)
+            } else {
+                Err(AnimationError::InvalidComposition)
+            };
+        }
         match self.motion.terminal_value() {
             Some(terminal) => Ok(terminal == channel.committed::<V>()?),
             None => Ok(true),
@@ -300,10 +376,16 @@ impl<V: AnimationValue> ErasedTrackSpec for TypedTrackSpec<V> {
         self: Box<Self>,
         channel: &ChannelState,
     ) -> Result<Box<dyn PreparedTrack>, AnimationError> {
+        if self.presentation_endpoint && !channel.supports_geometry_endpoint() {
+            return Err(AnimationError::InvalidComposition);
+        }
         let current = channel.effective::<V>()?.clone();
+        let (_, storage_bound) = self.motion.storage_bound(&current)?;
         let duration = self.motion.duration_micros();
         let prepared = TypedPreparedTrack {
             motion: self.motion.prepare(current),
+            channel: self.channel,
+            storage_bound,
         };
         for elapsed in [0, duration / 2, duration] {
             prepared.sample(elapsed, channel)?;
@@ -322,6 +404,8 @@ pub(crate) trait PreparedTrack: Send {
 
 struct TypedPreparedTrack<V> {
     motion: PreparedMotion<V>,
+    channel: AnimationChannelId,
+    storage_bound: usize,
 }
 
 impl<V: AnimationValue> PreparedTrack for TypedPreparedTrack<V> {
@@ -330,7 +414,16 @@ impl<V: AnimationValue> PreparedTrack for TypedPreparedTrack<V> {
         elapsed_micros: u64,
         channel: &ChannelState,
     ) -> Result<PreparedChannelValue, AnimationError> {
-        channel.prepare_override(self.motion.sample(elapsed_micros))
+        let value = self.motion.sample(elapsed_micros);
+        let actual = value.storage_bytes();
+        if actual > self.storage_bound {
+            return Err(AnimationError::TrackStorageExceeded {
+                channel: self.channel,
+                declared: self.storage_bound,
+                actual,
+            });
+        }
+        channel.prepare_override(value)
     }
 }
 

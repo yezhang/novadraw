@@ -52,6 +52,47 @@ impl CompoundBorder {
 }
 
 impl Border for CompoundBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        snapshot: Option<&BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        self.snapshot_bounds_drawing_with_colors(snapshot, crate::Color::BLACK, crate::Color::WHITE)
+    }
+
+    fn snapshot_bounds_drawing_with_colors(
+        &self,
+        snapshot: Option<&BorderSnapshot>,
+        foreground: crate::Color,
+        background: crate::Color,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        let (outer_snapshot, inner_snapshot) = snapshot
+            .and_then(BorderSnapshot::compound_parts)
+            .unwrap_or((None, None));
+        let mut parts = Vec::with_capacity(2);
+        if let Some(outer) = self.outer.as_deref() {
+            parts.push((
+                Insets::ZERO,
+                outer.snapshot_bounds_drawing_with_colors(
+                    outer_snapshot,
+                    foreground,
+                    background,
+                )?,
+            ));
+        }
+        if let Some(inner) = self.inner.as_deref() {
+            let incoming = Self::resolved_insets(self.outer.as_deref(), outer_snapshot);
+            parts.push((
+                incoming,
+                inner.snapshot_bounds_drawing_with_colors(
+                    inner_snapshot,
+                    foreground,
+                    background,
+                )?,
+            ));
+        }
+        crate::figure::BoundsDrawing::compose(parts)
+    }
+
     fn get_insets(&self) -> Insets {
         add_insets(
             self.outer

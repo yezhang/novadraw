@@ -117,6 +117,95 @@ impl TitleBarBorder {
 }
 
 impl Border for TitleBarBorder {
+    fn snapshot_bounds_drawing(
+        &self,
+        snapshot: Option<&BorderSnapshot>,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        self.snapshot_bounds_drawing_with_colors(snapshot, Color::BLACK, self.background)
+    }
+
+    fn snapshot_bounds_drawing_with_colors(
+        &self,
+        snapshot: Option<&BorderSnapshot>,
+        foreground: Color,
+        _background: Color,
+    ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
+        #[derive(Clone, Copy)]
+        struct Title {
+            alignment: Alignment,
+            horizontal: f64,
+            vertical: f64,
+            width: f64,
+            ink: Rectangle,
+        }
+        fn origin(title: &Title, bounds: Rectangle) -> crate::Point {
+            let available = (bounds.width - title.horizontal * 2.0).max(0.0);
+            let x = match title.alignment {
+                Alignment::Start => bounds.x + title.horizontal,
+                Alignment::Center => {
+                    bounds.x + title.horizontal + (available - title.width).max(0.0) / 2.0
+                }
+                Alignment::End => bounds.x + bounds.width - title.horizontal - title.width,
+            };
+            crate::Point::new(x, bounds.y + title.vertical)
+        }
+        let metrics = snapshot
+            .and_then(BorderSnapshot::title_bar_metrics)
+            .ok_or(GraphicsError::ImmutableDrawingUnavailable)?;
+        let mut recorder = crate::render::CommandRecorder::new();
+        let mut context = recorder.paint();
+        context.set_fill_paint(foreground);
+        context.fill_text(&metrics.layout, crate::Point::new(0.0, 0.0))?;
+        drop(context);
+        let drawing = crate::figure::BoundsDrawing::recorded(
+            Title {
+                alignment: self.alignment,
+                horizontal: self.horizontal_padding,
+                vertical: self.vertical_padding,
+                width: f64::from(metrics.layout.width()),
+                ink: metrics.layout.ink_bounds().unwrap_or(Rectangle::new(
+                    0.0,
+                    0.0,
+                    f64::from(metrics.layout.full_width()),
+                    f64::from(metrics.layout.height()),
+                )),
+            },
+            recorder.finish()?,
+            |title, bounds| {
+                let origin = origin(title, bounds);
+                Ok(crate::Affine2D::from_translation(origin.x(), origin.y()))
+            },
+            |title, bounds| {
+                let origin = origin(title, bounds);
+                Ok(Rectangle::new(
+                    origin.x() + title.ink.x,
+                    origin.y() + title.ink.y,
+                    title.ink.width,
+                    title.ink.height,
+                ))
+            },
+        )?;
+        const TITLE_BACKGROUND_RECORDING_BYTES: usize = 4096;
+        let background = crate::figure::BoundsDrawing::new(
+            (self.background, metrics.insets.top),
+            TITLE_BACKGROUND_RECORDING_BYTES,
+            |(color, height), bounds, context| {
+                context.set_fill_paint(*color);
+                context.fill_rect(Rectangle::new(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    height.min(bounds.height),
+                ))
+            },
+            |_, bounds| Ok(bounds),
+        );
+        crate::figure::BoundsDrawing::compose(vec![
+            (Insets::ZERO, background),
+            (Insets::ZERO, drawing),
+        ])
+    }
+
     fn get_insets(&self) -> Insets {
         Insets::ZERO
     }

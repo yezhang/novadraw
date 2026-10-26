@@ -26,6 +26,34 @@ impl<'a> FigureTreeRenderRef<'a> {
     fn presentation(&self, id: FigureId) -> Option<crate::animation::FigurePresentationEffect> {
         self.presentation.and_then(|snapshot| snapshot.figure(id))
     }
+
+    fn visible(&self, id: FigureId) -> bool {
+        if let Some(geometry) = self.geometry(id) {
+            return geometry.effective_visible;
+        }
+        self.get(id).is_some_and(|node| {
+            self.presentation(id)
+                .and_then(|effect| effect.geometry.visible)
+                .unwrap_or(node.is_visible)
+        })
+    }
+
+    fn bounds(&self, id: FigureId, node: &super::FigureNode) -> crate::Rectangle {
+        if let Some(geometry) = self.geometry(id) {
+            return geometry.bounds;
+        }
+        self.presentation(id)
+            .and_then(|effect| effect.geometry.bounds)
+            .unwrap_or_else(|| node.figure_bounds())
+    }
+
+    fn geometry(&self, id: FigureId) -> Option<&crate::animation::PresentedFigureGeometry> {
+        self.presentation?.geometry.as_ref()?.data.nodes.get(&id)
+    }
+
+    fn frozen(&self, id: FigureId) -> Option<&crate::animation::FrozenGeometryNode> {
+        self.presentation?.geometry.as_ref()?.frozen_node(id)
+    }
 }
 
 impl<'a> Clone for FigureTreeRenderRef<'a> {
@@ -119,21 +147,23 @@ impl<'a> FigureRenderer<'a> {
     fn paint_inner(&mut self, figure_id: FigureId, depth: usize) {
         // 获取 block
         let block = match self.scene.get(figure_id) {
-            Some(b) if b.is_visible => b,
+            Some(b) if self.scene.visible(figure_id) => b,
             _ => return,
         };
 
-        let bounds = block.figure_bounds();
+        let bounds = self.scene.bounds(figure_id, block);
 
         // 1. 保存 parent state，并设置当前节点的 local state。
         self.gc.push_state();
-        if let Some(foreground) = block.style.foreground {
+        let frozen = self.scene.frozen(figure_id);
+        let style = frozen.map_or(&block.style, |node| &node.style);
+        if let Some(foreground) = style.foreground {
             self.gc.set_foreground_color(foreground);
         }
-        if let Some(background) = block.style.background {
+        if let Some(background) = style.background {
             self.gc.set_background_color(background);
         }
-        if let Some(alpha) = block.style.alpha {
+        if let Some(alpha) = style.alpha {
             self.gc.set_alpha(alpha);
         }
         let presentation = self.scene.presentation(figure_id);
@@ -141,16 +171,43 @@ impl<'a> FigureRenderer<'a> {
             self.gc.set_alpha(alpha);
         }
         self.gc.translate(bounds.x, bounds.y);
-        if let Some(transform) = presentation.as_ref().and_then(|effect| effect.transform) {
+        let local_transform = self
+            .scene
+            .geometry(figure_id)
+            .map(|geometry| geometry.local_transform)
+            .or_else(|| presentation.as_ref().and_then(|effect| effect.transform));
+        if let Some(transform) = local_transform {
+            let [a, b, c, d, e, f] = transform.coeffs();
+            self.gc.transform(a, b, c, d, e, f);
+        }
+        if self.scene.geometry(figure_id).is_none()
+            && let Some(transform) = presentation
+                .as_ref()
+                .and_then(|effect| effect.geometry.local_transform)
+        {
             let [a, b, c, d, e, f] = transform.coeffs();
             self.gc.transform(a, b, c, d, e, f);
         }
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
-        if let Some(content) = presentation
-            .as_ref()
-            .and_then(|effect| effect.content.as_ref())
+        if frozen.map_or_else(|| block.state().is_opaque(), |node| node.opaque)
+            && presentation
+                .as_ref()
+                .is_none_or(|effect| effect.content.is_none())
+        {
+            self.gc
+                .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+        }
+        if let Some(content) = self
+            .scene
+            .geometry(figure_id)
+            .and_then(|geometry| geometry.content.as_ref())
+            .or_else(|| {
+                presentation
+                    .as_ref()
+                    .and_then(|effect| effect.content.as_ref())
+            })
         {
             let mut context = crate::graphics::PaintContext::for_figure(self.gc);
             if let Err(error) = content.paint(&mut context) {
@@ -158,10 +215,6 @@ impl<'a> FigureRenderer<'a> {
             }
             drop(context);
         } else {
-            if block.state().is_opaque() {
-                self.gc
-                    .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
-            }
             let mut context = crate::graphics::PaintContext::for_figure(self.gc);
             if let Some(prepared) = &block.prepared {
                 if let Err(error) = prepared.presentation.paint(&mut context) {
@@ -183,15 +236,25 @@ impl<'a> FigureRenderer<'a> {
         // 4. 绘制边框
         // 注意：block 借用在此结束，可以安全重新获取
         let block = match self.scene.get(figure_id) {
-            Some(b) if b.is_visible => b,
+            Some(b) if self.scene.visible(figure_id) => b,
             _ => return,
         };
         let mut context = crate::graphics::PaintContext::for_figure(self.gc);
-        if let Err(error) = block.figure.paint_border_snapshot_in_bounds(
-            &mut context,
-            crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-            block.border_snapshot.as_ref(),
-        ) {
+        let local_bounds = crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        let result = if let Some(border) = self
+            .scene
+            .geometry(figure_id)
+            .and_then(|geometry| geometry.border.as_ref())
+        {
+            border.paint(&mut context)
+        } else {
+            block.figure.paint_border_snapshot_in_bounds(
+                &mut context,
+                local_bounds,
+                block.border_snapshot.as_ref(),
+            )
+        };
+        if let Err(error) = result {
             context.canvas.reject_recording(error);
         }
         drop(context);
@@ -215,14 +278,46 @@ impl<'a> FigureRenderer<'a> {
     /// ```
     fn paint_client_area(&mut self, figure_id: FigureId, depth: usize) {
         let block = match self.scene.get(figure_id) {
-            Some(b) if b.is_visible => b,
+            Some(b) if self.scene.visible(figure_id) => b,
             _ => return,
         };
 
-        let transform = block.child_transform();
-        let client_area = block.client_area();
-        let clipping_strategy = block.child_clipping_strategy();
-        let [a, b, c, d, e, f] = transform.affine().coeffs();
+        let geometry = self
+            .scene
+            .presentation(figure_id)
+            .map(|effect| effect.geometry);
+        let transform = self
+            .scene
+            .geometry(figure_id)
+            .map(|geometry| geometry.child_transform)
+            .or_else(|| {
+                geometry
+                    .and_then(|patch| patch.child_transform)
+                    .map(|transform| {
+                        let insets = block.state().insets;
+                        crate::Affine2D::from_translation(insets.left, insets.top) * transform
+                    })
+            })
+            .unwrap_or_else(|| block.child_transform().affine());
+        let bounds = self.scene.bounds(figure_id, block);
+        let insets = block.state().insets;
+        let client_area = self
+            .scene
+            .geometry(figure_id)
+            .map(|geometry| geometry.client_box)
+            .unwrap_or_else(|| {
+                crate::Rectangle::new(
+                    insets.left,
+                    insets.top,
+                    (bounds.width - insets.width()).max(0.0),
+                    (bounds.height - insets.height()).max(0.0),
+                )
+            });
+        let clipping_strategy = self
+            .scene
+            .frozen(figure_id)
+            .map_or_else(|| block.child_clipping_strategy(), |node| node.clipping);
+        let [a, b, c, d, e, f] = transform.coeffs();
         self.gc.push_state();
         if clipping_strategy != ChildClippingStrategy::OverflowVisible {
             self.gc.clip_rect(
@@ -261,27 +356,37 @@ impl<'a> FigureRenderer<'a> {
     fn paint_children(&mut self, figure_id: FigureId, depth: usize) {
         let children: Vec<FigureId> = {
             let block = match self.scene.get(figure_id) {
-                Some(b) if b.is_visible => b,
+                Some(b) if self.scene.visible(figure_id) => b,
                 _ => return,
             };
-            block.children.to_vec()
+            self.scene.geometry(figure_id).map_or_else(
+                || block.children.to_vec(),
+                |geometry| geometry.children.clone(),
+            )
         };
         let clipping_strategy = self
             .scene
-            .get(figure_id)
-            .map(super::FigureNode::child_clipping_strategy)
+            .frozen(figure_id)
+            .map(|node| node.clipping)
+            .or_else(|| {
+                self.scene
+                    .get(figure_id)
+                    .map(super::FigureNode::child_clipping_strategy)
+            })
             .unwrap_or(ChildClippingStrategy::ClipToChildBounds);
 
         // 正序遍历（与 draw2d 一致）
         for &child_id in &children {
             let child_block = match self.scene.get(child_id) {
-                Some(b) if b.is_visible => b,
+                Some(b) if self.scene.visible(child_id) => b,
                 _ => continue,
             };
 
             self.gc.push_state();
-            let child_overflow = child_block.child_clipping_strategy()
-                == ChildClippingStrategy::OverflowVisible
+            let child_overflow = self.scene.frozen(child_id).map_or_else(
+                || child_block.child_clipping_strategy(),
+                |node| node.clipping,
+            ) == ChildClippingStrategy::OverflowVisible
                 || self
                     .scene
                     .presentation(child_id)
@@ -289,7 +394,7 @@ impl<'a> FigureRenderer<'a> {
                     .is_some_and(|transform| transform != crate::Affine2D::IDENTITY);
             match (clipping_strategy, child_overflow) {
                 (ChildClippingStrategy::ClipToChildBounds, false) => {
-                    let child_bounds = child_block.figure_bounds();
+                    let child_bounds = self.scene.bounds(child_id, child_block);
                     self.gc.clip_rect(
                         child_bounds.x,
                         child_bounds.y,

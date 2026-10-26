@@ -2,7 +2,13 @@
 
 mod behavior;
 mod capacity;
+mod drawing;
+mod frozen;
+mod geometry;
+mod geometry_view;
+mod provider;
 mod service;
+mod storage;
 mod timeline;
 mod value;
 
@@ -25,7 +31,23 @@ pub use behavior::{
     AnimationFact, AnimationFactCoalescing, AnimationLifecycle, AnimationPlanFactory,
     AnimationTrigger, PropertySelector, StatePropertySelector,
 };
-pub use capacity::{AnimationLimits, AnimationReservations};
+pub use capacity::{
+    AnimationLimits, AnimationReservations, AnimationWork, DEFAULT_MAX_ANIMATION_GEOMETRY_BYTES,
+    DEFAULT_MAX_ANIMATION_GEOMETRY_NODES,
+};
+pub use drawing::{GeometryDrawingBuilder, GeometryLine};
+pub(crate) use frozen::FrozenGeometryNode;
+pub use geometry::{
+    GeometryBinding, GeometryInputs, GeometryPatch, LayoutBounds, PresentedVisibility,
+    ViewportOrigin,
+};
+pub use geometry_view::{
+    GeometryCapture, GeometryCaptureError, GeometryMaterializationWork, PresentationGeometry,
+    PresentationVersion, PresentedFigureGeometry,
+};
+pub use provider::{
+    GeometryProvider, GeometryProviderContext, GeometryProviderDependency, GeometryProviderKey,
+};
 pub use service::AnimationMut;
 pub(crate) use service::{AnimationService, FigurePresentationEffect, PresentationSnapshot};
 pub use timeline::{AnimationPlan, RepeatBehavior};
@@ -271,6 +293,18 @@ pub enum AnimationBudgetKind {
     StagingTracks,
     /// Runtime-owned temporary visuals.
     TemporaryVisuals,
+    /// Distinct geometry dependencies and their ancestors.
+    GeometryNodes,
+    /// Declared geometry dependency edges.
+    DependencyEdges,
+    /// Motion and derived geometry provider calls.
+    ProviderCalls,
+    /// Derived geometry output items.
+    GeometryItems,
+    /// Owned geometry snapshot and source storage.
+    SnapshotBytes,
+    /// Matrix, clip and envelope materialization operations.
+    GeometryOperations,
 }
 
 /// Animation construction, admission, identity, or query failure.
@@ -283,6 +317,22 @@ pub enum AnimationError {
     Coordinate(crate::tree::CoordinateQueryError),
     /// The owning Runtime crossed its panic boundary.
     RuntimeFaulted,
+    /// Current base samples have not yet been materialized into a complete geometry view.
+    GeometryNotPrepared,
+    /// A provider read an undeclared or missing typed derived dependency.
+    UndeclaredProviderDependency,
+    /// The declared derived dependency graph contains a direct or indirect cycle.
+    GeometryDependencyCycle,
+    /// Captured parent membership or child order no longer matches the source tree.
+    GeometryTopologyChanged {
+        /// Dependency whose topology changed.
+        figure: FigureId,
+    },
+    /// A geometry query requested a Figure outside its frozen dependency closure.
+    UndeclaredGeometryDependency {
+        /// Figure identity absent from the frozen dependency closure.
+        figure: FigureId,
+    },
     /// A duration cannot be represented by the Runtime microsecond clock.
     InvalidDuration,
     /// A value rejected its typed animation invariant.
@@ -369,12 +419,71 @@ pub enum AnimationError {
     FinalValueMismatch,
     /// A configured Runtime animation limit was reached.
     BudgetExceeded(AnimationBudgetKind),
+    /// A provider exceeded its own frozen output declaration.
+    ProviderOutputExceeded {
+        /// Figure identity of the violating provider.
+        figure: FigureId,
+        /// Typed semantic output identity of the violating provider.
+        value_type: TypeId,
+        /// Rejected output dimension.
+        kind: AnimationBudgetKind,
+        /// Frozen upper bound.
+        declared: usize,
+        /// Count requested by the provider.
+        actual: usize,
+    },
+    /// A sampled track value exceeded its endpoint/current storage declaration.
+    TrackStorageExceeded {
+        /// Typed channel whose sampler violated the storage bound.
+        channel: AnimationChannelId,
+        /// Frozen byte bound.
+        declared: usize,
+        /// Sampled owned bytes.
+        actual: usize,
+    },
 }
 
 impl fmt::Display for AnimationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TrackStorageExceeded {
+                channel,
+                declared,
+                actual,
+            } => {
+                write!(
+                    formatter,
+                    "track {channel:?} storage exceeded {declared}: {actual}"
+                )
+            }
             Self::RuntimeFaulted => formatter.write_str("animation Runtime is faulted"),
+            Self::ProviderOutputExceeded {
+                figure,
+                value_type,
+                kind,
+                declared,
+                actual,
+            } => {
+                write!(
+                    formatter,
+                    "provider {figure:?}/{value_type:?} output {kind:?} exceeded {declared}: {actual}"
+                )
+            }
+            Self::GeometryNotPrepared => {
+                formatter.write_str("current presentation geometry is not prepared")
+            }
+            Self::UndeclaredProviderDependency => {
+                formatter.write_str("undeclared geometry provider dependency")
+            }
+            Self::GeometryDependencyCycle => {
+                formatter.write_str("geometry provider dependency cycle")
+            }
+            Self::GeometryTopologyChanged { figure } => {
+                write!(formatter, "geometry topology changed for {figure:?}")
+            }
+            Self::UndeclaredGeometryDependency { figure } => {
+                write!(formatter, "undeclared geometry dependency {figure:?}")
+            }
             Self::InvalidDuration => formatter.write_str("animation duration is invalid"),
             Self::InvalidValue => formatter.write_str("animation value is invalid"),
             Self::InvalidSpring => formatter.write_str("spring parameters are invalid"),

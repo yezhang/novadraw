@@ -62,7 +62,8 @@ impl<'a> RuntimeViewports<'a> {
         viewport: FigureId,
         x: f64,
     ) -> Result<bool, RuntimeMutationError> {
-        let current = self.handle(viewport)?.view_location();
+        let handle = self.handle(viewport)?;
+        let current = self.runtime.viewport_input_location(&handle)?;
         self.set_view_location(viewport, x, current.y())
     }
 
@@ -71,7 +72,8 @@ impl<'a> RuntimeViewports<'a> {
         viewport: FigureId,
         y: f64,
     ) -> Result<bool, RuntimeMutationError> {
-        let current = self.handle(viewport)?.view_location();
+        let handle = self.handle(viewport)?;
+        let current = self.runtime.viewport_input_location(&handle)?;
         self.set_view_location(viewport, current.x(), y)
     }
 
@@ -81,7 +83,8 @@ impl<'a> RuntimeViewports<'a> {
         dx: f64,
         dy: f64,
     ) -> Result<bool, RuntimeMutationError> {
-        let current = self.handle(viewport)?.view_location();
+        let handle = self.handle(viewport)?;
+        let current = self.runtime.viewport_input_location(&handle)?;
         self.set_view_location(viewport, current.x() + dx, current.y() + dy)
     }
 
