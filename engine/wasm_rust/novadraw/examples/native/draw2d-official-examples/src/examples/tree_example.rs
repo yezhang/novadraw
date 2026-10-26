@@ -19,7 +19,10 @@ use crate::controls::{ScaleFigure, add_button, add_checkbox, replace_text_value_
 use novadraw_example_support::panel::{Panel, PanelScene, egui};
 
 pub fn panel_scene() -> PanelScene {
-    let fixture = canvas_fixture(false);
+    panel_scene_from_fixture(canvas_fixture(false))
+}
+
+fn panel_scene_from_fixture(fixture: Fixture) -> PanelScene {
     let model = fixture.model;
     let selection = fixture.selection;
     (
@@ -543,6 +546,115 @@ mod tests {
     use super::*;
     use novadraw::render::{BackendCapabilities, SurfaceInfo};
     use novadraw::{event::MouseButton, geometry::Point};
+
+    #[test]
+    fn floating_panel_routes_canvas_selection_and_native_double_clicks() {
+        use novadraw_platform_winit::WinitPointerAdapter;
+        use std::time::Duration;
+        use winit::event::{ElementState, MouseButton as NativeButton};
+
+        fn panel_frame(
+            panel: &mut Panel,
+            context: &egui::Context,
+            runtime: &mut Runtime,
+            position: Point,
+            pressed: Option<bool>,
+        ) {
+            let position = egui::pos2(position.x() as f32, position.y() as f32);
+            let mut events = vec![egui::Event::PointerMoved(position)];
+            if let Some(pressed) = pressed {
+                events.push(egui::Event::PointerButton {
+                    pos: position,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::default(),
+                });
+            }
+            let _ = panel.prepare_ui(
+                context,
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1200.0, 800.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                runtime,
+            );
+        }
+
+        for animated in [false, true] {
+            let fixture = canvas_fixture(false);
+            let model = fixture.model.clone();
+            let selection = fixture.selection.clone();
+            model.lock().unwrap().use_animation = animated;
+            let (mut runtime, panel) = panel_scene_from_fixture(fixture);
+            let mut panel = panel.unwrap();
+            let context = egui::Context::default();
+            let mut adapter = WinitPointerAdapter::new();
+            prepare(&mut runtime);
+            let (title, child) = {
+                let tree = model.lock().unwrap();
+                (tree.branches[1].title, tree.branches[6].title)
+            };
+            for (base_time, expected_expanded) in [(0, false), (600, true)] {
+                let bounds = runtime.tree().figure_bounds(title).unwrap();
+                let position = runtime
+                    .tree()
+                    .local_to_surface_transform(title)
+                    .unwrap()
+                    .transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0));
+                for _ in 0..4 {
+                    panel_frame(&mut panel, &context, &mut runtime, position, None);
+                }
+                for (pressed, offset) in [(true, 0), (false, 10), (true, 100), (false, 110)] {
+                    // egui-winit uses this ownership query before processing a button frame.
+                    let consumed = context.egui_wants_pointer_input();
+                    assert!(!consumed, "Tree title input must reach Canvas");
+                    if !consumed {
+                        adapter
+                            .dispatch_button_input(
+                                &mut runtime,
+                                if pressed {
+                                    ElementState::Pressed
+                                } else {
+                                    ElementState::Released
+                                },
+                                NativeButton::Left,
+                                position,
+                                Duration::from_millis(base_time + offset),
+                            )
+                            .unwrap();
+                    }
+                    panel_frame(&mut panel, &context, &mut runtime, position, Some(pressed));
+                    if offset == 10 {
+                        assert_eq!(*selection.lock().unwrap(), Some(1), "single click selects");
+                        assert_eq!(
+                            model.lock().unwrap().branches[1].expanded,
+                            !expected_expanded,
+                            "single click does not fold"
+                        );
+                        let label = runtime.tree().child_order(title).unwrap()[0];
+                        assert_eq!(
+                            runtime.tree().figure_style(label).unwrap().foreground,
+                            Some(Color::WHITE)
+                        );
+                    }
+                }
+                prepare(&mut runtime);
+                let tree = model.lock().unwrap();
+                assert_eq!(tree.branches[1].expanded, expected_expanded);
+                assert_eq!(
+                    runtime.tree().is_effectively_visible(child).unwrap(),
+                    expected_expanded
+                );
+                assert_eq!(tree.animation.is_some(), animated);
+                assert!(tree.animation_error.is_none());
+            }
+            assert!(runtime.take_deferred_mutation_errors().is_empty());
+        }
+    }
 
     #[test]
     fn shared_connector_providers_replay_static_normal_hanging_and_nested_endpoints() {

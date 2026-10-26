@@ -49,6 +49,18 @@ const SUITES: &[Suite] = &[
                 args: &[
                     "test",
                     "-p",
+                    "novadraw-example-support",
+                    "--features",
+                    "egui-panel",
+                    "--lib",
+                    "panel::tests",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
                     "novadraw",
                     "--test",
                     "p2_animation_geometry_contract",
