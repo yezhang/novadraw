@@ -1644,8 +1644,7 @@ impl RenderBackend for VelloRenderer {
 }
 
 impl VelloRenderer {
-    /// Records a complete submission into the retained texture without acquiring
-    /// a window surface drawable.
+    /// Applies submission damage to the retained texture without acquiring a window drawable.
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(
         &mut self,
@@ -1682,22 +1681,37 @@ impl VelloRenderer {
         }
 
         let (width, height) = self.current_surface_size();
-        let full = Rectangle::new(
-            0.0,
-            0.0,
-            width as f64 / self.scale_factor,
-            height as f64 / self.scale_factor,
-        );
+        let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
+        else {
+            return Ok(RenderDisposition::Skipped);
+        };
+        let Some(clip_rect) =
+            damage_rect_to_aligned_clip(effective_damage, width, height, self.scale_factor)
+        else {
+            return Ok(RenderDisposition::Skipped);
+        };
         self.encoder
-            .encode(&submission.commands, full, self.scale_factor);
+            .encode(&submission.commands, clip_rect, self.scale_factor);
 
         self.ensure_retained_texture();
-        let Some((_, retained_view, _, _)) = self.retained_texture.as_ref() else {
+        self.ensure_scratch_texture();
+        let scratch_view = self
+            .scratch_texture
+            .as_ref()
+            .ok_or_else(|| {
+                RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "scratch texture was not created",
+                ))
+            })?
+            .1
+            .clone();
+        let Some((_, _retained_view, _, _)) = self.retained_texture.as_ref() else {
             return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
                 "retained texture was not created",
             )));
         };
-        let retained_view = retained_view.clone();
+        #[cfg(feature = "native-overlay")]
+        let retained_view = _retained_view.clone();
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let Some(renderer) = self.renderers[self.surface.dev_id].as_mut() else {
             return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
@@ -1708,7 +1722,7 @@ impl VelloRenderer {
             &device_handle.device,
             &device_handle.queue,
             &self.encoder.scene,
-            &retained_view,
+            &scratch_view,
             &vello::RenderParams {
                 base_color: VelloColor::new(submission_base_rgba(submission)),
                 width,
@@ -1721,6 +1735,50 @@ impl VelloRenderer {
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
         }
+        let mut encoder =
+            device_handle
+                .device
+                .create_command_encoder(&vello::wgpu::CommandEncoderDescriptor {
+                    label: Some("Screenshot retained repair"),
+                });
+        let scratch = &self
+            .scratch_texture
+            .as_ref()
+            .expect("validated scratch texture")
+            .0;
+        let retained = &self
+            .retained_texture
+            .as_ref()
+            .expect("validated retained texture")
+            .0;
+        for rect in effective_regions {
+            let Some((x, y, copy_width, copy_height)) =
+                self.damage_rect_to_copy_region(rect, width, height)
+            else {
+                continue;
+            };
+            let origin = vello::wgpu::Origin3d { x, y, z: 0 };
+            encoder.copy_texture_to_texture(
+                vello::wgpu::TexelCopyTextureInfo {
+                    texture: scratch,
+                    mip_level: 0,
+                    origin,
+                    aspect: vello::wgpu::TextureAspect::All,
+                },
+                vello::wgpu::TexelCopyTextureInfo {
+                    texture: retained,
+                    mip_level: 0,
+                    origin,
+                    aspect: vello::wgpu::TextureAspect::All,
+                },
+                vello::wgpu::Extent3d {
+                    width: copy_width,
+                    height: copy_height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+        device_handle.queue.submit([encoder.finish()]);
         #[cfg(feature = "native-overlay")]
         if let Some(overlay) = &mut self.overlay {
             let mut encoder = device_handle.device.create_command_encoder(
