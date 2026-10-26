@@ -264,17 +264,19 @@ sequenceDiagram
 ## Selection 与 focus
 
 ```text
-Viewer 的有序 ModelId 集合
+Viewer 的有序 EditPartId 集合
 -> 末项是 primary selection
--> 选择 revision 驱动 Handle、Tool 对象和命令可用性
+-> SelectionDelta 描述成员、primary 和编辑部件焦点变化
+-> 消费者更新 Handle 和命令可用性
 
-平台 / 控件 focus
+Core Figure 键盘焦点
 -> 决定键盘和文本输入目标
 ```
 
-Selection 与 focus 分别拥有状态。模型 revision 前进后，Viewer 用当前 `ModelId` 集合
-执行 reconcile；删除对象退出选择，剩余末项成为新的 primary。每个 Viewer 保持独立
-选择，应用若需要联动，必须显式桥接。
+Selection、编辑部件焦点和 Figure 键盘焦点分别保存。模型同步后，Viewer 按 Part 身份
+有效性执行 reconcile；删除对象退出选择，剩余末项成为新的 primary。选择模型没有独立
+revision，Tool 保存本次操作集合，并用模型和交互版本验证会话。业务命令通过 registry
+把 Part 解析为 ModelId。每个 Viewer 保持独立选择，应用若需要联动，必须显式桥接。
 
 框选、拖放和粘贴最终都复用 SelectionModel、Policy 和 Command。当前框架没有通用
 marquee、系统 DnD 或 ClipboardAdapter API，不能把宿主集成误写成已实现的 Editor

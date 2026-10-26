@@ -212,6 +212,21 @@ preferred size 和 client area 必须使用同一组累计 insets。
 通用 shadow API，因此不能假定任意 Figure 已自动获得阴影测量和命中语义。具体 Figure
 或外部扩展若实现阴影，必须显式提供保守 visual bounds，并说明阴影是否参与几何命中。
 
+若某个扩展已定义阴影效果的有限覆盖范围，可以按以下概念公式估算边界：
+
+```text
+shadow_bounds = translate(shape_bounds, shadow_offset)
+                expanded_by(effect_extent)
+visual_bounds = shape_visual_bounds union shadow_bounds
+```
+
+这里的 `effect_extent` 必须由该效果的实际实现给出，不能直接假定等于模糊半径。形状、
+offset 和 extent 先统一到节点本地域，再沿祖先链变换到表面域。更改阴影参数时，用旧
+参数保留旧范围，用新参数计算新范围，两者的并集进入 damage。
+
+如果阴影只提供装饰，不接受输入，就不应扩大语义命中区域。这样同一个 Figure 可以拥有
+较大的重绘范围和较小的交互几何；圆角裁剪也不会因为用了矩形 damage 而退化为矩形命中。
+
 装饰变化应按影响分层：
 
 | 变化 | 布局 | visual bounds / damage | 命中 |

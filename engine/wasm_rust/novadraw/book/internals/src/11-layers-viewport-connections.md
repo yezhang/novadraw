@@ -98,9 +98,10 @@ Viewport 的滚动值进入子内容变换。ScrollPane 监听范围变化并更
 
 ### ZoomManager 的权威状态
 
-`ZoomManager` 保存当前 zoom、允许范围和可选离散级别。离散级别必须严格递增，当前值
-始终被 `minimum_zoom` 与 `maximum_zoom` 夹取。放大、缩小、直接设值和程序适配都写入
-同一个 zoom 权威，不能让滚轮和工具栏分别保存倍率。
+`ZoomManager` 组合共享缩放句柄、viewport 句柄、滚动策略与离散级别。当前 zoom 从缩放
+句柄读取，不在管理器中重复保存。离散级别必须非空、有限、为正且严格递增；min/max
+边界由该级别序列的首尾值确定。放大、缩小、直接设值和程序适配都通过 Runtime 作用域
+修改同一缩放状态，不能让滚轮和工具栏分别保存倍率。
 
 以某个表面点为锚缩放时，要同时调整 viewport range，使该点对应的内容位置在缩放前后
 保持不动：
@@ -124,12 +125,32 @@ fit_width  = viewport_width / content_width
 fit_height = viewport_height / content_height
 ```
 
-结果仍要经过 min/max clamp，并按对齐策略更新滚动位置。空内容、零尺寸和非有限输入应
-返回明确结果，不能制造无穷倍率。
+这些公式是概念计算，前提是内容尺寸和 viewport 可用尺寸均为有限正值。当前 fit 对空
+内容或零尺寸返回 `ZoomError::InvalidZoom`。它使用客户区尺寸，并在要适配的轴上把滚动
+位置归到 range minimum；单轴 fit 保留另一轴的滚动位置。
 
 Core 当前提供 `fit_all`、`fit_width` 和 `fit_height`，没有内置 `fit_selection`。
-Editor 若要适配选择集合，应先从当前 Viewer selection 解析业务对象，再通过场景查询
-得到其稳定内容范围，最后调用同一 fit 计算。这样 ZoomManager 不需要依赖 Editor 身份。
+现有 fit 读取整个内容范围，不能把 selection 当成参数直接传入。外部 Editor 操作若要
+适配选择，应先解析本 Viewer 的选中 Part，再计算它们在同一内容域中的稳定范围，复用
+上述计算原理，最后通过公开缩放和 viewport mutation 入口应用结果。
+
+带四周留白的选择适配可用以下概念伪代码表达。`selection_bounds` 是选中几何变换到共同
+内容域后的并集，`margin` 属于 viewport 逻辑域：
+
+```text
+available_width  = viewport_width  - 2 * margin
+available_height = viewport_height - 2 * margin
+zoom = clamp(min(available_width / selection_bounds.width,
+                 available_height / selection_bounds.height))
+scroll = zoom * selection_bounds.center - viewport_size / 2
+```
+
+scroll 的公式只适用于内容先缩放、再在 viewport 域平移的约定。具体操作必须使用统一
+坐标查询与滚动策略，最后由 range model 归一化。触及范围边界时，居中结果可能被夹取；
+留白耗尽客户区、选择为空或选区退化为零宽高时，也必须先定义处理策略。
+
+计算过程中若模型或 Part 身份变化，应重新取得稳定范围或取消。这样选择仍归 Viewer
+所有，ZoomManager 不需要依赖 Editor 身份，也不需要维护一份选择缓存。
 
 ### 不同缩放级别的视觉策略
 
@@ -144,8 +165,8 @@ ZoomManager 自动执行的统一规则。
 - 标签显隐或替换 Figure 会改变场景源状态和 damage；
 - 文字若重新选择字号，会触发重新测量，不再是纯视口变换。
 
-缩放动画使用第 9 章的表现状态层生成临时 viewport 覆盖；动画结束后，只提交最终 zoom
-和 range model。中间帧不能逐帧改写业务 bounds。
+缩放动画遵循第 9 章的顺序：先提交最终 zoom 和 range model，再从变化前后的状态采样
+临时 viewport 表现覆盖。已提交状态始终保留最终值，中间帧不逐帧改写业务 bounds。
 
 ## 11.7 自动暴露
 

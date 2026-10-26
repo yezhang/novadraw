@@ -364,3 +364,35 @@ writer agent 执行时必须遵守：
 - `./scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均生成；
 - 《深入理解 Novadraw》HTML 目录为连续 15 章，旧章节文件名无残留链接；
 - 本次书稿与审计范围的 `git diff --check` 通过。
+
+## 10. 补充复核
+
+复核日期：2026-10-26
+
+原补充内容和 15 章结构均已保留。本轮继续检查各项要求的因果解释，补充并校准以下内容：
+
+| 要求 | 本轮调整 | 正文入口 |
+|---|---|---|
+| 文本宽高相互依赖 | 说明高度函数的阶梯性、反向查询不唯一，以及高度预算与裁剪的区别 | [文本排版](../internals/src/07-text-layout-and-glyphs.md) |
+| Selection 结构与变化传播 | 校准为 Viewer 的有序 EditPartId 集合，说明 SelectionDelta、append 重排和三层焦点边界 | [编辑协议](../internals/src/13-editing-protocol.md) |
+| 框选命中语义 | 补充表面域区域、裁剪、精确几何、稳定顺序和滚动后重新查询 | [编辑协议](../internals/src/13-editing-protocol.md) |
+| zoom-to-selection | 补充共同内容域范围、留白、居中和 range clamp；明确现有 fit 只读取整个内容 | [视口与连接](../internals/src/11-layers-viewport-connections.md) |
+| 视觉装饰 | 补充阴影 offset、效果覆盖范围、旧新 damage 和语义命中的区别 | [几何与坐标](../internals/src/05-geometry-and-coordinates.md) |
+
+事实核对以当前 `SelectionModel`、Viewer 选择入口、`ZoomManager` 和 `TextConstraints`
+为准。原正文中的独立“选择 revision”、有序 ModelId 选择集合和管理器重复保存倍率的
+描述已修正；缩放动画也改为先提交最终状态，再采样表现覆盖。
+
+第 3、4 节保留原审计建议。文本插入为第 7 章、图像扩展放在第 8 章的实际落点，以
+第 9 节和当前目录为准。
+
+本轮验证：
+
+- `cargo xtask docs` 通过，检查 373 个 Markdown 文件与当前 xtask 引用；
+- `git diff --check` 通过；
+- `./scripts/build_book.sh` 通过，三本书 HTML 和 PDF 均重新生成；
+- 本轮修改文件的中文正文半角标点、元话语扫描均为零命中，代码块按受保护跨度排除；
+- 书稿继续沿用既有 15 章索引，新小节没有新增机械编号。
+
+中文复核保留身份、坐标域、失败条件和源码标识符。新增公式均标为概念计算；正文仍以
+状态所有权、候选计算和统一提交为主线，没有将宿主扩展写成已实现的 Core API。

@@ -112,8 +112,8 @@
 | 完成已确认 | SubmissionAcknowledgement | Runtime 已根据后端结果确认资源与恢复状态 |
 | 指针捕获 | pointer capture | 把后续指针事件锁定到同一交互会话 |
 | 文本布局 | TextLayout | 测量阶段生成、由布局绘制和文本交互共同消费的不可变排版结果 |
-| 选择模型 | SelectionModel | Viewer 拥有的有序 ModelId 集合，末项为 primary selection |
-| 缩放管理器 | ZoomManager | 统一管理 zoom、离散级别、范围约束和 fit 计算的 Viewer/Core 边界对象 |
+| 选择模型 | SelectionModel | Viewer 使用的有序 EditPartId 集合及独立编辑部件焦点，末项为 primary selection |
+| 缩放管理器 | ZoomManager | 组合共享缩放句柄、viewport 句柄、离散级别和滚动策略的 Core 对象 |
 | 故障锁定状态 | faulted | 无法继续证明一致性，只允许诊断或重建 |
 
 相似词不一定表示同一事实：

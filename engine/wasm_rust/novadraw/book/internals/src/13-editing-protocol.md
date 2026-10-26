@@ -318,47 +318,59 @@ Tool 开始后模型可能被其他来源修改。提交时应比较起始假设
 
 ## 13.14 Selection 与操作对象
 
-选择状态属于 Viewer，不等于模型属性。`SelectionModel` 保存有序 `ModelId` 集合：
+选择状态属于 Viewer，不等于模型属性。`SelectionModel<I>` 是有序选择与焦点的共享模型；
+当前 Viewer 使用 `SelectionModel<EditPartId>`，保存本 Viewer 内有效的编辑部件身份：
 
-- `replace` 用一个对象或一组对象替换当前选择；
-- `append` 保留已有顺序并追加尚未选中的对象；
+- `replace` 用一个对象替换当前选择；
+- `append` 把对象移到末项并使其成为 primary，已有对象也可以被重新排序；
 - `toggle` 在集合中添加或移除指定对象；
-- `clear` 清空集合；
-- `reconcile` 根据当前模型身份集合修复过期选择。
+- `clear` 清空选择和编辑部件焦点；
+- `reconcile` 根据身份有效性修复选择和编辑部件焦点。
 
-顺序有交互含义。集合末项是 primary selection，决定单一属性面板目标、主控制柄或下一次
-键盘扩展的锚点。多选命令仍应保存完整 `ModelId` 集合，不能只保存 primary，也不能保存
-Figure 顺序来替代用户选择顺序。
+顺序有交互含义。集合末项是主选择（primary selection），可以用作属性面板目标、主控制柄
+或键盘扩展的锚点。Tool 构造业务命令前，必须通过 Viewer registry 把 Part 身份解析为
+`ModelId`。多选命令保存完整业务身份集合，不能只保存 primary，也不能保存 Figure 顺序
+来替代用户选择顺序。
+
+例如，选择 `[A, B]` 的 primary 是 B；再次 append A 后，集合变为 `[B, A]`，primary
+变为 A。虽然选中成员没有增减，依赖 primary 的控制柄或属性面板仍需要更新。
 
 ### Selection 与 focus
 
-Selection 表达“哪些业务对象是当前操作集合”，focus 表达“哪个交互目标接收键盘或文本
-输入”。二者可以重合，但不是同一事实：
+Selection 表达“哪些编辑部件是当前操作集合”。这里还需要区分两种 focus：Viewer 的编辑
+部件焦点用于编辑交互，Core 的 Figure 键盘焦点决定输入接收者。平台窗口焦点和 IME
+状态继续由宿主适配。它们可以关联，但分别保存和更新：
 
 - pointer 单击可以同时替换 selection 并把 focus 交给画布；
 - 键盘焦点进入直接编辑控件时，业务 selection 可以保持不变；
 - 清除 focus 不要求清空 selection；
-- 删除 focused Part 时，需要独立执行 focus 修复和 selection reconcile。
+- 删除 focused Part 时，Viewer reconcile 同时移除失效选择和编辑部件焦点；Core 另行
+  修复 Figure 键盘焦点。
+
+focus 可以独立设置，但 `clear` 明确同时清除选择和编辑部件焦点。独立状态不意味着所有
+操作都只能改其中一项。
 
 把 focus 隐式绑定到 primary selection，会使属性面板切换、文本编辑和键盘导航互相抢夺
 状态。
 
 ### 选择变化的传播
 
-Selection 变化先提交到当前 Viewer，再驱动依赖它的 Editor 状态：
+Selection 操作返回选择变化（`SelectionDelta`），包含新增、移除项以及变化前后的 primary
+和编辑部件焦点。没有变化时返回 `None`；只有 primary 顺序变化时，也会产生 delta。
+消费者据此更新依赖选择的状态：
 
 ```text
-SelectionModel revision
+Viewer 更新 SelectionModel
+-> 返回 SelectionDelta
 -> 重新计算 Handle / Feedback
--> 更新 Tool 可操作对象
 -> 更新命令可用性与宿主选择摘要
 ```
 
-这条传播不修改业务模型，也不直接改稳定 Part 树。Handle 和 Feedback 由 Overlay 重建；
-Tool 在开始会话时锁定选择 revision，进行中的手势不会静默吸收后来发生的 selection
-变化。
+这条传播不修改业务模型，也不直接改稳定 Part 树。选择模型不拥有独立 revision。Tool
+开始手势时应保存本次操作的对象集合，并使用既有模型和交互版本验证会话；不能在每次
+move 时重新读取选择，让新选对象中途加入同一命令。
 
-模型变化后，Viewer 按身份修复选择：
+模型变化并同步 Part 树后，Viewer 按当前 Part 身份修复选择：
 
 - 仍存在的对象保持选择；
 - 删除对象移出集合；
@@ -371,9 +383,21 @@ Tool 在开始会话时锁定选择 revision，进行中的手势不会静默吸
 
 ### 框选的边界
 
-框选（marquee selection）是“区域命中 + SelectionModel 操作”的组合。区域应先变换到
-明确坐标域，再按完全包含、相交或方向相关规则选择 Part，最后一次性执行 replace 或
-append。Figure 的 visual bounds 只能作为保守候选范围，精确规则仍由目标 Policy 决定。
+框选（marquee selection）组合区域查询、候选规则与选择更新。外部 Tool 应按以下顺序
+解释一次区域选择：
+
+1. 保存起点和当前点在逻辑表面域中的位置，构成框选区域；
+2. 从稳定场景中查询可见、可选择的 Figure，并解析到本 Viewer 的 Part；
+3. 使用统一坐标链比较区域与候选几何，遵守 viewport 裁剪；
+4. 按完全包含、相交或方向相关规则确定候选，去重并保持明确顺序；
+5. 确认会话仍有效后，通过现有选择操作应用结果，并消费变化 delta。
+
+Figure visual bounds 可以用于保守筛选，但阴影或外扩描边与区域相交，不一定表示正文
+几何也相交。旋转 Figure 的轴对齐包围盒同样只能提供候选，精确选择规则由外部 Tool 或
+目标 Policy 定义。
+
+自动滚动期间，当前表面指针可以保持不变，内容坐标却会改变。Tool 必须按新 viewport
+变换重新查询候选；不能把旧内容坐标矩形用于新场景。取消时只清理框选反馈。
 
 当前 Editor 没有通用 marquee API。应用或外部 Tool 可以基于场景查询和现有 selection
 操作实现框选，但不能把某个示例的区域命中规则写成框架既有合同。
