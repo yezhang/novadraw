@@ -147,7 +147,14 @@ fn center_bound(value: f64, limit: u32) -> u32 {
 
 fn crossing(segment: PathSeg, y: f64) -> f64 {
     if let PathSeg::Line(line) = segment {
-        return line.p0.x + (y - line.p0.y) / (line.p1.y - line.p0.y) * (line.p1.x - line.p0.x);
+        // Shared edges must yield the same crossing in both winding directions.
+        // Otherwise a center exactly on the edge can round to opposite pixels.
+        let (start, end) = if line.p0.y < line.p1.y {
+            (line.p0, line.p1)
+        } else {
+            (line.p1, line.p0)
+        };
+        return start.x + (y - start.y) / (end.y - start.y) * (end.x - start.x);
     }
     let increasing = segment.end().y > segment.start().y;
     let mut low = 0.0;
@@ -415,6 +422,39 @@ mod tests {
         assert_ne!(mask.winding((0.5, 0.5).into()), 0);
         assert_eq!(mask.winding((2.5, 0.5).into()), 0);
         assert_eq!(mask.winding((0.5, 2.5).into()), 0);
+    }
+
+    #[test]
+    fn reversed_shared_edges_partition_pixel_centers_without_gaps_or_overlap() {
+        let offset = 30.0 * (1.0 - std::f64::consts::FRAC_1_SQRT_2);
+        let start = Point::new(offset - 370.0, offset - 370.0);
+        let end = Point::new(offset + 10.0, offset + 10.0);
+        let mut left = BezPath::new();
+        left.move_to(start);
+        left.line_to(end);
+        left.line_to((48.0, 0.0));
+        left.line_to((48.0, -400.0));
+        left.close_path();
+        let mut right = BezPath::new();
+        right.move_to(end);
+        right.line_to(start);
+        right.line_to((-400.0, 48.0));
+        right.line_to((0.0, 48.0));
+        right.close_path();
+        let limits = AntialiasConfig::default().operation;
+        let (left, _) = sample(&left, FillRule::NonZero, 48, 48, limits, 0).unwrap();
+        let (right, _) = sample(&right, FillRule::NonZero, 48, 48, limits, 1).unwrap();
+        for y in 0..18 {
+            for x in 0..18 {
+                let center = Point::new(f64::from(x) + 0.5, f64::from(y) + 0.5);
+                assert_eq!(
+                    usize::from(left.winding(center) != 0)
+                        + usize::from(right.winding(center) != 0),
+                    1,
+                    "{center:?}"
+                );
+            }
+        }
     }
 
     #[test]
