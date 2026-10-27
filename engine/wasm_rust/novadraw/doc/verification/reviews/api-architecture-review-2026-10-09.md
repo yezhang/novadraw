@@ -56,7 +56,7 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 优先级：P0
 - 临时概念：单一 `impl Runtime` 承接所有子系统的方法转发；
 - 证据：
-  - [runtime.rs](../../../novadraw/src/runtime/runtime.rs) 单文件 6094 行，
+  - [runtime.rs](../../../crates/novadraw/src/runtime/runtime.rs) 单文件 6094 行，
     `impl Runtime` 直接暴露约 97 个 `pub fn`；
   - 加上拆分出去的 `connection_service`（27）、`frame_resource`（19）、
     `frame_submission`（6）、`capability_update`（1）等子 impl，Runtime 的公开
@@ -85,10 +85,10 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 临时概念：root 把具体 Figure、Layout、Border、几何、Graphics 全部 re-export，
   prelude 复刻同一组符号；
 - 证据：
-  - [lib.rs:49-70](../../../novadraw/src/lib.rs) root 直接 `pub use` 了 Color、
+  - [lib.rs:49-70](../../../crates/novadraw/src/lib.rs) root 直接 `pub use` 了 Color、
     几何、所有具体 Figure 类型、所有 LayoutManager 实现、Graphics、Runtime 等；
-  - 审计时的 `novadraw/src/prelude.rs` 单文件 prelude 内容与 root 高度重叠；
-  - [verification/public-api/novadraw-symbols.txt](../../../verification/public-api/novadraw-symbols.txt)
+  - 审计时的 `crates/novadraw/src/prelude.rs` 单文件 prelude 内容与 root 高度重叠；
+  - [tests/public-api/novadraw-symbols.txt](../../../tests/public-api/novadraw-symbols.txt)
     中 `prelude` 与 `root` 两个分组互相复刻；
 - 长期方向：
   - 删除库级 `novadraw::prelude`；
@@ -105,18 +105,18 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
   整治面比 TC-03 清单更广；
 - 证据：
   - 矩形族 Figure 全 `pub` 字段并在 `outline_shape` 内 `.max(0.0)` 静默兜底：
-    [rectangle.rs:18-35](../../../novadraw/src/figure/rectangle.rs)、
+    [rectangle.rs:18-35](../../../crates/novadraw/src/figure/rectangle.rs)、
     `rounded_rectangle.rs:20-33`、`ellipse.rs:20-30`、`triangle.rs:65-73`；
   - Border 系整体使用 `assert!` panic 做输入校验：
-    [line_border.rs:17-60](../../../novadraw/src/figure/border/line_border.rs)、
+    [line_border.rs:17-60](../../../crates/novadraw/src/figure/border/line_border.rs)、
     `rectangle_border.rs:29,48`、`margin_border.rs:39,107`、`bevel_border.rs:25`、
     `title_bar_border.rs:47`；
-  - [style.rs:20-69](../../../novadraw/src/style.rs) `FigureStyle` 全 `pub`，
+  - [style.rs:20-69](../../../crates/novadraw/src/style.rs) `FigureStyle` 全 `pub`，
     `alpha` 延后到 `apply_override` 的 `clamp`，`font` 为裸 `Option<String>`
     无语法校验；
-  - 静默 clamp 热路径：[render/context.rs:L223,L967](../../../novadraw/src/render/context.rs)、
-    [render/paint.rs:L112](../../../novadraw/src/render/paint.rs)、
-    [graph/presentation.rs:L958](../../../novadraw/src/graph/presentation.rs)
+  - 静默 clamp 热路径：[render/context.rs:L223,L967](../../../crates/novadraw/src/render/context.rs)、
+    [render/paint.rs:L112](../../../crates/novadraw/src/render/paint.rs)、
+    [graph/presentation.rs:L958](../../../crates/novadraw/src/graph/presentation.rs)
     的 `alpha.clamp(0.0, 1.0)`；
 - 长期方向：
   - 引入受检值 `Alpha01`、`NonNegativeF64`、`LogicalLength`、`FontFamily`；
@@ -131,12 +131,12 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 临时概念：LayoutSceneQuery / FigureTree 查询对未知身份返回"看似合法"的默认值，
   各错误类型互不兼容；
 - 证据：
-  - [layout/mod.rs:105-158](../../../novadraw/src/layout/mod.rs) 对未知
+  - [layout/mod.rs:105-158](../../../crates/novadraw/src/layout/mod.rs) 对未知
     `FigureId` 返回 `Rectangle::ZERO` / `FigureMeasurement::default()` /
     `Dimension::INFINITY`；
-  - [graph/layout_measurement.rs:980-1012](../../../novadraw/src/graph/layout_measurement.rs)
+  - [graph/layout_measurement.rs:980-1012](../../../crates/novadraw/src/graph/layout_measurement.rs)
     显式 `.unwrap_or_default()` / `.ok()`；
-  - [graph/query.rs:130-143](../../../novadraw/src/graph/query.rs)
+  - [graph/query.rs:130-143](../../../crates/novadraw/src/graph/query.rs)
     `is_visible/is_enabled` 对未知 id 退化为 `false`；
   - 错误类型碎片：`CapabilityQueryError`、`TreeQueryError`、`RouteSceneQueryError`、
     `StableQueryError`、`TextFlowQueryError` 各自为政；
@@ -152,11 +152,11 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 优先级：P0（高于审计原列 P1）
 - 临时概念：Editor 承载产品层扩展，但扩展点仍为 crate 内部闭枚举；
 - 证据：
-  - [domain.rs:113-118](../../../novadraw-editor/src/domain.rs) `ActiveTool<A>`
+  - [domain.rs:113-118](../../../crates/novadraw-editor/src/domain.rs) `ActiveTool<A>`
     为 crate 私有 4 变体；
-  - [request/mod.rs:548-561](../../../novadraw-editor/src/request/mod.rs)
+  - [request/mod.rs:548-561](../../../crates/novadraw-editor/src/request/mod.rs)
     `EditorRequest` 6 变体闭集；
-  - [feedback/mod.rs:41-52](../../../novadraw-editor/src/feedback/mod.rs)
+  - [feedback/mod.rs:41-52](../../../crates/novadraw-editor/src/feedback/mod.rs)
     `HandleRole` 5 变体闭集；
   - 全仓无 `Tool<A> trait`、`ToolContext`、`RequestKey<T>`、`HandleActionKey<T>`；
 - 长期方向：
@@ -177,9 +177,9 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 临时概念：Part / Connection / Overlay 的创建依次调用 Figure、anchor、
   connection state、PartTree、registry、behavior、policy，失败再手工逆操作；
 - 证据：
-  - [viewer/projection.rs:446-477](../../../novadraw-editor/src/viewer/projection.rs)
+  - [viewer/projection.rs:446-477](../../../crates/novadraw-editor/src/viewer/projection.rs)
     连接发布靠 `let _ = runtime.remove_connection_anchor(...)` 逐步手工回滚；
-  - [viewer/mod.rs:1837-1867](../../../novadraw-editor/src/viewer/mod.rs)
+  - [viewer/mod.rs:1837-1867](../../../crates/novadraw-editor/src/viewer/mod.rs)
     `remove_overlay_visual` / `remove_overlay_visuals` 直接写 registry，
     失败即 `faulted=true`；
   - 全仓无 `OverlayBatch` / `PartProjectionPlan` / `ConnectionProjectionPlan`
@@ -198,20 +198,20 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 临时概念：faulted、幂等未变化、缺失身份与扩展 panic 被折叠为同一个 `bool` /
   `None`；
 - 证据：
-  - [animation/service.rs:1493](../../../novadraw/src/animation/service.rs)
+  - [animation/service.rs:1493](../../../crates/novadraw/src/animation/service.rs)
     `AnimationMut::set_mode(..) -> bool` 把 `faulted` 与"幂等未变化"折叠；
     周边 `set_surface_suspended / process_behaviors` 同模式；
-  - [inspector/src/lib.rs:167-192](../../../novadraw-inspector/src/lib.rs)
+  - [inspector/src/lib.rs:167-192](../../../crates/novadraw-inspector/src/lib.rs)
     `events()` / `clear_events()` / `InspectorObserver::observed` 对锁 poison
     静默吞错，无结构化 fault / detach token；
-  - [connection_service.rs:15-93](../../../novadraw/src/runtime/runtime/connection_service.rs)
+  - [connection_service.rs:15-93](../../../crates/novadraw/src/runtime/runtime/connection_service.rs)
     `register_*` / `try_register_*` 双入口仍存在，前者在 faulted 时
     `.expect(..)` panic；
-  - [command/mod.rs:14-45](../../../novadraw-editor/src/command/mod.rs)
+  - [command/mod.rs:14-45](../../../crates/novadraw-editor/src/command/mod.rs)
     `CommandError { message: String }` 与 `CommandStackError::Rejected/Panicked
     { label: String }` 丢失 error source；panic payload 直接丢弃；
-  - [figure/label.rs:L518](../../../novadraw/src/figure/label.rs)、
-    [figure/text_flow.rs:L619](../../../novadraw/src/figure/text_flow.rs)
+  - [figure/label.rs:L518](../../../crates/novadraw/src/figure/label.rs)、
+    [figure/text_flow.rs:L619](../../../crates/novadraw/src/figure/text_flow.rs)
     以 `source: &str` 传入；
 - 长期方向：
   - `register_*` 单入口（fallible），废弃 `try_register_*` 别名；
@@ -226,7 +226,7 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 优先级：P2
 - 临时概念：overlay registry 的实现细节被 crate 根 re-export，变成稳定公开面；
 - 证据：
-  - [novadraw-editor/src/lib.rs:38](../../../novadraw-editor/src/lib.rs) 把
+  - [crates/novadraw-editor/src/lib.rs:38](../../../crates/novadraw-editor/src/lib.rs) 把
     `FeedbackId`、`HandleId`、`VisualOwner`（含公开 `Handle { id, owner, role }`
     字段）re-export 到 crate 根；
   - `InteractionRevision`、`BendpointHandleSite` 等交互内部数据同理随 `pub use`
@@ -302,7 +302,7 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 - 本审计基于 `d0da529` 和 2026-10-09 工作区静态证据；
 - 未执行 GPU、窗口、Web、性能或 full workspace 门禁；
 - 未声称上述问题导致任何现有运行期功能回归；
-- Runtime 公开方法计数通过 `rg '^    pub fn ' novadraw/src/runtime/runtime.rs`
+- Runtime 公开方法计数通过 `rg '^    pub fn ' crates/novadraw/src/runtime/runtime.rs`
   在 `impl Runtime` 范围内统计得到；拆分子 impl 的方法数通过同样方式对
   `runtime/runtime/connection_service.rs`、
   `runtime/runtime/frame_resource.rs`、

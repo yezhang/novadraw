@@ -63,7 +63,7 @@ facade 转发和内部协议公开化。
 
 - `novadraw-scene/src/graph/mod.rs`：约 6,400 行；
 - `novadraw-scene/src/runtime/runtime.rs`：约 6,100 行；
-- `novadraw-editor/src/viewer/mod.rs`：约 2,800 行。
+- `crates/novadraw-editor/src/viewer/mod.rs`：约 2,800 行。
 
 建议保持所有权不变，只按职责拆分内部模块：
 

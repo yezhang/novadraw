@@ -57,7 +57,7 @@ M1-M10 的 demo 基线已完成；本文维护回归覆盖，不是当前工作�
   应用探针
 - 单个契约直接运行对应 `cargo test -p <crate> --test <target>`
 - 最终 workspace 门禁直接运行 fmt、Clippy 与 test
-- 当前命令集合见 [`../../verification/README.md`](../../verification/README.md)
+- 当前命令集合见 [`../../verification/README.md`](../../tests/README.md)
 
 ### 性能采证
 
@@ -69,7 +69,7 @@ input-to-present。旧 30/60fps 建议不作为当前未完成门禁；帧预算
 
 - M3 paint/hit-test 一致性：同一 border-inset clientArea 同时约束绘制裁剪、hit-test descent 和 mouse event target
 - M5 draw2d 反向等价：本项目 6 布局的输出与 g2 同输入下的 `bounds` 结果**位级一致**或在 ±1px 容差内
-- 路径：`novadraw/tests/` + `benchmarks/`
+- 路径：`crates/novadraw/tests/` + `benchmarks/`
 
 ### 阻塞收口规则
 

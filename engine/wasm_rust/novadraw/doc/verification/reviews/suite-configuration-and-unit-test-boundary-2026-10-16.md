@@ -30,7 +30,7 @@ suite ID，不必复制容易漂移的命令序列。
 
 ## 当前实现
 
-评估时的 `verification/suites.toml` 包含 106 个 command、
+评估时的 `tests/suites.toml` 包含 106 个 command、
 2 个 profile 和 59 个 suite。suite 类型分布为：
 
 | 类型 | 数量 | 主要用途 |
@@ -65,9 +65,9 @@ commands = [
   "test.p2-s07-layout-query-internal",
 ]
 paths = [
-  "novadraw/src/graph/layout_measurement.rs",
-  "novadraw/src/layout",
-  "novadraw/tests/p2_query_failure_semantics.rs",
+  "crates/novadraw/src/graph/layout_measurement.rs",
+  "crates/novadraw/src/layout",
+  "crates/novadraw/tests/p2_query_failure_semantics.rs",
 ]
 documents = [
   "doc/adr/adr-038-query-identity-and-failure-semantics.md",
@@ -100,7 +100,7 @@ documents = [
 
 每次运行 xtask 都先完成以下步骤：
 
-1. 从 `verification/suites.toml` 反序列化 manifest；
+1. 从 `tests/suites.toml` 反序列化 manifest；
 2. 拒绝未知字段和不支持的 schema version；
 3. 校验 command、profile 和 suite ID；
 4. 要求 `quick`、`full` profile 存在；

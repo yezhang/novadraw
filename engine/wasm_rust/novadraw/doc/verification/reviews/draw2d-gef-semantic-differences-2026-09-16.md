@@ -46,23 +46,23 @@ P1 表示需优先修复，不代表所有平台、所有输入都会触发。�
 | F10 | 首次退化route被Locator拒绝后，观测依赖未保存；移动owner也不再自动恢复 | connection/runtime.rs:650–658（scene） | 静态；10/10；G4-F1 |
 | F11 | 同组A→B/B→A两条Fan连接，序号与法向双翻转，折线完全重合 | connection/router.rs:428–436（scene） | 数值代入；10/10；G4-F2 |
 | F12 | Connection换到平移父容器后absolute bendpoint未转换或拒绝，端点不动而折点跳跃 | runtime/runtime.rs:1638–1643（scene） | 静态；10/10；G4-F3 |
-| F13 | root已activate、child创建失败；contents未提交，Viewer Drop漏deactivate root | novadraw-editor/src/viewer/mod.rs:2691–2695 | 执行；10/10；G5-F01 |
-| F14 | E条边顺序不变的属性refresh仍逐边复制/扫描全layer，产生Θ(E²)工作量 | novadraw-editor/src/viewer/mod.rs:2174–2181 | 调用链计数；10/10；G5-F02；无耗时基准 |
-| F15 | refresh_visuals改几何后panic，外层捕获时Viewer仍未fault，通知已drain | novadraw-editor/src/viewer/mod.rs:1768–1779 | 执行；10/10；G5-F03 |
-| F16 | Policy::target返回另一有效Part，命令与反馈仍走source policy/host | novadraw-editor/src/viewer/mod.rs:1351–1355 | 执行；10/10；G6-F1；后续已关闭 |
+| F13 | root已activate、child创建失败；contents未提交，Viewer Drop漏deactivate root | crates/novadraw-editor/src/viewer/mod.rs:2691–2695 | 执行；10/10；G5-F01 |
+| F14 | E条边顺序不变的属性refresh仍逐边复制/扫描全layer，产生Θ(E²)工作量 | crates/novadraw-editor/src/viewer/mod.rs:2174–2181 | 调用链计数；10/10；G5-F02；无耗时基准 |
+| F15 | refresh_visuals改几何后panic，外层捕获时Viewer仍未fault，通知已drain | crates/novadraw-editor/src/viewer/mod.rs:1768–1779 | 执行；10/10；G5-F03 |
+| F16 | Policy::target返回另一有效Part，命令与反馈仍走source policy/host | crates/novadraw-editor/src/viewer/mod.rs:1351–1355 | 执行；10/10；G6-F1；后续已关闭 |
 | F17 | Web wheel中Scroll/Zoom分支新增DispatchOutcome，调用match未弃值，E0308 | apps/web/web-validation/src/lib.rs:950–953 | web.build退出101；10/10；后续已关闭 |
 
 上表“scene”统一指 `novadraw-scene/src/`。G1–G6原报告链接集中于
 [映射表证据索引](draw2d-gef-semantic-mapping-2026-09-16.md#阅读方法与证据)；
 包含每项期望、实测/推导、直接调用方、官方来源、修复方向及缺失用例。
 最终跨组核对见
-[cross-group-review.md](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/cross-group-review.md)。
+[cross-group-review.md](../evidence/draw2d-gef-semantic-audit-2026-09-16/cross-group-review.md)。
 
 ### 运行反例
 
-[事件探针](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/event-probe.log)
+[事件探针](../evidence/draw2d-gef-semantic-audit-2026-09-16/event-probe.log)
 证明 geometric hover 与实际事件目标不同会产生错误enter序列。
-[Editor探针](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/editor-probe.log)
+[Editor探针](../evidence/draw2d-gef-semantic-audit-2026-09-16/editor-probe.log)
 记录：
 
 ```text
@@ -125,10 +125,10 @@ O(Σd²)，连接逐条排序/resolve可为O(E²)；Locator逐连接扫描全部
 | 性能benchmark/极端树深/外部完整工具 | 未执行 | 复杂度和API分析不能冒充这些验证 |
 
 日志汇总见
-[additional-checks.json](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/additional-checks.json)、
-[workspace-quality.log](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/workspace-quality.log)。
+[additional-checks.json](../evidence/draw2d-gef-semantic-audit-2026-09-16/additional-checks.json)、
+[workspace-quality.log](../evidence/draw2d-gef-semantic-audit-2026-09-16/workspace-quality.log)。
 最终文档检查与恢复时源码变化另见
-[delivery-checks.json](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/delivery-checks.json)。
+[delivery-checks.json](../evidence/draw2d-gef-semantic-audit-2026-09-16/delivery-checks.json)。
 
 本次交付只新增审计文档及证据，不修改运行时或测试，不替并行整改作关闭承诺。
 原始分组报告与报告中的“verified”引用是审计时账本事实，不应覆盖当前整改状态。

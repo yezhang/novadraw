@@ -155,8 +155,8 @@ diff 检查。结果在本节末尾登记。来源测试只验证 25 入口、�
 
 本轮没有新跑 25 个入口的窗口截图，没有运行官方 Java 或进行跨显示器 DPI 验收。
 既有代表性 Native 图像与 Tree 的 GPU 像素记录只按其实际范围使用：
-[图布局](../../../verification/evidence/adr043/implementation.md)、
-[连接/Path/SimpleTree 等](../../../verification/evidence/official-examples-2026-10-23/implementation.md)、
+[图布局](../evidence/adr043/implementation.md)、
+[连接/Path/SimpleTree 等](../evidence/official-examples-2026-10-23/implementation.md)、
 [Thumbnail](k07-4-thumbnail-evidence-2026-10-23.md)、
 [双 Canvas 背景](k07-6-inherit-background-evidence-2026-10-23.md)、
 [Tree](tree-layout-presentation-implementation-2026-10-26.md)。

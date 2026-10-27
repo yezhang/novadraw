@@ -226,12 +226,12 @@ LayoutManager 的子查询也进入该会话，各自请求 preferred 或 minimu
 宿主通过 `RuntimeFrames::set_preparation_budget` 设置后续完整稳定化的有限额度；
 默认额度不变，producer 和 solver 只能累计消耗，不能在反馈轮次之间补充额度。
 实现见
-[`figure/preparation/budget.rs`](../../../novadraw/src/figure/preparation/budget.rs)。
+[`figure/preparation/budget.rs`](../../../crates/novadraw/src/figure/preparation/budget.rs)。
 
 错误类型位于
-[`figure/preparation/measurement.rs`](../../../novadraw/src/figure/preparation/measurement.rs)；
+[`figure/preparation/measurement.rs`](../../../crates/novadraw/src/figure/preparation/measurement.rs)；
 外部消费者反例见
-[`p2_preparation_measurement_contract.rs`](../../../novadraw/tests/p2_preparation_measurement_contract.rs)。
+[`p2_preparation_measurement_contract.rs`](../../../crates/novadraw/tests/p2_preparation_measurement_contract.rs)。
 
 ### preparation 快照与路由发布
 
@@ -263,7 +263,7 @@ LayoutManager 子查询和缓存保留传递观察，遍历使用同一次稳定
 改源或改绑定后保留当前错误和观察，旧路线不能恢复为 resolved。
 尚无成功记录的首帧失败保留重试状态，普通路由失败通道保持原有语义。
 外部消费者验证见
-[`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)。
+[`p2_prepared_scene_routing_contract.rs`](../../../crates/novadraw/tests/p2_prepared_scene_routing_contract.rs)。
 
 ### 图布局消费同一候选
 
@@ -295,9 +295,9 @@ LayoutManager 保留调用者的查询范围，preparation 回调则只读取自
 完整前缀；逐项输入核对和有限预算仍然有效。
 文字交互读取同一不可变 presentation；修改文字视口 offset 后，Editor 先完成
 Runtime 稳定化，再读取光标和选区几何，避免把新 offset 与旧布局混用。
-实现见 [`layout/graph/preparation.rs`](../../../novadraw/src/layout/graph/preparation.rs)
-与 [`layout/graph/projection.rs`](../../../novadraw/src/layout/graph/projection.rs)。
-验证见 [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)，
+实现见 [`layout/graph/preparation.rs`](../../../crates/novadraw/src/layout/graph/preparation.rs)
+与 [`layout/graph/projection.rs`](../../../crates/novadraw/src/layout/graph/projection.rs)。
+验证见 [`graph_projection_contract.rs`](../../../crates/novadraw/tests/graph_projection_contract.rs)，
 覆盖 52 个官方输入方向组合、外部非分层算法、动态 EAST 测量、振荡、失败恢复
 和 tracked viewport 测量/滚动。真实 Label、边框、箭头与宿主菜单切换见
 [`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。

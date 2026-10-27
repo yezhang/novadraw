@@ -19,7 +19,7 @@
 基线含同样的实例统计计时，恢复材料保存在
 `target/verification/long-text/baseline/`，
 包括二进制、HEAD dirty patch、未跟踪源码、字体散列与 NDJSON。
-采样脚本为 `scripts/textflow_performance.py`，使用整数单调纳秒与 nearest-rank 分位数。
+采样脚本为 `tools/scripts/textflow_performance.py`，使用整数单调纳秒与 nearest-rank 分位数。
 完整采样保存在 `target/verification/long-text/comparison/`。
 每版运行 5 个会话，每会话 20 次预热、200 次 fresh Runtime 样本，
 另有 40 个独立新进程；合计每版 1000 个有效热样本和 200 个新进程样本。
@@ -522,7 +522,7 @@ styled layout 平均为 32.792→32.809 ms，追加 shaping 均为 2 次。
 预算耗尽仍返回失败。
 
 优化前源码在本轮修改前完整冻结，优化后源码从该归档恢复，
-只替换 `novadraw/src/figure/flow/snapshot.rs`。
+只替换 `crates/novadraw/src/figure/flow/snapshot.rs`。
 两份源码使用独立 Cargo target 和相同 `--locked --release` 构建。
 恢复源码、二进制、manifest 和唯一源码差异保存在
 `target/verification/long-text/phase4/`，不会把并行编辑算入本轮收益。

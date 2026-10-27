@@ -34,10 +34,10 @@
 |---|---|---|---|
 | `design/architecture/public-api-experience-proposal.md` | 已批准迁移完成，正文仍推荐 root/prelude、`runtime.label`、具体 facade，并称 capability/session 为后续 | 将旧综合提案全文归档；先将仍有效命名、角色和组合原则提炼到规范公共 API 专题，未完成项映射 S07–S09 | ADR-025/031/032/033/035；新公共 API 专题 |
 | `migration/draw2d-gef-semantic-migration-plan-2026-09-15.md` | 仍称待评审；建议内置 enum 加扩展 envelope；仍要求 G6 产品毕业，已被后续决策替代 | 归档历史实施提案；保留方法论通过通用迁移指南承载 | parity、P2 backlog、ADR-034、Editor roadmap |
-| `verification/reviews/draw2d-gef-migration-plan-2026-09-16.md` | “当前执行顺序”停在 09-17，含已关闭缺陷、旧 Request 方案及引擎 G6 门禁 | 归档历史调度方案，正文不改写当时判断；审计证据关系继续可追溯 | 语义整改完成页、审计执行清单、P2 backlog |
+| `tests/reviews/draw2d-gef-migration-plan-2026-09-16.md` | “当前执行顺序”停在 09-17，含已关闭缺陷、旧 Request 方案及引擎 G6 门禁 | 归档历史调度方案，正文不改写当时判断；审计证据关系继续可追溯 | 语义整改完成页、审计执行清单、P2 backlog |
 | `roadmap/editor/implementation-plan.md` | G0–G5 全部完成，仍是实施步骤；与现行 roadmap 和完成记录重复 | 归档已完成实施计划；把仍有效 crate 拆分判据移入架构边界规范 | `roadmap/editor/00-index.md` 与 Editor 设计 |
 | `adr/adr-021-public-facade-and-feature-boundary.md` | root/prelude、聚合 Editor、backend features 等主要决策都已被 023/031/035 替代，正文仍完整推荐旧结构 | 参照 ADR-013：归档失效全文，原位置保留替代关系短指引；少量仍有效原则由当前专题承接 | ADR-023/031/035 |
-| `verification/reviews/gef-readiness-analysis-2026-09-13.md` | 就绪分析是 G0 前的历史判断；总索引仍将其列为开发 Editor 的第一步 | 退出当前开发阅读路径，留在历史验证索引即可；无需为此移动全部证据 | ADR-015、Editor 架构、ADR-032/034 |
+| `tests/reviews/gef-readiness-analysis-2026-09-13.md` | 就绪分析是 G0 前的历史判断；总索引仍将其列为开发 Editor 的第一步 | 退出当前开发阅读路径，留在历史验证索引即可；无需为此移动全部证据 | ADR-015、Editor 架构、ADR-032/034 |
 
 这些判断由旧正文与现行 ADR/roadmap 的直接冲突支持，而不是按文件年龄推断。
 
@@ -47,8 +47,8 @@
 |---|---|---|
 | `design/rendering/display-list-protocol.md` | 建议与实验计划合并为一个休眠 proposal，移出默认架构阅读路径；无当前消费者时可归档 | 当前门槛合理；wire format、chunk patch 与远程传输是候选能力，不能宣称其被 RecordedDrawing 完整替代 |
 | `design/rendering/displaylist-implementation-plan.md` | 随上述 proposal 合并或归档 | 无活跃实验就不保留一个类似执行入口的计划；恢复时先补消费者、资源和 benchmark |
-| `verification/plans/p2-text-direct-edit.md` | 完成矩阵应保留为回归依据；移至长期契约验证矩阵分类，或归档原计划后提炼矩阵 | 计划已 complete，但 IME、长文本、caret 等验收条件仍有价值，不能只因完成而删除 |
-| `verification/reviews/*-completion-*`、既有像素和性能报告 | 保留在 verification，以基线标记隔离历史事实 | 完成证据不是过期设计；物理移到 archive 会扩大 manifest 和链接迁移成本 |
+| `tests/plans/p2-text-direct-edit.md` | 完成矩阵应保留为回归依据；移至长期契约验证矩阵分类，或归档原计划后提炼矩阵 | 计划已 complete，但 IME、长文本、caret 等验收条件仍有价值，不能只因完成而删除 |
+| `tests/reviews/*-completion-*`、既有像素和性能报告 | 保留在 verification，以基线标记隔离历史事实 | 完成证据不是过期设计；物理移到 archive 会扩大 manifest 和链接迁移成本 |
 | `reference/gef/core-principles.md` | 保留外部分析，移除或迁出第 8 节旧 Novadraw 映射 | 该节仍把 EditPart 映射为 SceneNode、Policy 映射为 OperationHandler，污染外部事实与项目设计边界 |
 | `roadmap/product-deliverables.md`、`demo-matrix.md` | 保留既定 M1–M10 分母，明确基线适用范围 | 不作为当前能力总分母；后续 delta 的能力与证据继续由 parity/backlog 维护 |
 | `strategy/*`、`migration/java-rust/*` | 保留在各自分类，降低默认架构检索权重 | 产品方向和通用迁移方法不直接约束运行时设计；本次没有足够依据逐篇判定失效 |

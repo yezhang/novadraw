@@ -345,7 +345,7 @@ snapshot；TC-01 随后将 `NdCanvas` 完全移出公共表面。
 API diff 必须成为 docs/quick gate 的独立报告，0.1 breaking migration 不保留转发壳。
 
 本项已关闭：root/prelude 已收窄，workspace 消费者改用命名模块；
-`verification/public-api/novadraw-symbols.txt` 分开冻结 root、prelude、领域模块与
+`tests/public-api/novadraw-symbols.txt` 分开冻结 root、prelude、领域模块与
 `advanced`，`api.surface` 已进入 quick/full gate。
 
 ### 3.14 TC-14：热路径日志仍存在

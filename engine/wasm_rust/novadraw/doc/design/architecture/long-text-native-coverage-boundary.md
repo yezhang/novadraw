@@ -33,9 +33,9 @@ Vello 的 fine shader 使用像素内的解析面积积分或 MSAA 采样。
 
 源码定位：
 
-- 本仓库 `novadraw-backend-vello/src/lib.rs`：`append_glyph_run`、
+- 本仓库 `crates/novadraw-backend-vello/src/lib.rs`：`append_glyph_run`、
   `SceneEncoder::transform_to_affine`、`VelloRenderer::capabilities`。
-- 本仓库 `novadraw-backend-vello/src/glyph_outline.rs`：未 hint 的曲线提取及不可用路径。
+- 本仓库 `crates/novadraw-backend-vello/src/glyph_outline.rs`：未 hint 的曲线提取及不可用路径。
 - Vello 参考源码 `vello_encoding/src/glyph_cache.rs`：字体、size、变量坐标和 hint policy。
 - Vello 参考源码 `vello_shaders/shader/fine.wgsl`：像素内面积积分与采样。
 

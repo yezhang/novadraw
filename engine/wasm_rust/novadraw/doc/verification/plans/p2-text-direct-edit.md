@@ -12,7 +12,7 @@
 - [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)
 
 本页定义完成证据。P2-T02 与 P2-E02a 的实际 command 和 suite 已注册到
-`verification/README.md`；P2-E02b 不注册不可执行的占位门禁。
+`tests/README.md`；P2-E02b 不注册不可执行的占位门禁。
 
 ## 1. 计划 Suite
 

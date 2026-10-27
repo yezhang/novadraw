@@ -16,7 +16,7 @@
 透明背景，Vello `AaConfig::Area`。没有窗口或 Java 运行步骤。
 
 实验源码：
-[shape_aa_feasibility.rs](../../../novadraw-backend-vello/examples/shape_aa_feasibility.rs)。
+[shape_aa_feasibility.rs](../../../crates/novadraw-backend-vello/examples/shape_aa_feasibility.rs)。
 
 ```sh
 cargo run -p novadraw-backend-vello --example shape_aa_feasibility

@@ -53,7 +53,7 @@ reset 先接回 CPU lease，再释放旧 token，新 session Snapshot 保留仍�
 
 `cargo clippy -p novadraw --lib --test p2_scene_view -- -D warnings`：通过，
 日志为 `target/verification/k07-3-clippy-final.log`。
-`scripts/check_architecture.sh --update-api`：Native/Wasm 公开表面通过，
+`tools/scripts/check_architecture.sh --update-api`：Native/Wasm 公开表面通过，
 Runtime 28/28、Kurbo 0.13.1，日志为 `target/verification/k07-3-api.log`。
 `cargo xtask docs`：357 个 Markdown 文件和当前引用通过，
 日志为 `target/verification/k07-3-docs.log`。`git diff --check`：通过。

@@ -12,7 +12,7 @@
 [API 与架构 Review 2026-10-09](../verification/reviews/api-architecture-review-2026-10-09.md)
 发现项 R01：`novadraw::Runtime` 已成为跨领域的大型公开对象。
 
-- [runtime.rs](../../novadraw/src/runtime/runtime.rs) 单文件超过 6000 行；
+- [runtime.rs](../../crates/novadraw/src/runtime/runtime.rs) 单文件超过 6000 行；
 - Runtime 的直接和拆分 `impl` 合计承载约 248 个公开方法；
 - frame、resource、connection、input、focus、tooltip、accessibility、animation、
   observation、text 以及具体 Figure mutation 全部平铺在同一类型上。

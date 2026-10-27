@@ -50,7 +50,7 @@ unused-must-use warnings；本报告不声称库级测试代码全量 Clippy 无
 通知队列定向复核：2 项通过。生命周期 panic 定向复核：1 项通过；
 source 结构释放后先发布终止，之后的第三方 detach callback panic 不会丢失 `Closed`。
 
-`scripts/check_architecture.sh --update-api`：通过 Native/Wasm 公开表面、
+`tools/scripts/check_architecture.sh --update-api`：通过 Native/Wasm 公开表面、
 依赖与热路径检查，Kurbo 0.13.1，Runtime 28/28。ADR-033 的预算仅按 ADR-044
 为 `scenes()` 组合入口增加一项，业务方法仍位于短借用 facade。
 日志为 `target/verification/k07/api-surface.log`。

@@ -58,7 +58,7 @@ Rust 教程删除重复且无效的 pseudo implementation，保留默认方法�
 
 ## 原始证据
 
-既有 `verification/evidence/`、此前 archive 原稿和 SHA-256 manifest 保持不变。
+既有 `doc/verification/evidence/`、此前 archive 原稿和 SHA-256 manifest 保持不变。
 退出当前使用的方案及归并前参考/教程保存逐字快照，见
 [原稿与替代映射](../../archive/knowledge-revision-2026-10-19/README.md)。
 历史 review 仅修复必要链接；原判断、数字及通过/失败结果不重写。

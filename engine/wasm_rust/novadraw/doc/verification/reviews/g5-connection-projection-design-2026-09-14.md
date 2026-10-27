@@ -121,7 +121,7 @@ cargo test --workspace: PASS
 git diff --check: PASS
 ```
 
-`novadraw-editor/tests/g5_connection_projection_contract.rs` 共 17 项，覆盖初始投影、
+`crates/novadraw-editor/tests/g5_connection_projection_contract.rs` 共 17 项，覆盖初始投影、
 受检身份、self-loop、确定顺序、增量增删、reconnect 身份保持、endpoint geometry
 reroute、revision fence、结构错误、可恢复 unresolved route、失败回滚和
 connection-first drop。

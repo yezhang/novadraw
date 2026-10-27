@@ -65,7 +65,7 @@ cargo test --workspace: PASS
 git diff --check: PASS
 ```
 
-`novadraw-editor/tests/g4_editing_loop_contract.rs` 共 7 项，覆盖：
+`crates/novadraw-editor/tests/g4_editing_loop_contract.rs` 共 7 项，覆盖：
 
 - typed bounds transform 与 revision；
 - deterministic multi-part Compound move；

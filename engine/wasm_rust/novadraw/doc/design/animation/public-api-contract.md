@@ -335,5 +335,5 @@ completion callback。需要业务回调时，由 Host 在提交后稳定边界�
 9. active set 为空时 Runtime 不扫描树、不请求 redraw、不提交空帧；
 10. Disabled/ReducedMotion/Enabled 模式切换的原子清理。
 
-当前执行入口见 [验证定义](../../../verification/README.md)；
+当前执行入口见 [验证定义](../../../tests/README.md)；
 M01 各阶段实现和平台毕业状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。

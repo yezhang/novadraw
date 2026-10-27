@@ -80,8 +80,8 @@ Fontique 的 `system` feature 在 macOS 可以包含 CoreText 相关依赖，在
 当前文字集合正在自动枚举这些系统字体。编译进依赖与运行时使用某项能力要分别确认。
 
 源码依据：
-[TextSystem](../../../novadraw/src/text/system.rs)；
-[ParleyTextEngine](../../../novadraw/src/render/text.rs)，
+[TextSystem](../../../crates/novadraw/src/text/system.rs)；
+[ParleyTextEngine](../../../crates/novadraw/src/render/text.rs)，
 `new`、`register_font`、`empty_font_context` 与 `resolved_faces`。
 
 ## 文本分析由 Swash 与 Parley 内部代码完成
@@ -154,9 +154,9 @@ Parley 直接使用 `Skrifa 0.37.0` 读取字体实例和行度量；它与后�
 空格可以推进位置而没有轮廓；斜体和组合符可以超出 advance；
 描边与滤波还会扩大实际绘制包络。
 
-源码依据：[布局构建与转换](../../../novadraw/src/render/text.rs)，
+源码依据：[布局构建与转换](../../../crates/novadraw/src/render/text.rs)，
 `layout_styled`、`break_all_lines`、`align`、`PositionedGlyph` 和行／cluster 适配；
-[MeasureContext](../../../novadraw/src/text/system.rs)。
+[MeasureContext](../../../crates/novadraw/src/text/system.rs)。
 
 ## 可选轮廓准备发生在绘制录制之前
 
@@ -180,8 +180,8 @@ Parley 直接使用 `Skrifa 0.37.0` 读取字体实例和行度量；它与后�
 空轮廓是合法结果；缺 glyph、坏字体、不支持轮廓格式和资源版本不匹配有不同失败
 含义。自研 provider 要维持这个区别，而不是把所有异常都转换成一条空路径。
 
-源码依据：[轮廓服务](../../../novadraw/src/text/outline.rs)和
-[准备与缓存](../../../novadraw/src/text/outline/preparation.rs)，
+源码依据：[轮廓服务](../../../crates/novadraw/src/text/outline.rs)和
+[准备与缓存](../../../crates/novadraw/src/text/outline/preparation.rs)，
 `SkrifaOutlineProvider::outline`、`OutlineCache::prepare`、
 `GlyphGeometryKey`、`GlyphInstance`、`OutlineTextEngine`。
 
@@ -206,8 +206,8 @@ Canvas 的 `draw_glyph_runs` 有两条现有分支：
 录制成功表示命令准备成功，不能据此认定 GPU 已完成或窗口已呈现。
 场景资源与命令进入 `RenderSubmission` 后，还需要后端结果与 Runtime 确认闭合。
 
-源码依据：[Graphics 的文字预检](../../../novadraw/src/graphics/context.rs)，
-`text`；[Canvas 的两条录制分支](../../../novadraw/src/render/context.rs)，
+源码依据：[Graphics 的文字预检](../../../crates/novadraw/src/graphics/context.rs)，
+`text`；[Canvas 的两条录制分支](../../../crates/novadraw/src/render/context.rs)，
 `draw_glyph_runs`。阶段与所有权合同见 ADR-025、ADR-031。
 
 ## Vello Scene 接收定位字形或普通路径
@@ -240,9 +240,9 @@ scene
 这解释了后端 manifest 中显式的 Skrifa 依赖：它有直接调用用途，
 不是只为声明 Vello 已经间接使用的库。
 
-源码依据：[Vello 后端](../../../novadraw-backend-vello/src/lib.rs)，
+源码依据：[Vello 后端](../../../crates/novadraw-backend-vello/src/lib.rs)，
 `SceneEncoder`、`append_glyph_run`；
-[虚线描边轮廓提取](../../../novadraw-backend-vello/src/glyph_outline.rs)。
+[虚线描边轮廓提取](../../../crates/novadraw-backend-vello/src/glyph_outline.rs)。
 
 ## 原生字形在 CPU 解析成缓存的矢量编码
 
@@ -347,10 +347,10 @@ Core 准备的提交带有 session／frame 身份。后端返回结果后，Runt
 GPU 命令已提交和窗口已呈现是不同阶段，报告不将其合并成一个“渲染完成”事件。
 准确协议见现行 Runtime 驱动与录制／发布 ADR。
 
-源码依据：[Runtime](../../../novadraw/src/runtime/runtime.rs)及其
+源码依据：[Runtime](../../../crates/novadraw/src/runtime/runtime.rs)及其
 `frame_submission` 模块；
-[Vello surface 路径](../../../novadraw-backend-vello/src/lib.rs)；
-[离屏路径](../../../novadraw-backend-vello/src/texture.rs)；
+[Vello surface 路径](../../../crates/novadraw-backend-vello/src/lib.rs)；
+[离屏路径](../../../crates/novadraw-backend-vello/src/texture.rs)；
 平台 adapter manifest。
 
 ## 直接与间接依赖按消费者解释
@@ -573,21 +573,21 @@ Vello 内部扩展需要在转成通用路径之前保留字形的独立身份�
 
 - [Cargo.lock](../../../Cargo.lock)：
   锁定实际版本；不同版本在同一 workspace 中分别记录。
-- [Core manifest](../../../novadraw/Cargo.toml)、
-  [Vello 后端 manifest](../../../novadraw-backend-vello/Cargo.toml)：
+- [Core manifest](../../../crates/novadraw/Cargo.toml)、
+  [Vello 后端 manifest](../../../crates/novadraw-backend-vello/Cargo.toml)：
   直接依赖关系。
-- [render/text.rs](../../../novadraw/src/render/text.rs)：
+- [render/text.rs](../../../crates/novadraw/src/render/text.rs)：
   `ParleyTextEngine`、布局构建、glyph 坐标与交互几何、显式字体集合。
-- [text/system.rs](../../../novadraw/src/text/system.rs)、
-  [text/outline.rs](../../../novadraw/src/text/outline.rs)、
-  [outline/preparation.rs](../../../novadraw/src/text/outline/preparation.rs)：
+- [text/system.rs](../../../crates/novadraw/src/text/system.rs)、
+  [text/outline.rs](../../../crates/novadraw/src/text/outline.rs)、
+  [outline/preparation.rs](../../../crates/novadraw/src/text/outline/preparation.rs)：
   文字服务、受检中立轮廓与缓存。
-- [graphics/context.rs](../../../novadraw/src/graphics/context.rs)、
-  [render/context.rs](../../../novadraw/src/render/context.rs)：
+- [graphics/context.rs](../../../crates/novadraw/src/graphics/context.rs)、
+  [render/context.rs](../../../crates/novadraw/src/render/context.rs)：
   预检、保活和 glyph/path 录制分支。
-- [Vello 后端 lib.rs](../../../novadraw-backend-vello/src/lib.rs)、
-  [glyph_outline.rs](../../../novadraw-backend-vello/src/glyph_outline.rs)、
-  [texture.rs](../../../novadraw-backend-vello/src/texture.rs)：
+- [Vello 后端 lib.rs](../../../crates/novadraw-backend-vello/src/lib.rs)、
+  [glyph_outline.rs](../../../crates/novadraw-backend-vello/src/glyph_outline.rs)、
+  [texture.rs](../../../crates/novadraw-backend-vello/src/texture.rs)：
   字体桥接、虚线描边、抗锯齿配置和输出。
 
 依赖源码读取根目录为

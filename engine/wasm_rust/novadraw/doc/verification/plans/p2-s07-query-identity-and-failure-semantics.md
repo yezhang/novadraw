@@ -104,7 +104,7 @@ API snapshot、独立 consumer、workspace 调用点与 parity 受影响 family 
 - [Tree 与 Stable 切片记录](../reviews/p2-s07-tree-query-evidence-2026-10-16.md)。
 
 历史切片编排已执行通过，日志见
-[core.query-contracts](../../../verification/evidence/p2-s07-core-query-contracts-final.log)。
+[core.query-contracts](../evidence/p2-s07-core-query-contracts-final.log)。
 该 suite 已随命令体系简化退出当前入口；表中同名日志只标识执行时的证据。
 
 | 用例 | 实际 target / 断言 | 结果与证据 |
@@ -119,9 +119,9 @@ API snapshot、独立 consumer、workspace 调用点与 parity 受影响 family 
 | L04–05、L08、L12 | 外部 `QueryFailure` 与内部 `failed_candidate_publishes_no_geometry_notifications_or_damage`；候选前缀被丢弃、通知/damage 不出版、epoch 不晋升 | 通过，core.query-contracts 日志 |
 | L06 | `m5_layout_contract` 混合合法/非法 output 整批准入测试 | 既有原子性合同，最终 workspace 回归登记 |
 | L07 | 内部 `layout_constraint_type_and_unvalidated_freeform_are_not_absence`；constraint 错型、foreign container、Freeform Unvalidated | 通过，core.query-contracts 日志 |
-| L07 descriptor | `figure::capability::tests::malformed_descriptor_remains_a_type_error`；内部构造 erased 错型，公开 typed register 无法产生该状态 | [独立日志](../../../verification/evidence/p2-s07-capability-descriptor.log)通过，LayoutError::Capability 保留原错误 |
+| L07 descriptor | `figure::capability::tests::malformed_descriptor_remains_a_type_error`；内部构造 erased 错型，公开 typed register 无法产生该状态 | [独立日志](../evidence/p2-s07-capability-descriptor.log)通过，LayoutError::Capability 保留原错误 |
 | P01、F01 | 既有 Event committed-prefix 与 Runtime measurement/layout panic/fault 测试 | 保留 ADR-036 合同，最终 workspace 回归登记 |
-| P03–05 | 内部 Route adapter、`m9_connection_contract`、`p2_route_dependency_recovery`；失效指纹、失败观测、新绑定和旧 ID 拒绝 | 通过；[外部 adapter 恢复](../../../verification/evidence/p2-s07-external-route-recovery.log) 与 core.query-contracts 日志 |
+| P03–05 | 内部 Route adapter、`m9_connection_contract`、`p2_route_dependency_recovery`；失效指纹、失败观测、新绑定和旧 ID 拒绝 | 通过；[外部 adapter 恢复](../evidence/p2-s07-external-route-recovery.log) 与 core.query-contracts 日志 |
 
 maximum override 是既有外框上限合同，不新增 maximum 的 Border/container 投影
 callback；带 container projection 的对象查询无 maximum override 时，仍返回成功无上限。

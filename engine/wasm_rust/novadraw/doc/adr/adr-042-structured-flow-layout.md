@@ -131,7 +131,7 @@ Parley 0.7 的显式方向由适配层维护私有方向标记与原文偏移映
 内嵌盒产生负 leading 时，适配层统一修正行、glyph、盒与交互坐标，
 保留相邻文字的 descent，不把修正交给示例。
 独立消费者与失败反例见
-`novadraw/tests/p2_t03_styled_text_contract.rs`。
+`crates/novadraw/tests/p2_t03_styled_text_contract.rs`。
 
 通用 preparation 协议已增加 `PreparationScene` 和 `PreparedScene`。
 前者只读 preparing Figure 的冻结子树、解析样式和受检测量；
@@ -140,7 +140,7 @@ Runtime 先校验完整批次及输入 revision，再发布；非法 placement�
 输入 revision 漂移和错误的 parent-child 归属均保留旧 bounds 与旧快照。
 `FigurePresentation` 同时承载不可变领域数据与片段命中区域，片段空白不会阻止
 普通后代的输入遍历。独立外部消费者见
-`novadraw/tests/p2_scene_preparation_contract.rs`。
+`crates/novadraw/tests/p2_scene_preparation_contract.rs`。
 
 开放贡献协议已增加 `ContributionKey<P>`、payload trait 和实例 registry。
 标准 text/group/block/figure-box/fragment-border handler 与外部 contributor
@@ -158,7 +158,7 @@ scene 与文字引擎 generation 一起组成 revision。真实子树位置通�
 fragment border 通过同一贡献协议注册，首尾占位盒参与段落布局。
 边框收到来源、方向、owner style、分行矩形与首尾标记；需要 owner 字体测量
 的边框可在 preparation 阶段生成不可变 renderer，不在 paint 中重排。
-独立消费者见 `novadraw/tests/p2_t03_structured_flow_contract.rs`，
+独立消费者见 `crates/novadraw/tests/p2_t03_structured_flow_contract.rs`，
 覆盖来源身份、嵌套样式、共享 baseline、相邻与嵌套 margin、RTL 对齐、
 片段空白命中、二次测量、字体失效、来源迁移和非法边框指标拒绝。
 styled 输出另增加跨 style source range 的拒绝校验。
@@ -174,7 +174,7 @@ page/block 的普通 Border 通过正常边框 capability 接入；已解析的 
 flow 子节点发布内容尺寸，避免静态边框漏算和 owner 边框重复计入。
 `SetFlowBlockStyle` 支持受检更新。inline 边框跨 block 时只在全局首尾预留标记，
 仅含真实 Figure 盒的边框也参与布局。独立替代引擎见
-`novadraw/tests/p2_t03_external_flow_engine.rs`，自行构造 styled 输出和 interaction
+`crates/novadraw/tests/p2_t03_external_flow_engine.rs`，自行构造 styled 输出和 interaction
 provider，覆盖来源映射、绘制、命中、caret、selection 与跨节点视觉移动。
 
 内嵌子树反馈使用实例范围的派生检查点。失败时恢复旧 presentation、各节点几何、

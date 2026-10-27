@@ -26,7 +26,7 @@ callback 返回错误时，既有提交边界丢弃整轮未发布 LayoutOutput�
 ## 执行结果
 
 `core.p2-s07-layout-query` 通过：6 项外部 integration 测试、4 项 Core 内部测试。
-完整日志：[布局查询证据](../../../verification/evidence/p2-s07-layout-query.log)。
+完整日志：[布局查询证据](../evidence/p2-s07-layout-query.log)。
 
 | 矩阵范围 | 实际证据 | 覆盖边界 |
 |---|---|---|
@@ -40,7 +40,7 @@ M5 layout、结构化测量、深层 presentation 和原子 child insertion 的 
 这些回归证明既有几何组合顺序和合法布局行为，不能替代尚未执行的 S07 负测。
 
 workspace quick gate 通过，包含 Native/Web 编译与公共 API 边界检查：
-[执行日志](../../../verification/evidence/p2-s07-layout-quick.log)。
+[执行日志](../evidence/p2-s07-layout-quick.log)。
 本记录不关闭任何审计条目。
 
 ## 规范同步与剩余工作
@@ -57,7 +57,7 @@ S08/S09 未启动，受保护的递归渲染主循环未修改。
 ## 本轮补充验证
 
 命令体系调整后，S07 用例统一进入 `core.query-contracts`。本轮执行通过：
-[完整记录](../../../verification/evidence/p2-s07-core-query-contracts.log)。
+[完整记录](../evidence/p2-s07-core-query-contracts.log)。
 布局部分为 7 项外部测试和 6 项内部测试。
 
 新增 prepared 构造准入、prepared 与 Border 组合、Border baseline/尺寸溢出；

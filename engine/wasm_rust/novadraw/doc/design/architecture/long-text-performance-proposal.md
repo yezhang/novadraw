@@ -773,7 +773,7 @@ M1 Pro、release、原 Large 字体与尺寸的验收目标候选，尚未实测
 
 LT-00 必须先交付可执行基准驱动及数据 manifest，再评价上述 p95 目标。
 本节固定驱动合同。首批已建立 `textflow-perf` 和 `text.long-layout`，
-实际命令见 [Verification](../../../verification/README.md)；
+实际命令见 [Verification](../../../tests/README.md)；
 suite 在 `tools/xtask/src/main.rs` 登记，完整统计由独立脚本执行。
 当前 CPU 驱动的未覆盖场景和验收限制见实施记录；原临时探针不作为唯一复现工具。
 LT-00 完成前保留“待采证”，不以原有三次样本确认任何分位数目标通过。

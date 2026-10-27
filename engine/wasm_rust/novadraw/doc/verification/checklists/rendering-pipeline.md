@@ -28,7 +28,7 @@
 **目标**: 验证渲染命令格式定义正确
 
 ```rust
-// novadraw/src/render/context.rs 单元测试
+// crates/novadraw/src/render/context.rs 单元测试
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,7 +118,7 @@ impl MockRenderer {
 **目标**: 验证场景图遍历和变换累积
 
 ```rust
-// novadraw/src/graph/mod.rs 单元测试
+// crates/novadraw/src/graph/mod.rs 单元测试
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,7 +182,7 @@ mod tests {
 **目标**: 对接 Vello，完成端到端渲染
 
 ```rust
-// novadraw-backend-vello/src/lib.rs
+// crates/novadraw-backend-vello/src/lib.rs
 impl RendererTrait for VelloRenderer {
     fn render(&mut self, commands: &[RenderCommand]) {
         // 此时命令格式已验证，只需实现渲染

@@ -106,7 +106,7 @@ panic/prepare 拒绝变体分别由上述故障用例覆盖，不能静默跳过
 | S06 增量实施与内部登记断言 | `editor.p2-s06-failure-isolation` | Core 批量准入、Editor 私有生命周期/registry 用例、G2/G3/G4/G5 与独立 consumer 的统一入口 |
 | F03b/F03c 的 Native GPU 队列退出 | `editor.p2-s06-native-exit` | 真实 Winit/Vello 队列排空、旧 owner 释放、Snapshot + Full 接管及迟到 completion 拒绝；不代表 surface 呈现或 Web 异步队列验收 |
 
-具体 integration target 和跨工具 suite 见 `verification/README.md`。
+具体 integration target 和跨工具 suite 见 `tests/README.md`。
 实现时把新增用例纳入对应 target；仅在现有 suite 无法表达新 target 时修改 manifest。
 不预先注册空 suite，不把 baseline 或临时探针的 passed 当作整改通过。
 

@@ -39,7 +39,7 @@ book/
 构建入口：
 
 ```bash
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 脚本会分别生成用户书、深入理解书和贡献者书。

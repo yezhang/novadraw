@@ -146,6 +146,6 @@
 完整语义审计的固定基线见
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)，
 原始分组报告、日志和结构化结果见
-[`../../../verification/evidence/`](../../../verification/evidence/README.md)。
+[`../../../verification/evidence/`](../evidence/README.md)。
 P1 关闭进度见
 [`draw2d-gef-semantic-remediation-2026-09-16.md`](draw2d-gef-semantic-remediation-2026-09-16.md)。

@@ -224,13 +224,13 @@ index 和原因；结果信封已由 ADR-029 统一为 `RenderResult`。此错�
 
 | 当前入口 | 所需变更 |
 |---|---|
-| `novadraw/src/render/command.rs` | 重复 stroke 字段合并、受检值、ClipPath、能力集合 |
-| `novadraw/src/render/context.rs` | GraphicsState paint/stroke、原子 setter、命令快照 |
-| `novadraw/src/graphics.rs` | 专业值类型导出，不扩大 root |
-| `novadraw/src/render/traits.rs` | 能力集合检查、明确非法输入结果 |
-| `novadraw/src/runtime/runtime/frame_submission.rs` | 多能力预检，延续发布边界 |
+| `crates/novadraw/src/render/command.rs` | 重复 stroke 字段合并、受检值、ClipPath、能力集合 |
+| `crates/novadraw/src/render/context.rs` | GraphicsState paint/stroke、原子 setter、命令快照 |
+| `crates/novadraw/src/graphics.rs` | 专业值类型导出，不扩大 root |
+| `crates/novadraw/src/render/traits.rs` | 能力集合检查、明确非法输入结果 |
+| `crates/novadraw/src/runtime/runtime/frame_submission.rs` | 多能力预检，延续发布边界 |
 | PointList/Connection 样式与受控 editor | 实际 miter envelope 与原子失效 |
-| `novadraw-backend-vello/src/lib.rs` | paint/stroke lowering、混合 clip 重放与接收预检 |
+| `crates/novadraw-backend-vello/src/lib.rs` | paint/stroke lowering、混合 clip 重放与接收预检 |
 
 ## 9. XOR 的处置
 
@@ -245,7 +245,7 @@ GPU 场景不提供对目标设备像素进行读改写的 XOR 契约。Differen
 ## 10. 分步交付与验收
 
 以下是 P2-G01 内部切片，不另立 M/G 里程碑。suite 的实际命令和证据路径已在
-`verification/README.md` 登记；验证结果见独立验证记录。
+`tests/README.md` 登记；验证结果见独立验证记录。
 
 | 顺序 | 交付切片 | 毕业证据 |
 |---|---|---|

@@ -127,7 +127,7 @@ Effect 的连续移动、越权与后续非法操作拒绝、资源/几何拒绝
 - foreign/disposed/wrong type 返回结构化错误；
 - commit panic 后 Runtime faulted，后续 frame 返回 `FramePreparation::Error(Faulted)`。
 
-该用例已落地于 `novadraw/tests/d4_component_update.rs`。测试还验证保守更新实际
+该用例已落地于 `crates/novadraw/tests/d4_component_update.rs`。测试还验证保守更新实际
 提升 layout generation、产生非空 damage，且完整 Runtime 移动之外不存在可变
 Figure 逃逸。
 

@@ -54,8 +54,8 @@ K07-5 的公开领域为 `host`。`HostBackgroundRegistry` 由宿主拥有，使
 背景参与时完整录制 Canvas 并使用 Full damage；首批不承诺局部背景修复。
 后端必须声明 `RenderCapability::HostBackground` 并在资源接收前调用
 `RenderSubmission::validate_composition`。Vello surface、截图与离屏目标消费相同输入。
-Core 外部契约见 [`p2_host_background`](../../novadraw/tests/p2_host_background.rs)；
-GPU 像素反例见 [`host_background_pixels`](../../novadraw-backend-vello/tests/host_background_pixels.rs)。
+Core 外部契约见 [`p2_host_background`](../../crates/novadraw/tests/p2_host_background.rs)；
+GPU 像素反例见 [`host_background_pixels`](../../crates/novadraw-backend-vello/tests/host_background_pixels.rs)。
 官方消费者已通过 [K07-6](../verification/reviews/k07-6-inherit-background-evidence-2026-10-23.md)：
 宿主自定义 typed provider、双 Canvas Runtime、内容滚动与 Canvas 移动、
 背景独立变化/移除、DPI 修复、暂停恢复和 backend session reset 均有 Native 像素证据。

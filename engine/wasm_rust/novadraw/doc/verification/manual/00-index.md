@@ -3,7 +3,7 @@
 类型：`documentation-index`
 
 人工验收只补充窗口、GPU、浏览器和输入设备体验；自动命令统一由
-[`../../../verification/README.md`](../../../verification/README.md) 定义。
+[`../../../verification/README.md`](../../../tests/README.md) 定义。
 
 ## Core
 

@@ -75,7 +75,7 @@ README compile-fail 同时证明 `PropertyKey<bool>` 不能与 `f64` new value �
 - `cargo xtask docs`：通过；
 - `cargo clippy -p novadraw --lib -- -D warnings`：通过；
 - `cargo xtask check --quick`：通过；
-- `scripts/check_public_api_surface.sh`：通过；
+- `tools/scripts/check_public_api_surface.sh`：通过；
 - `git diff --check`：通过。
 
 本批次不重复运行 full gate；当前 workspace test 的 Builder `Result` 迁移阻断仍按既有

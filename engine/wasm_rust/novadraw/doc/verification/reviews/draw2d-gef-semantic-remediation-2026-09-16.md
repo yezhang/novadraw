@@ -11,7 +11,7 @@
 本页追加记录
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)
 及
-[`2026-09-16 审计证据`](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/review_groups.md)
+[`2026-09-16 审计证据`](../evidence/draw2d-gef-semantic-audit-2026-09-16/review_groups.md)
 中 17 条 P1 的关闭证据。原始审计快照、反例和判断保持不变。
 
 2026-09-20 的独立后续批次见

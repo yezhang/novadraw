@@ -301,14 +301,14 @@ sequenceDiagram
 - 平台帧循环与后端提交：
   [`novadraw-example-support/src/app.rs`](../../../examples/support/src/app.rs)
 - 帧准备、派生状态收敛与完成反馈：
-  [`Runtime::prepare_submission / stabilize / complete_submission`](../../../novadraw/src/runtime/runtime.rs)
+  [`Runtime::prepare_submission / stabilize / complete_submission`](../../../crates/novadraw/src/runtime/runtime.rs)
 - 图形树递归命令录制：
-  [`render_recursive.rs`](../../../novadraw/src/graph/render_recursive.rs)
+  [`render_recursive.rs`](../../../crates/novadraw/src/graph/render_recursive.rs)
 - 渲染提交包与后端接口：
-  [`submission.rs`](../../../novadraw/src/render/submission.rs)、
-  [`traits.rs`](../../../novadraw/src/render/traits.rs)
+  [`submission.rs`](../../../crates/novadraw/src/render/submission.rs)、
+  [`traits.rs`](../../../crates/novadraw/src/render/traits.rs)
 - 编辑框架输入仲裁与视图派生：
-  [`GraphicalViewer`](../../../novadraw-editor/src/viewer/mod.rs)
+  [`GraphicalViewer`](../../../crates/novadraw-editor/src/viewer/mod.rs)
 
 ## 1.4 静态职责
 
@@ -350,7 +350,7 @@ flowchart TB
 它不保存父节点、子节点、平台绘制表面或全局管理器。
 
 实际接口见
-[`Figure`](../../../novadraw/src/figure/mod.rs#L369-L573)。
+[`Figure`](../../../crates/novadraw/src/figure/mod.rs#L369-L573)。
 
 ### 图形节点（FigureNode）
 
@@ -370,7 +370,7 @@ pub struct FigureNode {
 ```
 
 实际定义见
-[`FigureNode`](../../../novadraw/src/graph/mod.rs#L403-L432)。
+[`FigureNode`](../../../crates/novadraw/src/graph/mod.rs#L403-L432)。
 
 ### 图形树（FigureTree）
 
@@ -384,7 +384,7 @@ pub struct FigureNode {
 原子维护跨组件不变量。
 
 实际字段见
-[`Runtime`](../../../novadraw/src/runtime/runtime.rs#L160-L189)。
+[`Runtime`](../../../crates/novadraw/src/runtime/runtime.rs#L160-L189)。
 
 ### 平台宿主与渲染后端（PlatformHost / RenderBackend）
 
@@ -467,9 +467,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`EventContext`](../../../novadraw/src/runtime/context.rs#L33-L43)
-- [`RuntimeEffect`](../../../novadraw/src/runtime/context.rs#L14-L31)
-- [`PendingMutation`](../../../novadraw/src/runtime/mutation/mod.rs)
+- [`EventContext`](../../../crates/novadraw/src/runtime/context.rs#L33-L43)
+- [`RuntimeEffect`](../../../crates/novadraw/src/runtime/context.rs#L14-L31)
+- [`PendingMutation`](../../../crates/novadraw/src/runtime/mutation/mod.rs)
 
 ## 1.8 稳定状态与可观察状态
 
@@ -494,9 +494,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`DerivedWorkKind`](../../../novadraw/src/runtime/runtime.rs#L50-L85)
-- [`Runtime::stabilize`](../../../novadraw/src/runtime/runtime.rs#L3533-L3614)
-- [`Runtime::stable_query`](../../../novadraw/src/runtime/runtime.rs#L2706-L2715)
+- [`DerivedWorkKind`](../../../crates/novadraw/src/runtime/runtime.rs#L50-L85)
+- [`Runtime::stabilize`](../../../crates/novadraw/src/runtime/runtime.rs#L3533-L3614)
+- [`Runtime::stable_query`](../../../crates/novadraw/src/runtime/runtime.rs#L2706-L2715)
 
 ## 1.9 失败边界
 

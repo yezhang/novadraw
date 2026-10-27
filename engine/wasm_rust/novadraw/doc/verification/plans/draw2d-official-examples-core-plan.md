@@ -116,7 +116,7 @@ K00/H04 随每批维护。
 默认与外部算法共用独立请求、typed registry 和统一 Figure/Connection adapter；
 候选测量、快照身份与整组发布通过外部契约。两个官方图入口的 52 个方向组合、
 真实菜单切换、字体资源及 Native 四幅代表性截图已验收，入口标为 complete。
-证据见 [实施记录](../../../verification/evidence/adr043/implementation.md)。
+证据见 [实施记录](../evidence/adr043/implementation.md)。
 K06 的 tree contour 与 presentation 动画保留原状态；K07/K08 继续按依赖推进。
 
 2026-10-23 继续补充官方样例：ConnectionAndAnchor 接入已有 owner-aware Locator
@@ -127,7 +127,7 @@ Path/Zoom 消费同一普通 Border；Path 去掉固定像素下划线，Zoom �
 K07、K06 动画和 K08 AA/动态 SVG 重栅格化继续保留，混合字体装饰尚未提供。
 本批收口 ConnectionAndAnchor、Path、SimpleTree，当前 14/25 complete、22/25 可运行；
 Print 的字体替代仍明确保留。图像和验证见
-[交付证据](../../../verification/evidence/official-examples-2026-10-23/implementation.md)。
+[交付证据](../evidence/official-examples-2026-10-23/implementation.md)。
 
 2026-10-23 后续工作见
 [剩余清单](draw2d-official-examples-next-slices-2026-10-23.md)。

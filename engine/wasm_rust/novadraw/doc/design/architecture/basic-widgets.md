@@ -167,7 +167,7 @@ Button/Toggle 通过 Figure label capability 暴露内部 Label，因此继续�
 
 ## 验证
 
-- `novadraw/tests/m10_widget_contract.rs`
+- `crates/novadraw/tests/m10_widget_contract.rs`
 - `examples/native/widgets-app`
   - `Button_States`
   - `Toggle_States`

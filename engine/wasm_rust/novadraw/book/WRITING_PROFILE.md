@@ -601,7 +601,7 @@ ADR、路线图、语义账本、审计报告和第三方源码用于作者核�
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 并人工确认：

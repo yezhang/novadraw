@@ -86,7 +86,7 @@ const SUITES: &[Suite] = &[
             Step {
                 program: "python3",
                 args: &[
-                    "scripts/textflow_performance.py",
+                    "tools/scripts/textflow_performance.py",
                     "smoke",
                     "target/verification/long-text/smoke",
                 ],
@@ -548,7 +548,7 @@ const SUITES: &[Suite] = &[
         description: "Public API, dependency, hot-path, and backend feature boundaries",
         steps: &[
             Step {
-                program: "./scripts/check_architecture.sh",
+                program: "./tools/scripts/check_architecture.sh",
                 args: &[],
             },
             Step {
@@ -718,7 +718,7 @@ const SUITES: &[Suite] = &[
                 ],
             },
             Step {
-                program: "./scripts/check_editor_open_protocol.sh",
+                program: "./tools/scripts/check_editor_open_protocol.sh",
                 args: &[],
             },
         ],
@@ -936,7 +936,7 @@ const SUITES: &[Suite] = &[
         id: "web.build",
         description: "Release Wasm and wasm-bindgen browser artifacts",
         steps: &[Step {
-            program: "./scripts/build_web_validation.sh",
+            program: "./tools/scripts/build_web_validation.sh",
             args: &[],
         }],
     },
@@ -945,11 +945,11 @@ const SUITES: &[Suite] = &[
         description: "Chrome/WebGPU evidence validator and visible benchmark",
         steps: &[
             Step {
-                program: "./scripts/test_webgpu_browser_performance.sh",
+                program: "./tools/scripts/test_webgpu_browser_performance.sh",
                 args: &[],
             },
             Step {
-                program: "./scripts/run_webgpu_browser_performance.sh",
+                program: "./tools/scripts/run_webgpu_browser_performance.sh",
                 args: &[],
             },
         ],
@@ -960,12 +960,18 @@ const PARITY_LEDGERS: &[&str] = &[
     "doc/parity/draw2d/api-coverage.md",
     "doc/parity/gef/api-coverage.md",
 ];
-const MARKDOWN_ROOTS: &[&str] = &["doc", "book"];
+const MARKDOWN_ROOTS: &[&str] = &["doc", "book", "tests/README.md", "README.md"];
 const TYPED_MARKDOWN_ROOTS: &[&str] = &["doc"];
+// Frozen evidence and bundled upstream demos retain their original bytes and links.
+// Validate the current report index, rather than treating these snapshots as live docs.
+const FROZEN_DOCUMENT_ROOTS: &[&str] = &[
+    "doc/verification/evidence",
+    "doc/reference/fonts/reports/font-rendering-comparison-2026-10-23",
+];
 const COMMAND_REFERENCE_FILES: &[&str] = &[
     "AGENTS.md",
     "CLAUDE.md",
-    "verification/README.md",
+    "tests/README.md",
     "doc/verification/00-index.md",
     "book/contributor/src/01-contribution-workflow.md",
     "book/contributor/src/07-verification-and-review.md",
@@ -1131,12 +1137,18 @@ fn markdown_files_for_roots(root: &Path, roots: &[&str]) -> Result<BTreeSet<Path
         if !path.exists() {
             bail!("documentation root `{relative}` does not exist");
         }
-        collect_markdown_files(&path, &mut files)?;
+        collect_markdown_files(root, &path, &mut files)?;
     }
     Ok(files)
 }
 
-fn collect_markdown_files(path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<()> {
+fn collect_markdown_files(root: &Path, path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<()> {
+    if FROZEN_DOCUMENT_ROOTS
+        .iter()
+        .any(|relative| path.starts_with(root.join(relative)))
+    {
+        return Ok(());
+    }
     if path.is_file() {
         if path.extension().is_some_and(|extension| extension == "md") {
             files.insert(path.to_path_buf());
@@ -1145,7 +1157,7 @@ fn collect_markdown_files(path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<
     }
     for entry in fs::read_dir(path).with_context(|| format!("failed to read {}", path.display()))? {
         let entry = entry.with_context(|| format!("failed to read {}", path.display()))?;
-        collect_markdown_files(&entry.path(), files)?;
+        collect_markdown_files(root, &entry.path(), files)?;
     }
     Ok(())
 }
@@ -1422,6 +1434,28 @@ mod tests {
     fn repository_documentation_is_valid() {
         let root = workspace_root().unwrap();
         validate_docs(&root).unwrap();
+    }
+
+    #[test]
+    fn documentation_scan_preserves_frozen_material_and_checks_current_indexes() {
+        let root = workspace_root().unwrap();
+        let files = markdown_files_for_roots(&root, MARKDOWN_ROOTS).unwrap();
+        for relative in [
+            "README.md",
+            "tests/README.md",
+            "doc/reference/fonts/reports/00-index.md",
+            "doc/verification/00-index.md",
+        ] {
+            assert!(files.contains(&root.join(relative)), "{relative}");
+        }
+        for relative in FROZEN_DOCUMENT_ROOTS {
+            assert!(
+                !files
+                    .iter()
+                    .any(|path| path.starts_with(root.join(relative))),
+                "{relative}"
+            );
+        }
     }
 
     #[test]

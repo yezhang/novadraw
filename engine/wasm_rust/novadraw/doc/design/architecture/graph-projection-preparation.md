@@ -8,7 +8,7 @@
 属于 P2-L01 的 Figure/Connection adapter 切片，补充
 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
 纯请求、Directed、Compound、统一 adapter 与本增量均已实现；
-最终门禁及 Native 证据见[实施记录](../../../verification/evidence/adr043/implementation.md)。
+最终门禁及 Native 证据见[实施记录](../../verification/evidence/adr043/implementation.md)。
 `api_semantics`：`frame.preparation`、`layout.manager`、`connection.anchor`、
 `connection.router`。
 
@@ -91,13 +91,13 @@ LayoutManager 保留调用者的读取范围，preparation 回调仍限定在自
 
 | 入口 | 当前行为 | 对 adapter 的影响 |
 |---|---|---|
-| `novadraw/src/connection/query.rs`：RouteSceneRead、RouteSceneQuery | 只提供几何、可见性、拓扑与坐标映射；不提供 prepared presentation 或领域数据 | Anchor/Router 无法从 Runtime 取得本次 GraphLayoutResult 和 attachment boundary 证据 |
+| `crates/novadraw/src/connection/query.rs`：RouteSceneRead、RouteSceneQuery | 只提供几何、可见性、拓扑与坐标映射；不提供 prepared presentation 或领域数据 | Anchor/Router 无法从 Runtime 取得本次 GraphLayoutResult 和 attachment boundary 证据 |
 | 同文件：DependencySubject、dependency_generation | 路由观察只包含几何、可见性、命名几何、变换、拓扑 | bounds 不变但请求、算法配置或完整路径改变时，已有 resolved route 没有结果身份依赖 |
-| `novadraw/src/graph/query.rs`：prepared_presentation | 普通 FigureTree 查询可以借用已有 presentation | Router 只获得 RouteSceneQuery，不能借助此方法绕过受检查询权限 |
-| `novadraw/src/graph/layout_measurement.rs`：preferred_measurement、minimum_size | 无 layout manager 且已有 prepared 值时，直接返回该值；新 constraints 不参与重新 preparation | EAST 候选宽度不能靠这两个调用完成任意外部 prepared Figure 的重新测量 |
-| `novadraw/src/figure/preparation/scene.rs`：revision | 包含 bounds 与 layout generation | 派生布局写入会改变该 revision，不能直接作为 graph 的 source revision |
-| `novadraw/src/runtime/runtime/frame_submission.rs`：resolve_dirty_connection_routes、stabilize | 路由错误记入 connection_error；组 unresolved 本身不阻止 stable epoch 晋升 | placement 成功、路径失败的图候选需要额外的整体发布检查 |
-| `novadraw/src/graph/derived.rs` 与 `novadraw/src/connection/runtime.rs`：检查点恢复 | 恢复树几何与 preparation；连接恢复依赖后统一标为 Dirty | 尚未区分同源有效旧结果与源已改变后的 invalid/unresolved |
+| `crates/novadraw/src/graph/query.rs`：prepared_presentation | 普通 FigureTree 查询可以借用已有 presentation | Router 只获得 RouteSceneQuery，不能借助此方法绕过受检查询权限 |
+| `crates/novadraw/src/graph/layout_measurement.rs`：preferred_measurement、minimum_size | 无 layout manager 且已有 prepared 值时，直接返回该值；新 constraints 不参与重新 preparation | EAST 候选宽度不能靠这两个调用完成任意外部 prepared Figure 的重新测量 |
+| `crates/novadraw/src/figure/preparation/scene.rs`：revision | 包含 bounds 与 layout generation | 派生布局写入会改变该 revision，不能直接作为 graph 的 source revision |
+| `crates/novadraw/src/runtime/runtime/frame_submission.rs`：resolve_dirty_connection_routes、stabilize | 路由错误记入 connection_error；组 unresolved 本身不阻止 stable epoch 晋升 | placement 成功、路径失败的图候选需要额外的整体发布检查 |
+| `crates/novadraw/src/graph/derived.rs` 与 `crates/novadraw/src/connection/runtime.rs`：检查点恢复 | 恢复树几何与 preparation；连接恢复依赖后统一标为 Dirty | 尚未区分同源有效旧结果与源已改变后的 invalid/unresolved |
 
 在 Anchor/Router 与布局器之间放置可变结果槽，会让检查点外的缓存成为候选权威，
 且现有 Runtime 无法恢复该槽。用 RoutingConstraint 更新结果又会把派生写入变成

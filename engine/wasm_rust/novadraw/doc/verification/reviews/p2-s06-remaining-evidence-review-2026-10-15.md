@@ -65,11 +65,11 @@ backend gate 对同一 Runtime 的旧 generation 判 stale；
 该 suite 证明真实 Native GPU 队列的生产者退出与资源接管。
 它不证明 WindowServer drawable 呈现、compositor 或 scanout，也不代表 Web
 异步队列退出验收。正常 surface 提交在本环境返回 `Skipped`，失败日志保留为
-`verification/evidence/p2-s06-native-exit-r2.log` 至 `-r6.log`。
+`doc/verification/evidence/p2-s06-native-exit-r2.log` 至 `-r6.log`。
 不得把 retained texture 的 `Presented` 结果记成 surface 验收通过。
 
 最终队列退出日志：
-`verification/evidence/p2-s06-native-exit-final.log`。
+`doc/verification/evidence/p2-s06-native-exit-final.log`。
 中间 retained texture 用例曾错误要求 backend 拒绝旧 Runtime namespace 的 Snapshot，
 失败日志保留为 `p2-s06-native-exit-retained.log`；已按既有协议修正验收断言。
 

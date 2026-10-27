@@ -36,8 +36,8 @@ Viewer 进入故障锁定，而不是继续接受编辑。
 核心入口：
 
 - [`Editor 架构`](../../../doc/design/editor/architecture.md)
-- [`GraphicalViewer`](../../../novadraw-editor/src/viewer/mod.rs)
-- [`视图同步实现（源码模块 projection）`](../../../novadraw-editor/src/viewer/projection.rs)
+- [`GraphicalViewer`](../../../crates/novadraw-editor/src/viewer/mod.rs)
+- [`视图同步实现（源码模块 projection）`](../../../crates/novadraw-editor/src/viewer/projection.rs)
 
 ## 5.3 编辑协议
 

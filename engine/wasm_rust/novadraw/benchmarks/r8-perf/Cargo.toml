@@ -5,7 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-novadraw = { path = "../../novadraw", default-features = false }
+novadraw = { path = "../../crates/novadraw", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true

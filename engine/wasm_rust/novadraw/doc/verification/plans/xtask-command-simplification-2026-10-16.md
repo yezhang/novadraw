@@ -69,7 +69,7 @@ fmt、check、Clippy、test 和 run 能力直接使用，不再增加同义别�
 
 ## 配置与实现收口
 
-删除 `verification/suites.toml` 及以下结构：
+删除 `tests/suites.toml` 及以下结构：
 
 - 109 个全局 command 别名；
 - quick/full profile；
@@ -86,7 +86,7 @@ fmt、check、Clippy、test 和 run 能力直接使用，不再增加同义别�
 
 ## 架构脚本合并
 
-把以下脚本合并为 `scripts/check_architecture.sh`：
+把以下脚本合并为 `tools/scripts/check_architecture.sh`：
 
 - `check_facade_dependencies.sh`；
 - `check_public_api_dependencies.sh`；
@@ -142,7 +142,7 @@ git diff --check
 
 - `AGENTS.md`；
 - `CLAUDE.md`；
-- `verification/README.md`；
+- `tests/README.md`；
 - `doc/verification/00-index.md`；
 - Contributor Book 验证章节；
 - User Book 验证入口；
@@ -182,9 +182,9 @@ xtask 只校验当前工作流文档中的命令引用，不再把历史记录�
 
 - 顶层入口从 7 类收口为 `list`、`docs`、`verify`；
 - 60 个 suite 收口为 13 个跨边界 suite；
-- 删除 109 个 command alias、2 个 profile 和 `verification/suites.toml`；
+- 删除 109 个 command alias、2 个 profile 和 `tests/suites.toml`；
 - xtask 删除 serde/toml，只保留 anyhow；
-- 六个架构脚本合并为 `scripts/check_architecture.sh`；
+- 六个架构脚本合并为 `tools/scripts/check_architecture.sh`；
 - Host rustdoc 由两次降为一次，取消 `cargo clean --doc`；
 - 六个 Editor replay 由六次进程启动合并为一次 `all`；
 - 三个 P2-S07 suite 的十个 command 收口为一个 suite 的两个 Cargo 进程；
@@ -195,7 +195,7 @@ xtask 只校验当前工作流文档中的命令引用，不再把历史记录�
 
 - `cargo test -p xtask`：5 项通过；
 - `cargo xtask docs`：325 份 Markdown 通过；
-- `scripts/check_architecture.sh`：通过；
+- `tools/scripts/check_architecture.sh`：通过；
 - `core.query-contracts`：外部 39 项、内部 13 项通过；
 - `editor.replay`：6 组通过；
 - Core doctest/compile-fail：32 项通过；

@@ -79,7 +79,7 @@ description: 从理想架构与当前实现偏差中发现候选问题。适合�
 
 必查文件：
 
-- `novadraw/src/lib.rs`
+- `crates/novadraw/src/lib.rs`
 - `apps/editor/src/system.rs`
 
 必问问题：

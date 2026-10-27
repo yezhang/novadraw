@@ -49,7 +49,7 @@
 
 ### CQ-01：正数缩放不保证测量运算有限
 
-位置：[scalable.rs](../../../novadraw/src/container/scalable.rs)，18–19、219–225、381–387 行。
+位置：[scalable.rs](../../../crates/novadraw/src/container/scalable.rs)，18–19、219–225、381–387 行。
 
 `valid_scale` 接受所有有限正数。两个缩放容器随后把测量上限除以 scale，并断言结果仍然有效。`100.0 / f64::MIN_POSITIVE` 溢出为正无穷，`MeasureConstraints::new` 拒绝它，接着 `expect` 触发 panic。
 
@@ -66,7 +66,7 @@ accepted_scale_causes_panic=true
 
 ### CQ-02：有界 SVG API 没有覆盖通用解码入口
 
-位置：[command.rs](../../../novadraw/src/render/command.rs)，791–817、834–839 行；[svg.rs](../../../novadraw/src/render/svg.rs)，78–115 行。
+位置：[command.rs](../../../crates/novadraw/src/render/command.rs)，791–817、834–839 行；[svg.rs](../../../crates/novadraw/src/render/svg.rs)，78–115 行。
 
 `SvgImageSource::rasterize` 在分配前检查像素预算和字节可寻址性。然而 `ImageData::decode_svg` 调用 `rasterize_intrinsic`，直接按源尺寸进入 Pixmap 分配；通用 `ImageData::decode` 也会进入这条路径。
 
@@ -83,7 +83,7 @@ legacy_svg_pixels=16384
 
 ### CQ-03：资源身份通过校验，图像内容却未校验
 
-位置：[command.rs](../../../novadraw/src/render/command.rs)，674–682、782–788 行；[resource.rs](../../../novadraw/src/runtime/resource.rs)，254–264、390–399、513–544 行。
+位置：[command.rs](../../../crates/novadraw/src/render/command.rs)，674–682、782–788 行；[resource.rs](../../../crates/novadraw/src/runtime/resource.rs)，254–264、390–399、513–544 行。
 
 `ImageData` 字段公开，`from_rgba` 不检查像素长度或 scale。Runtime 的请求完成入口校验 token、资源种类和版本，但没有检查图像内容，随后将其置为 Ready。
 
@@ -93,15 +93,15 @@ legacy_svg_pixels=16384
 invalid_image_accepted=Ok(())
 ```
 
-2×2 RGBA 图像应有 16 字节，探针只提交 1 字节，且 scale 为零。[ImageResourceRef::logical_size](../../../novadraw/src/render/command.rs) 会用尺寸除以 scale；[ImageFigure](../../../novadraw/src/figure/image.rs) 的测量和绘制继续消费该尺寸。这使无效源数据进入布局和后端资源链路。尚未证明会造成 GPU 内存破坏。
+2×2 RGBA 图像应有 16 字节，探针只提交 1 字节，且 scale 为零。[ImageResourceRef::logical_size](../../../crates/novadraw/src/render/command.rs) 会用尺寸除以 scale；[ImageFigure](../../../crates/novadraw/src/figure/image.rs) 的测量和绘制继续消费该尺寸。这使无效源数据进入布局和后端资源链路。尚未证明会造成 GPU 内存破坏。
 
 建议在资源提交前集中校验字节长度、尺寸运算可寻址性、scale 和派生逻辑尺寸。可以增加可失败构造，但只加构造器不足以防止公开字段绕过，提交边界仍须验证。失败应保留原资源 revision、payload 和请求状态，不能先发布 Ready 再发现错误。
 
-该问题在 [旧语义审计](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-15/group/group_3.md) 中已有防御性观察，本次增加了当前 Runtime 公共入口接受无效数据的直接证据。
+该问题在 [旧语义审计](../evidence/draw2d-gef-semantic-audit-2026-09-15/group/group_3.md) 中已有防御性观察，本次增加了当前 Runtime 公共入口接受无效数据的直接证据。
 
 ### CQ-04：截图的 Result 契约没有覆盖 GPU 失败
 
-位置：[Vello screenshot](../../../novadraw-backend-vello/src/lib.rs)，1905–2000 行，重点为 1973–1984 行。
+位置：[Vello screenshot](../../../crates/novadraw-backend-vello/src/lib.rs)，1905–2000 行，重点为 1973–1984 行。
 
 公开 `screenshot` 返回 `io::Result<()>`，但忽略 `device.poll` 的结果，并对通道接收和 GPU 映射结果连续 `unwrap`。映射失败会通过 panic 退出；等待错误也没有进入调用者的错误处理路径。使用 `wait_indefinitely` 还让这个同步 API 没有自身的等待上限。
 
@@ -111,7 +111,7 @@ invalid_image_accepted=Ok(())
 
 ### CQ-05：缓存替换正确，但批量更新成本偏高
 
-位置：[Vello 资源缓存同步](../../../novadraw-backend-vello/src/lib.rs)，2009–2075 行。
+位置：[Vello 资源缓存同步](../../../crates/novadraw-backend-vello/src/lib.rs)，2009–2075 行。
 
 每个字体或图像 Upsert/Remove 都调用一次 `HashMap::retain`，扫描整个缓存。U 个更新作用于容量 C 的缓存，扫描成本约为 O(U×C)；全量 snapshot 从空表逐项插入时也会重复扫描，具有二次增长趋势。每次图像 Upsert 还执行 `image.pixels.clone()`，完整复制 Core 保留的像素。
 
@@ -123,7 +123,7 @@ invalid_image_accepted=Ok(())
 
 ### CQ-06：Web 输入失败会失去状态同步证据
 
-位置：[dom_text_input.rs](../../../novadraw-platform-web/src/dom_text_input.rs)，206–239、293–321 行。
+位置：[dom_text_input.rs](../../../crates/novadraw-platform-web/src/dom_text_input.rs)，206–239、293–321 行。
 
 `apply_effect` 先改变 bridge 状态及本地逻辑区域，再执行 DOM action。`focus`、`blur`、属性和样式写入的错误全部被忽略；公开方法返回 `()`，宿主无法知道 DOM 操作失败。`set_surface_origin` 遇到非有限坐标也直接返回。
 
@@ -135,7 +135,7 @@ invalid_image_accepted=Ok(())
 
 ### CQ-07：公开表面仍有旧失败表达
 
-位置：[identity.rs](../../../novadraw/src/identity.rs)，40–54 行；[ChildTransform](../../../novadraw/src/figure/mod.rs)，140–146 行。
+位置：[identity.rs](../../../crates/novadraw/src/identity.rs)，40–54 行；[ChildTransform](../../../crates/novadraw/src/figure/mod.rs)，140–146 行。
 
 身份宏为 FigureId 等类型公开生成 `null()` 和 `is_null()`。外部 Rust 探针成功编译并返回 `public_null_id=true`。测试专用 `add_child` 会使用这个值，但该辅助方法有 `cfg(test)`，不能据此断言生产树修改会吞错返回 null。
 
@@ -145,7 +145,7 @@ invalid_image_accepted=Ok(())
 
 ### CQ-08：注释门禁覆盖不完整，少量注释已经误导
 
-位置：[Core lib.rs](../../../novadraw/src/lib.rs)，1–45 行；[Bounded](../../../novadraw/src/figure/mod.rs)，183–202 行；[ScaleError](../../../novadraw/src/container/scalable.rs)，30–36 行。
+位置：[Core lib.rs](../../../crates/novadraw/src/lib.rs)，1–45 行；[Bounded](../../../crates/novadraw/src/figure/mod.rs)，183–202 行；[ScaleError](../../../crates/novadraw/src/container/scalable.rs)，30–36 行。
 
 Core 开启 `deny(missing_docs)`，但 connection、container、figure、host、layout、runtime 等整个领域模块被 `allow(missing_docs)` 豁免。因此 lint 通过不能证明公共 API 文档充分。测量约束和部分公共构造器仍缺少输入域与失败条件的说明。
 
@@ -165,7 +165,7 @@ Core 开启 `deny(missing_docs)`，但 connection、container、figure、host、
 
 ### 图布局和连续 AA 更新需要规模数据
 
-[ranking.rs](../../../novadraw/src/layout/graph/ranking.rs) 的初始排名多轮遍历节点并扫描边，逆序链会放大重复工作；树 component 搜索也为访问节点扫描整个边集。[候选验证](../../../novadraw/src/layout/graph/validation.rs) 做两两重叠检查，并在检查中遍历 ancestor。工作预算能限制总操作，不能证明大场景响应时间可接受。
+[ranking.rs](../../../crates/novadraw/src/layout/graph/ranking.rs) 的初始排名多轮遍历节点并扫描边，逆序链会放大重复工作；树 component 搜索也为访问节点扫描整个边集。[候选验证](../../../crates/novadraw/src/layout/graph/validation.rs) 做两两重叠检查，并在检查中遍历 ancestor。工作预算能限制总操作，不能证明大场景响应时间可接受。
 
 这些是静态复杂度观察，尚未给出实际性能退化数据。建议用节点顺序不同的 DAG、深层 compound 和大批连接测量，再决定是否引入邻接索引、祖先查询缓存或空间索引。
 
@@ -173,7 +173,7 @@ Core 开启 `deny(missing_docs)`，但 connection、container、figure、host、
 
 ### 外部资源加载需要宿主明确预算
 
-[FileResourceProvider](../../../novadraw-platform-winit/src/resource.rs) 直接整文件读取；[FetchResourceProvider](../../../novadraw-platform-web/src/resource.rs) 等待完整 ArrayBuffer 后再复制成 Vec，没有暴露大小、取消或期限控制。对可信本地资源可接受；接收外部大资源的宿主需要限制策略，否则在解码前就可能积累大量字节。
+[FileResourceProvider](../../../crates/novadraw-platform-winit/src/resource.rs) 直接整文件读取；[FetchResourceProvider](../../../crates/novadraw-platform-web/src/resource.rs) 等待完整 ArrayBuffer 后再复制成 Vec，没有暴露大小、取消或期限控制。对可信本地资源可接受；接收外部大资源的宿主需要限制策略，否则在解码前就可能积累大量字节。
 
 这不构成文件越权或服务端 SSRF 的证据。文件路径和 URL 来自调用者，不能仅因支持任意路径就断言安全漏洞。
 

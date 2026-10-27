@@ -90,4 +90,4 @@ Core；Headless 验证确定性事务；Native/Web 验证设备输入、IME、DP
 也不承诺回滚任意外部副作用。
 
 当前分层验证命令见 [仓库规则](../../../CLAUDE.md)与
-[验证入口](../../../verification/README.md)。历史方法示例不提供另一套执行命令。
+[验证入口](../../../tests/README.md)。历史方法示例不提供另一套执行命令。

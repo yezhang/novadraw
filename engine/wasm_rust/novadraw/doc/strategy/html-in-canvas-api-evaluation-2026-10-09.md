@@ -177,8 +177,8 @@ Figure-native widget，见
 
 当前 Core 图像资源是不可变 RGBA：
 
-- [`ImageData`](../../novadraw/src/render/command.rs) 持有 `Vec<u8>`；
-- [`ResourcePayload`](../../novadraw/src/render/submission.rs) 只包含 Image/Font；
+- [`ImageData`](../../crates/novadraw/src/render/command.rs) 持有 `Vec<u8>`；
+- [`ResourcePayload`](../../crates/novadraw/src/render/submission.rs) 只包含 Image/Font；
 - Vello backend 将 RGBA 复制为 `peniko::ImageData` 并交给 `Scene::draw_image`；
 - Vello renderer 自己拥有 WGPU device、queue、retained texture 和 scratch texture。
 

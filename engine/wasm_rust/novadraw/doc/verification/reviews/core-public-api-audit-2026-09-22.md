@@ -311,7 +311,7 @@ fn preferred_measurement(
 
 状态：已整改（2026-09-28）
 
-`novadraw/src/lib.rs` 直接重导出大量类型，其中包括：
+`crates/novadraw/src/lib.rs` 直接重导出大量类型，其中包括：
 
 - `FigureNode`、`NodeState`、`LayoutState`；
 - `EventDispatcher`、`NotificationQueue`、`PendingMutations`；
@@ -625,8 +625,8 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 
 验证入口：
 
-- `novadraw/tests/facade_contract.rs`；
-- `scripts/check_facade_dependencies.sh`；
+- `crates/novadraw/tests/facade_contract.rs`；
+- `tools/scripts/check_facade_dependencies.sh`；
 - `cargo xtask verify core.facade`；
 - `cargo xtask verify web.build`；
 - `cargo xtask docs`、`cargo xtask check --quick` 与 `cargo xtask check --full`。

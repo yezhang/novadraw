@@ -9,9 +9,9 @@ publish = false
 winit.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-novadraw = { path = "../../../novadraw" }
+novadraw = { path = "../../../crates/novadraw" }
 novadraw-example-support = { path = "../../support" }
 novadraw-example-scenes = { path = "../../scenes" }
-novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = ["native"] }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello", features = ["native"] }
 pollster.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }

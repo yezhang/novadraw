@@ -37,7 +37,7 @@ Buildkite、CircleCI、Jenkins 或 GitLab CI 配置，所有触发时机都只�
 本次检查覆盖：
 
 - [`tools/xtask/src/main.rs`](../../../tools/xtask/src/main.rs) 的全部执行与校验逻辑；
-- 当时的 `verification/suites.toml` 中 102 个 command、
+- 当时的 `tests/suites.toml` 中 102 个 command、
   2 个 profile 和 58 个 suite；
 - xtask 调用的 shell、Node、Rust benchmark、示例验证程序；
 - `AGENTS.md`、`CLAUDE.md`、Book、verification 文档和历史证据中的触发约定；

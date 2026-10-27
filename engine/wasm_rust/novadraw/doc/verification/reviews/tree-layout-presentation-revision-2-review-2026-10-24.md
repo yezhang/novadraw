@@ -42,7 +42,7 @@ provider 依赖图、可见性传播、viewport 接管和退出证据。没有�
 
 **问题。** “已发布”没有定义为 Runtime 采样完成、快照冻结、submission 准备还是
 backend 已呈现。这些时刻可能不同。现有
-[advance_time](../../../novadraw/src/animation/service.rs#L400-L446)更新 channel 采样值，
+[advance_time](../../../crates/novadraw/src/animation/service.rs#L400-L446)更新 channel 采样值，
 而帧准备在 source 稳定后才构造快照；已有
 [公开时间合同](../../design/animation/public-api-contract.md)要求 query 不采样新值、
 retarget 使用当前 presentation，Retry 不回退时间。

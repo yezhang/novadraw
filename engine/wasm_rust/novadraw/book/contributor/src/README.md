@@ -20,7 +20,7 @@ Policy 等扩展点增加能力，请阅读
 1. 已接受的架构决策记录；
 2. `doc/design/` 中的规范性设计；
 3. `doc/parity/` 中的 Draw2D/GEF 语义账本；
-4. `verification/README.md` 与 `cargo xtask list` 中的验证入口；
+4. `tests/README.md` 与 `cargo xtask list` 中的验证入口；
 5. 当前实现和测试；
 6. 本书的教学解释。
 

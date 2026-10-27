@@ -51,7 +51,7 @@ Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不
 依据：
 
 - 提案保留现有 `PreparationScene.revision` 的用途，同时要求稳定帧不重算。
-- `novadraw/src/figure/preparation/scene.rs` 的
+- `crates/novadraw/src/figure/preparation/scene.rs` 的
   `PreparationScene::revision` 包含子树 bounds 与 layout generation。
 - [派生状态收敛契约](../../design/architecture/derived-state-convergence.md)
   要求 NoChange 不制造新派生工作，正常支持链路应沿静态依赖方向完成。
@@ -97,7 +97,7 @@ Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不
 
 依据：
 
-- `novadraw/src/graph/layout_measurement.rs` 的
+- `crates/novadraw/src/graph/layout_measurement.rs` 的
   `FigureTree::preferred_measurement` 和 `minimum_size`
   先处理对应显式 override，再处理 LayoutManager，随后处理 prepared/intrinsic。
 - [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
@@ -120,9 +120,9 @@ Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不
 
 依据：
 
-- `novadraw/src/render/text.rs` 的 `TextError` 当前包含
+- `crates/novadraw/src/render/text.rs` 的 `TextError` 当前包含
   `InvalidMetric` 与 `InvalidPreparedScene(String)` 等变体。
-- `novadraw/src/figure/preparation/scene.rs` 的 `scene_error`
+- `crates/novadraw/src/figure/preparation/scene.rs` 的 `scene_error`
   当前把错误格式化为 `InvalidPreparedScene` 字符串。
 - [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
   要求测量错误保留失败 FigureId 和领域分类，

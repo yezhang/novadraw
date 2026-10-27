@@ -240,7 +240,7 @@ pointer capture 下的轻量 Figure 直接操纵；需要 Command/undo、policy 
 失败不写样式，也不使健康 Runtime fault；有限 alpha 继续沿既有范围收敛语义。
 属性通知、字体失效与 descendant repaint 由现有 update-aware style mutation 处理。
 
-外部消费者证据：`novadraw/tests/p2_deferred_style.rs` 使用第三方 Figure 验证延迟写入、
+外部消费者证据：`crates/novadraw/tests/p2_deferred_style.rs` 使用第三方 Figure 验证延迟写入、
 清除继承、FIFO、foreign 目标、同步/延迟非法 alpha 拒绝；官方 InternalFrame 通过同一
 入口更新边缘/角落 resize cursor，并在 pointer exit 清除。本切片不关闭完整 K01
 subtree 构造或事件结果 receipt，也不引入 Editor API。
@@ -304,7 +304,7 @@ retired 反例，不另建提交机制。自定义组件必须如实声明资源
 fault，后续请求停止，保留真实已发布拓扑和外部副作用。attachment panic 沿原生命周期
 异常通道传播，不伪造完整子树成功回执。
 
-外部消费者证据：`novadraw/tests/p2_subtree.rs` 验证外部 Figure、Label/Border/Layout、
+外部消费者证据：`crates/novadraw/tests/p2_subtree.rs` 验证外部 Figure、Label/Border/Layout、
 顺序与继承、foreign 构造身份、末项失败、Single child policy、constraint 拒绝与身份
 退休、事件内不可见、foreign Runtime、资源、10,000 深度限制和 attachment panic；
 同时验证主动消费拒绝、错误队列保留、FIFO 继续提交和两种结果回调 panic。

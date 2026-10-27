@@ -10,4 +10,4 @@
 | [draw2d-gef-semantic-baseline-2026-09-16.md](draw2d-gef-semantic-baseline-2026-09-16.md) | 2026-09-16 全量语义审计基线与判定方法 |
 
 对应机器证据存放在
-[`../../../verification/evidence/`](../../../verification/evidence/README.md)。
+[`../../../verification/evidence/`](../evidence/README.md)。

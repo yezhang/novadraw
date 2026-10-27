@@ -31,8 +31,8 @@ paint() 根据实际边开关生成并复用自由端区域。
   后的清除、稳定重绘检查同时通过。
 - Native 样例已启动、截图、正常退出，并目视检查了左右下端及标题区分隔线。
 
-[完整 Native 样例画面](../../../verification/evidence/independent-shape-corners/composite-shapes-butt-native.png)
-与[GPU 回读图](../../../verification/evidence/independent-shape-corners/independent-corner-butt-gpu.png)
+[完整 Native 样例画面](../evidence/independent-shape-corners/composite-shapes-butt-native.png)
+与[GPU 回读图](../evidence/independent-shape-corners/independent-corner-butt-gpu.png)
 保留为本次证据。其他平台像素验收不由 macOS 结果外推。
 
 ## 成本与边界

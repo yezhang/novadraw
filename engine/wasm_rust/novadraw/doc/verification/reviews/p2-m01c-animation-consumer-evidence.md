@@ -53,7 +53,7 @@ Behavior/Trigger 基座已实现：
 
 ## 2. 合同覆盖
 
-`novadraw/tests/p2_animation_transition_contract.rs` 当前 12 项：
+`crates/novadraw/tests/p2_animation_transition_contract.rs` 当前 12 项：
 
 1. capture → source mutation → transition 保持 source final；
 2. unchanged 与 zero-duration suppression；
@@ -68,7 +68,7 @@ Behavior/Trigger 基座已实现：
 11. continuous dash phase；
 12. arc-length pulse 与 endpoint decoration handoff。
 
-`novadraw/tests/p2_animation_behavior_contract.rs` 当前 7 项：
+`crates/novadraw/tests/p2_animation_behavior_contract.rs` 当前 7 项：
 
 1. 未安装 Behavior 时 mutation 保持静态；
 2. bounds fact 合并与首帧 presentation override；
@@ -78,7 +78,7 @@ Behavior/Trigger 基座已实现：
 6. scope 隔离、dispose 退役与有界 failure；
 7. factory panic 进入 Runtime fault boundary。
 
-`novadraw/tests/p2_animation_contract.rs` 当前 28 项，其中新增 finite/continuous
+`crates/novadraw/tests/p2_animation_contract.rs` 当前 28 项，其中新增 finite/continuous
 Procedural lifetime、绝对时间采样、取消与 committed fallback，以及
 1/64/1,024 active track 确定性工作量断言。
 

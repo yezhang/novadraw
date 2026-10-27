@@ -16,12 +16,12 @@
 
 | 简称 | 方法级证据（含 Java/Rust 行号、调用链、测试边界） |
 |---|---|
-| G1 | [Figure/事件](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_1.md)、[生命周期/平台补充](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_1_supplement.md) |
-| G2 | [布局/更新/Viewport](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_2.md) |
-| G3 | [绘制/几何/资源/文本/widget](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_3.md) |
-| G4 | [Connection/Anchor/Router/Locator](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_4.md) |
-| G5 | [Model/Command/EditPart/Viewer](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_5.md) |
-| G6 | [Tool/Request/Policy/Feedback](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_6.md) |
+| G1 | [Figure/事件](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_1.md)、[生命周期/平台补充](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_1_supplement.md) |
+| G2 | [布局/更新/Viewport](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_2.md) |
+| G3 | [绘制/几何/资源/文本/widget](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_3.md) |
+| G4 | [Connection/Anchor/Router/Locator](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_4.md) |
+| G5 | [Model/Command/EditPart/Viewer](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_5.md) |
+| G6 | [Tool/Request/Policy/Feedback](../evidence/draw2d-gef-semantic-audit-2026-09-16/group/group_6.md) |
 
 “迁移”指保留核心行为的 Rust 表达变化；“收窄”不等于与 Java 全部等价。
 无明确延期依据的算法差异标为“部分”，不能自动视为已批准收窄。

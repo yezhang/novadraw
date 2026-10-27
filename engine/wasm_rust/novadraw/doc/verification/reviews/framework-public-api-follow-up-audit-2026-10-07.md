@@ -76,7 +76,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 证据：
 
-- `novadraw-editor/src/viewer/mod.rs` 公开
+- `crates/novadraw-editor/src/viewer/mod.rs` 公开
   `model_mut() -> Result<&mut A, ViewerError>`；
 - 原实现公开 `runtime_mut() -> &mut Runtime`；
 - Viewer 同时承担模型投影、选择、输入仲裁和视觉状态同步。
@@ -112,7 +112,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 证据：
 
-- `novadraw/src/figure/mod.rs` 的 `Figure` trait 同时覆盖生命周期、绘制、测量、命中、
+- `crates/novadraw/src/figure/mod.rs` 的 `Figure` trait 同时覆盖生命周期、绘制、测量、命中、
   child policy、事件与多种领域行为；
 - trait 内置 connection、point-list、scalable-polygon、text-flow、label 和 clickable
   等 capability accessor；
@@ -287,7 +287,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 证据：
 
-- `novadraw/src/runtime/runtime/frame_resource.rs` 公开 `complete_image_file`；
+- `crates/novadraw/src/runtime/runtime/frame_resource.rs` 公开 `complete_image_file`；
 - image bytes 解码、资源状态更新和错误映射在同一 Runtime 方法中耦合；
 - image/font 以及 anchor/router 注册同时存在 panic 与 `try_*` 变体。
 
@@ -320,7 +320,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 证据：
 
-- `novadraw-inspector/src/lib.rs` 的 `events()` 在 Mutex poisoned 时返回空集合；
+- `crates/novadraw-inspector/src/lib.rs` 的 `events()` 在 Mutex poisoned 时返回空集合；
 - `clear_events()` 在相同情况下静默无操作；
 - `attach` 返回 `ListenerId`，生命周期解除仍完全由调用者配对管理。
 

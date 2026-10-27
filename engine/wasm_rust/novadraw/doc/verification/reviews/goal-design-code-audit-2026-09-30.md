@@ -37,7 +37,7 @@
 审计期间这些改动被另一工作流提交，最终复核 HEAD 为
 `841be423815833d97c19862da7b1b0a8ad05591f`。该提交与起始已采集源码内容一致。
 交付检查时另有并行的 Label/TextFlow 样式与对齐、caret 展示和示例改动出现，
-详见 [交付指纹检查](../../../verification/evidence/goal-alignment-audit-2026-09-30/delivery-checks.json)。
+详见 [交付指纹检查](../evidence/goal-alignment-audit-2026-09-30/delivery-checks.json)。
 它们不在本轮完整审计范围；已复查其差异未修复这里列出的五项问题，Policy 的当前
 代码锚点随新增行调整。本次没有修改或提交引擎实现。
 
@@ -58,12 +58,12 @@ Draw2D 参考基线为本地 gef-classic
 - **已接受限制**：当前实现遵守已有 ADR，但该限制仍需在长期目标中有去向。
 
 原始清单与每组阅读范围：
-[基线](../../../verification/evidence/goal-alignment-audit-2026-09-30/baseline.json)、
-[基线复核](../../../verification/evidence/goal-alignment-audit-2026-09-30/baseline-recheck.json)、
-[性能组](../../../verification/evidence/goal-alignment-audit-2026-09-30/group/group_1.md)、
-[平台组](../../../verification/evidence/goal-alignment-audit-2026-09-30/group/group_2.md)、
-[扩展组](../../../verification/evidence/goal-alignment-audit-2026-09-30/group/group_3.md)、
-[文档组](../../../verification/evidence/goal-alignment-audit-2026-09-30/group/group_4.md)。
+[基线](../evidence/goal-alignment-audit-2026-09-30/baseline.json)、
+[基线复核](../evidence/goal-alignment-audit-2026-09-30/baseline-recheck.json)、
+[性能组](../evidence/goal-alignment-audit-2026-09-30/group/group_1.md)、
+[平台组](../evidence/goal-alignment-audit-2026-09-30/group/group_2.md)、
+[扩展组](../evidence/goal-alignment-audit-2026-09-30/group/group_3.md)、
+[文档组](../evidence/goal-alignment-audit-2026-09-30/group/group_4.md)。
 Inventory 数量只代表候选范围，不能当作逐行审查覆盖率。
 
 ## 3. 目标追踪矩阵
@@ -153,8 +153,8 @@ FAIL；优先覆盖输入符号、DPI、surface 恢复、文本输入与 accessi
 优先级：高。证据：独立编译确认。
 
 [ADR-021](../../adr/adr-021-public-facade-and-feature-boundary.md) 的 facade 分层由
-ADR-023 保留；[Core README](../../../novadraw/README.md#L36-L40) 也声明低层类型
-不可从根层导入。但 [lib.rs](../../../novadraw/src/lib.rs#L93-L142) 仍导出
+ADR-023 保留；[Core README](../../../crates/novadraw/README.md#L36-L40) 也声明低层类型
+不可从根层导入。但 [lib.rs](../../../crates/novadraw/src/lib.rs#L93-L142) 仍导出
 FigureNode、NodeState、UpdateManager、EventDispatcher、PendingMutations、
 NotificationQueue 等低层类型和大量专业协议。
 
@@ -166,7 +166,7 @@ use novadraw::{FigureNode, RenderCommand, UpdateManager};
 
 它只因 RenderCommand 不存在就满足 `compile_fail`。本次 doctest 通过，而独立探针
 确认其他四个被抽查的低层类型均可 root 导入：
-[探针结果](../../../verification/evidence/goal-alignment-audit-2026-09-30/public-import-probes.json)。
+[探针结果](../evidence/goal-alignment-audit-2026-09-30/public-import-probes.json)。
 因此这是 API 边界回退与验证盲点，**不等于已经获得绕过 Runtime 的任意可变权限**。
 
 处置：root 白名单、advanced 从定义模块导出、逐符号负向检查与领域路径正向检查。
@@ -178,7 +178,7 @@ use novadraw::{FigureNode, RenderCommand, UpdateManager};
 
 [directory-structure](../../design/architecture/directory-structure.md#L188-L202)
 禁止 FigureTree 依赖 UpdateManager，实际
-[graph/mod.rs](../../../novadraw/src/graph/mod.rs#L2020-L2087) 接收并驱动它。
+[graph/mod.rs](../../../crates/novadraw/src/graph/mod.rs#L2020-L2087) 接收并驱动它。
 Figure 的回调上下文来自 runtime；layout 又使用 viewport effect 与 notification 值。
 合并 crate 或从 root 转发类型没有消除实际依赖。
 
@@ -197,9 +197,9 @@ Figure 的回调上下文来自 runtime；layout 又使用 viewport effect 与 n
 `FigureComponentUpdate`、LayoutSceneQuery/Output、Router/Anchor、TextLayoutEngine
 支持外部实现；本次 `d4_component_update` 四项通过。以下边界仍不足：
 
-- [EventContext](../../../novadraw/src/runtime/context.rs#L196-L325) 的 FIFO mutation
+- [EventContext](../../../crates/novadraw/src/runtime/context.rs#L196-L325) 的 FIFO mutation
   没有任意 typed component update，ADR-014 所述 callback owned update 未贯通；
-- [VisualUpdateContext](../../../novadraw-editor/src/part/mod.rs#L974-L1020)
+- [VisualUpdateContext](../../../crates/novadraw-editor/src/part/mod.rs#L974-L1020)
   只有有限的 primary bounds/style/label 操作，外部复合 Figure 私有数据无法沿标准
   模型通知 refresh 通路更新；
 - 任意动态宽度与字体 revision 下的外部文本派生快照，没有与内置文本等价的服务/发布
@@ -234,13 +234,13 @@ update 通路；不让应用借共享可变 Figure 绕开 Runtime。通用节点
 ## 6. 优先代码问题
 
 以下保留五项优先复核/修复入口；最终结构化清单、置信度和建议见
-[代码审查报告](../../../verification/evidence/goal-alignment-audit-2026-09-30/report.md)。
+[代码审查报告](../evidence/goal-alignment-audit-2026-09-30/report.md)。
 P1/P2 为代码缺陷级别，与历史 roadmap 的 P2 delta 命名无关。
 
 ### B01：构建期失效树交给 Runtime 后首次 validation 可能被跳过
 
 P1，置信度 10/10。位置：
-[Runtime 初始化](../../../novadraw/src/runtime/runtime.rs#L758-L793)。
+[Runtime 初始化](../../../crates/novadraw/src/runtime/runtime.rs#L758-L793)。
 
 Builder 安装 StackLayout 会把树标为 invalid，但 Runtime 新建空 UpdateManager，
 activation 没有将初始布局根入队。普通矩形树没有文本等附加刷新时，
@@ -254,7 +254,7 @@ child 才变为 100×100。应由接管事务完成初始验证，不让宿主�
 ### B02：Web 滚轮符号未转换为 Core 内容位移约定
 
 P1，置信度 10/10。位置：
-[WebInputAdapter](../../../novadraw-platform-web/src/input.rs#L145-L158)。
+[WebInputAdapter](../../../crates/novadraw-platform-web/src/input.rs#L145-L158)。
 
 DOM 正 deltaY 表示向下滚动请求；adapter 只换量纲，Core ScrollPane 使用
 `old - distance`。在顶部向下滚动会被 clamp 在零，中段会反向移动。
@@ -264,7 +264,7 @@ DOM 正 deltaY 表示向下滚动请求；adapter 只换量纲，Core ScrollPane
 ### B03：DOM Release 在 bridge 借用期间触发同步 blur
 
 P1，置信度 7/10。位置：
-[WebTextInputHost::apply_effect](../../../novadraw-platform-web/src/dom_text_input.rs#L205-L230)。
+[WebTextInputHost::apply_effect](../../../crates/novadraw-platform-web/src/dom_text_input.rs#L205-L230)。
 
 `if let` 中的 `bridge.borrow_mut()` 保持到成功分支结束；Release 调 textarea.blur，
 同步 blur listener 再借用同一 RefCell。保持 textarea 聚焦时 Enter/无 composition 的
@@ -276,7 +276,7 @@ Escape 释放会进入该路径。清空 active 不能规避借用检查。
 ### B04：Policy panic 未进入 Viewer 的 fault 边界
 
 P1，置信度 9/10。位置：
-[command_for_request](../../../novadraw-editor/src/viewer/mod.rs#L2096-L2128)。
+[command_for_request](../../../crates/novadraw-editor/src/viewer/mod.rs#L2096-L2128)。
 
 可修改自身状态的外部 policy 直接执行，没有与 refresh 一致的 panic/fault guard。
 CommandStack 的保护发生在 Command 已生成之后，无法覆盖此前的 policy panic。
@@ -288,7 +288,7 @@ CommandStack 的保护发生在 Command 已生成之后，无法覆盖此前的 
 ### B05：合并 compile_fail 掩盖单个禁止导出名的回归
 
 P1，置信度 10/10。位置：
-[Core README](../../../novadraw/README.md#L38-L40)。
+[Core README](../../../crates/novadraw/README.md#L38-L40)。
 
 同一个负向编译块同时导入三个名称，只能验证“至少一个不可导入”，不能验证三者
 均不可导入。RenderCommand 的缺失掩盖 FigureNode、UpdateManager 的根层泄漏；
@@ -310,7 +310,7 @@ Label/TextFlow 在缓存命中前逐节点扫描祖先，深链为 O(N²) 工作
 原触发前提不成立。composition 去重候选降为待平台取证：必须证明浏览器在
 ClearValue 后重新写回文本，不能把 input 事件本身当作 value 恢复的证据。
 原始 JSONL 保留审查过程，不能未经本轮裁决直接当作最终缺陷。排除与降级理由见
-[跨组复核](../../../verification/evidence/goal-alignment-audit-2026-09-30/cross-group-review.md)。
+[跨组复核](../evidence/goal-alignment-audit-2026-09-30/cross-group-review.md)。
 
 以下不是本次建议：
 
@@ -334,9 +334,9 @@ ClearValue 后重新写回文本，不能把 input 事件本身当作 value 恢�
 | book 失效命令 | `workspace.quality` 返回 unknown command，确认读者路径失效 |
 
 日志与探针：
-[定向测试](../../../verification/evidence/goal-alignment-audit-2026-09-30/targeted-tests.log)、
-[依赖检查](../../../verification/evidence/goal-alignment-audit-2026-09-30/facade-dependencies.log)、
-[Runtime 探针](../../../verification/evidence/goal-alignment-audit-2026-09-30/runtime-probe.json)。
+[定向测试](../evidence/goal-alignment-audit-2026-09-30/targeted-tests.log)、
+[依赖检查](../evidence/goal-alignment-audit-2026-09-30/facade-dependencies.log)、
+[Runtime 探针](../evidence/goal-alignment-audit-2026-09-30/runtime-probe.json)。
 
 本轮没有重跑 workspace full、跨平台实际窗口、浏览器 IME、GPU 像素差分或
 Draw2D 性能对照。历史 PASS 只作为对应历史范围的证据，不替代当前目标验收。

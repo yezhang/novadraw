@@ -50,9 +50,9 @@ NOVADRAW_THUMBNAIL_EVIDENCE=1 cargo run -p draw2d-official-examples -- --screens
 `target/verification/k07-4-clippy.log`。Native 日志为
 `target/verification/k07-4-native.log`。三张 Vello 截图已逐张查看：
 
-- [初始](../../../verification/evidence/k07-thumbnail/draw2d-official-examples_ThumbnailInitial_1792739663.png)：两处显示同一组图形和源边框。
-- [拖动与宽扁 overview](../../../verification/evidence/k07-thumbnail/draw2d-official-examples_ThumbnailDraggedWide_1792739665.png)：两处绿色矩形同步移动，overview 保持正方形捕获域比例。
-- [关闭](../../../verification/evidence/k07-thumbnail/draw2d-official-examples_ThumbnailClosed_1792739667.png)：两处图像清空，保留目标边框。
+- [初始](../evidence/k07-thumbnail/draw2d-official-examples_ThumbnailInitial_1792739663.png)：两处显示同一组图形和源边框。
+- [拖动与宽扁 overview](../evidence/k07-thumbnail/draw2d-official-examples_ThumbnailDraggedWide_1792739665.png)：两处绿色矩形同步移动，overview 保持正方形捕获域比例。
+- [关闭](../evidence/k07-thumbnail/draw2d-official-examples_ThumbnailClosed_1792739667.png)：两处图像清空，保留目标边框。
 
 截图阶段使用同一 Native renderer，阶段工厂分别重建消费者输入；
 连续旧帧、暂停和终止语义由前述契约测试验证。

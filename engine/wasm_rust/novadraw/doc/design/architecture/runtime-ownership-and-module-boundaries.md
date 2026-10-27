@@ -123,7 +123,7 @@ GA-4 至少保留两个独立外部消费者：
 消费者只能依赖公开 package API，不得使用 `pub(crate)`、测试 helper 或修改 Core 枚举。
 
 当前可执行 suite 见
-[验证入口](../../../verification/README.md)；定向消费者和契约使用精确 Cargo target。
+[验证入口](../../../tests/README.md)；定向消费者和契约使用精确 Cargo target。
 
 完成证据见
 [GA-4 模块与扩展表面完成记录](../../verification/reviews/ga4-module-extension-completion-2026-10-01.md)。

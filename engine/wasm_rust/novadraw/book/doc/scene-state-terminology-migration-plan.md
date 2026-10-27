@@ -390,7 +390,7 @@ rg -n '场景事实|scene facts|scene fact' \
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 构建后抽查：
@@ -428,5 +428,5 @@ git diff --check
   说明中；读者正文没有未限定的“场景事实”；
 - 没有无法判定而保留的位置；
 - 中文正文半角标点命中为 0；
-- `cargo xtask docs`、`git diff --check` 和 `./scripts/build_book.sh` 均已通过，三本书
+- `cargo xtask docs`、`git diff --check` 和 `./tools/scripts/build_book.sh` 均已通过，三本书
   的 HTML 与 PDF 均已生成。

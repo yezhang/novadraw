@@ -8,7 +8,7 @@ publish = false
 winit.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-novadraw = { path = "../../../novadraw" }
+novadraw = { path = "../../../crates/novadraw" }
 novadraw-example-support = { path = "../../support" }
 novadraw-example-scenes = { path = "../../scenes" }
 pollster.workspace = true

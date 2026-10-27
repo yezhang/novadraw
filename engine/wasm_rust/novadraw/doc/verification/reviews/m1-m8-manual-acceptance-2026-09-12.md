@@ -117,7 +117,7 @@ M8 当前门禁；该差异不影响 step/page/thumb/range 语义。
 
 ## 5. Web 复核
 
-- `./scripts/build_web_validation.sh` release 构建通过；
+- `./tools/scripts/build_web_validation.sh` release 构建通过；
 - Vello WebGPU `viewport/nested-viewports` 正常绘制双层裁剪；
 - Vello WebGPU `scroll-pane/automatic-scrollbars`、`automatic-hidden` 和
   `scalable-content` 正常绘制；

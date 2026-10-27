@@ -16,7 +16,7 @@
 | 开发 Editor | [Editor 规范](design/editor/00-index.md) → [GEF 采用账本](parity/gef/api-coverage.md) → [Editor 路线图](roadmap/editor/00-index.md) |
 | 核对 Draw2D/GEF 行为 | [参考分析](reference/00-index.md) → [源码审计基线](verification/reference/00-index.md) → [语义账本](parity/00-index.md) |
 | 确定下一批工作 | [P2 backlog](roadmap/p2-delta-backlog.md#当前推进顺序2026-10-14-校准) → [整改执行清单](verification/checklists/audit-remediation-execution.md) |
-| 验证实现 | [可执行 suite](../verification/README.md) → [人工手册](verification/manual/00-index.md) → [历史核验](verification/reviews/00-index.md) |
+| 验证实现 | [可执行 suite](../tests/README.md) → [人工手册](verification/manual/00-index.md) → [历史核验](verification/reviews/00-index.md) |
 | 评估产品或迁移 | [产品策略](strategy/00-index.md)、[Java/Rust 迁移](migration/00-index.md) |
 
 ## 知识归属
@@ -44,6 +44,6 @@ M1–M10、G0–G5、P2、GA 和平台资格分别在以下文件维护，不从
 - [目标调整与 GA 门禁](roadmap/goal-alignment-adjustment-plan-2026-09-30.md)；
 - [平台支持等级](roadmap/platform-support-matrix.md)。
 
-原始日志、JSON 和探针见 [verification/evidence](../verification/evidence/README.md)。
+原始日志、JSON 和探针见 [tests/evidence](verification/evidence/README.md)。
 本次全量修正的处置、保留范围和验证结果见
 [知识修正记录](verification/reviews/documentation-knowledge-revision-2026-10-19.md)。

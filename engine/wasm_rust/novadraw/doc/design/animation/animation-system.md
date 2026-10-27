@@ -359,7 +359,7 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ## 15. 验证与实施切片
 
-当前 suite 见 [验证定义](../../../verification/README.md)，切片状态与完成证据见
+当前 suite 见 [验证定义](../../../tests/README.md)，切片状态与完成证据见
 [P2 backlog](../../roadmap/p2-delta-backlog.md#p2-m01-animation-timeline-与-presentation-plane)。
 公开合同门禁详见
 [Animation 公开 API 合同提案 §12](public-api-contract.md#12-m01-a-公开合同门禁)。

@@ -1,7 +1,7 @@
 # Novadraw Examples
 
 本目录提供可运行、可阅读、可改造的 Novadraw 示例。示例同时承担集成验证职责，但
-验证命令和证据入口见 `verification/README.md`。性能基线独立放在
+验证命令和证据入口见 `tests/README.md`。性能基线独立放在
 [`benchmarks/`](../benchmarks/)。
 
 ## 目录结构
@@ -40,7 +40,7 @@
 | Native | `node-editor-demo` | Editor 交互与命令历史 | `cargo run -p node-editor-demo` |
 | Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | Native | `vello-app` | Vello 原始 API | `cargo run -p vello-app` |
-| Web | `web-validation` | 共享场景的浏览器版本 | `./scripts/build_web_validation.sh` |
+| Web | `web-validation` | 共享场景的浏览器版本 | `./tools/scripts/build_web_validation.sh` |
 
 ## 共享场景
 

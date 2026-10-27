@@ -102,5 +102,5 @@ suite 已包含的命令不应紧接着重复手工执行。
 9. 文档、suite 和代码是否引用同一合同。
 
 跨工具 suite 和直接 Cargo 门禁见
-[`verification/README.md`](../../../verification/README.md)。单测试 target 不建立
+[`tests/README.md`](../../../tests/README.md)。单测试 target 不建立
 xtask 别名。

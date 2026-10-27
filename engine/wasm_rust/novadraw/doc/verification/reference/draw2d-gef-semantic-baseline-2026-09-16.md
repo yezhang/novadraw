@@ -13,7 +13,7 @@
 | 项目规范 | ADR-014、ADR-015、相应专题设计 | 实现目标；不能取代外部事实或实际运行证据 |
 
 快照见
-[`baseline.json`](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/baseline.json)。
+[`baseline.json`](../evidence/draw2d-gef-semantic-audit-2026-09-16/baseline.json)。
 其中收录 158 个 `novadraw*` crate 的
 Rust 文件及 SHA-256，共 75,788 行，包含测试。清单表示审计边界，不表示逐行穷尽证明；
 各组报告单独说明实际阅读的方法、调用链及测试。Native/Web 和 xtask 入口另作验证。

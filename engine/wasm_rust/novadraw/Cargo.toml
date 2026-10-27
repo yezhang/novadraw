@@ -1,13 +1,13 @@
 [workspace]
 resolver = "3"
 members = [
-  "novadraw",
-  "novadraw-backend-vello",
-  "novadraw-platform-winit",
-  "novadraw-platform-web",
-  "novadraw-editor",
-  "novadraw-inspector",
-  "winit-canvas",
+  "crates/novadraw",
+  "crates/novadraw-backend-vello",
+  "crates/novadraw-platform-winit",
+  "crates/novadraw-platform-web",
+  "crates/novadraw-editor",
+  "crates/novadraw-inspector",
+  "crates/winit-canvas",
   "examples/support",
   "examples/scenes",
   "tools/xtask",

@@ -226,11 +226,11 @@ resolved 状态和快照依赖；失败通过 `TextError::PreparationRoute` 保�
 
 代码入口：
 
-- [`MeasureConstraints` 与 `FigureMeasurement`](../../../novadraw/src/figure/mod.rs)
-- [`LayoutSnapshot` 与 `LayoutOutput`](../../../novadraw/src/layout/mod.rs)
-- [约束文本测量测试](../../../novadraw/tests/d4_constrained_measurement.rs)
-- [外部 preparation 约束测量测试](../../../novadraw/tests/p2_preparation_measurement_contract.rs)
-- [候选快照与必需路由组测试](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)
+- [`MeasureConstraints` 与 `FigureMeasurement`](../../../crates/novadraw/src/figure/mod.rs)
+- [`LayoutSnapshot` 与 `LayoutOutput`](../../../crates/novadraw/src/layout/mod.rs)
+- [约束文本测量测试](../../../crates/novadraw/tests/d4_constrained_measurement.rs)
+- [外部 preparation 约束测量测试](../../../crates/novadraw/tests/p2_preparation_measurement_contract.rs)
+- [候选快照与必需路由组测试](../../../crates/novadraw/tests/p2_prepared_scene_routing_contract.rs)
 
 ## 4.6 应用运行期如何触发更新
 
@@ -274,7 +274,7 @@ Runtime 使用固定优先级工作列表：
 使只完成一部分的场景状态对外可见，也不会生成不完整的提交包。
 
 实现入口：
-[`Runtime::stabilize`](../../../novadraw/src/runtime/runtime.rs)。
+[`Runtime::stabilize`](../../../crates/novadraw/src/runtime/runtime.rs)。
 
 ## 4.8 重绘区域如何得到
 
@@ -305,7 +305,7 @@ Partial { union, regions }
 > 帧提交后，重绘区域外的可见像素必须与提交前等价。
 
 实现入口：
-[`repair.rs`](../../../novadraw/src/runtime/update/repair.rs)。
+[`repair.rs`](../../../crates/novadraw/src/runtime/update/repair.rs)。
 
 ## 4.9 帧准备状态
 
@@ -516,19 +516,19 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 背景、Canvas 与现有 overlay 按此顺序合成。背景参与时使用完整 Canvas recording；
 内容滚动不改变 `host_to_canvas`，移动 Canvas 则需要新的位置版本。
 后端必须声明 `HostBackground` capability；不支持的后端在准备时明确拒绝。
-公开调用反例见 [`p2_host_background`](../../../novadraw/tests/p2_host_background.rs)。
+公开调用反例见 [`p2_host_background`](../../../crates/novadraw/tests/p2_host_background.rs)。
 官方 [InheritBackground 宿主](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
 拥有两个 Canvas Runtime，注册同一个背景提供者，再分别完成各自 request。
 运行 `cargo xtask verify example.inherit-background` 可检查滚动、移动、背景移除和重建。
 
 ## 4.15 验证入口
 
-- [`m5_layout_contract.rs`](../../../novadraw/tests/m5_layout_contract.rs)
-- [`d4_constrained_measurement.rs`](../../../novadraw/tests/d4_constrained_measurement.rs)
-- [`d4_component_update.rs`](../../../novadraw/tests/d4_component_update.rs)
-- [`d4_notification_epoch.rs`](../../../novadraw/tests/d4_notification_epoch.rs)
-- [`runtime_resize_contract.rs`](../../../novadraw/tests/runtime_resize_contract.rs)
-- [`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)
-- [`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)
-- [`p2_scene_view.rs`](../../../novadraw/tests/p2_scene_view.rs)
+- [`m5_layout_contract.rs`](../../../crates/novadraw/tests/m5_layout_contract.rs)
+- [`d4_constrained_measurement.rs`](../../../crates/novadraw/tests/d4_constrained_measurement.rs)
+- [`d4_component_update.rs`](../../../crates/novadraw/tests/d4_component_update.rs)
+- [`d4_notification_epoch.rs`](../../../crates/novadraw/tests/d4_notification_epoch.rs)
+- [`runtime_resize_contract.rs`](../../../crates/novadraw/tests/runtime_resize_contract.rs)
+- [`graph_projection_contract.rs`](../../../crates/novadraw/tests/graph_projection_contract.rs)
+- [`p2_scene_capture.rs`](../../../crates/novadraw/tests/p2_scene_capture.rs)
+- [`p2_scene_view.rs`](../../../crates/novadraw/tests/p2_scene_view.rs)
 - `cargo xtask verify runtime.apps`

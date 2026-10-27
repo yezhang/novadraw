@@ -29,13 +29,13 @@ focus 请求区分 foreign 与 unknown。Node 三个弱化的旧尺寸 getter �
 
 | 范围 | 结果与证据 |
 |---|---|
-| `core.p2-s07-tree-query` | 3 项外部测试及 1 项内部 never-live 测试通过；`verification/evidence/p2-s07-tree-query-suite.log` |
+| `core.p2-s07-tree-query` | 3 项外部测试及 1 项内部 never-live 测试通过；`doc/verification/evidence/p2-s07-tree-query-suite.log` |
 | Core 库编译、Editor 库编译 | 通过；`p2-s07-tree-check.log`、`p2-s07-tree-editor-check.log` |
 | Core 单测回归 | 370 项执行，368 项初次通过；2 项旧身份预期已修订并各自定向复跑通过 |
-| contents 替换复跑 | `verification/evidence/p2-s07-tree-regression-retry.log` |
-| direct focus 复跑 | `verification/evidence/p2-s07-focus-regression-retry.log` |
-| 原全量单测记录 | `verification/evidence/p2-s07-tree-lib-tests.log` 保留初次失败，不改写为全量通过 |
-| 文档门禁与 diff 检查 | 通过；`verification/evidence/p2-s07-tree-docs.log`，108 commands / 60 suites |
+| contents 替换复跑 | `doc/verification/evidence/p2-s07-tree-regression-retry.log` |
+| direct focus 复跑 | `doc/verification/evidence/p2-s07-focus-regression-retry.log` |
+| 原全量单测记录 | `doc/verification/evidence/p2-s07-tree-lib-tests.log` 保留初次失败，不改写为全量通过 |
+| 文档门禁与 diff 检查 | 通过；`doc/verification/evidence/p2-s07-tree-docs.log`，108 commands / 60 suites |
 
 新增测试覆盖 S07-ID01–ID07 的 Tree/Stable 主体事实、双主体关系及 immutable 值
 再入 live query。same-owner never-live 在 Core 私有测试构造，无公开注入入口。
@@ -58,10 +58,10 @@ scale_handle 使用 CapabilityQueryError；viewport_handle 和保存 handle 的 
 foreign 与 unknown。freeform 排除查询受检所有输入 ID，extent union 溢出不发布缓存。
 
 当前 `core.query-contracts` 的 4 项外部 Tree/Stable 与 1 项内部 never-live 测试通过：
-[执行记录](../../../verification/evidence/p2-s07-core-query-contracts.log)。
+[执行记录](../evidence/p2-s07-core-query-contracts.log)。
 新增保存 viewport handle 在 foreign tree 与删除后查询的独立负测。
 
 Core 全部 integration targets 已通过编译迁移：
-[编译记录](../../../verification/evidence/p2-s07-core-consumer-compile.log)。
+[编译记录](../evidence/p2-s07-core-consumer-compile.log)。
 Inspector 与共享场景、示例宿主的库调用点已迁移；Editor integration、独立消费者、
 可执行示例及最终公开 API/规范/门禁仍待完成。

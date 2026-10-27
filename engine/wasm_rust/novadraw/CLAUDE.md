@@ -15,27 +15,36 @@
 ### 模块结构
 
 ```text
-novadraw/                  - 平台无关 Core、几何、Render 协议、Figure/Runtime
-novadraw-backend-vello/    - Vello 渲染后端
-novadraw-platform-winit/   - Winit 平台适配
-novadraw-platform-web/     - Web 平台适配
-novadraw-editor/   - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
-novadraw-inspector/ - 只读诊断与观测
-winit-canvas/      - 独立 winit Canvas UI 组件，不依赖 Novadraw/Vello
-examples/native/   - winit/macOS/桌面示例
-examples/web/      - Wasm/浏览器示例
-examples/scenes/   - Native/Web 共用的无平台示例场景
-examples/support/  - 示例共享宿主与工具
-benchmarks/        - 无窗口性能基线
+crates/novadraw/                 - 平台无关 Core、几何、Render 协议、Figure/Runtime
+crates/novadraw-backend-vello/   - Vello 渲染后端
+crates/novadraw-platform-winit/  - Winit 平台适配
+crates/novadraw-platform-web/    - Web 平台适配
+crates/novadraw-editor/          - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
+crates/novadraw-inspector/       - 只读诊断与观测
+crates/winit-canvas/             - 独立 winit Canvas UI 组件，不依赖 Novadraw/Vello
+examples/native/                - winit/macOS/桌面示例
+examples/web/                   - Wasm/浏览器示例
+examples/scenes/                - Native/Web 共用的无平台示例场景
+examples/support/               - 示例共享宿主与工具
+benchmarks/                     - 无窗口性能基线
+tests/                          - 跨包消费者、oracle 资料与公开 API 快照
+tools/xtask/                    - 专项验收与文档门禁
+tools/scripts/                  - 构建、浏览器验收和性能采样脚本
+doc/verification/evidence/      - 保持原始内容的历史证据
+doc/reference/fonts/reports/    - 独立字体报告及原始 GPU demos
+target/                         - 构建产物、日志、截图与本地采样输出
 ```
+
+完整目录归属见 [README.md](README.md)。库包名与 Cargo 命令不因目录迁移改变。
+原始证据和独立报告整体迁移时核对 SHA-256，内部历史路径不作改写。
 
 `winit-canvas` 使用 winit 类型与可选 WGPU，不属于 backend-neutral Core。
 Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，
 不得将 Novadraw 或 Vello 依赖加回 Canvas 库。契约与验证入口见
-`winit-canvas/README.md`。
+`crates/winit-canvas/README.md`。
 `novadraw-platform-winit` 的可选 `canvas` feature 单向依赖 `winit-canvas`，
 提供 `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`。原 WinitPlatformHost
-保留整窗语义；子 Canvas 接入见 `novadraw-platform-winit/README.md`。
+保留整窗语义；子 Canvas 接入见 `crates/novadraw-platform-winit/README.md`。
 
 ## 核心禁止事项
 
@@ -45,7 +54,7 @@ Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，
 - **禁止热路径日志**：渲染循环中不打印日志
 - **禁止 magic numbers**：业务代码中不使用硬编码数字
 - **迭代渲染归档**：`render_iterative.rs`、`use_iterative_render` 和 I 键切换已从主线移除；历史 POC 归档在 git tag `archive/render-iterative-poc-20260617`
-- **保护渲染主循环**：`novadraw/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
+- **保护渲染主循环**：`crates/novadraw/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
 - **禁止提前恢复迭代渲染**：递归渲染在 M1-M10 核心契约完备前，不得把迭代渲染重新接入代码主线；未来仅能作为性能专项 delta 从归档 tag 恢复并重新设计
 - **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于 `novadraw` Core，`examples/*` 只做平台输入适配与示例编排
 - **第三方类型不得穿透公共契约**：backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型；Kurbo 只按 Geometry 私有实现、Render IR 私有算法和 Vello lowering 三类归属
@@ -87,7 +96,7 @@ git diff --check
 `cargo test -p <crate> --tests` 造成重复执行；需要完整 crate 验证时直接运行
 `cargo test -p <crate>`。
 
-跨工具 suite 由 xtask 维护，当前入口见 `verification/README.md` 和
+跨工具 suite 由 xtask 维护，当前入口见 `tests/README.md` 和
 `cargo xtask list`。`cargo xtask docs` 只检查 Markdown 类型、本地链接、当前命令引用、
 设计索引与 parity 状态，不编译 Rust。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
 

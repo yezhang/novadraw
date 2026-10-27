@@ -184,7 +184,7 @@ Native 代表性截图已生成并检查。普通布局约束测量、共享不�
 Editor 文字 offset 更新后的稳定查询已补齐，默认预算保持不变。
 最终 workspace fmt、check、严格 Clippy、test 通过（1,321 项通过、1 项忽略、
 0 项失败）；五个应用探针、Web backend 编译和公开 API 边界门禁均通过。
-P2-L01 为 `complete`，证据见[实施记录](../../verification/evidence/adr043/implementation.md)。
+P2-L01 为 `complete`，证据见[实施记录](../verification/evidence/adr043/implementation.md)。
 原 ADR 修订 1 与增量修订 2 保持有效；K06 的 tree contour 与动画不随图布局关闭。
 Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
 MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
@@ -199,7 +199,7 @@ Zoom 使用原始 SVG，经已有解码器在固有尺寸栅格化。
 K07 的共享树投影和透明 Canvas 背景输入为下一批 Design；K06 动画、K08 AA 模式、
 SVG 随缩放/DPI 重栅格化与混合字体装饰仍保留未完成，不扩张本批完成范围。
 ConnectionAndAnchor、Path、SimpleTree 已收口，入口状态为 14 complete、8 in_progress、
-3 blocked；本批[交付证据](../../verification/evidence/official-examples-2026-10-23/implementation.md)
+3 blocked；本批[交付证据](../verification/evidence/official-examples-2026-10-23/implementation.md)
 保留真实 Native 截图与验证边界。
 
 2026-10-23 后续复核形成
@@ -214,7 +214,7 @@ K07 进入 `design-draft`：
 提出不可变源快照、destination 资源导入与独立宿主背景帧输入，待用户评审，
 没有开始共享视图实现；K06 动画和 K08 AA/SVG 保留原状态。
 本批执行证据见
-[后续实施记录](../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
+[后续实施记录](../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
 
 K07 草案已按
 [2026-10-23 评审记录](../verification/reviews/k07-shared-scene-view-background-review-2026-10-23.md)
@@ -579,12 +579,12 @@ capability，以及开放 `PresentationBinding<V>`。后续 ADR-033 已取消 co
 
 - Builder 与 ContainerMut 已共享结构预检/发布原语；既有 add 与 Layer 添加继续
   复用该原语，Runtime 资源登记、失效与生命周期复用既有路径；
-- `novadraw/tests/p2_child_insertion.rs` 仅通过公开 API 实现外部 Figure/Layout 与
+- `crates/novadraw/tests/p2_child_insertion.rs` 仅通过公开 API 实现外部 Figure/Layout 与
   自定义 Placement constraint，验证 Builder/Runtime 得到相同顺序与布局；
 - `core.p2-s01-child-insertion`：8 项通过，覆盖原子拒绝、失败 ID 作废、通知、
   admission、10,000 层深度及 validator panic 隔离；
 - 当时 quick/full 质量门禁通过；当前直接 Cargo 与跨边界 suite 的分工见
-  [验证入口](../../verification/README.md)；
+  [验证入口](../../tests/README.md)；
 - 本项不改变 callback FIFO、已有 Figure reparent 或 keyed Layer 协议。
 
 ## Graphics
@@ -1030,8 +1030,8 @@ IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
 
 - `doc/design/rendering/image-source-rectangle.md`
 - `doc/parity/draw2d/api-coverage.md`
-- `novadraw/tests/image_source_rectangle_contract.rs`
-- `verification/README.md`
+- `crates/novadraw/tests/image_source_rectangle_contract.rs`
+- `tests/README.md`
 
 ## Developer tooling
 

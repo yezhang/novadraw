@@ -82,8 +82,8 @@ Native／WebGPU 支持及最终产物增量；当前没有这些成本的实测�
 
 官方样式矩阵包含线宽 0。当前受检 StrokeStyle 可以保存 0，
 但 Vello lowering 明确跳过该描边，因此不能将“接受 0”当作设备 hairline 已实现。
-来源：[StrokeStyle](../../../novadraw/src/render/stroke.rs)、
-[Vello lowering](../../../novadraw-backend-vello/src/lib.rs)、
+来源：[StrokeStyle](../../../crates/novadraw/src/render/stroke.rs)、
+[Vello lowering](../../../crates/novadraw-backend-vello/src/lib.rs)、
 [AA 方案中的独立边界](../../design/rendering/shape-antialias-proposal.md)。
 
 如要支持设备 hairline，应定义区别于逻辑宽度的显式语义，并明确 DPI、
@@ -96,7 +96,7 @@ Native／WebGPU 支持及最终产物增量；当前没有这些成本的实测�
 这是可确认的契约差异。上游各平台对这些输入的实际描边行为尚未在本次核对中裁定，
 因此不能直接承诺放开输入就能对等，也不能静默夹到 1。
 来源：[官方矩阵](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/swt/ShapeStylesExample.java)、
-[当前校验](../../../novadraw/src/render/stroke.rs)。
+[当前校验](../../../crates/novadraw/src/render/stroke.rs)。
 
 后续须从只读 Draw2D／SWT GC 语义证据确定准入、描边轮廓与边界计算，
 再评审是否扩展 Core 契约及后端 lowering。这个决定与 AA、hairline 分开。
@@ -130,8 +130,8 @@ UML 便笺的填充已经采用 6 单位折角，但当前用同一个多边形�
 样例注册内置字体；Core 已提供字体资源注册与请求完成链路。
 Print 的三个字体、UML 的系统默认字族、Zoom 请求的 Arial 需要宿主明确提供真实
 font bytes／face，并验证实际解析字体与指标；只更改 family 字符串不足以证明对等。
-来源：[字体引擎](../../../novadraw/src/render/text.rs)、
-[字体资源入口](../../../novadraw/src/runtime/runtime/service_facades.rs)、
+来源：[字体引擎](../../../crates/novadraw/src/render/text.rs)、
+[字体资源入口](../../../crates/novadraw/src/runtime/runtime/service_facades.rs)、
 [样例字体初始化](../../../examples/native/draw2d-official-examples/src/examples/mod.rs)。
 
 主题、跨显示器 DPI 与窗口呈现也应分别由 Figure 组件、platform／backend 和验证

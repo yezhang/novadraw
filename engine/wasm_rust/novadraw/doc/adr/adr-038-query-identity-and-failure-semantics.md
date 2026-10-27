@@ -296,7 +296,7 @@ Novadraw 所有权迁移的显式边界，不伪称为 Draw2D 原生异常合同
 
 按 Layout 测量/失败传播、tree 查询、跨 crate 消费者三个切片推进。当前查询负测
 直接运行 Cargo target，内部测试使用 `--lib s07_`；批次与最终门禁使用
-`verification/README.md` 的 Cargo fmt/check、Clippy/test，文档另运行 xtask docs。
+`tests/README.md` 的 Cargo fmt/check、Clippy/test，文档另运行 xtask docs。
 设计阶段不注册空 suite。
 
 ### 获批后的规范与调用点同步清单

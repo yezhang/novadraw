@@ -62,7 +62,7 @@ Core 输出不包含 Vello 类型的 `RenderSubmission`。后端负责：
 
 - [`ADR-022：第三方类型与渲染依赖边界`](../../../doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md)
 - [`ADR-025：统一 Graphics 与 glyph 预处理`](../../../doc/adr/adr-025-unified-graphics-and-glyph-preparation.md)
-- [`Vello 后端`](../../../novadraw-backend-vello/src/lib.rs)
+- [`Vello 后端`](../../../crates/novadraw-backend-vello/src/lib.rs)
 
 ## 6.5 资源交接
 

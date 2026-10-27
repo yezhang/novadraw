@@ -47,6 +47,10 @@
 
 ### 文档入口
 
+- 目录归属与构建入口：`README.md`；库源码统一位于 `crates/`，
+  跨包测试位于 `tests/`，脚本位于 `tools/scripts/`。
+- 历史证据：`doc/verification/evidence/`；独立字体比较报告及原始 GPU demos：
+  `doc/reference/fonts/reports/`。内部历史路径与原始字节保持不变。
 - 项目文档总入口：`doc/00-index.md`
 - 文档知识归属、替代与原始证据保护：`doc/knowledge-maintenance.md`
 - 完整项目规则：`CLAUDE.md`
@@ -73,7 +77,7 @@
   `PropertyKey<V>` / `ErasedPropertyKey`，字符串只用于诊断显示
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
-- **可执行验证入口**：`verification/README.md` 与 `cargo xtask list`
+- **可执行验证入口**：`tests/README.md` 与 `cargo xtask list`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。
 
 ### 当前执行门禁
@@ -138,7 +142,7 @@
 | 禁止临时方案 | 问题必须从根因解决 |
 | 禁止全局状态 | 不使用 Singleton |
 | 渲染热路径 | 不打印日志 |
-| 渲染主循环保护 | 当前主线只保护 `novadraw/src/graph/render_recursive.rs`；`render_iterative.rs` 已归档到 tag `archive/render-iterative-poc-20260617` |
+| 渲染主循环保护 | 当前主线只保护 `crates/novadraw/src/graph/render_recursive.rs`；`render_iterative.rs` 已归档到 tag `archive/render-iterative-poc-20260617` |
 | 硬编码 | 业务代码中不使用 magic numbers |
 | 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，examples 只做平台输入适配与示例编排 |
 | 第三方类型边界 | backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型 |
@@ -158,11 +162,11 @@
   `novadraw-backend-vello`、`novadraw-platform-winit`、`novadraw-platform-web`
 - **独立 UI 组件**：`winit-canvas` 不依赖 Novadraw/Vello，使用 winit 类型与可选
   WGPU 实现窗口内 Canvas；不属于 backend-neutral Core。
-  接入与验证入口见 `winit-canvas/README.md`，Novadraw 离屏接入在
+  接入与验证入口见 `crates/winit-canvas/README.md`，Novadraw 离屏接入在
   `novadraw-backend-vello::texture`。
 - **Canvas 宿主桥接**：`novadraw-platform-winit` 的可选 `canvas` feature 提供
   `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`，按区域协调 Host 服务；
-  原 `WinitPlatformHost` 保留整窗语义，接入见 `novadraw-platform-winit/README.md`。
+  原 `WinitPlatformHost` 保留整窗语义，接入见 `crates/novadraw-platform-winit/README.md`。
 - **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate
 
 ## 交互方式原则（摘要）

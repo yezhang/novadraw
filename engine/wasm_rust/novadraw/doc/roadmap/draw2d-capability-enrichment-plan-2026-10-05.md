@@ -75,7 +75,7 @@ backend/host 承担，不把 SWT Printer 带入 Core。
 由独立消费者证明不修改 Core 枚举或中心分支即可接入。
 公开签名不暴露平台/后端类型，public IR 被所有启用后端消费或预先拒绝。
 正例、反例、恢复、生命周期及真实视觉证据按范围闭合，再更新 backlog/parity。
-详细验证命令见 [验证入口](../../verification/README.md)。
+详细验证命令见 [验证入口](../../tests/README.md)。
 
 不借能力补齐重建产品 schema、serializer、Palette 或业务工作台，不新增空 Scene3D，
 不绕过 Runtime，不为内置能力建立特权路径。可见能力先证明静态行为，

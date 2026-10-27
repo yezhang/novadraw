@@ -148,10 +148,10 @@ Obstruction 保留 in_progress 状态。
 RouteOutput 构造拒绝非有限点，Locator/Decoration 沿原有批次预检与提交。
 失败保留全组观察，修正输入后可以恢复。既有逐条 Router 不改变 Anchor 回调顺序。
 
-外部消费者测试为 `novadraw/tests/p2_group_route_contract.rs`：
+外部消费者测试为 `crates/novadraw/tests/p2_group_route_contract.rs`：
 验证完整组、缺失、重复、重排、外部身份、metadata 变化、非有限几何、
 solver 错误及第二条连接的 Locator 失败，确认整组清空与恢复。
-`novadraw/src/connection/visibility.rs` 的测试覆盖斜线、重叠、严格内部排除、
+`crates/novadraw/src/connection/visibility.rs` 的测试覆盖斜线、重叠、严格内部排除、
 反向共享、spacing squeeze 和多个端点方向；独立开矩形裁剪检查线段不穿障碍内部。
 
 连接的规范 routing domain 仍是直接父节点的 child content。

@@ -61,7 +61,7 @@ Request。这个差异避免 trait object 混入主协议，并让最终历史�
 
 ## 4. 自动证据
 
-`novadraw-editor/tests/g5_connection_creation_contract.rs` 共 10 项：
+`crates/novadraw-editor/tests/g5_connection_creation_contract.rs` 共 10 项：
 
 1. typed request 字段；
 2. source lock、selection 隔离、feedback cleanup 与提交；

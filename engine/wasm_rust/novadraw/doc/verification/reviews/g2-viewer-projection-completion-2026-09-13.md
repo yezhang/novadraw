@@ -52,7 +52,7 @@ G2 对 `Runtime` 的输入路径复核确认：
 
 ## 5. 自动验证
 
-`novadraw-editor/tests/g2_viewer_projection_contract.rs` 共 15 项，覆盖：
+`crates/novadraw-editor/tests/g2_viewer_projection_contract.rs` 共 15 项，覆盖：
 
 - 初始递归投影、root/contents、model/visual registry；
 - compound visual content pane 与 ancestor owner 查询；

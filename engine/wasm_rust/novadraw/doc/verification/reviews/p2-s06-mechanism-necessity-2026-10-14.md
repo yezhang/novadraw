@@ -26,8 +26,8 @@
 | Overlay | 现有 add/remove batch、owner registry、失败后移除成功前缀 | 临时外部探针确认 `[figure, figure]` 全部通过预检，第一次 dispose 后第二次报错；Figure 和 owner 已移除，Viewer faulted | 在写入前处理重复 ID、祖孙重叠、foreign/stale/owner；补齐创建/style 拒绝和清理失败报告 |
 
 源码入口：
-[Part/Connection 创建](../../../novadraw-editor/src/viewer/projection.rs)、
-[Overlay 批量操作](../../../novadraw-editor/src/viewer/mod.rs)。
+[Part/Connection 创建](../../../crates/novadraw-editor/src/viewer/projection.rs)、
+[Overlay 批量操作](../../../crates/novadraw-editor/src/viewer/mod.rs)。
 探针复用现有 integration fixture，复制到系统临时目录中的独立 consumer crate，
 追加两个观察当前行为的测试；两个探针均通过，确认上述缺口，不代表整改通过。
 探针采用独立解析的依赖锁，不作为性能或完整回归证据。临时文件不进入仓库。

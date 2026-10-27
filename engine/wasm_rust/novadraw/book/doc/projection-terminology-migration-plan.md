@@ -278,7 +278,7 @@ rg -n '投影|projection|projected|project_to' \
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 构建后抽查：
@@ -311,4 +311,4 @@ git diff --check
 - 三本书的术语表、正文、图示、目录、大纲和维护规则已同步；
 - 保留的 `projection` 仅用于真实源码路径、测试文件名、首次定义中的英文检索词和本
   迁移方案对旧术语的讨论；
-- `cargo xtask docs`、`git diff --check` 和 `./scripts/build_book.sh` 均已通过。
+- `cargo xtask docs`、`git diff --check` 和 `./tools/scripts/build_book.sh` 均已通过。

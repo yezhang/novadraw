@@ -40,16 +40,16 @@ isEnabled 1139、isShowing 1195、isVisible 1226。
 
 | ID | 当前证据 | 处置 |
 |---|---|---|
-| S07-C01 | [graph/query.rs](../../../novadraw/src/graph/query.rs)：node、parent_id、child_order、bounds、depth 等直接读取 arena Option；本地与有效布尔查询将缺失折叠为 false | 任意 ID 读取改为受检；Option 仅表达合法缺失；保留本地/继承区别 |
-| S07-C02 | [identity.rs](../../../novadraw/src/identity.rs)：RuntimeArena::get 120 先判 namespace 后读取 SlotMap，两种失败均为 None；[search.rs](../../../novadraw/src/graph/search.rs) TreeQueryError 仅 UnknownFigure | 公共查询先判 namespace，复用 tree 身份错误并增加 foreign；unknown/stale 合用缺失分类 |
-| S07-C03 | [layout/mod.rs](../../../novadraw/src/layout/mod.rs)：LayoutSceneRead 55 与 LayoutSceneQuery 97–160 的多数读取不含 Result；constraint_as 仅错型时失败，未验证 container/child 身份与关系 | 将 identity/relationship 贯通 query；保留类型约束领域错误 |
-| S07-C04 | [graph/layout_measurement.rs](../../../novadraw/src/graph/layout_measurement.rs) 962 起：get_children 缺失返回空集合并 filter_map；preferred/minimum/maximum 使用 default/ZERO/INFINITY；bounds 返回 ZERO | 删除身份失败替身；未知 child 不被过滤成合法较小布局 |
+| S07-C01 | [graph/query.rs](../../../crates/novadraw/src/graph/query.rs)：node、parent_id、child_order、bounds、depth 等直接读取 arena Option；本地与有效布尔查询将缺失折叠为 false | 任意 ID 读取改为受检；Option 仅表达合法缺失；保留本地/继承区别 |
+| S07-C02 | [identity.rs](../../../crates/novadraw/src/identity.rs)：RuntimeArena::get 120 先判 namespace 后读取 SlotMap，两种失败均为 None；[search.rs](../../../crates/novadraw/src/graph/search.rs) TreeQueryError 仅 UnknownFigure | 公共查询先判 namespace，复用 tree 身份错误并增加 foreign；unknown/stale 合用缺失分类 |
+| S07-C03 | [layout/mod.rs](../../../crates/novadraw/src/layout/mod.rs)：LayoutSceneRead 55 与 LayoutSceneQuery 97–160 的多数读取不含 Result；constraint_as 仅错型时失败，未验证 container/child 身份与关系 | 将 identity/relationship 贯通 query；保留类型约束领域错误 |
+| S07-C04 | [graph/layout_measurement.rs](../../../crates/novadraw/src/graph/layout_measurement.rs) 962 起：get_children 缺失返回空集合并 filter_map；preferred/minimum/maximum 使用 default/ZERO/INFINITY；bounds 返回 ZERO | 删除身份失败替身；未知 child 不被过滤成合法较小布局 |
 | S07-C05 | 同文件 1024 起：freeform_extent `.ok()`；scale capability `.ok()?` | NotFreeform 可在可选入口成为 None；Unvalidated/identity/descriptor 错误必须保留 |
-| S07-C06 | 同文件 preferred_measurement 605、minimum_size 651 返回 Option，LayoutManager callback 返回确定值并填缓存；[layout/mod.rs](../../../novadraw/src/layout/mod.rs) 330–350 无 measurement error 通道 | preferred/minimum 改 Result，失败不填成功缓存；保留权威组合和 baseline |
-| S07-C07 | [graph/mod.rs](../../../novadraw/src/graph/mod.rs) 860–882 的 get_preferred/minimum/maximum_size 仍公开；前两者只读 override/current bounds，不含 LayoutManager/intrinsic/Border | 删除非权威 getter，迁移到 tree/query 测量；不是已经关闭的旧发现 |
-| S07-C08 | [graph/query.rs](../../../novadraw/src/graph/query.rs) 五个 transform 都返回 Option，unknown/foreign 与 inverse None 同通道 | 先判身份，正向 Result，逆向 Result<Option>；保留奇异矩阵领域语义 |
-| S07-C09 | [runtime/update/listener.rs](../../../novadraw/src/runtime/update/listener.rs) 162–183：StableSceneQuery::bounds 为 Option、is_attached 为 bool | owner 准入已受检，但并未验证调用者任意 ID；补 tree identity 返回 |
-| S07-C10 | [connection/query.rs](../../../novadraw/src/connection/query.rs) 289–302：tracked topology/visibility 只记录 generation 后返回 source 值；399–424 tree adapter 的 border_box 先以 is_attached 判 detached，再读 bounds | tracking 不是 identity admission；RouteSceneRead/Query 共用受检读取，先 foreign/missing 后 detached |
+| S07-C06 | 同文件 preferred_measurement 605、minimum_size 651 返回 Option，LayoutManager callback 返回确定值并填缓存；[layout/mod.rs](../../../crates/novadraw/src/layout/mod.rs) 330–350 无 measurement error 通道 | preferred/minimum 改 Result，失败不填成功缓存；保留权威组合和 baseline |
+| S07-C07 | [graph/mod.rs](../../../crates/novadraw/src/graph/mod.rs) 860–882 的 get_preferred/minimum/maximum_size 仍公开；前两者只读 override/current bounds，不含 LayoutManager/intrinsic/Border | 删除非权威 getter，迁移到 tree/query 测量；不是已经关闭的旧发现 |
+| S07-C08 | [graph/query.rs](../../../crates/novadraw/src/graph/query.rs) 五个 transform 都返回 Option，unknown/foreign 与 inverse None 同通道 | 先判身份，正向 Result，逆向 Result<Option>；保留奇异矩阵领域语义 |
+| S07-C09 | [runtime/update/listener.rs](../../../crates/novadraw/src/runtime/update/listener.rs) 162–183：StableSceneQuery::bounds 为 Option、is_attached 为 bool | owner 准入已受检，但并未验证调用者任意 ID；补 tree identity 返回 |
+| S07-C10 | [connection/query.rs](../../../crates/novadraw/src/connection/query.rs) 289–302：tracked topology/visibility 只记录 generation 后返回 source 值；399–424 tree adapter 的 border_box 先以 is_attached 判 detached，再读 bounds | tracking 不是 identity admission；RouteSceneRead/Query 共用受检读取，先 foreign/missing 后 detached |
 
 S07-C10 是同一身份根因在 Route 阶段的当前反例，修复范围限定为查询与错误传播。
 不重做 ADR-036 命名，也不改变 route unresolved、anchor 或 connection 生命周期合同。
@@ -58,10 +58,10 @@ S07-C10 是同一身份根因在 Route 阶段的当前反例，修复范围限�
 
 | 机制 | 当前证据 | 本批次安排 |
 |---|---|---|
-| Event foreign/disposed/detached 分离 | [runtime/context.rs](../../../novadraw/src/runtime/context.rs) 29–69，EventSceneQuery 已受检 | 复用规则并做迁移回归，不再造 EventContext |
-| typed capability 合法缺失 | [graph/query.rs](../../../novadraw/src/graph/query.rs) capability 9–23，返回 Result<Option> | 保留 CapabilityQueryError，不为名称一致替换整个领域错误 |
-| LayoutOutput 未发布候选 | [graph/layout_measurement.rs](../../../novadraw/src/graph/layout_measurement.rs) 277–304：恢复 manager 后先 `result?`，再 apply_layout_output | 复用提交顺序，新增失败贯通用例；允许 Started 诊断，不承诺整轮回滚 |
-| stable owner 准入 | [runtime/runtime.rs](../../../novadraw/src/runtime/runtime.rs) 2514–2523，fault/pending 拒绝构造 query | 保留 Faulted/NotStable，不给 FigureTree 添加 Runtime fault 状态 |
+| Event foreign/disposed/detached 分离 | [runtime/context.rs](../../../crates/novadraw/src/runtime/context.rs) 29–69，EventSceneQuery 已受检 | 复用规则并做迁移回归，不再造 EventContext |
+| typed capability 合法缺失 | [graph/query.rs](../../../crates/novadraw/src/graph/query.rs) capability 9–23，返回 Result<Option> | 保留 CapabilityQueryError，不为名称一致替换整个领域错误 |
+| LayoutOutput 未发布候选 | [graph/layout_measurement.rs](../../../crates/novadraw/src/graph/layout_measurement.rs) 277–304：恢复 manager 后先 `result?`，再 apply_layout_output | 复用提交顺序，新增失败贯通用例；允许 Started 诊断，不承诺整轮回滚 |
+| stable owner 准入 | [runtime/runtime.rs](../../../crates/novadraw/src/runtime/runtime.rs) 2514–2523，fault/pending 拒绝构造 query | 保留 Faulted/NotStable，不给 FigureTree 添加 Runtime fault 状态 |
 | ADR-036 命名与权限 | [完成记录](adr-036-context-phase-authority-completion-2026-10-13.md) | 已完成基线，不把完成项重复列为 S07 Execute |
 | 合法无上限与空 extent | maximum_size 对有效 node 无 override 返回无限；recompute_freeform_extent 对空集合使用 ZERO | 保留合法结果，不能按 default/INFINITY 字面批量删除 |
 
@@ -91,7 +91,7 @@ S06 的独立完成记录 `p2-s06-failure-isolation-completion-2026-10-15.md`。
 ## 草案交付检查
 
 - `cargo xtask docs`：PASS；metadata、链接、索引和 public API probes 通过，日志见
-  [p2-s07-design-docs.log](../../../verification/evidence/p2-s07-design-docs.log)，退出码 0。
+  [p2-s07-design-docs.log](../evidence/p2-s07-design-docs.log)，退出码 0。
 - `git diff --check`：PASS。
 - 按好好说话原则回读：保留身份、缺失、fault 与候选保证的差别；新文档中文相邻字符间
   半角标点、破折号和空泛元话语机械扫描为 0 命中。

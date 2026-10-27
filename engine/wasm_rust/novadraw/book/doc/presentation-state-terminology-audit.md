@@ -41,10 +41,10 @@
 - `doc/design/animation/capability-integration.md`
 - `doc/verification/reviews/p2-m01b-animation-presentation-evidence.md`
 - `doc/verification/reviews/p2-m01c-animation-consumer-evidence.md`
-- `novadraw/src/animation/mod.rs`
-- `novadraw/src/animation/service.rs`
-- `novadraw/src/figure/preparation.rs`
-- `novadraw-editor/src/feedback/mod.rs`
+- `crates/novadraw/src/animation/mod.rs`
+- `crates/novadraw/src/animation/service.rs`
+- `crates/novadraw/src/figure/preparation.rs`
+- `crates/novadraw-editor/src/feedback/mod.rs`
 
 这些依据共同确认以下事实：
 
@@ -358,5 +358,5 @@ writer agent 执行时必须遵守以下约束：
 - 中文正文半角标点命中为 0；扫描命中只来自 Mermaid 箭头语法；
 - `cargo xtask docs` 通过；
 - `git diff --check` 通过；
-- `./scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均已生成；
+- `./tools/scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均已生成；
 - PDF 已抽查核心原理书第 1、8 章、用户指南测量章节和贡献者指南 Runtime 章节。

@@ -6,4 +6,4 @@ publish = false
 description = "Novadraw 跨平台演示场景目录"
 
 [dependencies]
-novadraw = { path = "../../novadraw", default-features = false }
+novadraw = { path = "../../crates/novadraw", default-features = false }

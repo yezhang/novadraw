@@ -51,7 +51,7 @@ Native 窗口 resize 的连续截图、任意文字消费者的 minimum，以及
 三项入口继续为 `in_progress`，catalog 仍为 16／25 complete。
 
 图像保存在
-[本批证据目录](../../../verification/evidence/k02-layout-consumers-2026-10-23/README.md)。
+[本批证据目录](../evidence/k02-layout-consumers-2026-10-23/README.md)。
 
 ## 最终门禁
 

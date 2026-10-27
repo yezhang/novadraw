@@ -92,7 +92,7 @@ Runtime 直接状态使用“场景源状态”，提交后的前缀使用“已
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 最后检查三本书的 `SUMMARY.md` 覆盖全部读者可见页面，并确认跨书链接均存在。

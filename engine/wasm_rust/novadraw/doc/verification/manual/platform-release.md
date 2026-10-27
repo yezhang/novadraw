@@ -24,7 +24,7 @@
 | 环境 | 自动前置 |
 |---|---|
 | macOS | `cargo check -p node-editor-demo` |
-| Windows | `./scripts/build_windows_target.sh` |
+| Windows | `./tools/scripts/build_windows_target.sh` |
 | Linux x86_64 | `cargo check --target x86_64-unknown-linux-gnu -p node-editor-demo` |
 | Chrome + WebGPU | `cargo xtask verify web.build` |
 

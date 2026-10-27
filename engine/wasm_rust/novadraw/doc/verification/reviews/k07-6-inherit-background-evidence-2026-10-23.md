@@ -41,18 +41,18 @@ Figure 树不绘制该渐变，provider 不在 Core 内执行。
 背景帧输入保持不变。失败、迟到、Retry、资源 lease 和 capability 拒绝仍由
 [K07-5](k07-5-host-background-evidence-2026-10-23.md)的契约与 GPU 反例覆盖。
 
-![图 1：橙色 root 遮住背景，透明 root 显示宿主渐变](../../../verification/evidence/k07-background/initial.png)
+![图 1：橙色 root 遮住背景，透明 root 显示宿主渐变](../evidence/k07-background/initial.png)
 
-![图 2：内容滚动后，宿主渐变仍固定在窗口坐标](../../../verification/evidence/k07-background/scrolled.png)
+![图 2：内容滚动后，宿主渐变仍固定在窗口坐标](../evidence/k07-background/scrolled.png)
 
-![图 3：Canvas 下移后按新的宿主位置显示渐变](../../../verification/evidence/k07-background/moved.png)
+![图 3：Canvas 下移后按新的宿主位置显示渐变](../evidence/k07-background/moved.png)
 
-![图 4：移除背景后透明区完整擦除，橙色 root 保留](../../../verification/evidence/k07-background/removed.png)
+![图 4：移除背景后透明区完整擦除，橙色 root 保留](../evidence/k07-background/removed.png)
 
 已检查图 1 至图 4，并保留
-[DPI 图像](../../../verification/evidence/k07-background/dpi.png)、
-[背景独立变化图像](../../../verification/evidence/k07-background/background-only.png)和
-[机器结果](../../../verification/evidence/k07-background/result.txt)。
+[DPI 图像](../evidence/k07-background/dpi.png)、
+[背景独立变化图像](../evidence/k07-background/background-only.png)和
+[机器结果](../evidence/k07-background/result.txt)。
 运行日志位于 `target/verification/k07-6-suite.log`。
 
 ## 支持范围

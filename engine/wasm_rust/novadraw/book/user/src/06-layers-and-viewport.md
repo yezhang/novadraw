@@ -28,7 +28,7 @@ fn hit_participation(&self) -> HitParticipation {
 ```
 
 代码锚点：
-[`LayerFigure`](../../../novadraw/src/container/layer.rs)。
+[`LayerFigure`](../../../crates/novadraw/src/container/layer.rs)。
 
 ## 6.2 分层面板的两个索引
 
@@ -107,7 +107,7 @@ flowchart TB
 ```
 
 实际构造见
-[`create_root_layers`](../../../novadraw-editor/src/viewer/mod.rs#L504-L630)。
+[`create_root_layers`](../../../crates/novadraw-editor/src/viewer/mod.rs#L504-L630)。
 
 各层职责：
 
@@ -144,8 +144,8 @@ flowchart TB
 
 代码锚点：
 
-- [`ViewportHandle::set_view_location`](../../../novadraw/src/container/viewport.rs)
-- [`normalize_range`](../../../novadraw/src/container/range_model.rs)
+- [`ViewportHandle::set_view_location`](../../../crates/novadraw/src/container/viewport.rs)
+- [`normalize_range`](../../../crates/novadraw/src/container/range_model.rs)
 
 ## 6.6 滚动与缩放的状态真源
 
@@ -220,7 +220,7 @@ sequenceDiagram
 - 释放指针前清理临时反馈，只执行一个模型命令。
 
 实际策略见
-[`autoexpose.rs`](../../../novadraw-editor/src/autoexpose.rs)。
+[`autoexpose.rs`](../../../crates/novadraw-editor/src/autoexpose.rs)。
 
 ## 6.9 视口变化后在同帧重新计算交互
 
@@ -234,7 +234,7 @@ sequenceDiagram
 5. 不缩放的操作手柄。
 
 `EditorDomain` 在视口变化后保留同一个逻辑表面指针位置，并刷新活动工具。该行为见
-[`EditorDomain::autoexpose_tick`](../../../novadraw-editor/src/domain.rs#L328-L352) 和
+[`EditorDomain::autoexpose_tick`](../../../crates/novadraw-editor/src/domain.rs#L328-L352) 和
 `refresh_after_viewport_change`。
 
 ## 6.10 为什么缩放反馈层必须采用自由范围
@@ -317,9 +317,9 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 
 ## 6.13 验证入口
 
-- [`d2_layer_contract.rs`](../../../novadraw/tests/d2_layer_contract.rs)
-- [`d2_freeform_contract.rs`](../../../novadraw/tests/d2_freeform_contract.rs)
-- [`m8_viewport_contract.rs`](../../../novadraw/tests/m8_viewport_contract.rs)
-- [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`d2_layer_contract.rs`](../../../crates/novadraw/tests/d2_layer_contract.rs)
+- [`d2_freeform_contract.rs`](../../../crates/novadraw/tests/d2_freeform_contract.rs)
+- [`m8_viewport_contract.rs`](../../../crates/novadraw/tests/m8_viewport_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../../crates/novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask verify runtime.apps`
 - `cargo xtask verify editor.replay`

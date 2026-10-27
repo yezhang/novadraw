@@ -35,7 +35,7 @@ Draw2D `NullConnectionRouter` 对同 owner Chopbox anchors 会退化为重合点
 
 ## 自动门禁
 
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`：包含应用 Router 扩展与
+- `crates/novadraw-editor/tests/g5_connection_creation_contract.rs`：包含应用 Router 扩展与
   外侧 route 契约；
 - workspace `fmt/check/clippy/test`：通过。
 

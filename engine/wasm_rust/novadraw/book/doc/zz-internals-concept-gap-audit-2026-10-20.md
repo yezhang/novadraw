@@ -361,7 +361,7 @@ writer agent 执行时必须遵守：
 - 中文正文半角标点硬闸无命中；正则仅命中 Mermaid 代码块中的 `-.->` 语法，按受保护
   代码跨度豁免；
 - `cargo xtask docs` 通过，检查 335 个 Markdown 文件和当前 xtask 引用；
-- `./scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均生成；
+- `./tools/scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均生成；
 - 《深入理解 Novadraw》HTML 目录为连续 15 章，旧章节文件名无残留链接；
 - 本次书稿与审计范围的 `git diff --check` 通过。
 
@@ -390,7 +390,7 @@ writer agent 执行时必须遵守：
 
 - `cargo xtask docs` 通过，检查 373 个 Markdown 文件与当前 xtask 引用；
 - `git diff --check` 通过；
-- `./scripts/build_book.sh` 通过，三本书 HTML 和 PDF 均重新生成；
+- `./tools/scripts/build_book.sh` 通过，三本书 HTML 和 PDF 均重新生成；
 - 本轮修改文件的中文正文半角标点、元话语扫描均为零命中，代码块按受保护跨度排除；
 - 书稿继续沿用既有 15 章索引，新小节没有新增机械编号。
 

@@ -17,9 +17,9 @@ native = [
 
 [dependencies]
 # novadraw 核心库
-novadraw = { path = "../../novadraw", default-features = false }
-novadraw-backend-vello = { path = "../../novadraw-backend-vello", optional = true }
-novadraw-platform-winit = { path = "../../novadraw-platform-winit", optional = true }
+novadraw = { path = "../../crates/novadraw", default-features = false }
+novadraw-backend-vello = { path = "../../crates/novadraw-backend-vello", optional = true }
+novadraw-platform-winit = { path = "../../crates/novadraw-platform-winit", optional = true }
 
 # winit 窗口管理
 winit = { workspace = true, optional = true }

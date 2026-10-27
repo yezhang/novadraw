@@ -119,8 +119,8 @@ Decoration 继续从 route point/reference 准备旋转几何，不强制对其�
 
 ## 外部消费者证据与验收矩阵
 
-证据入口：`novadraw/tests/p2_owner_locator_contract.rs`、
-`novadraw/tests/m9_connection_runtime.rs` 和官方 UML 的单元测试。
+证据入口：`crates/novadraw/tests/p2_owner_locator_contract.rs`、
+`crates/novadraw/tests/m9_connection_runtime.rs` 和官方 UML 的单元测试。
 
 | 验收 | 要证明的契约 |
 |---|---|

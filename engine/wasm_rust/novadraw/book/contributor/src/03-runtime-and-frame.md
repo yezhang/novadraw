@@ -85,7 +85,7 @@ Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现�
 
 - [`ADR-018：Runtime 驱动与测量 API`](../../../doc/adr/adr-018-runtime-driving-and-measurement-api.md)
 - [`ADR-025：统一 Graphics 与 glyph 预处理`](../../../doc/adr/adr-025-unified-graphics-and-glyph-preparation.md)
-- [`Runtime 实现`](../../../novadraw/src/runtime/runtime.rs)
+- [`Runtime 实现`](../../../crates/novadraw/src/runtime/runtime.rs)
 
 ## 3.6 重绘区域必须覆盖新旧状态
 
@@ -104,7 +104,7 @@ Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现�
 - 不把提交成功、可重试和致命失败压缩成无法恢复的布尔值；
 - 保持递归树遍历深度上限 10,000。
 
-`novadraw/src/graph/render_recursive.rs` 是受保护的渲染主流程。除非语义证据证明主流程
+`crates/novadraw/src/graph/render_recursive.rs` 是受保护的渲染主流程。除非语义证据证明主流程
 错误，否则应先检查 Figure、坐标、命令录制、后端 lowering 和调用路径。
 
 ## 3.8 图投影参与同一稳定化
@@ -125,6 +125,6 @@ Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现�
 修改这条执行链时，至少检查首帧候选 Anchor/路径一致、测量失败后恢复、
 完整内容替换后旧身份拒绝、稳定结果不重复路由，以及视口滚动不改变图结果身份。
 验证见
-[`graph_projection_contract.rs`](../../../novadraw/tests/graph_projection_contract.rs)、
-[`p2_prepared_scene_routing_contract.rs`](../../../novadraw/tests/p2_prepared_scene_routing_contract.rs)
-和 [`p2_preparation_measurement_contract.rs`](../../../novadraw/tests/p2_preparation_measurement_contract.rs)。
+[`graph_projection_contract.rs`](../../../crates/novadraw/tests/graph_projection_contract.rs)、
+[`p2_prepared_scene_routing_contract.rs`](../../../crates/novadraw/tests/p2_prepared_scene_routing_contract.rs)
+和 [`p2_preparation_measurement_contract.rs`](../../../crates/novadraw/tests/p2_preparation_measurement_contract.rs)。

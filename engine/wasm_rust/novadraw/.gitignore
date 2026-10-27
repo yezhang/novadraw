@@ -1,12 +1,9 @@
-# Screenshot directories
-apps/**/screenshot/
-screenshot/
-
 # Build outputs
 target/
 examples/web/web-validation/dist/
 **/*.profraw
-verification/evidence/**/*_probe
+doc/verification/evidence/**/*_probe
 
-# Runtime logs
-log/
+# Local agent and Python caches
+.trae-html-share-packages/
+__pycache__/

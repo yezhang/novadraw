@@ -87,7 +87,7 @@ surface、4,097 Figure、5 次预热与 30 次采样。surface probe 结果为 `
 正式样本全部使用 Surface 模式并调用 `SurfaceTexture::present()`。
 
 原始报告：
-`verification/evidence/ga2-performance-2026-10-01/native-presentation.json`，
+`doc/verification/evidence/ga2-performance-2026-10-01/native-presentation.json`，
 SHA-256 为
 `bc6a5e797abe59d21ec0bbe59db843ac7e0712f228d6e19a196a71f5623eb36b`。
 

@@ -67,8 +67,8 @@ git diff --check: PASS
 新增契约：
 
 - `novadraw-scene/tests/p2_dispatch_outcome_contract.rs`：2 项；
-- `novadraw-editor/tests/g3_selection_contract.rs`：3 项；
-- `novadraw-editor/tests/g3_viewer_interaction_contract.rs`：7 项。
+- `crates/novadraw-editor/tests/g3_selection_contract.rs`：3 项；
+- `crates/novadraw-editor/tests/g3_viewer_interaction_contract.rs`：7 项。
 
 覆盖 replace/append/toggle、primary/focus、删除 reconcile、layer z-order、handle 优先、
 feedback 穿透、contents fallback、widget consumed 和完整 pointer capture。

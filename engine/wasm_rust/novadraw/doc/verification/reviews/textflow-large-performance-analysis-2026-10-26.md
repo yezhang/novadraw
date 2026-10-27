@@ -65,10 +65,10 @@ child presentation 的片段查找成本按 placement 数 P 和 fragment 数 F �
 证据：
 [工厂与字体](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)、
 [交互根与值级快照复制](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)、
-[FlowLayoutService 与全文绘制](../../../novadraw/src/figure/flow/snapshot.rs)、
-[styled 布局](../../../novadraw/src/text/styled.rs)、
-[布局复制及 cluster 映射](../../../novadraw/src/render/text.rs)、
-[Graphics 文字提交](../../../novadraw/src/graphics/context.rs)。
+[FlowLayoutService 与全文绘制](../../../crates/novadraw/src/figure/flow/snapshot.rs)、
+[styled 布局](../../../crates/novadraw/src/text/styled.rs)、
+[布局复制及 cluster 映射](../../../crates/novadraw/src/render/text.rs)、
+[Graphics 文字提交](../../../crates/novadraw/src/graphics/context.rs)。
 
 **Zed 的参考价值**
 

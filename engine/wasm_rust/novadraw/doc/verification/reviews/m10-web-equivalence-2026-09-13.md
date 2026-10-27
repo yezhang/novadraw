@@ -46,7 +46,7 @@ novadraw-demo-scenes: 15 passed
 Wasm：
 
 ```text
-./scripts/build_web_validation.sh
+./tools/scripts/build_web_validation.sh
 release build: PASS
 web_validation_bg.wasm: HTTP 200, Content-Type application/wasm
 ```

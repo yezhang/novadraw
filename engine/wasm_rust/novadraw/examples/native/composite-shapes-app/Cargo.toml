@@ -5,5 +5,5 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-novadraw = { path = "../../../novadraw" }
+novadraw = { path = "../../../crates/novadraw" }
 novadraw-example-support = { path = "../../support" }

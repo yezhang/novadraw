@@ -58,24 +58,24 @@
 | 同 suite 的 G3 / G4 子项 | passed，8 / 19 tests | 既有交互与编辑回归；F01 模型/history 反例 |
 | 同 suite 的 G5 子项 | passed，22 tests | 晚期 admission、self-loop、Viewer/Core panic、非法 route 与合法 unresolved 恢复 |
 | 同 suite 的独立 consumer | passed，4 tests | 自定义 typed Tool/Handle 使用同一批量预检、错误与合法删除路径 |
-| `editor.p2-s06-failure-isolation` | passed | 上述全部子项；最终日志 `verification/evidence/p2-s06-failure-isolation-final.log` |
-| `full` | passed，exit 0 | workspace Clippy、全部 unit/integration/doctest、公开 API 与 Native/Web backend；日志 `verification/evidence/p2-s06-full-rerun.log` |
-| 文档门禁 | passed | manifest、文档链接、索引分类、公开 API 探针；日志 `verification/evidence/p2-s06-docs.log` |
+| `editor.p2-s06-failure-isolation` | passed | 上述全部子项；最终日志 `doc/verification/evidence/p2-s06-failure-isolation-final.log` |
+| `full` | passed，exit 0 | workspace Clippy、全部 unit/integration/doctest、公开 API 与 Native/Web backend；日志 `doc/verification/evidence/p2-s06-full-rerun.log` |
+| 文档门禁 | passed | manifest、文档链接、索引分类、公开 API 探针；日志 `doc/verification/evidence/p2-s06-docs.log` |
 | diff 检查 | passed | 无空白错误 |
 
 新增统一入口为 `editor.p2-s06-failure-isolation`。首次 suite 日志保存在
-`verification/evidence/p2-s06-failure-isolation.log`；该次 suite 因 G5 失败未通过，
+`doc/verification/evidence/p2-s06-failure-isolation.log`；该次 suite 因 G5 失败未通过，
 不得将已通过子项误记为整个 suite 通过。
 中间复跑曾因测试 fixture 缺少 Tool 方法、返回身份元组未解构及局部 import
 而编译失败，修正后最终复跑全部通过；中间日志保留为 `p2-s06-failure-isolation-r*.log`，
 不作为 passed 证据。
 
 此批 `quick` 门禁通过（exit 0）；日志为
-`verification/evidence/p2-s06-quick.log`。它覆盖 workspace 编译、格式、
+`doc/verification/evidence/p2-s06-quick.log`。它覆盖 workspace 编译、格式、
 公开 API 类型与方法预算、分层依赖及 Native/Web backend 编译。
 quick 本身不替代故障矩阵或最终 full；后续 full 结果见上表。
 最终 S06 suite 共 90 tests 通过。首次 full 在 `workspace.clippy` 因内部反馈安装
-四元组的 `type_complexity` 拒绝，日志保留为 `verification/evidence/p2-s06-full.log`。
+四元组的 `type_complexity` 拒绝，日志保留为 `doc/verification/evidence/p2-s06-full.log`。
 已用私有类型别名修正，定向 Editor lib Clippy 通过后复跑 full，exit 0。
 该修正没有新增公共类型或修改行为；full 同时覆盖既有 TC-12 提交恢复契约。
 此前 quick 的通过记录属于较早切片，最终共享边界改动由此次 full 覆盖。
@@ -89,7 +89,7 @@ Editor 清理 prepare 拒绝集成证据。后者仍需核验原始错误与拒�
 
 同日补充后，`editor.p2-s06-failure-isolation` 共 92 tests 通过：
 Core 子项 4 tests，Editor 内部子项 11 tests，其余子项数量不变。
-日志为 `verification/evidence/p2-s06-failure-isolation-followup.log`。
+日志为 `doc/verification/evidence/p2-s06-failure-isolation-followup.log`。
 
 新增 Core 用例从真实 dirty revision 的 `MAX - 1` 开始：
 第一项 disposal 成功并消耗最后一次 revision，后项 prepare 拒绝，后项及连接仍存活；
@@ -106,7 +106,7 @@ Metal renderer 和 GPU retained texture：Core attach panic 后停止新驱动�
 旧 completion 返回 fault；有界排空 GPU 后释放旧 Viewer/Runtime，
 保存模型与 CommandStack，新 Runtime 以 Snapshot + Full 接管；
 迟到旧 completion 拒绝，基线完成后恢复编辑。日志为
-`verification/evidence/p2-s06-native-exit-final.log`。
+`doc/verification/evidence/p2-s06-native-exit-final.log`。
 
 该结果证明 Native GPU 队列退出和资源接管，不证明 surface 呈现或 Web 异步退出。
 正常 surface 提交返回 `Skipped` 的未通过日志、中间验收断言修正及证据方式调整
@@ -114,9 +114,9 @@ Metal renderer 和 GPU retained texture：Core attach panic 后停止新驱动�
 上述后续切片结束时矩阵尚未变更，S06、R06/TC-08 当时仍保持开放。
 
 本轮 Native bin Clippy、quick、文档门禁及 diff 检查通过。
-日志分别为 `verification/evidence/p2-s06-native-clippy.log`、
+日志分别为 `doc/verification/evidence/p2-s06-native-clippy.log`、
 `p2-s06-followup-quick.log` 和 `p2-s06-followup-docs.log`。
 此前 full 的通过记录对应上一实施切片；该轮未关闭里程碑或提交 Git。
 用户随后接受验收范围调整；最终关闭 full 门禁通过，
-日志为 `verification/evidence/p2-s06-closure-full.log`。
-状态回写后的文档门禁见 `verification/evidence/p2-s06-closure-docs.log`。
+日志为 `doc/verification/evidence/p2-s06-closure-full.log`。
+状态回写后的文档门禁见 `doc/verification/evidence/p2-s06-closure-docs.log`。

@@ -22,7 +22,7 @@
 位置：ADR-038 第 5 节（102–106）及错误组合（167）。
 
 草案规定不可逆返回 Ok(None)，计算溢出返回 CoordinateQueryError。
-现有 [Affine2D::inverse](../../../novadraw/src/geometry/transform.rs#L148-L157)
+现有 [Affine2D::inverse](../../../crates/novadraw/src/geometry/transform.rs#L148-L157)
 先调用底层 inverse，只要任一结果系数非有限就返回 None；它没有区分数学奇异与
 数值计算/表示失败。
 
@@ -48,10 +48,10 @@
 
 草案要求“测量及 projection 成功后填缓存”，却未明确如何判定 callback 的
 Ok(measurement) 或 Ok(size) 是否成功。现有
-[FigureMeasurement](../../../novadraw/src/figure/mod.rs#L421-L435) 是可直接构造的值，
-当前 [tree 测量](../../../novadraw/src/graph/layout_measurement.rs#L605-L698)
+[FigureMeasurement](../../../crates/novadraw/src/figure/mod.rs#L421-L435) 是可直接构造的值，
+当前 [tree 测量](../../../crates/novadraw/src/graph/layout_measurement.rs#L605-L698)
 在 layout callback 与 projection 后填缓存，没有与
-[FigurePresentation::new](../../../novadraw/src/figure/preparation.rs#L36-L80)
+[FigurePresentation::new](../../../crates/novadraw/src/figure/preparation.rs#L36-L80)
 相同的完整指标准入。
 
 因此，只改为 Result 并在 callback 后加 `?`，仍可能把 Ok(NaN)、负尺寸、
@@ -81,9 +81,9 @@ Ok(measurement) 或 Ok(size) 是否成功。现有
 
 草案已允许保留恢复所需的失败观测，但没有明确 `dependency_generation` 是否属于
 必须拒绝无效身份的“任意 Figure 主体读取”。现有
-[invalidate_stale_dependencies](../../../novadraw/src/connection/runtime.rs#L867-L890)
+[invalidate_stale_dependencies](../../../crates/novadraw/src/connection/runtime.rs#L867-L890)
 通过该指纹检查既存依赖；其用途包含检测旧主体已经消失。
-[TrackedRouteSceneQuery::observe](../../../novadraw/src/connection/query.rs#L269-L285)
+[TrackedRouteSceneQuery::observe](../../../crates/novadraw/src/connection/query.rs#L269-L285)
 也在实际读取前获取指纹。
 
 修订建议：明确依赖存在性/代次指纹与对象事实查询的区别。指纹可表达主体缺失，
@@ -125,7 +125,7 @@ S07-DR01/02 写入 ADR 与逐项验证矩阵后复核；DR03/04 补入明确的�
 ## 文档检查
 
 `cargo xtask docs` 与 `git diff --check` 均通过；文档门禁日志见
-[adr-038-draft-review-docs.log](../../../verification/evidence/adr-038-draft-review-docs.log)。
+[adr-038-draft-review-docs.log](../evidence/adr-038-draft-review-docs.log)。
 评审稿已按好好说话原则回读，中文相邻字符间半角标点、破折号及空泛元话语扫描为
 0 命中。上述检查不替代 S07 新增行为用例。
 
@@ -140,6 +140,6 @@ ADR-038 与验证矩阵已完成修订 1，逐项处理 S07-DR01–DR04。求逆
 来源审计 ID 保持开放。
 
 修订文档门禁通过，日志见
-[adr-038-revision-1-docs.log](../../../verification/evidence/adr-038-revision-1-docs.log)；
+[adr-038-revision-1-docs.log](../evidence/adr-038-revision-1-docs.log)；
 `git diff --check` 通过。ADR 与矩阵已按好好说话原则回读，机械扫描的中文半角标点、
 破折号、空泛元话语及对比句式均为 0 命中。

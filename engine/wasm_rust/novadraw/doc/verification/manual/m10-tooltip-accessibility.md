@@ -53,8 +53,8 @@ cargo run -p widgets-app
 ## 4. Web 复核
 
 ```bash
-./scripts/build_web_validation.sh
-./scripts/serve_web_validation.sh
+./tools/scripts/build_web_validation.sh
+./tools/scripts/serve_web_validation.sh
 ```
 
 打开：

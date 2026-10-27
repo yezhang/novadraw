@@ -134,7 +134,7 @@ Zoom 的 RangeModel 保留 `minimum=0`、`maximum=200`、`extent=25`、`value=40
 公式按 Java float 运算保留 `(value + 10) * 0.02f` 的舍入，最大可用 value 为 175。
 同步和延迟缩放共用 `RuntimeViewports::set_scale`，没有另建修改 ScaleModel 的路径。
 
-新增 [延迟缩放契约测试](../../../novadraw/tests/p2_deferred_scale.rs) 覆盖外部 Figure
+新增 [延迟缩放契约测试](../../../crates/novadraw/tests/p2_deferred_scale.rs) 覆盖外部 Figure
 回调和非法 scale 拒绝；非法值不会改变原 scale。该增量涉及 `viewport.scroll_zoom`
 语义族，已有账本明确把 ScrollBar REPEAT_FIRING 留给后续 repeat scheduler。
 

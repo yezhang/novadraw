@@ -69,7 +69,7 @@ pub trait ModelAdapter {
 ```
 
 代码锚点：
-[`ModelAdapter`](../../../novadraw-editor/src/model/mod.rs)。
+[`ModelAdapter`](../../../crates/novadraw-editor/src/model/mod.rs)。
 
 模型不知道图形对象或查看器，图形对象也不知道模型。编辑部件和查看器负责构建和同步
 视图。
@@ -105,9 +105,9 @@ flowchart LR
 
 代码锚点：
 
-- [`PartNode`](../../../novadraw-editor/src/part/mod.rs)
-- [`PartTree`](../../../novadraw-editor/src/part/mod.rs)
-- [`EditPartBehavior`](../../../novadraw-editor/src/part/mod.rs)
+- [`PartNode`](../../../crates/novadraw-editor/src/part/mod.rs)
+- [`PartTree`](../../../crates/novadraw-editor/src/part/mod.rs)
+- [`EditPartBehavior`](../../../crates/novadraw-editor/src/part/mod.rs)
 
 ## 8.5 连接编辑部件不是包含关系子节点
 
@@ -145,7 +145,7 @@ pub struct GraphicalViewer<A, F> {
 ```
 
 实际定义见
-[`GraphicalViewer`](../../../novadraw-editor/src/viewer/mod.rs#L646-L667)。
+[`GraphicalViewer`](../../../crates/novadraw-editor/src/viewer/mod.rs#L646-L667)。
 
 查看器负责：
 
@@ -178,7 +178,7 @@ pub struct GraphicalViewer<A, F> {
 无法补偿的扩展失败时，查看器进入故障锁定状态。
 
 代码锚点：
-[`GraphicalViewer::refresh`](../../../novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
+[`GraphicalViewer::refresh`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
 
 ## 8.8 选择状态与视觉对象所有者
 
@@ -204,9 +204,9 @@ Feedback(FeedbackId, optional owner)
 
 代码锚点：
 
-- [`SelectionModel`](../../../novadraw-editor/src/selection/mod.rs)
-- [`VisualOwner`](../../../novadraw-editor/src/feedback/mod.rs)
-- [`GraphicalViewer::target_at`](../../../novadraw-editor/src/viewer/mod.rs#L1127-L1155)
+- [`SelectionModel`](../../../crates/novadraw-editor/src/selection/mod.rs)
+- [`VisualOwner`](../../../crates/novadraw-editor/src/feedback/mod.rs)
+- [`GraphicalViewer::target_at`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1127-L1155)
 
 ## 8.9 编辑工具、请求、策略与命令
 
@@ -258,7 +258,7 @@ pub enum EditorRequest {
 ```
 
 实际定义：
-[`EditorRequest`](../../../novadraw-editor/src/request/mod.rs#L546-L603)。
+[`EditorRequest`](../../../crates/novadraw-editor/src/request/mod.rs#L546-L603)。
 
 ### 编辑策略（EditPolicy）
 
@@ -317,7 +317,7 @@ pub enum EditorRequest {
 - 补偿失败或代码恐慌导致故障锁定。
 
 实际历史提交逻辑见
-[`CommandStack::execute/undo/redo`](../../../novadraw-editor/src/command/mod.rs#L398-L574)。
+[`CommandStack::execute/undo/redo`](../../../crates/novadraw-editor/src/command/mod.rs#L398-L574)。
 
 `is_dirty` 比较当前历史身份与保存位置，而不是只判断撤销栈是否为空。
 
@@ -343,7 +343,7 @@ viewer.refresh()?;
 ```
 
 实际实现见
-[`EditorDomain::execute_request`](../../../novadraw-editor/src/domain.rs#L193-L209)。
+[`EditorDomain::execute_request`](../../../crates/novadraw-editor/src/domain.rs#L193-L209)。
 
 ## 8.13 连接编辑
 
@@ -422,9 +422,9 @@ pub trait DirectTextEdit<A: ModelAdapter> {
 
 代码锚点：
 
-- [`DirectTextEditState` 与 `DirectTextEdit`](../../../novadraw-editor/src/direct_edit.rs)
-- [`EditPolicy::start_direct_text_edit`](../../../novadraw-editor/src/policy/mod.rs#L220-L228)
-- [`GraphicalViewer::start_direct_text_edit`](../../../novadraw-editor/src/viewer/mod.rs#L1504-L1570)
+- [`DirectTextEditState` 与 `DirectTextEdit`](../../../crates/novadraw-editor/src/direct_edit.rs)
+- [`EditPolicy::start_direct_text_edit`](../../../crates/novadraw-editor/src/policy/mod.rs#L220-L228)
+- [`GraphicalViewer::start_direct_text_edit`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1504-L1570)
 
 ### 草稿和输入法预编辑
 
@@ -482,9 +482,9 @@ flowchart LR
 
 代码锚点：
 
-- [`TextFlowFigure` 的文本交互查询](../../../novadraw/src/figure/text_flow.rs#L293-L390)
-- [`Runtime` 的表面坐标查询](../../../novadraw/src/runtime/runtime.rs#L2834-L2903)
-- [`GraphicalViewer::direct_text_caret_geometry`](../../../novadraw-editor/src/viewer/mod.rs#L1669-L1699)
+- [`TextFlowFigure` 的文本交互查询](../../../crates/novadraw/src/figure/text_flow.rs#L293-L390)
+- [`Runtime` 的表面坐标查询](../../../crates/novadraw/src/runtime/runtime.rs#L2834-L2903)
+- [`GraphicalViewer::direct_text_caret_geometry`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1669-L1699)
 
 ### 编辑反馈、裁剪与长文本
 
@@ -514,9 +514,9 @@ feedback。添加与删除分别登记新旧可视区域的 damage，使目标�
 
 代码锚点：
 
-- [`TextFlowViewport`](../../../novadraw/src/figure/text_flow.rs#L184-L215)
-- [`GraphicalViewer::attach_direct_text_feedback`](../../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
-- [`GraphicalViewer::replace_direct_text_state`](../../../novadraw-editor/src/viewer/mod.rs#L1948-L1993)
+- [`TextFlowViewport`](../../../crates/novadraw/src/figure/text_flow.rs#L184-L215)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1995-L2215)
+- [`GraphicalViewer::replace_direct_text_state`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1948-L1993)
 
 ### 光标闪烁由宿主时间驱动
 
@@ -594,10 +594,10 @@ Web 的隐藏输入控件关闭自身 caret 显示，避免 canvas 光标与 DOM
 
 代码锚点：
 
-- [`GraphicalViewer::attach_direct_text_feedback`](../../../novadraw-editor/src/viewer/mod.rs#L2032-L2215)
-- [`GraphicalViewer::advance_time`](../../../novadraw-editor/src/viewer/mod.rs#L880-L927)
-- [`GraphicalViewer::reset_direct_text_blink`](../../../novadraw-editor/src/viewer/mod.rs#L2240-L2250)
-- [`FigureTree::set_visible_with_update`](../../../novadraw/src/graph/mod.rs#L4177-L4205)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../../crates/novadraw-editor/src/viewer/mod.rs#L2032-L2215)
+- [`GraphicalViewer::advance_time`](../../../crates/novadraw-editor/src/viewer/mod.rs#L880-L927)
+- [`GraphicalViewer::reset_direct_text_blink`](../../../crates/novadraw-editor/src/viewer/mod.rs#L2240-L2250)
+- [`FigureTree::set_visible_with_update`](../../../crates/novadraw/src/graph/mod.rs#L4177-L4205)
 - [`Native deadline 调度`](../../../examples/native/node-editor-demo/src/main.rs#L2017-L2070)
 - [`Web deadline 调度`](../../../examples/web/web-validation/src/direct_edit_mode.rs#L602-L644)
 
@@ -617,9 +617,9 @@ feedback 并重新获取输入租约。取消则只删除 feedback、停止闪�
 
 代码锚点：
 
-- [`GraphicalViewer::prepare_direct_text_accept`](../../../novadraw-editor/src/viewer/mod.rs#L1863-L1914)
-- [`EditorDomain::accept_direct_text_edit`](../../../novadraw-editor/src/domain.rs#L283-L312)
-- [`GraphicalViewer::force_drop_direct_text_edit`](../../../novadraw-editor/src/viewer/mod.rs#L2845-L2859)
+- [`GraphicalViewer::prepare_direct_text_accept`](../../../crates/novadraw-editor/src/viewer/mod.rs#L1863-L1914)
+- [`EditorDomain::accept_direct_text_edit`](../../../crates/novadraw-editor/src/domain.rs#L283-L312)
+- [`GraphicalViewer::force_drop_direct_text_edit`](../../../crates/novadraw-editor/src/viewer/mod.rs#L2845-L2859)
 
 ## 8.15 实现一个编辑器的顺序
 
@@ -698,15 +698,15 @@ let domain = EditorDomain::new();
 
 ## 8.17 验证入口
 
-- [`g1_model_contract.rs`](../../../novadraw-editor/tests/g1_model_contract.rs)
-- [`g1_command_stack_contract.rs`](../../../novadraw-editor/tests/g1_command_stack_contract.rs)
-- [`g2_viewer_projection_contract.rs`](../../../novadraw-editor/tests/g2_viewer_projection_contract.rs)
-- [`g3_selection_contract.rs`](../../../novadraw-editor/tests/g3_selection_contract.rs)
-- [`g3_viewer_interaction_contract.rs`](../../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
-- [`g4_editing_loop_contract.rs`](../../../novadraw-editor/tests/g4_editing_loop_contract.rs)
-- [`g5_connection_projection_contract.rs`](../../../novadraw-editor/tests/g5_connection_projection_contract.rs)
-- [`g5_connection_creation_contract.rs`](../../../novadraw-editor/tests/g5_connection_creation_contract.rs)
-- [`p2_e02_direct_text_edit_contract.rs`](../../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
+- [`g1_model_contract.rs`](../../../crates/novadraw-editor/tests/g1_model_contract.rs)
+- [`g1_command_stack_contract.rs`](../../../crates/novadraw-editor/tests/g1_command_stack_contract.rs)
+- [`g2_viewer_projection_contract.rs`](../../../crates/novadraw-editor/tests/g2_viewer_projection_contract.rs)
+- [`g3_selection_contract.rs`](../../../crates/novadraw-editor/tests/g3_selection_contract.rs)
+- [`g3_viewer_interaction_contract.rs`](../../../crates/novadraw-editor/tests/g3_viewer_interaction_contract.rs)
+- [`g4_editing_loop_contract.rs`](../../../crates/novadraw-editor/tests/g4_editing_loop_contract.rs)
+- [`g5_connection_projection_contract.rs`](../../../crates/novadraw-editor/tests/g5_connection_projection_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../../crates/novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`p2_e02_direct_text_edit_contract.rs`](../../../crates/novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
 - `cargo xtask verify editor.contracts`
 - `cargo xtask verify editor.replay`
 - `cargo xtask verify platform.text-input`

@@ -21,4 +21,4 @@ cargo run -p transform-app -- --screenshot=2
 | 3 | `event_point_reduction` | 点击红色目标后出现选中框，验证入口域命中与 target 域事件点一致 |
 
 对应自动契约测试位于
-`novadraw/tests/m4_coordinate_contract.rs`。
+`crates/novadraw/tests/m4_coordinate_contract.rs`。

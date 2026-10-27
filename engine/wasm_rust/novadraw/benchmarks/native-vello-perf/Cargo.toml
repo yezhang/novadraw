@@ -5,8 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-novadraw = { path = "../../novadraw", default-features = false }
-novadraw-backend-vello = { path = "../../novadraw-backend-vello", features = ["native"] }
+novadraw = { path = "../../crates/novadraw", default-features = false }
+novadraw-backend-vello = { path = "../../crates/novadraw-backend-vello", features = ["native"] }
 serde.workspace = true
 serde_json.workspace = true
 winit.workspace = true

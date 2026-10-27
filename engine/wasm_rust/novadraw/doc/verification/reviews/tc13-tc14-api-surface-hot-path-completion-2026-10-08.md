@@ -27,8 +27,8 @@ Graphics 入口。prelude 面向常规 Figure / Runtime 开发。以下协议改
 - `render`：backend、submission、resource 和 text；TC-01 随后将 `NdCanvas` 降为内部实现；
 - `runtime`：scoped mutation、resource 与 frame service。
 
-`verification/public-api/novadraw-symbols.txt` 保存 root、prelude、全部一级领域模块和
-`advanced` 的 rustdoc 符号集合。`scripts/check_public_api_surface.sh` 对新增和删除都
+`tests/public-api/novadraw-symbols.txt` 保存 root、prelude、全部一级领域模块和
+`advanced` 的 rustdoc 符号集合。`tools/scripts/check_public_api_surface.sh` 对新增和删除都
 输出 diff，只有显式评审后执行 `--update` 才能更新基线。
 
 Core 内部暂时保留 `pub(crate)` 旧 root 别名，作为 crate-local prelude；它们不进入
@@ -45,14 +45,14 @@ rustdoc 或外部 API。workspace 生产消费者与 P2-F02 定向 contract cons
 - Core / Vello backend 中仅为这些日志存在的 `tracing` 依赖。
 
 显式、feature-gated 的离线 scene/tree dump 保留在非受保护路径。新增
-`scripts/check_hot_path_logging.sh`，禁止受保护 render、layout 和 backend 源码重新
+`tools/scripts/check_hot_path_logging.sh`，禁止受保护 render、layout 和 backend 源码重新
 引入 tracing 或 print 宏。
 
 ## 4. 验证
 
 - `cargo check --workspace`：通过；
-- `scripts/check_public_api_surface.sh`：通过；
-- `scripts/check_hot_path_logging.sh`：通过；
+- `tools/scripts/check_public_api_surface.sh`：通过；
+- `tools/scripts/check_hot_path_logging.sh`：通过；
 - `cargo xtask verify core.p2-f02-figure-capability`：126 项通过；
 - `cargo xtask verify core.api-surface-hot-path`：通过；
 - `cargo xtask docs`：通过；

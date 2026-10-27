@@ -59,7 +59,7 @@ Canvas 位置改变采样域、coverage 外使用基础清屏值，以及移除�
 通过，日志为 `target/verification/k07-5-suite.log`。
 `cargo clippy -p novadraw --lib --test p2_host_background -p novadraw-backend-vello --test host_background_pixels -- -D warnings`：
 通过，日志为 `target/verification/k07-5-clippy.log`。
-`scripts/check_architecture.sh --update-api`：Native/Wasm 表面通过，Runtime 28/28，
+`tools/scripts/check_architecture.sh --update-api`：Native/Wasm 表面通过，Runtime 28/28，
 Kurbo 0.13.1；日志为 `target/verification/k07-5-api.log`。
 库级测试保留既有 14 项 warnings，本记录只声明本切片指定 Clippy 目标通过。
 `cargo xtask docs`：359 个 Markdown 文件及当前命令引用通过，

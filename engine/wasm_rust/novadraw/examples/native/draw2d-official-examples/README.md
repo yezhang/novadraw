@@ -158,7 +158,7 @@ cargo run -p draw2d-official-examples --example graph_verification
 
 两个图入口的 Canvas 契约、真实菜单切换和 Native 代表性截图已验收，
 状态为 `complete`。证据见
-[ADR-043 实施记录](../../../verification/evidence/adr043/implementation.md)。
+[ADR-043 实施记录](../../../doc/verification/evidence/adr043/implementation.md)。
 
 TextFlowLargeExample 的精确布局共享与段落复用已接入，性能证据和剩余验收见
 [长文本实施记录](../../../doc/verification/reviews/long-text-performance-implementation-2026-10-27.md)。

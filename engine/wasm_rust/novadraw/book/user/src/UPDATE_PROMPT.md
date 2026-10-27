@@ -146,7 +146,7 @@
       解释作者如何得出结论、项目如何演进或内容如何成书，则删除。
 11. 不发明未存在的类型、字段、测试、验证套件或命令。
 12. 不把 `render_iterative.rs` 或 I 键切换写成当前能力。当前渲染主线是受保护的
-    `novadraw/src/graph/render_recursive.rs`，树深度上限为 10,000。
+    `crates/novadraw/src/graph/render_recursive.rs`，树深度上限为 10,000。
 13. 对编辑框架明确保持三个身份域：
     `ModelId -> EditPartId -> FigureId`。命令不保存仍绑定当前编辑器或运行时的句柄。
 14. 对自由范围反馈层明确保持：
@@ -167,7 +167,7 @@
    - 当前 ADR、相关 `doc/design/` 专题
    - Draw2D/GEF 语义对等账本
    - 图形核心与编辑框架路线图
-   - `verification/README.md`
+   - `tests/README.md`
 2. 用 `rg` 定位受影响类型、trait、算法函数和测试。只读任务相关代码，不做无关扫描。
 3. 建立“书稿陈述 -> 规范 -> 实现 -> 验证”对照，先找出过期或缺失项。
 4. 先更新主题章节，再更新：

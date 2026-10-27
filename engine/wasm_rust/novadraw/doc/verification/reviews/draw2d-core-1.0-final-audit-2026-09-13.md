@@ -24,7 +24,7 @@ cargo fmt --all -- --check: PASS
 cargo check --workspace: PASS
 cargo clippy --workspace -- -D warnings: PASS
 cargo test --workspace: PASS
-./scripts/build_web_validation.sh: PASS
+./tools/scripts/build_web_validation.sh: PASS
 ```
 
 关键测试结果：

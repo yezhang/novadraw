@@ -86,7 +86,7 @@
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 交付前检查三本书是否对同一概念使用一致术语，并确认本书没有引入第二份规范事实。

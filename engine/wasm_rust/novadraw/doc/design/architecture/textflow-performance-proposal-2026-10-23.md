@@ -40,13 +40,13 @@ Java 官方示例明确用于测试文档变化后的布局性能，允许向首
 证据入口：
 
 - [字体初始化](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs#L29-L69)
-- [字体注册和 styled shaping](../../../novadraw/src/render/text.rs#L1453-L1545)
-- [字体集合重建](../../../novadraw/src/render/text.rs#L1765-L1810)
-- [测量与整页缓存](../../../novadraw/src/figure/flow/snapshot.rs#L24-L126)
-- [子节点 presentation](../../../novadraw/src/figure/flow/snapshot.rs#L926-L1000)
-- [按 run 复制布局](../../../novadraw/src/text/styled.rs#L217-L323)及[复制内容](../../../novadraw/src/render/text.rs#L680-L694)
-- [cluster 来源映射](../../../novadraw/src/render/text.rs#L1640-L1694)
-- [全文绘制](../../../novadraw/src/figure/flow/snapshot.rs#L362-L375)及[文字命令记录](../../../novadraw/src/graphics/context.rs#L179-L254)
+- [字体注册和 styled shaping](../../../crates/novadraw/src/render/text.rs#L1453-L1545)
+- [字体集合重建](../../../crates/novadraw/src/render/text.rs#L1765-L1810)
+- [测量与整页缓存](../../../crates/novadraw/src/figure/flow/snapshot.rs#L24-L126)
+- [子节点 presentation](../../../crates/novadraw/src/figure/flow/snapshot.rs#L926-L1000)
+- [按 run 复制布局](../../../crates/novadraw/src/text/styled.rs#L217-L323)及[复制内容](../../../crates/novadraw/src/render/text.rs#L680-L694)
+- [cluster 来源映射](../../../crates/novadraw/src/render/text.rs#L1640-L1694)
+- [全文绘制](../../../crates/novadraw/src/figure/flow/snapshot.rs#L362-L375)及[文字命令记录](../../../crates/novadraw/src/graphics/context.rs#L179-L254)
 
 这些事实不能单独证明当前等待主要由哪一项造成。例如字体注册发生在样例构建期，GPU 初始化可能发生在宿主启动期；两者必须分别测量。
 
@@ -60,7 +60,7 @@ WrapMap 对较大的换行任务采用后台计算，并对前台等待设时间
 
 Zed Rope 和显示变换树使用 SumTree 保存聚合信息。TextFlow 可以借鉴按摘要定位位置和更新后续偏移的机制，但当前四十段文档先用有序数组和二分查找即可。只有段落数量、编辑频率和偏移维护成本的基准支持时，才升级为带高度摘要的树。[Rope](file:///Users/bytedance/Documents/code/GitHub/zed/crates/rope/src/rope.rs#L14-L27)、[WrapMap](file:///Users/bytedance/Documents/code/GitHub/zed/crates/editor/src/display_map/wrap_map.rs#L13-L45)
 
-GPUI 使用 atlas 缓存光栅化 glyph。Novadraw 默认走 Vello glyph runs，后端已有字体资源缓存；是否改文字光栅化路线需由 GPU 数据决定。本方案优先减少布局和提交工作。[GPUI glyph 绘制](file:///Users/bytedance/Documents/code/GitHub/zed/crates/gpui/src/window.rs#L3569-L3620)、[Vello 后端](../../../novadraw-backend-vello/src/lib.rs#L500-L540)
+GPUI 使用 atlas 缓存光栅化 glyph。Novadraw 默认走 Vello glyph runs，后端已有字体资源缓存；是否改文字光栅化路线需由 GPU 数据决定。本方案优先减少布局和提交工作。[GPUI glyph 绘制](file:///Users/bytedance/Documents/code/GitHub/zed/crates/gpui/src/window.rs#L3569-L3620)、[Vello 后端](../../../crates/novadraw-backend-vello/src/lib.rs#L500-L540)
 
 **目标结构**
 

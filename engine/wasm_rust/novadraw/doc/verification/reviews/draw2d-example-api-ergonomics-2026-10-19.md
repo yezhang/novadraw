@@ -74,9 +74,9 @@ Builder 使用 `add_child`、`set_figure_style`、`set_preferred_size(id, Option
 FigureMut 使用 `add`、`set_style`、`set_preferred_size` 和 `clear_preferred_size`；
 FigureSubtree 使用 construction ID 的 `add`、style/layout/constraint 配置，
 尚没有与前两者对应的通用尺寸、visible、enabled 等配置面。
-见[Builder](../../../novadraw/src/graph/mod.rs#L984-L1143)、
-[FigureMut](../../../novadraw/src/runtime/runtime.rs#L355-L562)、
-[子树描述](../../../novadraw/src/tree/subtree.rs)。
+见[Builder](../../../crates/novadraw/src/graph/mod.rs#L984-L1143)、
+[FigureMut](../../../crates/novadraw/src/runtime/runtime.rs#L355-L562)、
+[子树描述](../../../crates/novadraw/src/tree/subtree.rs)。
 
 TreeBranch 的官方构造同时创建 contents Layer 和 title；More Children 直接复用
 这个构造。当前 Rust 已提供完整子树准入和回执，方向合理，但组件作者仍需要选择
@@ -132,8 +132,8 @@ match。便捷 closure 只拿受限 EventContext，不拿 `&mut Runtime`。
 
 已确认：FigureStyle 表达 local override；字段 None 恢复继承。`set_style`
 替换整个 local style，tooltip 使用 `Option<Option<String>>` 区分继承、禁止和设置。
-见[样式表示](../../../novadraw/src/style.rs#L16-L36)与
-[替换实现](../../../novadraw/src/runtime/runtime.rs#L2306)。
+见[样式表示](../../../crates/novadraw/src/style.rs#L16-L36)与
+[替换实现](../../../crates/novadraw/src/runtime/runtime.rs#L2306)。
 
 Tree 选中 title 时只需白色 foreground，取消时恢复继承。若调用方用
 `FigureStyle { foreground: Some(...), ..Default::default() }` 作为完整替换，
@@ -159,8 +159,8 @@ API 名称应显式区分 replace 与 patch。font 的字符串解析可以继�
 返回 point/reference。它没有取得被定位 child 的权威 preferred measurement。
 当前 EndpointLocator 按切线和法线计算偏移；官方 ConnectionEndpointLocator
 还使用 anchor owner bounds、child preferred size、象限、transpose 和 yShift。
-见[当前 Locator](../../../novadraw/src/connection/locator.rs#L8-L141)、
-[调用入口](../../../novadraw/src/connection/runtime.rs#L653-L680)和
+见[当前 Locator](../../../crates/novadraw/src/connection/locator.rs#L8-L141)、
+[调用入口](../../../crates/novadraw/src/connection/runtime.rs#L653-L680)和
 [官方 relocate](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d/src/org/eclipse/draw2d/ConnectionEndpointLocator.java)。
 
 这是已确认的扩展输入不足。仅调整 u/v 参数不能补齐 child 尺寸参与计算的语义。
@@ -180,8 +180,8 @@ child measurement 和统一坐标域。纯算法返回布局候选；Runtime 校
 已确认：Figure 同时提供 intrinsic size/measurement、content size/measurement、
 minimum 对应方法及 border 绘制方法。测量 owner 根据是否有 border snapshot，
 选择 `intrinsic_content_measurement` 或 `intrinsic_measurement`。
-见[Figure 测量方法](../../../novadraw/src/figure/mod.rs#L467-L531)、
-[测量选择](../../../novadraw/src/graph/layout_measurement.rs#L658-L675)。
+见[Figure 测量方法](../../../crates/novadraw/src/figure/mod.rs#L467-L531)、
+[测量选择](../../../crates/novadraw/src/graph/layout_measurement.rs#L658-L675)。
 
 这使外部 Figure 作者需要理解 border 已计入与尚未计入两种测量合同。
 类型具备默认实现，但“只覆盖一个测量方法后，换一种 border 是否仍正确”
@@ -201,7 +201,7 @@ hook。目标是明确作者应实现哪一个测量合同，不能机械地把�
 已确认：当前 ScrollBarFigure 是公开类型，但 `new` 为私有方法，构造依赖 pane ID
 和私有 ScrollPaneRuntime。按钮与 thumb 由一个 Figure 的 paint 绘制，
 而不是官方五个真实 child。见
-[构造与绘制](../../../novadraw/src/container/scroll_pane.rs#L340-L521)。
+[构造与绘制](../../../crates/novadraw/src/container/scroll_pane.rs#L340-L521)。
 官方 ZoomExample 使用独立 ScrollBar 并 `setThumb(Label)`；Bidi 共享两个 viewport
 的 vertical RangeModel。这两种消费不能仅靠当前 ScrollPane 组合满足。
 
@@ -223,7 +223,7 @@ repeat 复用通用单调时钟与调度，但保持独立于动画启用开关�
 已确认：当前 FlowPage 是普通值，不是可挂载 Figure；它保存 paragraph 列表，
 paragraph 保存 fragment 列表，InlineTextFragment 只有 String。布局前组合成
 文本，公开模型没有 fragment 字体/颜色、嵌套 InlineFlow 或 inline Figure。
-见[当前 flow 值模型](../../../novadraw/src/figure/text_flow.rs#L24-L110)。
+见[当前 flow 值模型](../../../crates/novadraw/src/figure/text_flow.rs#L24-L110)。
 
 官方 TextSurroundingFigureExample 在 FlowAdapter 中放真实 Toolbar/Shape 子树，
 还在另一个 adapter 中放 RTL FlowPage。TextFlowLarge 会重新挂载首个 fragment。

@@ -516,10 +516,10 @@ Widget Scene cache、transform/clip append 与 damage TODO。
 
 <a id="source-06"></a>
 [cite:6] Novadraw 当前定向公开面审阅：
-[backend 编码与整窗出口](../../../novadraw-backend-vello/src/lib.rs)、
-[纹理后端](../../../novadraw-backend-vello/src/texture.rs)、
-[提交结果与能力](../../../novadraw/src/render/traits.rs)、
+[backend 编码与整窗出口](../../../crates/novadraw-backend-vello/src/lib.rs)、
+[纹理后端](../../../crates/novadraw-backend-vello/src/texture.rs)、
+[提交结果与能力](../../../crates/novadraw/src/render/traits.rs)、
 [版本声明](../../../Cargo.toml)、
-[winit Canvas 接入](../../../novadraw-platform-winit/README.md)。
+[winit Canvas 接入](../../../crates/novadraw-platform-winit/README.md)。
 本项目工作区有其他未提交改动；这些引用描述本次读取的工作区，
 不等于固定 commit 的行为验证。本方案未修改这些源码。

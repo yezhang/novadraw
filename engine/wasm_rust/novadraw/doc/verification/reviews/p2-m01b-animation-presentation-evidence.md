@@ -65,7 +65,7 @@ channel。
 
 ## 6. 合同覆盖
 
-`novadraw/tests/p2_animation_contract.rs` 当前 26 项，其中 M01-B 新增 12 项，覆盖：
+`crates/novadraw/tests/p2_animation_contract.rs` 当前 26 项，其中 M01-B 新增 12 项，覆盖：
 
 1. Figure opacity/transform 只改变录制表现；
 2. old/new surface envelope；

@@ -447,7 +447,7 @@ rg -n 'publish|publication|帧发布|发布帧' \
 ```bash
 cargo xtask docs
 git diff --check
-./scripts/build_book.sh
+./tools/scripts/build_book.sh
 ```
 
 构建后抽查：
@@ -500,7 +500,7 @@ git diff --check
 
 - `cargo xtask docs` 通过；
 - `git diff --check` 通过；
-- `./scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均已生成；
+- `./tools/scripts/build_book.sh` 通过，三本书的 HTML 与 PDF 均已生成；
 - PDF 文本抽查未发现旧运行时术语；
 - 原理书第 1、7 章和概念附录、用户指南第 4 章、贡献者指南 Runtime 章节的图表与长
   标识符显示正常。

@@ -40,5 +40,5 @@ Figure 位置保持不变，以及事务呈现模式的开启/恢复。
 结果与截图为 `novadraw-resize-result.txt` 和 `novadraw-resize.png`，
 位于同一验证目录。
 
-纯 WGPU 的独立组件样例仍位于 `winit-canvas/examples/standalone/`，
+纯 WGPU 的独立组件样例仍位于 `crates/winit-canvas/examples/standalone/`，
 可通过 `cargo run -p winit-canvas --example standalone --features gpu` 运行。

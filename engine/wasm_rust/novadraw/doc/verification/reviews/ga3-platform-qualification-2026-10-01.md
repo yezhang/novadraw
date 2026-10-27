@@ -55,9 +55,9 @@ macOS arm64 宿主上的固定交叉构建环境：
 - target/variant：`x86_64` / `desktop`；
 - representative application：`node-editor-demo`。
 
-`scripts/build_windows_target.sh` 在原生 Windows MSVC host 使用 `cargo check`，在其他
+`tools/scripts/build_windows_target.sh` 在原生 Windows MSVC host 使用 `cargo check`，在其他
 宿主使用上述固定 cargo-xwin 配置。已登记 suite 执行通过。原始日志：
-`verification/evidence/ga3-platform-qualification-2026-10-01/windows-x86_64-build.log`，
+`doc/verification/evidence/ga3-platform-qualification-2026-10-01/windows-x86_64-build.log`，
 SHA-256 为
 `5c927d38379b0de1f7b90c9e4e985612382f89f2aa65630c20b6e95a96582b0b`。
 
@@ -77,7 +77,7 @@ Docker Desktop Linux VM 内执行环境：
 - winit feature 图同时包含 `x11`、`x11rb`、`wayland` 与 `wayland-dlopen`。
 
 两个已登记 suite 均执行通过。原始日志：
-`verification/evidence/ga3-platform-qualification-2026-10-01/linux-x86_64-build.log`，
+`doc/verification/evidence/ga3-platform-qualification-2026-10-01/linux-x86_64-build.log`，
 SHA-256 为
 `e7aa443918ee3b9bafffbd7c940e6097497dfd7fb19e9d90091ef4e63a72b87a`。
 

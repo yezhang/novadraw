@@ -37,6 +37,14 @@ manifest 保持只增不改；review 的原判断和完成事实保留在其原�
 ADR 身份仍被外部引用时，原位置可保留简短替代指引。
 默认架构检索排除 archive，历史追溯时显式进入。
 
+提交的原始证据统一放在 `doc/verification/evidence/`；独立字体比较报告及其原始
+GPU demos 放在 `doc/reference/fonts/reports/`。这两类快照允许整体迁移，内容仍保持
+只增不改；其内部历史路径保留，不按当前文档改写。文档门禁检查当前报告入口，
+不把冻结证据和原始 demos 当作现行规范文档。迁移后核对文件 SHA-256。
+
+源码和工具的目录归属见 [根目录说明](../README.md)；可执行测试入口见
+[tests/README.md](../tests/README.md)。本地生成物统一放在 `target/`。
+
 ## 文档类型
 
 标题后写 `类型：` 标记。入口页使用 `documentation-index`；正文按内容选用：

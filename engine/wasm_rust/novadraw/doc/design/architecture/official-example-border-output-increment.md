@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 状态：`implemented / verified`。按现有官方示例 Core 计划和用户授权完成普通 Border、字体指标及资源扩展。
-验证见[交付证据](../../../verification/evidence/official-examples-2026-10-23/implementation.md)。
+验证见[交付证据](../../verification/evidence/official-examples-2026-10-23/implementation.md)。
 `api_semantics`：`border.protocol`、`graphics.context`、`paint.protocol`、`connection.locator`。
 
 本切片补齐现有 Border、资源和帧提交契约的消费者，不改变场景所有权或渲染主循环。

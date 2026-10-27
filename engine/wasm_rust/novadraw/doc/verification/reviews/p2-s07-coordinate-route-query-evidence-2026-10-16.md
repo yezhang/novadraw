@@ -41,7 +41,7 @@ Event 内部输入分发和命中查询仍按其既有“无法命中/未处理�
 | M4 回归，5 项 | 多层 Insets、Point/Rectangle 往返、输入点降域、原子 bounds 与 damage |
 | M9 回归，16 项 | Anchor/Router/Locator 合法行为与外部 RouteSceneRead 缺失事实、foreign、指纹变化及合法 false/None |
 
-完整日志：[坐标与 Route suite](../../../verification/evidence/p2-s07-coordinate-route-suite.log)。
+完整日志：[坐标与 Route suite](../evidence/p2-s07-coordinate-route-suite.log)。
 数值计算失败变体是内部防御分支；当前有限输入实现没有独立可触达 fixture，
 不宣称执行了该分支的故障注入。范围用例与精确分类由其余分支测试覆盖。
 
@@ -50,7 +50,7 @@ Event 内部输入分发和命中查询仍按其既有“无法命中/未处理�
 ADR-018、ADR-036、坐标规范、API symbol snapshot、workspace 调用点、parity
 coordinate/anchor 条目和验证 manifest 已同步。
 workspace quick 通过，包含 Native/Web 编译和公开 API 边界检查：
-[执行日志](../../../verification/evidence/p2-s07-coordinate-quick.log)。
+[执行日志](../evidence/p2-s07-coordinate-quick.log)。
 
 Tree 结构/状态、Stable/Event 任意 ID 查询与非权威 Node getter 仍需迁移。
 Route 删除旧绑定后换成新有效绑定的完整 unresolved 恢复证据、prepared/Border
@@ -60,7 +60,7 @@ Route 删除旧绑定后换成新有效绑定的完整 unresolved 恢复证据�
 ## 新绑定恢复与回归
 
 当前入口为 `core.query-contracts`，
-[执行记录](../../../verification/evidence/p2-s07-core-query-contracts.log)通过。
+[执行记录](../evidence/p2-s07-core-query-contracts.log)通过。
 新增外部 `DependentAnchor` 经公开 tracked query 读取次级 Figure 依赖：
 成功路由 → 删除原 Figure → 稳定 unresolved 并保留依赖 → 无变化时不重复产帧
 → 新 ID 与新 anchor binding 恢复 resolved；旧 ID 始终 UnknownFigure。
@@ -71,6 +71,6 @@ Route 删除旧绑定后换成新有效绑定的完整 unresolved 恢复证据�
 这些观测不代表旧 Figure 事实查询成功。
 
 连接 Runtime 的 29 项回归通过：
-[执行记录](../../../verification/evidence/p2-s07-route-runtime-regression.log)。
+[执行记录](../evidence/p2-s07-route-runtime-regression.log)。
 本轮补齐 P05 的内置 adapter 与外部 anchor 路径，外部 RouteSceneRead 的存在性协议
 继续由 `m9_connection_contract` 验证。

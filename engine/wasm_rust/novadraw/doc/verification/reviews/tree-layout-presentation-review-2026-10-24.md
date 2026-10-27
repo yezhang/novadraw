@@ -53,8 +53,8 @@ P1 表示影响本方案实施的设计缺口或适配风险，不表示当前�
 **发现。** 当前表现快照只包含 opacity、transform 和 self-content，尚无真实 bounds
 与表现可见性。仅增加 bounds 字段不足以实现方案。
 
-**证据。** [FigurePresentationEffect](../../../novadraw/src/animation/service.rs#L230-L249)
-定义现有快照内容。[递归绘制](../../../novadraw/src/graph/render_recursive.rs#L119-L196)
+**证据。** [FigurePresentationEffect](../../../crates/novadraw/src/animation/service.rs#L230-L249)
+定义现有快照内容。[递归绘制](../../../crates/novadraw/src/graph/render_recursive.rs#L119-L196)
 先检查 committed visible，再读取 committed bounds；opaque 背景、自绘尺寸和 border
 使用这些尺寸。`paint_client_area` 与 `paint_children` 继续读取 committed client area、
 child transform 和 child bounds。非 identity 表现 transform 还会绕过 child bounds clip。
@@ -73,9 +73,9 @@ OverflowVisible、零尺寸和 border。绘制、线条、viewport 与 damage �
 **发现。** 方案提出先生成几何快照，再派生线条与 viewport，但未明确阶段顺序和依赖
 约束。现有 self-content provider 也不具备跨 Figure 几何读取或结构化失败出口。
 
-**证据。** [PresentationFamily](../../../novadraw/src/animation/mod.rs#L71-L89)接收当前
+**证据。** [PresentationFamily](../../../crates/novadraw/src/animation/mod.rs#L71-L89)接收当前
 Figure、同一 Figure 的 channel 值和一个 Rectangle，直接返回 FigurePresentation。
-[snapshot](../../../novadraw/src/animation/service.rs#L462-L507)在构造快照时传入
+[snapshot](../../../crates/novadraw/src/animation/service.rs#L462-L507)在构造快照时传入
 committed bounds，内部使用 Option 合成内容。[公开 API 合同](../../design/animation/public-api-contract.md)
 规定 provider sample 只读取冻结输入与时间。现有 Motion sampler 的错误处理不能直接
 证明新增几何派生 provider 的失败清理。
@@ -94,7 +94,7 @@ committed bounds，内部使用 Option 合成内容。[公开 API 合同](../../
 Tree contour 变化可以重新安排兄弟分支。现有 capture 只冻结 committed bounds，
 也不足以保证快速反向从当前表现起点继续。
 
-**证据。** [FigureTransitionCapture](../../../novadraw/src/animation/mod.rs#L584-L588)
+**证据。** [FigureTransitionCapture](../../../crates/novadraw/src/animation/mod.rs#L584-L588)
 仅保存 namespace 与 `(FigureId, Rectangle)`；`capture_figures` 读取所选 Figure 的
 committed bounds，没有捕获 epoch、拓扑、绘制版本或当前表现几何。
 Draw2D `TreeLayout.layout()` 根据 contour 安排兄弟位置，必要时移动此前兄弟节点。
@@ -113,7 +113,7 @@ Draw2D `TreeLayout.layout()` 根据 contour 安排兄弟位置，必要时移动
 **发现。** 只允许隐藏后代继续 paint，还不能保证折叠计划持续运行，也不能保证隐藏
 祖先和零尺寸 clip 不提前截断表现。
 
-**证据。** [reconcile_visibility](../../../novadraw/src/animation/service.rs#L673-L685)
+**证据。** [reconcile_visibility](../../../crates/novadraw/src/animation/service.rs#L673-L685)
 按 committed effective visibility 判断：任一 Figure target 隐藏，就设置整个计划的
 target_hidden。Pause 暂停整组，Finish 结束整组；Advance 不会消除 renderer 的
 committed visible 短路。现有测试已覆盖隐藏 Figure 的 Pause/Finish 行为。
@@ -132,10 +132,10 @@ committed visible 短路。现有测试已覆盖隐藏 Figure 的 Pause/Finish �
 来源和直接输入终止范围尚未定义。“使用已有 viewport 输入仲裁”也不能视为已实现
 动画 owner 接管。
 
-**证据。** [viewport transition](../../../novadraw/src/runtime/runtime/frame_submission.rs#L148-L215)
+**证据。** [viewport transition](../../../crates/novadraw/src/runtime/runtime/frame_submission.rs#L148-L215)
 实际作用于 contents Figure 的 transform，没有独立 sampled origin channel。
-[scroll controller](../../../novadraw/src/runtime/context.rs#L754-L769)固定输入会话目标；
-[滚动与 origin 写入入口](../../../novadraw/src/runtime/runtime.rs#L2983-L3003)没有取消或
+[scroll controller](../../../crates/novadraw/src/runtime/context.rs#L754-L769)固定输入会话目标；
+[滚动与 origin 写入入口](../../../crates/novadraw/src/runtime/runtime.rs#L2983-L3003)没有取消或
 接管动画 owner 的逻辑。现有 pan 测试不证明 Tree 跟踪和直接输入中断。
 
 **建议。** 每次 retarget 同时冻结当前表现节点位置和当前表现 origin，重新建立锚点。
@@ -152,11 +152,11 @@ owner 冲突、retarget 失败、取消和完成后的最终 origin；不写回�
 **发现。** 当前 envelope 计算不能直接支撑嵌套真实 bounds 重放；“不逐帧 discovery”
 也不足以约束已有后代遍历成本。
 
-**证据。** [presentation_envelope](../../../novadraw/src/graph/query.rs#L595-L618)对每个
+**证据。** [presentation_envelope](../../../crates/novadraw/src/graph/query.rs#L595-L618)对每个
 动画 Figure 遍历后代，读取 committed 可见性、坐标与 visual bounds，再施加该 Figure
 的单个 transform。它没有组合其他节点的 sampled geometry。祖先和后代都成为 target
 时，同一子树被重复扫描，链状目标的总遍历量可能达到平方量级。
-[reconcile_damage](../../../novadraw/src/animation/service.rs#L2377-L2414)对 self-content
+[reconcile_damage](../../../crates/novadraw/src/animation/service.rs#L2377-L2414)对 self-content
 变化请求完整重绘，但完整重绘不能消除上述重复计算。
 
 **建议。** 通过统一几何视图组合变换、有效 clip、线条 envelope 和 viewport 影响，
@@ -192,8 +192,8 @@ T-4 增加默认关闭的 Use Animation 面板。样式切换仍按静态最终�
 真实 bounds 与 local transform 同时存在时，组合顺序和现有 BoundsTransition 的
 兼容策略也未明确。
 
-**证据。** [bind_presentation](../../../novadraw/src/animation/service.rs#L1703-L1714)按
-FigureId 与值 TypeId 查找 channel；[Capability 注册](../../../novadraw/src/figure/capability.rs#L497-L509)
+**证据。** [bind_presentation](../../../crates/novadraw/src/animation/service.rs#L1703-L1714)按
+FigureId 与值 TypeId 查找 channel；[Capability 注册](../../../crates/novadraw/src/figure/capability.rs#L497-L509)
 按 descriptor TypeId 去重。两个不同名称的 PresentationBinding<Rectangle> 不能成为
 同一 Figure 的两个独立 capability/channel。
 `bounds_transition_transform` 仍通过宽高比将旧 bounds 映射到新 bounds。

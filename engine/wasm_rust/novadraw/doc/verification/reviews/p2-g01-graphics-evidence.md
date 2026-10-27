@@ -51,7 +51,7 @@ EvenOdd 洞、曲线裁剪、图像/文字交集、空 clip、reset/restore、�
 
 ## 复现与证据归属
 
-验证命令以 `verification/suites.toml` 为唯一入口。
+验证命令以 `tests/suites.toml` 为唯一入口。
 
 - 离屏 PNG：`target/verification/p2-g01/offscreen/`。
 - surface PNG：`target/verification/p2-g01/present/`。

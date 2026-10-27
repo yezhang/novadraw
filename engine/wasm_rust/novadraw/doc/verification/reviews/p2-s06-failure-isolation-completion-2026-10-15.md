@@ -98,12 +98,12 @@ attached 状态记录退休前缀和存活后缀，Viewer fault 后普通入口�
 
 | 门禁 | 结果 | 日志 |
 |---|---|---|
-| `editor.p2-s06-failure-isolation` | passed，92 tests | `verification/evidence/p2-s06-failure-isolation-followup.log` |
-| `editor.p2-s06-native-exit` | passed，Apple M1 Pro / Metal | `verification/evidence/p2-s06-native-exit-final.log` |
-| Native bin Clippy | passed | `verification/evidence/p2-s06-native-clippy.log` |
-| `quick` | passed | `verification/evidence/p2-s06-followup-quick.log` |
-| 文档门禁、diff | passed | `verification/evidence/p2-s06-closure-docs.log` |
-| 最终 `full` | passed | `verification/evidence/p2-s06-closure-full.log` |
+| `editor.p2-s06-failure-isolation` | passed，92 tests | `doc/verification/evidence/p2-s06-failure-isolation-followup.log` |
+| `editor.p2-s06-native-exit` | passed，Apple M1 Pro / Metal | `doc/verification/evidence/p2-s06-native-exit-final.log` |
+| Native bin Clippy | passed | `doc/verification/evidence/p2-s06-native-clippy.log` |
+| `quick` | passed | `doc/verification/evidence/p2-s06-followup-quick.log` |
+| 文档门禁、diff | passed | `doc/verification/evidence/p2-s06-closure-docs.log` |
+| 最终 `full` | passed | `doc/verification/evidence/p2-s06-closure-full.log` |
 
 之前的 failed/rerun 日志保留于实施证据，不作为 passed 证据。
 最终门禁不以通过数量替代矩阵覆盖范围。

@@ -45,21 +45,21 @@ Core、Editor、Inspector、平台、Native/Web 示例、benchmark、integration
 
 | 范围 | 结果 / 日志 |
 |---|---|
-| Tree、坐标、测量、候选隔离、Runtime Route 恢复 | [core.query-contracts](../../../verification/evidence/p2-s07-core-query-contracts-final.log)通过 |
-| 外部 RouteSceneRead 新绑定恢复 | [独立测试](../../../verification/evidence/p2-s07-external-route-recovery.log)通过 |
-| erased descriptor 防御分类 | [内部测试](../../../verification/evidence/p2-s07-capability-descriptor.log)通过 |
-| Editor 完整 unit/integration/doctest | [测试记录](../../../verification/evidence/p2-s07-editor-contracts-retry.log)通过；同日志 Native host 初次失败 |
-| Native host 修复后编译 | [定向复跑](../../../verification/evidence/p2-s07-native-host-check.log)通过 |
-| Core/Editor 外部扩展 | [extensions](../../../verification/evidence/p2-s07-extensions.log)的 Core 与 Editor 测试通过；独立协议初次编译失败 |
-| 独立 Editor 协议修复后 | [定向复跑](../../../verification/evidence/p2-s07-external-editor-protocol-retry.log)通过，4 项 |
-| Update/Event/Viewport/UML/Animation 应用 | [runtime.apps](../../../verification/evidence/p2-s07-runtime-apps-retry.log)通过 |
-| API snapshot、依赖与第三方类型边界 | [架构检查](../../../verification/evidence/p2-s07-api-snapshot.log)通过，Native/Web rustdoc 已生成 |
-| workspace Clippy | [最终日志](../../../verification/evidence/p2-s07-workspace-clippy-final.log)通过 |
-| Core 全部目标 | [workspace 执行前缀](../../../verification/evidence/p2-s07-workspace-tests-closure.log)、[Animation 定向修复](../../../verification/evidence/p2-s07-core-remaining-tests.log)、[剩余目标复跑](../../../verification/evidence/p2-s07-core-remaining-tests-retry.log)、[doctest](../../../verification/evidence/p2-s07-core-doctests.log)合并覆盖 788 项通过，包括 374 项 lib、50 个 integration target 和 28 项 doctest |
-| 其余 workspace consumer | [完整测试](../../../verification/evidence/p2-s07-workspace-consumer-tests.log)通过，245 项；连同 Core 共 1,033 项，无遗漏 integration target |
-| 最后 Route 整改 | [定向回归](../../../verification/evidence/p2-s07-route-final-regression.log)通过，M9 Runtime 29 项、ShortestPath 3 项、新绑定恢复 1 项 |
-| Web consumer | [wasm 编译复跑](../../../verification/evidence/p2-s07-web-consumer-retry.log)与 [wasm Clippy 复跑](../../../verification/evidence/p2-s07-web-clippy-retry.log)通过 |
-| 格式、文档与 diff | [格式](../../../verification/evidence/p2-s07-format.log)、[文档](../../../verification/evidence/p2-s07-closure-docs.log)、[diff](../../../verification/evidence/p2-s07-diff-check.log)通过 |
+| Tree、坐标、测量、候选隔离、Runtime Route 恢复 | [core.query-contracts](../evidence/p2-s07-core-query-contracts-final.log)通过 |
+| 外部 RouteSceneRead 新绑定恢复 | [独立测试](../evidence/p2-s07-external-route-recovery.log)通过 |
+| erased descriptor 防御分类 | [内部测试](../evidence/p2-s07-capability-descriptor.log)通过 |
+| Editor 完整 unit/integration/doctest | [测试记录](../evidence/p2-s07-editor-contracts-retry.log)通过；同日志 Native host 初次失败 |
+| Native host 修复后编译 | [定向复跑](../evidence/p2-s07-native-host-check.log)通过 |
+| Core/Editor 外部扩展 | [extensions](../evidence/p2-s07-extensions.log)的 Core 与 Editor 测试通过；独立协议初次编译失败 |
+| 独立 Editor 协议修复后 | [定向复跑](../evidence/p2-s07-external-editor-protocol-retry.log)通过，4 项 |
+| Update/Event/Viewport/UML/Animation 应用 | [runtime.apps](../evidence/p2-s07-runtime-apps-retry.log)通过 |
+| API snapshot、依赖与第三方类型边界 | [架构检查](../evidence/p2-s07-api-snapshot.log)通过，Native/Web rustdoc 已生成 |
+| workspace Clippy | [最终日志](../evidence/p2-s07-workspace-clippy-final.log)通过 |
+| Core 全部目标 | [workspace 执行前缀](../evidence/p2-s07-workspace-tests-closure.log)、[Animation 定向修复](../evidence/p2-s07-core-remaining-tests.log)、[剩余目标复跑](../evidence/p2-s07-core-remaining-tests-retry.log)、[doctest](../evidence/p2-s07-core-doctests.log)合并覆盖 788 项通过，包括 374 项 lib、50 个 integration target 和 28 项 doctest |
+| 其余 workspace consumer | [完整测试](../evidence/p2-s07-workspace-consumer-tests.log)通过，245 项；连同 Core 共 1,033 项，无遗漏 integration target |
+| 最后 Route 整改 | [定向回归](../evidence/p2-s07-route-final-regression.log)通过，M9 Runtime 29 项、ShortestPath 3 项、新绑定恢复 1 项 |
+| Web consumer | [wasm 编译复跑](../evidence/p2-s07-web-consumer-retry.log)与 [wasm Clippy 复跑](../evidence/p2-s07-web-clippy-retry.log)通过 |
+| 格式、文档与 diff | [格式](../evidence/p2-s07-format.log)、[文档](../evidence/p2-s07-closure-docs.log)、[diff](../evidence/p2-s07-diff-check.log)通过 |
 
 失败日志保留真实结果，后续定向复跑证明修复，不把旧失败记录改写为通过。
 workspace 原命令先后发现编译漏迁移和旧错误断言，修复后按未执行目标继续验证，
@@ -69,13 +69,13 @@ workspace 原命令先后发现编译漏迁移和旧错误断言，修复后按�
 
 按主题提交前，另导出只含 S07 代码与调用点迁移的暂存区快照，并加入待提交的四个
 查询回归 target。S06 实现和其他任务的改动不在该快照内；复用当前 lockfile 与截图
-资源。该范围的 [workspace check](../../../verification/evidence/p2-s07-commit-check.log)、
-[格式](../../../verification/evidence/p2-s07-commit-fmt.log)、
-[Clippy](../../../verification/evidence/p2-s07-commit-clippy.log)及
-[单次 workspace test](../../../verification/evidence/p2-s07-commit-tests.log)通过，
+资源。该范围的 [workspace check](../evidence/p2-s07-commit-check.log)、
+[格式](../evidence/p2-s07-commit-fmt.log)、
+[Clippy](../evidence/p2-s07-commit-clippy.log)及
+[单次 workspace test](../evidence/p2-s07-commit-tests.log)通过，
 合计 1,015 项测试。新增 suite 的
-[xtask 测试](../../../verification/evidence/p2-s07-commit-xtask-tests.log)另有 5 项通过，
-[文档快照检查](../../../verification/evidence/p2-s07-commit-docs.log)通过。
+[xtask 测试](../evidence/p2-s07-commit-xtask-tests.log)另有 5 项通过，
+[文档快照检查](../evidence/p2-s07-commit-docs.log)通过。
 该计数对应独立提交范围，不替换上文包含 S06 实现的 1,033 项历史验收结果。
 
 ## 规范同步

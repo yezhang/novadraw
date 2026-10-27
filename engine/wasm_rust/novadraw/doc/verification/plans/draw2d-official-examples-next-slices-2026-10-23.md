@@ -39,7 +39,7 @@ Toolbar 回归依次切换 horizontal、stretch、vertical，缩小主轴后恢�
 Shape geometry，不只检查控制器布尔值。
 
 本批不将上述入口改为 complete；原始完整验收边界继续保留。
-执行结果见 [本批证据](../../../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
+执行结果见 [本批证据](../evidence/official-examples-followup-2026-10-23/implementation.md)。
 
 K07 后返回布局主线的新增修复与核验见
 [K02 消费者记录](../reviews/k02-layout-consumers-evidence-2026-10-23.md)。

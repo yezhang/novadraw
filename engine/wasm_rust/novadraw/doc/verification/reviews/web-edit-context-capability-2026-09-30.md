@@ -32,8 +32,8 @@ session-tagged Editor 协议。
 
 源码：
 
-- [`../../../novadraw-platform-web/src/edit_context.rs`](../../../novadraw-platform-web/src/edit_context.rs)
-- [`../../../novadraw-platform-web/src/text_input.rs`](../../../novadraw-platform-web/src/text_input.rs)
+- [`../../../novadraw-platform-web/src/edit_context.rs`](../../../crates/novadraw-platform-web/src/edit_context.rs)
+- [`../../../novadraw-platform-web/src/text_input.rs`](../../../crates/novadraw-platform-web/src/text_input.rs)
 - [`../../../examples/web/web-validation/src/direct_edit_mode.rs`](../../../examples/web/web-validation/src/direct_edit_mode.rs)
 
 会话启动后实际执行：

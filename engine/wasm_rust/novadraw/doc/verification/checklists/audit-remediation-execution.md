@@ -70,7 +70,7 @@ S07 已完成，下一批为 S08 Design。
 - [x] 迁移 Core 外其他公开 crate 到显式领域路径。
 - [x] 迁移 examples/support、Native/Web examples 与 benchmarks。
 - [x] 迁移 tests、README 和 book。
-- [x] 删除 `novadraw/src/prelude.rs` 与 `pub mod prelude`。
+- [x] 删除 `crates/novadraw/src/prelude.rs` 与 `pub mod prelude`。
 - [x] 删除 root 的 struct/enum/trait/function/constant/macro 重导出。
 - [x] 保留必要的 `pub(crate) use`，不把内部便利 alias 重新公开。
 

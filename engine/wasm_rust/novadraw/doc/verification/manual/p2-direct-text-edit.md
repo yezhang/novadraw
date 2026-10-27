@@ -35,7 +35,7 @@ cargo run -p node-editor-demo
 
 ```bash
 cargo xtask verify web.build
-./scripts/serve_web_validation.sh
+./tools/scripts/serve_web_validation.sh
 ```
 
 打开

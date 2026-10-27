@@ -182,7 +182,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 | P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
 | P2-M01 | `animation.timeline`, `animation.presentation`, `frame.preparation`, `damage.repaint` | `in_progress` | ADR-026 已接受；M01-A/B complete，当前推进 M01-C 领域消费者 |
-| P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `complete` | ADR-043 与 preparation 增量已实施；默认/外部算法、52 个官方组合、真实菜单与 Native 验收、最终门禁见[证据](../../../verification/evidence/adr043/implementation.md) |
+| P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `complete` | ADR-043 与 preparation 增量已实施；默认/外部算法、52 个官方组合、真实菜单与 Native 验收、最终门禁见[证据](../../verification/evidence/adr043/implementation.md) |
 
 P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持
 文本度量/绘制同源、图文有序合成、字体资源 revision 与失败发布合同；
@@ -318,7 +318,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
-Novadraw 验证入口：`novadraw/tests/m4_coordinate_contract.rs`、`examples/native/transform-app`。
+Novadraw 验证入口：`crates/novadraw/tests/m4_coordinate_contract.rs`、`examples/native/transform-app`。
 
 ### M5 Layout / Validation / UpdateManager
 
@@ -366,7 +366,7 @@ LayoutManager 子查询已按显式约束重测，preferred/minimum 分别选择
 resize 后字体资源检查和 Native 四幅代表性截图。最终 workspace 与公开 API
 门禁、五个应用探针及 Web backend 编译通过。
 `CAP-GRAPH-LAYOUT` 为 adapted；P2-L01 为 complete，见
-[实施证据](../../../verification/evidence/adr043/implementation.md)。
+[实施证据](../../verification/evidence/adr043/implementation.md)。
 
 ### M6 Event Dispatcher / Focus / Capture
 

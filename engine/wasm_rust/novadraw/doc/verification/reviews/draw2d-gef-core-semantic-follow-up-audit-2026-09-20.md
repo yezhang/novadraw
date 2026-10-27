@@ -132,7 +132,7 @@ session；新 session 可正常命中 B。
 | Tooltip | 同 source 内移动不断延后自动隐藏 | `novadraw-scene/src/runtime/tooltip.rs` | 补移动期间仍按初始 hide deadline 隐藏 |
 | Accessibility | traversable-only 节点声明 focusable，但 Focus action 失败 | accessibility snapshot/action | 统一快照能力与 action 资格 |
 | Widget | 挂入 disabled parent 的 Clickable 保留 enabled 视觉 | attachment/reparent + clickable snapshot | 补 disabled parent attach/reparent 测试 |
-| Auto-expose | feedback 重建后沿用旧 range 的停止判定 | `novadraw-editor/src/domain.rs::autoexpose_tick` | 补 feedback 扩展 range 的连续 tick 测试 |
+| Auto-expose | feedback 重建后沿用旧 range 的停止判定 | `crates/novadraw-editor/src/domain.rs::autoexpose_tick` | 补 feedback 扩展 range 的连续 tick 测试 |
 | Selection | 指针选择返回的 `SelectionDelta` 遗漏同次 focus 变化 | `GraphicalViewer::dispatch_mouse_pressed` | 补首次点击与 focus-only 变化测试 |
 | Tool | Viewer refresh 注销 source 后 active Tool 持有失效 `EditPartId` | Viewer refresh / EditorDomain Tool | 四类 gesture 分别补 source retirement 测试 |
 

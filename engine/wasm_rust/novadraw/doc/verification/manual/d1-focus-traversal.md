@@ -105,14 +105,14 @@ hover 状态仍会更新，但填充色仍为紫色，因此不能用该节点�
 ### 2.1 构建并启动
 
 ```bash
-./scripts/build_web_validation.sh
-./scripts/serve_web_validation.sh
+./tools/scripts/build_web_validation.sh
+./tools/scripts/serve_web_validation.sh
 ```
 
 若默认端口 `4173` 已占用，可使用：
 
 ```bash
-PORT=4174 ./scripts/serve_web_validation.sh
+PORT=4174 ./tools/scripts/serve_web_validation.sh
 ```
 
 打开：

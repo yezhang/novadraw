@@ -8,10 +8,10 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-novadraw = { path = "../../../novadraw" }
-novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = ["web"] }
-novadraw-editor = { path = "../../../novadraw-editor" }
-novadraw-platform-web = { path = "../../../novadraw-platform-web", features = ["editor"] }
+novadraw = { path = "../../../crates/novadraw" }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello", features = ["web"] }
+novadraw-editor = { path = "../../../crates/novadraw-editor" }
+novadraw-platform-web = { path = "../../../crates/novadraw-platform-web", features = ["editor"] }
 novadraw-example-scenes = { path = "../../scenes" }
 js-sys = "0.3.104"
 serde.workspace = true

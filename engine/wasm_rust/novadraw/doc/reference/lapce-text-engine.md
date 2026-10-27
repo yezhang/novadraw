@@ -99,12 +99,22 @@ HarfBuzz 文档建议分段 shaping 时提供完整段落上下文。
 `unsafe_to_concat`，后者必须启用 `PRODUCE_UNSAFE_TO_CONCAT`，
 而且旧侧、重新 shaping 的新侧都需要满足拼接条件。
 这只是 shaping 层的证据，不覆盖 bidi、fallback、样式变更或行布局状态。[cite:12](#source-12)
+HarfRust 没有直接对应片段 end-of-text 的 glyph 位置供这项证明使用；
+右端需额外 shaping，使待拼接位置成为内部 cluster 边界。
+最后一个 glyph 的标志不能直接当作片段末端证明。[cite:12](#source-12)
 
 现有 Parley 0.7.0 有 `Layout::break_lines`、`break_all_lines` 与 `align`，
 `BreakLines::break_next` 能逐行消费已经分析的布局。
 单次 break_next 仍会扫描该行的 cluster；NoWrap 巨行可能一次处理很多输入。
 本次未发现 Parley 对外导出上述 HarfRust 拼接证明的接口，
 不能据此声称默认适配器已支持安全增量 shaping。[cite:13](#source-13)
+`revert` 只恢复上一次逐行计算前的状态；新建 breaker 从段首开始，
+公开 API 没有跨编辑检查点 export／restore。逐行计算不等于持久状态恢复。[cite:13](#source-13)
+
+Parley 的 shaping 在 inline box 插入位置设置 run 分隔。
+因此，盒的新增、删除和位置变化属于结构输入，不能统一视为纯尺寸更新。
+bidi resolver 即使判断无需复杂 bidi，也先遍历输入建立类型及层级状态；
+全段分析的读取成本与局部 shaping 窗口成本需要分别记录。[cite:16](#source-16)
 
 ## 输出变化继续传播
 
@@ -164,3 +174,8 @@ HarfRust 方法正文另由本机该版本 registry 源码核对。
 <a id="source-14"></a>[cite:14] [minimal invalidation](https://xi-editor.io/docs/rope_science_12.html)。
 
 <a id="source-15"></a>[cite:15] [Lapce trigger_syntax_change](https://github.com/lapce/lapce/blob/f66ffaa95387794205c35864517de70958b9ea8d/lapce-app/src/doc.rs#L836-L857)。
+
+<a id="source-16"></a>[cite:16] [Parley 0.7.0 shaping](https://docs.rs/crate/parley/0.7.0/source/src/shape/mod.rs)；
+[bidi resolver](https://docs.rs/crate/parley/0.7.0/source/src/bidi.rs)。
+本机固定版本核对 inline run 分隔及全段类型扫描；
+这些源码事实不提供增量性能实测。

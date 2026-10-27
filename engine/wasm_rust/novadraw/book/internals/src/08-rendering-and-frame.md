@@ -583,15 +583,15 @@ reset 先把旧在途 lease 接入恢复前缀，再释放旧 token；新准备�
 后释放恢复前缀，新 session Snapshot 包含所有仍需保留的资源 ID。
 
 源码入口为
-[`scene.rs`](../../../novadraw/src/scene.rs)、
-[`scene/group.rs`](../../../novadraw/src/scene/group.rs)、
-[`scene/import.rs`](../../../novadraw/src/scene/import.rs)、
-[`scene/view.rs`](../../../novadraw/src/scene/view.rs)、
-[`scene_capture.rs`](../../../novadraw/src/runtime/runtime/scene_capture.rs)；
+[`scene.rs`](../../../crates/novadraw/src/scene.rs)、
+[`scene/group.rs`](../../../crates/novadraw/src/scene/group.rs)、
+[`scene/import.rs`](../../../crates/novadraw/src/scene/import.rs)、
+[`scene/view.rs`](../../../crates/novadraw/src/scene/view.rs)、
+[`scene_capture.rs`](../../../crates/novadraw/src/runtime/runtime/scene_capture.rs)；
 外部消费者测试见
-[`p2_scene_capture.rs`](../../../novadraw/tests/p2_scene_capture.rs)和
-[`p2_scene_group.rs`](../../../novadraw/tests/p2_scene_group.rs)以及
-[`p2_scene_view.rs`](../../../novadraw/tests/p2_scene_view.rs)。
+[`p2_scene_capture.rs`](../../../crates/novadraw/tests/p2_scene_capture.rs)和
+[`p2_scene_group.rs`](../../../crates/novadraw/tests/p2_scene_group.rs)以及
+[`p2_scene_view.rs`](../../../crates/novadraw/tests/p2_scene_view.rs)。
 
 ## 宿主背景在 Runtime 内合成
 
@@ -607,7 +607,7 @@ backend capability 与设备数值，再冻结资源同步前缀与 in-flight le
 `clear_color` 由后端清屏消费，`background_input` 保存该帧坐标版本。
 清屏要求 Full repair，因此不会用完整清屏配合仅有局部 Figure 的录制结果。
 Retry 和 reset 复用 scene 导入表的恢复 lease，Presented 只确认旧前缀。
-实现见 [`background_submission.rs`](../../../novadraw/src/runtime/runtime/background_submission.rs)。
+实现见 [`background_submission.rs`](../../../crates/novadraw/src/runtime/runtime/background_submission.rs)。
 外部 [双 Canvas 消费者](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
 展示宿主分别维护 surface、position、dpi version；内容滚动只改变 Viewport，
 Canvas 移动才改变宿主变换。每个纹理消费者独立确认所属 Runtime 的冻结帧。

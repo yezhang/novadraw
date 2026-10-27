@@ -62,7 +62,7 @@ Core 根据捕获根的完整子树生成依赖，不因 rect、hidden、零尺�
 `cargo clippy -p novadraw --lib --test p2_scene_group -- -D warnings`：通过。
 日志为 `target/verification/k07/group-clippy.log`。
 
-`scripts/check_architecture.sh --update-api`：Native/Wasm 公开表面、架构边界通过，
+`tools/scripts/check_architecture.sh --update-api`：Native/Wasm 公开表面、架构边界通过，
 Runtime 保持 28/28，Kurbo 0.13.1；日志为
 `target/verification/k07/group-api-surface.log`。
 新增能力均位于 `scene` 领域和现有 facade，没有新增 Runtime 组合入口。

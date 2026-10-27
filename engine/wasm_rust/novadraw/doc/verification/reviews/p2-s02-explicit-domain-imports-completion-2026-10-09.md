@@ -19,8 +19,8 @@
 
 ## 2. 实施结果
 
-- `novadraw/src/prelude.rs` 与 `pub mod prelude` 已删除；
-- `novadraw/src/lib.rs` 的类型重导出已降为 crate-private 内部别名；
+- `crates/novadraw/src/prelude.rs` 与 `pub mod prelude` 已删除；
+- `crates/novadraw/src/lib.rs` 的类型重导出已降为 crate-private 内部别名；
 - `Color` 的规范路径为 `novadraw::graphics::Color`；
 - Figure/Style、Geometry、Layout、Tree、Runtime 类型分别从对应领域模块导入；
 - Editor、Inspector、backend、platform、examples、benchmarks 和 integration tests
@@ -31,7 +31,7 @@
 - source gate 禁止 Rust 代码重新使用 `novadraw::prelude`，并禁止 Core 重新发布
   `pub mod prelude`。
 
-历史 `verification/evidence/` 中冻结的源码快照未改写。
+历史 `doc/verification/evidence/` 中冻结的源码快照未改写。
 
 ## 3. 验证
 

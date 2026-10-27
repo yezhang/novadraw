@@ -31,7 +31,7 @@ ADR-021 建立了 crate root、prelude 和领域模块三层公开表面。当�
 
 删除：
 
-- `novadraw/src/prelude.rs`；
+- `crates/novadraw/src/prelude.rs`；
 - `novadraw::prelude` 模块；
 - README、book、测试、examples 中对 `novadraw::prelude::*` 的使用；
 - public API snapshot 的 prelude scope；
@@ -123,7 +123,7 @@ pub use novadraw::runtime::Runtime;
 
 ### 6. API snapshot 按领域冻结
 
-[check_architecture.sh](../../scripts/check_architecture.sh) 调整为：
+[check_architecture.sh](../../tools/scripts/check_architecture.sh) 调整为：
 
 1. 删除 `prelude:prelude/index.html` scope；
 2. root scope 只允许 `mod`；
@@ -131,7 +131,7 @@ pub use novadraw::runtime::Runtime;
 4. 若 root 出现非 `mod` 项，门禁直接失败；
 5. snapshot 忠实记录真实公开路径，不做“相对差集”隐藏。
 
-`verification/public-api/novadraw-symbols.txt` 因此成为：
+`tests/public-api/novadraw-symbols.txt` 因此成为：
 
 ```text
 root mod ...
@@ -181,7 +181,7 @@ module.graphics ...
 
 ## 验证
 
-1. source gate：`novadraw/src/lib.rs` 的公共项只有 `pub mod`；
+1. source gate：`crates/novadraw/src/lib.rs` 的公共项只有 `pub mod`；
 2. source gate：workspace 无 `novadraw::prelude`；
 3. compile-fail：`use novadraw::Runtime` 和 `use novadraw::prelude::*` 不可用；
 4. compile-pass：外部 consumer 只用显式领域路径；
@@ -201,7 +201,7 @@ module.graphics ...
 5. 更新 snapshot 脚本、snapshot 和 facade contract；
 6. 写完成记录并关闭 R02。
 
-历史 `verification/evidence/` 中已冻结的源码快照不改写。
+历史 `doc/verification/evidence/` 中已冻结的源码快照不改写。
 
 迁移 commit 可以逐组回退；删除旧入口必须是最后一个代码 commit。若最终门禁失败，
 先回退删除入口的 commit，不恢复新的长期双入口。

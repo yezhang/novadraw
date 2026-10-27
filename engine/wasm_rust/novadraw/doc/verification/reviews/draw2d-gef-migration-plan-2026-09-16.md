@@ -183,7 +183,7 @@ gesture中Shift变化、source退休后的取消与feedback释放。
 
 已有可用门禁包括workspace.quality、verify.update/event/scroll-pane、
 replay.editor-g3/g4/g5.2/g5.3/g5.4/g5.5和web.build；
-具体命令在当时的 `verification/suites.toml` 中定义。
+具体命令在当时的 `tests/suites.toml` 中定义。
 新反例或扩展suite应先登记manifest，报告只记录ID及结果。
 
 ## 实施控制与风险

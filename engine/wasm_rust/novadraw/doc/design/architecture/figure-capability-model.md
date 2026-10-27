@@ -456,7 +456,7 @@ P2-F02 至少覆盖：
 12. 外部 `PresentationBinding<V>` 不修改 `ChannelBinding` 或 renderer 分支即可完成
     typed sample、damage 和 frame recording；同 Figure content owner 冲突结构化拒绝。
 
-验证入口登记在 `verification/README.md`，完成证据进入独立 verification record。
+验证入口登记在 `tests/README.md`，完成证据进入独立 verification record。
 完成证据见
 [P2-F02 Figure Capability 实现记录](../../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。
 统一 mutation 后续证据见

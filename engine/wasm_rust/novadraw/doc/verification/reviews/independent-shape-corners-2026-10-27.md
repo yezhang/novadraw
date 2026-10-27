@@ -33,7 +33,7 @@ Core 集成测试 16 项及一个布局缓存单元测试通过，另有一个�
 GPU 测试实际运行十一组：64 逻辑像素在 DPI 1/1.5/2、800 逻辑像素在 DPI 1/2、
 220×150 非对称圆形与椭圆圆角在 DPI 1/1.5/2。检查角区内部全部采样中心的
 半透明 alpha、关闭底边后的清除，以及稳定重绘和首次重绘的一致性。
-修复后的[非对称圆角 GPU 回读图](../../../verification/evidence/independent-shape-corners/independent-corner-gpu.png)
+修复后的[非对称圆角 GPU 回读图](../evidence/independent-shape-corners/independent-corner-gpu.png)
 已保存并目视复核；这张图保留了测试的半透明红/蓝配色与透明背景。
 
 采证发现并修复两处边界问题：
@@ -77,7 +77,7 @@ release 真实后端测量包含 Core prepare 和 backend submit，明确排除 
 和缓存限制，超预算不绕过结构化失败。
 
 同源码、同 `opt-level=s/lto/codegen-units=1/strip/panic=abort` 的独立 cdylib
-消费者测量见 `verification/consumers/shape-artifact`。它比较普通 Figure 与
+消费者测量见 `tests/consumers/shape-artifact`。它比较普通 Figure 与
 显式启用独立圆角/分边 builder 的可达产物，**不是 Core 修改前后差值**；
 普通 Figure 绘制路径也已经含有新圆角分支。
 

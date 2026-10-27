@@ -151,12 +151,12 @@ CommandStack 用独立的 `HistoryState` 保存当前历史位置和保存点，
 
 | 分析结论 | 实现入口 | 契约测试入口 |
 |---|---|---|
-| 模型版本及事件归属 | [model/mod.rs](../../../novadraw-editor/src/model/mod.rs) | [g1_model_contract.rs](../../../novadraw-editor/tests/g1_model_contract.rs) |
-| 连续通知、同版本多事件及成功接受版本 | [viewer/projection.rs](../../../novadraw-editor/src/viewer/projection.rs) | [g2_viewer_projection_contract.rs](../../../novadraw-editor/tests/g2_viewer_projection_contract.rs) |
-| 快照与会话关闭 | [viewer/mod.rs](../../../novadraw-editor/src/viewer/mod.rs) | [g4_editing_loop_contract.rs](../../../novadraw-editor/tests/g4_editing_loop_contract.rs) |
-| 直接编辑过期与草稿保留 | [direct_edit.rs](../../../novadraw-editor/src/direct_edit.rs)、[viewer/mod.rs](../../../novadraw-editor/src/viewer/mod.rs) | [p2_e02_direct_text_edit_contract.rs](../../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs) |
-| 交互版本分配与传播 | [domain.rs](../../../novadraw-editor/src/domain.rs)、[request/mod.rs](../../../novadraw-editor/src/request/mod.rs) | [g4_editing_loop_contract.rs](../../../novadraw-editor/tests/g4_editing_loop_contract.rs) |
-| 保存点与历史身份 | [command/mod.rs](../../../novadraw-editor/src/command/mod.rs) | [g1_command_stack_contract.rs](../../../novadraw-editor/tests/g1_command_stack_contract.rs) |
+| 模型版本及事件归属 | [model/mod.rs](../../../crates/novadraw-editor/src/model/mod.rs) | [g1_model_contract.rs](../../../crates/novadraw-editor/tests/g1_model_contract.rs) |
+| 连续通知、同版本多事件及成功接受版本 | [viewer/projection.rs](../../../crates/novadraw-editor/src/viewer/projection.rs) | [g2_viewer_projection_contract.rs](../../../crates/novadraw-editor/tests/g2_viewer_projection_contract.rs) |
+| 快照与会话关闭 | [viewer/mod.rs](../../../crates/novadraw-editor/src/viewer/mod.rs) | [g4_editing_loop_contract.rs](../../../crates/novadraw-editor/tests/g4_editing_loop_contract.rs) |
+| 直接编辑过期与草稿保留 | [direct_edit.rs](../../../crates/novadraw-editor/src/direct_edit.rs)、[viewer/mod.rs](../../../crates/novadraw-editor/src/viewer/mod.rs) | [p2_e02_direct_text_edit_contract.rs](../../../crates/novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs) |
+| 交互版本分配与传播 | [domain.rs](../../../crates/novadraw-editor/src/domain.rs)、[request/mod.rs](../../../crates/novadraw-editor/src/request/mod.rs) | [g4_editing_loop_contract.rs](../../../crates/novadraw-editor/tests/g4_editing_loop_contract.rs) |
+| 保存点与历史身份 | [command/mod.rs](../../../crates/novadraw-editor/src/command/mod.rs) | [g1_command_stack_contract.rs](../../../crates/novadraw-editor/tests/g1_command_stack_contract.rs) |
 
 验证套件入口：`editor.tc07-viewer-boundary`、`editor.p2-e02-direct-text-edit`。
 本次为文档分析记录，不把引用既有测试写成本次重新执行了编辑框架测试。

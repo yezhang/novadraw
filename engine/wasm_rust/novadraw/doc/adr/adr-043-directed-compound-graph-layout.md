@@ -6,7 +6,7 @@
 
 已接受，修订 1，已实施（2026-10-22）。用户批准 ADR-043 并授权实施后，
 纯模型、默认算法、统一 adapter 与两个官方图场景已完成；P2-L01 为 `complete`。
-实施与最终门禁见[完成证据](../../verification/evidence/adr043/implementation.md)。
+实施与最终门禁见[完成证据](../verification/evidence/adr043/implementation.md)。
 adapter 切片核对发现候选领域数据与
 约束测量查询缺口，新增
 [图投影的候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
@@ -364,7 +364,7 @@ GraphTests 有 16 个公开 fixture，CompoundGraphTests 有 10 个，分别验�
 `GraphRequestBuilder::from_request` 保留图身份并生成新的不可变前缀；
 既有受检结果只能继续证明原请求，不能替代新前缀的验证。
 
-外部消费者测试为 `novadraw/tests/graph_layout_protocol.rs`，通过 18 项测试。
+外部消费者测试为 `crates/novadraw/tests/graph_layout_protocol.rs`，通过 18 项测试。
 该消费者注册自己的非分层算法，无需 Core 私有 API 或 rank 信息；
 覆盖能力准入、身份与实例隔离、尺寸、包含与保留空间、端点、clearance、
 预算耗尽及同域测量前缀编辑。此切片尚未实现默认分层算法、
@@ -389,7 +389,7 @@ SOUTH/EAST 的 32 个组合及重复输出一致性通过。fixture 使用源码
 edge clearance；virtual 邻域的左右障碍只延长至由本次实体和端点推导的有限范围。
 输出不追求上游的像素坐标，保留上述硬约束与加权布局目标。
 
-`novadraw/tests/graph_layout_directed.rs` 另行验证 feedback 原始端点、row 顺序、
+`crates/novadraw/tests/graph_layout_directed.rs` 另行验证 feedback 原始端点、row 顺序、
 EAST 超侧边 offset、fixed 轴拉伸拒绝、空图及分层证据篡改拒绝。
 内部小图穷举独立对照加权 rank 目标；排序测试独立计数交叉。
 小数尺寸/非对称 padding 的独立反例要求按实际包围盒向外舍入，
@@ -485,7 +485,7 @@ Native 验证入口为 `cargo run -p draw2d-official-examples --example graph_ve
 最终 workspace fmt、check、严格 Clippy 和 test 均通过：1,321 项通过、1 项忽略、
 0 项失败。五个 `runtime.apps` 探针、Web backend 编译及公开 API/依赖/热路径
 边界验证通过；P2-L01 已完成。Native 截图与执行证据见
-[实施记录](../../verification/evidence/adr043/implementation.md)。
+[实施记录](../verification/evidence/adr043/implementation.md)。
 
 ## 取舍
 

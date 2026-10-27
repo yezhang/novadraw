@@ -49,7 +49,7 @@ effect/output 权限，不取得 Runtime、FigureTree、FigureNode 或同步 mut
 
 ## 公开 API
 
-`verification/public-api/novadraw-symbols.txt` 已冻结：
+`tests/public-api/novadraw-symbols.txt` 已冻结：
 
 - Event：`EventContext`、`EventSceneQuery`、`EventSceneQueryError`、`EventEffects`；
 - Layout：`LayoutSceneQuery`、`LayoutOutput`；

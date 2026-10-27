@@ -226,7 +226,7 @@ runtime.pointer_exited();
 统一维护，否则绘制与交互会在嵌套、滚动或缩放后产生偏差。
 
 桌面适配实现见
-[`novadraw-platform-winit/src/input.rs`](../../../novadraw-platform-winit/src/input.rs)，输入状态机原理见
+[`crates/novadraw-platform-winit/src/input.rs`](../../../crates/novadraw-platform-winit/src/input.rs)，输入状态机原理见
 [第 5 章](05-input-and-interaction.md)。
 
 ## 7. 驱动一帧

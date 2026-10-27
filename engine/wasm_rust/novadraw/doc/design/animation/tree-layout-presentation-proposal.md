@@ -509,7 +509,7 @@ Tree Viewport。T-4 增加默认关闭的 Use Animation checkbox；关闭时继�
 固定时间 Headless 核验 source/表现分离、中心/端点和工作量；Native GPU 核验 clip、
 字号/描边、中间帧与擦除。比较有动画和 Disabled/ReducedMotion 的最终 committed
 几何、glyph、线条、origin 和像素。编译或 active track 数量不替代这些证据。
-稳定验证入口依 `verification/README.md` 和当前 xtask 建立，未实现前不新增通过声明。
+稳定验证入口依 `tests/README.md` 和当前 xtask 建立，未实现前不新增通过声明。
 
 该设计涉及渲染使用的几何协议。实施前需要评审，不直接扩张现有 affine bounds
 实现。渲染主循环如需调整，必须限定为从统一只读几何视图取值；不得增加第二套

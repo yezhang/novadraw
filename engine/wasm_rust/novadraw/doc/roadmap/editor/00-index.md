@@ -55,5 +55,5 @@ undo/redo 和视口能力；业务持久化不得反向定义 Runtime 或 Comman
 
 新增能力先更新 GEF family；涉及身份、Command 原子性、输入仲裁或模型所有权时
 先评审契约。Draw2D Core 缺口进入 P2，不重开 M1–M10。
-可执行验证见 [suite 入口](../../../verification/README.md)，不在本页复制命令定义。
+可执行验证见 [suite 入口](../../../tests/README.md)，不在本页复制命令定义。
 crate 拆分判据见 [目录与发布边界](../../design/architecture/directory-structure.md#editor-拆分判据)。
