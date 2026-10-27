@@ -10,6 +10,7 @@
 | [core-principles.md](core-principles.md) | Model、EditPart、Viewer、Tool、Request、Policy 与 Command |
 | [connection-editing.md](connection-editing.md) | ConnectionEditPart、创建、重连与折点编辑 |
 | [direct-editing.md](direct-editing.md) | DirectEditManager/Policy/Request 与 TextFlow 交互几何 |
+| [official-examples-analysis.md](official-examples-analysis.md) | 6 个官方样例模块、2 个 Palette 示例及配套插件的构成、特征、能力点和建议验收 |
 
 GEF 语义采用关系见
 [`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)，Novadraw
