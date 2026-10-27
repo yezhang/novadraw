@@ -210,7 +210,7 @@ impl FigurePreparation for InteractivePage {
             .prepare(context, bounds, scene)
             .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?;
         let original = prepared.root_presentation();
-        let snapshot = Arc::new(original.data::<FlowSnapshot>().expect("flow data").clone());
+        let snapshot = original.shared_data::<FlowSnapshot>().expect("flow data");
         let root = FigurePresentation::new(
             original.measurement(),
             original.minimum_size(),

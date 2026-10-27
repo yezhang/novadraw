@@ -339,10 +339,7 @@ impl<'a> FlowAssembly<'a> {
         // Preserve empty block identity and its vertical spacing.
         if self.current.is_none() && self.paragraphs.len() == start {
             let resolved = self.scene.style(source)?;
-            let style = TextStyle::new(
-                crate::text::FontDescriptor::parse(&resolved.font)?,
-                resolved.foreground,
-            );
+            let style = TextStyle::new(self.scene.parsed_font(source)?, resolved.foreground);
             self.paragraph(style);
         }
         self.flush();

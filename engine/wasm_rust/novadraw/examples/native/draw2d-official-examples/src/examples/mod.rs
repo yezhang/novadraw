@@ -7,6 +7,8 @@ mod gpu_test_support;
 mod graph_examples;
 mod grid_layout_example;
 mod hello_world;
+#[cfg(test)]
+mod long_text_gpu;
 mod obstruction;
 #[cfg(test)]
 mod panel_test;

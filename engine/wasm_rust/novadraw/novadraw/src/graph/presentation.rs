@@ -136,6 +136,8 @@ impl FigureTree {
         mut dependencies: crate::figure::preparation::PreparationDependencies,
         budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<bool, TextError> {
+        let _refresh_timing = budget.time("prepare-refresh");
+        let inputs_timing = budget.time("prepare-inputs");
         use crate::figure::PreparationScene;
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
         self.synchronize_preparation_text_revision(text.revision());
@@ -158,7 +160,9 @@ impl FigureTree {
             .into_iter()
             .collect::<std::collections::HashMap<_, _>>();
         let mut candidates = Vec::new();
+        drop(inputs_timing);
         for id in figures {
+            let signature_timing = budget.time("prepare-signature");
             let style = &styles[&id];
             let node = &self.blocks[id];
             let preparation = node.preparation().expect("capability selected");
@@ -189,12 +193,16 @@ impl FigureTree {
             }) {
                 continue;
             }
+            drop(signature_timing);
             budget.check()?;
+            let callback_timing = budget.time("prepare-callback");
             let mut context = crate::text::MeasureContext::new(
                 text,
                 crate::text::FontDescriptor::parse(&style.font)?,
             );
             let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
+            drop(callback_timing);
+            let _validation_timing = budget.time("prepare-candidate-validation");
             prepared_scene.validate(&scene)?;
             if scene.revision()? != key.component || preparation.revision() != key.provider {
                 return Err(TextError::InvalidPreparedScene(
@@ -204,6 +212,7 @@ impl FigureTree {
             budget.allocate("preparation candidates", 1)?;
             candidates.push((id, key, source, scene.observations(), prepared_scene));
         }
+        let batch_timing = budget.time("prepare-batch-validation");
         let mut presented = std::collections::HashSet::new();
         for (id, key, source, observations, candidate) in &candidates {
             for source in
@@ -281,6 +290,8 @@ impl FigureTree {
             )?;
         }
         budget.check()?;
+        drop(batch_timing);
+        let _publication_timing = budget.time("prepare-publication");
         let mut metrics_changed = false;
         // No tree changes occur until every candidate and its layout output has been checked.
         budget.allocate("publication owner index", candidates.len() as u64)?;
@@ -452,7 +463,16 @@ impl FigureTree {
         &self,
         presentation: Option<&crate::animation::PresentationSnapshot>,
     ) -> NdCanvas {
+        self.render_with_paint_coverage(presentation, None)
+    }
+
+    pub(crate) fn render_with_paint_coverage(
+        &self,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+        coverage_outset: Option<f64>,
+    ) -> NdCanvas {
         let mut gc = NdCanvas::new();
+        gc.set_coverage_outset(coverage_outset);
         gc.damage_mut().set_full();
         self.render_to_with_presentation(&mut gc, presentation);
         gc

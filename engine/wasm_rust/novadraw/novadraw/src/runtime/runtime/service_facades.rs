@@ -42,6 +42,22 @@ impl<'a> RuntimeFrames<'a> {
         self.runtime.stabilize_for_query()
     }
 
+    /// Enables optional CPU phase timing for subsequent work, clearing prior measurements.
+    /// Default is disabled; no clocks are read or diagnostic records allocated in that mode.
+    pub fn set_timing_enabled(&mut self, enabled: bool) {
+        self.runtime.timing = if enabled {
+            crate::runtime::timing::TimingRecorder::enabled()
+        } else {
+            crate::runtime::timing::TimingRecorder::default()
+        };
+    }
+
+    /// Drains instance-owned timings, including failed attempts. Nested stages are inclusive;
+    /// exclusive values subtract timed children. Neither is an input-to-screen latency.
+    pub fn take_timings(&mut self) -> Vec<crate::runtime::RuntimePhaseTiming> {
+        self.runtime.timing.take()
+    }
+
     /// Limits all work and allocation entries in each complete stabilization attempt.
     pub fn preparation_budget(&self) -> crate::figure::PreparationBudget {
         self.runtime.preparation_budget

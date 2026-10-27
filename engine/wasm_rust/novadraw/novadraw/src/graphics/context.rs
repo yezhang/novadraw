@@ -48,6 +48,25 @@ impl From<GraphicsInputError> for GraphicsError {
     }
 }
 
+/// CPU text selection work; counts are not presentation or GPU measurements.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextPaintStatistics {
+    /// Paragraph hierarchy nodes examined before glyph queries.
+    pub paragraph_nodes: u64,
+    /// Paragraphs retained by the envelope query, including unknown envelopes.
+    pub candidate_paragraphs: u64,
+    /// Hierarchy nodes examined (H).
+    pub indexed_nodes: u64,
+    /// Leaf glyph candidates (C).
+    pub candidate_glyphs: u64,
+    /// Glyph envelope checks (G).
+    pub glyph_checks: u64,
+    /// Instances selected for path construction or native command recording (V).
+    pub selected_glyphs: u64,
+    /// Instances processed without a certified envelope query.
+    pub fallback_glyphs: u64,
+}
+
 /// Drawing-only view. It cannot clear commands, mutate damage or submit a frame.
 pub struct PaintContext<'a> {
     pub(crate) canvas: &'a mut NdCanvas,
@@ -342,6 +361,19 @@ impl<'a> PaintContext<'a> {
     }
     pub fn clip_path(&mut self, clip: &ClipPath) -> Result<(), GraphicsError> {
         self.canvas.record_checked(|gc| gc.clip_path(clip))
+    }
+
+    /// Conservative geometric bounds of enclosing clips in current local coordinates.
+    /// None means unknown or unbounded. These bounds exclude device coverage and must not
+    /// be used on their own to discard antialiased drawing or native glyphs.
+    pub fn effective_clip_bounds(&self) -> Option<Rectangle> {
+        self.canvas.effective_clip_bounds()
+    }
+
+    /// Cumulative CPU selection work in this recording, including earlier figures.
+    /// Selected instances do not imply GPU completion or visible device pixels.
+    pub fn text_paint_statistics(&self) -> TextPaintStatistics {
+        self.canvas.text_paint_statistics()
     }
 
     /// Replays immutable commands in this context's local domain.

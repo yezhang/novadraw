@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::figure::{CapabilityKey, PreparationScene, ResolvedStyle};
-use crate::text::{FontDescriptor, TextStyle};
+use crate::text::TextStyle;
 use crate::{Figure, FigureId};
 
 use super::{FlowAssembly, FlowError};
@@ -59,7 +59,7 @@ impl FlowContributionContext<'_> {
     pub fn text_style(&self) -> Result<TextStyle, FlowError> {
         let style = self.style()?;
         Ok(TextStyle::new(
-            FontDescriptor::parse(&style.font)?,
+            self.scene.parsed_font(self.source)?,
             style.foreground,
         ))
     }

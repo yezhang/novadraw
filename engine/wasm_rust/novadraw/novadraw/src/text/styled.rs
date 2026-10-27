@@ -1,5 +1,6 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
+use std::sync::Arc;
 
 use super::{FontDescriptor, TextConstraints, TextError, TextLayout};
 use crate::{Rectangle, graphics::Color};
@@ -70,7 +71,7 @@ pub struct TextInlineBox {
 /// Checked input shared by the default and external shaping engines.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StyledTextRequest {
-    text: String,
+    text: Arc<str>,
     default_style: TextStyle,
     spans: Vec<TextStyleSpan>,
     boxes: Vec<TextInlineBox>,
@@ -122,7 +123,7 @@ impl StyledTextRequest {
             offset = inline.byte_offset;
         }
         Ok(Self {
-            text,
+            text: text.into(),
             default_style,
             spans,
             boxes,
@@ -229,11 +230,11 @@ pub struct TextInlinePlacement {
 /// Immutable checked result. Paint and interaction share the layout revision.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StyledTextLayout {
-    request: StyledTextRequest,
+    request: Arc<StyledTextRequest>,
     layout: TextLayout,
-    runs: Vec<StyledGlyphRun>,
-    placements: Vec<TextInlinePlacement>,
-    paint_layouts: Vec<TextLayout>,
+    runs: Arc<[StyledGlyphRun]>,
+    placements: Arc<[TextInlinePlacement]>,
+    paint_layouts: Arc<[TextLayout]>,
 }
 
 impl StyledTextLayout {
@@ -330,10 +331,10 @@ impl StyledTextLayout {
             .map(|index| layout.glyph_run_layout(index))
             .collect();
         Ok(Self {
-            request,
+            request: Arc::new(request),
             layout,
-            runs,
-            placements,
+            runs: runs.into(),
+            placements: placements.into(),
             paint_layouts,
         })
     }
@@ -356,12 +357,12 @@ impl StyledTextLayout {
         self.layout
     }
     pub(crate) fn paint_layouts_mut(&mut self) -> &mut [TextLayout] {
-        &mut self.paint_layouts
+        Arc::make_mut(&mut self.paint_layouts)
     }
     pub(crate) fn paint_runs(&self) -> impl Iterator<Item = (&TextLayout, Color)> {
         self.paint_layouts
             .iter()
-            .zip(&self.runs)
+            .zip(self.runs.iter())
             .map(|(layout, run)| {
                 (
                     layout,

@@ -57,9 +57,23 @@ pub struct OutlinedText {
     instances: Vec<GlyphInstance>,
     path: Path,
     ink_bounds: Option<Rectangle>,
+    index: Option<super::paint_index::EnvelopeIndex>,
 }
 
 impl OutlinedText {
+    fn index(instances: &[GlyphInstance]) -> Option<super::paint_index::EnvelopeIndex> {
+        let bounds = instances
+            .iter()
+            .map(|instance| match instance.outline.ink_bounds() {
+                Some(bounds) => {
+                    super::paint_index::transformed_bounds(bounds, instance.transform).map(Some)
+                }
+                None => Some(None),
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(super::paint_index::EnvelopeIndex::new(&bounds))
+    }
+
     pub(crate) fn with_vertical_offsets(&self, offsets: &[f64]) -> Result<Self, FontError> {
         if offsets.len() != self.instances.len() {
             return Err(FontError::InvalidFont);
@@ -72,6 +86,7 @@ impl OutlinedText {
         }
         let checked = GlyphOutline::new(path.clone(), 1)?;
         Ok(Self {
+            index: Self::index(&instances),
             instances,
             path,
             ink_bounds: checked.ink_bounds(),
@@ -93,6 +108,48 @@ impl OutlinedText {
             Affine2D::from_translation(origin.x(), origin.y()),
         )?;
         Ok(path)
+    }
+
+    /// The caller must include the actual backend's device coverage in this layout-local clip.
+    /// Stroke geometry and unknown provider geometry use the full path instead.
+    pub(crate) fn path_in_clip(
+        &self,
+        origin: Point,
+        clip: Rectangle,
+    ) -> Result<(Path, super::paint_index::QueryWork), FontError> {
+        let Some(index) = &self.index else {
+            return Ok((
+                self.path_at(origin)?,
+                super::paint_index::QueryWork {
+                    candidates: self.instances.len(),
+                    visible: self.instances.len(),
+                    fallback: self.instances.len(),
+                    ..Default::default()
+                },
+            ));
+        };
+        let mut path = Path::new();
+        let mut failure = None;
+        let work = index.visit(clip, |index| {
+            let instance = &self.instances[index];
+            if let Err(error) =
+                append_transformed(&mut path, instance.outline.path(), instance.transform)
+            {
+                failure = Some(error);
+            }
+        });
+        match failure {
+            Some(error) => Err(error),
+            None => {
+                let mut translated = Path::new();
+                append_transformed(
+                    &mut translated,
+                    &path,
+                    Affine2D::from_translation(origin.x(), origin.y()),
+                )?;
+                Ok((translated, work))
+            }
+        }
     }
 }
 
@@ -196,6 +253,7 @@ impl OutlineCache {
         // Revalidate derived curves/bounds, including overflow caused by instance transforms.
         let checked = GlyphOutline::new(path.clone(), 1)?;
         Ok(OutlinedText {
+            index: OutlinedText::index(&instances),
             instances,
             ink_bounds: checked.ink_bounds(),
             path,
@@ -264,20 +322,32 @@ fn append_transformed(
 /// fonts. Font bytes retain the same Registry identity/revision; no second font collection is
 /// created. Default runtimes keep the native glyph path without this adapter.
 pub struct OutlineTextEngine {
+    cache_identity: crate::text::shaping::TextLayoutCacheIdentity,
     engine: Box<dyn TextLayoutEngine>,
     cache: OutlineCache,
     fonts: HashMap<ResourceId, ResourceUpdate>,
     revision: std::cell::Cell<(u64, u64, u64)>,
+    shaping: Vec<ShapingAsset>,
+}
+
+const SHAPING_CACHE_CAPACITY: usize = 256;
+
+struct ShapingAsset {
+    identity: crate::text::shaping::TextLayoutCacheIdentity,
+    revision: u64,
+    layout: crate::text::StyledTextLayout,
 }
 
 impl OutlineTextEngine {
     pub fn new(engine: Box<dyn TextLayoutEngine>, provider: Box<dyn GlyphOutlineProvider>) -> Self {
         let observed = (engine.revision(), provider.revision(), 0);
         Self {
+            cache_identity: crate::text::shaping::TextLayoutCacheIdentity::default(),
             engine,
             cache: OutlineCache::new(provider),
             fonts: HashMap::new(),
             revision: std::cell::Cell::new(observed),
+            shaping: Vec::new(),
         }
     }
 
@@ -297,11 +367,40 @@ impl OutlineTextEngine {
 }
 
 impl TextLayoutEngine for OutlineTextEngine {
+    fn cache_identity(&self) -> Option<crate::text::shaping::TextLayoutCacheIdentity> {
+        self.engine.cache_identity().map(|_| self.cache_identity)
+    }
+
     fn layout_styled(
         &mut self,
         request: &crate::text::StyledTextRequest,
     ) -> Result<crate::text::StyledTextLayout, TextError> {
-        let mut result = self.engine.layout_styled(request)?;
+        let identity = self.engine.cache_identity();
+        let engine_revision = self.engine.revision();
+        let cached = self.shaping.iter().find(|asset| {
+            Some(asset.identity) == identity
+                && asset.revision == engine_revision
+                && asset.layout.request() == request
+        });
+        let mut result = if let Some(asset) = cached {
+            asset.layout.clone()
+        } else {
+            let layout = self.engine.layout_styled(request)?;
+            if let Some(identity) = identity
+                && self.engine.cache_identity() == Some(identity)
+                && self.engine.revision() == engine_revision
+            {
+                if self.shaping.len() == SHAPING_CACHE_CAPACITY {
+                    self.shaping.remove(0);
+                }
+                self.shaping.push(ShapingAsset {
+                    identity,
+                    revision: engine_revision,
+                    layout: layout.clone(),
+                });
+            }
+            layout
+        };
         let revision = self.revision();
         for layout in result.paint_layouts_mut() {
             let outlines = self
@@ -352,6 +451,7 @@ impl TextLayoutEngine for OutlineTextEngine {
         bytes: &[u8],
     ) -> Result<(), TextError> {
         self.engine.register_font(id, revision, bytes)?;
+        self.shaping.clear();
         self.fonts.insert(
             id,
             ResourceUpdate {
@@ -367,6 +467,7 @@ impl TextLayoutEngine for OutlineTextEngine {
     }
     fn remove_font(&mut self, id: ResourceId) {
         self.engine.remove_font(id);
+        self.shaping.clear();
         self.fonts.remove(&id);
         self.cache
             .outlines

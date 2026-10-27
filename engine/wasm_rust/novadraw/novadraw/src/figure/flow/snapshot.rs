@@ -18,18 +18,99 @@ use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
-type CachedFlow = (u64, Arc<FlowSnapshot>, Vec<FigureId>);
+type CachedFlow = (
+    u64,
+    Arc<FlowSnapshot>,
+    Vec<FigureId>,
+    Vec<crate::connection::DependencyObservation>,
+);
+
+// A service retains recent exact-width assets, including measurement/preparation widths.
+// Old published snapshots keep their own immutable leases after cache eviction.
+const PARAGRAPH_CACHE_CAPACITY: usize = 256;
+
+#[derive(Default)]
+struct FlowWork {
+    statistics: FlowWorkStatistics,
+    paragraphs: Vec<ParagraphAsset>,
+}
+
+struct ParagraphAsset {
+    engine_identity: Option<crate::text::shaping::TextLayoutCacheIdentity>,
+    engine_revision: u64,
+    fingerprint: u64,
+    layout: StyledTextLayout,
+    padding: Vec<(f64, f64)>,
+    padded: Option<StyledTextLayout>,
+    source_geometry: HashMap<(usize, usize), Arc<[SelectionQuad]>>,
+}
+
+impl FlowWork {
+    fn layout(
+        &mut self,
+        context: &mut MeasureContext<'_>,
+        request: &StyledTextRequest,
+    ) -> Result<(usize, StyledTextLayout), crate::text::TextError> {
+        let engine_revision = context.revision();
+        let engine_identity = context.cache_identity();
+        let fingerprint = request.fingerprint();
+        if let Some(index) = self.paragraphs.iter().position(|asset| {
+            engine_identity.is_some()
+                && asset.engine_identity == engine_identity
+                && asset.engine_revision == engine_revision
+                && asset.fingerprint == fingerprint
+                && asset.layout.request() == request
+        }) {
+            self.statistics.paragraph_hits += 1;
+            return Ok((index, self.paragraphs[index].layout.clone()));
+        }
+        let start = Instant::now();
+        let layout = context.layout_styled(request)?;
+        self.statistics.styled_layout_calls += 1;
+        self.statistics.styled_layout_ns += start.elapsed().as_nanos();
+        if self.paragraphs.len() == PARAGRAPH_CACHE_CAPACITY {
+            self.paragraphs.remove(0);
+        }
+        self.paragraphs.push(ParagraphAsset {
+            engine_identity,
+            engine_revision,
+            fingerprint,
+            layout: layout.clone(),
+            padding: Vec::new(),
+            padded: None,
+            source_geometry: HashMap::new(),
+        });
+        Ok((self.paragraphs.len() - 1, layout))
+    }
+}
+
+/// Cumulative work for one instance-owned service, measured with a monotonic clock.
+/// These counters describe CPU layout work, never GPU completion or presentation.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FlowWorkStatistics {
+    pub builds: u64,
+    pub styled_layout_calls: u64,
+    pub paragraph_hits: u64,
+    pub source_geometry_calls: u64,
+    pub contribution_ns: u128,
+    pub styled_layout_ns: u128,
+    pub source_geometry_ns: u128,
+    pub build_ns: u128,
+}
 
 fn flow_revision(
     context: &MeasureContext<'_>,
     bounds: Rectangle,
     scene: &PreparationScene<'_>,
 ) -> Result<u64, FlowError> {
+    let _timing = scene.budget().time("flow-signature");
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     scene.revision()?.hash(&mut hash);
     context.revision().hash(&mut hash);
+    context.cache_identity().hash(&mut hash);
     for value in [bounds.x, bounds.y, bounds.width, bounds.height] {
         value.to_bits().hash(&mut hash);
     }
@@ -42,12 +123,14 @@ fn flow_revision(
 pub struct FlowLayoutService {
     registry: FlowContributionRegistry,
     cache: Arc<Mutex<Option<CachedFlow>>>,
+    statistics: Arc<Mutex<FlowWork>>,
 }
 impl FlowLayoutService {
     pub fn new(registry: FlowContributionRegistry) -> Self {
         Self {
             registry,
             cache: Arc::new(Mutex::new(None)),
+            statistics: Arc::new(Mutex::new(FlowWork::default())),
         }
     }
     /// Measures a frozen contribution tree without publishing placements or drawing.
@@ -59,12 +142,26 @@ impl FlowLayoutService {
         scene: &PreparationScene<'_>,
     ) -> Result<PreparationMeasurement, PreparationMeasureError> {
         let bounds = Rectangle::new(0.0, 0.0, constraints.max_width().unwrap_or(0.0), 0.0);
-        let (snapshot, _) = build_snapshot(
+        let output = build_flow(
             &self.registry,
             context,
             bounds,
             constraints.max_width(),
             scene,
+            FlowBuildPurpose::Measure,
+            &mut *self
+                .statistics
+                .lock()
+                .map_err(|_| PreparationMeasureError {
+                    figure: scene.root(),
+                    outer_constraints: constraints,
+                    content_constraints: Some(constraints),
+                    kind: PreparationMeasureErrorKind::Text(Box::new(
+                        crate::text::TextError::InvalidPreparedScene(
+                            "flow statistics poisoned".into(),
+                        ),
+                    )),
+                })?,
         )
         .map_err(|error| match error.into_text() {
             crate::text::TextError::PreparationMeasurement(error) => *error,
@@ -81,10 +178,13 @@ impl FlowLayoutService {
                 kind: PreparationMeasureErrorKind::Text(Box::new(error)),
             },
         })?;
-        Ok(PreparationMeasurement {
-            preferred: FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
-            minimum: snapshot.size,
-        })
+        match output {
+            FlowBuildOutput::Measurement(size) => Ok(PreparationMeasurement {
+                preferred: FigureMeasurement::new(size.width, size.height, None),
+                minimum: size,
+            }),
+            FlowBuildOutput::Snapshot(_, _) => unreachable!("measurement build purpose"),
+        }
     }
     pub fn prepare(
         &self,
@@ -98,13 +198,24 @@ impl FlowLayoutService {
             .lock()
             .map_err(|_| FlowError::InvalidStructure)?
             .clone();
-        if let Some((revision, snapshot, members)) = cached
+        if let Some((revision, snapshot, members, observations)) = cached
             && revision == key
+            && context.cache_identity().is_some()
+            && scene.reuse_observations(&observations)?
         {
             return prepare_snapshot(snapshot, &members, bounds, scene);
         }
-        let (snapshot, members) =
-            build_snapshot(&self.registry, context, bounds, Some(bounds.width), scene)?;
+        let (snapshot, members) = build_snapshot(
+            &self.registry,
+            context,
+            bounds,
+            Some(bounds.width),
+            scene,
+            &mut *self
+                .statistics
+                .lock()
+                .map_err(|_| FlowError::InvalidStructure)?,
+        )?;
         let result = prepare_snapshot(snapshot.clone(), &members, bounds, scene)?;
         result.validate(scene)?;
         if flow_revision(context, bounds, scene)? != key {
@@ -114,7 +225,7 @@ impl FlowLayoutService {
             .into());
         }
         *self.cache.lock().map_err(|_| FlowError::InvalidStructure)? =
-            Some((key, snapshot, members));
+            Some((key, snapshot, members, scene.observations()));
         Ok(result)
     }
 }
@@ -148,12 +259,17 @@ pub struct SourceTextPosition {
 }
 #[derive(Clone, Debug)]
 pub struct FlowSnapshot {
+    pub statistics: FlowWorkStatistics,
     pub revision: u64,
     pub paragraphs: Vec<FlowParagraphSnapshot>,
     pub fragments: Vec<FlowFragment>,
     pub placements: HashMap<FigureId, Rectangle>,
     pub size: Dimension,
     borders: Vec<super::border::BorderDrawing>,
+    source_fragments: HashMap<FigureId, Vec<usize>>,
+    source_ranges: HashMap<FigureId, Vec<(usize, usize)>>,
+    paint_index: crate::text::outline::paint_index::EnvelopeIndex,
+    outline_visual_bounds: Option<Rectangle>,
 }
 fn translated(b: Rectangle, origin: Point) -> Rectangle {
     Rectangle::new(b.x + origin.x(), b.y + origin.y(), b.width, b.height)
@@ -207,10 +323,11 @@ impl FlowSnapshot {
         if position.revision != self.revision {
             return Err(TextInteractionError::StaleTextLayoutRevision);
         }
-        for (index, p) in self.paragraphs.iter().enumerate() {
-            for source in &p.sources {
-                if source.source == position.source
-                    && position.byte_offset >= source.source_offset
+        if let Some(ranges) = self.source_ranges.get(&position.source) {
+            for &(index, source_index) in ranges {
+                let p = &self.paragraphs[index];
+                let source = &p.sources[source_index];
+                if position.byte_offset >= source.source_offset
                     && position.byte_offset <= source.source_offset + source.range.len()
                 {
                     let offset = source.range.start + position.byte_offset - source.source_offset;
@@ -361,8 +478,20 @@ impl FlowSnapshot {
 }
 impl FigureDrawing for FlowSnapshot {
     fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
-        for paragraph in &self.paragraphs {
-            context.fill_styled_text(&paragraph.layout, paragraph.origin)?;
+        if let Some(clip) = context.canvas.covered_text_clip(Point::ZERO) {
+            let mut result = Ok(());
+            let work = self.paint_index.visit(clip, |index| {
+                if result.is_ok() {
+                    let paragraph = &self.paragraphs[index];
+                    result = context.fill_styled_text(&paragraph.layout, paragraph.origin);
+                }
+            });
+            context.canvas.count_paragraph_query(work);
+            result?;
+        } else {
+            for paragraph in &self.paragraphs {
+                context.fill_styled_text(&paragraph.layout, paragraph.origin)?;
+            }
         }
         for border in &self.borders {
             context.push_state();
@@ -381,13 +510,51 @@ impl FigureDrawing for EmptyDrawing {
     }
 }
 
+// These describe internal output materialization, never contributor identities.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FlowBuildPurpose {
+    Measure,
+    Prepare,
+}
+enum FlowBuildOutput {
+    Measurement(Dimension),
+    Snapshot(Arc<FlowSnapshot>, Vec<FigureId>),
+}
+
 fn build_snapshot(
     registry: &FlowContributionRegistry,
     context: &mut MeasureContext<'_>,
     bounds: Rectangle,
     available_width: Option<f64>,
     scene: &PreparationScene<'_>,
+    work: &mut FlowWork,
 ) -> Result<(Arc<FlowSnapshot>, Vec<FigureId>), FlowError> {
+    match build_flow(
+        registry,
+        context,
+        bounds,
+        available_width,
+        scene,
+        FlowBuildPurpose::Prepare,
+        work,
+    )? {
+        FlowBuildOutput::Snapshot(snapshot, members) => Ok((snapshot, members)),
+        FlowBuildOutput::Measurement(_) => unreachable!("preparation build purpose"),
+    }
+}
+
+fn build_flow(
+    registry: &FlowContributionRegistry,
+    context: &mut MeasureContext<'_>,
+    bounds: Rectangle,
+    available_width: Option<f64>,
+    scene: &PreparationScene<'_>,
+    purpose: FlowBuildPurpose,
+    work: &mut FlowWork,
+) -> Result<FlowBuildOutput, FlowError> {
+    let _timing = scene.budget().time("flow-build");
+    let build_start = Instant::now();
+    work.statistics.builds += 1;
     let allocate = |entries: usize| {
         scene
             .budget()
@@ -398,13 +565,12 @@ fn build_snapshot(
                 )))
             })
     };
+    let contribution_start = Instant::now();
     let assembly = {
         let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
             let resolved = scene.style(source)?;
-            let style = crate::text::TextStyle::new(
-                crate::text::FontDescriptor::parse(&resolved.font)?,
-                resolved.foreground,
-            );
+            let style =
+                crate::text::TextStyle::new(scene.parsed_font(source)?, resolved.foreground);
             context.set_font(style.font().clone());
             let renderer = border.prepare_renderer(context, &style)?.unwrap_or(border);
             let metrics = renderer.metrics(context, &style)?.validate()?;
@@ -414,6 +580,7 @@ fn build_snapshot(
         assembly.visit(scene.root())?;
         assembly.finish()
     };
+    work.statistics.contribution_ns += contribution_start.elapsed().as_nanos();
     allocate(
         assembly
             .paragraphs
@@ -422,12 +589,17 @@ fn build_snapshot(
             .saturating_add(assembly.members.len()),
     )?;
     let mut snapshot = FlowSnapshot {
+        statistics: work.statistics,
         revision: flow_revision(context, bounds, scene)?,
         paragraphs: Vec::new(),
         fragments: Vec::new(),
         placements: HashMap::new(),
         size: Dimension::new(available_width.unwrap_or(0.0), 0.0),
         borders: Vec::new(),
+        source_fragments: HashMap::new(),
+        source_ranges: HashMap::new(),
+        paint_index: crate::text::outline::paint_index::EnvelopeIndex::from_envelopes(&[]),
+        outline_visual_bounds: None,
     };
     let mut y = bounds.y;
     let mut paragraph_padding = Vec::new();
@@ -613,7 +785,7 @@ fn build_snapshot(
                 p.block.wrap,
             )
             .with_layout_direction(scene.style(p.owner)?.layout_direction);
-            let prefix_layout = context.layout_styled(&request)?;
+            let (_, prefix_layout) = work.layout(context, &request)?;
             let occupied = prefix_layout
                 .layout()
                 .line_metrics()
@@ -656,7 +828,7 @@ fn build_snapshot(
                 p.block.wrap,
             )
             .with_layout_direction(scene.style(p.owner)?.layout_direction);
-        let layout = context.layout_styled(&request)?;
+        let (asset_index, layout) = work.layout(context, &request)?;
         allocate(
             layout
                 .layout()
@@ -723,11 +895,28 @@ fn build_snapshot(
                 decorated_lines.insert((decoration.source, line));
             }
         }
-        let layout = layout.with_line_padding(&line_padding)?;
+        let asset = &mut work.paragraphs[asset_index];
+        let layout = if asset.padding == line_padding {
+            if let Some(padded) = &asset.padded {
+                padded.clone()
+            } else {
+                layout.with_line_padding(&line_padding)?
+            }
+        } else {
+            let padded = layout.with_line_padding(&line_padding)?;
+            asset.padding = line_padding;
+            asset.padded = Some(padded.clone());
+            asset.source_geometry.clear();
+            padded
+        };
         snapshot.size.width = snapshot.size.width.max(
             f64::from(layout.layout().width()) + p.block.padding.width() + p.block.margin.width(),
         );
         y += p.before;
+        if purpose == FlowBuildPurpose::Measure {
+            y += f64::from(layout.layout().height()) + p.after;
+            continue;
+        }
         let origin = Point::new(bounds.x + p.block.margin.left + p.block.padding.left, y);
         paragraph_right_edges.push(
             origin.x()
@@ -736,21 +925,32 @@ fn build_snapshot(
                 + p.block.margin.right,
         );
         let index = snapshot.paragraphs.len();
+        let first_fragment = snapshot.fragments.len();
+        let geometry_start = Instant::now();
         for source in &p.sources {
             let range = TextRange::new(
                 TextPosition::new(source.range.start, TextAffinity::Downstream),
                 TextPosition::new(source.range.end, TextAffinity::Upstream),
             );
-            let quads = layout
-                .layout()
-                .selection_geometry(range)
-                .map_err(|_| FlowError::InvalidStructure)?;
+            let key = (source.range.start, source.range.end);
+            let quads = if let Some(quads) = asset.source_geometry.get(&key) {
+                quads.clone()
+            } else {
+                let quads: Arc<[SelectionQuad]> = layout
+                    .layout()
+                    .selection_geometry(range)
+                    .map_err(|_| FlowError::InvalidStructure)?
+                    .into();
+                work.statistics.source_geometry_calls += 1;
+                asset.source_geometry.insert(key, quads.clone());
+                quads
+            };
             allocate(
                 quads
                     .len()
                     .saturating_mul(source.ancestors.len().saturating_add(1)),
             )?;
-            for quad in quads {
+            for quad in quads.iter() {
                 let b = translated(quad.bounds(), origin);
                 for &ancestor in &source.ancestors {
                     snapshot.fragments.push(FlowFragment {
@@ -762,6 +962,7 @@ fn build_snapshot(
                 }
             }
         }
+        work.statistics.source_geometry_ns += geometry_start.elapsed().as_nanos();
         for placement in layout.inline_placements() {
             let source = &p.boxes[placement.id as usize];
             allocate(source.ancestors.len().saturating_add(1))?;
@@ -780,10 +981,9 @@ fn build_snapshot(
         }
         for decoration in &assembly.decorations {
             let mut lines = std::collections::BTreeMap::<usize, Rectangle>::new();
-            for fragment in snapshot
-                .fragments
+            for fragment in snapshot.fragments[first_fragment..]
                 .iter()
-                .filter(|f| f.paragraph == index && f.source == decoration.source)
+                .filter(|f| f.source == decoration.source)
             {
                 lines
                     .entry(fragment.line)
@@ -858,7 +1058,7 @@ fn build_snapshot(
                         style: {
                             let style = scene.style(decoration.source)?;
                             crate::text::TextStyle::new(
-                                crate::text::FontDescriptor::parse(&style.font)?,
+                                scene.parsed_font(decoration.source)?,
                                 style.foreground,
                             )
                         },
@@ -883,6 +1083,10 @@ fn build_snapshot(
         });
     }
     snapshot.size.height = (y - bounds.y + assembly.trailing_margin).max(0.0);
+    if purpose == FlowBuildPurpose::Measure {
+        work.statistics.build_ns += build_start.elapsed().as_nanos();
+        return Ok(FlowBuildOutput::Measurement(snapshot.size));
+    }
     for block in &assembly.blocks {
         let first = &snapshot.paragraphs[block.paragraphs.start];
         let last = &snapshot.paragraphs[block.paragraphs.end - 1];
@@ -922,7 +1126,66 @@ fn build_snapshot(
     for &member in &assembly.members {
         snapshot.placements.entry(member).or_insert(Rectangle::ZERO);
     }
-    Ok((Arc::new(snapshot), assembly.members))
+    allocate(snapshot.fragments.len())?;
+    for (index, fragment) in snapshot.fragments.iter().enumerate() {
+        snapshot
+            .source_fragments
+            .entry(fragment.source)
+            .or_default()
+            .push(index);
+    }
+    for (paragraph, p) in snapshot.paragraphs.iter().enumerate() {
+        allocate(p.sources.len())?;
+        for (source_index, source) in p.sources.iter().enumerate() {
+            snapshot
+                .source_ranges
+                .entry(source.source)
+                .or_default()
+                .push((paragraph, source_index));
+        }
+    }
+    use crate::text::outline::paint_index::{Envelope, EnvelopeIndex};
+    let envelopes = snapshot
+        .paragraphs
+        .iter()
+        .map(|paragraph| {
+            paragraph
+                .layout
+                .paint_runs()
+                .fold(Envelope::Empty, |bounds, (layout, _)| {
+                    let ink = match layout.outlines() {
+                        None => Envelope::Unknown,
+                        Some(outlines) => match outlines.ink_bounds() {
+                            None => Envelope::Empty,
+                            Some(ink) => crate::text::outline::paint_index::transformed_bounds(
+                                ink,
+                                crate::Affine2D::from_translation(
+                                    paragraph.origin.x(),
+                                    paragraph.origin.y(),
+                                ),
+                            )
+                            .map_or(Envelope::Unknown, Envelope::Known),
+                        },
+                    };
+                    bounds.union(ink)
+                })
+        })
+        .collect::<Vec<_>>();
+    allocate(envelopes.len().saturating_mul(2))?;
+    snapshot.outline_visual_bounds = envelopes
+        .iter()
+        .filter_map(|envelope| match envelope {
+            Envelope::Known(bounds) => Some(*bounds),
+            _ => None,
+        })
+        .reduce(|a, b| a.union(b));
+    snapshot.paint_index = EnvelopeIndex::from_envelopes(&envelopes);
+    work.statistics.build_ns += build_start.elapsed().as_nanos();
+    snapshot.statistics = work.statistics;
+    Ok(FlowBuildOutput::Snapshot(
+        Arc::new(snapshot),
+        assembly.members,
+    ))
 }
 
 fn prepare_snapshot(
@@ -931,20 +1194,27 @@ fn prepare_snapshot(
     bounds: Rectangle,
     scene: &PreparationScene<'_>,
 ) -> Result<PreparedScene, FlowError> {
-    let root = FigurePresentation::new(
-        FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
-        snapshot.size,
+    let _timing = scene.budget().time("flow-projection");
+    let mut visual_bounds =
         Rectangle::new(0.0, 0.0, bounds.width, bounds.height).union(Rectangle::new(
             bounds.x,
             bounds.y,
             snapshot.size.width,
             snapshot.size.height,
-        )),
+        ));
+    if let Some(ink) = snapshot.outline_visual_bounds {
+        visual_bounds = visual_bounds.union(ink);
+    }
+    let root = FigurePresentation::new(
+        FigureMeasurement::new(snapshot.size.width, snapshot.size.height, None),
+        snapshot.size,
+        visual_bounds,
         snapshot.clone(),
     )?
     .with_data(snapshot.clone());
     let mut result = PreparedScene::new(root);
     let mut outputs = HashMap::<FigureId, LayoutOutput>::new();
+    let members: std::collections::HashSet<_> = members.iter().copied().collect();
     for (&source, &global) in &snapshot.placements {
         if source == scene.root() {
             continue;
@@ -967,9 +1237,11 @@ fn prepare_snapshot(
             .set_child_bounds(source, local);
         if members.contains(&source) {
             let regions = snapshot
-                .fragments
-                .iter()
-                .filter(|f| f.source == source)
+                .source_fragments
+                .get(&source)
+                .into_iter()
+                .flatten()
+                .map(|&index| &snapshot.fragments[index])
                 .map(|f| {
                     Rectangle::new(
                         f.bounds.x - global.x,
@@ -999,4 +1271,140 @@ fn prepare_snapshot(
         result.layout(parent, output);
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod measurement_tests {
+    use super::*;
+    use crate::{
+        figure::{FigureStyle, RectangleFigure, flow::*},
+        geometry::Insets,
+        text::{BuiltinFont, FontDescriptor, ParagraphDirection, TextSystem},
+        tree::FigureTree,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct MeasuredBorder(Arc<AtomicUsize>);
+    impl FlowFragmentBorder for MeasuredBorder {
+        fn metrics(
+            &self,
+            _: &mut MeasureContext<'_>,
+            _: &crate::text::TextStyle,
+        ) -> Result<FlowBorderMetrics, FlowError> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            Ok(FlowBorderMetrics {
+                insets: Insets::new(3.0, 5.0, 7.0, 9.0),
+                margin: Insets::new(2.0, 4.0, 6.0, 8.0),
+                ..FlowBorderMetrics::default()
+            })
+        }
+        fn paint_fragment(
+            &self,
+            _: &FlowBorderFragment,
+            _: &mut PaintContext<'_>,
+        ) -> Result<(), GraphicsError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn measurement_matches_preparation_and_rechecks_border_metrics() {
+        for width in [None, Some(75.0), Some(240.0)] {
+            let mut tree = FigureTree::new();
+            let root = tree
+                .builder()
+                .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO)))
+                .unwrap();
+            let calls = Arc::new(AtomicUsize::new(0));
+            let block = tree
+                .builder()
+                .add_child(
+                    root,
+                    Box::new(
+                        BlockFlowFigure::new(FlowBlockStyle {
+                            direction: ParagraphDirection::RightToLeft,
+                            padding: Insets::new(1.0, 2.0, 3.0, 4.0),
+                            margin: Insets::new(2.0, 3.0, 4.0, 5.0),
+                            ..FlowBlockStyle::default()
+                        })
+                        .unwrap()
+                        .with_style(FigureStyle {
+                            font: Some("16px Inter".into()),
+                            ..FigureStyle::default()
+                        })
+                        .with_fragment_border(MeasuredBorder(calls.clone())),
+                    ),
+                )
+                .unwrap();
+            let text = tree
+                .builder()
+                .add_child(
+                    block,
+                    Box::new(StructuredTextFigure::new("alpha אבג beta ")),
+                )
+                .unwrap();
+            let adapter = tree
+                .builder()
+                .add_child(block, Box::new(FlowAdapterFigure::new()))
+                .unwrap();
+            let inline = tree
+                .builder()
+                .add_child(
+                    adapter,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 33.0, 21.0)),
+                )
+                .unwrap();
+            let tail = tree
+                .builder()
+                .add_child(
+                    block,
+                    Box::new(StructuredTextFigure::new(" trailing words")),
+                )
+                .unwrap();
+            let styles = [root, block, text, adapter, inline, tail]
+                .into_iter()
+                .map(|id| (id, tree.resolved_style(id).unwrap()))
+                .collect();
+            let mut system = TextSystem::new();
+            system.register_builtin_font(BuiltinFont::Inter).unwrap();
+            let mut context = system.measure(FontDescriptor::default());
+            let service = FlowLayoutService::default();
+            let constraints = MeasureConstraints::new(width, None).unwrap();
+            let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+            let measured = service.measure(&mut context, constraints, &scene).unwrap();
+            assert_eq!(calls.load(Ordering::Relaxed), 1);
+            assert_eq!(
+                service
+                    .statistics
+                    .lock()
+                    .unwrap()
+                    .statistics
+                    .source_geometry_calls,
+                0
+            );
+            assert!(service.cache.lock().unwrap().is_none());
+            let fresh = PreparationScene::new(&tree, root, &styles).unwrap();
+            let (prepared, _) = build_snapshot(
+                &service.registry,
+                &mut context,
+                Rectangle::ZERO,
+                width,
+                &fresh,
+                &mut service.statistics.lock().unwrap(),
+            )
+            .unwrap();
+            assert_eq!(measured.minimum, prepared.size);
+            assert_eq!(measured.preferred.width, prepared.size.width);
+            assert_eq!(measured.preferred.height, prepared.size.height);
+            assert_eq!(calls.load(Ordering::Relaxed), 2);
+            assert!(prepared.placements.contains_key(&inline));
+            assert!(
+                scene
+                    .budget()
+                    .consume("exhaust measurement budget", u64::MAX)
+                    .is_err()
+            );
+            assert!(service.measure(&mut context, constraints, &scene).is_err());
+        }
+    }
 }

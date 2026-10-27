@@ -29,6 +29,8 @@ struct GraphicsState {
     global_alpha: f64,
     transform: Affine2D,
     clip_depth: usize,
+    clip_bounds: Option<Rectangle>,
+    covered_clip_bounds: Option<Rectangle>,
 }
 
 impl Default for GraphicsState {
@@ -44,6 +46,8 @@ impl Default for GraphicsState {
             global_alpha: 1.0,
             transform: Affine2D::IDENTITY,
             clip_depth: 0,
+            clip_bounds: None,
+            covered_clip_bounds: None,
         }
     }
 }
@@ -59,6 +63,8 @@ pub struct NdCanvas {
     font_dependencies: Vec<crate::text::FontFaceRef>,
     transform_floor: Option<Affine2D>,
     recording_budget: Option<(usize, usize)>,
+    coverage_outset: Option<f64>,
+    text_paint_statistics: crate::graphics::TextPaintStatistics,
 }
 
 impl Default for NdCanvas {
@@ -79,6 +85,8 @@ impl NdCanvas {
             font_dependencies: Vec::new(),
             transform_floor: None,
             recording_budget: None,
+            coverage_outset: None,
+            text_paint_statistics: Default::default(),
         }
     }
 
@@ -93,6 +101,92 @@ impl NdCanvas {
 
     pub(crate) fn state_depth(&self) -> usize {
         self.state_stack.len()
+    }
+
+    pub(crate) fn text_paint_statistics(&self) -> crate::graphics::TextPaintStatistics {
+        self.text_paint_statistics
+    }
+
+    pub(crate) fn set_coverage_outset(&mut self, outset: Option<f64>) {
+        debug_assert!(self.commands.is_empty());
+        self.coverage_outset = outset.filter(|v| v.is_finite() && *v >= 0.0);
+    }
+
+    /// Conservative geometric clip in the current local domain; None means unknown/unbounded.
+    pub(crate) fn effective_clip_bounds(&self) -> Option<Rectangle> {
+        crate::text::outline::paint_index::transformed_bounds(
+            self.state.clip_bounds?,
+            self.state.transform.inverse()?,
+        )
+    }
+
+    fn intersect_clip(old: Option<Rectangle>, new: Rectangle) -> Option<Rectangle> {
+        Some(old.map_or(new, |old| {
+            old.intersection(new)
+                .unwrap_or(Rectangle::new(new.x, new.y, 0.0, 0.0))
+        }))
+    }
+
+    fn bound_clip(&mut self, bounds: Option<Rectangle>) {
+        let Some(world) = bounds.and_then(|b| {
+            crate::text::outline::paint_index::transformed_bounds(b, self.state.transform)
+        }) else {
+            return;
+        };
+        self.state.clip_bounds = Self::intersect_clip(self.state.clip_bounds, world);
+        if let Some(outset) = self.coverage_outset {
+            let expanded = Rectangle::new(
+                world.x - outset,
+                world.y - outset,
+                world.width + outset * 2.0,
+                world.height + outset * 2.0,
+            );
+            if [
+                expanded.x,
+                expanded.y,
+                expanded.width,
+                expanded.height,
+                expanded.x + expanded.width,
+                expanded.y + expanded.height,
+            ]
+            .iter()
+            .all(|v| v.is_finite())
+            {
+                self.state.covered_clip_bounds =
+                    Self::intersect_clip(self.state.covered_clip_bounds, expanded);
+            }
+        }
+    }
+
+    pub(crate) fn covered_text_clip(&self, origin: Point) -> Option<Rectangle> {
+        self.coverage_outset?;
+        let local = crate::text::outline::paint_index::transformed_bounds(
+            self.state.covered_clip_bounds?,
+            self.state.transform.inverse()?,
+        )?;
+        let result = Rectangle::new(
+            local.x - origin.x(),
+            local.y - origin.y(),
+            local.width,
+            local.height,
+        );
+        [
+            result.x,
+            result.y,
+            result.x + result.width,
+            result.y + result.height,
+        ]
+        .iter()
+        .all(|v| v.is_finite())
+        .then_some(result)
+    }
+
+    pub(crate) fn count_paragraph_query(
+        &mut self,
+        work: crate::text::outline::paint_index::QueryWork,
+    ) {
+        self.text_paint_statistics.paragraph_nodes += work.nodes as u64;
+        self.text_paint_statistics.candidate_paragraphs += work.candidates as u64;
     }
 
     /// Both recordings have already closed their own state stacks.
@@ -194,6 +288,7 @@ impl NdCanvas {
         let path = self.current_path.clone();
         let damage = self.damage.clone();
         let dependencies = self.font_dependencies.len();
+        let text_statistics = self.text_paint_statistics;
         record(self);
         let mut candidate = Vec::with_capacity(self.commands.len() - start + 1);
         candidate.push(RenderCommand {
@@ -215,6 +310,7 @@ impl NdCanvas {
             self.current_path = path;
             self.damage = damage;
             self.font_dependencies.truncate(dependencies);
+            self.text_paint_statistics = text_statistics;
             self.reject_recording(error.clone());
             return Err(error);
         }
@@ -802,12 +898,23 @@ impl NdCanvas {
     }
 
     pub fn clip_path(&mut self, clip: &ClipPath) {
+        // Arc normalization can depend on device scale. Its logical approximation is
+        // not a certificate for the backend's actual clip envelope.
+        if !clip
+            .path()
+            .operations()
+            .iter()
+            .any(|op| matches!(op, super::command::PathOp::Arc { .. }))
+        {
+            self.bound_clip(clip.path().bounding_box());
+        }
         self.state.clip_depth += 1;
         self.create_command(RenderCommandKind::ClipPath { clip: clip.clone() });
     }
 
     pub fn clip_rect(&mut self, x: f64, y: f64, width: f64, height: f64) {
         let rect = Rectangle::new(x, y, width, height);
+        self.bound_clip(Some(rect));
         self.state.clip_depth += 1;
         self.create_command(RenderCommandKind::Clip { rect });
     }
@@ -821,6 +928,8 @@ impl NdCanvas {
     #[cfg(test)]
     pub fn reset_clip(&mut self) {
         self.state.clip_depth = 0;
+        self.state.clip_bounds = None;
+        self.state.covered_clip_bounds = None;
         self.create_command(RenderCommandKind::ResetClip);
     }
 
@@ -1023,7 +1132,26 @@ impl NdCanvas {
         paint: crate::render::text::GlyphPaint,
     ) {
         if let Some(outlines) = layout.outlines() {
-            let path = match outlines.path_at(Point::new(x, y)) {
+            let origin = Point::new(x, y);
+            let clip = matches!(paint, crate::render::text::GlyphPaint::Fill(_))
+                .then(|| self.covered_text_clip(origin))
+                .flatten();
+            let prepared = match clip {
+                Some(clip) => outlines.path_in_clip(origin, clip).map(|(path, work)| {
+                    self.text_paint_statistics.indexed_nodes += work.nodes as u64;
+                    self.text_paint_statistics.candidate_glyphs += work.candidates as u64;
+                    self.text_paint_statistics.glyph_checks += work.glyph_checks as u64;
+                    self.text_paint_statistics.selected_glyphs += work.visible as u64;
+                    self.text_paint_statistics.fallback_glyphs += work.fallback as u64;
+                    path
+                }),
+                None => outlines.path_at(origin).inspect(|_| {
+                    let count = outlines.instances().len() as u64;
+                    self.text_paint_statistics.fallback_glyphs += count;
+                    self.text_paint_statistics.selected_glyphs += count;
+                }),
+            };
+            let path = match prepared {
                 Ok(path) => path,
                 Err(error) => {
                     self.reject_recording(crate::graphics::GraphicsError::Font(error));
@@ -1060,6 +1188,9 @@ impl NdCanvas {
             if run.glyphs.is_empty() {
                 continue;
             }
+            let count = run.glyphs.len() as u64;
+            self.text_paint_statistics.fallback_glyphs += count;
+            self.text_paint_statistics.selected_glyphs += count;
             self.create_command(RenderCommandKind::DrawGlyphRun {
                 antialias: self.state.text_antialias,
                 run: run.clone(),

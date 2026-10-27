@@ -614,8 +614,9 @@ pub struct TextLayout {
     width: f32,
     full_width: f32,
     height: f32,
-    lines: Vec<TextLineMetrics>,
-    glyph_runs: Vec<GlyphRun>,
+    lines: Arc<[TextLineMetrics]>,
+    glyph_runs: Arc<[GlyphRun]>,
+    run_range: Range<usize>,
     interaction: Option<Arc<TextInteractionMap>>,
     visible_range: Range<usize>,
     truncated: bool,
@@ -684,7 +685,8 @@ impl TextLayout {
             full_width: self.full_width,
             height: self.height,
             lines: self.lines.clone(),
-            glyph_runs: vec![self.glyph_runs[index].clone()],
+            glyph_runs: self.glyph_runs.clone(),
+            run_range: self.run_range.start + index..self.run_range.start + index + 1,
             interaction: None,
             visible_range: self.visible_range.clone(),
             truncated: self.truncated,
@@ -757,12 +759,14 @@ impl TextLayout {
             }
         }
 
+        let run_count = parts.glyph_runs.len();
         Ok(Self {
             width: parts.width,
             full_width: parts.full_width,
             height: parts.height,
-            lines: parts.lines,
-            glyph_runs: parts.glyph_runs,
+            lines: parts.lines.into(),
+            glyph_runs: parts.glyph_runs.into(),
+            run_range: 0..run_count,
             interaction: None,
             outlines: None,
             visible_range: parts.visible_range,
@@ -794,7 +798,7 @@ impl TextLayout {
     }
 
     pub fn glyph_runs(&self) -> &[GlyphRun] {
-        &self.glyph_runs
+        &self.glyph_runs[self.run_range.clone()]
     }
 
     pub fn with_interaction_map(
@@ -877,7 +881,7 @@ impl TextLayout {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.glyph_runs.iter().all(|run| run.glyphs.is_empty())
+        self.glyph_runs().iter().all(|run| run.glyphs.is_empty())
     }
 
     pub fn with_visibility(
@@ -944,7 +948,7 @@ impl TextLayout {
         mix_revision(&mut revision, self.visible_range.start.to_le_bytes());
         mix_revision(&mut revision, self.visible_range.end.to_le_bytes());
         mix_revision(&mut revision, [u8::from(self.truncated)]);
-        for line in &self.lines {
+        for line in self.lines.iter() {
             mix_revision(&mut revision, line.ascent.to_bits().to_le_bytes());
             mix_revision(&mut revision, line.descent.to_bits().to_le_bytes());
             mix_revision(&mut revision, line.leading.to_bits().to_le_bytes());
@@ -1315,8 +1319,26 @@ fn text_position_from_parley(cursor: Cursor) -> TextPosition {
     )
 }
 
+/// Instance identity for engines whose checked layouts are reusable until revision changes.
+/// Create a new identity for each independent engine/font collection.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TextLayoutCacheIdentity(uuid::Uuid);
+
+impl Default for TextLayoutCacheIdentity {
+    fn default() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+}
+
 pub trait TextLayoutEngine {
     fn revision(&self) -> u64;
+
+    /// Opts into exact-request reuse, including interaction and selected outlines.
+    /// Every change affecting output, resources, or provider geometry must change `revision`.
+    /// Absence keeps the full computation path; external and built-in engines share this hook.
+    fn cache_identity(&self) -> Option<TextLayoutCacheIdentity> {
+        None
+    }
 
     fn layout_styled(
         &mut self,
@@ -1359,6 +1381,7 @@ pub trait TextLayoutEngine {
 }
 
 pub struct ParleyTextEngine {
+    cache_identity: TextLayoutCacheIdentity,
     font_context: FontContext,
     layout_context: LayoutContext<usize>,
     registered_fonts: BTreeMap<ResourceId, RegisteredFont>,
@@ -1387,6 +1410,7 @@ impl Default for ParleyTextEngine {
 impl ParleyTextEngine {
     pub fn new() -> Self {
         Self {
+            cache_identity: TextLayoutCacheIdentity::default(),
             font_context: empty_font_context(),
             layout_context: LayoutContext::new(),
             registered_fonts: BTreeMap::new(),
@@ -1420,6 +1444,10 @@ impl ParleyTextEngine {
 }
 
 impl TextLayoutEngine for ParleyTextEngine {
+    fn cache_identity(&self) -> Option<TextLayoutCacheIdentity> {
+        Some(self.cache_identity)
+    }
+
     fn revision(&self) -> u64 {
         self.revision
     }

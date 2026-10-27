@@ -19,6 +19,81 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "text.long-layout",
+        description: "Exact paragraph reuse, source mapping, font invalidation and original fixture CPU smoke",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "long_text_outline_full_partial_gpu_pixels",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "long_text_paint_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--lib",
+                    "text::outline::paint_index::tests",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "long_text_layout_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_t03_structured_flow_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "build",
+                    "--release",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--bin",
+                    "textflow-perf",
+                ],
+            },
+            Step {
+                program: "python3",
+                args: &[
+                    "scripts/textflow_performance.py",
+                    "smoke",
+                    "target/verification/long-text/smoke",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "render.low-miter",
         description: "Low miter values, Cocoa zero-width sample and ON/OFF bevel pixels",
         steps: &[

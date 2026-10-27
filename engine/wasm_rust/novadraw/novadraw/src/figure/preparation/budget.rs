@@ -56,6 +56,7 @@ struct Accounting {
 pub struct PreparationBudgetHandle {
     limit: PreparationBudget,
     accounting: Arc<Mutex<Accounting>>,
+    timing: crate::runtime::timing::TimingRecorder,
 }
 
 impl PreparationBudgetHandle {
@@ -66,7 +67,17 @@ impl PreparationBudgetHandle {
                 used: PreparationBudget::new(0, 0),
                 failure: None,
             })),
+            timing: crate::runtime::timing::TimingRecorder::default(),
         }
+    }
+
+    pub(crate) fn with_timing(mut self, timing: crate::runtime::timing::TimingRecorder) -> Self {
+        self.timing = timing;
+        self
+    }
+
+    pub(crate) fn time(&self, stage: &'static str) -> crate::runtime::timing::TimingScope {
+        self.timing.start(stage)
     }
 
     pub fn limit(&self) -> PreparationBudget {

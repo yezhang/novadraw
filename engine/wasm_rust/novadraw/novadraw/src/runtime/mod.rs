@@ -10,7 +10,9 @@ pub mod focus;
 pub mod interaction;
 pub mod mutation;
 pub mod resource;
+pub(crate) mod timing;
 pub mod tooltip;
+pub use timing::RuntimePhaseTiming;
 // `runtime::Runtime` is the deliberate public domain name.
 #[allow(clippy::module_inception)]
 pub mod runtime;

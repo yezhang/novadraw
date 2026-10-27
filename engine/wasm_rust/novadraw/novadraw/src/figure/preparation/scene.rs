@@ -26,6 +26,31 @@ struct MeasurementRecord {
     observations: Vec<crate::connection::DependencyObservation>,
 }
 
+/// Keep the first read and its order while indexing typed subjects for deduplication.
+#[derive(Default)]
+struct ObservationLog {
+    ordered: Vec<crate::connection::DependencyObservation>,
+    subjects: HashSet<crate::connection::DependencySubject>,
+}
+
+struct RevisionBase {
+    value: u64,
+    providers: Vec<FigureId>,
+}
+
+impl ObservationLog {
+    fn push(&mut self, observation: crate::connection::DependencyObservation) {
+        self.subjects.insert(observation.subject.clone());
+        self.ordered.push(observation);
+    }
+
+    #[cfg(test)]
+    fn clear(&mut self) {
+        self.ordered.clear();
+        self.subjects.clear();
+    }
+}
+
 /// Frozen read access restricted to the preparing Figure's subtree.
 pub struct PreparationScene<'a> {
     tree: &'a FigureTree,
@@ -33,9 +58,11 @@ pub struct PreparationScene<'a> {
     styles: &'a HashMap<FigureId, ResolvedStyle>,
     members: Rc<HashSet<FigureId>>,
     measurement_path: Rc<RefCell<Vec<FigureId>>>,
-    observations: Rc<RefCell<Vec<crate::connection::DependencyObservation>>>,
+    observations: Rc<RefCell<ObservationLog>>,
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
+    revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
+    parsed_fonts: Rc<RefCell<HashMap<String, crate::text::FontDescriptor>>>,
     budget: super::PreparationBudgetHandle,
 }
 
@@ -77,9 +104,11 @@ impl<'a> PreparationScene<'a> {
             styles,
             members: Rc::new(members),
             measurement_path: Rc::new(RefCell::new(Vec::new())),
-            observations: Rc::new(RefCell::new(Vec::new())),
+            observations: Rc::new(RefCell::new(ObservationLog::default())),
             measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
+            revision_bases: Rc::new(RefCell::new([None, None])),
+            parsed_fonts: Rc::new(RefCell::new(HashMap::new())),
             budget,
         })
     }
@@ -213,9 +242,11 @@ impl<'a> PreparationScene<'a> {
             styles: self.styles,
             members: self.members.clone(),
             measurement_path: self.measurement_path.clone(),
-            observations: Rc::new(RefCell::new(Vec::new())),
+            observations: Rc::new(RefCell::new(ObservationLog::default())),
             measurements: self.measurements.clone(),
             measurement_constraints: self.measurement_constraints,
+            revision_bases: self.revision_bases.clone(),
+            parsed_fonts: self.parsed_fonts.clone(),
             budget: self.budget.clone(),
         };
         measured_scene.observe(crate::connection::DependencySubject::FigureMeasurementSource(id));
@@ -397,6 +428,22 @@ impl<'a> PreparationScene<'a> {
             .ok_or_else(|| TextError::InvalidPreparedScene("missing resolved style".into()))
     }
 
+    pub(crate) fn parsed_font(
+        &self,
+        id: FigureId,
+    ) -> Result<crate::text::FontDescriptor, TextError> {
+        let style = self.style(id)?;
+        let mut fonts = self.parsed_fonts.borrow_mut();
+        if let Some(font) = fonts.get(&style.font) {
+            return Ok(font.clone());
+        }
+        let font = crate::text::FontDescriptor::parse(&style.font)?;
+        self.budget
+            .allocate("parsed preparation font", style.font.len() as u64 + 1)?;
+        fonts.insert(style.font.clone(), font.clone());
+        Ok(font)
+    }
+
     pub fn client_area(&self, id: FigureId) -> Result<Rectangle, TextError> {
         self.check(id)?;
         self.observe(crate::connection::DependencySubject::FigureGeometry(id));
@@ -434,18 +481,12 @@ impl<'a> PreparationScene<'a> {
     pub(crate) fn observe(&self, subject: crate::connection::DependencySubject) {
         use crate::connection::RouteSceneRead;
         let mut observations = self.observations.borrow_mut();
-        if self
-            .budget
-            .consume("dependency observation", observations.len() as u64)
-            .is_err()
-        {
+        if self.budget.consume("dependency observation", 1).is_err() {
             return;
         }
-        if !observations
-            .iter()
-            .any(|observation| observation.subject == subject)
-        {
-            if self.budget.allocate("dependency observation", 1).is_err() {
+        if !observations.subjects.contains(&subject) {
+            // Reserve both the ordered record and the subject index before inserting.
+            if self.budget.allocate("dependency observation", 2).is_err() {
                 return;
             }
             let geometries = HashMap::new();
@@ -468,18 +509,11 @@ impl<'a> PreparationScene<'a> {
     fn retain_observations(&self, retained: &[crate::connection::DependencyObservation]) {
         let mut observations = self.observations.borrow_mut();
         for observation in retained {
-            if self
-                .budget
-                .consume("dependency observation", observations.len() as u64)
-                .is_err()
-            {
+            if self.budget.consume("dependency observation", 1).is_err() {
                 return;
             }
-            if !observations
-                .iter()
-                .any(|item| item.subject == observation.subject)
-            {
-                if self.budget.allocate("dependency observation", 1).is_err() {
+            if !observations.subjects.contains(&observation.subject) {
+                if self.budget.allocate("dependency observation", 2).is_err() {
                     return;
                 }
                 observations.push(observation.clone());
@@ -540,12 +574,12 @@ impl<'a> PreparationScene<'a> {
         let observations = self.observations.borrow();
         if self
             .budget
-            .allocate("observation snapshot", observations.len() as u64)
+            .allocate("observation snapshot", observations.ordered.len() as u64)
             .is_err()
         {
             return Vec::new();
         }
-        observations.clone()
+        observations.ordered.clone()
     }
 
     /// Frozen source prefix. Layout output bounds and cache generations are excluded.
@@ -598,7 +632,35 @@ impl<'a> PreparationScene<'a> {
     }
 
     fn input_revision(&self, include_derived: bool) -> Result<u64, TextError> {
+        self.budget.check()?;
+        let index = usize::from(include_derived);
+        let mut bases = self.revision_bases.borrow_mut();
+        if bases[index].is_none() {
+            bases[index] = Some(self.build_revision_base(include_derived)?);
+        }
+        let base = bases[index].as_ref().expect("initialized revision base");
         let mut hash = std::collections::hash_map::DefaultHasher::new();
+        base.value.hash(&mut hash);
+        // The tree and resolved styles are immutably borrowed, but external providers can
+        // change through interior state. Never memoize those revisions or their call results.
+        for id in &base.providers {
+            self.budget.consume("preparation provider revision", 1)?;
+            id.hash(&mut hash);
+            self.tree
+                .node(*id)
+                .map_err(scene_error)?
+                .preparation()
+                .expect("immutable capability set")
+                .revision()
+                .hash(&mut hash);
+        }
+        self.budget.check()?;
+        Ok(hash.finish())
+    }
+
+    fn build_revision_base(&self, include_derived: bool) -> Result<RevisionBase, TextError> {
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        let mut providers = Vec::new();
         let mut stack = vec![self.root];
         while let Some(id) = stack.pop() {
             self.budget.consume("preparation revision", 1)?;
@@ -606,8 +668,10 @@ impl<'a> PreparationScene<'a> {
             let node = self.tree.node(id).map_err(scene_error)?;
             node.component_revision.hash(&mut hash);
             node.resource_inputs.hash(&mut hash);
-            if let Some(preparation) = node.preparation() {
-                preparation.revision().hash(&mut hash);
+            node.preparation().is_some().hash(&mut hash);
+            if node.preparation().is_some() {
+                self.budget.allocate("preparation revision providers", 1)?;
+                providers.push(id);
             }
             node.parent.hash(&mut hash);
             node.children.hash(&mut hash);
@@ -666,7 +730,11 @@ impl<'a> PreparationScene<'a> {
                 stack.push(*child);
             }
         }
-        Ok(hash.finish())
+        self.budget.check()?;
+        Ok(RevisionBase {
+            value: hash.finish(),
+            providers,
+        })
     }
 }
 
@@ -875,6 +943,167 @@ mod tests {
         layout::StackLayout,
         text::{FontDescriptor, TextSystem},
     };
+
+    struct RevisionProvider(std::sync::Arc<std::sync::atomic::AtomicU64>);
+
+    impl Figure for RevisionProvider {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::ZERO
+        }
+        fn name(&self) -> &'static str {
+            "RevisionProvider"
+        }
+        fn register_capabilities(
+            &self,
+            out: &mut crate::figure::FigureCapabilityBuilder,
+        ) -> Result<(), crate::figure::FigureCapabilityRegistrationError> {
+            out.register(
+                crate::figure::PREPARATION,
+                crate::figure::PreparationCapability::of::<Self>(),
+            )
+        }
+    }
+    impl crate::figure::FigurePreparation for RevisionProvider {
+        fn revision(&self) -> u64 {
+            self.0.load(std::sync::atomic::Ordering::Relaxed)
+        }
+        fn prepare(
+            &self,
+            _: &mut crate::text::MeasureContext<'_>,
+            _: Rectangle,
+        ) -> Result<FigurePresentation, TextError> {
+            Err(TextError::InvalidPreparedScene("revision-only test".into()))
+        }
+    }
+
+    #[test]
+    fn immutable_revision_base_reuses_tree_work_but_rechecks_external_providers_and_budget() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicU64, Ordering},
+        };
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .unwrap();
+        let provider = Arc::new(AtomicU64::new(1));
+        tree.builder()
+            .add_child(root, Box::new(RevisionProvider(provider.clone())))
+            .unwrap();
+        for _ in 0..128 {
+            tree.builder()
+                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+                .unwrap();
+        }
+        let styles = std::iter::once(root)
+            .chain(tree.child_order(root).unwrap())
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let first = scene.revision().unwrap();
+        let after_first = scene.budget.used();
+        assert_eq!(first, scene.revision().unwrap());
+        assert_eq!(scene.budget.used().work - after_first.work, 1);
+        provider.store(2, Ordering::Relaxed);
+        assert_ne!(first, scene.revision().unwrap());
+        let source = scene.source_revision().unwrap();
+        provider.store(3, Ordering::Relaxed);
+        assert_ne!(source, scene.source_revision().unwrap());
+        assert!(scene.budget.consume("force exhaustion", u64::MAX).is_err());
+        assert!(scene.revision().is_err());
+        // A second scene owns a fresh base; no lifetime crosses a tree mutation boundary.
+        let fresh = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(fresh.revision().is_ok());
+    }
+
+    #[test]
+    fn parsed_fonts_share_only_equal_descriptors_and_do_not_bypass_failed_budget() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .unwrap();
+        let child = tree
+            .builder()
+            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .unwrap();
+        let mut styles: HashMap<_, _> = [root, child]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        styles.get_mut(&root).unwrap().font = "13px Inter".into();
+        styles.get_mut(&child).unwrap().font = "bold 24px Inter".into();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let font = scene.parsed_font(root).unwrap();
+        let after = scene.budget.used();
+        assert_eq!(font, scene.parsed_font(root).unwrap());
+        assert_eq!(after.allocation, scene.budget.used().allocation);
+        assert_ne!(font, scene.parsed_font(child).unwrap());
+        assert_eq!(scene.parsed_fonts.borrow().len(), 2);
+        assert!(scene.budget.consume("force exhaustion", u64::MAX).is_err());
+        assert!(scene.parsed_font(root).is_err());
+    }
+
+    #[test]
+    fn observations_preserve_first_generation_and_order_with_linear_work() {
+        use crate::connection::{DependencyObservation, DependencySubject};
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .unwrap();
+        let mut retained = Vec::new();
+        for generation in 0..512 {
+            let child = tree
+                .builder()
+                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+                .unwrap();
+            retained.push(DependencyObservation {
+                subject: DependencySubject::FigureGeometry(child),
+                generation,
+            });
+        }
+        let styles = HashMap::new();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let before = scene.budget.used();
+        scene.retain_observations(&retained);
+        let mut repeated = retained.clone();
+        repeated.reverse();
+        for observation in &mut repeated {
+            observation.generation += 1;
+        }
+        scene.retain_observations(&repeated);
+        for observation in &repeated {
+            scene.observe(observation.subject.clone());
+        }
+        assert_eq!(scene.observations(), retained);
+        let after = scene.budget.used();
+        // Three indexed lookups, two stored entries and one snapshot entry per subject.
+        assert_eq!(after.work - before.work, 512 * 6);
+        assert_eq!(after.allocation - before.allocation, 512 * 3);
+    }
+
+    #[test]
+    fn observation_index_reserves_both_entries_and_keeps_budget_failure_sticky() {
+        use crate::connection::DependencySubject;
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .unwrap();
+        let styles = HashMap::new();
+        let mut scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        scene.budget = super::super::PreparationBudgetHandle::new(
+            super::super::PreparationBudget::new(100, 1),
+        );
+        scene.observe(DependencySubject::FigureGeometry(root));
+        assert!(scene.budget.check().is_err());
+        assert!(scene.observations.borrow().subjects.is_empty());
+        assert!(scene.observations.borrow().ordered.is_empty());
+        scene.observe(DependencySubject::FigureMeasurement(root));
+        assert!(scene.observations.borrow().ordered.is_empty());
+    }
 
     #[test]
     fn cached_layout_measurement_retains_transitive_observations() {

@@ -82,6 +82,10 @@ pub struct MeasureContext<'a> {
 }
 
 impl<'a> MeasureContext<'a> {
+    pub(crate) fn cache_identity(&self) -> Option<super::shaping::TextLayoutCacheIdentity> {
+        self.engine.cache_identity()
+    }
+
     /// Measurement generation, including completed or replaced font resources.
     pub fn revision(&self) -> u64 {
         self.engine.revision()

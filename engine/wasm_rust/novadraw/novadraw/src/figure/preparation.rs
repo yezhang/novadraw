@@ -192,6 +192,11 @@ impl FigurePresentation {
         self.data.as_deref()?.downcast_ref()
     }
 
+    /// Retains the immutable published domain asset without copying its contents.
+    pub fn shared_data<T: std::any::Any + Send + Sync>(&self) -> Option<Arc<T>> {
+        self.data.as_ref()?.clone().downcast().ok()
+    }
+
     pub(crate) fn hit(&self, point: crate::Point) -> bool {
         self.hit_regions
             .as_ref()

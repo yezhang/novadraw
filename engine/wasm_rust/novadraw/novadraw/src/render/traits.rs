@@ -48,6 +48,9 @@ pub struct BackendCapabilities {
     pub linear_gradients: bool,
     pub host_background: bool,
     pub per_operation_antialias: bool,
+    /// Certified device-pixel outset covering filled path rasterization and clip coverage.
+    /// None disables Core geometry culling. Native glyph hinting and strokes are not covered.
+    pub filled_path_coverage_outset_pixels: Option<u32>,
 }
 
 impl BackendCapabilities {
@@ -62,6 +65,7 @@ impl BackendCapabilities {
         linear_gradients: false,
         host_background: false,
         per_operation_antialias: false,
+        filled_path_coverage_outset_pixels: None,
     };
 
     pub const RETAINED_PARTIAL: Self = Self {
@@ -75,6 +79,7 @@ impl BackendCapabilities {
         linear_gradients: false,
         host_background: false,
         per_operation_antialias: false,
+        filled_path_coverage_outset_pixels: None,
     };
 
     pub const fn supports_partial_damage(self) -> bool {
@@ -126,6 +131,11 @@ impl BackendCapabilities {
 
     pub const fn with_per_operation_antialias(mut self) -> Self {
         self.per_operation_antialias = true;
+        self
+    }
+
+    pub const fn with_filled_path_coverage_outset(mut self, pixels: u32) -> Self {
+        self.filled_path_coverage_outset_pixels = Some(pixels);
         self
     }
 

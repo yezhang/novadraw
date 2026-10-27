@@ -468,6 +468,7 @@ module.graphics struct LinearGradient
 module.graphics struct PaintContext
 module.graphics struct Path
 module.graphics struct StrokeStyle
+module.graphics struct TextPaintStatistics
 module.host constant RECORDED_BACKGROUND
 module.host enum HostBackgroundError
 module.host struct BackgroundFrameInput
@@ -668,6 +669,7 @@ module.runtime struct RuntimeFrames
 module.runtime struct RuntimeInput
 module.runtime struct RuntimeLayers
 module.runtime struct RuntimeObservations
+module.runtime struct RuntimePhaseTiming
 module.runtime struct RuntimeResources
 module.runtime struct RuntimeText
 module.runtime struct RuntimeTooltip

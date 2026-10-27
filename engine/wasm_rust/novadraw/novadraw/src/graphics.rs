@@ -3,7 +3,7 @@ mod antialias;
 #[allow(missing_docs)]
 mod context;
 pub use antialias::AntialiasMode;
-pub use context::{Graphics, GraphicsError, PaintContext};
+pub use context::{Graphics, GraphicsError, PaintContext, TextPaintStatistics};
 
 pub use crate::color::{Color, ColorError, ParseColorError};
 pub use crate::render::command::{

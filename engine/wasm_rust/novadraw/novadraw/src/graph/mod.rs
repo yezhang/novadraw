@@ -1460,7 +1460,17 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         presentation: Option<&crate::animation::PresentationSnapshot>,
     ) -> NdCanvas {
+        self.perform_update_with_paint_coverage(update_manager, presentation, None)
+    }
+
+    pub(crate) fn perform_update_with_paint_coverage(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+        coverage_outset: Option<f64>,
+    ) -> NdCanvas {
         let mut canvas = NdCanvas::new();
+        canvas.set_coverage_outset(coverage_outset);
         update_manager.perform_update_with_presentation(self, &mut canvas, presentation);
         canvas
     }

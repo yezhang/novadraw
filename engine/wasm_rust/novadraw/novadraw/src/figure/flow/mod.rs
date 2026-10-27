@@ -21,7 +21,8 @@ pub use protocol::{
     FlowContributionPayload, FlowContributionRegistry, FlowContributionSink, FlowContributor,
 };
 pub use snapshot::{
-    FlowFragment, FlowLayoutService, FlowParagraphSnapshot, FlowSnapshot, SourceTextPosition,
+    FlowFragment, FlowLayoutService, FlowParagraphSnapshot, FlowSnapshot, FlowWorkStatistics,
+    SourceTextPosition,
 };
 
 use crate::{FigureId, text::TextError};

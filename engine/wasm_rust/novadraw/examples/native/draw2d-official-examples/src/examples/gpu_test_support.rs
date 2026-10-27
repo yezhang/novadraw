@@ -49,13 +49,27 @@ impl GpuCanvas {
         }
     }
     pub fn render(&mut self, runtime: &mut Runtime, full: bool) -> Vec<u8> {
+        self.render_with_coverage_certificate(runtime, full, false)
+    }
+    /// Test-only certificate for finite unhinted fixtures. Production Vello remains uncertified.
+    pub fn render_with_coverage_certificate(
+        &mut self,
+        runtime: &mut Runtime,
+        full: bool,
+        certified: bool,
+    ) -> Vec<u8> {
         if full {
             runtime.frames().request_full_redraw();
         }
         let mut backend = self.renderer.bind(&self.texture);
+        let capabilities = if certified {
+            backend.capabilities().with_filled_path_coverage_outset(2)
+        } else {
+            backend.capabilities()
+        };
         let frame = runtime
             .frames()
-            .prepare_submission(self.surface, backend.capabilities())
+            .prepare_submission(self.surface, capabilities)
             .into_ready()
             .unwrap();
         let result = backend.submit(&frame);

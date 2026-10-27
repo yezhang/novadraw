@@ -30,6 +30,7 @@ impl Runtime {
     /// Hosts use this boundary when overlay geometry must be rebuilt from the latest layout
     /// before the next renderer submission is frozen.
     pub(crate) fn stabilize_for_query(&mut self) -> Result<(), FramePreparationError> {
+        let _timing = self.timing.start("stable-query");
         if self.faulted {
             return Err(FramePreparationError::Faulted);
         }
@@ -507,7 +508,8 @@ impl Runtime {
             .ok_or(FramePreparationError::EpochExhausted)?;
         self.last_stabilization_error = None;
         let preparation_budget =
-            crate::figure::PreparationBudgetHandle::new(self.preparation_budget);
+            crate::figure::PreparationBudgetHandle::new(self.preparation_budget)
+                .with_timing(self.timing.clone());
 
         let mut work = DerivedWorkSet::default();
         let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
@@ -529,6 +531,7 @@ impl Runtime {
 
             match kind {
                 DerivedWorkKind::IntrinsicMetrics => {
+                    let _timing = preparation_budget.time("intrinsic");
                     self.refresh_image_figures();
                     self.refresh_owner_scoped_borders()
                         .map_err(FramePreparationError::Text)?;
@@ -549,6 +552,7 @@ impl Runtime {
                     }
                 }
                 DerivedWorkKind::Layout => {
+                    let _timing = preparation_budget.time("layout");
                     if self.updates.has_pending_layout() {
                         self.updates
                             .perform_validation_phase_measured(
@@ -575,6 +579,7 @@ impl Runtime {
                     }
                 }
                 DerivedWorkKind::DependencyInvalidation => {
+                    let _timing = preparation_budget.time("dependency-invalidation");
                     if self
                         .invalidate_stale_connection_dependencies(&preparation_budget)
                         .map_err(|error| {
@@ -587,6 +592,7 @@ impl Runtime {
                     }
                 }
                 DerivedWorkKind::Routing => {
+                    let _timing = preparation_budget.time("routing");
                     if self.resolve_dirty_connection_routes(&preparation_budget) {
                         work.insert(DerivedWorkKind::PostRouteGeometry);
                     }
@@ -601,6 +607,7 @@ impl Runtime {
                     work.insert(DerivedWorkKind::Presentation);
                 }
                 DerivedWorkKind::Presentation => {
+                    let _timing = preparation_budget.time("presentation");
                     let prepared_generation = self.tree.prepared_scene_generation();
                     if self
                         .tree
@@ -661,7 +668,9 @@ impl Runtime {
     }
 
     pub(super) fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
+        let _timing = self.timing.start("stabilization");
         self.poll_activities();
+        let checkpoint_timing = self.timing.start("checkpoint-capture");
         // Commit source activities before opening the unpublished derived transaction.
         let mut prefix = if self.tree.begin_derived_preparation() {
             Some(self.updates.preparation_checkpoint())
@@ -671,8 +680,10 @@ impl Runtime {
         let connection_prefix = prefix
             .as_ref()
             .map(|_| self.connections.preparation_checkpoint());
+        drop(checkpoint_timing);
         match self.stabilize(prefix.as_mut()) {
             Ok(()) => {
+                let _timing = self.timing.start("checkpoint-publish");
                 self.tree
                     .finish_derived_preparation(true)
                     .map_err(|error| {
@@ -842,11 +853,18 @@ impl Runtime {
 
         let has_resource_delta = self.resources.has_pending_delta();
         let force_full_frame = self.full_redraw_pending || self.session_sync_pending;
+        let coverage_outset = capabilities
+            .filled_path_coverage_outset_pixels
+            .map(|pixels| f64::from(pixels) / surface.scale_factor);
         let mut canvas = if self.updates.is_update_queued() {
-            self.tree
-                .perform_update_with_presentation(&mut self.updates, presentation.as_ref())
+            self.tree.perform_update_with_paint_coverage(
+                &mut self.updates,
+                presentation.as_ref(),
+                coverage_outset,
+            )
         } else if force_full_frame {
-            self.tree.render_with_presentation(presentation.as_ref())
+            self.tree
+                .render_with_paint_coverage(presentation.as_ref(), coverage_outset)
         } else if has_resource_delta {
             NdCanvas::new()
         } else {
@@ -862,7 +880,9 @@ impl Runtime {
             && !capabilities.supports_partial_damage();
         if force_full_frame || promote_partial {
             if canvas.damage().mode() == DamageMode::None {
-                canvas = self.tree.render_with_presentation(presentation.as_ref());
+                canvas = self
+                    .tree
+                    .render_with_paint_coverage(presentation.as_ref(), coverage_outset);
             } else {
                 canvas.damage_mut().set_full();
             }
@@ -870,7 +890,9 @@ impl Runtime {
         if self.background.base.is_some() {
             // Clearing/compositing a host background requires a complete Canvas repair.
             // Do not promote a partial command list to Full while leaving siblings unrecorded.
-            canvas = self.tree.render_with_presentation(presentation.as_ref());
+            canvas = self
+                .tree
+                .render_with_paint_coverage(presentation.as_ref(), coverage_outset);
             if let Err(error) = self.compose_background(&mut canvas, surface) {
                 self.full_redraw_pending = true;
                 return FramePreparation::Error(FramePreparationError::Graphics(error));

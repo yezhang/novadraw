@@ -10,7 +10,8 @@ pub use crate::render::text::{
 pub mod shaping {
     pub use crate::render::text::{
         GlyphRun, ParleyTextEngine, PositionedGlyph, TextInteractionMap, TextInteractionProvider,
-        TextLayoutEngine, TextLayoutKey, TextLayoutParts, TextLayoutRevision,
+        TextLayoutCacheIdentity, TextLayoutEngine, TextLayoutKey, TextLayoutParts,
+        TextLayoutRevision,
     };
 }
 

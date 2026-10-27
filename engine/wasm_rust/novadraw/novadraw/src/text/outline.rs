@@ -125,6 +125,7 @@ impl GlyphOutline {
     }
 }
 
+pub(crate) mod paint_index;
 mod preparation;
 pub use preparation::{
     GlyphGeometryKey, GlyphInstance, OutlineCache, OutlineTextEngine, OutlinedText,
