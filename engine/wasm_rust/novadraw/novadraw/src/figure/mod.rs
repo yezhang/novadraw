@@ -47,7 +47,7 @@ pub(crate) mod widget;
 
 pub mod border;
 
-pub use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
+pub use crate::style::{CursorIcon, FigureStyle, LayoutDirection, ResolvedStyle};
 pub use border::Border;
 pub use capability::{
     ACCESSIBILITY, AccessibilityCapability, BORDER, BorderCapability, CLICKABLE, CONNECTION,

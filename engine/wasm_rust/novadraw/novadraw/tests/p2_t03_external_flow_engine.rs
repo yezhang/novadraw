@@ -136,6 +136,13 @@ impl TextLayoutEngine for AsciiEngine {
                 source_range: span.range.clone(),
                 style_index: index + 1,
                 line_index: 0,
+                baseline: BASELINE,
+                bounds: Rectangle::new(
+                    span.range.start as f64 * ADVANCE,
+                    0.0,
+                    span.range.len() as f64 * ADVANCE,
+                    HEIGHT,
+                ),
                 right_to_left: false,
             });
         }

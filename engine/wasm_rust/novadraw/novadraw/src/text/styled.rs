@@ -76,6 +76,7 @@ pub struct StyledTextRequest {
     boxes: Vec<TextInlineBox>,
     constraints: TextConstraints,
     direction: ParagraphDirection,
+    layout_direction: crate::figure::LayoutDirection,
     alignment: ParagraphAlignment,
     wrap: bool,
 }
@@ -127,6 +128,7 @@ impl StyledTextRequest {
             boxes,
             constraints,
             direction: ParagraphDirection::Auto,
+            layout_direction: crate::figure::LayoutDirection::default(),
             alignment: ParagraphAlignment::Leading,
             wrap: true,
         })
@@ -144,6 +146,13 @@ impl StyledTextRequest {
     }
     pub fn text(&self) -> &str {
         &self.text
+    }
+    pub fn with_layout_direction(mut self, direction: crate::figure::LayoutDirection) -> Self {
+        self.layout_direction = direction;
+        self
+    }
+    pub fn layout_direction(&self) -> crate::figure::LayoutDirection {
+        self.layout_direction
     }
     pub fn default_style(&self) -> &TextStyle {
         &self.default_style
@@ -192,6 +201,7 @@ impl StyledTextRequest {
         }
         self.constraints.max_width.map(f32::to_bits).hash(&mut hash);
         self.direction.hash(&mut hash);
+        self.layout_direction.hash(&mut hash);
         self.alignment.hash(&mut hash);
         self.wrap.hash(&mut hash);
         hash.finish()
@@ -204,6 +214,8 @@ pub struct StyledGlyphRun {
     pub source_range: Range<usize>,
     pub style_index: usize,
     pub line_index: usize,
+    pub baseline: f32,
+    pub bounds: Rectangle,
     pub right_to_left: bool,
 }
 
@@ -256,6 +268,19 @@ impl StyledTextLayout {
                     })
                 }
                 || run.line_index >= layout.line_metrics().len()
+                || !run.baseline.is_finite()
+                || [
+                    run.bounds.x,
+                    run.bounds.y,
+                    run.bounds.width,
+                    run.bounds.height,
+                ]
+                .iter()
+                .any(|value| !value.is_finite())
+                || run.bounds.width < 0.0
+                || run.bounds.height < 0.0
+                || !(run.bounds.x + run.bounds.width).is_finite()
+                || !(run.bounds.y + run.bounds.height).is_finite()
                 || request
                     .style(run.style_index)
                     .is_some_and(|style| style.font().size() != glyphs.font_size)
@@ -287,7 +312,20 @@ impl StyledTextLayout {
                 return Err(TextError::InvalidStyledLayout);
             }
         }
-        layout.bind_style_revision(request.fingerprint());
+        let mut revision = std::collections::hash_map::DefaultHasher::new();
+        request.fingerprint().hash(&mut revision);
+        for run in &runs {
+            run.baseline.to_bits().hash(&mut revision);
+            for value in [
+                run.bounds.x,
+                run.bounds.y,
+                run.bounds.width,
+                run.bounds.height,
+            ] {
+                value.to_bits().hash(&mut revision);
+            }
+        }
+        layout.bind_style_revision(revision.finish());
         let paint_layouts = (0..runs.len())
             .map(|index| layout.glyph_run_layout(index))
             .collect();

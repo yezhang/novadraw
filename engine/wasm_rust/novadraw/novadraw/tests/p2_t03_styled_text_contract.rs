@@ -365,6 +365,8 @@ impl TextLayoutEngine for ExternalEngine {
                 source_range: 0..request.text().len(),
                 style_index: 0,
                 line_index: 0,
+                baseline: 20.0,
+                bounds: Rectangle::new(0.0, 0.0, 40.0, 24.0),
                 right_to_left: false,
             }],
             request

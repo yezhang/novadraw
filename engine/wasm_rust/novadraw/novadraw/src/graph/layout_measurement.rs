@@ -70,6 +70,26 @@ struct PreparationLayoutRead<'a, 'tree, 'text> {
 }
 
 impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
+    fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, LayoutError> {
+        self.scene.check_layout_member(figure)?;
+        self.scene
+            .observe(crate::connection::DependencySubject::FigureMeasurementSource(figure));
+        Ok(self
+            .scene
+            .style(figure)
+            .map_err(|error| {
+                LayoutError::Preparation(Box::new(crate::figure::PreparationMeasureError {
+                    figure,
+                    outer_constraints: MeasureConstraints::UNBOUNDED,
+                    content_constraints: None,
+                    kind: crate::figure::PreparationMeasureErrorKind::Text(Box::new(error)),
+                }))
+            })?
+            .layout_direction)
+    }
     fn get_children(&self, parent: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
         self.scene.check_layout_member(parent)?;
         let children = crate::layout::LayoutSceneRead::get_children(self.tree, parent)?;
@@ -1428,6 +1448,16 @@ impl FigureTree {
 }
 
 impl crate::layout::LayoutSceneRead for FigureTree {
+    fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, LayoutError> {
+        self.validate_identity(figure)?;
+        Ok(self
+            .resolved_style(figure)
+            .expect("validated live Figure")
+            .layout_direction)
+    }
     fn get_children(&self, parent_id: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
         self.validate_identity(parent_id)?;
         let block = &self.blocks[parent_id];

@@ -611,7 +611,8 @@ fn build_snapshot(
                     .alignment
                     .unwrap_or(crate::text::ParagraphAlignment::Leading),
                 p.block.wrap,
-            );
+            )
+            .with_layout_direction(scene.style(p.owner)?.layout_direction);
             let prefix_layout = context.layout_styled(&request)?;
             let occupied = prefix_layout
                 .layout()
@@ -653,7 +654,8 @@ fn build_snapshot(
                     .alignment
                     .unwrap_or(crate::text::ParagraphAlignment::Leading),
                 p.block.wrap,
-            );
+            )
+            .with_layout_direction(scene.style(p.owner)?.layout_direction);
         let layout = context.layout_styled(&request)?;
         allocate(
             layout

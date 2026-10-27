@@ -4006,6 +4006,7 @@ mod tests {
                 font: Some("18px serif".to_string()),
                 cursor: Some(CursorIcon::Pointer),
                 tooltip: None,
+                layout_direction: None,
             },
         );
         scene.set_figure_style(
@@ -4017,6 +4018,7 @@ mod tests {
                 font: None,
                 cursor: None,
                 tooltip: Some(Some("child".to_string())),
+                layout_direction: None,
             },
         );
 
@@ -4029,6 +4031,7 @@ mod tests {
                 font: "18px serif".to_string(),
                 cursor: CursorIcon::Pointer,
                 tooltip: Some("child".to_string()),
+                layout_direction: crate::figure::LayoutDirection::default(),
             })
         );
     }

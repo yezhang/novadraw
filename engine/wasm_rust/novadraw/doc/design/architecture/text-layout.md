@@ -12,6 +12,13 @@ P2-G02 的统一字体指标/文字测量/绘制 API、glyph 轮廓与后端预�
 本页保留已交付切片的布局语义。P2-G02 与 ADR-031 已将公开调用形式收口为
 Graphics/PaintContext、CommandRecorder 和 `runtime.frames().prepare_submission`。
 
+[ADR-048](../../adr/adr-048-inherited-layout-direction.md)定义普通 Figure 的继承布局方向，
+StyledTextRequest、片段位置和交互几何共同消费解析结果，字形本身不反射。
+[ADR-050](../../adr/adr-050-prepared-text-underlines.md)提供通用范围下划线：
+MeasureContext 按实际字体 run 的 metrics 与 baseline 发布不可变片段，
+Graphics 绘制，外部 Figure 将装饰 ink 合并到 visual bounds。
+逻辑行高保持原值；不在绘制期间重查字体，也不为 TextFlow 增设专属路径。
+
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)。
 

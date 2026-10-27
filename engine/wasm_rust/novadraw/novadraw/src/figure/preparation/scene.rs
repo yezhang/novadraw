@@ -649,6 +649,7 @@ impl<'a> PreparationScene<'a> {
             }
             let style = self.style(id)?;
             style.font.hash(&mut hash);
+            style.layout_direction.hash(&mut hash);
             for value in style
                 .foreground
                 .to_rgba_array()

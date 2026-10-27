@@ -328,6 +328,7 @@ module.figure enum FigureCapabilityRegistrationError
 module.figure enum FlowWrapping
 module.figure enum HitParticipation
 module.figure enum ImageDisplayState
+module.figure enum LayoutDirection
 module.figure enum MeasureConstraintsError
 module.figure enum PolygonScaleMode
 module.figure enum PreparationDependencyError
@@ -715,6 +716,7 @@ module.text struct FontDescriptor
 module.text struct FontFaceRef
 module.text struct FontMetrics
 module.text struct MeasureContext
+module.text struct PreparedTextUnderlines
 module.text struct SelectionQuad
 module.text struct StyledGlyphRun
 module.text struct StyledTextLayout
@@ -730,6 +732,8 @@ module.text struct TextRange
 module.text struct TextStyle
 module.text struct TextStyleSpan
 module.text struct TextSystem
+module.text struct TextUnderline
+module.text struct TextUnderlineFragment
 module.tree constant DEFAULT_VALIDATION_BUDGET
 module.tree constant FREEFORM_EXTENT_PROPERTY
 module.tree constant MAX_TREE_DEPTH

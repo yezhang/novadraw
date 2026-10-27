@@ -51,7 +51,19 @@ pub fn bidi_block_example() -> Runtime {
             .register_builtin_font(font)
             .expect("font");
     }
-    for pane in panes {
+    for (index, pane) in panes.into_iter().enumerate() {
+        runtime
+            .figure(pane.pane_id())
+            .expect("pane")
+            .set_style(novadraw::figure::FigureStyle {
+                layout_direction: Some(if index == 0 {
+                    novadraw::figure::LayoutDirection::LeftToRight
+                } else {
+                    novadraw::figure::LayoutDirection::RightToLeft
+                }),
+                ..Default::default()
+            })
+            .expect("Canvas layout direction");
         runtime
             .figure(pane.pane_id())
             .expect("pane")
@@ -104,6 +116,47 @@ pub fn bidi_block_example() -> Runtime {
 mod tests {
     use super::*;
     #[test]
+    #[ignore = "requires a native GPU; run through text.layout-direction"]
+    fn bidi_direction_mutation_partial_matches_full_pixels() {
+        use super::super::gpu_test_support::GpuCanvas;
+        use novadraw::figure::{FigureStyle, LayoutDirection};
+        let mut canvas = GpuCanvas::new(640, 512, 1.0);
+        let mut runtime = bidi_block_example();
+        let root = runtime.tree().contents().unwrap();
+        let _ = canvas.render(&mut runtime, true);
+        let pane = runtime.tree().child_order(root).unwrap()[1];
+        for (index, (direction, width, height)) in [
+            (LayoutDirection::LeftToRight, 420.0, 180.0),
+            (LayoutDirection::RightToLeft, 420.0, 180.0),
+            (LayoutDirection::RightToLeft, 600.0, 500.0),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            runtime
+                .figure(pane)
+                .unwrap()
+                .set_style(FigureStyle {
+                    layout_direction: Some(direction),
+                    ..Default::default()
+                })
+                .unwrap();
+            runtime
+                .figure(root)
+                .unwrap()
+                .set_bounds(Rectangle::new(0.0, 0.0, width, height))
+                .unwrap();
+            let partial = canvas.render(&mut runtime, false);
+            let full = canvas.render(&mut runtime, true);
+            assert_eq!(partial, full, "direction/resize state {index}");
+            assert!(
+                full.chunks_exact(4)
+                    .any(|pixel| pixel[3] > 0 && pixel[0] < 100)
+            );
+            canvas.save(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../../target/verification/official-example-capability-increment/bidi/state-{index}.png")), &full);
+        }
+    }
+    #[test]
     fn both_trees_keep_direction_and_share_scroll_and_resize() {
         let mut runtime = bidi_block_example();
         let root = runtime.tree().contents().unwrap();
@@ -127,7 +180,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let mut pages = Vec::new();
-        for &viewport in &viewports {
+        for (index, &viewport) in viewports.iter().enumerate() {
             let page = runtime.tree().child_order(viewport).unwrap()[0];
             pages.push(page);
             let snapshot = runtime
@@ -138,6 +191,14 @@ mod tests {
                 .data::<novadraw::figure::flow::FlowSnapshot>()
                 .unwrap();
             assert_eq!(snapshot.paragraphs.len(), 10);
+            assert_eq!(
+                snapshot.paragraphs[0].layout.request().layout_direction(),
+                if index == 0 {
+                    novadraw::figure::LayoutDirection::LeftToRight
+                } else {
+                    novadraw::figure::LayoutDirection::RightToLeft
+                },
+            );
             assert_eq!(
                 snapshot.paragraphs[0].layout.request().direction(),
                 ParagraphDirection::LeftToRight

@@ -19,6 +19,7 @@ NodeState.opaque  = 当前节点局部的绘制覆盖承诺，不继承
 ## 2. 继承
 
 - foreground、background、font、cursor 和 tooltip 使用最近祖先值；
+- layout_direction 使用最近祖先值，默认 `figure::LayoutDirection::LeftToRight`；
 - alpha 使用最近祖先值，不沿父链相乘；
 - 没有显式值时使用 root 默认值；
 - opaque 不继承；
@@ -69,6 +70,7 @@ NodeState 或让状态泄漏到 sibling。
 
 - foreground、background 或 alpha 改变：repaint 当前可见子树；
 - font 改变：invalidate 当前子树并 repaint，因为内在尺寸可能变化；
+- layout_direction 改变：invalidate 当前子树并 repaint，文字位置与滚动条侧别重新准备；
 - cursor 改变：若当前 cursor target 位于该子树，下一次 host effect 使用新值；
 - tooltip 改变：不改变几何，更新 tooltip 查询结果；
 - opaque 改变：repaint 当前节点，并保持 damage 正确性。
@@ -82,6 +84,10 @@ NodeState 或让状态泄漏到 sibling。
 - tooltip 局部值使用三态表达继承、显式关闭和本地文本；
 - 字体在本阶段使用稳定描述值，资源解析和异步加载由 ResourceRegistry 承担；
 - style 不包含 selection、hover、pressed 或业务状态。
+
+布局方向独立于段落方向和 AffineTransform，契约见
+[ADR-048](../../adr/adr-048-inherited-layout-direction.md)。
+LayoutSceneQuery、EventSceneQuery 和 Flow 的冻结样式使用同一解析结果。
 
 ## 6. 验证
 

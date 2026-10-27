@@ -859,6 +859,11 @@ impl TextLayout {
         &self.key
     }
 
+    /// Identity of this immutable layout, including style and engine revisions.
+    pub fn revision(&self) -> TextLayoutRevision {
+        self.interaction_revision()
+    }
+
     pub fn ascent(&self) -> f32 {
         self.lines.first().map_or(0.0, |line| line.ascent)
     }
@@ -1328,6 +1333,14 @@ pub trait TextLayoutEngine {
         Err(TextError::FontMetricsUnsupported)
     }
 
+    /// Metrics for the exact face, variation and size in a positioned run.
+    fn resolved_font_metrics(
+        &mut self,
+        _run: &GlyphRun,
+    ) -> Result<crate::text::FontMetrics, TextError> {
+        Err(TextError::FontMetricsUnsupported)
+    }
+
     fn register_font(
         &mut self,
         resource_id: ResourceId,
@@ -1415,18 +1428,28 @@ impl TextLayoutEngine for ParleyTextEngine {
         &mut self,
         font: &FontDescriptor,
     ) -> Result<crate::text::FontMetrics, TextError> {
-        use skrifa::{
-            FontRef, MetadataProvider,
-            instance::{NormalizedCoord, Size},
-        };
         // Resolve through the same explicit collection and synthesis policy as layout.
         // A space selects the primary face without using its advance as a metric.
         let layout = self.layout(" ", font, TextConstraints::UNBOUNDED)?;
         let run = layout.glyph_runs().first().ok_or(TextError::NoUsableFont)?;
+        self.resolved_font_metrics(run)
+    }
+
+    fn resolved_font_metrics(
+        &mut self,
+        run: &GlyphRun,
+    ) -> Result<crate::text::FontMetrics, TextError> {
+        use skrifa::{
+            FontRef, MetadataProvider,
+            instance::{NormalizedCoord, Size},
+        };
         let registered = self
             .registered_fonts
             .get(&run.font.resource_id())
             .ok_or(TextError::NoUsableFont)?;
+        if registered.revision != run.font.revision() {
+            return Err(TextError::NoUsableFont);
+        }
         let face = FontRef::from_index(&registered.bytes, run.font.collection_index())
             .map_err(|_| TextError::InvalidFontData)?;
         let coords: Vec<_> = run
@@ -1581,9 +1604,20 @@ impl TextLayoutEngine for ParleyTextEngine {
         } else {
             None
         });
+        let alignment = if request.layout_direction().is_mirrored() {
+            match request.alignment() {
+                ParagraphAlignment::Leading => ParagraphAlignment::Trailing,
+                ParagraphAlignment::Trailing => ParagraphAlignment::Leading,
+                ParagraphAlignment::Left => ParagraphAlignment::Right,
+                ParagraphAlignment::Right => ParagraphAlignment::Left,
+                ParagraphAlignment::Center => ParagraphAlignment::Center,
+            }
+        } else {
+            request.alignment()
+        };
         layout.align(
             constraints.max_width,
-            match request.alignment() {
+            match alignment {
                 ParagraphAlignment::Leading => parley::Alignment::Start,
                 ParagraphAlignment::Trailing => parley::Alignment::End,
                 ParagraphAlignment::Left => parley::Alignment::Left,
@@ -1628,18 +1662,48 @@ impl TextLayoutEngine for ParleyTextEngine {
         let mut glyph_runs = Vec::new();
         let mut styled_runs = Vec::new();
         let mut placements = Vec::new();
+        let mut translations = Vec::new();
+        let inline_sources = request
+            .inline_boxes()
+            .iter()
+            .map(|input| (input.id, input.byte_offset))
+            .collect::<HashMap<_, _>>();
         for (line_index, line) in layout.lines().enumerate() {
             let line_shift = line_shifts
                 .get(line_index)
                 .map_or(0.0, |(shift, _, _)| *shift);
             let mut run_glyph_offsets = HashMap::<usize, usize>::new();
             for item in line.items() {
+                let (item_x, item_width) = match &item {
+                    PositionedLayoutItem::GlyphRun(run) => (run.offset(), run.advance()),
+                    PositionedLayoutItem::InlineBox(inline) => (inline.x, inline.width),
+                };
+                let dx = if request.layout_direction().is_mirrored() {
+                    2.0 * line.metrics().offset + line.metrics().advance - 2.0 * item_x - item_width
+                } else {
+                    0.0
+                };
                 let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
                     if let PositionedLayoutItem::InlineBox(inline) = item {
+                        if request.layout_direction().is_mirrored() {
+                            let source = inline_sources[&inline.id];
+                            let metrics = line.metrics();
+                            translations.push(crate::text::mirror::FragmentTranslation {
+                                source: source..source,
+                                line: line_index,
+                                bounds: Rectangle::new(
+                                    f64::from(inline.x),
+                                    f64::from(metrics.min_coord + line_shift),
+                                    f64::from(inline.width),
+                                    f64::from(metrics.max_coord - metrics.min_coord),
+                                ),
+                                dx: f64::from(dx),
+                            });
+                        }
                         placements.push(TextInlinePlacement {
                             id: inline.id,
                             bounds: Rectangle::new(
-                                f64::from(inline.x),
+                                f64::from(inline.x + dx),
                                 // Subtract in f64 so the exact published box height ends
                                 // at the exact published baseline, including fractional metrics.
                                 f64::from(lines[line_index].baseline) - f64::from(inline.height),
@@ -1675,10 +1739,31 @@ impl TextLayoutEngine for ParleyTextEngine {
                 if source_range.is_empty() {
                     continue;
                 }
+                if request.layout_direction().is_mirrored() {
+                    let metrics = line.metrics();
+                    translations.push(crate::text::mirror::FragmentTranslation {
+                        source: source_range.clone(),
+                        line: line_index,
+                        bounds: Rectangle::new(
+                            f64::from(item_x),
+                            f64::from(metrics.min_coord + line_shift),
+                            f64::from(item_width),
+                            f64::from(metrics.max_coord - metrics.min_coord),
+                        ),
+                        dx: f64::from(dx),
+                    });
+                }
                 styled_runs.push(StyledGlyphRun {
                     source_range,
                     style_index: glyph_run.style().brush,
                     line_index,
+                    baseline: glyph_run.baseline() + line_shift,
+                    bounds: Rectangle::new(
+                        f64::from(item_x + dx),
+                        f64::from(line.metrics().min_coord + line_shift),
+                        f64::from(item_width),
+                        f64::from(line.metrics().max_coord - line.metrics().min_coord),
+                    ),
                     right_to_left: run.is_rtl(),
                 });
                 let font = run.font();
@@ -1698,7 +1783,7 @@ impl TextLayoutEngine for ParleyTextEngine {
                     self.resolved_faces.insert(font_key, face.clone());
                     face
                 };
-                let mut x = glyph_run.offset();
+                let mut x = glyph_run.offset() + dx;
                 let baseline = glyph_run.baseline() + line_shift;
                 let glyphs = glyph_run
                     .glyphs()
@@ -1732,16 +1817,22 @@ impl TextLayoutEngine for ParleyTextEngine {
         } else {
             normalized_height
         };
-        let interaction = TextInteractionMap::new(
-            request.text(),
-            Arc::new(ParleyTextInteraction {
-                layout,
-                text_len: request.text().len(),
-                source_start,
-                line_shifts,
-            }),
-        )
-        .map_err(|_| TextError::InvalidInteractionMap)?;
+        let original: Arc<dyn TextInteractionProvider> = Arc::new(ParleyTextInteraction {
+            layout,
+            text_len: request.text().len(),
+            source_start,
+            line_shifts,
+        });
+        let provider = if request.layout_direction().is_mirrored() {
+            Arc::new(crate::text::mirror::TranslatedInteraction {
+                original,
+                fragments: translations,
+            }) as Arc<dyn TextInteractionProvider>
+        } else {
+            original
+        };
+        let interaction = TextInteractionMap::new(request.text(), provider)
+            .map_err(|_| TextError::InvalidInteractionMap)?;
 
         let text_layout = TextLayout::from_parts(TextLayoutParts {
             text: request.text().to_owned(),

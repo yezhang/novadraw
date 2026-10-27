@@ -219,6 +219,27 @@ impl<'a> PaintContext<'a> {
     pub fn stroke_text(&mut self, layout: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.text(layout, origin, true)
     }
+    pub fn fill_underlines(
+        &mut self,
+        underlines: &crate::text::PreparedTextUnderlines,
+        origin: Point,
+    ) -> Result<(), GraphicsError> {
+        self.push_state();
+        let result = (|| {
+            for fragment in underlines.fragments() {
+                let bounds = fragment.bounds();
+                self.set_fill_paint(fragment.color());
+                self.fill_rect(Rectangle::new(
+                    bounds.x + origin.x(),
+                    bounds.y + origin.y(),
+                    bounds.width,
+                    bounds.height,
+                ))?;
+            }
+            Ok(())
+        })();
+        result.and(self.pop_state())
+    }
     fn text(
         &mut self,
         layout: &TextLayout,
@@ -515,6 +536,13 @@ impl<'a> Graphics<'a> {
     }
     pub fn stroke_text(&mut self, text: &TextLayout, origin: Point) -> Result<(), GraphicsError> {
         self.paint.stroke_text(text, origin)
+    }
+    pub fn fill_underlines(
+        &mut self,
+        underlines: &crate::text::PreparedTextUnderlines,
+        origin: Point,
+    ) -> Result<(), GraphicsError> {
+        self.paint.fill_underlines(underlines, origin)
     }
     pub fn fill_rect(&mut self, rect: Rectangle) -> Result<(), GraphicsError> {
         self.paint.fill_rect(rect)

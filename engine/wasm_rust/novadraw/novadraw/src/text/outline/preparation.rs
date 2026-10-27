@@ -342,6 +342,9 @@ impl TextLayoutEngine for OutlineTextEngine {
     fn font_metrics(&mut self, font: &FontDescriptor) -> Result<FontMetrics, TextError> {
         self.engine.font_metrics(font)
     }
+    fn resolved_font_metrics(&mut self, run: &GlyphRun) -> Result<FontMetrics, TextError> {
+        self.engine.resolved_font_metrics(run)
+    }
     fn register_font(
         &mut self,
         id: ResourceId,

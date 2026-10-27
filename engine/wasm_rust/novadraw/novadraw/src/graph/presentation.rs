@@ -683,10 +683,9 @@ impl FigureTree {
         id: FigureId,
         style: FigureStyle,
     ) -> bool {
-        let font_changed = self
-            .blocks
-            .get(id)
-            .is_some_and(|block| block.style.font != style.font);
+        let layout_style_changed = self.blocks.get(id).is_some_and(|block| {
+            block.style.font != style.font || block.style.layout_direction != style.layout_direction
+        });
         if !self.set_figure_style(id, style) {
             return false;
         }
@@ -697,7 +696,7 @@ impl FigureTree {
                 continue;
             };
             stack.extend(node.children.iter().copied());
-            if font_changed {
+            if layout_style_changed {
                 self.mark_invalid(update_manager, node_id);
             }
             self.repaint(update_manager, node_id, None);
@@ -706,6 +705,14 @@ impl FigureTree {
     }
 
     fn emit_style_property_changes(&mut self, id: FigureId, old: &FigureStyle, new: &FigureStyle) {
+        if old.layout_direction != new.layout_direction {
+            self.record_property_change(
+                id,
+                property::LAYOUT_DIRECTION,
+                old.layout_direction,
+                new.layout_direction,
+            );
+        }
         if old.foreground != new.foreground {
             self.record_property_change(id, property::FOREGROUND, old.foreground, new.foreground);
         }

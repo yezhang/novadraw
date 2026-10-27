@@ -60,6 +60,13 @@ impl<'a> EventSceneQuery<'a> {
     ) -> Result<crate::FigureStyle, EventSceneQueryError> {
         Ok(self.node(figure)?.state().style().clone())
     }
+    pub fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, EventSceneQueryError> {
+        self.node(figure)?;
+        Ok(self.tree.resolved_style(figure)?.layout_direction)
+    }
 
     /// Returns the area in which a container lays out direct children.
     pub fn child_content_bounds(

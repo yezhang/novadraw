@@ -16,8 +16,8 @@ use novadraw::{
     layout::{BorderConstraint, BorderLayout, BorderRegion, ToolbarLayout},
     runtime::Runtime,
     text::{
-        FontDecorationMetrics, MeasureContext, SelectionQuad, TextAffinity, TextConstraints,
-        TextError, TextLayout, TextPosition, TextRange,
+        MeasureContext, PreparedTextUnderlines, SelectionQuad, StyledTextRequest, TextAffinity,
+        TextConstraints, TextError, TextLayout, TextPosition, TextRange, TextStyle, TextUnderline,
     },
     tree::FigureId,
 };
@@ -103,8 +103,7 @@ struct Drawing {
     origin: Point,
     text: TextLayout,
     selection: Vec<SelectionQuad>,
-    underline: Vec<SelectionQuad>,
-    decoration: FontDecorationMetrics,
+    underline: PreparedTextUnderlines,
 }
 impl FigurePreparation for PathFigure {
     fn measure_scene(
@@ -127,27 +126,40 @@ impl FigurePreparation for PathFigure {
         _: Rectangle,
     ) -> Result<FigurePresentation, TextError> {
         let (path, bounds) = path_geometry();
-        let text = context.layout_text("zoom", TextConstraints::UNBOUNDED)?;
+        let styled = context.layout_styled(&StyledTextRequest::new(
+            "zoom",
+            TextStyle::new(context.font().clone(), Color::BLACK),
+            Vec::new(),
+            Vec::new(),
+            TextConstraints::UNBOUNDED,
+        )?)?;
+        let underline = context.prepare_underlines(
+            &styled,
+            &[TextUnderline {
+                range: 1..3,
+                color: Color::BLUE,
+            }],
+        )?;
+        let text = styled.layout().clone();
         let origin = rotated(Point::new(bounds.x, bounds.y - TEXT_OFFSET));
         let drawing = Drawing {
             selection: quads(&text, 0, 2)?,
-            underline: quads(&text, 1, 3)?,
-            decoration: context.font_metrics()?.underline()?,
+            underline,
             path,
             origin,
             text,
         };
         // Rotate the text envelope through the same graphics transform.
         let mut envelope = Rectangle::new(
-            origin.x(),
-            origin.y(),
+            0.0,
+            0.0,
             f64::from(drawing.text.width()),
-            f64::from(drawing.text.height().max(
-                drawing.text.baseline()
-                    + drawing.decoration.offset()
-                    + drawing.decoration.thickness(),
-            )),
+            f64::from(drawing.text.height()),
         );
+        if let Some(ink) = drawing.underline.ink_bounds() {
+            envelope = envelope.union(ink);
+        }
+        envelope.translate(origin.x(), origin.y());
         envelope.transform(Affine2D::from_rotation_radians(ROTATION.to_radians()));
         let visual = bounds.union(envelope);
         FigurePresentation::new(
@@ -191,16 +203,7 @@ impl Drawing {
             })();
             let restored = context.pop_state();
             selected.and(restored)?;
-            context.set_fill_paint(Color::BLUE);
-            for quad in &self.underline {
-                let b = quad.bounds();
-                context.fill_rect(Rectangle::new(
-                    b.x + self.origin.x(),
-                    self.origin.y() + f64::from(self.text.baseline() + self.decoration.offset()),
-                    b.width,
-                    f64::from(self.decoration.thickness()),
-                ))?;
-            }
+            context.fill_underlines(&self.underline, self.origin)?;
             Ok(())
         })();
         let restored = context.pop_state();
@@ -297,6 +300,140 @@ mod tests {
         event::MouseButton,
         render::{BackendCapabilities, SurfaceInfo, command::RenderCommandKind},
     };
+
+    #[test]
+    #[ignore = "requires native GPU; run through text.underlines"]
+    fn underline_resize_and_replace_matches_full_pixels() {
+        use novadraw::text::{BuiltinFont, StyledTextLayout, TextStyleSpan};
+        struct Caption;
+        impl Figure for Caption {
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::new(0.0, 0.0, 380.0, 400.0)
+            }
+            fn name(&self) -> &'static str {
+                "UnderlineConsumer"
+            }
+            fn register_capabilities(
+                &self,
+                out: &mut FigureCapabilityBuilder,
+            ) -> Result<(), FigureCapabilityRegistrationError> {
+                out.register(PREPARATION, PreparationCapability::of::<Self>())
+            }
+        }
+        struct FrozenCaption {
+            text: StyledTextLayout,
+            underline: PreparedTextUnderlines,
+        }
+        impl FigureDrawing for FrozenCaption {
+            fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+                context.fill_styled_text(&self.text, Point::new(0.0, 0.0))?;
+                context.fill_underlines(&self.underline, Point::new(0.0, 0.0))
+            }
+        }
+        impl FigurePreparation for Caption {
+            fn prepare(
+                &self,
+                context: &mut MeasureContext<'_>,
+                bounds: Rectangle,
+            ) -> Result<FigurePresentation, TextError> {
+                let request = StyledTextRequest::new(
+                    "office e\u{301} 中文 العربية\nsecond line with underline",
+                    TextStyle::new(context.font().clone(), Color::BLACK),
+                    vec![TextStyleSpan {
+                        range: 0..6,
+                        style: TextStyle::new(
+                            novadraw::text::FontDescriptor::new(
+                                BuiltinFont::JetBrainsMono.family(),
+                                26.0,
+                            )?,
+                            Color::BLACK,
+                        ),
+                    }],
+                    vec![],
+                    TextConstraints::new(Some(bounds.width as f32))?,
+                )?
+                .with_paragraph(
+                    novadraw::text::ParagraphDirection::RightToLeft,
+                    novadraw::text::ParagraphAlignment::Leading,
+                    true,
+                )
+                .with_layout_direction(novadraw::figure::LayoutDirection::RightToLeft);
+                let text = context.layout_styled(&request)?;
+                let underline = context.prepare_underlines(
+                    &text,
+                    &[TextUnderline {
+                        range: 0..request.text().len(),
+                        color: Color::BLUE,
+                    }],
+                )?;
+                let size = text.layout().size();
+                let logical = Rectangle::new(0.0, 0.0, size.width, size.height);
+                let visual = underline
+                    .ink_bounds()
+                    .map_or(logical, |ink| logical.union(ink));
+                FigurePresentation::new(
+                    FigureMeasurement::new(size.width, size.height, None),
+                    size,
+                    visual,
+                    Arc::new(FrozenCaption { text, underline }),
+                )
+            }
+        }
+        let mut runtime = runtime_with_fonts();
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                512.0,
+                512.0,
+                Color::WHITE,
+            )))
+            .unwrap();
+        let id = runtime
+            .figure(root)
+            .unwrap()
+            .add(Box::new(Caption))
+            .unwrap();
+        let mut gpu = super::super::gpu_test_support::GpuCanvas::new(512, 512, 1.0);
+        let output = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../target/verification/official-example-capability-increment/underlines");
+        for (index, width) in [380.0, 100.0, 280.0].into_iter().enumerate() {
+            runtime
+                .figure(id)
+                .unwrap()
+                .set_bounds(Rectangle::new(30.0, 20.0, width, 400.0))
+                .unwrap();
+            let partial = gpu.render(&mut runtime, false);
+            let full = gpu.render(&mut runtime, true);
+            assert_eq!(partial, full, "width={width}");
+            assert!(
+                partial
+                    .chunks_exact(4)
+                    .any(|pixel| pixel[2] > 200 && pixel[0] < 80)
+            );
+            gpu.save(output.join(format!("state-{index}.png")), &partial);
+        }
+        runtime
+            .figure(id)
+            .unwrap()
+            .set_style(novadraw::figure::FigureStyle {
+                font: Some("24px Inter Variable".into()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(
+            gpu.render(&mut runtime, false),
+            gpu.render(&mut runtime, true)
+        );
+        runtime.figure(root).unwrap().remove(id).unwrap();
+        let partial = gpu.render(&mut runtime, false);
+        assert_eq!(partial, gpu.render(&mut runtime, true));
+        assert!(
+            partial
+                .chunks_exact(4)
+                .all(|pixel| pixel == [255, 255, 255, 255])
+        );
+    }
 
     #[test]
     fn official_path_draws_two_text_passes_and_preserves_closed_geometry() {

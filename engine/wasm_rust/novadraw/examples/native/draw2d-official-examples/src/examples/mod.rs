@@ -2,6 +2,8 @@ mod bidi_block;
 mod connection_and_anchor;
 mod ellipse_hitting;
 mod flow_layout_example;
+#[cfg(test)]
+mod gpu_test_support;
 mod graph_examples;
 mod grid_layout_example;
 mod hello_world;

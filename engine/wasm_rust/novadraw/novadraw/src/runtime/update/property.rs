@@ -268,6 +268,7 @@ macro_rules! diagnostic_text_value {
 
 diagnostic_text_value!(
     Alignment,
+    crate::figure::LayoutDirection,
     Direction,
     FlowPage,
     FlowWrapping,
@@ -559,6 +560,9 @@ pub mod standard {
     pub const ALPHA: PropertyKey<Option<f64>> = PropertyKey::new(super::STYLE_NAMESPACE, "alpha");
     /// Font descriptor style.
     pub const FONT: PropertyKey<Option<String>> = PropertyKey::new(super::STYLE_NAMESPACE, "font");
+    /// Inherited container layout direction.
+    pub const LAYOUT_DIRECTION: PropertyKey<Option<crate::figure::LayoutDirection>> =
+        PropertyKey::new(super::STYLE_NAMESPACE, "layout_direction");
     /// Cursor style.
     pub const CURSOR: PropertyKey<Option<CursorIcon>> =
         PropertyKey::new(super::STYLE_NAMESPACE, "cursor");

@@ -55,6 +55,13 @@ impl<T: Any> LayoutConstraint for T {
 /// data. Layout managers only receive the concrete immutable query wrapper and cannot mutate the
 /// Figure tree.
 pub(crate) trait LayoutSceneRead {
+    fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, LayoutError> {
+        self.get_constraint(figure)?;
+        Ok(crate::figure::LayoutDirection::default())
+    }
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
@@ -111,6 +118,12 @@ pub struct LayoutSceneQuery<'a> {
 impl<'a> LayoutSceneQuery<'a> {
     pub(crate) fn new(source: &'a dyn LayoutSceneRead) -> Self {
         Self { source }
+    }
+    pub fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, LayoutError> {
+        self.source.layout_direction(figure)
     }
 
     pub fn children(&self, parent_id: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {

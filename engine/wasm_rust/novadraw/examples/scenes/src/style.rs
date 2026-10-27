@@ -331,6 +331,7 @@ fn create_scene_7_inherited_figure_style() -> novadraw::tree::FigureTree {
                 font: Some("20px sans-serif".to_string()),
                 cursor: Some(CursorIcon::Pointer),
                 tooltip: Some(Some("Inherited parent tooltip".to_string())),
+                layout_direction: None,
             },
         )
         .expect("valid FigureTree construction");
@@ -364,6 +365,7 @@ fn create_scene_7_inherited_figure_style() -> novadraw::tree::FigureTree {
                 font: None,
                 cursor: Some(CursorIcon::Crosshair),
                 tooltip: Some(None),
+                layout_direction: None,
             },
         )
         .expect("valid FigureTree construction");

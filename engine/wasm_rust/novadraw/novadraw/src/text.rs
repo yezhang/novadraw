@@ -15,6 +15,7 @@ pub mod shaping {
 }
 
 mod line_padding;
+pub(crate) mod mirror;
 pub mod outline;
 mod styled;
 pub use styled::{
@@ -23,6 +24,8 @@ pub use styled::{
 };
 mod system;
 pub use system::{MeasureContext, TextSystem};
+mod underline;
+pub use underline::{PreparedTextUnderlines, TextUnderline, TextUnderlineFragment};
 
 /// Font-provided decoration geometry in Canvas logical units.
 #[derive(Clone, Copy, Debug, PartialEq)]

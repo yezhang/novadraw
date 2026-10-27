@@ -94,6 +94,14 @@ impl<'a> MeasureContext<'a> {
         self.engine.layout_styled(request)
     }
 
+    pub fn prepare_underlines(
+        &mut self,
+        text: &super::StyledTextLayout,
+        ranges: &[super::TextUnderline],
+    ) -> Result<super::PreparedTextUnderlines, TextError> {
+        super::PreparedTextUnderlines::prepare(self.engine, text, ranges)
+    }
+
     pub(crate) fn new(engine: &'a mut dyn TextLayoutEngine, font: FontDescriptor) -> Self {
         Self { engine, font }
     }

@@ -264,6 +264,31 @@ impl FigureEventHandler for ScrollPaneFigure {
     fn wants_mouse_events(&self) -> bool {
         true
     }
+    fn on_key_pressed(&self, event: &crate::KeyEvent, ctx: &mut EventContext<'_>) -> bool {
+        let mirrored = ctx
+            .scene()
+            .layout_direction(ctx.target_id())
+            .is_ok_and(crate::figure::LayoutDirection::is_mirrored);
+        let horizontal = match event.key {
+            crate::Key::ArrowLeft => Some(-DEFAULT_STEP_INCREMENT),
+            crate::Key::ArrowRight => Some(DEFAULT_STEP_INCREMENT),
+            _ => None,
+        };
+        let (x, y) = if let Some(delta) = horizontal {
+            (if mirrored { -delta } else { delta }, 0.0)
+        } else {
+            match event.key {
+                crate::Key::ArrowUp => (0.0, -DEFAULT_STEP_INCREMENT),
+                crate::Key::ArrowDown => (0.0, DEFAULT_STEP_INCREMENT),
+                _ => return false,
+            }
+        };
+        let Some(viewport) = lock_unpoisoned(&self.runtime).viewport_id else {
+            return false;
+        };
+        ctx.effects().scroll_viewport_by_later(viewport, x, y);
+        true
+    }
 
     fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut EventContext<'_>) -> bool {
         let runtime = lock_unpoisoned(&self.runtime);
@@ -274,9 +299,18 @@ impl FigureEventHandler for ScrollPaneFigure {
             ScrollDeltaKind::Lines => DEFAULT_STEP_INCREMENT,
             ScrollDeltaKind::LogicalPixels => 1.0,
         };
+        let horizontal_sign = if ctx
+            .scene()
+            .layout_direction(ctx.target_id())
+            .is_ok_and(crate::figure::LayoutDirection::is_mirrored)
+        {
+            -1.0
+        } else {
+            1.0
+        };
         ctx.effects().scroll_viewport_by_later(
             viewport,
-            -event.delta_x * factor,
+            -event.delta_x * factor * horizontal_sign,
             -event.delta_y * factor,
         );
         let target_id = ctx.target_id();
@@ -423,20 +457,36 @@ impl LayoutManager for ScrollPaneLayout {
 
         let viewport_width = (area.width - if show_v { thickness } else { 0.0 }).max(0.0);
         let viewport_height = (area.height - if show_h { thickness } else { 0.0 }).max(0.0);
-        let viewport_bounds = Rectangle::new(area.x, area.y, viewport_width, viewport_height);
+        let mirrored = snapshot.layout_direction(container)?.is_mirrored();
+        let viewport_x = area.x + if show_v && mirrored { thickness } else { 0.0 };
+        let viewport_bounds = Rectangle::new(viewport_x, area.y, viewport_width, viewport_height);
         out.set_child_bounds(self.viewport, viewport_bounds);
         out.set_child_visible(self.horizontal_scroll_bar, show_h);
         out.set_child_visible(self.vertical_scroll_bar, show_v);
         if show_h {
             out.set_child_bounds(
                 self.horizontal_scroll_bar,
-                Rectangle::new(area.x, area.y + viewport_height, viewport_width, thickness),
+                Rectangle::new(
+                    viewport_x,
+                    area.y + viewport_height,
+                    viewport_width,
+                    thickness,
+                ),
             );
         }
         if show_v {
             out.set_child_bounds(
                 self.vertical_scroll_bar,
-                Rectangle::new(area.x + viewport_width, area.y, thickness, viewport_height),
+                Rectangle::new(
+                    if mirrored {
+                        area.x
+                    } else {
+                        area.x + viewport_width
+                    },
+                    area.y,
+                    thickness,
+                    viewport_height,
+                ),
             );
         }
         let mut runtime = lock_unpoisoned(&self.runtime);
