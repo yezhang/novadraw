@@ -298,6 +298,32 @@ fn vello_fill(rule: FillRule) -> vello::peniko::Fill {
     }
 }
 
+/// Exact local outline of a solid butt-capped line, before the figure transform.
+///
+/// Encoding this as a fill avoids Vello's GPU stroke artifacts when a line lies
+/// on the first tile row of a clip containing glyphs. It also needs only four
+/// edges, without curve expansion or a tolerance-dependent approximation.
+fn solid_line_outline(
+    p1: vello::kurbo::Point,
+    p2: vello::kurbo::Point,
+    width: f64,
+) -> Option<vello::kurbo::BezPath> {
+    let direction = p2 - p1;
+    let length = direction.hypot();
+    if length == 0.0 {
+        // A butt cap has no area when the line has no length.
+        return None;
+    }
+    let normal = vello::kurbo::Vec2::new(-direction.y, direction.x) * (width / (2.0 * length));
+    let mut outline = vello::kurbo::BezPath::with_capacity(5);
+    outline.move_to(p1 + normal);
+    outline.line_to(p2 + normal);
+    outline.line_to(p2 - normal);
+    outline.line_to(p1 - normal);
+    outline.close_path();
+    Some(outline)
+}
+
 fn append_image_draw(
     scene: &mut vello::Scene,
     image: &vello::peniko::ImageBrush,
@@ -1288,6 +1314,20 @@ impl SceneEncoder {
                 );
                 let brush = vello_paint(paint, self.scale_factor);
 
+                if stroke.cap() == LineCap::Butt && stroke.dash_lengths().is_empty() {
+                    if let Some(outline) =
+                        solid_line_outline(v1, v2, stroke.width() * self.scale_factor)
+                    {
+                        self.scene.fill(
+                            vello::peniko::Fill::NonZero,
+                            affine,
+                            &brush,
+                            None,
+                            &outline,
+                        );
+                    }
+                    return;
+                }
                 let stroke = vello_stroke(stroke, self.scale_factor);
 
                 self.scene.stroke(
@@ -2098,6 +2138,51 @@ mod tests {
     };
     use std::sync::Arc;
     use uuid::Uuid;
+
+    #[test]
+    fn solid_line_outline_matches_standard_stroking_under_affine_transforms() {
+        use vello::kurbo::{Affine, Line, Shape, StrokeOpts};
+
+        for (start, end) in [
+            ((2.0, 0.5), (40.0, 0.5)),
+            ((3.5, 30.0), (3.5, 0.5)),
+            ((2.0, 3.0), (40.0, 25.0)),
+            ((40.0, 25.0), (2.0, 3.0)),
+        ] {
+            let line = Line::new(start, end);
+            for width in [0.5, 1.0, 3.0] {
+                for transform in [
+                    Affine::IDENTITY,
+                    Affine::new([1.5, 0.25, -0.4, 0.75, 4.0, 3.0]),
+                ] {
+                    let outline = transform
+                        * solid_line_outline(line.p0, line.p1, width).expect("nonempty line");
+                    let reference = transform
+                        * vello::kurbo::stroke(
+                            line.path_elements(0.01),
+                            &Stroke::new(width).with_caps(Cap::Butt),
+                            &StrokeOpts::default(),
+                            0.01,
+                        );
+                    assert!(
+                        (outline.area().abs() - reference.area().abs()).abs() < 1e-9,
+                        "line {line:?}, width {width}, transform {transform:?}"
+                    );
+                    for y in -8..48 {
+                        for x in -8..72 {
+                            let sample = (f64::from(x) + 0.37, f64::from(y) + 0.19).into();
+                            assert_eq!(
+                                outline.winding(sample) != 0,
+                                reference.winding(sample) != 0,
+                                "line {line:?}, width {width}, transform {transform:?}, sample {sample:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert!(solid_line_outline((2.0, 3.0).into(), (2.0, 3.0).into(), 1.0).is_none());
+    }
 
     #[test]
     fn line_styles_map_to_width_scaled_vello_dash_patterns() {

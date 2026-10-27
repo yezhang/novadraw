@@ -442,6 +442,100 @@ mod tests {
     use novadraw::runtime::ResourceStatus;
 
     #[test]
+    #[ignore = "requires native GPU; validates Zoom scrollbar button pixels"]
+    fn scrollbar_buttons_remain_uncovered_at_zoom_limits() {
+        const PIXEL_WIDTH: u32 = 832;
+        const PIXEL_HEIGHT: u32 = 640;
+        for dpi in [1.0, 1.5, 2.0] {
+            let mut fixture = fixture();
+            let mut canvas =
+                super::super::gpu_test_support::GpuCanvas::new(PIXEL_WIDTH, PIXEL_HEIGHT, dpi);
+            fixture
+                .runtime
+                .frames()
+                .resize_logical_viewport(
+                    f64::from(PIXEL_WIDTH) / dpi,
+                    f64::from(PIXEL_HEIGHT) / dpi,
+                )
+                .unwrap();
+            for (stage, increase) in [None, Some(false), Some(true)].into_iter().enumerate() {
+                if let Some(increase) = increase {
+                    for _ in 0..20 {
+                        let bounds = fixture.runtime.tree().figure_bounds(fixture.bar).unwrap();
+                        let x = if increase {
+                            bounds.width - ARROW_WIDTH / 2.0
+                        } else {
+                            ARROW_WIDTH / 2.0
+                        };
+                        click(&mut fixture.runtime, x, BAR_HEIGHT / 2.0);
+                        fixture.runtime.frames().stabilize_for_query().unwrap();
+                    }
+                }
+                let full = canvas.render(&mut fixture.runtime, true);
+                for child in fixture.runtime.tree().child_order(fixture.bar).unwrap() {
+                    let Some(part) = fixture
+                        .runtime
+                        .tree()
+                        .layout_constraint::<ScrollBarPart>(child)
+                        .unwrap()
+                    else {
+                        continue;
+                    };
+                    if !matches!(
+                        part,
+                        ScrollBarPart::Thumb | ScrollBarPart::Decrement | ScrollBarPart::Increment
+                    ) {
+                        continue;
+                    }
+                    let bounds = fixture.runtime.tree().figure_bounds(child).unwrap();
+                    let origin = fixture
+                        .runtime
+                        .tree()
+                        .local_to_surface_transform(child)
+                        .unwrap()
+                        .transform_point(Point::ZERO);
+                    // Exclude the bevel and check that each button's text/arrow survives.
+                    let inset = 3.0;
+                    let mut dark_pixels = 0;
+                    for y in ((origin.y() + inset) * dpi).ceil() as usize
+                        ..((origin.y() + bounds.height - inset) * dpi).floor() as usize
+                    {
+                        for x in ((origin.x() + inset) * dpi).ceil() as usize
+                            ..((origin.x() + bounds.width - inset) * dpi).floor() as usize
+                        {
+                            let offset = (y * PIXEL_WIDTH as usize + x) * 4;
+                            if full[offset..offset + 3]
+                                .iter()
+                                .all(|component| *component < 80)
+                            {
+                                dark_pixels += 1;
+                            }
+                        }
+                    }
+                    assert!(
+                        dark_pixels >= 8,
+                        "button {part:?} covered at stage {stage}, DPI {dpi}: {dark_pixels} dark pixels"
+                    );
+                    if *part == ScrollBarPart::Thumb {
+                        let pixel = |x: f64, y: f64| {
+                            let x = ((origin.x() + x) * dpi).floor() as usize;
+                            let y = ((origin.y() + y) * dpi).floor() as usize;
+                            let offset = (y * PIXEL_WIDTH as usize + x) * 4;
+                            &full[offset..offset + 4]
+                        };
+                        // Both probes sit above the text and inside the bevel.
+                        assert_eq!(
+                            pixel(4.0, 4.0),
+                            pixel(bounds.width / 2.0, 4.0),
+                            "gray strip above thumb text at stage {stage}, DPI {dpi}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn native_thumb_drag_survives_panel_frames_and_clock_ticks() {
         use novadraw::event::MonotonicTime;
         use novadraw_example_support::panel::egui;
