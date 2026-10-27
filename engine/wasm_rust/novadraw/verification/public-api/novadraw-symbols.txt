@@ -324,6 +324,7 @@ module.figure enum ChildPolicy
 module.figure enum ClickableKind
 module.figure enum CursorIcon
 module.figure enum Direction
+module.figure enum EdgeStroke
 module.figure enum FigureCapabilityRegistrationError
 module.figure enum FlowWrapping
 module.figure enum HitParticipation
@@ -337,6 +338,7 @@ module.figure enum PreparationMeasureStage
 module.figure enum PreparationMetric
 module.figure enum PreparationRouteErrorKind
 module.figure enum ScalablePolygonError
+module.figure enum ShapeGeometryError
 module.figure enum ShapeMutationError
 module.figure enum TextPlacement
 module.figure enum WidgetError
@@ -391,6 +393,9 @@ module.figure struct PreparationScene
 module.figure struct PreparedScene
 module.figure struct PreparedSceneIdentity
 module.figure struct PreparedSceneSnapshot
+module.figure struct RectangleBorderGeometry
+module.figure struct RectangleCorners
+module.figure struct RectangleEdges
 module.figure struct RectangleFigure
 module.figure struct ResolvedStyle
 module.figure struct ResourceDependenciesCapability
@@ -399,6 +404,7 @@ module.figure struct RoundedRectangleFigure
 module.figure struct ScalablePolygonFigure
 module.figure struct ScaleCapability
 module.figure struct SetGraphProjection
+module.figure struct ShapeContour
 module.figure struct TextFlowFigure
 module.figure struct TextFlowViewport
 module.figure struct ToggleFigure
@@ -647,6 +653,7 @@ module.runtime struct PointerId
 module.runtime struct PreparedFigureUpdate
 module.runtime struct RemovePolylinePoint
 module.runtime struct ReplaceFigureBorder
+module.runtime struct ReplacePolygonGeometry
 module.runtime struct ReplacePolylinePoints
 module.runtime struct ReplaceScalablePolygonTemplate
 module.runtime struct ReplaceTextFlowPage
@@ -676,6 +683,7 @@ module.runtime struct SetLabelIconTextGap
 module.runtime struct SetLabelText
 module.runtime struct SetLabelTextAlignment
 module.runtime struct SetLabelTextPlacement
+module.runtime struct SetPolygonCornerRadii
 module.runtime struct SetPolylineDashOffset
 module.runtime struct SetPolylineDashPattern
 module.runtime struct SetPolylineLineCap
@@ -684,10 +692,13 @@ module.runtime struct SetPolylineMiterLimit
 module.runtime struct SetPolylinePoint
 module.runtime struct SetPolylineStrokeStyle
 module.runtime struct SetPolylineStrokeWidth
+module.runtime struct SetRectangleCorners
+module.runtime struct SetRectangleEdges
 module.runtime struct SetRoundedRectangleCorners
 module.runtime struct SetScalablePolygonAlignment
 module.runtime struct SetScalablePolygonScaleMode
 module.runtime struct SetTextFlowWrapping
+module.runtime struct SetTriangleCornerRadii
 module.runtime struct SetTriangleDirection
 module.runtime struct StableSceneQuery
 module.runtime struct TextLayoutStats

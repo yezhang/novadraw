@@ -63,6 +63,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 已接受，修订 1，实施中 | 2026-10-22 |
 | [044](adr-044-shared-scene-capture-and-view.md) | 共享场景捕获、资源闭包与只读视图 | 已接受 | 2026-10-23 |
 | [045](adr-045-host-background-submission.md) | 宿主背景统一帧提交 | 已接受 | 2026-10-23 |
+| [052](adr-052-independent-corners-and-edge-borders.md) | 逐角圆角与矩形分边描边 | 已接受 | 2026-10-27 |
 
 ## 现行与历史隔离
 

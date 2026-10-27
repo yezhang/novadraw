@@ -79,6 +79,9 @@ pub struct TriangleFigure {
     child_clipping_strategy: ChildClippingStrategy,
     /// 边框装饰器
     border: Option<Arc<dyn Border>>,
+    corner_radii: [f64; 3],
+    contour: Option<Arc<super::ShapeContour>>,
+    contour_points: Option<[(f64, f64); 3]>,
 }
 
 impl TriangleFigure {
@@ -95,6 +98,9 @@ impl TriangleFigure {
             cached_bounds: None,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
+            corner_radii: [0.0; 3],
+            contour: None,
+            contour_points: None,
         }
     }
 
@@ -132,6 +138,41 @@ impl TriangleFigure {
         &self.stroke
     }
 
+    /// 顶点顺序为主尖角、compute_points 的第二角、第三角。
+    pub fn with_corner_radii(mut self, radii: [f64; 3]) -> Result<Self, super::ShapeGeometryError> {
+        self.replace_corner_radii(radii)?;
+        Ok(self)
+    }
+
+    pub fn corner_radii(&self) -> [f64; 3] {
+        self.corner_radii
+    }
+
+    pub(crate) fn replace_corner_radii(
+        &mut self,
+        radii: [f64; 3],
+    ) -> Result<(), super::ShapeGeometryError> {
+        let points = self
+            .compute_points()
+            .map(|(x, y)| crate::geometry::Point::new(x, y));
+        let contour = super::ShapeContour::polygon(&points, &radii)?;
+        self.corner_radii = radii;
+        self.contour = Some(Arc::new(contour));
+        self.contour_points = Some(self.compute_points());
+        Ok(())
+    }
+
+    fn rounded_contour(&self) -> Result<Arc<super::ShapeContour>, super::ShapeGeometryError> {
+        let points = self.compute_points();
+        if self.contour_points == Some(points)
+            && let Some(c) = &self.contour
+        {
+            return Ok(Arc::clone(c));
+        }
+        let points = points.map(|(x, y)| crate::geometry::Point::new(x, y));
+        super::ShapeContour::polygon(&points, &self.corner_radii).map(Arc::new)
+    }
+
     /// 设置方向
     ///
     /// 参考 draw2d: Triangle.setDirection(int)
@@ -145,7 +186,7 @@ impl TriangleFigure {
 
     /// 设置方向（builder 风格）
     pub fn with_direction(mut self, direction: Direction) -> Self {
-        self.direction = direction;
+        self.set_direction(direction);
         self
     }
 
@@ -349,6 +390,10 @@ impl TriangleFigure {
         if self.cached_bounds != Some(self.bounds) {
             self.cached_points = Some(self.compute_points());
             self.cached_bounds = Some(self.bounds);
+            if self.corner_radii != [0.0; 3] {
+                self.contour = self.rounded_contour().ok();
+                self.contour_points = self.cached_points;
+            }
         }
     }
 
@@ -356,6 +401,8 @@ impl TriangleFigure {
         // 清除缓存，强制重新计算
         self.cached_points = None;
         self.cached_bounds = None;
+        self.contour = None;
+        self.contour_points = None;
     }
 }
 
@@ -387,13 +434,20 @@ impl Figure for TriangleFigure {
     ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        local.invalidate();
+        if bounds.width != self.bounds.width || bounds.height != self.bounds.height {
+            local.invalidate();
+        }
         Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        if self.corner_radii != [0.0; 3] {
+            return local
+                .rounded_contour()
+                .is_ok_and(|c| c.contains(crate::geometry::Point::new(x, y)));
+        }
         let points = local.compute_points();
         point_in_triangle((x, y), points)
     }
@@ -498,6 +552,13 @@ impl Shape for TriangleFigure {
     }
 
     fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        if self.corner_radii != [0.0; 3] {
+            return context.fill_path(
+                self.rounded_contour()
+                    .map_err(super::ShapeGeometryError::drawing_error)?
+                    .path(),
+            );
+        }
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 
@@ -511,6 +572,13 @@ impl Shape for TriangleFigure {
 
     fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         context.set_stroke_style(self.stroke.clone());
+        if self.corner_radii != [0.0; 3] {
+            return context.stroke_path(
+                self.rounded_contour()
+                    .map_err(super::ShapeGeometryError::drawing_error)?
+                    .path(),
+            );
+        }
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 

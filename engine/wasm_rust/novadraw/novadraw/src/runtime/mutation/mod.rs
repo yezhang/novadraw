@@ -13,6 +13,11 @@ use super::runtime::Runtime;
 
 mod figure_updates;
 pub use figure_updates::*;
+mod shape_updates;
+pub use shape_updates::{
+    ReplacePolygonGeometry, SetPolygonCornerRadii, SetRectangleCorners, SetRectangleEdges,
+    SetTriangleCornerRadii,
+};
 
 pub trait FigureComponentUpdate {
     type Figure: Figure + 'static;

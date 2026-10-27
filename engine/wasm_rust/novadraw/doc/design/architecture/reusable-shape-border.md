@@ -6,6 +6,10 @@
 
 范围：M10.1
 
+2026-10-27 的逐角圆角、矩形分边颜色与公开可复用轮廓由
+[ADR-052](../../adr/adr-052-independent-corners-and-edge-borders.md) 承接；
+标题区域组合留在独立样例中。原 M10.1 统一圆角和 Border 契约保持有效。
+
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/reusable-shape-border.md`](../../reference/draw2d/figure/reusable-shape-border.md)。
 

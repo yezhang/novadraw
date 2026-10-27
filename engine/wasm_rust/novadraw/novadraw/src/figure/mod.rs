@@ -17,7 +17,12 @@ mod activity;
 pub use activity::{ACTIVITY, ActivityCapability, FigureActivity};
 pub(crate) mod capability;
 mod content_snapshot;
+mod contour;
 pub use content_snapshot::{CONTENT_SNAPSHOT, ContentSnapshotCapability, FigureContentSnapshot};
+pub use contour::{
+    EdgeStroke, RectangleBorderGeometry, RectangleCorners, RectangleEdges, ShapeContour,
+    ShapeGeometryError,
+};
 mod bounds_drawing;
 pub use bounds_drawing::{
     BOUNDS_SNAPSHOT, BoundsDrawing, BoundsSnapshotCapability, FigureBoundsSnapshot,

@@ -9,6 +9,8 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-27 | [矩形分边描边的平齐自由端](shape-free-end-butt-2026-10-27.md) |
+| 2026-10-27 | [逐角圆角与矩形分边描边](independent-shape-corners-2026-10-27.md) |
 | 2026-08-23 | [核心渲染管线](core-pipeline-2026-08-23.md) |
 | 2026-08-29 | [文档与源码一致性](design-code-audit-2026-08-29.md) |
 | 2026-09-08 | [Draw2D 核心能力差异](draw2d-core-capability-audit-2026-09-08.md) |

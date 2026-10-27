@@ -177,6 +177,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `complete` | PointList miter bounds、rotatable polygon/polyline decoration 与 endpoint locator 已验证 |
 | P2-C02 | `connection.router` | `complete` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
 | P2-F01 | `builtin.figures` | `complete` | ScalablePolygonFigure template-to-bounds 几何 verified |
+| P2-F03 | `builtin.figures`, `border.protocol`, `hit_test.search` | `complete` | ADR-052 本项目扩展：逐角圆角与矩形分边颜色；Core 契约、Native GPU、布局缓存及最终门禁见[证据](../../verification/reviews/independent-shape-corners-2026-10-27.md) |
 | P2-T01 | `text.flow` | `complete` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 | P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
@@ -465,6 +466,8 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | `Shape.setFill/setOutline/setLineWidth/setLineWidthFloat` | `Shape` trait 暴露只读能力；颜色走 Runtime FigureStyle，几何 stroke 参数由 concrete builders/mutation 提供 | partial | Core 1.0 接受具体类型入口；统一 Shape mutation 明确延后到跨 Figure 需求成立 |
 | `builtin.figures` | `Ellipse` | `EllipseFigure` + Runtime FigureStyle；optimized fill/outline bounds、精确椭圆命中 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | rounded rectangle | `RoundedRectangleFigure::{set_corner_dimensions,corner_dimensions}` + `FigureMut::set_corner_dimensions`；二维圆角 path 与精确命中 | verified | 单值 radius 仅为等宽高 convenience |
+| `builtin.figures`, `border.protocol` | Novadraw 扩展：逐角圆角与分边颜色 | `ShapeContour`、`RectangleCorners`、`RectangleEdges`；RoundedRectangle/Polygon/Triangle 与 RectangleShapeBorder 消费同一轮廓；typed component updates | verified | P2-F03；旧 corner dimensions 单位不变，不宣称 Draw2D 原 API 对等；Native 像素与 WASM 编译分别取证 |
+| `border.protocol` | Novadraw 扩展：关闭邻边后的自由端 | RectangleBorderGeometry 按边存在性区分接角与 Butt 自由端，直线切点截断，零圆角齐到矩形顶点 | verified | [自由端修订证据](../../verification/reviews/shape-free-end-butt-2026-10-27.md)，16 种开关组合与 native GPU 末行全线宽检查 |
 | `builtin.figures` | point-list shape mutators | `FigureMut::{replace_points,insert_point,set_point,remove_point,clear_points}`；parent-domain 输入原子规范化为 local points + NodeState bounds | verified | 非有限输入与非法 index 无 partial commit |
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | PointList stroke envelope | Polyline、Polygon 与 Connection 共享 line join/stroke width visual outset；Runtime stroke style mutation 原子重建 bounds | verified | P2-C01；锐角 miter 与 Round/Bevel 定向测试 |

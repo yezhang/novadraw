@@ -505,16 +505,12 @@ impl FigureComponentUpdate for SetRoundedRectangleCorners {
             return Err(ShapeMutationError::NegativeMetric);
         }
         let old = current.corner_dimensions();
-        if old == self.0 {
+        if old == self.0 && current.corners().is_none() {
             return Ok(PreparedFigureUpdate::unchanged(self.0));
         }
-        Ok(
-            PreparedFigureUpdate::layout_geometry_and_paint(self.0).with_property_change(
-                property::CORNER_DIMENSIONS,
-                old,
-                self.0,
-            ),
-        )
+        Ok(PreparedFigureUpdate::layout_geometry_and_paint(self.0)
+            .with_property_change(property::CORNER_DIMENSIONS, old, self.0)
+            .with_property_change(property::RECTANGLE_CORNERS, current.corners(), None))
     }
 
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {

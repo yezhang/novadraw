@@ -17,7 +17,7 @@ pub use compound_border::CompoundBorder;
 pub use etched_border::EtchedBorder;
 pub use line_border::LineBorder;
 pub use margin_border::MarginBorder;
-pub use rectangle_border::RectangleBorder;
+pub use rectangle_border::{RectangleBorder, RectangleShapeBorder};
 pub use scheme_border::SchemeBorder;
 pub use title_bar_border::TitleBarBorder;
 

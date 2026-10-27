@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "defaultActionId": "composite-shapes-screenshot",
+  "actions": [
+    {
+      "id": "composite-shapes-screenshot",
+      "name": "Composite Shapes 截图验证",
+      "command": "cargo run -p composite-shapes-app -- --screenshot",
+      "cwd": ".",
+      "background": false,
+      "source": "agent",
+      "open": {
+        "type": "terminal"
+      }
+    }
+  ]
+}

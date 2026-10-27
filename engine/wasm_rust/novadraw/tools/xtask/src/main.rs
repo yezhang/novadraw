@@ -222,6 +222,73 @@ const SUITES: &[Suite] = &[
         ],
     },
     Suite {
+        id: "shape.independent-corners",
+        description: "Independent corners, rectangle edge colors, legacy shapes and Native GPU seams",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw", "--lib", "free_end_tests"],
+            },
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw", "--lib", "contour_cache_tests"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "independent_shape_corners",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "m10_reusable_shape_border_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw-backend-vello", "--lib", "antialias"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw-backend-vello",
+                    "--features",
+                    "native",
+                    "--test",
+                    "independent_shape_pixels",
+                    "--",
+                    "--ignored",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &["check", "-p", "composite-shapes-app"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "check",
+                    "-p",
+                    "novadraw",
+                    "--lib",
+                    "--target",
+                    "wasm32-unknown-unknown",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "render.antialias-cost",
         description: "Release CPU preparation/encoding and cache payload costs for 25-cell AA scenes",
         steps: &[Step {

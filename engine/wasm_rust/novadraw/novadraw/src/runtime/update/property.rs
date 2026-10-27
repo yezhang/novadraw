@@ -278,6 +278,10 @@ diagnostic_text_value!(
     StrokeStyle,
     ImageId,
     (Alignment, Alignment),
+    crate::figure::RectangleCorners,
+    crate::figure::RectangleEdges,
+    Vec<f64>,
+    [f64; 3],
 );
 
 impl<T> PropertyValueType for Option<T>
@@ -508,6 +512,14 @@ pub mod standard {
     /// Rounded rectangle corner dimensions.
     pub const CORNER_DIMENSIONS: PropertyKey<Dimension> =
         PropertyKey::new(super::FIGURE_NAMESPACE, "corner_dimensions");
+    pub const RECTANGLE_CORNERS: PropertyKey<Option<crate::figure::RectangleCorners>> =
+        PropertyKey::new(super::FIGURE_NAMESPACE, "rectangle_corners");
+    pub const RECTANGLE_EDGES: PropertyKey<crate::figure::RectangleEdges> =
+        PropertyKey::new(super::FIGURE_NAMESPACE, "rectangle_edges");
+    pub const POLYGON_CORNER_RADII: PropertyKey<Vec<f64>> =
+        PropertyKey::new(super::FIGURE_NAMESPACE, "polygon_corner_radii");
+    pub const TRIANGLE_CORNER_RADII: PropertyKey<[f64; 3]> =
+        PropertyKey::new(super::FIGURE_NAMESPACE, "triangle_corner_radii");
     /// Triangle direction diagnostic.
     pub const DIRECTION: PropertyKey<Direction> =
         PropertyKey::new(super::FIGURE_NAMESPACE, "direction");

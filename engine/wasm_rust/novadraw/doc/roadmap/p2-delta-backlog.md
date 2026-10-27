@@ -1119,3 +1119,21 @@ caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑�
 - `doc/design/editor/p2-direct-text-edit.md`
 - `doc/verification/plans/p2-text-direct-edit.md`
 - `doc/parity/gef/api-coverage.md`
+
+## P2-F03：逐角圆角与矩形分边描边
+
+2026-10-27 用户批准实施 [ADR-052](../adr/adr-052-independent-corners-and-edge-borders.md)。
+状态：`complete`（Core 实现、自动验证、macOS GPU 与可达产物测量完成）。
+
+Core 提供公开 `ShapeContour`、真实逐角半径、矩形逐边颜色和开关，以及原子的
+typed component updates。标题区结构留在 `composite-shapes-app` 独立样例，
+不进入 Core。旧圆角宽高和 `RectangleBorder` struct literal 保持兼容。
+
+十一组 macOS GPU 场景检查圆形/椭圆圆角、不等半径、半透明接缝及关闭底边，
+同时验证纯几何、外部 Figure、Border snapshot、同值与失败原子性。
+suite：`shape.independent-corners`；[实施证据](../verification/reviews/independent-shape-corners-2026-10-27.md)。
+Web、Windows、Linux 的实际像素验收仍属于平台发布准备，不由 macOS 结果外推。
+
+2026-10-27 自由端修订已获用户批准：相邻边关闭时采用 Butt 平齐截面，接角保持
+原有颜色分区。实现、16 种开关组合、native GPU 端点与最终门禁均已通过；
+见[自由端实施记录](../verification/reviews/shape-free-end-butt-2026-10-27.md)。

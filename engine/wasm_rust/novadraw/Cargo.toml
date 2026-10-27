@@ -16,6 +16,7 @@ members = [
   "examples/native/vello-app",
   "examples/native/winit-canvas-demo",
   "examples/native/shape-app",
+  "examples/native/composite-shapes-app",
   "examples/native/style-app",
   "examples/native/ndcanvas-app",
   "examples/native/transform-app",

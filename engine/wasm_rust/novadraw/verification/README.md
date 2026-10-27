@@ -15,6 +15,7 @@ cargo xtask verify <suite-id>
 
 | Suite | 覆盖范围 |
 |---|---|
+| `shape.independent-corners` | 逐角圆角、逐边颜色、旧 Shape/Border、共享边像素归属、独立样例与 WASM Core 编译；需本机 GPU |
 | `animation.tree` | 表现几何与容量预留、Tree 操作、Native GPU 中间帧及 retained-partial 像素；需要本机图形会话 |
 | `example.zoom-input` | 浮动面板输入归属、Zoom 滚动条按下/拖动/释放及缩放联动；无需窗口 |
 | `render.antialias` | 逐操作 AA 契约、Native Msaa16 像素、40 个 ShapeStyles 矩阵及 Web 编译；需本机 GPU |
