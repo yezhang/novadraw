@@ -1,0 +1,66 @@
+digraph TextPipeline {
+  graph [
+    rankdir=TB, bgcolor="#ffffff", pad=0.4, nodesep=0.55, ranksep=0.65,
+    fontname="PingFang SC", fontsize=26, labelloc=t,
+    label="Novadraw 文本渲染管线\n当前源码与 Cargo.lock 快照 · 2026-10-23",
+    compound=true
+  ];
+  node [
+    shape=box, style="rounded,filled", fillcolor="#ffffff", color="#bdc9c3",
+    fontname="PingFang SC", fontsize=20, fontcolor="#183029", penwidth=1.4,
+    margin="0.20,0.15"
+  ];
+  edge [color="#64776d", arrowsize=0.75, fontname="PingFang SC", fontsize=17, fontcolor="#45594d"];
+
+  input [label="输入、字体资源与生命周期\nRuntime / TextSystem / ResourceRegistry\n字体字节、face、revision、文字、样式与约束"];
+
+  subgraph cluster_layout {
+    label="CPU · 文本分析、选字与排版（自研字形渲染时可复用）";
+    color="#cbd5d0"; style="rounded"; fontsize=23; margin=22;
+    analysis [label="分析文本并选择字体\nSwash：字符属性、断行、cluster\nParley 内部：bidi 解析\nFontique：显式字体集合、匹配与 fallback"];
+    shaping [label="字形塑形 shaping\nHarfRust 0.3.2：GSUB / GPOS\n字符 → glyph ID、advance、offset、cluster\nread-fonts：字体表；font-types：基础值"];
+    layout [label="段落与行布局\nParley 0.7.0：换行、对齐、行与交互几何\nSkrifa 0.37.0：字体实例与指标\nNovadraw：定位字形与 TextLayout"];
+    external [label="可选：在录制前准备轮廓\nOutlineTextEngine / GlyphOutlineProvider\nSkrifa 0.44.0 或自研 provider → 中立 Quad / Cubic\nOutlineCache：共享曲线；GlyphInstance：每次位置"];
+    {rank=same; analysis; shaping; layout;}
+    analysis -> shaping [label="同字体的文本段"];
+    shaping -> layout [label="塑形后的 glyph"];
+    layout -> external [label="选择轮廓准备路径", style=dashed];
+  }
+  input -> analysis;
+
+  record [label="CPU · 稳定布局、录制与资源保活\nGraphics / MeasureContext / PaintContext / Canvas\n预检字体版本；冻结 paint、clip、transform、opacity\n定位字形不再重复 shaping 或累加 advance"];
+  layout -> record [label="不可变布局结果"];
+  external -> record [label="含轮廓的 TextLayout"];
+
+  subgraph cluster_geometry {
+    label="CPU · 字形表示与几何准备";
+    color="#cbd5d0"; style="rounded"; fontsize=23; margin=22;
+    native [label="默认字形命令\nDrawGlyphRun → SceneEncoder\nPeniko FontData：字体字节 + face\nVello Scene::draw_glyphs：定位、字号、变体、画刷"];
+    cache [label="Vello 原生单色轮廓与编码缓存\nvello_encoding::Resolver / GlyphCache\nSkrifa 0.44.0：轮廓、变体与可选 hinting\nread-fonts 0.41.0 / font-types 0.12.4：表读取\n输出缓存的矢量 Encoding，不是字形位图"];
+    paths [label="普通路径录制\nCore FillPath / StrokePath → Vello Scene\nKurbo：曲线、变换、描边和 dash\n后端直接 Skrifa：虚线文字描边的轮廓提取"];
+    color [label="彩色 / 位图字形分支\nSkrifa：COLR Paint 与 bitmap strike\nVello：彩色绘制操作；PNG：位图解码\nPeniko：画刷与图像；Guillotiere：图像 atlas"];
+    {rank=same; cache; color; paths;}
+    native -> cache [label="单色轮廓"];
+    native -> color [label="COLR / bitmap"];
+    native -> paths [label="虚线文字描边", style=dashed];
+  }
+  record -> native [label="默认", lhead=cluster_geometry];
+  record -> paths [label="已经准备的轮廓", style=dashed, lhead=cluster_geometry];
+
+  subgraph cluster_gpu {
+    label="GPU · 自研覆盖率算法主要替换的位置";
+    color="#19754e"; style="rounded"; penwidth=2.3; fontsize=23; margin=22;
+    raster [
+      color="#19754e", penwidth=2.5,
+      label="Vello 通用矢量计算管线\nvello_shaders：曲线 flatten → binning / tile → coarse → fine\n计算绕数、覆盖率、裁剪、画刷与有序合成\n当前文字：NonZero；hint(false)；后端 AaConfig::Msaa16\n可自研曲线预处理与覆盖率，保持图文执行顺序"
+    ];
+    wgpu [label="设备执行与输出纹理\nWGPU 29.0.4：buffer / texture / compute / queue\nwgpu-core：验证与调度；wgpu-hal：平台 GPU 后端\nNaga：shader 处理；图像与渐变仍参与同一合成"];
+    raster -> wgpu;
+  }
+  cache -> raster [label="矢量编码", lhead=cluster_gpu];
+  paths -> raster [label="矢量编码", lhead=cluster_gpu];
+  color -> raster [label="图形操作 / 图像", lhead=cluster_gpu];
+
+  finish [label="宿主输出与帧结果确认\nVello renderer → 输出纹理 / surface / 离屏目标\nNative：Winit；Web：DOM / web-sys；字体不是 Canvas fillText\nRuntime：匹配 session / frame，确认、重试或恢复"];
+  wgpu -> finish;
+}
