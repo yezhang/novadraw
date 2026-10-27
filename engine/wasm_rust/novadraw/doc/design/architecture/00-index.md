@@ -42,7 +42,9 @@
 | [official-example-capability-increment-2026-10-26.md](official-example-capability-increment-2026-10-26.md) | 现有能力内的样例修正；方向上下文、Cocoa 零宽映射、低 miter 和通用下划线已批准实施 |
 | [shared-scene-view-background-proposal.md](shared-scene-view-background-proposal.md) | K07 修订 3 已批准，ADR-044/045 接受：保守结构依赖、Runtime 提交点版本校验、独立捕获与宿主背景统一提交；功能验收按切片推进 |
 | [text-layout.md](text-layout.md) | Text Layout、Label 与标题边框 |
-| [textflow-performance-proposal-2026-10-23.md](textflow-performance-proposal-2026-10-23.md) | 待评审性能提案：字体初始化、片段索引、段落缓存、共享布局数据、可见行绘制与后台重排 |
+| [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
+| [long-text-incremental-layout-proposal.md](long-text-incremental-layout-proposal.md) | 待评审：基于第四轮测量与 Lapce／Xi 的 source delta、分阶段排版、安全巨段增量及可见输出细化 |
+| [long-text-native-coverage-boundary.md](long-text-native-coverage-boundary.md) | 原生字形、数值转换与设备覆盖的定向核验；生产证书合同待复核 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |
 | [tooltip-accessibility.md](tooltip-accessibility.md) | Tooltip 与 Accessibility Bridge |
 
