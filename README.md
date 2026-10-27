@@ -1,31 +1,37 @@
 # Novadraw
 
-Novadraw 是一个使用 Rust 构建的跨平台二维 Figure 运行时与图形编辑框架。它提供
-轻量 Figure、布局、连接、事件和模型驱动编辑能力，并将核心运行时、编辑框架、
-平台适配与渲染后端拆成可独立组合的边界。
+**English** | [简体中文](README.zh-CN.md)
 
-> **项目状态：积极开发中。** 当前工作区版本为 `0.1.0`，公共 API 尚未承诺
-> 1.0 兼容性。现阶段项目以源码工作区交付，请以仓库内的文档、示例和验证套件为准。
+Novadraw is a cross-platform 2D Figure runtime and graphical editing framework built in Rust.
+It provides lightweight Figures, layout, connections, events, and model-driven editing, with
+independently composable boundaries for the core runtime, editor framework, platform adapters,
+and rendering backends.
 
-## 特性
+> **Project status: actively developed.** The current workspace version is `0.1.0`, and the
+> public API does not yet carry a 1.0 compatibility guarantee. The project is currently
+> distributed as a source workspace; refer to the in-repository documentation, examples, and
+> verification suites for the latest supported behavior.
 
-- 轻量 Figure 树、代际节点身份、Z-order 与统一盒模型；
-- 布局、坐标变换、裁剪、增量失效与 damage repair；
-- Pointer、键盘、焦点、capture、tooltip 与 accessibility 快照；
-- Viewport、滚动、缩放、连接锚点、路由与装饰；
-- 文本、图像、边框、常用 Figure 与动画表现层；
-- 模型驱动的 Editor：选择、工具、请求、策略、命令和撤销重做；
-- 后端无关的渲染提交协议，以及 Vello、Winit 和 Web 适配包；
-- Headless 契约测试、Native/Web 示例和分层验证套件。
+## Features
 
-完整能力与验证状态见
-[产品交付清单](engine/wasm_rust/novadraw/doc/roadmap/product-deliverables.md)和
-[平台支持矩阵](engine/wasm_rust/novadraw/doc/roadmap/platform-support-matrix.md)。
+- Lightweight Figure trees, generational node identities, Z-ordering, and a unified box model
+- Layout, coordinate transforms, clipping, incremental invalidation, and damage repair
+- Pointer and keyboard input, focus, capture, tooltips, and accessibility snapshots
+- Viewports, scrolling, zooming, connection anchors, routing, and decorations
+- Text, images, borders, common Figures, and an animated presentation layer
+- A model-driven editor with selections, tools, requests, policies, commands, undo, and redo
+- A backend-independent render submission protocol with Vello, Winit, and Web adapters
+- Headless contract tests, Native/Web examples, and layered verification suites
 
-## 快速开始
+See the [product deliverables](engine/wasm_rust/novadraw/doc/roadmap/product-deliverables.md)
+and [platform support matrix](engine/wasm_rust/novadraw/doc/roadmap/platform-support-matrix.md)
+for the complete capability and verification status.
 
-需要支持 Rust 2024 edition 的稳定工具链。运行 Native 示例还需要当前平台可用的
-图形驱动；已验证的平台范围以平台支持矩阵为准。
+## Quick Start
+
+A stable toolchain with Rust 2024 edition support is required. Running Native examples also
+requires a compatible graphics driver for the host platform; consult the platform support
+matrix for the verified platform scope.
 
 ```bash
 git clone https://github.com/yezhang/novadraw.git
@@ -35,7 +41,7 @@ cargo check -p novadraw --lib
 cargo run -p shape-app
 ```
 
-最小 Core 用法：
+Minimal Core usage:
 
 ```rust
 use novadraw::figure::RectangleFigure;
@@ -56,20 +62,21 @@ assert_eq!(
 );
 ```
 
-更多可运行场景见[示例目录](engine/wasm_rust/novadraw/examples/README.md)。
+See the [examples directory](engine/wasm_rust/novadraw/examples/README.md) for more runnable
+scenarios.
 
-## 架构
+## Architecture
 
 ```mermaid
 flowchart TD
-    App[应用模型与产品逻辑]
-    Editor[novadraw-editor<br/>可选的模型驱动编辑框架]
+    App[Application models and product logic]
+    Editor[novadraw-editor<br/>Optional model-driven editing framework]
     Core[novadraw<br/>Figure / Runtime / Layout / Input]
     Submission[RenderSubmission]
-    Backend[novadraw-backend-vello<br/>可替换渲染后端]
+    Backend[novadraw-backend-vello<br/>Replaceable rendering backend]
     Winit[novadraw-platform-winit]
     Web[novadraw-platform-web]
-    Host[窗口、Canvas、输入法与平台服务]
+    Host[Window / Canvas / IME / Platform services]
 
     App --> Editor
     App --> Core
@@ -82,43 +89,46 @@ flowchart TD
     Backend --> Host
 ```
 
-Core 不依赖窗口系统或具体 GPU 后端；Editor 也不是使用 Figure 树的前置条件。
-平台适配器负责规范化输入和宿主生命周期，渲染后端只消费稳定的提交包。
+Core does not depend on a window system or a specific GPU backend, and the Editor is optional
+for applications that only need a Figure tree. Platform adapters normalize input and host
+lifecycle events, while rendering backends consume only stable submission packages.
 
-顶层 `client/` 与 `engine/` 来自早期仓库结构，不代表当前运行时必须采用
-“主线程 Client + Web Worker Engine”。Web Worker 是 Web 宿主可选择的部署策略，
-不是 Core/Platform/Backend 分层成立的原因。详细说明见
-[仓库结构与线程边界](docs/repository-layout.md)。
+The top-level `client/` and `engine/` directories are retained from an earlier repository
+layout. They do not imply that the current runtime must use a "main-thread Client + Web Worker
+Engine" deployment. A Web Worker is an optional Web hosting strategy, not the basis of the
+Core/Platform/Backend boundaries. See
+[repository layout and threading boundaries](docs/repository-layout.md) for details.
 
-## 工作区
+## Workspace
 
-当前有效的 Rust workspace 位于 `engine/wasm_rust/novadraw/`。
+The active Rust workspace is located at `engine/wasm_rust/novadraw/`.
 
-| Package | 职责 |
+| Package | Responsibility |
 |---|---|
-| `novadraw` | 平台无关的 Figure、Runtime、布局、输入、连接与渲染协议 |
-| `novadraw-editor` | 模型驱动的图形编辑框架 |
-| `novadraw-inspector` | 只读诊断与运行时观测 |
-| `novadraw-backend-vello` | Native/Web Vello 渲染后端 |
-| `novadraw-platform-winit` | macOS、Windows、Linux 宿主适配 |
-| `novadraw-platform-web` | 浏览器输入、文本编辑与资源桥接 |
+| `novadraw` | Platform-independent Figures, Runtime, layout, input, connections, and rendering protocol |
+| `novadraw-editor` | Model-driven graphical editing framework |
+| `novadraw-inspector` | Read-only diagnostics and runtime observation |
+| `novadraw-backend-vello` | Native/Web Vello rendering backend |
+| `novadraw-platform-winit` | macOS, Windows, and Linux host adapter |
+| `novadraw-platform-web` | Browser input, text editing, and resource bridge |
 
-## 文档
+## Documentation
 
-| 读者或目的 | 入口 |
+| Audience or purpose | Entry point |
 |---|---|
-| 应用开发与扩展 | [《Novadraw 应用开发与扩展指南》](engine/wasm_rust/novadraw/book/user/src/README.md) |
-| 原理、模型与算法 | [《深入理解 Novadraw》](engine/wasm_rust/novadraw/book/internals/src/README.md) |
-| 参与项目开发 | [《Novadraw 贡献者指南》](engine/wasm_rust/novadraw/book/contributor/src/README.md) |
-| 规范、ADR、路线图与验证证据 | [工程文档入口](engine/wasm_rust/novadraw/doc/00-index.md) |
-| 仓库历史与目录边界 | [根文档入口](docs/README.md) |
+| Application development and extension | [Novadraw Application Development and Extension Guide](engine/wasm_rust/novadraw/book/user/src/README.md) |
+| Principles, models, and algorithms | [Understanding Novadraw](engine/wasm_rust/novadraw/book/internals/src/README.md) |
+| Contributing to the project | [Novadraw Contributor Guide](engine/wasm_rust/novadraw/book/contributor/src/README.md) |
+| Specifications, ADRs, roadmaps, and verification evidence | [Engineering documentation](engine/wasm_rust/novadraw/doc/00-index.md) |
+| Repository history and directory boundaries | [Root documentation index](docs/README.md) |
 
-规范性设计、当前状态和历史材料具有不同事实层级。修改架构前请先阅读工程文档入口，
-不要从归档方案、旧实验目录或单个示例反推现行契约。
+Normative designs, current status documents, and historical material carry different levels of
+authority. Read the engineering documentation index before changing the architecture; do not
+infer current contracts from archived proposals, old experiments, or individual examples.
 
-## 开发与验证
+## Development and Verification
 
-在 Rust workspace 目录执行：
+Run the following commands from the Rust workspace directory:
 
 ```bash
 cargo fmt --all -- --check
@@ -127,29 +137,31 @@ cargo clippy --workspace -- -D warnings
 cargo test --workspace
 ```
 
-跨工具验证套件通过以下命令发现和运行：
+Discover and run cross-tool verification suites with:
 
 ```bash
 cargo xtask list
 cargo xtask verify <suite-id>
 ```
 
-纯文档修改至少运行：
+For documentation-only changes, run at least:
 
 ```bash
 cargo xtask docs
 git diff --check
 ```
 
-## 贡献
+## Contributing
 
-提交 Issue 或 Pull Request 前，请先阅读
-[贡献工作流](engine/wasm_rust/novadraw/book/contributor/src/01-contribution-workflow.md)。
-项目要求行为契约、状态所有权和失败模型先于实现细节；共享协议变化需要相应的负向
-测试和验证证据。
+Before opening an Issue or Pull Request, read the
+[contribution workflow](engine/wasm_rust/novadraw/book/contributor/src/01-contribution-workflow.md).
+The project requires behavioral contracts, state ownership, and failure models to be defined
+before implementation details. Changes to shared protocols require corresponding negative tests
+and verification evidence.
 
-## 许可
+## License
 
-仓库中的第三方参考材料保留其各自版权和许可证。
+Third-party reference materials in this repository retain their respective copyrights and
+licenses.
 
-Novadraw 自有代码使用 [MIT License](LICENSE)。
+Novadraw's original code is licensed under the [MIT License](LICENSE).
