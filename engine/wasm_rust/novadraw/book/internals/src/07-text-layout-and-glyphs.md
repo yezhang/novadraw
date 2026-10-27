@@ -17,8 +17,15 @@
 `FontMetrics` 的下划线指标来自已解析字体实例，包含 size 与 normalized coordinates。
 `FontDecorationMetrics` 保存 Canvas 向下为正的 baseline offset 和线宽；缺少字体数据时，
 `underline()` 返回 `FontMetricsUnsupported`，不能用固定像素值冒充字体指标。默认引擎与
-外部引擎共用这一受检值。单行文字可将范围的水平几何与 baseline、offset、thickness
-组合绘制；混合字体的多段文字还需要逐段选择实际字体，本能力不替代该排版步骤。
+外部引擎共用这一受检值。`MeasureContext::prepare_underlines` 把逻辑范围与
+`StyledTextLayout` 结合，按行、bidi run 和实际 fallback 字体拆分片段。
+引擎的 `resolved_font_metrics` 必须返回与 glyph run 的 face、revision、variation
+和 size 完全匹配的指标；`StyledGlyphRun.baseline` 提供实际基线。
+`StyledGlyphRun.bounds` 保存实际 advance 范围。准备阶段对每个逻辑范围查询一次选择
+几何，按行合并重叠区间，再与 run 范围相交，避免镜像边界产生重复片段。
+`PreparedTextUnderlines` 保存不可变片段、字体指标与 layout revision，
+绘制直接调用 Graphics 的 `fill_underlines`。范围端点须位于可见 grapheme 边界。
+这套机制供内置与外部消费者共同使用，TextFlow 没有专属装饰绘制通道。
 
 一次排版至少需要四类输入：
 
@@ -193,6 +200,16 @@ glyph layout position
 
 glyph 的墨迹可以伸出 advance box，例如斜体、重音和部分书写系统。布局不能用 ink
 bounds 代替 advance，damage 也不能只使用布局盒而漏掉外伸墨迹。
+
+下划线的 `ink_bounds()` 单独描述装饰外伸范围，不改变 TextLayout 的逻辑高度。
+Figure 在准备时将它与文字及其他绘制范围合并，提交同一 FigurePresentation；
+字体或宽度变化使旧快照失效，既有 damage 流程擦除旧范围并绘制新范围。
+PathExample 已消费此协议，跨字体、换行、RTL 及移除后的离屏像素回归有自动证据。
+
+普通 Figure 的 `LayoutDirection` 可以继承或局部覆盖，并进入 StyledTextRequest
+的版本。镜像排版移动行内片段，保留片段内部的字形朝向；
+glyph、caret、selection 和 hit testing 使用同一位置映射。
+它独立于 ParagraphDirection，也独立于几何 Affine2D。
 
 ## 7.8 TextFlow 的段落与交互映射
 

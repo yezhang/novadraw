@@ -413,6 +413,11 @@ Render IR、Vello lowering、失败语义和离屏/WebGPU 像素证据已经完�
 替代，因此 P2-G01 的 surface 验收仍是未完成项。本章的提交协议与后端边界已经成立，
 “所有平台 surface 路径都已闭环”则还不能这样表述。
 
+StrokeStyle 接受有限非负 miter limit，保存原始值。Miter 且 limit 小于 1 时，
+`effective_join()` 返回 Bevel；普通与 AA OFF 后端、visual outset 和 damage
+共用此规则。Core 逻辑宽度 0 仍不绘制。ShapeStyles 的 Cocoa profile 将样例输入
+0 映射为 1 逻辑单位和 ZERO dash 数组，这不代表一个设备像素的通用 hairline。
+
 ## 8.14 部分重绘与完整场景
 
 damage 可以限制需要修复的区域，但命令生成仍应保持完整场景语义。实现可以裁剪遍历，

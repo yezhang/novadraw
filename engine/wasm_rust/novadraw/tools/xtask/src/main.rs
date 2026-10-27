@@ -19,6 +19,154 @@ struct Suite {
 
 const SUITES: &[Suite] = &[
     Suite {
+        id: "render.low-miter",
+        description: "Low miter values, Cocoa zero-width sample and ON/OFF bevel pixels",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &["test", "-p", "novadraw", "--test", "p2_graphics_contract"],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "shape_styles",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "low_miter_pixels_equal",
+                    "--",
+                    "--ignored",
+                ],
+            },
+        ],
+    },
+    Suite {
+        id: "text.underlines",
+        description: "Actual resolved font underline fragments, external consumers and retained pixels",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_text_underline_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "font_decoration_image_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "path_example",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "underline_resize_and_replace",
+                    "--",
+                    "--ignored",
+                ],
+            },
+        ],
+    },
+    Suite {
+        id: "text.layout-direction",
+        description: "Inherited direction, styled text, flow interaction and shared Bidi panes",
+        steps: &[
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_inherited_direction_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_t03_styled_text_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_t03_structured_flow_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "p2_t03_external_flow_engine",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "bidi_block",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--lib",
+                    "bidi_direction_mutation_partial",
+                    "--",
+                    "--ignored",
+                ],
+            },
+        ],
+    },
+    Suite {
         id: "render.antialias",
         description: "Per-operation AA public contracts, Native Msaa16 pixels and ShapeStyles axes",
         steps: &[

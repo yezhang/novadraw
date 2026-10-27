@@ -104,6 +104,8 @@
 | 2026-10-26 | [官方样例剩余能力](draw2d-official-examples-remaining-audit-2026-10-26.md) |
 | 2026-10-26 | [逐操作 AA 可行性实验](shape-aa-feasibility-2026-10-26.md) |
 | 2026-10-26 | [逐操作 AA 实施与成本](per-operation-antialias-implementation-2026-10-26.md) |
+| 2026-10-26 | [官方样例能力补充实施](official-example-capability-increment-2026-10-26.md) |
+| 2026-10-27 | [官方样例 Core 增量实施](official-example-core-increment-2026-10-27.md) |
 
 ## 平台与产品验收
 

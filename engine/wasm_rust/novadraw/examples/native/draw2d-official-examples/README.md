@@ -26,11 +26,32 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 `--list` 的首列是同一序号，后续列给出状态、ID、原始类名和上游源码路径。
 截图继续使用原始场景名；数字截图参数仍是运行列表中从 0 开始的索引。
 
+2026-10-27 BidiBlock 已通过通用 `FigureStyle.layout_direction` 给右侧 Canvas
+提供镜像上下文。排版片段、caret 与选择几何同步换位，字形保持正常朝向；
+纵向滚动条换侧，两侧继续共享纵向 RangeModel。
+`cargo xtask verify text.layout-direction` 覆盖文字契约和方向/resize 的 GPU
+Partial/Full 比较。上游与跨平台呈现仍须分别验收，入口计数暂不调整。
+
 ShapeStyles 已接入 8 个原始参数轴、5 种图形及真实控制面板，图形
-ON/OFF/DEFAULT 使用公开 Graphics API。宽度 0 和 miter < 1 显示不支持；
-部分图形几何仍为近似，入口保留 `in_progress`；启用后目录为
-16 个 complete、9 个 in_progress、0 个 blocked。验证入口：
+ON/OFF/DEFAULT 使用公开 Graphics API。低 miter 保留输入并按 Bevel 退化；
+零宽明确采用 Cocoa profile，映射为 1 逻辑单位与上游 ZERO dash 数组，
+控制面板说明该映射，不代表通用设备 hairline。
+Rectangle/Ellipse 已按官方整数边界绘制，圆角使用圆弧，Triangle 使用官方 NORTH
+布局；disabled 图形绘制偏移浅色层和原位深色层，采用便携白/灰配色。
+完整上游栅格、系统主题与特殊描边仍待验收，入口保留 `in_progress`。验证入口：
 `cargo xtask verify render.antialias`，其中包含 40 个离屏 GPU 矩阵场景及旧区域清理。
+`cargo xtask verify render.low-miter` 覆盖受检状态与 ON/OFF 开闭反向描边像素。
+
+Path 的范围下划线通过 `MeasureContext::prepare_underlines` 准备，
+按实际 fallback 字体、字号、行与 bidi run 拆分，再由公开 Graphics 绘制。
+`cargo xtask verify text.underlines` 覆盖混合字体、组合字符、资源替换及
+收缩、恢复和移除后的 GPU Partial/Full 一致性。
+
+HelloWorld 使用已有 StackLayout，文字区域随 Canvas 收缩、放大和恢复。
+UML 便笺使用独立 DogEar Border，填充折角为 6 单位，描边折角为 5 单位，
+描边外框宽高减 1。现有能力内的修正与后续 Core 门禁见
+[能力补充方案](../../../doc/design/architecture/official-example-capability-increment-2026-10-26.md)
+和[实施记录](../../../doc/verification/reviews/official-example-capability-increment-2026-10-26.md)。
 
 TreeExample 的 Use Animation 默认关闭。单击标题会选中节点，并启用 Selected Node
 控件；双击有子节点的标题可立即展开/折叠；
@@ -106,8 +127,8 @@ cargo run -p draw2d-official-examples --example zoom_verification
 ```
 
 Path 已接入旋转闭合路径、选字 clip 和两次文字绘制；最小/最大缩放使用同一
-ScrollBar 的真实按钮输入验证。SchemeBorder 和字体指标下划线仍待 K08，
-入口状态保留 `in_progress`。
+ScrollBar 的真实按钮输入验证。SchemeBorder 和字体指标下划线已完成，
+入口状态为 `complete`；跨字体段下划线已按 ADR-050 接入通用准备与绘制协议。
 
 ```sh
 cargo test -p draw2d-official-examples --lib path_example

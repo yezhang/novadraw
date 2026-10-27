@@ -69,6 +69,24 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-26 按用户要求先分析、再补官方样例能力，形成
+[能力补充方案](../design/architecture/official-example-capability-increment-2026-10-26.md)。
+现有 K02/K08 契约内先实施 HelloWorld resize、UML DogEar 与 ShapeStyles 几何修正；
+验证结果见 [实施记录](../verification/reviews/official-example-capability-increment-2026-10-26.md)。
+2026-10-27 用户批准方向上下文、低 miter、Cocoa 零宽映射和通用下划线。
+方向切片按 [ADR-048](../adr/adr-048-inherited-layout-direction.md)已通过定向
+测试与 Core 严格 Clippy，含方向/resize 的 GPU Partial/Full 比较；
+K08 低 miter 与 Cocoa 零宽映射已按 [ADR-049](../adr/adr-049-low-miter-and-cocoa-sample-profile.md)
+接入两条后端并通过 GPU Bevel 对比；通用下划线按
+[ADR-050](../adr/adr-050-prepared-text-underlines.md)完成实际字体/run 准备、公开绘制
+和局部擦除回归。本批最终门禁与产物成本已完成：
+workspace 1,516 项测试通过，严格 Clippy、Native/Wasm API、三本书和 GPU 复核通过。
+完整记录见 [本批 Core 增量](../verification/reviews/official-example-core-increment-2026-10-27.md)；
+下划线准备 P95 为 0.207–0.349 ms；同配置 Core 探针启用后的 Wasm gzip 增加 18,690 字节。
+通用设备 hairline 保持独立 Design/Gate。
+SWT Cocoa/GTK 的零宽处理不等于统一设备 hairline。
+本批不变更入口完成计数，不覆盖此前快照，也不启动第二个 Core 实施切片。
+
 2026-10-19 按用户批准的
 [官方示例 Core 计划](../verification/plans/draw2d-official-examples-core-plan.md)
 按用户最新要求只推进 25 个入口中的 Canvas / LightweightSystem 能力。

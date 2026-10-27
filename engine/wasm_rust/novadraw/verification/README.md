@@ -18,6 +18,9 @@ cargo xtask verify <suite-id>
 | `animation.tree` | 表现几何与容量预留、Tree 操作、Native GPU 中间帧及 retained-partial 像素；需要本机图形会话 |
 | `example.zoom-input` | 浮动面板输入归属、Zoom 滚动条按下/拖动/释放及缩放联动；无需窗口 |
 | `render.antialias` | 逐操作 AA 契约、Native Msaa16 像素、40 个 ShapeStyles 矩阵及 Web 编译；需本机 GPU |
+| `text.layout-direction` | 继承方向、styled/structured flow、外部文字引擎、Bidi 共享滚动与 resize；含本机 GPU Partial/Full 验证 |
+| `render.low-miter` | 低 miter、Cocoa 样例零宽映射与 AA ON/OFF 开闭反向路径像素；需本机 GPU |
+| `text.underlines` | 实际字体下划线、外部引擎、Path 消费者与 resize/替换的局部像素；需本机 GPU |
 | `render.antialias-cost` | 25 单元 release 准备/编码、GPU 等待、输出及缓存成本；需本机 GPU |
 | `core.query-contracts` | Query identity、数值失败与恢复 |
 | `core.facade` | 公开 API、依赖、热路径和 backend feature |
