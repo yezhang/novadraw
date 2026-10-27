@@ -119,7 +119,7 @@ impl DemoApp {
     ) -> Self {
         let default_scene = screenshot_mode
             .filter(|mode| *mode != usize::MAX)
-            .unwrap_or_else(|| if screenshot_mode.is_some() { 0 } else { 4 });
+            .unwrap_or(0);
         Self {
             #[cfg(feature = "egui-panel")]
             panel_scenes: Vec::new(),

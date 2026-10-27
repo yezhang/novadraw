@@ -217,10 +217,14 @@ pub fn catalog() -> Vec<OfficialExample> {
             ],
             examples::shape_styles_example,
         ),
-        OfficialExample::complete(
+        OfficialExample::in_progress(
             "bidi-block",
             "BidiBlockExample",
             "org/eclipse/draw2d/examples/text/BidiBlockExample.java",
+            &[
+                "Independent ten-block flow trees and shared vertical range are implemented",
+                "Inherited Canvas mirroring, caret and alignment are implemented; upstream raster and cross-platform presentation still require acceptance",
+            ],
             examples::bidi_block_example,
         ),
         OfficialExample::complete(
@@ -373,7 +377,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            17
+            16
         );
 
         let mut ids = BTreeSet::new();

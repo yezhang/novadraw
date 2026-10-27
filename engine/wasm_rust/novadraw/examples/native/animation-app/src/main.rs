@@ -755,6 +755,7 @@ fn verify_dashed_arrow_flow() -> Result<VerificationMetrics, String> {
         .iter()
         .find_map(|command| match &command.kind {
             RenderCommandKind::StrokePath {
+                antialias: _,
                 path,
                 paint: Paint::Solid(color),
                 stroke,
