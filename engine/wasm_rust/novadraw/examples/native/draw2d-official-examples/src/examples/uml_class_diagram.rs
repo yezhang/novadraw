@@ -7,7 +7,7 @@ use novadraw::{
         CONTAINER, ChildClippingStrategy, ContainerCapability, Figure, FigureCapabilityBuilder,
         FigureCapabilityRegistrationError, FigureContainer, FigureStyle, FlowPage,
         InlineTextFragment, LabelFigure, TextFlowFigure,
-        border::{LineBorder, MarginBorder},
+        border::{Border, LineBorder, MarginBorder},
     },
     geometry::{Dimension, Insets, Point, PointList, Rectangle},
     graphics::{Color, GraphicsError, PaintContext, Path},
@@ -28,6 +28,10 @@ const STICKY_WIDTH: f64 = 90.0;
 const STICKY_HEIGHT: f64 = 90.0;
 const CLASS_FILL: Color = Color::rgba(242.0 / 255.0, 240.0 / 255.0, 1.0, 1.0);
 const STICKY_FILL: Color = Color::rgba(1.0, 1.0, 225.0 / 255.0, 1.0);
+const STICKY_FILL_FOLD: f64 = 6.0;
+const STICKY_BORDER_FOLD: f64 = 5.0;
+const STICKY_BORDER_WIDTH: f64 = 1.0;
+const STICKY_INSET: f64 = 3.0;
 
 struct UmlClassFigure {
     bounds: Rectangle,
@@ -149,11 +153,57 @@ impl FigureContainer for CompartmentFigure {
 
 struct StickyNote {
     bounds: Rectangle,
+    border: DogEar,
 }
 
 impl StickyNote {
     fn new(bounds: Rectangle) -> Self {
-        Self { bounds }
+        Self {
+            bounds,
+            border: DogEar,
+        }
+    }
+}
+
+/// Ordinary external Border, following the upstream DogEar paint rectangle.
+struct DogEar;
+
+impl Border for DogEar {
+    fn get_insets(&self) -> Insets {
+        Insets::uniform(STICKY_INSET)
+    }
+
+    fn paint(
+        &self,
+        bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        let right = bounds.x + bounds.width - STICKY_BORDER_WIDTH;
+        let bottom = bounds.y + bounds.height - STICKY_BORDER_WIDTH;
+        let fold = STICKY_BORDER_FOLD;
+        let mut ear = Path::new();
+        ear.move_to(right - fold, bounds.y + fold);
+        ear.line_to(right, bounds.y + fold);
+        ear.line_to(right - fold, bounds.y);
+        ear.close();
+        context.set_stroke_paint(Color::BLACK);
+        context.set_stroke_width(STICKY_BORDER_WIDTH)?;
+        context.stroke_path(&ear)?;
+        for (start, end) in [
+            (
+                Point::new(bounds.x, bounds.y),
+                Point::new(right - fold, bounds.y),
+            ),
+            (Point::new(bounds.x, bottom), Point::new(right, bottom)),
+            (
+                Point::new(right, bounds.y + fold),
+                Point::new(right, bottom),
+            ),
+            (Point::new(bounds.x, bounds.y), Point::new(bounds.x, bottom)),
+        ] {
+            context.stroke_line(start, end)?;
+        }
+        Ok(())
     }
 }
 
@@ -167,7 +217,11 @@ impl Figure for StickyNote {
     }
 
     fn initial_insets(&self) -> Insets {
-        Insets::uniform(3.0)
+        self.border.get_insets()
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Some(&self.border)
     }
 
     fn intrinsic_size(&self) -> Dimension {
@@ -179,7 +233,7 @@ impl Figure for StickyNote {
         context: &mut PaintContext<'_>,
         bounds: Rectangle,
     ) -> Result<(), GraphicsError> {
-        let fold = 6.0;
+        let fold = STICKY_FILL_FOLD;
         let points = [
             Point::new(0.0, 0.0),
             Point::new(bounds.width - fold, 0.0),
@@ -194,18 +248,7 @@ impl Figure for StickyNote {
         }
         path.close();
         context.set_fill_paint(STICKY_FILL);
-        context.fill_path(&path)?;
-        context.set_stroke_paint(Color::BLACK);
-        context.set_stroke_width(1.0)?;
-        context.stroke_path(&path)?;
-        context.stroke_line(
-            Point::new(bounds.width - fold, 0.0),
-            Point::new(bounds.width - fold, fold),
-        )?;
-        context.stroke_line(
-            Point::new(bounds.width - fold, fold),
-            Point::new(bounds.width, fold),
-        )
+        context.fill_path(&path)
     }
 
     fn register_capabilities(
@@ -523,6 +566,72 @@ fn add_label(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dogear_border_has_independent_five_unit_fold_and_inset_outline() {
+        use novadraw::{
+            graphics::PathOp,
+            render::{BackendCapabilities, RenderCommandKind, SurfaceInfo},
+        };
+        let mut runtime = runtime_with_fonts();
+        runtime
+            .set_contents(Box::new(StickyNote::new(Rectangle::new(
+                0.0, 0.0, 90.0, 40.0,
+            ))))
+            .unwrap();
+        let submission = runtime
+            .frames()
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: 90.0,
+                    logical_height: 40.0,
+                    pixel_width: 90,
+                    pixel_height: 40,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .into_ready()
+            .unwrap();
+        let paths = submission
+            .commands
+            .iter()
+            .filter_map(|command| match &command.kind {
+                RenderCommandKind::FillPath { path, .. }
+                | RenderCommandKind::StrokePath { path, .. } => Some(path.operations()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(paths.len(), 2);
+        assert_eq!(paths[0][1], PathOp::LineTo(Point::new(84.0, 0.0)));
+        assert_eq!(paths[0][2], PathOp::LineTo(Point::new(90.0, 6.0)));
+        assert_eq!(
+            paths[1],
+            &[
+                PathOp::MoveTo(Point::new(84.0, 5.0)),
+                PathOp::LineTo(Point::new(89.0, 5.0)),
+                PathOp::LineTo(Point::new(84.0, 0.0)),
+                PathOp::Close,
+            ]
+        );
+        let lines = submission
+            .commands
+            .iter()
+            .filter_map(|command| match &command.kind {
+                RenderCommandKind::Line { p1, p2, .. } => Some((*p1, *p2)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            lines,
+            [
+                (Point::new(0.0, 0.0), Point::new(84.0, 0.0)),
+                (Point::new(0.0, 39.0), Point::new(89.0, 39.0)),
+                (Point::new(89.0, 5.0), Point::new(89.0, 39.0)),
+                (Point::new(0.0, 0.0), Point::new(0.0, 39.0)),
+            ]
+        );
+    }
 
     #[test]
     fn sticky_note_height_is_measured_from_its_width() {

@@ -2,6 +2,7 @@ use novadraw::{
     figure::{FigureStyle, LabelFigure, RectangleFigure},
     geometry::Rectangle,
     graphics::Color,
+    layout::StackLayout,
     runtime::Runtime,
 };
 
@@ -21,6 +22,11 @@ pub fn hello_world() -> Runtime {
             Color::WHITE,
         )))
         .expect("HelloWorld root");
+    runtime
+        .figure(root)
+        .expect("HelloWorld root")
+        .set_layout_manager(Box::new(StackLayout::new()))
+        .expect("HelloWorld fills the Canvas");
     let label = runtime
         .figure(root)
         .expect("HelloWorld root")
@@ -59,5 +65,24 @@ mod tests {
             runtime.tree().figure_bounds(children[0]),
             Ok(Rectangle::new(0.0, 0.0, WIDTH, HEIGHT))
         );
+    }
+
+    #[test]
+    fn label_fills_the_canvas_after_shrink_grow_and_restore() {
+        let mut runtime = hello_world();
+        let root = runtime.tree().contents().unwrap();
+        let label = runtime.tree().child_order(root).unwrap()[0];
+        for (width, height) in [(80.0, 40.0), (420.0, 240.0), (WIDTH, HEIGHT)] {
+            runtime
+                .figure(root)
+                .unwrap()
+                .set_bounds(Rectangle::new(0.0, 0.0, width, height))
+                .unwrap();
+            runtime.frames().stabilize_for_query().unwrap();
+            assert_eq!(
+                runtime.tree().figure_bounds(label).unwrap(),
+                Rectangle::new(0.0, 0.0, width, height)
+            );
+        }
     }
 }
