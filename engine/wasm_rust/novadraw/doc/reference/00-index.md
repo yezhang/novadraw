@@ -6,6 +6,8 @@
 
 - [`draw2d/`](draw2d/00-index.md)：Figure、布局、渲染、更新与架构公理
 - [`gef/`](gef/00-index.md)：GEF 控制器、策略与命令体系
+- [`graphite/`](graphite/00-index.md)：基于 Vello GPU 路径的开源 2D 图形工具参考
+- [`xi-editor/`](xi-editor/00-index.md)：Rope Science 与文本编辑器内部机制参考
 - [SWT GC macOS](swt/gc-macos.md)：平台绘图实现
 - [Zed 响应式机制](zed/reactive-design.md)：通知与订阅生命周期
 - [字形轮廓存储与填充规范](fonts/glyph-outline-storage-conventions.md)：TrueType 与
