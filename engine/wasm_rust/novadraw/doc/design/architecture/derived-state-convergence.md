@@ -126,6 +126,10 @@ Viewport 的 view/scale 投影变化在相同有效 viewport chain 内不得反�
 route。Connection 的 route-derived bounds 不得反向成为 owner layout 的 intrinsic
 contribution。Anchor/Locator 的结构依赖环继续在注册或计算时拒绝。
 
+Connection capability 的 bounds 由 points 决定；父 LayoutOutput 对该 child 的
+Bounds placement 不得覆盖它。带 UpdateManager 和不带 UpdateManager 的布局提交
+遵循同一规则，普通 child placement 与 Connection 的其他 layout effects 仍照常提交。
+
 每类 work item 至少包含：
 
 ```text
