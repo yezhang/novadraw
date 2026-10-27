@@ -325,7 +325,7 @@ fn vello_stroke(style: &StrokeStyle, scale: f64) -> Stroke {
             LineCap::Round => Cap::Round,
             LineCap::Square => Cap::Square,
         })
-        .with_join(match style.join() {
+        .with_join(match style.effective_join() {
             LineJoin::Miter => Join::Miter,
             LineJoin::Round => Join::Round,
             LineJoin::Bevel => Join::Bevel,

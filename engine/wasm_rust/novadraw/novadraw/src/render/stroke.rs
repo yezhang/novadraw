@@ -56,7 +56,7 @@ impl fmt::Display for GraphicsInputError {
         match self {
             Self::NonFinite { field, index } => write!(f, "{field} at {index:?} must be finite"),
             Self::NegativeStrokeWidth => f.write_str("stroke width must be non-negative"),
-            Self::InvalidMiterLimit => f.write_str("miter limit must be at least one"),
+            Self::InvalidMiterLimit => f.write_str("miter limit must be non-negative"),
             Self::EmptyDashPattern => f.write_str("custom dash pattern must not be empty"),
             Self::InvalidDashLength { index } => {
                 write!(f, "dash length at {index} must be positive")
@@ -221,7 +221,7 @@ impl StrokeStyle {
         if width < 0.0 {
             return Err(GraphicsInputError::NegativeStrokeWidth);
         }
-        if miter_limit < 1.0 {
+        if miter_limit < 0.0 {
             return Err(GraphicsInputError::InvalidMiterLimit);
         }
         // Validate even inactive values so later infallible cap/join/pattern changes remain safe.
@@ -249,6 +249,15 @@ impl StrokeStyle {
     }
     pub fn join(&self) -> LineJoin {
         self.join
+    }
+    /// Geometric join; a miter threshold below one excludes every miter.
+    /// The requested join and limit remain available unchanged.
+    pub fn effective_join(&self) -> LineJoin {
+        if self.join == LineJoin::Miter && self.miter_limit < 1.0 {
+            LineJoin::Bevel
+        } else {
+            self.join
+        }
     }
     pub fn dash_pattern(&self) -> &DashPattern {
         &self.dash
@@ -328,7 +337,7 @@ impl StrokeStyle {
 
     /// Conservative axis-aligned expansion around the centerline.
     pub fn visual_outset(&self) -> f64 {
-        let join_factor = match self.join {
+        let join_factor = match self.effective_join() {
             LineJoin::Miter => self.miter_limit,
             LineJoin::Round | LineJoin::Bevel => 1.0,
         };

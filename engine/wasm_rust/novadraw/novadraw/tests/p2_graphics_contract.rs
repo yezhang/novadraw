@@ -590,7 +590,7 @@ fn invalid_dash_and_stroke_values_are_rejected() {
     for width in [-1.0, f64::NAN, f64::INFINITY] {
         assert!(StrokeStyle::default().with_width(width).is_err());
     }
-    for miter in [0.0, 0.5, f64::NAN, f64::INFINITY] {
+    for miter in [-1.0, f64::NAN, f64::INFINITY] {
         assert!(StrokeStyle::default().with_miter_limit(miter).is_err());
     }
     assert!(StrokeStyle::default().with_dash_offset(f64::NAN).is_err());
@@ -618,6 +618,27 @@ fn stroke_outset_uses_actual_miter_and_cap() {
             .visual_outset(),
         0.0
     );
+}
+
+#[test]
+fn low_miter_preserves_requested_state_and_uses_bevel_extent() {
+    for limit in [0.0, 0.5, 1.0, 2.0, 50.0] {
+        let style = stroke(DashPattern::Solid, 0.0, limit);
+        assert_eq!(style.miter_limit(), limit);
+        assert_eq!(style.join(), LineJoin::Miter);
+        assert_eq!(
+            style.effective_join(),
+            if limit < 1.0 {
+                LineJoin::Bevel
+            } else {
+                LineJoin::Miter
+            }
+        );
+        assert_eq!(style.visual_outset(), limit.max(1.0));
+        for join in [LineJoin::Round, LineJoin::Bevel] {
+            assert_eq!(style.clone().with_join(join).effective_join(), join);
+        }
+    }
 }
 
 #[test]
@@ -781,9 +802,17 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
     prepare_next_submission(&mut runtime).unwrap();
     let small = Rectangle::new(38.0, 58.0, 124.0, 6.0);
     let large = Rectangle::new(28.0, 48.0, 144.0, 26.0);
+    let bevel = Rectangle::new(39.0, 59.0, 122.0, 4.0);
     assert_eq!(runtime.tree().figure_bounds(line), Ok(small));
 
-    for (miter, expected) in [(12.0, large), (2.0, small)] {
+    let mut previous = small;
+    for (miter, expected) in [
+        (12.0, large),
+        (2.0, small),
+        (0.5, bevel),
+        (0.0, bevel),
+        (2.0, small),
+    ] {
         assert!(
             runtime
                 .figure(line)
@@ -798,7 +827,17 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
             points
         );
         let submission = prepare_next_submission(&mut runtime).unwrap();
-        assert_eq!(submission.damage.union(), Some(large));
+        assert_eq!(submission.damage.union(), Some(previous.union(expected)));
+        assert_eq!(
+            runtime
+                .tree()
+                .point_list_stroke_style(line)
+                .unwrap()
+                .unwrap()
+                .miter_limit(),
+            miter
+        );
+        previous = expected;
     }
     assert!(prepare_next_submission(&mut runtime).is_none());
     let original = runtime
@@ -810,7 +849,7 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
         runtime
             .figure(line)
             .unwrap()
-            .update_component(SetPolylineMiterLimit::new(0.5)),
+            .update_component(SetPolylineMiterLimit::new(-0.5)),
         Err(ComponentUpdateError::Rejected(
             ShapeMutationError::InvalidStroke(GraphicsInputError::InvalidMiterLimit)
         ))

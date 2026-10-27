@@ -36,6 +36,9 @@ Core 外部消费者及 40 个 ShapeStyles CPU/GPU 场景已通过，证据见
 ## 范围
 
 本决策批准 AA-1 到 AA-4；hairline、低 miter、混合字体装饰仍按独立契约推进。
-既有逻辑宽度 0 不绘制与 miter limit 至少 1 的语义保留。ShapeStyles 的这些输入
-必须明确报告不支持，不能夹值后宣称完整对等。平台窗口呈现与非本机 runner
+Core 逻辑宽度 0 仍不绘制。[ADR-049](adr-049-low-miter-and-cocoa-sample-profile.md)
+已批准有限非负 miter 和 ShapeStyles 的明确 Cocoa 零宽映射；
+该映射不代表通用设备 hairline。混合字体下划线按
+[ADR-050](adr-050-prepared-text-underlines.md)使用实际 run 指标与不可变片段。
+平台窗口呈现与非本机 runner
 继续按发布准备门禁记录，不将未执行验证标为完成。

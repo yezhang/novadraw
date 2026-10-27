@@ -241,7 +241,7 @@ impl Preparation<'_> {
                 let style = Style {
                     width: stroke.width(),
                     miter_limit: stroke.miter_limit(),
-                    join: match stroke.join() {
+                    join: match stroke.effective_join() {
                         novadraw::graphics::LineJoin::Miter => Join::Miter,
                         novadraw::graphics::LineJoin::Round => Join::Round,
                         novadraw::graphics::LineJoin::Bevel => Join::Bevel,
