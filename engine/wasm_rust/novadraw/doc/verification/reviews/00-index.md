@@ -86,6 +86,10 @@
 | 2026-10-24 | [Tree 表现几何方案与 Rust 实现评审（待修订）](tree-layout-presentation-review-2026-10-24.md) |
 | 2026-10-24 | [Tree 修订 2 复核（暂不通过）](tree-layout-presentation-revision-2-review-2026-10-24.md) |
 | 2026-10-24 | [Tree 修订 3 设计复核通过](tree-layout-presentation-revision-3-review-2026-10-24.md) |
+| 2026-10-26 | [项目代码质量评审](code-quality-review-2026-10-26.md) |
+| 2026-10-27 | [长文本性能方案评审（方向有条件通过，待修订）](long-text-performance-proposal-review-2026-10-27.md) |
+| 2026-10-27 | [长文本修订 2 首批设计复核通过](long-text-performance-revision-2-review-2026-10-27.md) |
+| 2026-10-27 | [文本增量排版方案审计意见（待修订复核）](long-text-incremental-layout-review-2026-10-27.md) |
 
 ## 专题核验
 
@@ -106,8 +110,11 @@
 | 2026-10-26 | [官方样例剩余能力](draw2d-official-examples-remaining-audit-2026-10-26.md) |
 | 2026-10-26 | [逐操作 AA 可行性实验](shape-aa-feasibility-2026-10-26.md) |
 | 2026-10-26 | [逐操作 AA 实施与成本](per-operation-antialias-implementation-2026-10-26.md) |
+| 2026-10-26 | [官方样例逐项功能复核](draw2d-official-examples-functional-audit-2026-10-26.md) |
 | 2026-10-26 | [官方样例能力补充实施](official-example-capability-increment-2026-10-26.md) |
 | 2026-10-27 | [官方样例 Core 增量实施](official-example-core-increment-2026-10-27.md) |
+| 2026-10-26 | [TextFlowLarge 打开耗时与优化方向](textflow-large-performance-analysis-2026-10-26.md) |
+| 2026-10-27 | [长文本优化首批实施与性能证据](long-text-performance-implementation-2026-10-27.md) |
 
 ## 平台与产品验收
 

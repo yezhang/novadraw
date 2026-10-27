@@ -26,6 +26,12 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 `--list` 的首列是同一序号，后续列给出状态、ID、原始类名和上游源码路径。
 截图继续使用原始场景名；数字截图参数仍是运行列表中从 0 开始的索引。
 
+25 个入口的预期画面、操作和剩余证据见
+[逐项功能复核](../../../doc/verification/reviews/draw2d-official-examples-functional-audit-2026-10-26.md)。
+本次发现 BidiBlock 的右侧 Canvas 镜像遗漏，撤回该入口的完成标记；
+该复核时目录登记 16 个 complete、8 个 in_progress、1 个 blocked。
+complete 只表示已登记的 Canvas 功能范围，字体替代和未经执行的视觉验收需单独说明。
+
 2026-10-27 BidiBlock 已通过通用 `FigureStyle.layout_direction` 给右侧 Canvas
 提供镜像上下文。排版片段、caret 与选择几何同步换位，字形保持正常朝向；
 纵向滚动条换侧，两侧继续共享纵向 RangeModel。
@@ -101,7 +107,8 @@ cargo xtask verify example.inherit-background
 通用单 Runtime 场景列表只展示其透明 Canvas 内容；背景对等验收以独立宿主为准。
 
 Obstruction 的组求解和交互按 [ADR-040](../../../doc/adr/adr-040-group-route-solving.md)
-实现。运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；
+实现。初始画面只有 5 个绿色矩形及坐标文字，没有端点或连接，与官方初值一致。
+运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；
 左拖移动障碍或端点；障碍右键删除；端点中键删除整对，未配对端点中键只删除自身。
 成对删除修正了官方示例的 parent mismatch，保留差异记录。
 
@@ -152,3 +159,14 @@ cargo run -p draw2d-official-examples --example graph_verification
 两个图入口的 Canvas 契约、真实菜单切换和 Native 代表性截图已验收，
 状态为 `complete`。证据见
 [ADR-043 实施记录](../../../verification/evidence/adr043/implementation.md)。
+
+TextFlowLargeExample 的精确布局共享与段落复用已接入，性能证据和剩余验收见
+[长文本实施记录](../../../doc/verification/reviews/long-text-performance-implementation-2026-10-27.md)。
+
+```sh
+cargo xtask verify text.long-layout
+target/release/textflow-perf 1 extended
+```
+
+性能驱动调用原样例工厂，每轮独立 Runtime，固定向第一文字来源追加 Z。
+额外模式记录滚动、resize 和 CPU 帧准备；窗口呈现另行采证。

@@ -87,6 +87,13 @@ workspace 1,516 项测试通过，严格 Clippy、Native/Wasm API、三本书和
 SWT Cocoa/GTK 的零宽处理不等于统一设备 hairline。
 本批不变更入口完成计数，不覆盖此前快照，也不启动第二个 Core 实施切片。
 
+2026-10-26 [25 入口功能复核](../verification/reviews/draw2d-official-examples-functional-audit-2026-10-26.md)
+发现 BidiBlockExample 的右侧 Canvas 镜像遗漏，入口撤回 complete，当前目录为
+16 complete、8 in_progress、1 blocked。此发现回到 K05/K07 的契约核验，
+不撤销已通过的 structured flow 和 shared range 能力证据，不新增并行执行批次。
+Caret 选择绘制与边界、HelloWorld resize 和跨入口字体替代列为待核验；
+原始完成记录保留其当时快照。
+
 2026-10-19 按用户批准的
 [官方示例 Core 计划](../verification/plans/draw2d-official-examples-core-plan.md)
 按用户最新要求只推进 25 个入口中的 Canvas / LightweightSystem 能力。
@@ -1119,6 +1126,26 @@ caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑�
 - `doc/design/editor/p2-direct-text-edit.md`
 - `doc/verification/plans/p2-text-direct-edit.md`
 - `doc/parity/gef/api-coverage.md`
+
+## P2 长文本精确布局优化
+
+2026-10-27 用户批准[修订 2 首批复核](../verification/reviews/long-text-performance-revision-2-review-2026-10-27.md)
+后启动 LT-00～LT-03，契约见 [ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)。
+本批是当前新增 Execute 切片；其他未完成项保持待验收状态。
+
+| 切片 | 状态 | 当前证据 |
+|---|---|---|
+| LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 独立源提交、first-ready、生产 GPU/present 与 Web 体积仍缺证据 |
+| LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；贡献、边框与内嵌测量仍重读，尺寸一致性及预算失败测试通过；复制量与留存分配归属待采证 |
+| LT-02 | `in_progress` | 精确复用与失效反例通过；第四轮原 Large 追加 p50 17.157→15.302 ms、p95 20.112→19.214 ms，Flow 构建自身平均 9.200→7.695 ms，部分尾延迟回退，未达到 16 ms；长段/长行追加 p95 为 38.526/52.733 ms；混排标准宽度为 6.864 ms，默认预算下缩窄成功，优化版 resize p95 14.469 ms |
+| LT-03 | `in_progress` | 18 组 Full/Partial GPU 对照通过；第四轮原 Large 滚动新增 shaping 为 0，稳定化 p95 7.867 ms，resize 后 IR p95 5.748 ms；默认 native glyph 仍完整输出 51233 个；生产证书边界已形成待复核提案，4 ms 查询/IR 验收未完成 |
+
+详情见[实施记录](../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
+原样例首次布局的五个会话均达到 p95 ≤ 100 ms，追加的五个会话均未达到 16 ms。
+第四轮只比较两份独立匹配构建，不与旧轮二进制计算严格提速比。
+混排 resize 保留基线预算拒绝与优化版重复成功两份证据，不计算前后耗时比；
+有限输入的成功不证明任意混排均可准入。
+LT-04～LT-09 未纳入本次授权，保持独立评审；本批整体仍待验收。
 
 ## P2-F03：逐角圆角与矩形分边描边
 
