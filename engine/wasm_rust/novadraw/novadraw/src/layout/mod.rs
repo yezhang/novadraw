@@ -353,6 +353,8 @@ impl LayoutOutput {
         Self::default()
     }
 
+    /// Propose a child placement. For children exposing the Connection capability,
+    /// commit preserves their points-derived bounds instead of applying this placement.
     pub fn set_child_bounds(&mut self, child: FigureId, bounds: Rectangle) {
         self.changes.push(LayoutChange::Bounds(child, bounds));
     }

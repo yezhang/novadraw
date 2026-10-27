@@ -958,6 +958,11 @@ impl FigureTree {
         for change in output.changes {
             match change {
                 LayoutChange::Bounds(child_id, bounds) => {
+                    // Connection points own their bounds; parent placement must not
+                    // move the normalized route away from its anchors.
+                    if self.blocks[child_id].connection().is_some() {
+                        continue;
+                    }
                     self.set_bounds_with_update(
                         update_manager,
                         child_id,
@@ -1005,6 +1010,10 @@ impl FigureTree {
         for change in output.changes {
             match change {
                 LayoutChange::Bounds(child_id, bounds) => {
+                    // Keep the same points-owned geometry contract without an updater.
+                    if self.blocks[child_id].connection().is_some() {
+                        continue;
+                    }
                     let old_bounds = self.figure_bounds(child_id);
                     self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
                     if old_bounds
@@ -1577,6 +1586,45 @@ pub(super) fn validate_projected_size(
         FigureMeasurement::new(size.width, size.height, None),
     )
     .map(FigureMeasurement::size)
+}
+
+#[cfg(test)]
+mod connection_placement_tests {
+    use super::*;
+
+    #[test]
+    fn parent_placement_preserves_connection_geometry_in_both_commit_paths() {
+        for with_update in [false, true] {
+            let mut tree = FigureTree::new();
+            let root = tree.set_contents(Box::new(crate::RectangleFigure::new(
+                0.0, 0.0, 300.0, 200.0,
+            )));
+            let ordinary = tree.add_child_to(
+                root,
+                Box::new(crate::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+            );
+            let connection =
+                tree.add_child_to(root, Box::new(crate::connection::ConnectionFigure::new()));
+            let route_bounds = Rectangle::new(50.0, 25.0, 150.0, 75.0);
+            tree.set_bounds(connection, 50.0, 25.0, 150.0, 75.0);
+            let placement = Rectangle::new(240.0, 100.0, 0.0, 0.0);
+            let mut output = LayoutOutput::default();
+            output.set_child_bounds(ordinary, placement);
+            output.set_child_bounds(connection, placement);
+            output.set_child_visible(connection, false);
+            if with_update {
+                let mut updates = UpdateManager::with_namespace(tree.namespace());
+                tree.apply_layout_output(&mut updates, root, output)
+                    .unwrap();
+            } else {
+                tree.apply_layout_output_without_update(root, output)
+                    .unwrap();
+            }
+            assert_eq!(tree.figure_bounds(ordinary).unwrap(), placement);
+            assert_eq!(tree.figure_bounds(connection).unwrap(), route_bounds);
+            assert!(!tree.is_visible(connection).unwrap());
+        }
+    }
 }
 
 #[cfg(test)]

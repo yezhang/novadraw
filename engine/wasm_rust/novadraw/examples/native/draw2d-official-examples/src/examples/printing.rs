@@ -159,9 +159,130 @@ pub fn print_example() -> Runtime {
 mod tests {
     use super::*;
     use novadraw::{
-        geometry::Rectangle,
+        geometry::{Point, Rectangle},
         render::{BackendCapabilities, SurfaceInfo, command::RenderCommandKind},
     };
+
+    #[test]
+    fn connection_follows_anchors_across_flow_wrap_thresholds() {
+        let mut runtime = print_example();
+        let root = runtime.tree().contents().unwrap();
+        let children = runtime.tree().child_order(root).unwrap();
+        let widths: Vec<_> = (260..=1000).step_by(10).collect();
+        let mut first_pass = Vec::new();
+        let mut saw_cross_row = false;
+        let mut saw_same_row = false;
+        for (index, width) in widths.iter().rev().chain(widths.iter()).enumerate() {
+            runtime
+                .frames()
+                .resize_logical_viewport(f64::from(*width), HEIGHT)
+                .unwrap();
+            runtime.frames().stabilize_for_query().unwrap();
+            let source = runtime.tree().figure_bounds(children[7]).unwrap();
+            let target = runtime.tree().figure_bounds(children[8]).unwrap();
+            saw_cross_row |= source.y != target.y;
+            saw_same_row |= source.y == target.y;
+            let route = runtime
+                .tree()
+                .connection_route_points(children[10])
+                .unwrap()
+                .unwrap();
+            let transform = runtime
+                .tree()
+                .local_to_surface_transform(children[10])
+                .unwrap();
+            let points: Vec<_> = route
+                .as_slice()
+                .iter()
+                .map(|point| transform.transform_point(*point))
+                .collect();
+            assert_eq!(points.len(), 2);
+            for (actual, expected) in points.iter().zip([
+                rectangle_endpoint(source, target),
+                rectangle_endpoint(target, source),
+            ]) {
+                assert!(
+                    (actual.x() - expected.x()).abs() < 1e-6
+                        && (actual.y() - expected.y()).abs() < 1e-6,
+                    "width={width}: endpoint {actual:?} must lie at {expected:?}"
+                );
+            }
+            if index < widths.len() {
+                first_pass.push(points);
+            } else {
+                assert_eq!(points, first_pass[widths.len() * 2 - index - 1]);
+            }
+        }
+        assert!(saw_cross_row && saw_same_row);
+        assert!(runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    fn rectangle_endpoint(owner: Rectangle, other: Rectangle) -> Point {
+        let center = Point::new(owner.x + owner.width / 2.0, owner.y + owner.height / 2.0);
+        let dx = other.x + other.width / 2.0 - center.x();
+        let dy = other.y + other.height / 2.0 - center.y();
+        let factor = (dx.abs() / (owner.width / 2.0)).max(dy.abs() / (owner.height / 2.0));
+        Point::new(center.x() + dx / factor, center.y() + dy / factor)
+    }
+
+    #[test]
+    #[ignore = "requires native GPU; validates Print connection pixels across flow wrapping"]
+    fn gpu_connection_pixels_stay_between_rectangle_anchors() {
+        for dpi in [1.0, 2.0] {
+            let mut canvas = super::super::gpu_test_support::GpuCanvas::new(
+                (576.0 * dpi) as u32,
+                (256.0 * dpi) as u32,
+                dpi,
+            );
+            for width in [560.0, 500.0, 480.0] {
+                let mut runtime = print_example();
+                runtime
+                    .frames()
+                    .resize_logical_viewport(width, 256.0)
+                    .unwrap();
+                let connected = canvas.render(&mut runtime, true);
+                let root = runtime.tree().contents().unwrap();
+                let children = runtime.tree().child_order(root).unwrap();
+                let source = runtime.tree().figure_bounds(children[7]).unwrap();
+                let target = runtime.tree().figure_bounds(children[8]).unwrap();
+                let start = rectangle_endpoint(source, target);
+                let end = rectangle_endpoint(target, source);
+                runtime
+                    .figure(children[10])
+                    .unwrap()
+                    .set_visible(false)
+                    .unwrap();
+                let disconnected = canvas.render(&mut runtime, true);
+                let dx = end.x() - start.x();
+                let dy = end.y() - start.y();
+                let mut changed_pixels = 0;
+                for (index, (actual, absent)) in connected
+                    .chunks_exact(4)
+                    .zip(disconnected.chunks_exact(4))
+                    .enumerate()
+                {
+                    if actual == absent {
+                        continue;
+                    }
+                    changed_pixels += 1;
+                    let pixel_width = (576.0 * dpi) as usize;
+                    let x = (index % pixel_width) as f64 / dpi + 0.5 / dpi;
+                    let y = (index / pixel_width) as f64 / dpi + 0.5 / dpi;
+                    let t = (((x - start.x()) * dx + (y - start.y()) * dy) / (dx * dx + dy * dy))
+                        .clamp(0.0, 1.0);
+                    let distance = (x - start.x() - t * dx).hypot(y - start.y() - t * dy);
+                    assert!(
+                        distance <= 2.0,
+                        "width={width}, dpi={dpi}: stray connection pixel at ({x}, {y})"
+                    );
+                }
+                assert!(
+                    changed_pixels > 0,
+                    "width={width}, dpi={dpi}: missing connection"
+                );
+            }
+        }
+    }
 
     #[test]
     fn canvas_outputs_fonts_icon_and_rerouted_connection_after_resize() {
