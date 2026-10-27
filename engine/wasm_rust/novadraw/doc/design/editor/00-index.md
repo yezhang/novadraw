@@ -20,6 +20,11 @@ Viewport 协作。
 
 - [revision 的作用与边界](revision-semantics.md)：模型发布、Viewer 同步进度、交互版本与撤销历史。
 
+待评审方案（不覆盖现行规范，不表示已实施）：
+
+- [GEF 官方样例对等实现](gef-official-examples-parity-proposal.md)：样例能力分层、
+  Masonry 自定义 Canvas、可选 Xilem 外层与实施切片。
+
 已接受的失败隔离契约：
 
 - [ADR-037：增量视图失败隔离与 Overlay 批量校验](../../adr/adr-037-editor-incremental-failure-isolation.md)；
