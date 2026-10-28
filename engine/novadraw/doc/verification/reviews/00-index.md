@@ -9,6 +9,9 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-28 | [Xilem / Masonry 上游依赖重新评估](xilem-masonry-upstream-reassessment-2026-10-28.md) |
+| 2026-10-28 | [Masonry Native 首帧与 resize 续验](masonry-native-first-frame-followup-2026-10-28.md) |
+| 2026-10-28 | [Masonry / Xilem 画布与 Shapes 首批消费者](masonry-xilem-canvas-implementation-2026-10-28.md) |
 | 2026-10-28 | [长文本滚动与 resize 首批实施](long-text-scroll-resize-implementation-2026-10-28.md) |
 | 2026-10-28 | [GEF 样例接入的 Scene 输出实施](gef-scene-target-implementation-2026-10-28.md) |
 | 2026-10-27 | [布局与 Caret 消费者核验](official-layout-caret-consumers-2026-10-27.md) |
@@ -134,6 +137,7 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-28 | [Masonry 无 vendor 上游迁移](masonry-upstream-migration-2026-10-28.md) |
 | 2026-09-13 | [GEF / Editor 启动就绪](gef-readiness-analysis-2026-09-13.md) |
 | 2026-09-13 | [G1 Model 与 Command](g1-model-command-completion-2026-09-13.md) |
 | 2026-09-13 | [G2 Viewer 投影](g2-viewer-projection-completion-2026-09-13.md) |

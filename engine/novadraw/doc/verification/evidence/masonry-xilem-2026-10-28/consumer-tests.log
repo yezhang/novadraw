@@ -1,0 +1,15 @@
+[1m[92m   Compiling[0m masonry_testing v0.4.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/vendor/xilem-compat/masonry_testing)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 38.57s
+[1m[92m     Running[0m unittests src/lib.rs (target/masonry/debug/deps/gef_editor_demo-1cfc8a50bf102e33)
+
+running 6 tests
+test tests::actual_toolbar_message_rebuild_and_gpu_composition ... ok
+test tests::create_delete_and_undo_use_same_policy_command_chain ... ok
+test tests::disable_and_focus_loss_cancel_without_committing_model ... ok
+test tests::gpu_pixels_follow_drag_and_undo_at_two_dpi_scales ... ok
+test tests::widget_drag_matches_headless_policy_and_one_history_entry ... ok
+test tests::xilem_rebuild_preserves_namespaces_and_history_and_removes_action_source ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s
+

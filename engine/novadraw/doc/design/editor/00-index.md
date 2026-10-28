@@ -24,6 +24,8 @@ Viewport 协作。
 
 - [GEF 官方样例对等实现](gef-official-examples-parity-proposal.md)：样例能力分层、
   Masonry 自定义 Canvas、可选 Xilem 外层与实施切片。
+- [Masonry 编辑画布与 Xilem View 接入](masonry-xilem-canvas-integration.md)：
+  固定上游依赖、session 所有权、Widget 输入/绘制与 View rebuild。
 
 已接受的失败隔离契约：
 

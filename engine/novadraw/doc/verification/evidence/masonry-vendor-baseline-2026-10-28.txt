@@ -1,0 +1,42 @@
+# Xilem / Masonry 兼容依赖
+
+类型：`implementation-guide`
+
+来源：`https://github.com/linebender/xilem`，固定提交
+`5281ffb308732b00f42e0755c6095b6ae234ae16`。保留原始版权声明与
+[Apache-2.0 许可证](LICENSE)。
+
+该目录是 GEF 样例应用的构建依赖，不属于 Core/Editor，也不是第三方参考源码。
+原 `/Users/bytedance/Documents/code/GitHub/xilem` 保持只读。
+仅导入 Native UI 所需 crate 的 manifest/src 与许可，不导入示例媒体、字体或 Web 应用。
+唯一资源例外是 masonry_testing 自带的 Roboto-Regular 测试字体及 Apache-2.0
+许可，用于上游 harness 的编译期输入，约 184 KiB；不进入应用常规依赖。
+
+本地变更从固定上游逐项记录：
+
+- workspace members 限定为 xilem、xilem_core、xilem_masonry、masonry、masonry_core、
+  masonry_testing、masonry_winit、tree_arena 与 include_doc_path；
+- Vello 从 0.7 升为固定 0.10，与 Novadraw Scene 后端同版本；
+- 移除未导入的 example、stress test 与 bench 显式 target，不为它们生成占位源码；
+- Masonry Winit 使用 WGPU 29 的 InstanceDescriptor 与 CurrentSurfaceTexture，
+  Lost/Outdated 重配置，Timeout/Occluded 跳过本帧；
+- 每个包显式指向本地 workspace，避免嵌套 path dependency 被引擎 workspace 吸收；
+- UpdateCtx 增加只读 DPI 查询；LayoutCtx 可请求一次动画回调；
+  DPI 改变请求一轮 widget 动画回调，让设备相关 Scene 在 paint 前准备，
+  不引入持续 tick，不在 paint 内发 action 或执行业务命令；
+- masonry_testing 在纹理渲染前应用与 Native runner 一致的最终 DPI 变换；
+  上游 harness 原本直接把逻辑 Scene 送入物理纹理，不能核验非 1.0 DPI；
+- harness 接收 Resize 时同时更新截图纹理使用的物理尺寸，避免 RenderRoot
+  已 resize 而输出纹理仍使用旧尺寸；
+- 首帧显示窗口后显式请求 redraw，避免 WGPU 29 在不可见窗口上返回 Occluded
+  后没有新的 surface publication；收到 Occluded(false) 后重新请求 redraw，
+  避免紧随 show 的请求早于 macOS visibility 更新。最终 Native 改动仍待实际复验；
+- 编译发现的 API 迁移在本文件继续记录，尚未声明完整上游测试通过。
+
+`cargo check -p xilem -p masonry_testing --lib` 已在 Vello 0.10 下通过，
+构建缓存放在 `/tmp/novadraw-masonry-target`。未运行全部上游 example/test，
+不将该结果外推为所有平台、图像 override 或打印功能的验证。
+
+兼容层不实现 Novadraw RenderCommand lowering。画布使用具体 backend 的公开 Scene
+出口；Ui runtime、事件与窗口仍由 Masonry/Xilem 管理。
+固定兼容提交、patch 清单和消费测试是未来升级依据，不从本副本反向定义 Core 契约。

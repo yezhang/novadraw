@@ -498,14 +498,15 @@ P2-S07 的契约见 [ADR-038](../adr/adr-038-query-identity-and-failure-semantic
 ### GEF 对等样例接入（2026-10-28 用户授权）
 
 用户批准[对等方案](../design/editor/gef-official-examples-parity-proposal.md)并要求开始实施。
-本次只执行 Scene 输出前置切片；CreationTool、框选、模板拖放与 Widget/View
-依次推进，不另建并行执行队列，不更改既有 LT 或其他未完成批次的状态。
+Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 Widget/View 与 Shapes
+首批消费者。CreationTool、框选和模板拖放随后依次推进，不另建并行执行队列，
+不更改既有 LT 或其他未完成批次的状态。
 
 | 切片 | 状态 | 契约与退出证据 |
 |---|---|---|
 | Scene backend 输出 | `complete` | [ADR-053](../adr/adr-053-embedded-vello-scene-target.md)；[首批证据](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)，4 项契约、12 帧 GPU 对照、39 项 backend 回归及独立消费成本 |
-| Masonry Widget / Xilem View | `pending` | 固定兼容版本、稳定 session、输入/IME/capture/lifecycle 与真实宿主 |
-| Shapes 工具与完整样例 | `pending` | CreationTool、marquee、模板创建；模型/history/投影与 UI 同步 |
+| Masonry Widget / Xilem View | `in_progress` | [接入契约](../design/editor/masonry-xilem-canvas-integration.md)；[首批实施证据](../verification/reviews/masonry-xilem-canvas-implementation-2026-10-28.md)与[Native/resize 续验](../verification/reviews/masonry-native-first-frame-followup-2026-10-28.md)；已完成[未修改上游迁移](../verification/reviews/masonry-upstream-migration-2026-10-28.md)，删除 vendor 后 7 项输入/生命周期/GPU 消费测试和 4 项适配契约通过，resize/DPI 保留 source/history；迁移前用户置前台后确认 Native 场景显示，迁移后原生进程已启动；自动激活、完整 IME、系统 AT、窗口外 capture 与原生完整交互仍待验收 |
+| Shapes 工具与完整样例 | `in_progress` | 首批矩形/椭圆、typed 创建/删除、拖动与 undo/redo、工具栏 message/rebuild 已实现；CreationTool、marquee、模板创建及完整官方样例对等仍未完成 |
 
 ### 当前推进顺序（2026-10-14 校准）
 

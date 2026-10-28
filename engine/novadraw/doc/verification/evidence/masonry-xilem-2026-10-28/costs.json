@@ -1,0 +1,25 @@
+{
+  "platform": "macOS arm64",
+  "rustc": "1.94.1",
+  "profile": "release, opt-level=3, strip=symbols",
+  "artifacts": {
+    "ui-shell-baseline": { "bytes": 9773728, "gzip_9_bytes": 3865656 },
+    "gef-editor-demo": { "bytes": 13381824, "gzip_9_bytes": 5399111 },
+    "delta": { "bytes": 3608096, "gzip_9_bytes": 1533455 }
+  },
+  "warm_cpu_sample": {
+    "logical_size": [640, 480],
+    "dpi": 1,
+    "shapes": 2,
+    "warmup": 20,
+    "samples": 1000,
+    "four_pointer_events_ms": { "p50": 0.089, "p95": 0.173, "max": 0.871 },
+    "scene_preparation_ms": { "p50": 0.055, "p95": 0.094, "max": 0.659 }
+  },
+  "limitations": [
+    "No GPU, native surface presentation or first startup timing in the CPU sample",
+    "Native first frame remained blank in both startup attempts",
+    "Final Occluded(false) redraw change compiled but not verified in a native window",
+    "No Web artifact or RSS/GPU memory measurement"
+  ]
+}

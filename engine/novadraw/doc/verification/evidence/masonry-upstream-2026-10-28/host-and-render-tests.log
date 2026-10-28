@@ -1,0 +1,15 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized]]8;;\ target(s) in 8.32s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw_platform_masonry-c0580c691338dc6a)
+
+running 4 tests
+test host::tests::host_rescale_animates_nested_widgets_once_without_idle_tick ... ok
+test render::tests::captured_clip_transform_restore_and_default_coverage_reach_gpu ... ok
+test render::tests::image_revision_crop_and_delta_removal_preserve_gpu_pixels ... ok
+test render::tests::unsupported_aa_retry_and_stale_session_preserve_published_target ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+

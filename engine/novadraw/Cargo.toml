@@ -1,6 +1,48 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/novadraw-platform-masonry",
+  "examples/native/gef-editor-demo",
+  "crates/novadraw",
+  "crates/novadraw-backend-vello",
+  "crates/novadraw-platform-winit",
+  "crates/novadraw-platform-web",
+  "crates/novadraw-editor",
+  "crates/novadraw-inspector",
+  "crates/winit-canvas",
+  "examples/support",
+  "examples/scenes",
+  "tools/xtask",
+
+  "examples/native/node-editor-demo",
+  "examples/native/vello-app",
+  "examples/native/winit-canvas-demo",
+  "examples/native/shape-app",
+  "examples/native/composite-shapes-app",
+  "examples/native/style-app",
+  "examples/native/ndcanvas-app",
+  "examples/native/transform-app",
+  "examples/native/viewport-app",
+  "examples/native/clip-app",
+  "examples/native/layout-app",
+  "examples/native/event-app",
+  "examples/native/border-app",
+  "examples/native/text-app",
+  "examples/native/widgets-app",
+  "examples/native/update-app",
+  "examples/native/scroll-pane-demo",
+  "examples/native/connections-demo",
+  "examples/native/advanced-figures-app",
+  "examples/native/animation-app",
+  "examples/native/uml-demo",
+  "examples/native/draw2d-official-examples",
+  "examples/web/web-validation",
+  "benchmarks/r8-perf",
+  "benchmarks/native-vello-perf",
+]
+
+# Keep the optional Masonry UI out of unqualified engine builds.
+default-members = [
   "crates/novadraw",
   "crates/novadraw-backend-vello",
   "crates/novadraw-platform-winit",
@@ -43,7 +85,16 @@ members = [
 version = "0.1.0"
 edition = "2024"
 
+[profile.release.package.gef-editor-demo]
+strip = "symbols"
+
 [workspace.dependencies]
+masonry = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
+xilem_masonry = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
+xilem = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
+masonry_testing = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
+masonry_winit = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
+masonry_imaging = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
 vello = "0.10.0"
 slotmap = "1.0.7"
 uuid = { version = "1.18.1", features = ["v4", "serde", "js"] }

@@ -1,0 +1,17 @@
+[package]
+name = "novadraw-platform-masonry"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+
+[dependencies]
+novadraw = { path = "../novadraw" }
+novadraw-editor = { path = "../novadraw-editor" }
+masonry.workspace = true
+xilem_masonry.workspace = true
+masonry_winit.workspace = true
+
+[dev-dependencies]
+masonry_imaging.workspace = true
+masonry_testing.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread"] }

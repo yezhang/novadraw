@@ -1,0 +1,54 @@
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 6.51s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m   Compiling[0m color v0.3.3
+[1m[92m   Compiling[0m indexmap v2.12.1
+[1m[92m   Compiling[0m libdeflate-sys v1.26.1
+[1m[92m   Compiling[0m radium v0.7.0
+[1m[92m   Compiling[0m peniko v0.6.1
+[1m[92m   Compiling[0m imaging v0.0.1
+[1m[92m   Compiling[0m naga v28.0.0
+[1m[92m   Compiling[0m vello_encoding v0.8.0
+[1m[92m   Compiling[0m vello_shaders v0.8.0
+[1m[92m   Compiling[0m masonry_core v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m tap v1.0.1
+[1m[92m   Compiling[0m fearless_simd v0.4.1
+[1m[92m   Compiling[0m wgpu-hal v28.0.1
+[1m[92m   Compiling[0m wgpu-core-deps-apple v28.0.0
+[1m[92m   Compiling[0m wgpu-core v28.0.1
+[1m[92m   Compiling[0m masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m vello_common v0.0.7
+[1m[92m   Compiling[0m wgpu v28.0.0
+[1m[92m   Compiling[0m vello v0.8.0
+[1m[92m   Compiling[0m imaging_wgpu v0.0.1
+[1m[92m   Compiling[0m imaging_vello v0.0.1
+[1m[92m   Compiling[0m masonry_imaging v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m wyz v0.5.1
+[1m[92m   Compiling[0m vello_api v0.0.7
+[1m[92m   Compiling[0m funty v2.0.0
+[1m[92m   Compiling[0m masonry_winit v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m bitvec v1.1.1
+[1m[92m   Compiling[0m xilem_masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m vello_cpu v0.0.7
+[1m[92m   Compiling[0m libdeflater v1.26.1
+[1m[92m   Compiling[0m rustc-hash v2.1.3
+[1m[92m   Compiling[0m oxipng v9.1.5
+[1m[92m   Compiling[0m accesskit_consumer v0.35.0
+[1m[92m   Compiling[0m imaging_vello_cpu v0.0.1
+[1m[92m   Compiling[0m masonry_testing v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m xilem v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 57.62s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m     Running[0m unittests src/lib.rs (target/masonry/release/deps/gef_editor_demo-d6dae4e6e1b6f1bd)
+
+running 1 test
+test tests::input_and_scene_cost_sample ... four pointer events: n=1000 p50=0.071ms p95=0.089ms max=0.252ms
+Scene preparation: n=1000 p50=0.043ms p95=0.054ms max=0.126ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.18s
+

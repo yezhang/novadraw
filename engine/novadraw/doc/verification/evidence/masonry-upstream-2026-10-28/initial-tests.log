@@ -1,0 +1,28 @@
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized]]8;;\ target(s) in 41.81s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/gef_editor_demo-2d3b83934bf7db31)
+
+running 8 tests
+test tests::actual_toolbar_message_rebuild_and_gpu_composition ... ok
+test tests::create_delete_and_undo_use_same_policy_command_chain ... ok
+test tests::disable_and_focus_loss_cancel_without_committing_model ... ok
+test tests::gpu_pixels_follow_drag_and_undo_at_two_dpi_scales ... ok
+test tests::input_and_scene_cost_sample ... ignored, release CPU/Scene cost sampling; no GPU presentation timing
+test tests::resize_and_dpi_changes_preserve_source_history_and_gpu_coordinates ... ok
+test tests::widget_drag_matches_headless_policy_and_one_history_entry ... ok
+test tests::xilem_rebuild_preserves_namespaces_and_history_and_removes_action_source ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.50s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw_platform_masonry-c0580c691338dc6a)
+
+running 3 tests
+test render::tests::captured_clip_transform_restore_and_default_coverage_reach_gpu ... ok
+test render::tests::image_revision_crop_and_delta_removal_preserve_gpu_pixels ... ok
+test render::tests::unsupported_aa_retry_and_stale_session_preserve_published_target ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s
+

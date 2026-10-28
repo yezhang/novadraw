@@ -12,6 +12,17 @@
       "open": {
         "type": "terminal"
       }
+    },
+    {
+      "id": "gef-shapes-macos",
+      "name": "GEF Shapes 编辑器（macOS）",
+      "command": "python3 tools/scripts/run_gef_macos.py",
+      "cwd": ".",
+      "background": true,
+      "source": "agent",
+      "open": {
+        "type": "terminal"
+      }
     }
   ]
 }
