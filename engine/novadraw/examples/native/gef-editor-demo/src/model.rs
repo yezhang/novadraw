@@ -1,11 +1,11 @@
+use crate::alignment::{AlignShapes, AlignmentRequest};
 use novadraw::connection::{
     AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionLocator, EllipseAnchor,
     PolygonDecorationFigure,
 };
 use novadraw::container::FreeformLayerFigure;
 use novadraw::figure::{EllipseFigure, Figure, RectangleFigure};
-use novadraw::geometry::Dimension;
-use novadraw::geometry::Rectangle;
+use novadraw::geometry::{Dimension, Point, PointList, Rectangle};
 use novadraw::graphics::Color;
 use novadraw::graphics::{DashPattern, StrokeStyle};
 use novadraw_editor::tool::CreationTemplate;
@@ -14,7 +14,7 @@ use novadraw_editor::{
     CreateRequest, DeleteParts, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory,
     EditPolicy, EditingContribution, FeedbackVisual, LayoutSlot, ModelAdapter, ModelEvent,
     ModelRevision, PartFactoryContext, PolicyError, PolicyHandlerBuilder, PolicyHost,
-    PolicyInstallation, RequestMetadata, VisualUpdateContext,
+    PolicyInstallation, RequestMetadata, ResizeDirection, VisualUpdateContext,
 };
 use novadraw_editor::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionCreation,
@@ -29,18 +29,133 @@ use std::{collections::BTreeMap, convert::Infallible};
 
 pub const ROOT: u64 = 0;
 pub const FIRST: u64 = 1;
-pub const INITIAL_BOUNDS: Rectangle = Rectangle {
-    x: 60.0,
-    y: 70.0,
-    width: 120.0,
-    height: 80.0,
-};
 pub const MIN_SIZE: f64 = 24.0;
 const OUTLINE_WIDTH: f64 = 2.0;
 pub const DEFAULT_WIDTH: f64 = 120.0;
 pub const DEFAULT_HEIGHT: f64 = 80.0;
-const ARROW_LENGTH: f64 = 10.0;
-const ARROW_HALF_WIDTH: f64 = 5.0;
+const ARROW_LENGTH: f64 = 7.0;
+const ARROW_HALF_WIDTH: f64 = 3.0;
+const HANDLE_SIZE: f64 = 8.0;
+const SELECTION_BLUE: &str = "#2D6991";
+const SHOWCASE_LAST_ID: u64 = 12;
+const SHOWCASE_LEFT_X: f64 = 60.0;
+const SHOWCASE_CENTER_X: f64 = 270.0;
+const SHOWCASE_RIGHT_X: f64 = 480.0;
+const SHOWCASE_TOP_Y: f64 = 70.0;
+const SHOWCASE_BOTTOM_Y: f64 = 310.0;
+pub const INITIAL_BOUNDS: Rectangle = showcase_bounds(SHOWCASE_LEFT_X, SHOWCASE_TOP_Y);
+#[cfg(test)]
+const MINIMAL_SECOND_BOUNDS: Rectangle = Rectangle {
+    x: 270.0,
+    y: 160.0,
+    width: 140.0,
+    height: 100.0,
+};
+
+const fn showcase_bounds(x: f64, y: f64) -> Rectangle {
+    Rectangle {
+        x,
+        y,
+        width: DEFAULT_WIDTH,
+        height: DEFAULT_HEIGHT,
+    }
+}
+
+const SHOWCASE_SHAPES: [(u64, Shape); 6] = [
+    (
+        FIRST,
+        Shape {
+            bounds: INITIAL_BOUNDS,
+            kind: ShapeKind::Rectangle,
+        },
+    ),
+    (
+        2,
+        Shape {
+            bounds: showcase_bounds(SHOWCASE_CENTER_X, SHOWCASE_TOP_Y),
+            kind: ShapeKind::Ellipse,
+        },
+    ),
+    (
+        3,
+        Shape {
+            bounds: showcase_bounds(SHOWCASE_RIGHT_X, SHOWCASE_TOP_Y),
+            kind: ShapeKind::Rectangle,
+        },
+    ),
+    (
+        4,
+        Shape {
+            bounds: showcase_bounds(SHOWCASE_LEFT_X, SHOWCASE_BOTTOM_Y),
+            kind: ShapeKind::Ellipse,
+        },
+    ),
+    (
+        5,
+        Shape {
+            bounds: showcase_bounds(SHOWCASE_CENTER_X, SHOWCASE_BOTTOM_Y),
+            kind: ShapeKind::Rectangle,
+        },
+    ),
+    (
+        6,
+        Shape {
+            bounds: showcase_bounds(SHOWCASE_RIGHT_X, SHOWCASE_BOTTOM_Y),
+            kind: ShapeKind::Ellipse,
+        },
+    ),
+];
+
+const SHOWCASE_EDGES: [(u64, Edge); 6] = [
+    (
+        7,
+        Edge {
+            source: 1,
+            target: 2,
+            style: EdgeStyle::Solid,
+        },
+    ),
+    (
+        8,
+        Edge {
+            source: 2,
+            target: 3,
+            style: EdgeStyle::Dashed,
+        },
+    ),
+    (
+        9,
+        Edge {
+            source: 1,
+            target: 4,
+            style: EdgeStyle::Solid,
+        },
+    ),
+    (
+        10,
+        Edge {
+            source: 2,
+            target: 5,
+            style: EdgeStyle::Solid,
+        },
+    ),
+    (
+        11,
+        Edge {
+            source: 4,
+            target: 5,
+            style: EdgeStyle::Dashed,
+        },
+    ),
+    (
+        12,
+        Edge {
+            source: 5,
+            target: 6,
+            style: EdgeStyle::Solid,
+        },
+    ),
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ShapeKind {
@@ -74,19 +189,32 @@ pub struct Diagram {
 
 impl Default for Diagram {
     fn default() -> Self {
+        Self::showcase()
+    }
+}
+
+impl Diagram {
+    /// Opens the runnable editor with enough topology to exercise projection, anchors and routing.
+    pub fn showcase() -> Self {
+        Self {
+            shapes: BTreeMap::from(SHOWCASE_SHAPES),
+            order: SHOWCASE_SHAPES.map(|(id, _)| id).to_vec(),
+            edges: BTreeMap::from(SHOWCASE_EDGES),
+            revision: ModelRevision::initial(),
+            events: Vec::new(),
+            next_id: SHOWCASE_LAST_ID + 1,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn minimal() -> Self {
         Self {
             shapes: BTreeMap::from([
-                (
-                    FIRST,
-                    Shape {
-                        bounds: INITIAL_BOUNDS,
-                        kind: ShapeKind::Rectangle,
-                    },
-                ),
+                SHOWCASE_SHAPES[0],
                 (
                     2,
                     Shape {
-                        bounds: Rectangle::new(270.0, 160.0, 140.0, 100.0),
+                        bounds: MINIMAL_SECOND_BOUNDS,
                         kind: ShapeKind::Ellipse,
                     },
                 ),
@@ -98,9 +226,7 @@ impl Default for Diagram {
             next_id: 3,
         }
     }
-}
 
-impl Diagram {
     fn publish(&mut self, subject: u64) {
         self.revision = self.revision.next().expect("demo model revision exhausted");
         self.events
@@ -251,14 +377,105 @@ fn shape_figure(shape: Shape) -> Box<dyn Figure> {
     }
 }
 
+pub(crate) fn selection_handle(point: Point) -> RectangleFigure {
+    RectangleFigure::new_with_color(
+        point.x() - HANDLE_SIZE / 2.0,
+        point.y() - HANDLE_SIZE / 2.0,
+        HANDLE_SIZE,
+        HANDLE_SIZE,
+        Color::WHITE,
+    )
+    .with_stroke(Color::from_hex(SELECTION_BLUE).unwrap(), 1.0)
+}
+
+pub(crate) fn resize_handle_sites(bounds: Rectangle) -> [(Point, ResizeDirection); 8] {
+    let center_x = bounds.x + bounds.width / 2.0;
+    let center_y = bounds.y + bounds.height / 2.0;
+    [
+        (Point::new(bounds.x, bounds.y), ResizeDirection::NorthWest),
+        (Point::new(center_x, bounds.y), ResizeDirection::North),
+        (
+            Point::new(bounds.x + bounds.width, bounds.y),
+            ResizeDirection::NorthEast,
+        ),
+        (
+            Point::new(bounds.x + bounds.width, center_y),
+            ResizeDirection::East,
+        ),
+        (
+            Point::new(bounds.x + bounds.width, bounds.y + bounds.height),
+            ResizeDirection::SouthEast,
+        ),
+        (
+            Point::new(center_x, bounds.y + bounds.height),
+            ResizeDirection::South,
+        ),
+        (
+            Point::new(bounds.x, bounds.y + bounds.height),
+            ResizeDirection::SouthWest,
+        ),
+        (Point::new(bounds.x, center_y), ResizeDirection::West),
+    ]
+}
+
+fn shape_change_feedback(shape: Shape) -> Vec<FeedbackVisual> {
+    let bounds = shape.bounds;
+    let stroke = Color::from_hex(SELECTION_BLUE).unwrap();
+    let outline: Box<dyn Figure> = match shape.kind {
+        ShapeKind::Rectangle => Box::new(
+            RectangleFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                Color::TRANSPARENT,
+            )
+            .with_stroke(stroke, OUTLINE_WIDTH),
+        ),
+        ShapeKind::Ellipse => Box::new(
+            EllipseFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                Color::TRANSPARENT,
+            )
+            .with_stroke(stroke, OUTLINE_WIDTH),
+        ),
+    };
+    let mut feedback = vec![FeedbackVisual::scaled(outline)];
+    feedback.extend(
+        resize_handle_sites(bounds)
+            .into_iter()
+            .map(|(point, _)| FeedbackVisual::scaled(Box::new(selection_handle(point)))),
+    );
+    feedback
+}
+
 struct ShapePolicy;
 impl EditPolicy<Diagram> for ShapePolicy {
     fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, Diagram, Self>) {
         builder.handle::<ChangeBounds>(Self::change);
+        builder.handle::<AlignShapes>(Self::align);
         builder.handle::<DeleteParts>(Self::delete);
     }
 }
 impl ShapePolicy {
+    fn align(
+        &mut self,
+        host: PolicyHost<u64>,
+        _: &RequestMetadata,
+        request: &AlignmentRequest,
+        model: &Diagram,
+    ) -> Result<Option<EditingContribution<Diagram>>, PolicyError> {
+        let before = model.shapes[&host.model()].bounds;
+        Ok(Some(EditingContribution::command(Box::new(MoveShape {
+            id: host.model(),
+            before,
+            after: request.alignment.bounds(before, request.reference),
+        }))))
+    }
+
     fn change(
         &mut self,
         host: PolicyHost<u64>,
@@ -274,10 +491,10 @@ impl ShapePolicy {
                 before: shape.bounds,
                 after,
             })),
-            vec![FeedbackVisual::scaled(shape_figure(Shape {
+            shape_change_feedback(Shape {
                 bounds: after,
                 ..shape
-            }))],
+            }),
         )))
     }
     fn delete(
@@ -746,6 +963,17 @@ impl EdgePolicy {
 }
 
 struct EdgePart;
+
+fn target_arrow() -> Result<PolygonDecorationFigure, novadraw::connection::DecorationError> {
+    PolygonDecorationFigure::from_template(PointList::from_points(vec![
+        Point::ZERO,
+        Point::new(-1.0, 1.0),
+        Point::new(-1.0, -1.0),
+    ]))?
+    .with_scale(ARROW_LENGTH, ARROW_HALF_WIDTH)
+    .map(|arrow| arrow.with_fill_color(Color::BLACK))
+}
+
 impl EditPartBehavior<Diagram> for EdgePart {
     fn create_figure(&mut self, m: &Diagram, id: u64) -> Result<Box<dyn Figure>, EditPartError> {
         let dash = match m.edges[&id].style {
@@ -768,10 +996,7 @@ impl EditPartBehavior<Diagram> for EdgePart {
         _: u64,
         ctx: &mut VisualBuildContext<'_>,
     ) -> Result<(), EditPartError> {
-        let arrow = PolygonDecorationFigure::triangle()
-            .with_scale(ARROW_LENGTH, ARROW_HALF_WIDTH)
-            .map_err(|e| EditPartError::operation(e.to_string()))?
-            .with_fill_color(Color::BLACK);
+        let arrow = target_arrow().map_err(|e| EditPartError::operation(e.to_string()))?;
         ctx.add_connection_child(Box::new(arrow), Box::new(ConnectionLocator::Target))?;
         Ok(())
     }
@@ -785,6 +1010,41 @@ impl EditPartBehavior<Diagram> for EdgePart {
             PolicyInstallation::new(ConnectionReconnectSlot::key(), EdgePolicy)
                 .map_err(|e| EditPartError::operation(e.to_string()))?,
         ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use novadraw::connection::{ConnectionDecorationBehavior, LocatorPlacement};
+
+    #[test]
+    fn target_arrow_matches_the_official_shapes_default_span() {
+        let arrow = target_arrow().unwrap();
+        let geometry = arrow
+            .prepare_decoration_geometry(LocatorPlacement {
+                point: Point::new(100.0, 100.0),
+                reference: Point::new(90.0, 100.0),
+            })
+            .unwrap();
+        let (min_x, max_x, min_y, max_y) = geometry.local_points().iter().fold(
+            (
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+            ),
+            |(min_x, max_x, min_y, max_y), point| {
+                (
+                    min_x.min(point.x()),
+                    max_x.max(point.x()),
+                    min_y.min(point.y()),
+                    max_y.max(point.y()),
+                )
+            },
+        );
+        assert!((max_x - min_x - ARROW_LENGTH).abs() < f64::EPSILON);
+        assert!((max_y - min_y - ARROW_HALF_WIDTH * 2.0).abs() < f64::EPSILON);
     }
 }
 

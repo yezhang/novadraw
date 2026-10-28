@@ -1,13 +1,35 @@
-use crate::model::{Diagram, ShapeFactory};
+use crate::model::{Diagram, ShapeFactory, resize_handle_sites, selection_handle};
 use novadraw::render::{RenderBackend, SurfaceInfo};
 use novadraw::runtime::{FramePreparation, SubmissionAcknowledgement};
-use novadraw_editor::{EditorDomain, GraphicalViewer};
+use novadraw::{
+    geometry::{Point, Rectangle},
+    tree::FigureId,
+};
+use novadraw_editor::overlay::{ConnectionEndpointAction, ResizeAction};
+use novadraw_editor::{ConnectionEndpoint, EditPartId, EditorDomain, GraphicalViewer};
+
+#[derive(Clone, Debug, PartialEq)]
+enum HandleProjection {
+    Shape {
+        part: EditPartId,
+        bounds: Rectangle,
+        primary: bool,
+    },
+    Connection {
+        part: EditPartId,
+        source: Point,
+        target: Point,
+        primary: bool,
+    },
+}
 
 /// Editor state shared by the egui host and headless tests.
 pub struct Session {
     pub viewer: GraphicalViewer<Diagram, ShapeFactory>,
     pub domain: EditorDomain<Diagram>,
     surface: Option<SurfaceInfo>,
+    handles: Vec<FigureId>,
+    handle_projection: Vec<HandleProjection>,
 }
 
 /// Stable application projection; no model or host-framework types escape here.
@@ -27,6 +49,8 @@ impl Session {
             viewer,
             domain: EditorDomain::new(),
             surface: None,
+            handles: Vec::new(),
+            handle_projection: Vec::new(),
         }
     }
 
@@ -45,6 +69,132 @@ impl Session {
         let result = self.domain.cancel_tool(&mut self.viewer);
         self.viewer.drive().cancel_gestures();
         result.map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn sync_selection_handles(&mut self) -> Result<bool, String> {
+        if self.domain.has_active_gesture() {
+            return self.clear_selection_handles();
+        }
+        let projection = self.current_handle_projection();
+        if projection == self.handle_projection
+            && (!self.handles.is_empty() || projection.is_empty())
+        {
+            return Ok(false);
+        }
+        self.clear_selection_handles()?;
+        for item in &projection {
+            match *item {
+                HandleProjection::Shape {
+                    part,
+                    bounds,
+                    primary,
+                } => self.add_shape_handles(part, bounds, primary)?,
+                HandleProjection::Connection {
+                    part,
+                    source,
+                    target,
+                    primary,
+                } => self.add_connection_handles(part, source, target, primary)?,
+            }
+        }
+        self.handle_projection = projection;
+        Ok(true)
+    }
+
+    fn clear_selection_handles(&mut self) -> Result<bool, String> {
+        let changed = !self.handles.is_empty();
+        for figure in self.handles.drain(..) {
+            self.viewer
+                .remove_overlay_visual(figure)
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(changed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn handle_visual_count(&self) -> usize {
+        self.handles.len()
+    }
+
+    fn current_handle_projection(&self) -> Vec<HandleProjection> {
+        let primary = self.viewer.selection().primary();
+        self.viewer
+            .selection()
+            .items()
+            .iter()
+            .filter_map(|part| {
+                if let Some(connection) = self.viewer.as_connection_part(*part) {
+                    let (source, target) = self
+                        .viewer
+                        .connection_route_endpoints_in_surface(connection)?;
+                    Some(HandleProjection::Connection {
+                        part: *part,
+                        source,
+                        target,
+                        primary: Some(*part) == primary,
+                    })
+                } else {
+                    self.viewer.part_bounds_in_surface(*part).map(|bounds| {
+                        HandleProjection::Shape {
+                            part: *part,
+                            bounds,
+                            primary: Some(*part) == primary,
+                        }
+                    })
+                }
+            })
+            .collect()
+    }
+
+    fn add_shape_handles(
+        &mut self,
+        part: EditPartId,
+        bounds: Rectangle,
+        primary: bool,
+    ) -> Result<(), String> {
+        for (point, direction) in resize_handle_sites(bounds) {
+            let figure = selection_handle(point);
+            let (_, figure) = if primary {
+                self.viewer.add_handle_visual_with_action::<ResizeAction>(
+                    part,
+                    direction,
+                    Box::new(figure),
+                )
+            } else {
+                self.viewer.add_handle_visual(part, Box::new(figure))
+            }
+            .map_err(|error| error.to_string())?;
+            self.handles.push(figure);
+        }
+        Ok(())
+    }
+
+    fn add_connection_handles(
+        &mut self,
+        part: EditPartId,
+        source: Point,
+        target: Point,
+        primary: bool,
+    ) -> Result<(), String> {
+        for (point, endpoint) in [
+            (source, ConnectionEndpoint::Source),
+            (target, ConnectionEndpoint::Target),
+        ] {
+            let figure = selection_handle(point);
+            let (_, figure) = if primary {
+                self.viewer
+                    .add_handle_visual_with_action::<ConnectionEndpointAction>(
+                        part,
+                        endpoint,
+                        Box::new(figure),
+                    )
+            } else {
+                self.viewer.add_handle_visual(part, Box::new(figure))
+            }
+            .map_err(|error| error.to_string())?;
+            self.handles.push(figure);
+        }
+        Ok(())
     }
 
     /// Publishes one frame through an application-owned backend.

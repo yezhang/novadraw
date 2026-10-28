@@ -8,13 +8,10 @@ default-run = "gef-editor-demo"
 
 [dependencies]
 novadraw = { path = "../../../crates/novadraw" }
-novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello", features = ["native"] }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello" }
 novadraw-editor = { path = "../../../crates/novadraw-editor" }
 eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
 egui = "0.35"
 egui-wgpu = { version = "0.35", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
-
-[dev-dependencies]
-image = { version = "0.25", default-features = false, features = ["png"] }

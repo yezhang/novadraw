@@ -521,8 +521,9 @@ Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 W
 | 切片 | 状态 | 契约与退出证据 |
 |---|---|---|
 | Scene backend 输出 | `complete` | [ADR-053](../adr/adr-053-embedded-vello-scene-target.md)；[首批证据](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)，4 项契约、12 帧 GPU 对照、39 项 backend 回归及独立消费成本 |
-| Masonry Widget / Xilem View | `in_progress` | [接入契约](../design/editor/masonry-xilem-canvas-integration.md)；[首批实施证据](../verification/reviews/masonry-xilem-canvas-implementation-2026-10-28.md)与[Native/resize 续验](../verification/reviews/masonry-native-first-frame-followup-2026-10-28.md)；已完成[未修改上游迁移](../verification/reviews/masonry-upstream-migration-2026-10-28.md)，删除 vendor 后 7 项输入/生命周期/GPU 消费测试和 4 项适配契约通过，resize/DPI 保留 source/history；迁移前用户置前台后确认 Native 场景显示，迁移后原生进程已启动；自动激活、完整 IME、系统 AT、窗口外 capture 与原生完整交互仍待验收 |
-| Shapes 工具与完整样例 | `in_progress` | [ADR-054](../adr/adr-054-template-creation-and-marquee.md)；[SH-01～SH-10 实施证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)：创建/框选/模板拖放、两种连接线型、端点重连、障碍路由、多选编辑与删除关系恢复、Outline/Geometry、文件与保存点、滚动/平移/快捷键均已实现并完成自动验证；完整原生交互与宿主人工验收仍待核验，不据离屏 GPU 证据关闭完整对等门禁 |
+| Masonry Widget / Xilem View | `deferred` | [接入契约](../design/editor/masonry-xilem-canvas-integration.md)与既有实施证据继续作为独立 adapter 保留；删除 vendor 后 7 项输入/生命周期/GPU 消费测试和 4 项适配契约通过。2026-10-28 起不再承担 Shapes 应用外壳，也不再阻塞 Shapes 对等验收；其完整 IME、系统 AT、窗口外 capture 与原生交互按独立消费者需求继续评审 |
+| egui Shapes 宿主 | `in_progress` | eframe/egui 0.35 负责工具栏、Palette、Outline、属性表和 WGPU 纹理合成；应用本地 Session 持有 Viewer/EditorDomain。20 项样例测试通过，包含六方向对齐的主选择参照、复合命令撤销/重做、重复操作无历史、连接过滤及按钮派发；原有局部坐标、焦点取消、模板投放、快捷键、typed tool mode、连接、Outline、持久化、DPI、默认拓扑、箭头比例、Resize 和拖动反馈回归保持通过。严格 Clippy 与 release 构建通过，真实窗口已确认非空且布局正常；完整原生交互、跨显示器 DPI、窗口外 capture、IME 与系统 AT 仍待验收 |
+| Shapes 工具与完整样例 | `in_progress` | [ADR-054](../adr/adr-054-template-creation-and-marquee.md)；[SH-01～SH-10 实施证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)：创建/框选/模板拖放、两种连接线型、端点重连、障碍路由、多选编辑与删除关系恢复、Outline/Geometry、文件与保存点、滚动/平移/快捷键均已实现并完成自动验证；默认启动文档使用 6 节点/6 连接展示两种 Figure、Anchor、线型、箭头、ConnectionPart 与多障碍路由，节点采用三列两行等尺寸网格，默认 route 均为两点直线，最小测试夹具与展示内容分离；egui 宿主显示已核验，完整原生交互仍待核验 |
 
 ### 当前推进顺序（2026-10-14 校准）
 

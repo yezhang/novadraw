@@ -168,13 +168,14 @@ impl CanvasTarget {
 fn configure_style(context: &egui::Context) {
     context.set_visuals(egui::Visuals::light());
     context.style_mut_of(egui::Theme::Light, |style| {
-        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.button_padding = egui::vec2(10.0, 5.0);
+        style.spacing.item_spacing = egui::vec2(6.0, 4.0);
+        style.spacing.button_padding = egui::vec2(8.0, 4.0);
         style.visuals.widgets.inactive.corner_radius = 3.0.into();
         style.visuals.widgets.hovered.corner_radius = 3.0.into();
         style.visuals.widgets.active.corner_radius = 3.0.into();
         style.visuals.widgets.open.corner_radius = 3.0.into();
-        style.visuals.selection.bg_fill = egui::Color32::from_rgb(45, 105, 145);
+        style.visuals.selection.bg_fill = crate::ui::SELECTION_BLUE;
+        style.visuals.selection.stroke = egui::Stroke::new(1.0, crate::ui::SELECTION_TEXT);
         style.animation_time = 0.0;
     });
 }

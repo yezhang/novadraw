@@ -14,7 +14,7 @@ def main() -> None:
         raise SystemExit("This launcher requires macOS; use the documented Cargo entry on other platforms.")
 
     project = Path(__file__).resolve().parents[2]
-    build_dir = project / "target" / "masonry"
+    build_dir = project / "target" / "egui"
     build_env = os.environ.copy()
     build_env["CARGO_TARGET_DIR"] = str(build_dir)
     toolchain = build_env.get("NOVADRAW_UI_TOOLCHAIN", "1.96.0")

@@ -5,6 +5,35 @@
 日期：2026-10-27。2026-10-28 用户批准记录方案并开始实施。
 总体方向已获授权；分批实施与完成证据只在 P2 backlog 维护。
 
+## 2026-10-28 egui 宿主修订
+
+用户后续明确要求 Shapes 样例直接使用 egui 搭建工具栏、Palette、Outline 和属性窗口。
+该决定替代本文原先针对 Shapes 应用外壳的 Xilem/Masonry 选择，但不撤销已经完成的
+Masonry adapter，也不改变 Core、Editor、typed Request/Tool/CommandStack 和模型
+所有权契约。本文后续的 Xilem/Masonry 章节保留为原决策及独立 adapter 的历史证据；
+Shapes 当前实现与状态以
+[验证记录](../../verification/reviews/shapes-editor-implementation-2026-10-28.md)和
+[P2 backlog](../../roadmap/p2-delta-backlog.md)为准。
+
+当前宿主边界如下：
+
+```mermaid
+flowchart TD
+    Egui["egui/eframe 工具栏、Palette、Outline、属性表"] --> Action["应用命令队列"]
+    Input["egui 原始指针 / 键盘事件"] --> Local["画布局部坐标适配"]
+    Action --> Session["应用 Session"]
+    Local --> Session
+    Session --> Domain["EditorDomain / Viewer"]
+    Domain --> Runtime["Novadraw Runtime"]
+    Runtime --> Submission["RenderSubmission"]
+    Submission --> Texture["Vello RGBA8 应用纹理"]
+    Texture --> Egui
+```
+
+egui 不拥有业务模型、Viewer、EditorDomain 或命令历史。应用持有 WGPU
+Device/Queue 和画布纹理，Vello 提交完成后由 egui 使用稳定 `TextureId` 合成。
+UI 重绘、面板缩放和纹理重建不得重建编辑会话；输入只按中央画布矩形转换为局部坐标。
+
 ## 本次授权与首个切片
 
 2026-10-28 用户指令：“好的，记录这个方案，然后开始实施”。

@@ -1,7 +1,7 @@
 use crate::{
-    AppState, Session, UiCommand,
+    Alignment, AppState, OutlineItemKind, Session, ToolMode, UiCommand,
     model::{Diagram, EdgeStyle, FIRST, INITIAL_BOUNDS, ShapeKind},
-    session, sync,
+    session_from_model, sync,
     ui::{EditorUi, UiOutput},
 };
 use egui::{Event, Key, Modifiers, PointerButton, RawInput, Rect, TextureId, pos2, vec2};
@@ -10,6 +10,10 @@ use novadraw::geometry::{Point, Rectangle};
 use novadraw::render::{
     BackendCapabilities, RenderBackend, RenderDisposition, RenderResult, RenderSubmission,
 };
+
+fn session() -> Session {
+    session_from_model(Diagram::minimal()).expect("valid minimal diagram")
+}
 
 fn click(session: &mut Session, point: Point) {
     session
@@ -53,7 +57,7 @@ fn egui_frame(
     events: Vec<Event>,
 ) -> UiOutput {
     let mut output = None;
-    context.run_ui(
+    let _ = context.run_ui(
         RawInput {
             screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(1180.0, 820.0))),
             events,
@@ -71,6 +75,101 @@ fn canvas_position(app: &AppState, local: Point) -> egui::Pos2 {
         app.canvas_bounds.x as f32 + local.x() as f32,
         app.canvas_bounds.y as f32 + local.y() as f32,
     )
+}
+
+#[test]
+fn six_alignments_use_primary_shape_and_one_undo_entry() {
+    let initial = [
+        Rectangle::new(10.0, 20.0, 60.0, 40.0),
+        Rectangle::new(150.0, 170.0, 80.0, 60.0),
+        Rectangle::new(300.0, 250.0, 100.0, 80.0),
+    ];
+    for (alignment, expected) in [
+        (Alignment::Left, [(300.0, 20.0), (300.0, 170.0)]),
+        (Alignment::HorizontalCenter, [(320.0, 20.0), (310.0, 170.0)]),
+        (Alignment::Right, [(340.0, 20.0), (320.0, 170.0)]),
+        (Alignment::Top, [(10.0, 250.0), (150.0, 250.0)]),
+        (Alignment::VerticalCenter, [(10.0, 270.0), (150.0, 260.0)]),
+        (Alignment::Bottom, [(10.0, 290.0), (150.0, 270.0)]),
+    ] {
+        let mut model = Diagram::default();
+        for (id, bounds) in (1..=3).zip(initial) {
+            model.shapes.get_mut(&id).unwrap().bounds = bounds;
+        }
+        let mut session = session_from_model(model).unwrap();
+        let parts = (1..=3)
+            .map(|id| session.viewer.part_for_model(id).unwrap())
+            .collect::<Vec<_>>();
+        session.viewer.set_selection(&parts).unwrap();
+        let mut app = AppState::default();
+        sync(&mut app, &mut session).unwrap();
+        assert!(app.can_align);
+        command(&mut session, &mut app, UiCommand::Align(alignment));
+        for (index, (x, y)) in expected.into_iter().enumerate() {
+            let actual = session.viewer.model().shapes[&(index as u64 + 1)].bounds;
+            assert_eq!(
+                actual,
+                Rectangle::new(x, y, initial[index].width, initial[index].height)
+            );
+        }
+        assert_eq!(session.viewer.model().shapes[&3].bounds, initial[2]);
+        assert_eq!(session.viewer.selection().items(), parts);
+        assert_eq!(session.viewer.model().edges.len(), 6);
+        command(&mut session, &mut app, UiCommand::Align(alignment));
+        command(&mut session, &mut app, UiCommand::Undo);
+        for (id, bounds) in (1..=3).zip(initial) {
+            assert_eq!(session.viewer.model().shapes[&id].bounds, bounds);
+        }
+        assert!(
+            !session.domain.has_undo(),
+            "repeat alignment must not add history"
+        );
+        command(&mut session, &mut app, UiCommand::Redo);
+        assert_eq!(session.viewer.model().shapes[&1].bounds.x, expected[0].0);
+        assert_eq!(session.viewer.model().shapes[&1].bounds.y, expected[0].1);
+    }
+}
+
+#[test]
+fn alignment_filters_connections_and_respects_disabled_and_primary_selection() {
+    let mut session = crate::session();
+    let mut app = AppState::default();
+    sync(&mut app, &mut session).unwrap();
+    assert!(!app.can_align);
+    command(&mut session, &mut app, UiCommand::Align(Alignment::Left));
+    assert!(!session.domain.has_undo());
+    let first = session.viewer.part_for_model(1).unwrap();
+    let second = session.viewer.part_for_model(2).unwrap();
+    let connection = session
+        .viewer
+        .connection_part_for_model(7)
+        .unwrap()
+        .edit_part();
+    session
+        .viewer
+        .set_selection(&[first, second, connection])
+        .unwrap();
+    sync(&mut app, &mut session).unwrap();
+    assert!(
+        !app.can_align,
+        "connection cannot serve as the alignment reference"
+    );
+    command(&mut session, &mut app, UiCommand::Align(Alignment::Left));
+    assert!(!session.domain.has_undo());
+    session
+        .viewer
+        .set_selection(&[first, connection, second])
+        .unwrap();
+    sync(&mut app, &mut session).unwrap();
+    assert!(app.can_align);
+    app.disabled = true;
+    command(&mut session, &mut app, UiCommand::Align(Alignment::Left));
+    assert!(!session.domain.has_undo());
+    app.disabled = false;
+    command(&mut session, &mut app, UiCommand::Align(Alignment::Left));
+    assert_eq!(session.viewer.model().shapes[&1].bounds.x, 270.0);
+    assert_eq!(session.viewer.model().edges[&7].source, 1);
+    assert_eq!(session.viewer.model().edges[&7].target, 2);
 }
 
 #[derive(Default)]
@@ -101,6 +200,82 @@ impl RenderBackend for TestBackend {
     }
 
     fn resize(&mut self, _: u32, _: u32, _: f64) {}
+}
+
+#[test]
+fn default_showcase_projects_shapes_connections_and_routed_geometry() {
+    let mut session = crate::session();
+    assert_eq!(session.viewer.model().shapes.len(), 6);
+    assert_eq!(session.viewer.model().edges.len(), 6);
+    let shapes = &session.viewer.model().shapes;
+    for row in [[1, 2, 3], [4, 5, 6]] {
+        assert_eq!(shapes[&row[0]].bounds.y, shapes[&row[1]].bounds.y);
+        assert_eq!(shapes[&row[1]].bounds.y, shapes[&row[2]].bounds.y);
+    }
+    for column in [[1, 4], [2, 5], [3, 6]] {
+        assert_eq!(shapes[&column[0]].bounds.x, shapes[&column[1]].bounds.x);
+    }
+    assert!(
+        shapes
+            .values()
+            .all(|shape| shape.bounds.width == 120.0 && shape.bounds.height == 80.0)
+    );
+    assert_eq!(session.viewer.selection().items().len(), 1);
+    assert_eq!(session.handle_visual_count(), 8);
+    assert!(!session.domain.has_undo());
+    assert!(!session.domain.is_dirty());
+    assert!(
+        session
+            .viewer
+            .model()
+            .edges
+            .values()
+            .any(|edge| edge.style == EdgeStyle::Solid)
+    );
+    assert!(
+        session
+            .viewer
+            .model()
+            .edges
+            .values()
+            .any(|edge| edge.style == EdgeStyle::Dashed)
+    );
+    assert_eq!(session.viewer.parts().connection_parts().len(), 6);
+    for edge in session.viewer.model().edges.keys() {
+        let part = session
+            .viewer
+            .connection_part_for_model(*edge)
+            .expect("showcase connection is projected");
+        assert_eq!(
+            session
+                .viewer
+                .connection_route_points_in_surface(part)
+                .map(|points| points.len()),
+            Some(2),
+            "aligned showcase edge {edge} must not contain redundant bends"
+        );
+    }
+
+    let mut app = AppState::default();
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(app.outline.len(), 12);
+    assert_eq!(app.selected, [FIRST]);
+    assert_eq!(
+        app.property_subject,
+        Some((FIRST, session.viewer.model().shapes[&FIRST].bounds))
+    );
+    command(&mut session, &mut app, UiCommand::Select(7));
+    assert_eq!(session.handle_visual_count(), 2);
+    assert_eq!(
+        session.viewer.selection().primary(),
+        session
+            .viewer
+            .connection_part_for_model(7)
+            .map(|part| part.edit_part())
+    );
+    let mut backend = TestBackend::default();
+    session.render([640.0, 480.0], 1.0, &mut backend).unwrap();
+    assert_eq!(backend.submissions, 1);
 }
 
 #[test]
@@ -135,12 +310,121 @@ fn egui_canvas_uses_local_coordinates_and_one_history_entry() {
             },
         ],
     );
-    assert_eq!(output.interaction.unwrap(), true);
+    assert!(output.interaction.unwrap());
     assert_eq!(
         session.viewer.model().shapes[&FIRST].bounds,
         Rectangle::new(110.0, 100.0, 120.0, 80.0)
     );
     assert!(session.domain.has_undo());
+    command(&mut session, &mut app, UiCommand::Undo);
+    assert_eq!(session.viewer.model().shapes[&FIRST].bounds, INITIAL_BOUNDS);
+    assert!(!session.domain.has_undo());
+}
+
+#[test]
+fn move_feedback_carries_selection_outline_and_handles_until_commit() {
+    let mut session = session();
+    let mut app = AppState::default();
+    command(&mut session, &mut app, UiCommand::Select(FIRST));
+    assert_eq!(session.handle_visual_count(), 8);
+
+    session
+        .domain
+        .pointer_pressed(
+            &mut session.viewer,
+            Point::new(90.0, 100.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    session
+        .domain
+        .pointer_moved(&mut session.viewer, Point::new(140.0, 130.0))
+        .unwrap();
+    sync(&mut app, &mut session).unwrap();
+
+    assert_eq!(session.viewer.model().shapes[&FIRST].bounds, INITIAL_BOUNDS);
+    assert_eq!(session.handle_visual_count(), 0);
+    let feedback = session
+        .viewer
+        .runtime()
+        .tree()
+        .child_order(session.viewer.root_layers().scaled_feedback())
+        .unwrap();
+    assert_eq!(feedback.len(), 9);
+    assert_eq!(
+        session
+            .viewer
+            .runtime()
+            .tree()
+            .figure_bounds(feedback[0])
+            .unwrap(),
+        Rectangle::new(110.0, 100.0, 120.0, 80.0)
+    );
+
+    session
+        .domain
+        .pointer_released(
+            &mut session.viewer,
+            Point::new(140.0, 130.0),
+            MouseButton::Left,
+        )
+        .unwrap();
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(
+        session.viewer.model().shapes[&FIRST].bounds,
+        Rectangle::new(110.0, 100.0, 120.0, 80.0)
+    );
+    assert_eq!(session.handle_visual_count(), 8);
+    assert!(
+        session
+            .viewer
+            .runtime()
+            .tree()
+            .child_order(session.viewer.root_layers().scaled_feedback())
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn projected_resize_handle_commits_one_bounds_command_and_tracks_geometry() {
+    let mut session = session();
+    let mut app = AppState::default();
+    command(&mut session, &mut app, UiCommand::Select(FIRST));
+    assert_eq!(session.handle_visual_count(), 8);
+
+    session
+        .domain
+        .pointer_pressed(
+            &mut session.viewer,
+            Point::new(180.0, 150.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    session
+        .domain
+        .pointer_moved(&mut session.viewer, Point::new(210.0, 170.0))
+        .unwrap();
+    assert!(
+        session
+            .domain
+            .pointer_released(
+                &mut session.viewer,
+                Point::new(210.0, 170.0),
+                MouseButton::Left,
+            )
+            .unwrap()
+            .command_executed()
+    );
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(
+        session.viewer.model().shapes[&FIRST].bounds,
+        Rectangle::new(60.0, 70.0, 150.0, 100.0)
+    );
+    assert_eq!(session.handle_visual_count(), 8);
+
     command(&mut session, &mut app, UiCommand::Undo);
     assert_eq!(session.viewer.model().shapes[&FIRST].bounds, INITIAL_BOUNDS);
     assert!(!session.domain.has_undo());
@@ -217,7 +501,7 @@ fn egui_template_drop_creates_at_canvas_local_position() {
     sync(&mut app, &mut session).unwrap();
     let created = session.viewer.model().shapes.get(&3).unwrap();
     assert_eq!(created.kind, ShapeKind::Ellipse);
-    assert_eq!(created.bounds, Rectangle::new(400.0, 280.0, 120.0, 80.0));
+    assert_eq!(created.bounds, Rectangle::new(460.0, 320.0, 120.0, 80.0));
 }
 
 #[test]
@@ -297,6 +581,32 @@ fn create_delete_and_undo_share_the_editor_command_chain() {
 }
 
 #[test]
+fn tool_mode_tracks_typed_tools_and_one_shot_completion() {
+    let mut session = session();
+    let mut app = AppState::default();
+    assert_eq!(app.tool_mode, ToolMode::Selection);
+
+    command(&mut session, &mut app, UiCommand::Marquee);
+    assert_eq!(app.tool_mode, ToolMode::Marquee);
+    command(&mut session, &mut app, UiCommand::Rectangle);
+    assert_eq!(app.tool_mode, ToolMode::Rectangle);
+    click(&mut session, Point::new(500.0, 320.0));
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(app.tool_mode, ToolMode::Selection);
+
+    command(
+        &mut session,
+        &mut app,
+        UiCommand::Connect(EdgeStyle::Dashed),
+    );
+    assert_eq!(app.tool_mode, ToolMode::DashedConnection);
+    click(&mut session, Point::new(90.0, 100.0));
+    click(&mut session, Point::new(320.0, 200.0));
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(app.tool_mode, ToolMode::Selection);
+}
+
+#[test]
 fn connection_creation_rejects_self_and_duplicate_and_preserves_style() {
     let mut session = session();
     let mut app = AppState::default();
@@ -314,6 +624,41 @@ fn connection_creation_rejects_self_and_duplicate_and_preserves_style() {
 }
 
 #[test]
+fn outline_projection_keeps_shape_and_connection_types_explicit() {
+    let mut session = session();
+    let mut app = AppState::default();
+    sync(&mut app, &mut session).unwrap();
+    assert_eq!(
+        app.outline.iter().map(|item| item.kind).collect::<Vec<_>>(),
+        [OutlineItemKind::Rectangle, OutlineItemKind::Ellipse,]
+    );
+
+    connect(
+        &mut session,
+        &mut app,
+        EdgeStyle::Dashed,
+        Point::new(90.0, 100.0),
+        Point::new(320.0, 200.0),
+    );
+    assert_eq!(
+        app.outline.last().map(|item| item.kind),
+        Some(OutlineItemKind::Connection(EdgeStyle::Dashed))
+    );
+}
+
+#[test]
+fn invalid_geometry_draft_does_not_enter_command_history() {
+    let mut session = session();
+    let mut app = AppState::default();
+    command(&mut session, &mut app, UiCommand::Select(FIRST));
+    app.properties = [80.0, 90.0, 10.0, 100.0];
+    app.pending.push_back(UiCommand::ApplyProperties);
+    assert!(sync(&mut app, &mut session).is_err());
+    assert_eq!(session.viewer.model().shapes[&FIRST].bounds, INITIAL_BOUNDS);
+    assert!(!session.domain.has_undo());
+}
+
+#[test]
 fn geometry_savepoint_and_open_roundtrip_preserve_document_state() {
     let directory = std::env::temp_dir().join(format!(
         "novadraw-egui-shapes-{}-{:?}",
@@ -324,7 +669,7 @@ fn geometry_savepoint_and_open_roundtrip_preserve_document_state() {
     let mut session = session();
     let mut app = AppState::default();
     command(&mut session, &mut app, UiCommand::Select(FIRST));
-    app.properties = ["80".into(), "90".into(), "160".into(), "100".into()];
+    app.properties = [80.0, 90.0, 160.0, 100.0];
     command(&mut session, &mut app, UiCommand::ApplyProperties);
     assert_eq!(
         session.viewer.model().shapes[&FIRST].bounds,
@@ -352,8 +697,10 @@ fn failed_save_as_does_not_move_savepoint_or_replace_path() {
     let directory = std::env::temp_dir().join(format!("novadraw-egui-save-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let mut session = session();
-    let mut app = AppState::default();
-    app.path_input = directory.join("good.json").to_string_lossy().into_owned();
+    let mut app = AppState {
+        path_input: directory.join("good.json").to_string_lossy().into_owned(),
+        ..Default::default()
+    };
     command(&mut session, &mut app, UiCommand::SaveAs);
     command(
         &mut session,
@@ -390,10 +737,15 @@ fn session_render_tracks_dpi_without_replacing_viewer_or_history() {
 fn document_parser_rejects_invalid_references_and_geometry() {
     let valid = Diagram::default().to_json().unwrap();
     assert!(Diagram::from_json(&valid).is_ok());
-    let duplicate_id = valid.replace("\"id\":2", "\"id\":1");
-    assert!(Diagram::from_json(&duplicate_id).is_err());
-    let invalid_geometry = valid.replace("\"width\":120.0", "\"width\":-1.0");
-    assert!(Diagram::from_json(&invalid_geometry).is_err());
-    let invalid_version = valid.replace("\"version\":1", "\"version\":99");
-    assert!(Diagram::from_json(&invalid_version).is_err());
+    let mut document: serde_json::Value = serde_json::from_str(&valid).unwrap();
+    document["order"] = serde_json::json!([1, 1]);
+    assert!(Diagram::from_json(&document.to_string()).is_err());
+
+    let mut document: serde_json::Value = serde_json::from_str(&valid).unwrap();
+    document["shapes"]["1"]["bounds"][2] = serde_json::json!(-1.0);
+    assert!(Diagram::from_json(&document.to_string()).is_err());
+
+    let mut document: serde_json::Value = serde_json::from_str(&valid).unwrap();
+    document["version"] = serde_json::json!(99);
+    assert!(Diagram::from_json(&document.to_string()).is_err());
 }
