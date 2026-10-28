@@ -10,6 +10,7 @@
 | 日期 | 报告 |
 |---|---|
 | 2026-10-28 | [Xilem / Masonry 上游依赖重新评估](xilem-masonry-upstream-reassessment-2026-10-28.md) |
+| 2026-10-28 | [wasm_rust 遗留交付文件迁移](wasm-rust-file-migration-2026-10-28.md) |
 | 2026-10-28 | [Masonry Native 首帧与 resize 续验](masonry-native-first-frame-followup-2026-10-28.md) |
 | 2026-10-28 | [Masonry / Xilem 画布与 Shapes 首批消费者](masonry-xilem-canvas-implementation-2026-10-28.md) |
 | 2026-10-28 | [长文本滚动与 resize 首批实施](long-text-scroll-resize-implementation-2026-10-28.md) |

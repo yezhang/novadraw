@@ -3,15 +3,17 @@
 类型：`proposal`
 
 交付副本；项目维护正文为[滚动与 resize 优化提案](file:///Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/doc/design/architecture/long-text-scroll-resize-optimization-proposal.md)。
-本副本对应修订 2，正文修订响应维护在项目方案中，不作为第二份维护正文。
-项目正文 SHA-256：`7c6cb5f74a4767afcf534c5d18a519931eb1d0b089e2a30c6bc23e8de7b03e82`。
+本副本对应用户已批准的修订 2，不作为第二份维护正文。
+项目正文 SHA-256：`1942506f0b95b8315906e4f3fad6db5fea704262b8f6b3dcfa441a59149a9af0`。
 
-日期：2026-10-28。修订：2。状态：已补齐设计响应，待复核，未授权新增实施切片。
+日期：2026-10-28。修订：2。状态：用户已批准实施；观测与共享 IR 已落地，
+具体证据及剩余验收见[首批实施记录](file:///Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/doc/verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md)。
 
 本提案记录 `TextFlowLargeExample` 拖动滚动条和调整窗口尺寸时的优化方案。
 本轮按[固定评审记录](file:///Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/doc/verification/reviews/long-text-scroll-resize-review-2026-10-28.md)
 处理 SR-R01～SR-R06；六条意见均有源码或合同依据，全部采用。
-用户本次授权文档修订；本页不改变 ADR 接受状态、执行队列或既有验收结论。
+用户随后授权“先把最新修改提交 git，然后开始实施这个方案”。
+测量先行，执行状态只记入既有 backlog；原生覆盖与宽度复用的准入仍须各自取证。
 拟议的接口与数据角色均不表示已经实现。
 
 ## 文档归属与适用范围
@@ -45,12 +47,12 @@ source delta、安全局部 shaping 和检查点证明；
 这组 CPU 数据没有测量连续鼠标拖动、真实窗口 resize、GPU 完成或实际显示时间。
 IR 录制发生在 resize 之后，不能代替固定可见区查询与 IR 的正式验收。
 各阶段分位数不能相加推算帧率，也不能与历史二进制计算严格提速比。
-本轮仅定向核验评审引用的实现事实和 Parley 0.7.0 的接口与所有权，
+修订 2 的设计阶段仅定向核验评审引用的实现事实和 Parley 0.7.0 的接口与所有权，
 没有新增算法、窗口、GPU 或性能测试。
 既有 resize 的六次 styled layout 调用尚未按完整 request 分类，
 不能将它们全部判定为同 request 重算或全部归为 shaping。
 
-前序定向源码核对确认：
+实施前的定向源码核对确认（历史定位，不代表共享 IR 落地后的存储结构）：
 
 - 滚动修改 view location 并重画 viewport。段落排版可以复用，
   绘制阶段仍保守输出原生字形；`GlyphRun` 的 glyph 数组为 `Vec`，
@@ -436,4 +438,5 @@ worker 与 GPU 缓存另计初始化和资源成本；当前没有这些新增�
 | SR-R05 | 非字形输出与范围碎片；验收目标与测试分母 | 完整 IR 计入边框、装饰、状态与编码；有证据才剪枝，兼容且原序连续才合并 | 长行／RTL／混合字体和装饰的范围碎片、命令分布、顺序与像素及完整 4 ms 指标 |
 | SR-R06 | resize 的合并与几何消费边界；验收目标与测试分母 | 实际消费形成保守屏障，三层 oracle 分开，B/M/L/F 在比较前冻结 | 交错事件、DPI／生命周期／恢复、多宽度结果、屏障收益与连续窗口阈值和显示证据 |
 
-本轮只修改方案与必要专题，不修改 Rust、ADR 接受状态、执行队列或固定评审原文。
+修订 2 的设计阶段只修改方案与必要专题。
+后续实施已获用户授权，证据和进度记入实施记录与既有执行队列；固定评审原文保留。
