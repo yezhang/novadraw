@@ -486,6 +486,18 @@ P2-S07 的契约见 [ADR-038](../adr/adr-038-query-identity-and-failure-semantic
 2026-10-16 实施与验收闭合，R04/TC-09/API-F06/API-07 的关闭依据及各阶段结果见
 [完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 
+### GEF 对等样例接入（2026-10-28 用户授权）
+
+用户批准[对等方案](../design/editor/gef-official-examples-parity-proposal.md)并要求开始实施。
+本次只执行 Scene 输出前置切片；CreationTool、框选、模板拖放与 Widget/View
+依次推进，不另建并行执行队列，不更改既有 LT 或其他未完成批次的状态。
+
+| 切片 | 状态 | 契约与退出证据 |
+|---|---|---|
+| Scene backend 输出 | `complete` | [ADR-053](../adr/adr-053-embedded-vello-scene-target.md)；[首批证据](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)，4 项契约、12 帧 GPU 对照、39 项 backend 回归及独立消费成本 |
+| Masonry Widget / Xilem View | `pending` | 固定兼容版本、稳定 session、输入/IME/capture/lifecycle 与真实宿主 |
+| Shapes 工具与完整样例 | `pending` | CreationTool、marquee、模板创建；模型/history/投影与 UI 同步 |
+
 ### 当前推进顺序（2026-10-14 校准）
 
 1. **审计整改主链**：P2-S06/S07 已完成，下一批 P2-S08 Design → P2-S09；两批尚未启动。每批先核对当前

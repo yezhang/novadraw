@@ -7,7 +7,9 @@
 2026-10-28，依据用户批准的
 [GEF 对等样例方案](../design/editor/gef-official-examples-parity-proposal.md)实施首个前置切片。
 本 ADR 细化方案 A 的 backend 出口，不授权改动第三方 UI 框架或 Core 渲染主循环。
-完成状态与证据见 [P2 backlog](../roadmap/p2-delta-backlog.md)。
+Scene 输出切片已实施，验证结果见
+[首批记录](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)；
+整体 UI 接入状态仍由 [P2 backlog](../roadmap/p2-delta-backlog.md)维护。
 
 `api_semantics`：`paint.protocol`、`frame.submission`、`resource.lifecycle`、
 `coordinate.conversion`、`clipping.strategy`。
