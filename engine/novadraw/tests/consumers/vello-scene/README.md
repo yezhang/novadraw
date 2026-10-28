@@ -7,7 +7,7 @@
 用于验证下游可消费性与首个输出切片的有限成本，不代替完整 Masonry/Xilem 应用。
 
 ```bash
-cargo run --release --manifest-path tests/consumers/vello-scene/Cargo.toml --features scene
+CARGO_TARGET_DIR=/tmp/novadraw-gef-scene-consumer-target-20261028 cargo run --release --manifest-path tests/consumers/vello-scene/Cargo.toml --features scene
 ```
 
 无 `scene` feature 时，同一输入仅准备 Runtime submission；用于比较最小可执行包的
@@ -15,6 +15,7 @@ cargo run --release --manifest-path tests/consumers/vello-scene/Cargo.toml --fea
 100 个矩形、DPI=2，首次编码与 1000 次同源 warm 编码分别计时，
 不包含模型准备、排版、事件、GPU、present 或窗口首次加载。
 两版分别构建并在覆盖二进制前记录大小；不使用 debug 大小作为分发成本。
+构建缓存放在源码目录之外；本次测量结束后已移至上述临时目录。
 
 integration GPU/失败契约见
 [scene_contract](../../../crates/novadraw-backend-vello/tests/scene_contract.rs)。
