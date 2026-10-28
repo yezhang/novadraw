@@ -9,6 +9,7 @@ use novadraw::{
 };
 
 const MARQUEE_COLOR: Color = Color::rgba(0.2, 0.5, 0.8, 1.0);
+const MARQUEE_FILL: Color = Color::rgba(0.2, 0.5, 0.8, 0.08);
 const MARQUEE_WIDTH: f64 = 1.0;
 
 struct Gesture {
@@ -125,7 +126,8 @@ impl<A: ModelAdapter + 'static> Tool<A> for MarqueeTool {
             ctx.remove_overlay_visuals(&gesture.feedback)?;
             gesture.feedback.clear();
             let b = bounds(gesture.start_model, ctx.model_point_from_surface(location)?);
-            let figure = RectangleFigure::from_bounds(b).with_stroke(MARQUEE_COLOR, MARQUEE_WIDTH);
+            let figure = RectangleFigure::new_with_color(b.x, b.y, b.width, b.height, MARQUEE_FILL)
+                .with_stroke(MARQUEE_COLOR, MARQUEE_WIDTH);
             gesture.feedback = ctx.attach_feedback(
                 ctx.contents(),
                 vec![FeedbackVisual::scaled(Box::new(figure))],
