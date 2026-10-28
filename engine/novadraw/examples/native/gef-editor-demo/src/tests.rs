@@ -99,6 +99,8 @@ impl RenderBackend for TestBackend {
         ]);
         Ok(RenderDisposition::Presented)
     }
+
+    fn resize(&mut self, _: u32, _: u32, _: f64) {}
 }
 
 #[test]
