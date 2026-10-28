@@ -32,7 +32,7 @@ Vello WebGPU 是正式验证后端。Canvas2D 仅作为诊断基线，用于区�
 以下命令均在 workspace 根目录执行：
 
 ```bash
-cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw
+cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw
 ```
 
 需要：

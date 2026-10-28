@@ -5,5 +5,4 @@ node_modules/
 engine/.DS_Store
 .DS_Store
 *.profraw
-engine/wasm_rust/adder/target
-engine/wasm_rust/novadraw/target
+engine/novadraw/target

@@ -8,7 +8,7 @@ Studio 与 Novadraw Framework 属于不同产品层：
 - Studio 面向最终用户，拥有自己的产品模型、文档格式、交互、AI adapter、权限和发布；
 - Novadraw Framework 提供 Figure、Runtime、Editor、平台适配和渲染等公开能力；
 - Studio 只能通过框架公开 API 使用 Novadraw，不能依赖私有模块或获得产品专用后门；
-- Studio 产品设计不能写入 `engine/wasm_rust/novadraw/doc/`，也不能定义引擎完成状态；
+- Studio 产品设计不能写入 `engine/novadraw/doc/`，也不能定义引擎完成状态；
 - 只有被证明具有通用消费者价值的需求，才通过独立设计或 ADR 进入框架。
 
 当前尚未创建独立产品仓库，因此本目录只保存产品设计文档，不放置正式产品代码。创建

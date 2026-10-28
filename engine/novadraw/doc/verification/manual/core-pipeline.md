@@ -49,7 +49,7 @@ Validation 先于 Damage Repair、dirty 合并或 panic 恢复。
 以下命令均在 workspace 根目录执行：
 
 ```bash
-cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw
+cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw
 ```
 
 窗口 app 使用系统图形设备。通过 SSH 或无图形会话执行时，只运行第 3、4 节，

@@ -21,8 +21,8 @@ Novadraw 是一个使用 Rust 构建的跨平台二维 Figure 运行时与图形
 - Headless 契约测试、Native/Web 示例和分层验证套件。
 
 完整能力与验证状态见
-[产品交付清单](engine/wasm_rust/novadraw/doc/roadmap/product-deliverables.md)和
-[平台支持矩阵](engine/wasm_rust/novadraw/doc/roadmap/platform-support-matrix.md)。
+[产品交付清单](engine/novadraw/doc/roadmap/product-deliverables.md)和
+[平台支持矩阵](engine/novadraw/doc/roadmap/platform-support-matrix.md)。
 
 ## 快速开始
 
@@ -31,7 +31,7 @@ Novadraw 是一个使用 Rust 构建的跨平台二维 Figure 运行时与图形
 
 ```bash
 git clone https://github.com/yezhang/novadraw.git
-cd novadraw/engine/wasm_rust/novadraw
+cd novadraw/engine/novadraw
 
 cargo check -p novadraw --lib
 cargo run -p shape-app
@@ -58,7 +58,7 @@ assert_eq!(
 );
 ```
 
-更多可运行场景见[示例目录](engine/wasm_rust/novadraw/examples/README.md)。
+更多可运行场景见[示例目录](engine/novadraw/examples/README.md)。
 
 ## 架构
 
@@ -94,7 +94,7 @@ Core 不依赖窗口系统或具体 GPU 后端；Editor 也不是使用 Figure �
 
 ## 工作区
 
-当前有效的 Rust workspace 位于 `engine/wasm_rust/novadraw/`。
+当前有效的 Rust workspace 位于 `engine/novadraw/`。
 
 | Package | 职责 |
 |---|---|
@@ -109,10 +109,10 @@ Core 不依赖窗口系统或具体 GPU 后端；Editor 也不是使用 Figure �
 
 | 读者或目的 | 入口 |
 |---|---|
-| 应用开发与扩展 | [《Novadraw 应用开发与扩展指南》](engine/wasm_rust/novadraw/book/user/src/README.md) |
-| 原理、模型与算法 | [《深入理解 Novadraw》](engine/wasm_rust/novadraw/book/internals/src/README.md) |
-| 参与项目开发 | [《Novadraw 贡献者指南》](engine/wasm_rust/novadraw/book/contributor/src/README.md) |
-| 规范、ADR、路线图与验证证据 | [工程文档入口](engine/wasm_rust/novadraw/doc/00-index.md) |
+| 应用开发与扩展 | [《Novadraw 应用开发与扩展指南》](engine/novadraw/book/user/src/README.md) |
+| 原理、模型与算法 | [《深入理解 Novadraw》](engine/novadraw/book/internals/src/README.md) |
+| 参与项目开发 | [《Novadraw 贡献者指南》](engine/novadraw/book/contributor/src/README.md) |
+| 规范、ADR、路线图与验证证据 | [工程文档入口](engine/novadraw/doc/00-index.md) |
 | 仓库历史与目录边界 | [根文档入口](docs/README.md) |
 
 规范性设计、当前状态和历史材料具有不同事实层级。修改架构前请先阅读工程文档入口，
@@ -146,7 +146,7 @@ git diff --check
 ## 贡献
 
 提交 Issue 或 Pull Request 前，请先阅读
-[贡献工作流](engine/wasm_rust/novadraw/book/contributor/src/01-contribution-workflow.md)。
+[贡献工作流](engine/novadraw/book/contributor/src/01-contribution-workflow.md)。
 项目要求行为契约、状态所有权和失败模型先于实现细节；共享协议变化需要相应的负向
 测试和验证证据。
 

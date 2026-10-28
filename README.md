@@ -23,8 +23,8 @@ and rendering backends.
 - A backend-independent render submission protocol with Vello, Winit, and Web adapters
 - Headless contract tests, Native/Web examples, and layered verification suites
 
-See the [product deliverables](engine/wasm_rust/novadraw/doc/roadmap/product-deliverables.md)
-and [platform support matrix](engine/wasm_rust/novadraw/doc/roadmap/platform-support-matrix.md)
+See the [product deliverables](engine/novadraw/doc/roadmap/product-deliverables.md)
+and [platform support matrix](engine/novadraw/doc/roadmap/platform-support-matrix.md)
 for the complete capability and verification status.
 
 ## Quick Start
@@ -35,7 +35,7 @@ matrix for the verified platform scope.
 
 ```bash
 git clone https://github.com/yezhang/novadraw.git
-cd novadraw/engine/wasm_rust/novadraw
+cd novadraw/engine/novadraw
 
 cargo check -p novadraw --lib
 cargo run -p shape-app
@@ -62,7 +62,7 @@ assert_eq!(
 );
 ```
 
-See the [examples directory](engine/wasm_rust/novadraw/examples/README.md) for more runnable
+See the [examples directory](engine/novadraw/examples/README.md) for more runnable
 scenarios.
 
 ## Architecture
@@ -101,7 +101,7 @@ Core/Platform/Backend boundaries. See
 
 ## Workspace
 
-The active Rust workspace is located at `engine/wasm_rust/novadraw/`.
+The active Rust workspace is located at `engine/novadraw/`.
 
 | Package | Responsibility |
 |---|---|
@@ -116,10 +116,10 @@ The active Rust workspace is located at `engine/wasm_rust/novadraw/`.
 
 | Audience or purpose | Entry point |
 |---|---|
-| Application development and extension | [Novadraw Application Development and Extension Guide](engine/wasm_rust/novadraw/book/user/src/README.md) |
-| Principles, models, and algorithms | [Understanding Novadraw](engine/wasm_rust/novadraw/book/internals/src/README.md) |
-| Contributing to the project | [Novadraw Contributor Guide](engine/wasm_rust/novadraw/book/contributor/src/README.md) |
-| Specifications, ADRs, roadmaps, and verification evidence | [Engineering documentation](engine/wasm_rust/novadraw/doc/00-index.md) |
+| Application development and extension | [Novadraw Application Development and Extension Guide](engine/novadraw/book/user/src/README.md) |
+| Principles, models, and algorithms | [Understanding Novadraw](engine/novadraw/book/internals/src/README.md) |
+| Contributing to the project | [Novadraw Contributor Guide](engine/novadraw/book/contributor/src/README.md) |
+| Specifications, ADRs, roadmaps, and verification evidence | [Engineering documentation](engine/novadraw/doc/00-index.md) |
 | Repository history and directory boundaries | [Root documentation index](docs/README.md) |
 
 Normative designs, current status documents, and historical material carry different levels of
@@ -154,7 +154,7 @@ git diff --check
 ## Contributing
 
 Before opening an Issue or Pull Request, read the
-[contribution workflow](engine/wasm_rust/novadraw/book/contributor/src/01-contribution-workflow.md).
+[contribution workflow](engine/novadraw/book/contributor/src/01-contribution-workflow.md).
 The project requires behavioral contracts, state ownership, and failure models to be defined
 before implementation details. Changes to shared protocols require corresponding negative tests
 and verification evidence.

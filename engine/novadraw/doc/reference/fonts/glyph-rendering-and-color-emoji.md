@@ -34,9 +34,9 @@ emoji 字体的彩色表示。本文记录外部事实、局限和选型建议�
 
 | 方法 | 稳定源码入口 | 核对重点 |
 |---|---|---|
-| Evan | [blend](../../../../../../tests/font/evan_wallace/index_blend_method.html)、[stencil](../../../../../../tests/font/evan_wallace/index_stencil_method.html) | `prepareBufferDataByGlyphPath`、`buildGlyphBuffer`、`isInside`、`createPipeline` |
-| Dobbie | [片段着色器](../../../../../../tests/font/will_dobbie_method/font.frag)、[顶点着色器](../../../../../../tests/font/will_dobbie_method/web.vert)、[Demo](../../../../../../tests/font/will_dobbie_method/index.html) | `fetchBezier`、`getAxisIntersections`、`updateClosestCrossing`、`integrateWindow`、atlas 加载与 draw 范围 |
-| Lengyel | [原版 GLSL](../../../../../../tests/font/lengyel_method/Lengyel2017FontRendering-GlyphShader.glsl)、[本地 WGSL Demo](../../../../../../tests/font/lengyel_method/render_char.html) | 根贡献码、条带排序及提前退出；`sampleCoverage`、`sampleCoverageV`、`makeGridOnBezier` |
+| Evan | [blend](../../../../../tests/font/evan_wallace/index_blend_method.html)、[stencil](../../../../../tests/font/evan_wallace/index_stencil_method.html) | `prepareBufferDataByGlyphPath`、`buildGlyphBuffer`、`isInside`、`createPipeline` |
+| Dobbie | [片段着色器](../../../../../tests/font/will_dobbie_method/font.frag)、[顶点着色器](../../../../../tests/font/will_dobbie_method/web.vert)、[Demo](../../../../../tests/font/will_dobbie_method/index.html) | `fetchBezier`、`getAxisIntersections`、`updateClosestCrossing`、`integrateWindow`、atlas 加载与 draw 范围 |
+| Lengyel | [原版 GLSL](../../../../../tests/font/lengyel_method/Lengyel2017FontRendering-GlyphShader.glsl)、[本地 WGSL Demo](../../../../../tests/font/lengyel_method/render_char.html) | 根贡献码、条带排序及提前退出；`sampleCoverage`、`sampleCoverageV`、`makeGridOnBezier` |
 
 Evan 的原文读取被 Medium 安全验证阻挡，相关实现结论以本地源码为依据。
 Dobbie 的原理与实现说明、Lengyel 的论文均已读取；外部字体资料的版本范围见

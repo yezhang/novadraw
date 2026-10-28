@@ -16,7 +16,7 @@ workspace 构建，也不构成 Novadraw 公共 API。
 
 该快照只用于核对 Draw2D 的行为语义、默认值和边界条件。Novadraw 对上游行为的采用、
 调整和验证映射，以
-[Draw2D parity ledger](../../engine/wasm_rust/novadraw/doc/parity/draw2d/api-coverage.md)
+[Draw2D parity ledger](../../engine/novadraw/doc/parity/draw2d/api-coverage.md)
 为准。
 
 新增第三方材料时，必须同时记录来源、精确版本、许可证和本地修改情况，并保留上游

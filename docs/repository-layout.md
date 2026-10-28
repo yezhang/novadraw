@@ -17,13 +17,14 @@ Web Worker 样例在 2024 年 8 月加入旧 C++/Wasm engine，用于验证主�
 消息通信。时间顺序表明：`client/engine` 分目录先于 Web Worker 样例，因而这组目录
 最初表达的是 UI 与绘图核心的产品职责分离，不是专门为 Web Worker 建立的线程边界。
 旧 `engine/wasm_cpp/` 已在 Rust 主线稳定后从主分支移除，实验内容仍可通过 Git 历史
-追溯。
+追溯。Rust 成为唯一引擎实现后，原 `engine/wasm_rust/novadraw/` workspace 已迁移到
+`engine/novadraw/`，不再保留按实现语言划分的包装目录。
 
 ## 当前有效目录
 
 | 路径 | 状态 | 用途 |
 |---|---|---|
-| `engine/wasm_rust/novadraw/` | 当前主线 | Novadraw Rust workspace、示例、书籍、规范与验证 |
+| `engine/novadraw/` | 当前主线 | Novadraw Rust workspace、示例、书籍、规范与验证 |
 | `client/` | 历史脚手架 | 不属于当前构建和公共 API |
 | `tests/` | 研究材料 | 字体和图形技术实验，不属于产品 workspace |
 | `docs/third_party/` | 第三方参考 | Eclipse Draw2D 上游源码快照，用于行为核验 |
