@@ -2,7 +2,31 @@
 
 类型：`proposal`
 
-日期：2026-10-27。状态：待评审，未授权实施。
+日期：2026-10-27。2026-10-28 用户批准记录方案并开始实施。
+总体方向已获授权；分批实施与完成证据只在 P2 backlog 维护。
+
+## 本次授权与首个切片
+
+2026-10-28 用户指令：“好的，记录这个方案，然后开始实施”。
+本次采用 Shapes 作为首个完整编辑样例，以 Masonry 自定义 Widget 包装为 Xilem
+View；Digraph 仍保留独立只读分母。当前先完成 Scene 输出的后端前置切片，
+契约见 [ADR-053](../../adr/adr-053-embedded-vello-scene-target.md)。
+
+Editor 补充清单为专用 CreationTool、MarqueeTool、typed 模板拖放创建，以及供
+工具栏、大纲和属性面板消费的稳定查询与变化通知。现有 G1–G5 的模型、命令、
+投影和连接机制先以真实 Shapes 模型核验，不因本次授权重新宣称完成。
+Logic 的吸附/guide/reparent、Flow 的拓扑与联合动画、Text 的历史合并/选区恢复
+保留独立后续切片。业务模型、序列化、大纲控件和文件服务归应用。
+
+UI 接入拆为 Widget 与 View 两层。Widget 负责渲染、surface mapping、输入仲裁、
+capture/focus、IME lease、调度和 lifecycle；View 的 build 绑定稳定 session，
+rebuild 只更新配置和 revision，message 转 typed action，teardown 释放消息路径与 lease。
+Runtime、Viewer、CommandStack 和 direct-edit session 不随 Xilem rebuild 重建。
+高频 pointer feedback 在 Widget/controller 内更新，外层 UI 只消费稳定状态。
+
+Masonry/Vello 版本兼容尚未验证。本次 Scene 输出采用 Novadraw 的 Vello 版本，
+不改动第三方参考仓库，不将未编译的 Masonry Widget 或 Xilem View 计为实现。
+首批通过后继续固定兼容依赖并建设 Widget/View 消费者。
 
 本方案以 [GEF 官方样例分析](../../reference/gef/official-examples-analysis.md)为需求证据，
 以 [Editor 架构](architecture.md)、[GEF 语义账本](../../parity/gef/api-coverage.md)
@@ -479,10 +503,10 @@ host harness 和截图不替代窗口外 capture、中文 IME、真实 GPU 或�
 通用增量只使用 P2 唯一队列，保持单链推进；本表是建议依赖顺序，
 不替代现有 backlog，也不承诺同时启动多个架构切片。
 
-本次建议批准的设计方向是：Masonry 自定义 Widget 宿主、Xilem 可选外层、
-A 路线优先验证，以及先 Shapes 后复杂样例。正式实施前的首个具体交付为
-宿主接入 ADR 与最小消费验证；富文本、吸附、reparent、导出和 AT 各自按缺口评审，
-不能由本方案一次性视为已完成设计或已授权实现。
+已批准的方向是 Masonry 自定义 Widget 宿主、Xilem View 包装、
+A 路线优先验证，以及先 Shapes 后复杂样例。首个具体交付为
+Scene 输出 ADR 与最小消费验证；富文本、吸附、reparent、导出和 AT
+后续按缺口细化契约，不能由总体方向批准推断这些能力已实现。
 
 ## 来源
 
@@ -521,5 +545,6 @@ Widget Scene cache、transform/clip append 与 damage TODO。
 [提交结果与能力](../../../crates/novadraw/src/render/traits.rs)、
 [版本声明](../../../Cargo.toml)、
 [winit Canvas 接入](../../../crates/novadraw-platform-winit/README.md)。
-本项目工作区有其他未提交改动；这些引用描述本次读取的工作区，
-不等于固定 commit 的行为验证。本方案未修改这些源码。
+本项目工作区有其他未提交改动；参考章节的原始核对描述当时工作区，
+不等于固定 commit 的行为验证。2026-10-28 的增量只修改 backend 的 Scene
+公开出口，未改变纹理或 Core 协议；实施证据与原参考核对分开记录。

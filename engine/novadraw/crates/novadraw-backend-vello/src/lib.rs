@@ -9,6 +9,7 @@ mod antialias_stroke;
 #[cfg(test)]
 mod antialias_tests;
 mod glyph_outline;
+pub mod scene;
 pub mod texture;
 pub use antialias::{AntialiasConfig, AntialiasWorkLimits};
 

@@ -1,0 +1,21 @@
+[package]
+name = "novadraw-vello-scene-consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+scene = ["dep:novadraw-backend-vello"]
+
+[dependencies]
+novadraw = { path = "../../../crates/novadraw" }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello", optional = true }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
