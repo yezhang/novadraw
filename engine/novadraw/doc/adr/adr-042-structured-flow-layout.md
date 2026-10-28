@@ -81,6 +81,12 @@ glyph run、内嵌 Figure placement、边框片段和交互几何。
 布局、paint、hit、caret 与 selection 必须引用同一 revision。
 UTF-8 与 affinity 是 Core 契约；Java UTF-16 和闭区间 selection 只在示例适配处转换。
 
+2026-10-27 消费者边界核验补充：`TextInteractionMap::grapheme_range_at` 从合法
+caret position 查询相邻的完整逻辑字素。Downstream 取后一个，Upstream 取前一个；
+相应文本边缘没有字素时返回 None。返回范围携带快照版本，仍受可见范围准入，
+不以单个 Unicode scalar 或字节步进替代 grapheme。外部文字 provider 共用这一
+查询，不增加内置引擎专用路径。该范围用于选择反馈，不改变 caret 或 source。
+
 内嵌 Figure 布局通过受检 LayoutOutput 提交；提交后才验证该子树。
 测量或输出失败保留旧快照，不发布半段 fragment 或部分 child bounds。
 文字、样式、字体资源、贡献树及内嵌测量 generation 变化统一使快照失效。

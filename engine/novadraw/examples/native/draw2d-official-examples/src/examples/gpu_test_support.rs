@@ -10,6 +10,7 @@ pub(super) struct GpuCanvas {
     texture: wgpu::Texture,
     renderer: VelloTextureRenderer,
     surface: SurfaceInfo,
+    pub last_damage_mode: novadraw::render::DamageMode,
 }
 
 impl GpuCanvas {
@@ -46,6 +47,7 @@ impl GpuCanvas {
                 pixel_height: height,
                 scale_factor: scale,
             },
+            last_damage_mode: novadraw::render::DamageMode::None,
         }
     }
     pub fn render(&mut self, runtime: &mut Runtime, full: bool) -> Vec<u8> {
@@ -72,6 +74,7 @@ impl GpuCanvas {
             .prepare_submission(self.surface, capabilities)
             .into_ready()
             .unwrap();
+        self.last_damage_mode = frame.damage.mode();
         let result = backend.submit(&frame);
         assert_eq!(result, Ok(RenderDisposition::Presented));
         assert_eq!(

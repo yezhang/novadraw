@@ -467,6 +467,75 @@ fn external_text_engines_can_supply_backend_neutral_interaction_maps() {
 }
 
 #[test]
+fn external_provider_uses_the_same_revision_checked_grapheme_ranges() {
+    let map = TextInteractionMap::new("e\u{301}", Arc::new(ExternalInteractionProvider)).unwrap();
+    for position in [
+        TextPosition::new(0, TextAffinity::Downstream),
+        TextPosition::new(3, TextAffinity::Upstream),
+    ] {
+        let range = map.grapheme_range_at(position).unwrap().unwrap();
+        assert_eq!(range.anchor().byte_offset(), 0);
+        assert_eq!(range.focus().byte_offset(), 3);
+        assert_eq!(range.anchor().layout_revision(), Some(map.revision()));
+        assert_eq!(range.focus().layout_revision(), Some(map.revision()));
+        assert!(map.selection_geometry(range).is_ok());
+    }
+    assert_eq!(
+        map.grapheme_range_at(TextPosition::new(1, TextAffinity::Downstream)),
+        Err(TextInteractionError::InvalidTextPosition)
+    );
+    for position in [
+        TextPosition::new(0, TextAffinity::Upstream),
+        TextPosition::new(3, TextAffinity::Downstream),
+    ] {
+        assert_eq!(map.grapheme_range_at(position), Ok(None));
+    }
+    let old = TextInteractionMap::new("abc", Arc::new(ExternalInteractionProvider)).unwrap();
+    assert_eq!(
+        map.grapheme_range_at(
+            TextPosition::new(0, TextAffinity::Downstream).with_layout_revision(old.revision())
+        ),
+        Err(TextInteractionError::StaleTextLayoutRevision)
+    );
+}
+
+#[test]
+fn native_provider_grapheme_ranges_preserve_bidi_and_emoji_clusters() {
+    let clusters = ["A", "e\u{301}", "😀", "👩‍💻", "نً", " ", "B"];
+    let text = clusters.concat();
+    let mut system = novadraw::text::TextSystem::new();
+    for font in BuiltinFont::ALL {
+        system.register_builtin_font(font).unwrap();
+    }
+    let mut measure = system
+        .measure(novadraw::text::FontDescriptor::new(BuiltinFont::Inter.family(), 16.0).unwrap());
+    let layout = measure
+        .layout_text(
+            &text,
+            novadraw::text::TextConstraints::new(Some(50.0)).unwrap(),
+        )
+        .unwrap();
+    let map = layout.interaction_map().unwrap();
+    let mut start = 0;
+    for cluster in clusters {
+        let end = start + cluster.len();
+        for position in [
+            TextPosition::new(start, TextAffinity::Downstream),
+            TextPosition::new(end, TextAffinity::Upstream),
+        ] {
+            let range = map.grapheme_range_at(position).unwrap().unwrap();
+            assert_eq!(
+                (range.anchor().byte_offset(), range.focus().byte_offset()),
+                (start, end)
+            );
+            assert!(map.selection_geometry(range).is_ok());
+            assert!(map.caret_geometry(position).is_ok());
+        }
+        start = end;
+    }
+}
+
+#[test]
 fn paragraph_movement_uses_flow_page_boundaries_not_embedded_newlines() {
     let first = "first\nstill first";
     let (mut runtime, flow) = runtime_with_flow(

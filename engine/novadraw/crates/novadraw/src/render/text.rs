@@ -411,6 +411,38 @@ impl TextInteractionMap {
         self.revision
     }
 
+    /// Returns the logical grapheme adjacent to an admitted caret position.
+    /// Downstream selects the following grapheme; Upstream selects the preceding one.
+    /// At the corresponding source edge there is no grapheme. Both endpoints retain
+    /// this immutable map's revision and must lie inside its visible range.
+    pub fn grapheme_range_at(
+        &self,
+        position: TextPosition,
+    ) -> Result<Option<TextRange>, TextInteractionError> {
+        self.validate_position(position)?;
+        let range = self
+            .source
+            .grapheme_indices(true)
+            .find_map(|(start, text)| {
+                let end = start + text.len();
+                let matches = match position.affinity {
+                    TextAffinity::Downstream => start == position.byte_offset,
+                    TextAffinity::Upstream => end == position.byte_offset,
+                };
+                matches.then_some(start..end)
+            });
+        let Some(range) = range else {
+            return Ok(None);
+        };
+        let anchor = TextPosition::new(range.start, TextAffinity::Downstream)
+            .with_layout_revision(self.revision);
+        let focus = TextPosition::new(range.end, TextAffinity::Upstream)
+            .with_layout_revision(self.revision);
+        self.validate_position(anchor)?;
+        self.validate_position(focus)?;
+        Ok(Some(TextRange::new(anchor, focus)))
+    }
+
     pub fn hit_test(&self, point: Point) -> Result<TextPosition, TextInteractionError> {
         if !point.x().is_finite() || !point.y().is_finite() {
             return Err(TextInteractionError::NonFinitePoint);

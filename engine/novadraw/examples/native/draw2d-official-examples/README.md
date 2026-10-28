@@ -32,6 +32,18 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 该复核时目录登记 16 个 complete、8 个 in_progress、1 个 blocked。
 complete 只表示已登记的 Canvas 功能范围，字体替代和未经执行的视觉验收需单独说明。
 
+2026-10-27 布局与 Caret 消费者核验修复组合字素高亮和 Grid 的列宽后重测高度。
+Flow/Toolbar/Grid 的真实 Label/FlowPage 消费者、span/indent/height hint 已验证。
+实际 Vello retained target 的 60 组对照中，18 帧为 Partial；共享离屏纹理后端
+仍是 FULL_FRAME_ONLY，不能以它证明局部擦除。Caret 保留 alpha 高亮变体，
+连续窗口 resize、surface present、字体与跨平台验收继续保留。
+当前目录是 16 complete、9 in_progress、25 个工厂，完整记录见
+[本批核验](../../../doc/verification/reviews/official-layout-caret-consumers-2026-10-27.md)。
+
+```sh
+cargo run -p draw2d-official-examples --bin layout-consumer-proof
+```
+
 2026-10-27 BidiBlock 已通过通用 `FigureStyle.layout_direction` 给右侧 Canvas
 提供镜像上下文。排版片段、caret 与选择几何同步换位，字形保持正常朝向；
 纵向滚动条换侧，两侧继续共享纵向 RangeModel。

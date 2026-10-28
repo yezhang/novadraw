@@ -17,7 +17,7 @@ use novadraw::{
     geometry::{Insets, Point, Rectangle},
     graphics::{Color, GraphicsError, PaintContext},
     runtime::Runtime,
-    text::{MeasureContext, ParagraphAlignment, TextAffinity, TextError},
+    text::{MeasureContext, ParagraphAlignment, TextError},
     tree::FigureId,
 };
 use std::sync::Arc;
@@ -145,26 +145,7 @@ impl FigureDrawing for InteractiveDrawing {
         if let Some(pointer) = self.pointer
             && let Ok(position) = self.snapshot.hit_text(pointer)
         {
-            let next = self
-                .snapshot
-                .paragraphs
-                .iter()
-                .flat_map(|p| p.sources.iter().map(move |s| (p, s)))
-                .find(|(_, s)| s.source == position.source)
-                .and_then(|(p, s)| {
-                    let offset = s.range.start + position.byte_offset - s.source_offset;
-                    p.layout.request().text()[offset..]
-                        .chars()
-                        .next()
-                        .map(|ch| SourceTextPosition {
-                            byte_offset: position.byte_offset + ch.len_utf8(),
-                            affinity: TextAffinity::Upstream,
-                            ..position
-                        })
-                });
-            if let Some(next) = next
-                && let Ok(selection) = self.snapshot.selection(position, next)
-            {
+            if let Ok(selection) = hover_selection(&self.snapshot, position) {
                 context.set_fill_paint(Color::rgba(0.3, 0.5, 0.9, 0.4));
                 for quad in selection {
                     context.fill_rect(quad.bounds())?;
@@ -180,6 +161,45 @@ impl FigureDrawing for InteractiveDrawing {
         }
         self.snapshot.paint(context)
     }
+}
+
+fn hover_selection(
+    snapshot: &FlowSnapshot,
+    position: SourceTextPosition,
+) -> Result<Vec<novadraw::text::SelectionQuad>, novadraw::text::TextInteractionError> {
+    use novadraw::text::{TextInteractionError, TextPosition};
+    // Validate the source identity, revision and grapheme before doing offset arithmetic.
+    snapshot.caret(position)?;
+    let (paragraph, source) = snapshot
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.sources.iter().map(move |s| (p, s)))
+        .find(|(_, s)| {
+            s.source == position.source
+                && position.byte_offset >= s.source_offset
+                && position.byte_offset <= s.source_offset + s.range.len()
+        })
+        .ok_or(TextInteractionError::InvalidTextPosition)?;
+    let offset = source.range.start + position.byte_offset - source.source_offset;
+    let map = paragraph
+        .layout
+        .layout()
+        .interaction_map()
+        .ok_or(TextInteractionError::Unavailable)?;
+    let Some(range) = map.grapheme_range_at(TextPosition::new(offset, position.affinity))? else {
+        return Ok(Vec::new());
+    };
+    if range.anchor().byte_offset() < source.range.start
+        || range.focus().byte_offset() > source.range.end
+    {
+        return Ok(Vec::new());
+    }
+    let mapped = |endpoint: TextPosition| SourceTextPosition {
+        byte_offset: endpoint.byte_offset() - source.range.start + source.source_offset,
+        affinity: endpoint.affinity(),
+        ..position
+    };
+    snapshot.selection(mapped(range.anchor()), mapped(range.focus()))
 }
 impl FigurePreparation for InteractivePage {
     fn measure_scene(
@@ -423,6 +443,100 @@ impl novadraw::runtime::FigureComponentUpdate for SetTarget {
 mod tests {
     use super::*;
     use novadraw::event::KeyModifiers;
+    use novadraw::text::TextAffinity;
+
+    #[test]
+    fn caret_hover_covers_combining_cluster_without_invalid_endpoint() {
+        let mut runtime = caret_example();
+        runtime.frames().stabilize_for_query().unwrap();
+        let page = find_page(&runtime);
+        let snapshot = snapshot(&runtime, page);
+        let source = snapshot.paragraphs[0].sources[0].source;
+        for cluster in ["םֱ", "מֱ", "صً", "ثُ", "سٍَ"] {
+            let start = CARET_TEXT.find(cluster).unwrap();
+            let leading = SourceTextPosition {
+                source,
+                byte_offset: start,
+                affinity: TextAffinity::Downstream,
+                revision: snapshot.revision,
+            };
+            let end = SourceTextPosition {
+                byte_offset: start + cluster.len(),
+                affinity: TextAffinity::Upstream,
+                ..leading
+            };
+            let expected = snapshot.selection(leading, end).unwrap();
+            assert!(!expected.is_empty());
+            assert_eq!(
+                hover_selection(snapshot, leading).unwrap(),
+                expected,
+                "{cluster}"
+            );
+            assert_eq!(
+                hover_selection(snapshot, end).unwrap(),
+                expected,
+                "{cluster}: trailing"
+            );
+        }
+    }
+
+    #[test]
+    fn caret_hover_affinity_source_edges_and_stale_snapshots_are_checked() {
+        let mut runtime = caret_example();
+        runtime.frames().stabilize_for_query().unwrap();
+        let page = find_page(&runtime);
+        let before = snapshot(&runtime, page).clone();
+        let position = SourceTextPosition {
+            source: before.paragraphs[0].sources[0].source,
+            byte_offset: 1,
+            affinity: TextAffinity::Upstream,
+            revision: before.revision,
+        };
+        let leading = SourceTextPosition {
+            byte_offset: 0,
+            affinity: TextAffinity::Downstream,
+            ..position
+        };
+        assert_eq!(
+            hover_selection(&before, position).unwrap(),
+            before.selection(leading, position).unwrap()
+        );
+        let following = SourceTextPosition {
+            affinity: TextAffinity::Downstream,
+            ..position
+        };
+        let end = SourceTextPosition {
+            byte_offset: 2,
+            ..position
+        };
+        assert_eq!(
+            hover_selection(&before, following).unwrap(),
+            before.selection(following, end).unwrap()
+        );
+        for position in [
+            SourceTextPosition {
+                byte_offset: 0,
+                ..position
+            },
+            SourceTextPosition {
+                byte_offset: CARET_TEXT.len(),
+                affinity: TextAffinity::Downstream,
+                ..position
+            },
+        ] {
+            assert!(hover_selection(&before, position).unwrap().is_empty());
+            assert!(before.caret(position).is_ok());
+        }
+        runtime
+            .frames()
+            .resize_logical_viewport(240.0, 400.0)
+            .unwrap();
+        runtime.frames().stabilize_for_query().unwrap();
+        assert_eq!(
+            hover_selection(snapshot(&runtime, page), position),
+            Err(novadraw::text::TextInteractionError::StaleTextLayoutRevision),
+        );
+    }
 
     fn find_page(runtime: &Runtime) -> FigureId {
         let mut pending = vec![runtime.tree().contents().unwrap()];

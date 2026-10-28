@@ -118,6 +118,10 @@ Runtime 是 FigureTree、资源、连接、订阅、更新状态和 backend sess
 换行文本必须支持 `measure(constraints)`：父级提供宽度，子级返回该宽度下高度、
 baseline 与不可变布局快照，再完成 arrange。不能先锁死高度，再在 presentation 中换行。
 
+Grid 在分配列宽后，对未指定 height hint 且 Fill 宽度变化或可用宽度缩小的 child
+重新测量，再求解行高。preferred/minimum measurement 与实际 placement 共用这一
+阶段顺序，span 与 indent 决定 child 的实际宽度，显式 height hint 保持权威。
+
 测量缓存包含内容、字体 revision 和规范化约束。宽度变化只重算受影响测量；
 后续 placement 复用同约束快照。合法的测量依赖不等于允许任意环；动态反馈仍有预算，
 非收敛不发布。完整 TextFlow/编辑仍延后，但其契约不能被 Label 特例封死。

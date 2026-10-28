@@ -270,10 +270,10 @@ impl GridLayout {
         &self,
         container: FigureId,
         snapshot: &LayoutSceneQuery<'_>,
-        minimum: bool,
+        constraints: MeasureConstraints,
     ) -> Result<(f64, f64), LayoutError> {
-        let placements = self.placements(container, snapshot)?;
-        let (columns, rows, _, _) = self.track_sizes(&placements, minimum);
+        let mut placements = self.placements(container, snapshot)?;
+        let (columns, rows) = self.allocated_tracks(&mut placements, snapshot, constraints)?;
         Ok((
             columns.iter().sum::<f64>()
                 + self.horizontal_spacing * columns.len().saturating_sub(1) as f64
@@ -282,6 +282,105 @@ impl GridLayout {
                 + self.vertical_spacing * rows.len().saturating_sub(1) as f64
                 + self.margin_height * 2.0,
         ))
+    }
+
+    /// Measurement and placement solve the same columns, width-dependent children and rows.
+    fn allocated_tracks(
+        &self,
+        placements: &mut [Placement],
+        snapshot: &LayoutSceneQuery<'_>,
+        constraints: MeasureConstraints,
+    ) -> Result<(Vec<f64>, Vec<f64>), LayoutError> {
+        let (mut columns, _, grab_columns, grab_rows) = self.track_sizes(placements, false);
+        let mut shrink_placements: Vec<_> = placements
+            .iter()
+            .map(|placement| {
+                let mut placement = *placement;
+                // GridData grab permits shrinkage below preferred when no hint pins the axis.
+                placement.minimum = (
+                    if placement.constraint.grab_horizontal
+                        && placement.constraint.width_hint.is_none()
+                    {
+                        placement.constraint.horizontal_indent.max(0.0)
+                    } else {
+                        placement.preferred.0
+                    },
+                    if placement.constraint.grab_vertical
+                        && placement.constraint.height_hint.is_none()
+                    {
+                        0.0
+                    } else {
+                        placement.preferred.1
+                    },
+                );
+                placement
+            })
+            .collect();
+        let (minimum_columns, _, _, _) = self.track_sizes(&shrink_placements, true);
+        if let Some(width) = constraints.max_width() {
+            let available = (width
+                - self.margin_width * 2.0
+                - self.horizontal_spacing * columns.len().saturating_sub(1) as f64)
+                .max(0.0);
+            if self.equal_column_widths && grab_columns.iter().any(|grab| *grab) {
+                let minimum = minimum_columns.iter().copied().fold(0.0_f64, f64::max);
+                let width = available / columns.len() as f64;
+                columns.fill(
+                    (if available.fract() == 0.0 {
+                        width.trunc()
+                    } else {
+                        width
+                    })
+                    .max(minimum),
+                );
+            } else {
+                distribute_extra(&mut columns, &minimum_columns, &grab_columns, available);
+            }
+            // Draw2D remeasures only when no height hint pins the result and the
+            // assigned width differs for Fill, or is narrower than the cached width.
+            for (placement, shrink) in placements.iter_mut().zip(&mut shrink_placements) {
+                let cell_width = span_size(
+                    &columns,
+                    placement.column,
+                    placement.column_span,
+                    self.horizontal_spacing,
+                );
+                let original_indent = placement.constraint.horizontal_indent.max(0.0);
+                let indent = original_indent.min(cell_width);
+                let width = (cell_width - indent).max(0.0);
+                let cached_width = placement.preferred.0 - original_indent;
+                if placement.constraint.height_hint.is_none()
+                    && ((placement.constraint.horizontal_alignment == GridAlignment::Fill
+                        && width != cached_width)
+                        || cached_width > width)
+                {
+                    let constraints = MeasureConstraints::width(width)
+                        .expect("allocated column width is finite and nonnegative");
+                    let preferred = snapshot
+                        .preferred_measurement(placement.child, constraints)?
+                        .size();
+                    let minimum = snapshot.minimum_size(placement.child, constraints)?;
+                    placement.preferred = (preferred.width + original_indent, preferred.height);
+                    placement.minimum = (minimum.width + original_indent, minimum.height);
+                    shrink.preferred = placement.preferred;
+                    shrink.minimum.1 = if placement.constraint.grab_vertical {
+                        0.0
+                    } else {
+                        preferred.height
+                    };
+                }
+            }
+        }
+        let (_, mut rows, _, _) = self.track_sizes(placements, false);
+        if let Some(height) = constraints.max_height() {
+            let (_, minimum_rows, _, _) = self.track_sizes(&shrink_placements, true);
+            let available = (height
+                - self.margin_height * 2.0
+                - self.vertical_spacing * rows.len().saturating_sub(1) as f64)
+                .max(0.0);
+            distribute_extra(&mut rows, &minimum_rows, &grab_rows, available);
+        }
+        Ok((columns, rows))
     }
 }
 
@@ -320,7 +419,7 @@ impl LayoutManager for GridLayout {
         constraints: MeasureConstraints,
         snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<FigureMeasurement, LayoutError> {
-        let (width, height) = self.measured_size(container, snapshot, false)?;
+        let (width, height) = self.measured_size(container, snapshot, constraints)?;
         Ok(FigureMeasurement::new(
             constraints.max_width().unwrap_or(width),
             constraints.max_height().unwrap_or(height),
@@ -346,65 +445,14 @@ impl LayoutManager for GridLayout {
         snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        let placements = self.placements(container, snapshot)?;
+        let mut placements = self.placements(container, snapshot)?;
         if placements.is_empty() {
             return Ok(());
         }
-        let (mut columns, mut rows, grab_columns, grab_rows) = self.track_sizes(&placements, false);
-        // GridData's grab flag permits shrinkage below cached preferred size when no hint
-        // pins that axis. Public minimum measurement remains a separate query.
-        let shrink_placements: Vec<_> = placements
-            .iter()
-            .map(|placement| {
-                let mut placement = *placement;
-                placement.minimum = (
-                    if placement.constraint.grab_horizontal
-                        && placement.constraint.width_hint.is_none()
-                    {
-                        placement.constraint.horizontal_indent.max(0.0)
-                    } else {
-                        placement.preferred.0
-                    },
-                    if placement.constraint.grab_vertical
-                        && placement.constraint.height_hint.is_none()
-                    {
-                        0.0
-                    } else {
-                        placement.preferred.1
-                    },
-                );
-                placement
-            })
-            .collect();
-        let (minimum_columns, minimum_rows, _, _) = self.track_sizes(&shrink_placements, true);
         let client = snapshot.container_bounds(container)?;
-        let available_width = (client.width
-            - self.margin_width * 2.0
-            - self.horizontal_spacing * columns.len().saturating_sub(1) as f64)
-            .max(0.0);
-        let available_height = (client.height
-            - self.margin_height * 2.0
-            - self.vertical_spacing * rows.len().saturating_sub(1) as f64)
-            .max(0.0);
-        if self.equal_column_widths && grab_columns.iter().any(|grab| *grab) {
-            let minimum = minimum_columns.iter().copied().fold(0.0_f64, f64::max);
-            let width = available_width / columns.len() as f64;
-            let width = if available_width.fract() == 0.0 {
-                width.trunc()
-            } else {
-                width
-            }
-            .max(minimum);
-            columns.fill(width);
-        } else {
-            distribute_extra(
-                &mut columns,
-                &minimum_columns,
-                &grab_columns,
-                available_width,
-            );
-        }
-        distribute_extra(&mut rows, &minimum_rows, &grab_rows, available_height);
+        let constraints = MeasureConstraints::new(Some(client.width), Some(client.height))
+            .expect("container bounds are finite and nonnegative");
+        let (columns, rows) = self.allocated_tracks(&mut placements, snapshot, constraints)?;
 
         let column_positions = track_positions(
             client.x + self.margin_width,

@@ -10,6 +10,11 @@ pub fn verify_tree_animation(window: std::sync::Arc<winit::window::Window>) {
     examples::tree_animation::verify_native(window);
 }
 
+/// Verifies the actual retained Vello target for layout resize, erasure and caret hover.
+pub fn verify_layout_consumers(window: std::sync::Arc<winit::window::Window>) {
+    examples::consumer_verification::verify_native(window);
+}
+
 use novadraw::runtime::Runtime;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
@@ -147,7 +152,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
                 "Official shape spacing/alignment/wrap, host viewport resize, stretch/restore and Native GPU erasure are verified",
-                "Continuous Native window resize, text minimum and retained-partial pixels remain under verification",
+                "Supplemental Label/FlowPage minimum/wrap/restore and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
             ],
             examples::flow_layout_example,
         ),
@@ -158,7 +163,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Canvas now follows host viewport resize; spanning/grabbing shape shrink/grow/reset geometry is verified",
                 "Real-panel hints/indent/span/grab, selection release, zero-space restore and Native GPU clearing are verified",
-                "Continuous Native window resize, text consumers and retained-partial pixels remain under verification",
+                "Width-dependent text remeasurement, span/indent/height hints and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
             ],
             examples::grid_layout_example,
         ),
@@ -169,7 +174,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Official shape outlines and stretch/orientation/shrink/reset geometry are verified",
                 "Real-panel alignment, host viewport and zero-space restore, and Native GPU erasure are verified",
-                "Continuous Native window resize, text minimum and retained-partial pixels remain under verification",
+                "Supplemental Label/FlowPage minimum/wrap/restore and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
             ],
             examples::toolbar_layout_example,
         ),
@@ -212,8 +217,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "ShapeStylesExample",
             "org/eclipse/draw2d/examples/swt/ShapeStylesExample.java",
             &[
-                "Eight axes and five shapes exercise public Graphics ON/OFF/DEFAULT; unsupported cells are explicit",
-                "Device hairline, miter below 1, exact upstream shape geometry and Native visual comparison remain pending",
+                "Eight axes and five shapes exercise public Graphics ON/OFF/DEFAULT; low miter and the explicit Cocoa zero-width profile are implemented",
+                "Upstream native raster, system colors and cross-platform visual comparison remain pending; universal device hairline is an optional separate delta",
             ],
             examples::shape_styles_example,
         ),
