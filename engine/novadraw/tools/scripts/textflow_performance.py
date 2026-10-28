@@ -190,12 +190,18 @@ def sample(binary, count, session, kind, output, timeout, warmup=0, extended=Fal
                             or sum(r["exclusive_ns"] for r in stages) !=
                             roots[0]["inclusive_ns"]):
                         record["status"] = "timing_accounting_mismatch"
-                if workload != "original":
-                    receipts = [r for r in records if r.get("sample") == record["sample"]
-                                and r.get("phase") == "source-commit"]
-                    if (len(receipts) != 1 or receipts[0]["revision"] !=
-                            receipts[0]["previous_revision"] + 1):
-                        record["status"] = "source_receipt_mismatch"
+                receipts = [r for r in records if r.get("sample") == record["sample"]
+                            and r.get("phase") == "source-commit"]
+                if (len(receipts) != 1 or
+                        type(receipts[0].get("previous_revision")) is not int or
+                        type(receipts[0].get("revision")) is not int or
+                        receipts[0]["revision"] != receipts[0]["previous_revision"] + 1):
+                    record["status"] = "source_receipt_mismatch"
+                elif workload == "original" and (
+                        receipts[0].get("evidence") != "component-revision" or
+                        receipts[0].get("dispatch_revision") !=
+                        receipts[0]["revision"]):
+                    record["status"] = "source_observation_mismatch"
         if extended:
             extensions = [r for r in records if r["status"] == "extended"]
             if len(extensions) != count + warmup:
@@ -398,7 +404,7 @@ def main():
             manifest["sampling"]["timing_validation"] = (
                 "each initial/append exclusive stage sum equals stable-query inclusive ns")
             manifest["sampling"]["source_commit"] = (
-                "original key dispatch, independent receipt unavailable"
+                "component revision increases once during original key dispatch and remains unchanged after stabilization"
                 if args.workload == "original" else
                 "SetStructuredFlowText receipt; revision increases once and text gains fixed Z")
             manifest["fixture_parameters"] = {
@@ -461,6 +467,10 @@ def main():
                                 ("sessions", "samples", "warmup", "cold_per_session", "timeout")}
         manifest["sampling"]["extended"] = args.extended
         manifest["sampling"]["workload"] = args.workload
+        manifest["sampling"]["source_commit"] = (
+            "component revision increases once during original key dispatch and remains unchanged after stabilization"
+            if args.workload == "original" else
+            "SetStructuredFlowText receipt; revision increases once and text gains fixed Z")
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         with (args.destination / "samples.ndjson").open("a") as output:
             for session in range(args.sessions):

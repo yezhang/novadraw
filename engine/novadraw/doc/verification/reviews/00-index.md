@@ -9,6 +9,8 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-28 | [GEF 样例接入的 Scene 输出实施](gef-scene-target-implementation-2026-10-28.md) |
+| 2026-10-27 | [布局与 Caret 消费者核验](official-layout-caret-consumers-2026-10-27.md) |
 | 2026-10-27 | [矩形分边描边的平齐自由端](shape-free-end-butt-2026-10-27.md) |
 | 2026-10-27 | [逐角圆角与矩形分边描边](independent-shape-corners-2026-10-27.md) |
 | 2026-08-23 | [核心渲染管线](core-pipeline-2026-08-23.md) |
@@ -90,6 +92,7 @@
 | 2026-10-27 | [长文本性能方案评审（方向有条件通过，待修订）](long-text-performance-proposal-review-2026-10-27.md) |
 | 2026-10-27 | [长文本修订 2 首批设计复核通过](long-text-performance-revision-2-review-2026-10-27.md) |
 | 2026-10-27 | [文本增量排版方案审计意见（待修订复核）](long-text-incremental-layout-review-2026-10-27.md) |
+| 2026-10-28 | [长文本滚动与 resize 方案评审（待修订复核）](long-text-scroll-resize-review-2026-10-28.md) |
 
 ## 专题核验
 

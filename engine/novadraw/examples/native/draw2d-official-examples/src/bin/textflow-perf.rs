@@ -78,6 +78,17 @@ fn main() {
             .unwrap();
         let revision = before.revision;
         let initial_work = before.statistics;
+        let original_source = (workload == "original").then(|| {
+            let range = &before.paragraphs[0].sources[0];
+            assert_eq!(
+                &before.paragraphs[0].layout.request().text()[range.range.clone()],
+                "Normal text."
+            );
+            (
+                range.source,
+                runtime.tree().component_revision(range.source).unwrap(),
+            )
+        });
         for timing in runtime.frames().take_timings() {
             println!(
                 "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"runtime-initial/{}\",\"calls\":{},\"inclusive_ns\":{},\"exclusive_ns\":{}}}",
@@ -106,6 +117,15 @@ fn main() {
             None
         };
         let dispatch_ns = start.elapsed().as_nanos();
+        let original_dispatch_revision = original_source.map(|(source, previous_revision)| {
+            let revision = runtime.tree().component_revision(source).unwrap();
+            assert_eq!(
+                Some(revision),
+                previous_revision.checked_add(1),
+                "key dispatch must commit the queued source mutation once"
+            );
+            revision
+        });
         if let Some(receipt) = receipt {
             assert!(receipt.changed);
             assert_eq!(receipt.previous_revision + 1, receipt.revision);
@@ -121,6 +141,15 @@ fn main() {
             continue;
         }
         let append_update_ns = start.elapsed().as_nanos();
+        if let Some((source, previous_revision)) = original_source {
+            let revision = runtime.tree().component_revision(source).unwrap();
+            let dispatch_revision = original_dispatch_revision.unwrap();
+            assert_eq!(previous_revision.checked_add(1), Some(revision));
+            assert_eq!(revision, dispatch_revision);
+            println!(
+                "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"source-commit\",\"evidence\":\"component-revision\",\"previous_revision\":{previous_revision},\"dispatch_revision\":{dispatch_revision},\"revision\":{revision}}}"
+            );
+        }
         let after = snapshot(&runtime);
         assert_ne!(revision, after.revision);
         if let Some((_, text)) = &source {

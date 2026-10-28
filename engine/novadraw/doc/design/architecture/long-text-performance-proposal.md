@@ -8,6 +8,10 @@
 状态与证据见[实施记录](../../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
 LT-04～LT-09 保持独立评审，本方案的性能目标与平台呈现验收尚未通过。
 
+2026-10-28 的[滚动与 resize 优化提案](long-text-scroll-resize-optimization-proposal.md)
+记录共享 IR、原生可见输出、宽度复用与后续调度的审核方案；
+新增目标和实施顺序待用户审核，不改变本页首批授权或既有验收状态。
+
 修订 2 按[方向评审](../../verification/reviews/long-text-performance-proposal-review-2026-10-27.md)
 处理 LTP-R01～R05。方向有条件通过不等于整体实施批准；
 本文“评审响应”记录设计处理，原评审结论和基线保持不变。

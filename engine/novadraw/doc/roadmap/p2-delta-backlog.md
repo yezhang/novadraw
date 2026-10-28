@@ -69,6 +69,15 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-27 用户批准先核验 Caret 与三种布局的真实消费者。
+本批发现并修复组合字素选区终点被拒绝，以及 Grid 分配列宽后遗漏文字重测。
+Core 字素范围查询与外部 provider 共用原交互协议；Grid 受约束测量和放置共用
+列宽/重测/行高阶段。补充消费者与 60 组 Native retained GPU 对照已通过，
+其中 18 帧实际 Partial。记录见
+[布局与 Caret 核验](../verification/reviews/official-layout-caret-consumers-2026-10-27.md)。
+连续窗口事件、surface present、真实字体与跨平台验收保留；
+官方入口仍为 16 complete、9 in_progress。长文本继续原 LT 批次，不另开实施线。
+
 2026-10-26 按用户要求先分析、再补官方样例能力，形成
 [能力补充方案](../design/architecture/official-example-capability-increment-2026-10-26.md)。
 现有 K02/K08 契约内先实施 HelloWorld resize、UML DogEar 与 ShapeStyles 几何修正；
@@ -1147,7 +1156,7 @@ caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑�
 
 | 切片 | 状态 | 当前证据 |
 |---|---|---|
-| LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 独立源提交、first-ready、生产 GPU/present 与 Web 体积仍缺证据 |
+| LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 本轮另补齐 1300 次独立源版本观测，正式样本和阶段核算通过；first-ready、生产 GPU/present 与 Web 体积仍缺证据 |
 | LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；贡献、边框与内嵌测量仍重读，尺寸一致性及预算失败测试通过；复制量与留存分配归属待采证 |
 | LT-02 | `in_progress` | 精确复用与失效反例通过；第四轮原 Large 追加 p50 17.157→15.302 ms、p95 20.112→19.214 ms，Flow 构建自身平均 9.200→7.695 ms，部分尾延迟回退，未达到 16 ms；长段/长行追加 p95 为 38.526/52.733 ms；混排标准宽度为 6.864 ms，默认预算下缩窄成功，优化版 resize p95 14.469 ms |
 | LT-03 | `in_progress` | 18 组 Full/Partial GPU 对照通过；第四轮原 Large 滚动新增 shaping 为 0，稳定化 p95 7.867 ms，resize 后 IR p95 5.748 ms；默认 native glyph 仍完整输出 51233 个；生产证书边界已形成待复核提案，4 ms 查询/IR 验收未完成 |
@@ -1155,6 +1164,10 @@ caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑�
 详情见[实施记录](../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
 原样例首次布局的五个会话均达到 p95 ≤ 100 ms，追加的五个会话均未达到 16 ms。
 第四轮只比较两份独立匹配构建，不与旧轮二进制计算严格提速比。
+原 Large 源提交补录使用独立冻结构建，取得 1000 次热样本、200 个新进程
+和 100 次预热；追加 p95 为 17.514 ms，resize 后录制 p95 为 5.335 ms。
+这是单版本证据，未改排版算法，不与第四轮计算严格提速比；
+16 ms 与 4 ms 目标保持未完成，默认原生 glyph 仍完整输出。
 混排 resize 保留基线预算拒绝与优化版重复成功两份证据，不计算前后耗时比；
 有限输入的成功不证明任意混排均可准入。
 LT-04～LT-09 未纳入本次授权，保持独立评审；本批整体仍待验收。
