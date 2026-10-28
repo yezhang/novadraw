@@ -108,13 +108,7 @@ fn egui_canvas_uses_local_coordinates_and_one_history_entry() {
     let mut app = AppState::default();
     let mut session = session();
     sync(&mut app, &mut session).unwrap();
-    egui_frame(
-        &context,
-        &mut editor_ui,
-        &mut app,
-        &mut session,
-        vec![],
-    );
+    egui_frame(&context, &mut editor_ui, &mut app, &mut session, vec![]);
     let start = canvas_position(&app, Point::new(90.0, 100.0));
     let end = canvas_position(&app, Point::new(140.0, 130.0));
     let output = egui_frame(
@@ -157,13 +151,7 @@ fn egui_focus_loss_cancels_active_drag_without_committing() {
     let mut app = AppState::default();
     let mut session = session();
     sync(&mut app, &mut session).unwrap();
-    egui_frame(
-        &context,
-        &mut editor_ui,
-        &mut app,
-        &mut session,
-        vec![],
-    );
+    egui_frame(&context, &mut editor_ui, &mut app, &mut session, vec![]);
     let start = canvas_position(&app, Point::new(90.0, 100.0));
     let end = canvas_position(&app, Point::new(140.0, 130.0));
     egui_frame(
@@ -206,13 +194,7 @@ fn egui_template_drop_creates_at_canvas_local_position() {
     let mut app = AppState::default();
     let mut session = session();
     sync(&mut app, &mut session).unwrap();
-    egui_frame(
-        &context,
-        &mut editor_ui,
-        &mut app,
-        &mut session,
-        vec![],
-    );
+    egui_frame(&context, &mut editor_ui, &mut app, &mut session, vec![]);
     egui::DragAndDrop::set_payload(&context, ShapeKind::Ellipse);
     let drop = canvas_position(&app, Point::new(460.0, 320.0));
     egui_frame(
@@ -233,10 +215,7 @@ fn egui_template_drop_creates_at_canvas_local_position() {
     sync(&mut app, &mut session).unwrap();
     let created = session.viewer.model().shapes.get(&3).unwrap();
     assert_eq!(created.kind, ShapeKind::Ellipse);
-    assert_eq!(
-        created.bounds,
-        Rectangle::new(400.0, 280.0, 120.0, 80.0)
-    );
+    assert_eq!(created.bounds, Rectangle::new(400.0, 280.0, 120.0, 80.0));
 }
 
 #[test]
@@ -246,13 +225,7 @@ fn focused_canvas_shortcuts_undo_without_rebuilding_session() {
     let mut app = AppState::default();
     let mut session = session();
     sync(&mut app, &mut session).unwrap();
-    egui_frame(
-        &context,
-        &mut editor_ui,
-        &mut app,
-        &mut session,
-        vec![],
-    );
+    egui_frame(&context, &mut editor_ui, &mut app, &mut session, vec![]);
     let namespace = session.viewer.namespace();
     let start = canvas_position(&app, Point::new(90.0, 100.0));
     let end = canvas_position(&app, Point::new(140.0, 130.0));
@@ -327,28 +300,12 @@ fn connection_creation_rejects_self_and_duplicate_and_preserves_style() {
     let mut app = AppState::default();
     let first = Point::new(90.0, 100.0);
     let second = Point::new(320.0, 200.0);
-    connect(
-        &mut session,
-        &mut app,
-        EdgeStyle::Dashed,
-        first,
-        second,
-    );
+    connect(&mut session, &mut app, EdgeStyle::Dashed, first, second);
     assert_eq!(session.viewer.model().edges.len(), 1);
     assert_eq!(session.viewer.model().edges[&3].style, EdgeStyle::Dashed);
-    connect(
-        &mut session,
-        &mut app,
-        EdgeStyle::Solid,
-        first,
-        second,
-    );
+    connect(&mut session, &mut app, EdgeStyle::Solid, first, second);
     assert_eq!(session.viewer.model().edges.len(), 1);
-    command(
-        &mut session,
-        &mut app,
-        UiCommand::Connect(EdgeStyle::Solid),
-    );
+    command(&mut session, &mut app, UiCommand::Connect(EdgeStyle::Solid));
     click(&mut session, first);
     click(&mut session, first);
     assert_eq!(session.viewer.model().edges.len(), 1);
@@ -390,8 +347,7 @@ fn geometry_savepoint_and_open_roundtrip_preserve_document_state() {
 
 #[test]
 fn failed_save_as_does_not_move_savepoint_or_replace_path() {
-    let directory =
-        std::env::temp_dir().join(format!("novadraw-egui-save-{}", std::process::id()));
+    let directory = std::env::temp_dir().join(format!("novadraw-egui-save-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let mut session = session();
     let mut app = AppState::default();
@@ -419,15 +375,9 @@ fn session_render_tracks_dpi_without_replacing_viewer_or_history() {
     let mut session = session();
     let namespace = session.viewer.namespace();
     let mut backend = TestBackend::default();
-    session
-        .render([640.0, 480.0], 1.0, &mut backend)
-        .unwrap();
-    session
-        .render([420.0, 320.0], 2.0, &mut backend)
-        .unwrap();
-    session
-        .render([280.0, 210.0], 1.5, &mut backend)
-        .unwrap();
+    session.render([640.0, 480.0], 1.0, &mut backend).unwrap();
+    session.render([420.0, 320.0], 2.0, &mut backend).unwrap();
+    session.render([280.0, 210.0], 1.5, &mut backend).unwrap();
     assert_eq!(backend.surfaces, [[640, 480], [840, 640], [420, 315]]);
     assert_eq!(session.viewer.namespace(), namespace);
     assert!(!session.domain.has_undo());
