@@ -1,6 +1,7 @@
 //! Structured, identity-preserving text flow through an open contribution registry.
 mod assembly;
 mod border;
+mod diagnostics;
 mod nodes;
 mod protocol;
 mod snapshot;
@@ -10,6 +11,7 @@ pub use border::{
     BORDER_CONTRIBUTION, BorderContribution, FlowBorderFragment, FlowBorderMetrics,
     FlowFragmentBorder,
 };
+pub use diagnostics::{FlowLayoutObservation, FlowLayoutObservations};
 pub use nodes::{
     BLOCK_CONTRIBUTION, BORDERED_BLOCK_CONTRIBUTION, BlockContribution, BlockFlowFigure,
     BorderedBlockContribution, FIGURE_BOX_CONTRIBUTION, FigureBoxContribution, FlowAdapterFigure,

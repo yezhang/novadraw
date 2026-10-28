@@ -17,13 +17,41 @@ pub struct RuntimePhaseTiming {
 struct TimingState {
     stages: BTreeMap<&'static str, RuntimePhaseTiming>,
     children: Vec<u128>,
+    layouts: crate::figure::flow::FlowLayoutObservations,
 }
+
+// Explicit bound for optional diagnostics; overflow is reported, never silently sampled.
+const MAX_LAYOUT_OBSERVATIONS: usize = 4096;
 
 /// Only internal synchronous scopes write timings; disabled scopes never read a clock.
 #[derive(Clone, Default)]
 pub(crate) struct TimingRecorder(Option<Arc<Mutex<TimingState>>>);
 
 impl TimingRecorder {
+    pub(crate) fn is_enabled(&self) -> bool {
+        self.0.is_some()
+    }
+
+    pub(crate) fn observe_layout(
+        &self,
+        observation: impl FnOnce() -> crate::figure::flow::FlowLayoutObservation,
+    ) {
+        if let Some(state) = &self.0 {
+            let mut state = state.lock().unwrap();
+            if state.layouts.records.len() < MAX_LAYOUT_OBSERVATIONS {
+                state.layouts.records.push(observation());
+            } else {
+                state.layouts.dropped += 1;
+            }
+        }
+    }
+
+    pub(crate) fn take_layouts(&self) -> crate::figure::flow::FlowLayoutObservations {
+        self.0.as_ref().map_or_else(Default::default, |state| {
+            std::mem::take(&mut state.lock().unwrap().layouts)
+        })
+    }
+
     pub(crate) fn enabled() -> Self {
         Self(Some(Arc::new(Mutex::new(TimingState::default()))))
     }
@@ -105,6 +133,8 @@ mod tests {
             Err(())
         }
         let disabled = TimingRecorder::default();
+        disabled.observe_layout(|| panic!("disabled diagnostics must not capture a request"));
+        assert!(disabled.take_layouts().records.is_empty());
         assert!(attempt(&disabled).is_err());
         assert!(disabled.take().is_empty());
         let enabled = TimingRecorder::enabled();

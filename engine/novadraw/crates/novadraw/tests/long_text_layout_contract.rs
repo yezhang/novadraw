@@ -248,6 +248,13 @@ fn external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts() {
     plain.frames().stabilize_for_query().unwrap();
     timed.frames().stabilize_for_query().unwrap();
     assert!(plain.frames().take_timings().is_empty());
+    assert!(
+        plain
+            .frames()
+            .take_flow_layout_observations()
+            .records
+            .is_empty()
+    );
     let left = snapshot(&plain, plain_page);
     let right = snapshot(&timed, timed_page);
     assert_eq!(left.size, right.size);
@@ -273,6 +280,33 @@ fn external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts() {
         }
     }
     let timings = timed.frames().take_timings();
+    let observations = timed.frames().take_flow_layout_observations();
+    assert_eq!(observations.dropped, 0);
+    assert_eq!(
+        observations.records.iter().filter(|r| !r.cache_hit).count(),
+        timed_calls.load(Ordering::Relaxed)
+    );
+    assert!(
+        observations
+            .records
+            .iter()
+            .all(|r| r.succeeded && r.engine_identity.is_some())
+    );
+    for paragraph in &right.paragraphs {
+        assert!(
+            observations
+                .records
+                .iter()
+                .any(|r| *r.request == *paragraph.layout.request())
+        );
+    }
+    assert!(
+        timed
+            .frames()
+            .take_flow_layout_observations()
+            .records
+            .is_empty()
+    );
     let total = timings
         .iter()
         .find(|entry| entry.stage == "stable-query")
@@ -396,6 +430,10 @@ fn instance_caches_are_isolated_and_eviction_preserves_published_snapshots() {
     let (mut second_runtime, second_page, _, second_calls) = fixture(true);
     first_runtime.frames().stabilize_for_query().unwrap();
     let retained = snapshot(&first_runtime, page);
+    let glyph_lease = retained.paragraphs[0].layout.layout().glyph_runs()[0]
+        .glyphs
+        .clone();
+    let old_glyphs = glyph_lease.to_vec();
     second_runtime.frames().stabilize_for_query().unwrap();
     assert_eq!(second_calls.load(Ordering::Relaxed), 3);
     let other = snapshot(&second_runtime, second_page);
@@ -426,4 +464,101 @@ fn instance_caches_are_isolated_and_eviction_preserves_published_snapshots() {
         "first paragraph wrapping across lines"
     );
     assert_eq!(second_calls.load(Ordering::Relaxed), 3);
+    assert_eq!(glyph_lease.as_slice(), old_glyphs);
+    assert_eq!(
+        glyph_lease.buffer().as_slice().as_ptr(),
+        retained.paragraphs[0].layout.layout().glyph_runs()[0]
+            .glyphs
+            .buffer()
+            .as_slice()
+            .as_ptr(),
+    );
+    drop(first_runtime);
+    drop(retained);
+    assert_eq!(glyph_lease.as_slice(), old_glyphs);
+}
+
+#[test]
+fn external_backend_retains_runtime_submission_after_source_retirement() {
+    use novadraw::render::*;
+    #[derive(Default)]
+    struct RetainingBackend(Option<RenderSubmission>);
+    impl RenderBackend for RetainingBackend {
+        fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
+            self.0 = Some(submission.clone());
+            Ok(RenderDisposition::Presented)
+        }
+        fn resize(&mut self, _: u32, _: u32, _: f64) {}
+    }
+    let (mut runtime, page, _, _) = fixture(true);
+    runtime.frames().stabilize_for_query().unwrap();
+    let source = snapshot(&runtime, page);
+    let frame = runtime
+        .frames()
+        .prepare_submission(
+            SurfaceInfo {
+                logical_width: 180.0,
+                logical_height: 400.0,
+                pixel_width: 180,
+                pixel_height: 400,
+                scale_factor: 1.0,
+            },
+            BackendCapabilities::RETAINED_PARTIAL,
+        )
+        .into_ready()
+        .unwrap();
+    let mut backend = RetainingBackend::default();
+    let result = backend.submit(&frame);
+    assert_eq!(
+        runtime
+            .frames()
+            .complete_submission(frame.session_id, frame.frame_id, result)
+            .unwrap(),
+        novadraw::runtime::SubmissionAcknowledgement::Presented,
+    );
+    let runs: Vec<_> = backend
+        .0
+        .as_ref()
+        .unwrap()
+        .commands
+        .iter()
+        .filter_map(|command| {
+            if let RenderCommandKind::DrawGlyphRun { run, .. } = &command.kind {
+                Some(run)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(!runs.is_empty());
+    for run in &runs {
+        assert!(
+            source
+                .paragraphs
+                .iter()
+                .flat_map(|p| p.layout.layout().glyph_runs())
+                .any(|original| {
+                    original.glyphs.buffer().as_slice().as_ptr()
+                        == run.glyphs.buffer().as_slice().as_ptr()
+                        && Arc::ptr_eq(&original.normalized_coords, &run.normalized_coords)
+                })
+        );
+    }
+    let retained_glyphs: Vec<_> = runs.iter().map(|r| r.glyphs.to_vec()).collect();
+    runtime
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
+            0.0, 0.0, 10.0, 10.0,
+        )))
+        .unwrap();
+    assert!(runtime.tree().node(page).is_err());
+    drop(runtime);
+    drop(source);
+    drop(frame);
+    for (run, glyphs) in runs.iter().zip(retained_glyphs) {
+        assert_eq!(run.glyphs.as_slice(), glyphs);
+    }
+    assert!(matches!(
+        backend.0.as_ref().unwrap().resources,
+        ResourceSync::Snapshot(_)
+    ));
 }

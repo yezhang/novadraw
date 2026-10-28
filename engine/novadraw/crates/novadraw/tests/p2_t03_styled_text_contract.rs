@@ -347,13 +347,13 @@ impl TextLayoutEngine for ExternalEngine {
             glyph_runs: vec![GlyphRun {
                 font: self.face.clone().ok_or(TextError::NoUsableFont)?,
                 font_size: 14.0,
-                normalized_coords: vec![],
+                normalized_coords: std::sync::Arc::from([]),
                 skew_degrees: None,
-                glyphs: vec![PositionedGlyph {
+                glyphs: novadraw::text::shaping::GlyphRange::new(vec![PositionedGlyph {
                     id: 1,
                     x: 0.0,
                     y: 20.0,
-                }],
+                }])?,
             }],
             visible_range: 0..request.text().len(),
             truncated: false,

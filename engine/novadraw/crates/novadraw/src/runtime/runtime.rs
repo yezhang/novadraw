@@ -4076,13 +4076,13 @@ mod tests {
                     glyph_runs: vec![GlyphRun {
                         font: face,
                         font_size: font.size,
-                        normalized_coords: Vec::new(),
+                        normalized_coords: Arc::from([]),
                         skew_degrees: None,
-                        glyphs: vec![PositionedGlyph {
+                        glyphs: crate::text::shaping::GlyphRange::new(vec![PositionedGlyph {
                             id: 1,
                             x: 0.0,
                             y: 8.0,
-                        }],
+                        }])?,
                     }],
                     visible_range: 0..text.len(),
                     truncated: false,

@@ -98,6 +98,15 @@ impl<'a> MeasureContext<'a> {
         self.engine.layout_styled(request)
     }
 
+    pub(crate) fn layout_styled_with_diagnostics(
+        &mut self,
+        request: &super::StyledTextRequest,
+        diagnostics: &super::TextLayoutDiagnostics,
+    ) -> Result<super::StyledTextLayout, TextError> {
+        self.engine
+            .layout_styled_with_diagnostics(request, diagnostics)
+    }
+
     pub fn prepare_underlines(
         &mut self,
         text: &super::StyledTextLayout,

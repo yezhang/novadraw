@@ -88,7 +88,7 @@ fn fragments_follow_actual_faces_sizes_lines_and_bidi_geometry() {
                 let metrics = fragment.font_metrics();
                 assert_eq!(metrics.face(), &run.font);
                 assert_eq!(metrics.size(), run.font_size);
-                assert_eq!(metrics.normalized_coords(), run.normalized_coords);
+                assert_eq!(metrics.normalized_coords(), run.normalized_coords.as_ref());
                 assert_eq!(
                     fragment.bounds().y,
                     f64::from(layout.runs()[index].baseline)

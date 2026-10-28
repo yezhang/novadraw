@@ -16,7 +16,7 @@ cargo xtask verify <suite-id>
 | Suite | 覆盖范围 |
 |---|---|
 | `shape.independent-corners` | 逐角圆角、逐边颜色、旧 Shape/Border、共享边像素归属、独立样例与 WASM Core 编译；需本机 GPU |
-| `text.long-layout` | 精确段落复用、来源几何、轮廓与段落索引、Full/Partial GPU 像素及原 Large release CPU smoke；需本机 GPU |
+| `text.long-layout` | 精确段落复用、共享 glyph 范围与旧 lease、来源几何、轮廓与段落索引、Full/Partial GPU 像素及原 Large release CPU smoke；需本机 GPU |
 | `animation.tree` | 表现几何与容量预留、Tree 操作、Native GPU 中间帧及 retained-partial 像素；需要本机图形会话 |
 | `example.zoom-input` | 浮动面板输入归属、Zoom 滚动条按下/拖动/释放及缩放联动；无需窗口 |
 | `render.antialias` | 逐操作 AA 契约、Native Msaa16 像素、40 个 ShapeStyles 矩阵及 Web 编译；需本机 GPU |
@@ -62,6 +62,11 @@ target/release/textflow-perf 1 extended
 默认 5 个会话、每会话 20 次预热及 200 个样本，并按会话汇总。
 冻结的旧版驱动没有这些场景，扩展采样只描述当前成本。
 驱动不创建窗口或 GPU，呈现始终为 `unavailable`。
+
+默认二进制路径遵循 `CARGO_TARGET_DIR`，也可通过 `--binary` 显式指定。
+从源码归档恢复的目录没有 Git metadata 时，`smoke` 留存完整源码归档、
+实际 Cargo.lock、字体与二进制散列；在 Git checkout 中仍留存 dirty patch。
+显式的 `freeze --source-directory <恢复目录>` 可使用同一归档模式。
 
 后续两版冻结驱动都支持扩展场景时，可用
 `compare <新目录> --baseline <上一版冻结目录> --extended` 交替比较。

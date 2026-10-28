@@ -20,7 +20,7 @@ struct Suite {
 const SUITES: &[Suite] = &[
     Suite {
         id: "text.long-layout",
-        description: "Exact paragraph reuse, source mapping, font invalidation and original fixture CPU smoke",
+        description: "Exact paragraph reuse, shared glyph leases, source mapping, font invalidation and original fixture CPU smoke",
         steps: &[
             Step {
                 program: "cargo",
@@ -60,6 +60,26 @@ const SUITES: &[Suite] = &[
                     "novadraw",
                     "--test",
                     "long_text_layout_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "novadraw",
+                    "--test",
+                    "shared_glyph_storage_contract",
+                ],
+            },
+            Step {
+                program: "cargo",
+                args: &[
+                    "test",
+                    "-p",
+                    "draw2d-official-examples",
+                    "--test",
+                    "shared_glyph_backing",
                 ],
             },
             Step {

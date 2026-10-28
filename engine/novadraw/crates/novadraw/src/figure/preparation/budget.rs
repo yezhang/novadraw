@@ -80,6 +80,10 @@ impl PreparationBudgetHandle {
         self.timing.start(stage)
     }
 
+    pub(crate) fn text_diagnostics(&self) -> crate::text::TextLayoutDiagnostics {
+        crate::text::TextLayoutDiagnostics(self.timing.clone())
+    }
+
     pub fn limit(&self) -> PreparationBudget {
         self.limit
     }

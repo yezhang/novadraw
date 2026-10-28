@@ -1152,12 +1152,39 @@ caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑�
 
 2026-10-27 用户批准[修订 2 首批复核](../verification/reviews/long-text-performance-revision-2-review-2026-10-27.md)
 后启动 LT-00～LT-03，契约见 [ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)。
-本批是当前新增 Execute 切片；其他未完成项保持待验收状态。
+本批的观测与共享 IR Execute 切片已验证退出；其他未完成项保持待验收状态。
+
+2026-10-28 用户批准[滚动与 resize 方案](../design/architecture/long-text-scroll-resize-optimization-proposal.md)，
+既有最新修改已分主题提交。LT-00 请求与阶段观测已退出：
+完整 request、source component versions、engine identity/revision、measure/prepare、
+inline prefix、cache hit 和失败前成本；同一默认关闭诊断入口供内置与外部引擎使用。
+共享 IR 切片已实施并验证退出；原生覆盖 SR-R01 与默认宽度复用 SR-R02 不因总方案授权而自动验收，
+局部 shaping／检查点 LTI-R01/R02 继续独立评审。
+
+测量接口与三个原 Large 完整 request 序列已通过定向验证：
+每次 resize 520 次请求中有 514 次命中，其余为三种不同输入 × 400/386 两个宽度；
+滚动 80 次 measure 请求全部命中，未新增 shaping。
+完整阶段采样完成：1000 热样本、200 新进程、100 预热，无失败；
+1300 个序列的源版本和五类操作阶段核算通过。
+热样本 scroll/resize/submission p95 为 8.866/43.674/6.565 ms；
+共享 glyph buffer/range 已实现，外部 engine/backend、缓存淘汰、源退休、
+唯一 backing 计费与 18 组 GPU 像素对照通过；Native/Web API 边界核验通过。
+原 Large 追加前当前帧绘制 51232 glyph，仅钉住 58788 bytes 唯一 glyph/coords payload
+与 2592 bytes Arc 计数器；不是整个 Runtime 的内存归因。
+共享 IR 匹配对照完成：每版 1000 热样本、200 新进程、100 预热，无失败；
+完整 CPU submission p95 4.935→4.561 ms，五个会话均下降；
+scroll/resize p95 为 6.316/32.952 ms，变化较小且 resize 部分会话反向。
+原 Large 追加 p95 本轮为 15.513 ms，但基线也低于 16 ms；
+长段/长行、resize 16 ms 与查询/完整 IR 4 ms 整体目标仍未关闭。
+下一步先核验重复贡献读取与稳定化的通用复用边界，再按证据选择宽度/原生分支。
+workspace fmt/check/Clippy、1575 项测试、公开 API Native/Web 与专项门禁通过；
+最后的范围值相等语义另通过定向测试。目标与剩余准入不改变，
+详情见[首批实施记录](../verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md)。
 
 | 切片 | 状态 | 当前证据 |
 |---|---|---|
 | LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 本轮另补齐 1300 次独立源版本观测，正式样本和阶段核算通过；first-ready、生产 GPU/present 与 Web 体积仍缺证据 |
-| LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；贡献、边框与内嵌测量仍重读，尺寸一致性及预算失败测试通过；复制量与留存分配归属待采证 |
+| LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；本轮共享 glyph buffer/range 消除录制与 submission 的数组 clone，外部 lease 与唯一 backing 计费验证通过；其他复制、缓存留存与 Web 产物仍待采证 |
 | LT-02 | `in_progress` | 精确复用与失效反例通过；第四轮原 Large 追加 p50 17.157→15.302 ms、p95 20.112→19.214 ms，Flow 构建自身平均 9.200→7.695 ms，部分尾延迟回退，未达到 16 ms；长段/长行追加 p95 为 38.526/52.733 ms；混排标准宽度为 6.864 ms，默认预算下缩窄成功，优化版 resize p95 14.469 ms |
 | LT-03 | `in_progress` | 18 组 Full/Partial GPU 对照通过；第四轮原 Large 滚动新增 shaping 为 0，稳定化 p95 7.867 ms，resize 后 IR p95 5.748 ms；默认 native glyph 仍完整输出 51233 个；生产证书边界已形成待复核提案，4 ms 查询/IR 验收未完成 |
 

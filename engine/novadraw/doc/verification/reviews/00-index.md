@@ -9,6 +9,7 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-28 | [长文本滚动与 resize 首批实施](long-text-scroll-resize-implementation-2026-10-28.md) |
 | 2026-10-28 | [GEF 样例接入的 Scene 输出实施](gef-scene-target-implementation-2026-10-28.md) |
 | 2026-10-27 | [布局与 Caret 消费者核验](official-layout-caret-consumers-2026-10-27.md) |
 | 2026-10-27 | [矩形分边描边的平齐自由端](shape-free-end-butt-2026-10-27.md) |

@@ -120,17 +120,18 @@ impl TextLayoutEngine for AsciiEngine {
             glyph_runs.push(GlyphRun {
                 font: self.font.clone().ok_or(TextError::NoUsableFont)?,
                 font_size: span.style.font().size(),
-                normalized_coords: vec![],
+                normalized_coords: Arc::from([]),
                 skew_degrees: None,
-                glyphs: span
-                    .range
-                    .clone()
-                    .map(|offset| PositionedGlyph {
-                        id: 1,
-                        x: offset as f32 * ADVANCE as f32,
-                        y: BASELINE,
-                    })
-                    .collect(),
+                glyphs: novadraw::text::shaping::GlyphRange::new(
+                    span.range
+                        .clone()
+                        .map(|offset| PositionedGlyph {
+                            id: 1,
+                            x: offset as f32 * ADVANCE as f32,
+                            y: BASELINE,
+                        })
+                        .collect(),
+                )?,
             });
             runs.push(StyledGlyphRun {
                 source_range: span.range.clone(),
@@ -174,6 +175,15 @@ impl TextLayoutEngine for AsciiEngine {
         )?;
         StyledTextLayout::new(request.clone(), layout, runs, vec![])
     }
+
+    fn layout_styled_with_diagnostics(
+        &mut self,
+        request: &StyledTextRequest,
+        diagnostics: &novadraw::text::TextLayoutDiagnostics,
+    ) -> Result<StyledTextLayout, TextError> {
+        let _scope = diagnostics.time("external-ascii-layout");
+        self.layout_styled(request)
+    }
 }
 
 #[test]
@@ -201,6 +211,7 @@ fn independent_engine_drives_flow_mapping_paint_hit_caret_and_selection() {
         .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
+    runtime.frames().set_timing_enabled(true);
     let _ = support::record_full_submission(&mut runtime);
     let s = runtime
         .tree()
@@ -230,4 +241,60 @@ fn independent_engine_drives_flow_mapping_paint_hit_caret_and_selection() {
         64.0
     );
     assert_eq!(s.paragraphs[0].layout.layout().glyph_runs().len(), 2);
+    let old_request = s.paragraphs[0].layout.request().clone();
+    let observations = runtime.frames().take_flow_layout_observations();
+    assert_eq!(observations.dropped, 0);
+    assert!(!observations.records.is_empty());
+    assert!(observations.records.iter().all(|record| {
+        *record.request == old_request
+            && record.engine_identity.is_none()
+            && !record.cache_hit
+            && record.succeeded
+            && record.sources.contains(&(b, 0))
+    }));
+    assert!(
+        runtime
+            .frames()
+            .take_flow_layout_observations()
+            .records
+            .is_empty()
+    );
+    assert!(
+        runtime
+            .frames()
+            .take_timings()
+            .iter()
+            .any(|entry| { entry.stage == "external-ascii-layout" && entry.calls > 0 })
+    );
+    let receipt = runtime
+        .figure(b)
+        .unwrap()
+        .update_component(SetStructuredFlowText("中文".into()))
+        .unwrap();
+    assert!(runtime.frames().stabilize_for_query().is_err());
+    let failed = runtime.frames().take_flow_layout_observations();
+    assert_eq!(failed.dropped, 0);
+    assert!(failed.records.iter().any(|record| {
+        !record.succeeded
+            && !record.cache_hit
+            && record.request.text() == "first 中文"
+            && record.sources.contains(&(b, receipt.revision))
+            && record.elapsed_ns > 0
+    }));
+    assert!(
+        runtime
+            .frames()
+            .take_timings()
+            .iter()
+            .any(|entry| { entry.stage == "external-ascii-layout" && entry.calls > 0 })
+    );
+    runtime.frames().set_timing_enabled(false);
+    assert!(runtime.frames().stabilize_for_query().is_err());
+    assert!(
+        runtime
+            .frames()
+            .take_flow_layout_observations()
+            .records
+            .is_empty()
+    );
 }

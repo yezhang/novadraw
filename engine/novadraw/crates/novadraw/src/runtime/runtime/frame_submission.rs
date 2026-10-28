@@ -755,6 +755,7 @@ impl Runtime {
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
     ) -> FramePreparation {
+        let _timing = self.timing.start("prepare-submission");
         if self.faulted {
             return FramePreparation::Error(FramePreparationError::Faulted);
         }
@@ -856,6 +857,7 @@ impl Runtime {
         let coverage_outset = capabilities
             .filled_path_coverage_outset_pixels
             .map(|pixels| f64::from(pixels) / surface.scale_factor);
+        let recording_timing = self.timing.start("ir-record");
         let mut canvas = if self.updates.is_update_queued() {
             self.tree.perform_update_with_paint_coverage(
                 &mut self.updates,
@@ -898,6 +900,8 @@ impl Runtime {
                 return FramePreparation::Error(FramePreparationError::Graphics(error));
             }
         }
+        drop(recording_timing);
+        let validation_timing = self.timing.start("ir-validate");
         if let Err(error) = canvas.validate_recording(&self.resources) {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::Graphics(error));
@@ -915,7 +919,9 @@ impl Runtime {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
         }
+        drop(validation_timing);
 
+        let resources_timing = self.timing.start("submission-retention-resources");
         // Acquire independent ownership before consuming a frame identity or resource prefix.
         // Capacity failure leaves the current sample, active owners, and recovery prefix intact.
         let retention = match self.animations.retain_submission(presentation.as_ref()) {
@@ -938,12 +944,15 @@ impl Runtime {
         } else {
             ResourceSync::Delta(self.resources.take_delta())
         };
+        drop(resources_timing);
+        let submission_timing = self.timing.start("submission-build");
         let mut submission = canvas.to_submission_for_session(
             surface,
             resources.clone(),
             self.backend_session_id,
             frame_id,
         );
+        drop(submission_timing);
         submission.clear_color = self.background.base;
         submission.background_input = self.background.input.map(Box::new);
         submission.retention = retention.clone();

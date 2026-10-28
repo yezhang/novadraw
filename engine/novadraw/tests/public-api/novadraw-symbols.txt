@@ -738,6 +738,8 @@ module.text struct TextConstraints
 module.text struct TextInlineBox
 module.text struct TextInlinePlacement
 module.text struct TextLayout
+module.text struct TextLayoutDiagnostics
+module.text struct TextLayoutTimingScope
 module.text struct TextLineMetrics
 module.text struct TextMetrics
 module.text struct TextPosition
@@ -747,6 +749,18 @@ module.text struct TextStyleSpan
 module.text struct TextSystem
 module.text struct TextUnderline
 module.text struct TextUnderlineFragment
+module.text.shaping struct GlyphBuffer
+module.text.shaping struct GlyphRange
+module.text.shaping struct GlyphRun
+module.text.shaping struct ParleyTextEngine
+module.text.shaping struct PositionedGlyph
+module.text.shaping struct TextInteractionMap
+module.text.shaping struct TextLayoutCacheIdentity
+module.text.shaping struct TextLayoutKey
+module.text.shaping struct TextLayoutParts
+module.text.shaping struct TextLayoutRevision
+module.text.shaping trait TextInteractionProvider
+module.text.shaping trait TextLayoutEngine
 module.tree constant DEFAULT_VALIDATION_BUDGET
 module.tree constant FREEFORM_EXTENT_PROPERTY
 module.tree constant MAX_TREE_DEPTH

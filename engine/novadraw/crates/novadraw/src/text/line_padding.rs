@@ -98,10 +98,12 @@ impl StyledTextLayout {
         let mut glyph_offsets = Vec::new();
         for (run, styled) in glyph_runs.iter_mut().zip(self.runs()) {
             let offset = offsets[styled.line_index];
-            for glyph in &mut run.glyphs {
+            let mut glyphs = run.glyphs.to_vec();
+            for glyph in &mut glyphs {
                 glyph.y += offset as f32;
                 glyph_offsets.push(offset);
             }
+            run.glyphs = super::shaping::GlyphRange::new(glyphs)?;
         }
         let mut layout = TextLayout::from_parts(TextLayoutParts {
             text: original.key().text().to_owned(),

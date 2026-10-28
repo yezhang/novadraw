@@ -12,7 +12,7 @@ pub struct GlyphGeometryKey {
     provider_revision: u64,
     face: FontFaceRef,
     glyph: u32,
-    coords: Vec<i16>,
+    coords: Arc<[i16]>,
 }
 
 impl GlyphGeometryKey {

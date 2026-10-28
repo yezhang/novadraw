@@ -10,6 +10,80 @@ use novadraw::{
     runtime::Runtime,
 };
 
+fn json_string(value: &str) -> String {
+    let mut result = String::from("\"");
+    for c in value.chars() {
+        match c {
+            '"' => result.push_str("\\\""),
+            '\\' => result.push_str("\\\\"),
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            c if c.is_control() => result.push_str(&format!("\\u{:04x}", c as u32)),
+            c => result.push(c),
+        }
+    }
+    result.push('"');
+    result
+}
+
+fn report_requests(
+    runtime: &mut Runtime,
+    sample: usize,
+    operation: &str,
+    enabled: bool,
+    classes: &mut Vec<std::sync::Arc<novadraw::text::StyledTextRequest>>,
+) {
+    let observations = runtime.frames().take_flow_layout_observations();
+    if !enabled {
+        return;
+    }
+    println!(
+        "{{\"sample\":{sample},\"status\":\"layout_denominator\",\"operation\":\"{operation}\",\"attempts\":{},\"dropped\":{}}}",
+        observations.records.len(),
+        observations.dropped
+    );
+    for observation in observations.records {
+        // Full equality defines an input class, never merely width or fingerprint.
+        let class = classes.iter().position(|request| **request == *observation.request)
+            .unwrap_or_else(|| {
+                let class = classes.len();
+                println!(
+                    "{{\"sample\":{sample},\"status\":\"layout_request\",\"class\":{class},\"complete_request_debug\":{}}}",
+                    json_string(&format!("{:?}", observation.request))
+                );
+                classes.push(observation.request.clone());
+                class
+            });
+        println!(
+            "{{\"sample\":{sample},\"status\":\"layout_attempt\",\"operation\":\"{operation}\",\"class\":{class},\"root\":{},\"owner\":{},\"build\":{},\"scene_revision\":{},\"sources\":{},\"phase\":\"{}\",\"inline_prefix\":{},\"engine_identity\":{},\"engine_revision\":{},\"cache_hit\":{},\"succeeded\":{},\"elapsed_ns\":{}}}",
+            json_string(&format!("{:?}", observation.root)),
+            json_string(&format!("{:?}", observation.owner)),
+            observation.build,
+            observation.scene_revision,
+            json_string(&format!("{:?}", observation.sources)),
+            observation.phase,
+            observation
+                .inline_prefix
+                .map_or_else(|| "null".into(), |id| id.to_string()),
+            json_string(&format!("{:?}", observation.engine_identity)),
+            observation.engine_revision,
+            observation.cache_hit,
+            observation.succeeded,
+            observation.elapsed_ns,
+        );
+    }
+}
+
+fn report_timings(runtime: &mut Runtime, sample: usize, operation: &str) {
+    for timing in runtime.frames().take_timings() {
+        println!(
+            "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"runtime-{operation}/{}\",\"calls\":{},\"inclusive_ns\":{},\"exclusive_ns\":{}}}",
+            timing.stage, timing.calls, timing.inclusive_ns, timing.exclusive_ns
+        );
+    }
+}
+
 fn snapshot(runtime: &Runtime) -> &FlowSnapshot {
     let mut pending = vec![runtime.tree().contents().expect("fixture root")];
     while let Some(id) = pending.pop() {
@@ -26,6 +100,7 @@ fn snapshot(runtime: &Runtime) -> &FlowSnapshot {
 fn main() {
     let extended = std::env::args().nth(2).is_some_and(|arg| arg == "extended");
     let workload = std::env::args().nth(3).unwrap_or_else(|| "original".into());
+    let requests = std::env::args().nth(4).is_some_and(|arg| arg == "requests");
     let samples: usize = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "1".into())
@@ -36,6 +111,7 @@ fn main() {
         .find(|entry| entry.0 == "TextFlowLargeExample")
         .expect("original fixture");
     for sample in 0..samples {
+        let mut request_classes = Vec::new();
         let start = Instant::now();
         let (mut runtime, source) = if workload == "original" {
             (factory(), None)
@@ -47,6 +123,14 @@ fn main() {
         let construct_ns = start.elapsed().as_nanos();
         let start = Instant::now();
         if let Err(error) = runtime.frames().stabilize_for_query() {
+            report_timings(&mut runtime, sample, "initial-failure");
+            report_requests(
+                &mut runtime,
+                sample,
+                "initial-failure",
+                requests,
+                &mut request_classes,
+            );
             eprintln!("sample {sample}: {error:?}");
             println!("{{\"sample\":{sample},\"status\":\"initial_failure\"}}");
             continue;
@@ -95,6 +179,13 @@ fn main() {
                 timing.stage, timing.calls, timing.inclusive_ns, timing.exclusive_ns
             );
         }
+        report_requests(
+            &mut runtime,
+            sample,
+            "initial",
+            requests,
+            &mut request_classes,
+        );
         println!(
             "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"initial-cache\",\"paragraph_hits\":{},\"source_geometry_calls\":{}}}",
             initial_work.paragraph_hits, initial_work.source_geometry_calls
@@ -137,6 +228,14 @@ fn main() {
         let start = Instant::now();
         if let Err(error) = runtime.frames().stabilize_for_query() {
             eprintln!("sample {sample}: {error:?}");
+            report_timings(&mut runtime, sample, "append-failure");
+            report_requests(
+                &mut runtime,
+                sample,
+                "append-failure",
+                requests,
+                &mut request_classes,
+            );
             println!("{{\"sample\":{sample},\"status\":\"append_failure\"}}");
             continue;
         }
@@ -184,6 +283,13 @@ fn main() {
                 timing.stage, timing.calls, timing.inclusive_ns, timing.exclusive_ns
             );
         }
+        report_requests(
+            &mut runtime,
+            sample,
+            "append",
+            requests,
+            &mut request_classes,
+        );
         println!(
             "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"append-cache\",\"paragraph_hits\":{},\"source_geometry_calls\":{}}}",
             append_work.paragraph_hits - initial_work.paragraph_hits,
@@ -196,6 +302,14 @@ fn main() {
             .stabilize_for_query()
             .expect("unchanged stable query");
         let stable_ns = start.elapsed().as_nanos();
+        report_timings(&mut runtime, sample, "stable");
+        report_requests(
+            &mut runtime,
+            sample,
+            "stable",
+            requests,
+            &mut request_classes,
+        );
         println!(
             "{{\"sample\":{sample},\"status\":\"work\",\"phase\":\"initial\",\"builds\":{},\"layout_calls\":{},\"contribution_ns\":{},\"styled_layout_ns\":{},\"source_geometry_ns\":{},\"build_ns\":{}}}",
             initial_work.builds,
@@ -235,7 +349,14 @@ fn main() {
             let scroll_ns = start.elapsed().as_nanos();
             let scroll_calls =
                 snapshot(&runtime).statistics.styled_layout_calls - work_before.styled_layout_calls;
-            runtime.frames().take_timings();
+            report_timings(&mut runtime, sample, "scroll");
+            report_requests(
+                &mut runtime,
+                sample,
+                "scroll",
+                requests,
+                &mut request_classes,
+            );
             let published_revision = snapshot(&runtime).revision;
             let start = Instant::now();
             runtime
@@ -252,6 +373,13 @@ fn main() {
                         timing.stage, timing.calls, timing.inclusive_ns, timing.exclusive_ns
                     );
                 }
+                report_requests(
+                    &mut runtime,
+                    sample,
+                    "resize-failure",
+                    requests,
+                    &mut request_classes,
+                );
                 println!(
                     "{{\"sample\":{sample},\"status\":\"resize_failure\",\"resize_ns\":{resize_ns},\"published_revision_unchanged\":{}}}",
                     snapshot(&runtime).revision == published_revision
@@ -259,6 +387,14 @@ fn main() {
                 continue;
             }
             let resize_ns = start.elapsed().as_nanos();
+            report_timings(&mut runtime, sample, "resize");
+            report_requests(
+                &mut runtime,
+                sample,
+                "resize",
+                requests,
+                &mut request_classes,
+            );
             let width = snapshot(&runtime).paragraphs[0]
                 .layout
                 .request()
@@ -287,6 +423,14 @@ fn main() {
                 .into_ready()
                 .expect("CPU IR preparation");
             let record_ns = start.elapsed().as_nanos();
+            report_timings(&mut runtime, sample, "record");
+            report_requests(
+                &mut runtime,
+                sample,
+                "record",
+                requests,
+                &mut request_classes,
+            );
             let glyphs: usize = frame
                 .commands
                 .iter()

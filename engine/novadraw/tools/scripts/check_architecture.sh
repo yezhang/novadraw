@@ -146,6 +146,7 @@ scopes=(
   "module.render:render/index.html"
   "module.runtime:runtime/index.html"
   "module.text:text/index.html"
+  "module.text.shaping:text/shaping/index.html"
   "module.tree:tree/index.html"
 )
 

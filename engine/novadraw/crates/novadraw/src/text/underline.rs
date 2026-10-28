@@ -141,7 +141,7 @@ impl PreparedTextUnderlines {
                     let metrics = engine.resolved_font_metrics(glyphs)?;
                     if metrics.face() != &glyphs.font
                         || metrics.size() != glyphs.font_size
-                        || metrics.normalized_coords() != glyphs.normalized_coords
+                        || metrics.normalized_coords() != glyphs.normalized_coords.as_ref()
                     {
                         return Err(TextError::InvalidStyledLayout);
                     }
@@ -151,7 +151,7 @@ impl PreparedTextUnderlines {
                         font_size: glyphs.font_size,
                         normalized_coords: glyphs.normalized_coords.clone(),
                         skew_degrees: glyphs.skew_degrees,
-                        glyphs: Vec::new(),
+                        glyphs: super::shaping::GlyphRange::new(Vec::new())?,
                     };
                     metrics_cache.push((instance, metrics.clone()));
                     metrics

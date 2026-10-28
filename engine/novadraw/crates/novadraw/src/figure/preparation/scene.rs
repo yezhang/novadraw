@@ -122,6 +122,14 @@ impl<'a> PreparationScene<'a> {
         self.root
     }
 
+    // Diagnostics read already frozen nodes; no provider callbacks, dependency writes or charges.
+    pub(crate) fn diagnostic_component_revision(&self, id: FigureId) -> u64 {
+        self.tree
+            .node(id)
+            .expect("captured flow source")
+            .component_revision
+    }
+
     /// Outer and content constraints of the current measurement callback.
     pub fn measurement_constraints(&self) -> Option<(MeasureConstraints, MeasureConstraints)> {
         self.measurement_constraints

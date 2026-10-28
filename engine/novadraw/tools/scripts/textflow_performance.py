@@ -212,6 +212,26 @@ def sample(binary, count, session, kind, output, timeout, warmup=0, extended=Fal
                 if (workload != "line" and record.get("resize_width") != 386) or (
                         workload == "original" and record.get("native_glyphs") != 51233):
                     record["status"] = "extended_fixture_mismatch"
+                verified = 0
+                for operation, root_stage in (
+                    ("scroll", "stable-query"), ("resize", "stable-query"),
+                    ("record", "prepare-submission"),
+                ):
+                    prefix = f"runtime-{operation}/"
+                    stages = [r for r in records if r.get("sample") == record["sample"]
+                              and r.get("phase", "").startswith(prefix)]
+                    # Earlier frozen drivers did not expose these scopes. Retain that gap.
+                    if not stages:
+                        continue
+                    roots = [r for r in stages if r["phase"] == prefix + root_stage]
+                    if (len(roots) != 1 or
+                            any(r["exclusive_ns"] > r["inclusive_ns"] for r in stages) or
+                            sum(r["exclusive_ns"] for r in stages) != roots[0]["inclusive_ns"]):
+                        record["status"] = "extended_timing_accounting_mismatch"
+                    else:
+                        verified += 1
+                record["extended_stage_accounting"] = (
+                    "verified" if verified == 3 else "unavailable-or-incomplete")
         records.append({"status": "process", "session": session, "kind": kind,
                         "exit_code": result.returncode, "process_ns": elapsed,
                         "stderr": result.stderr})
@@ -332,7 +352,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["freeze", "run", "summarize", "smoke", "compare", "memory"])
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--binary", type=Path, default=ROOT / "target/release/textflow-perf")
+    target_directory = Path(os.environ.get("CARGO_TARGET_DIR", str(ROOT / "target")))
+    if not target_directory.is_absolute():
+        target_directory = ROOT / target_directory
+    parser.add_argument("--binary", type=Path, default=target_directory / "release/textflow-perf")
     parser.add_argument("--sessions", type=int, default=5)
     parser.add_argument("--samples", type=int, default=200)
     parser.add_argument("--warmup", type=int, default=20)
@@ -349,7 +372,12 @@ def main():
     assert args.warmup >= 0 and args.cold_per_session >= 0
     if args.action == "smoke":
         args.destination = args.destination / f"run-{time.time_ns()}"
-        freeze(args.destination, args.binary, args.workload)
+        repository = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=ROOT,
+                                    capture_output=True, text=True)
+        if args.source_directory or repository.returncode != 0:
+            freeze_materialized(args.destination, args.binary, args.source_directory or ROOT)
+        else:
+            freeze(args.destination, args.binary, args.workload)
         args.sessions, args.samples, args.warmup, args.cold_per_session = 1, 3, 1, 1
         print(args.destination, flush=True)
     if args.action == "memory":
@@ -466,6 +494,7 @@ def main():
         manifest["sampling"] = {k: getattr(args, k) for k in
                                 ("sessions", "samples", "warmup", "cold_per_session", "timeout")}
         manifest["sampling"]["extended"] = args.extended
+        manifest["sampling"]["runner_sha256"] = digest(Path(__file__))
         manifest["sampling"]["workload"] = args.workload
         manifest["sampling"]["source_commit"] = (
             "component revision increases once during original key dispatch and remains unchanged after stabilization"

@@ -12,6 +12,7 @@ use uuid::Uuid;
 #[derive(Default)]
 struct RecordingBackend {
     glyph_runs: usize,
+    retained_runs: Vec<GlyphRun>,
 }
 
 #[derive(Default)]
@@ -72,13 +73,13 @@ impl TextLayoutEngine for ExternalTextEngine {
             glyph_runs: vec![GlyphRun {
                 font: face,
                 font_size: font.size(),
-                normalized_coords: Vec::new(),
+                normalized_coords: Arc::from([]),
                 skew_degrees: None,
-                glyphs: vec![PositionedGlyph {
+                glyphs: novadraw::text::shaping::GlyphRange::new(vec![PositionedGlyph {
                     id: 1,
                     x: 0.0,
                     y: 11.0,
-                }],
+                }])?,
             }],
             visible_range: 0..text.len(),
             truncated: false,
@@ -88,6 +89,16 @@ impl TextLayoutEngine for ExternalTextEngine {
 
 impl RenderBackend for RecordingBackend {
     fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
+        self.retained_runs
+            .extend(
+                submission
+                    .commands
+                    .iter()
+                    .filter_map(|command| match &command.kind {
+                        RenderCommandKind::DrawGlyphRun { run, .. } => Some(run.clone()),
+                        _ => None,
+                    }),
+            );
         self.glyph_runs += submission
             .commands
             .iter()
@@ -174,11 +185,27 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
 
     assert_eq!(outcome, Ok(RenderDisposition::Presented));
     assert_eq!(backend.glyph_runs, layout.glyph_runs().len());
+    for (source, retained) in layout.glyph_runs().iter().zip(&backend.retained_runs) {
+        assert_eq!(
+            source.glyphs.buffer().as_slice().as_ptr(),
+            retained.glyphs.buffer().as_slice().as_ptr()
+        );
+        assert!(Arc::ptr_eq(
+            &source.normalized_coords,
+            &retained.normalized_coords
+        ));
+    }
     assert!(matches!(
         submission.resources,
         ResourceSync::Delta(ResourceDelta { ref ops })
             if matches!(ops.as_slice(), [ResourceOp::Upsert(_)])
     ));
+    let old = backend.retained_runs[0].glyphs.to_vec();
+    engine.remove_font(font_id);
+    drop(engine);
+    drop(layout);
+    drop(submission);
+    assert_eq!(backend.retained_runs[0].glyphs.as_slice(), old);
 }
 
 #[test]

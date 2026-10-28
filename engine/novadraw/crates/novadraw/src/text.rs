@@ -9,9 +9,9 @@ pub use crate::render::text::{
 
 pub mod shaping {
     pub use crate::render::text::{
-        GlyphRun, ParleyTextEngine, PositionedGlyph, TextInteractionMap, TextInteractionProvider,
-        TextLayoutCacheIdentity, TextLayoutEngine, TextLayoutKey, TextLayoutParts,
-        TextLayoutRevision,
+        GlyphBuffer, GlyphRange, GlyphRun, ParleyTextEngine, PositionedGlyph, TextInteractionMap,
+        TextInteractionProvider, TextLayoutCacheIdentity, TextLayoutEngine, TextLayoutKey,
+        TextLayoutParts, TextLayoutRevision,
     };
 }
 
@@ -25,6 +25,8 @@ pub use styled::{
 };
 mod system;
 pub use system::{MeasureContext, TextSystem};
+mod diagnostics;
+pub use diagnostics::{TextLayoutDiagnostics, TextLayoutTimingScope};
 mod underline;
 pub use underline::{PreparedTextUnderlines, TextUnderline, TextUnderlineFragment};
 

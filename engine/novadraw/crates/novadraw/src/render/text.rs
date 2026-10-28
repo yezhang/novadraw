@@ -616,13 +616,107 @@ pub struct PositionedGlyph {
     pub y: f32,
 }
 
+/// Validated, immutable positioned glyph storage shared by layouts and submissions.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GlyphBuffer {
+    glyphs: Arc<[PositionedGlyph]>,
+}
+
+impl GlyphBuffer {
+    pub fn new(glyphs: Vec<PositionedGlyph>) -> Result<Self, TextError> {
+        if glyphs
+            .iter()
+            .any(|glyph| !glyph.x.is_finite() || !glyph.y.is_finite())
+        {
+            return Err(TextError::InvalidGlyphRun);
+        }
+        Ok(Self {
+            glyphs: glyphs.into(),
+        })
+    }
+
+    pub fn as_slice(&self) -> &[PositionedGlyph] {
+        &self.glyphs
+    }
+
+    /// Indices refer to glyphs, not source bytes. Empty ranges are valid.
+    pub fn range(&self, indices: Range<usize>) -> Result<GlyphRange, TextError> {
+        if indices.start > indices.end || indices.end > self.glyphs.len() {
+            return Err(TextError::InvalidGlyphRun);
+        }
+        Ok(GlyphRange {
+            buffer: self.clone(),
+            indices,
+        })
+    }
+}
+
+/// An immutable checked view that retains its complete backing allocation.
+#[derive(Clone, Debug)]
+pub struct GlyphRange {
+    buffer: GlyphBuffer,
+    indices: Range<usize>,
+}
+
+impl GlyphRange {
+    /// The same checked owned entry point is used by built-in and external engines.
+    pub fn new(glyphs: Vec<PositionedGlyph>) -> Result<Self, TextError> {
+        let len = glyphs.len();
+        GlyphBuffer::new(glyphs)?.range(0..len)
+    }
+
+    pub fn buffer(&self) -> &GlyphBuffer {
+        &self.buffer
+    }
+
+    pub fn glyph_indices(&self) -> Range<usize> {
+        self.indices.clone()
+    }
+
+    pub fn as_slice(&self) -> &[PositionedGlyph] {
+        &self.buffer.as_slice()[self.indices.clone()]
+    }
+
+    /// Creates a view using indices relative to this view, without scanning glyphs.
+    pub fn slice(&self, indices: Range<usize>) -> Result<Self, TextError> {
+        if indices.start > indices.end || indices.end > self.indices.len() {
+            return Err(TextError::InvalidGlyphRun);
+        }
+        self.buffer
+            .range(self.indices.start + indices.start..self.indices.start + indices.end)
+    }
+}
+
+impl PartialEq for GlyphRange {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl std::ops::Deref for GlyphRange {
+    type Target = [PositionedGlyph];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<'a> IntoIterator for &'a GlyphRange {
+    type Item = &'a PositionedGlyph;
+    type IntoIter = std::slice::Iter<'a, PositionedGlyph>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlyphRun {
     pub font: FontFaceRef,
     pub font_size: f32,
-    pub normalized_coords: Vec<i16>,
+    pub normalized_coords: Arc<[i16]>,
     pub skew_degrees: Option<f32>,
-    pub glyphs: Vec<PositionedGlyph>,
+    pub glyphs: GlyphRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1380,6 +1474,16 @@ pub trait TextLayoutEngine {
         Err(TextError::StyledLayoutUnsupported)
     }
 
+    /// Optional fine CPU diagnostics. The default preserves the ordinary engine path.
+    /// Engines unable to separate analysis and shaping should report their combined work.
+    fn layout_styled_with_diagnostics(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+        _diagnostics: &crate::text::TextLayoutDiagnostics,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
+        self.layout_styled(request)
+    }
+
     /// Metrics of the resolved font instance, independent of text advance.
     fn font_metrics(
         &mut self,
@@ -1522,7 +1626,7 @@ impl TextLayoutEngine for ParleyTextEngine {
         let result = crate::text::FontMetrics::new(
             run.font.clone(),
             run.font_size,
-            run.normalized_coords.clone(),
+            run.normalized_coords.to_vec(),
             metrics.ascent,
             -metrics.descent,
             metrics.leading,
@@ -1587,10 +1691,19 @@ impl TextLayoutEngine for ParleyTextEngine {
         &mut self,
         request: &crate::text::StyledTextRequest,
     ) -> Result<crate::text::StyledTextLayout, TextError> {
+        self.layout_styled_with_diagnostics(request, &crate::text::TextLayoutDiagnostics::default())
+    }
+
+    fn layout_styled_with_diagnostics(
+        &mut self,
+        request: &crate::text::StyledTextRequest,
+        diagnostics: &crate::text::TextLayoutDiagnostics,
+    ) -> Result<crate::text::StyledTextLayout, TextError> {
         use crate::text::{
             ParagraphAlignment, ParagraphDirection, StyledGlyphRun, StyledTextLayout,
             TextInlinePlacement,
         };
+        let analysis = diagnostics.time("text-analysis-shaping");
         let font = request.default_style().font();
         let constraints = request.constraints();
         font.validate()?;
@@ -1660,11 +1773,15 @@ impl TextLayoutEngine for ParleyTextEngine {
         }
 
         let mut layout: Layout<usize> = builder.build(text);
+        drop(analysis);
+        let wrapping = diagnostics.time("text-wrap");
         layout.break_all_lines(if request.wraps() {
             constraints.max_width
         } else {
             None
         });
+        drop(wrapping);
+        let alignment_timing = diagnostics.time("text-align");
         let alignment = if request.layout_direction().is_mirrored() {
             match request.alignment() {
                 ParagraphAlignment::Leading => ParagraphAlignment::Trailing,
@@ -1687,7 +1804,9 @@ impl TextLayoutEngine for ParleyTextEngine {
             },
             parley::AlignmentOptions::default(),
         );
+        drop(alignment_timing);
 
+        let export = diagnostics.time("text-export");
         let mut lines: Vec<TextLineMetrics> = layout
             .lines()
             .map(|line| {
@@ -1861,9 +1980,9 @@ impl TextLayoutEngine for ParleyTextEngine {
                 glyph_runs.push(GlyphRun {
                     font: font_face,
                     font_size: run.font_size(),
-                    normalized_coords: run.normalized_coords().to_vec(),
+                    normalized_coords: run.normalized_coords().into(),
                     skew_degrees: run.synthesis().skew(),
-                    glyphs,
+                    glyphs: GlyphRange::new(glyphs)?,
                 });
             }
         }
@@ -1878,6 +1997,8 @@ impl TextLayoutEngine for ParleyTextEngine {
         } else {
             normalized_height
         };
+        drop(export);
+        let interaction_timing = diagnostics.time("text-interaction");
         let original: Arc<dyn TextInteractionProvider> = Arc::new(ParleyTextInteraction {
             layout,
             text_len: request.text().len(),
@@ -1894,7 +2015,9 @@ impl TextLayoutEngine for ParleyTextEngine {
         };
         let interaction = TextInteractionMap::new(request.text(), provider)
             .map_err(|_| TextError::InvalidInteractionMap)?;
+        drop(interaction_timing);
 
+        let _validation = diagnostics.time("text-validation");
         let text_layout = TextLayout::from_parts(TextLayoutParts {
             text: request.text().to_owned(),
             font: font.clone(),
@@ -2258,13 +2381,14 @@ mod tests {
             glyph_runs: vec![GlyphRun {
                 font: FontFaceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 0),
                 font_size: 12.0,
-                normalized_coords: Vec::new(),
+                normalized_coords: Arc::from([]),
                 skew_degrees: None,
-                glyphs: vec![PositionedGlyph {
+                glyphs: GlyphRange::new(vec![PositionedGlyph {
                     id: 1,
                     x: 0.0,
                     y: 8.0,
-                }],
+                }])
+                .unwrap(),
             }],
             visible_range: 0..text.len(),
             truncated: false,

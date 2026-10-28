@@ -84,8 +84,57 @@ RuntimeFrames 提供默认关闭的实例计时开关与读取后清空的阶段
 诊断阶段名只用于展示，不承担行为身份。计时不修改 source、预算、布局或发布，
 不能充当源提交 receipt、GPU 完成或屏幕呈现证据。关闭时不读取时钟或分配计时记录。
 
+2026-10-28 测量增量：同一实例 recorder 留存完整受检 styled request 与来源 component
+versions、root/paragraph owner、服务 build 次序、measure/prepare、inline prefix、
+engine identity/revision、命中与失败结果；scene signature 使用已经取得的值，
+诊断不重读外部 provider，不增加准备预算或依赖观察。
+最多保留 4096 次请求，溢出显式报告 dropped；读取后清空，关闭诊断丢弃记录。
+完整 request 用于分类，来源与依赖差异仍需独立核对，不能仅按 signature 或宽度判定重复。
+`TextLayoutEngine::layout_styled_with_diagnostics` 默认委托原入口；
+内置与外部均可通过 `TextLayoutDiagnostics::time` 报告同步细阶段，
+无法拆分的阶段保持未知。Parley 的分析和 shaping 合并计时。
+
 不增加字体、GPU 资源或第三方依赖。共享存储减少布局分片复制；
 缓存增加留存内存，实施中记录容量、峰值和产物大小。
 基准使用原 TextFlowLargeExample 工厂与固定追加输入，
 保留 dirty patch、未跟踪源码、字体散列和整数纳秒样本。
 CPU 稳定化不能作为窗口呈现证据。完整采样和像素反例通过前不关闭性能验收。
+
+## 滚动共享 IR 的最小增量合同
+
+2026-10-28 用户批准滚动与 resize 方案；本节冻结随后共享 IR 切片的边界，
+实施与迁移完成情况只记入对应实施记录。
+
+公开 `text::shaping::GlyphBuffer` 拥有不可变 glyph 数组，
+owned 构造检查有限坐标；`GlyphRange` 持有同一缓冲与受检 glyph 索引范围。
+范围构造检查起止次序与缓冲长度，拆分只校验范围，不再次复制或扫描全文数组。
+空范围合法；索引属于 glyph 序列，不能冒充 source byte range。
+读取保持原序；范围类型不提供可变数组入口。
+
+`GlyphRun.glyphs` 改用 `GlyphRange`，
+`normalized_coords` 改用不可变共享 slice；字体、size、skew 与绘制状态仍独立受检。
+owned 数据仍可从统一公开构造入口进入，内置与外部引擎使用同一类型。
+既有数值、字体资源、layout、device 和 submission 校验继续执行；
+共享与范围合法性不替代这些校验。字体 import 可重映射目的身份，
+但必须先验证精确资源版本与内容；不能因数组共享而省略 session 绑定。
+
+布局、Recorder、command clone、submission 与外部 backend 都保留相同缓冲 lease；
+两处 run/commands clone 不再复制 glyph 或 normalized coords 数组。
+真实行位置改变时显式建立新缓冲，旧布局与旧提交保持不可变；
+缓存淘汰、来源删除或字体失效不能释放外部仍持有的合法旧 lease。
+backend 的编码转换独立计费，不声明全链路零复制。
+
+迁移须覆盖所有 owned literal、逐 glyph 遍历、行距调整和存储预算。
+读取采用 slice 语义；owned glyph 数据通过受检 buffer/range 构造，
+owned normalized coords 转为共享 slice。Core 不暴露第三方 Layout 或后端类型。
+公开 API 快照、Native/Web 构建边界及外部消费者须一并核验。
+
+内存分别记录范围引用的 payload、实际 backing payload 与 metadata、当前帧、
+缓存及旧 lease；同一责任域内重叠范围不重复计算同一 backing allocation。
+范围钉住全文缓冲时必须计费全文，不能只按可见片段长度报内存。
+保守准入预算与实际唯一 allocation 统计分别报告。
+
+外部消费者证据要求：独立 engine 构造受检范围，
+独立 backend 读取 submission 并保留旧 lease；校验非法范围、
+不同字体/coords、缓存淘汰、source retire 与 session/font 变化。
+GPU 对照保留当前原生输出和绘制顺序；共享成功不表示裁剪成功。

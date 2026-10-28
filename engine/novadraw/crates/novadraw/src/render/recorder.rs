@@ -97,10 +97,13 @@ impl RecordedDrawing {
             }
             RenderCommandKind::DrawGlyphRun { run, .. } => {
                 add(
-                    run.glyphs.capacity(),
+                    run.glyphs.buffer().as_slice().len(),
                     std::mem::size_of::<super::PositionedGlyph>(),
                 )?;
-                add(run.normalized_coords.capacity(), std::mem::size_of::<i16>())?;
+                add(run.normalized_coords.len(), std::mem::size_of::<i16>())?;
+                // Charge both complete shared allocations, including Arc counters.
+                // This remains a conservative per-command admission budget.
+                add(4, std::mem::size_of::<usize>())?;
             }
             _ => {}
         }
@@ -157,11 +160,81 @@ impl RecordedDrawing {
     pub fn resources(&self) -> &ResourceSnapshot {
         &self.resources
     }
+
+    /// Unique glyph and variation-coordinate backing bytes retained by this drawing.
+    ///
+    /// Counts entire pinned buffers and Arc counters, including empty buffers;
+    /// excludes command metadata, resources and allocator overhead. This observation
+    /// is distinct from the conservative per-command admission budget.
+    pub fn shared_glyph_backing_bytes(&self) -> Option<usize> {
+        let mut glyphs = std::collections::HashSet::new();
+        let mut coords = std::collections::HashSet::new();
+        let mut bytes = 0_usize;
+        let counters = 2 * std::mem::size_of::<usize>();
+        for command in &self.commands {
+            if let RenderCommandKind::DrawGlyphRun { run, .. } = &command.kind {
+                let backing = run.glyphs.buffer().as_slice();
+                if glyphs.insert((backing.as_ptr(), backing.len())) {
+                    bytes =
+                        bytes.checked_add(std::mem::size_of_val(backing).checked_add(counters)?)?;
+                }
+                if coords.insert((run.normalized_coords.as_ptr(), run.normalized_coords.len())) {
+                    bytes = bytes.checked_add(
+                        std::mem::size_of_val(run.normalized_coords.as_ref())
+                            .checked_add(counters)?,
+                    )?;
+                }
+            }
+        }
+        Some(bytes)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overlapping_glyph_ranges_charge_complete_backing_once_in_observations() {
+        use crate::text::shaping::{GlyphBuffer, GlyphRun, PositionedGlyph};
+        let buffer = GlyphBuffer::new(vec![PositionedGlyph::default(); 100]).unwrap();
+        let coords: std::sync::Arc<[i16]> = vec![12, 24].into();
+        let commands = [0..2, 1..3, 100..100]
+            .into_iter()
+            .map(|range| RenderCommand {
+                kind: RenderCommandKind::DrawGlyphRun {
+                    antialias: crate::graphics::AntialiasMode::Default,
+                    run: GlyphRun {
+                        font: super::super::FontFaceRef::new(
+                            super::super::ResourceId::new(uuid::Uuid::nil(), 1),
+                            1,
+                            0,
+                        ),
+                        font_size: 12.0,
+                        skew_degrees: None,
+                        normalized_coords: coords.clone(),
+                        glyphs: buffer.range(range).unwrap(),
+                    },
+                    origin: crate::Point::new(0.0, 0.0),
+                    paint: super::super::GlyphPaint::Fill(crate::Color::BLACK.into()),
+                },
+            })
+            .collect();
+        let drawing = RecordedDrawing {
+            commands,
+            resources: Default::default(),
+        };
+        let backing = 100 * std::mem::size_of::<PositionedGlyph>()
+            + 2 * std::mem::size_of::<i16>()
+            + 4 * std::mem::size_of::<usize>();
+        assert_eq!(drawing.shared_glyph_backing_bytes(), Some(backing));
+        for command in drawing.commands() {
+            assert_eq!(
+                RecordedDrawing::command_bytes(command),
+                Some(std::mem::size_of::<RenderCommand>() + backing),
+            );
+        }
+    }
 
     #[test]
     fn bounded_recorder_latches_rejection_even_when_extension_ignores_it() {

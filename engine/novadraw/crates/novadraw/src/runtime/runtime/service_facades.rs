@@ -58,6 +58,12 @@ impl<'a> RuntimeFrames<'a> {
         self.runtime.timing.take()
     }
 
+    /// Drains complete Flow requests, source versions, cache outcomes and failed attempts.
+    /// Uses the same default-off switch as phase timing. Overflow is explicitly reported.
+    pub fn take_flow_layout_observations(&mut self) -> crate::figure::flow::FlowLayoutObservations {
+        self.runtime.timing.take_layouts()
+    }
+
     /// Limits all work and allocation entries in each complete stabilization attempt.
     pub fn preparation_budget(&self) -> crate::figure::PreparationBudget {
         self.runtime.preparation_budget
