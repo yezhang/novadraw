@@ -69,6 +69,22 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-28 继续补充官方 PrintExample 与 ZoomExample 的宿主字体采用。
+样例宿主通过 Fontique 查询系统集合，使用既有字体资源协议向 Runtime 注入实际字节；
+Core 继续保持显式
+字体集合，不启用隐式系统扫描。macOS 已采用 Helvetica、Times New Roman 和 Arial，
+Perpetua 缺失时明确回退 Inter；16/24/48 point 按 96/72 映射为逻辑像素。
+Zoom 的 12 point 映射为 16 逻辑像素。定向测试核对资源身份、字号、图像、连接与
+resize 恢复；Native 截图已检查。其他平台字体采用和像素验收保留，两个入口仍为
+`in_progress`。实施记录见
+[Print、Zoom 与 UML 系统字体采用](../verification/reviews/official-system-fonts-2026-10-28.md)。
+同一宿主协议随后接入 UML 的 system-ui regular 与 10 point bold 标题；普通成员和
+连接标签通过根 Figure 继承。字体资源身份、字号、原始图标命令、DogEar、窄宽便笺
+和 Native 截图均已核对，UMLClassDiagram 升为 `complete`。当前目录为
+17 complete、8 in_progress。
+同日，官方样例共享窗口与 InheritBackground 独立窗口的标题改为显示固定序号和
+中文 parity 状态，状态直接读取 catalog，不建立第二份完成度数据。
+
 2026-10-27 用户批准先核验 Caret 与三种布局的真实消费者。
 本批发现并修复组合字素选区终点被拒绝，以及 Grid 分配列宽后遗漏文字重测。
 Core 字素范围查询与外部 provider 共用原交互协议；Grid 受约束测量和放置共用
@@ -506,7 +522,7 @@ Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 W
 |---|---|---|
 | Scene backend 输出 | `complete` | [ADR-053](../adr/adr-053-embedded-vello-scene-target.md)；[首批证据](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)，4 项契约、12 帧 GPU 对照、39 项 backend 回归及独立消费成本 |
 | Masonry Widget / Xilem View | `in_progress` | [接入契约](../design/editor/masonry-xilem-canvas-integration.md)；[首批实施证据](../verification/reviews/masonry-xilem-canvas-implementation-2026-10-28.md)与[Native/resize 续验](../verification/reviews/masonry-native-first-frame-followup-2026-10-28.md)；已完成[未修改上游迁移](../verification/reviews/masonry-upstream-migration-2026-10-28.md)，删除 vendor 后 7 项输入/生命周期/GPU 消费测试和 4 项适配契约通过，resize/DPI 保留 source/history；迁移前用户置前台后确认 Native 场景显示，迁移后原生进程已启动；自动激活、完整 IME、系统 AT、窗口外 capture 与原生完整交互仍待验收 |
-| Shapes 工具与完整样例 | `in_progress` | 首批矩形/椭圆、typed 创建/删除、拖动与 undo/redo、工具栏 message/rebuild 已实现；CreationTool、marquee、模板创建及完整官方样例对等仍未完成 |
+| Shapes 工具与完整样例 | `in_progress` | [ADR-054](../adr/adr-054-template-creation-and-marquee.md)；[SH-01～SH-10 实施证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)：创建/框选/模板拖放、两种连接线型、端点重连、障碍路由、多选编辑与删除关系恢复、Outline/Geometry、文件与保存点、滚动/平移/快捷键均已实现并完成自动验证；完整原生交互与宿主人工验收仍待核验，不据离屏 GPU 证据关闭完整对等门禁 |
 
 ### 当前推进顺序（2026-10-14 校准）
 

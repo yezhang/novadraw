@@ -9,6 +9,7 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-28 | [Shapes 编辑器剩余功能与 SH-01～SH-10 自动验证](shapes-editor-implementation-2026-10-28.md) |
 | 2026-10-28 | [Xilem / Masonry 上游依赖重新评估](xilem-masonry-upstream-reassessment-2026-10-28.md) |
 | 2026-10-28 | [wasm_rust 遗留交付文件迁移](wasm-rust-file-migration-2026-10-28.md) |
 | 2026-10-28 | [Masonry Native 首帧与 resize 续验](masonry-native-first-frame-followup-2026-10-28.md) |
@@ -121,6 +122,7 @@
 | 2026-10-26 | [官方样例逐项功能复核](draw2d-official-examples-functional-audit-2026-10-26.md) |
 | 2026-10-26 | [官方样例能力补充实施](official-example-capability-increment-2026-10-26.md) |
 | 2026-10-27 | [官方样例 Core 增量实施](official-example-core-increment-2026-10-27.md) |
+| 2026-10-28 | [Print、Zoom 与 UML 系统字体采用](official-system-fonts-2026-10-28.md) |
 | 2026-10-26 | [TextFlowLarge 打开耗时与优化方向](textflow-large-performance-analysis-2026-10-26.md) |
 | 2026-10-27 | [长文本优化首批实施与性能证据](long-text-performance-implementation-2026-10-27.md) |
 
