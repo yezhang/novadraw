@@ -164,4 +164,5 @@ and verification evidence.
 Third-party reference materials in this repository retain their respective copyrights and
 licenses.
 
-Novadraw's original code is licensed under the [MIT License](LICENSE).
+Novadraw's original code is licensed under the
+[Apache License 2.0](LICENSE).

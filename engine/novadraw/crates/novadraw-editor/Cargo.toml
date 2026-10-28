@@ -2,6 +2,7 @@
 name = "novadraw-editor"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 novadraw = { path = "../novadraw" }

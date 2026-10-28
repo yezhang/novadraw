@@ -154,4 +154,4 @@ git diff --check
 
 仓库中的第三方参考材料保留其各自版权和许可证。
 
-Novadraw 自有代码使用 [MIT License](LICENSE)。
+Novadraw 自有代码使用 [Apache License 2.0](LICENSE)。
