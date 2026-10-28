@@ -1,34 +1,57 @@
 pub mod model;
+pub mod native;
+pub mod session;
 #[cfg(test)]
 mod tests;
-use model::{Diagram, ShapeFactory};
-use novadraw::geometry::Rectangle;
+pub mod ui;
+use model::{Diagram, EdgeStyle, MoveShape, ShapeFactory, ShapeKind, ShapeTemplate};
+use novadraw::connection::ShortestPathConnectionRouter;
+use novadraw::geometry::{Point, Rectangle};
+use novadraw::tree::FigureId;
+use novadraw_editor::tool::{CreationTool, MarqueeTool};
 use novadraw_editor::{
-    CreateChild, CreateRequest, CreationType, DeleteParts, DeleteRequest, GraphicalViewer,
-    RequestMetadata, RequestModifiers,
+    CreationType, DeleteParts, DeleteRequest, GraphicalViewer, RequestMetadata, RequestModifiers,
 };
-use novadraw_platform_masonry::session::{CanvasAction, EditorSession};
-use novadraw_platform_masonry::view::editor_canvas;
-use std::collections::VecDeque;
-use xilem::{
-    WidgetView, palette,
-    style::Style,
-    view::{FlexExt, flex_col, flex_row, label, sized_box, text_button},
+pub use session::{CanvasAction, Session};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
 };
-
-pub type Session = EditorSession<Diagram, ShapeFactory>;
-
-const CANVAS_BORDER_WIDTH: f64 = 1.0;
 
 pub fn session() -> Session {
-    EditorSession::new(
-        GraphicalViewer::new(
-            Diagram::default(),
-            ShapeFactory,
-            Rectangle::new(0.0, 0.0, 640.0, 480.0),
-        )
-        .expect("valid demo projection"),
-    )
+    session_from_model(Diagram::default()).expect("valid initial diagram")
+}
+
+fn session_from_model(model: Diagram) -> Result<Session, String> {
+    let mut session = Session::new(
+        GraphicalViewer::new(model, ShapeFactory, Rectangle::new(0.0, 0.0, 640.0, 480.0))
+            .map_err(|e| e.to_string())?,
+    );
+    update_router(&mut session)?;
+    Ok(session)
+}
+
+fn obstacles(session: &Session) -> Vec<FigureId> {
+    session
+        .viewer
+        .model()
+        .order
+        .iter()
+        .filter_map(|id| {
+            session
+                .viewer
+                .part_for_model(*id)
+                .and_then(|part| session.viewer.parts().get(part).map(|p| p.primary_figure()))
+        })
+        .collect()
+}
+fn update_router(session: &mut Session) -> Result<(), String> {
+    session
+        .viewer
+        .replace_connection_layer_router(Box::new(ShortestPathConnectionRouter::new(obstacles(
+            session,
+        ))))
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Clone, Copy)]
@@ -38,121 +61,296 @@ pub enum UiCommand {
     Rectangle,
     Ellipse,
     Delete,
+    SelectTool,
+    Marquee,
+    Connect(EdgeStyle),
+    Drop(ShapeKind, Point),
+    Select(u64),
+    ApplyProperties,
+    Save,
+    SaveAs,
+    Open,
+    DiscardAndOpen,
 }
 
-#[derive(Default)]
 pub struct AppState {
     pub pending: VecDeque<UiCommand>,
     pub canvas: CanvasAction,
     pub disabled: bool,
+    pub outline: Vec<(u64, String)>,
+    pub selected: Vec<u64>,
+    pub properties: [String; 4],
+    pub path_input: String,
+    pub current_path: Option<PathBuf>,
+    pub canvas_bounds: Rectangle,
+    pub(crate) property_subject: Option<(u64, Rectangle)>,
+    route_obstacles: Vec<FigureId>,
+    pub message: Option<String>,
+}
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            pending: VecDeque::new(),
+            canvas: CanvasAction::default(),
+            disabled: false,
+            outline: Vec::new(),
+            selected: Vec::new(),
+            properties: Default::default(),
+            path_input: "shapes.json".into(),
+            current_path: None,
+            canvas_bounds: Rectangle::new(0.0, 0.0, 0.0, 0.0),
+            property_subject: None,
+            route_obstacles: Vec::new(),
+            message: None,
+        }
+    }
 }
 
 /// Single application action queue; rebuild drains each request exactly once.
 pub fn sync(app: &mut AppState, session: &mut Session) -> Result<bool, String> {
     let mut changed = false;
     while let Some(command) = app.pending.pop_front() {
-        let result = match command {
-            UiCommand::Undo => session.domain.undo(&mut session.viewer),
-            UiCommand::Redo => session.domain.redo(&mut session.viewer),
-            UiCommand::Rectangle | UiCommand::Ellipse => {
-                let kind = if matches!(command, UiCommand::Rectangle) {
-                    "rectangle"
-                } else {
-                    "ellipse"
-                };
-                let offset = session.viewer.model().shapes.len() as f64 * 24.0;
-                let request = CreateRequest::new(
-                    session.viewer.contents(),
-                    CreationType::new(kind).unwrap(),
-                    Rectangle::new(120.0 + offset, 100.0 + offset, 120.0, 80.0),
-                    RequestModifiers::default(),
-                    session
-                        .domain
-                        .next_interaction_revision()
-                        .map_err(|error| error.to_string())?,
-                );
-                let metadata = RequestMetadata::new(request.revision(), vec![request.parent()]);
-                session
-                    .domain
-                    .execute::<CreateChild, _>(&mut session.viewer, &metadata, &request)
-            }
-            UiCommand::Delete => {
-                let request = DeleteRequest::new(
-                    session.viewer.selection().items().to_vec(),
-                    session
-                        .domain
-                        .next_interaction_revision()
-                        .map_err(|error| error.to_string())?,
-                );
-                let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
-                session
-                    .domain
-                    .execute::<DeleteParts, _>(&mut session.viewer, &metadata, &request)
-            }
-        };
+        let result = apply_command(app, session, command);
         if let Err(error) = result {
             app.canvas = session.snapshot(Some(error.to_string()));
             return Err(error.to_string());
         }
         changed = true;
     }
+    let next_obstacles = obstacles(session);
+    if app.route_obstacles != next_obstacles {
+        update_router(session)?;
+        app.route_obstacles = next_obstacles;
+        changed = true;
+    }
+    project(app, session, app.canvas_bounds);
     if changed {
         app.canvas = session.snapshot(None);
     }
     Ok(changed)
 }
 
-pub fn canvas_view(app: &AppState) -> impl WidgetView<AppState> + use<> {
-    editor_canvas(
-        |_: &mut AppState| session(),
-        sync,
-        |app: &mut AppState, action: CanvasAction| {
-            app.canvas = action;
-        },
-    )
-    .disabled(app.disabled)
+fn apply_command(
+    app: &mut AppState,
+    session: &mut Session,
+    command: UiCommand,
+) -> Result<(), String> {
+    app.message = None;
+    match command {
+        UiCommand::Undo => session
+            .domain
+            .undo(&mut session.viewer)
+            .map_err(|e| e.to_string()),
+        UiCommand::Redo => session
+            .domain
+            .redo(&mut session.viewer)
+            .map_err(|e| e.to_string()),
+        UiCommand::SelectTool => session
+            .domain
+            .cancel_tool(&mut session.viewer)
+            .map_err(|e| e.to_string()),
+        UiCommand::Marquee => session
+            .domain
+            .set_active_tool(&mut session.viewer, MarqueeTool::new())
+            .map_err(|e| e.to_string()),
+        UiCommand::Rectangle | UiCommand::Ellipse => {
+            let kind = if matches!(command, UiCommand::Rectangle) {
+                ShapeKind::Rectangle
+            } else {
+                ShapeKind::Ellipse
+            };
+            session
+                .domain
+                .set_active_tool(&mut session.viewer, CreationTool::new(ShapeTemplate(kind)))
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::Connect(style) => session
+            .domain
+            .activate_connection_creation(
+                &mut session.viewer,
+                CreationType::new(style.name()).unwrap(),
+            )
+            .map_err(|e| e.to_string()),
+        UiCommand::Drop(kind, location) => session
+            .domain
+            .drop_template(
+                &mut session.viewer,
+                &ShapeTemplate(kind),
+                location,
+                RequestModifiers::default(),
+            )
+            .map_err(|e| e.to_string()),
+        UiCommand::Select(id) => {
+            session
+                .domain
+                .cancel_tool(&mut session.viewer)
+                .map_err(|e| e.to_string())?;
+            let part = session
+                .viewer
+                .part_for_model(id)
+                .ok_or("outline item no longer exists")?;
+            session
+                .viewer
+                .replace_selection(part)
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        UiCommand::Delete => {
+            let parts = session.viewer.selection().items().to_vec();
+            if parts.is_empty() {
+                return Ok(());
+            }
+            let request = DeleteRequest::new(
+                parts,
+                session
+                    .domain
+                    .next_interaction_revision()
+                    .map_err(|e| e.to_string())?,
+            );
+            let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
+            session
+                .domain
+                .execute::<DeleteParts, _>(&mut session.viewer, &metadata, &request)
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::ApplyProperties => {
+            let (id, _) = app
+                .property_subject
+                .ok_or("select a shape to edit geometry")?;
+            let values = app
+                .properties
+                .iter()
+                .map(|s| {
+                    s.parse::<f64>()
+                        .map_err(|_| "geometry must contain four numbers".to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let before = session
+                .viewer
+                .model()
+                .shapes
+                .get(&id)
+                .ok_or("shape no longer exists")?
+                .bounds;
+            let after = Rectangle::new(values[0], values[1], values[2], values[3]);
+            if before == after {
+                return Ok(());
+            }
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(MoveShape { id, before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::Save | UiCommand::SaveAs => {
+            let path = if matches!(command, UiCommand::Save) {
+                app.current_path
+                    .clone()
+                    .unwrap_or_else(|| PathBuf::from(&app.path_input))
+            } else {
+                PathBuf::from(&app.path_input)
+            };
+            let data = session.viewer.model().to_json()?;
+            write_document(&path, data.as_bytes())?;
+            session
+                .domain
+                .mark_save_location()
+                .map_err(|e| e.to_string())?;
+            app.path_input = path.to_string_lossy().into_owned();
+            app.current_path = Some(path);
+            app.message = Some("Saved".into());
+            Ok(())
+        }
+        UiCommand::Open | UiCommand::DiscardAndOpen => {
+            if session.domain.is_dirty() && matches!(command, UiCommand::Open) {
+                return Err("Unsaved changes: save first, or use Discard & open".into());
+            }
+            let path = PathBuf::from(&app.path_input);
+            let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let model = Diagram::from_json(&json)?;
+            let replacement = session_from_model(model)?;
+            session.cancel()?;
+            *session = replacement;
+            app.route_obstacles.clear();
+            app.property_subject = None;
+            app.current_path = Some(path);
+            app.message = Some("Opened".into());
+            Ok(())
+        }
+    }
 }
 
-pub fn app_view(app: &mut AppState) -> impl WidgetView<AppState> + use<> {
-    flex_col((
-        label("Shapes editor"),
-        flex_row((
-            text_button("Rectangle", |app: &mut AppState| {
-                app.pending.push_back(UiCommand::Rectangle)
-            })
-            .disabled(app.disabled),
-            text_button("Ellipse", |app: &mut AppState| {
-                app.pending.push_back(UiCommand::Ellipse)
-            })
-            .disabled(app.disabled),
-            text_button("Delete", |app: &mut AppState| {
-                app.pending.push_back(UiCommand::Delete)
-            })
-            .disabled(app.disabled),
-            text_button("Undo", |app: &mut AppState| {
-                app.pending.push_back(UiCommand::Undo)
-            })
-            .disabled(!app.canvas.can_undo || app.disabled),
-            text_button("Redo", |app: &mut AppState| {
-                app.pending.push_back(UiCommand::Redo)
-            })
-            .disabled(!app.canvas.can_redo || app.disabled),
-            text_button(
-                if app.disabled { "Enable" } else { "Disable" },
-                |app: &mut AppState| app.disabled = !app.disabled,
-            ),
-        )),
-        label(
-            app.canvas
-                .error
-                .as_deref()
-                .unwrap_or("Drag shapes. Shift-click selects. Escape cancels a drag."),
-        ),
-        sized_box(canvas_view(app))
-            .border(
-                palette::css::GRAY,
-                xilem::masonry::layout::Length::px(CANVAS_BORDER_WIDTH),
+fn write_document(path: &Path, data: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let name = path
+        .file_name()
+        .ok_or("choose a document file path")?
+        .to_string_lossy();
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let temporary = parent.join(format!(".{name}.{}.{}.tmp", std::process::id(), nonce));
+    let result = (|| -> std::io::Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        file.write_all(data)?;
+        file.sync_all()?;
+        std::fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result.map_err(|e| e.to_string())
+}
+
+fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
+    app.canvas_bounds = bounds;
+    app.selected = session
+        .viewer
+        .selection()
+        .items()
+        .iter()
+        .filter_map(|id| session.viewer.parts().get(*id).and_then(|p| p.model_id()))
+        .collect();
+    let model = session.viewer.model();
+    app.outline = model
+        .order
+        .iter()
+        .map(|id| (*id, format!("{} #{id}", model.shapes[id].kind.name())))
+        .chain(model.edges.iter().map(|(id, edge)| {
+            (
+                *id,
+                format!(
+                    "{} #{id}: {} → {}",
+                    edge.style.name(),
+                    edge.source,
+                    edge.target
+                ),
             )
-            .flex(1.0),
-    ))
+        }))
+        .collect();
+    let subject = app
+        .selected
+        .last()
+        .and_then(|id| model.shapes.get(id).map(|shape| (*id, shape.bounds)));
+    if app.property_subject != subject {
+        app.property_subject = subject;
+        app.properties = subject.map_or_else(Default::default, |(_, b)| {
+            [
+                b.x.to_string(),
+                b.y.to_string(),
+                b.width.to_string(),
+                b.height.to_string(),
+            ]
+        });
+    }
 }

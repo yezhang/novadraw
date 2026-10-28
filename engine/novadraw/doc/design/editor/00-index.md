@@ -18,6 +18,8 @@ Viewport 协作。
 
 机制分析（解释现行契约，不替代规范）：
 
+- [ADR-054：类型化模板创建与框选](../../adr/adr-054-template-creation-and-marquee.md)：
+  创建工具与模板拖放共享的开放请求、框选查询、应用保存点和连接装饰所有权。
 - [revision 的作用与边界](revision-semantics.md)：模型发布、Viewer 同步进度、交互版本与撤销历史。
 
 已批准分批实施的方案（不覆盖现行规范，完成证据见 P2 backlog）：

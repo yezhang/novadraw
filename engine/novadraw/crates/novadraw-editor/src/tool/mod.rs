@@ -1,5 +1,10 @@
 //! Open editing tools and gesture-scoped trackers.
 
+mod creation;
+mod marquee;
+pub use creation::{CreationTemplate, CreationTool};
+pub use marquee::MarqueeTool;
+
 use std::{any::Any, error::Error, fmt, marker::PhantomData};
 
 use novadraw::event::{DispatchOutcome, KeyEvent, KeyModifiers, MonotonicTime, MouseButton};
@@ -147,7 +152,11 @@ pub(crate) trait ToolHost<A: ModelAdapter> {
     fn dispatch_released(&mut self, location: Point, button: MouseButton) -> DispatchOutcome;
     fn target_at(&self, location: Point) -> ViewerTarget;
     fn selection(&self) -> &[EditPartId];
+    fn contents(&self) -> EditPartId;
+    fn parts_enclosed_by(&self, bounds: novadraw::geometry::Rectangle) -> Vec<EditPartId>;
+    fn set_selection(&mut self, parts: &[EditPartId]) -> Result<(), ViewerError>;
     fn model_point_from_surface(&self, location: Point) -> Result<Point, ViewerError>;
+    fn surface_point_from_model(&self, location: Point) -> Result<Point, ViewerError>;
     fn connection_point_from_surface(
         &self,
         connection: ConnectionPartId,
@@ -334,9 +343,40 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
         self.host.selection()
     }
 
+    /// Returns the model contents part used by top-level creation and overlays.
+    pub fn contents(&self) -> EditPartId {
+        self.host.contents()
+    }
+
+    /// Returns enclosed node parts in containment order, in surface coordinates.
+    pub fn parts_enclosed_by(&self, bounds: novadraw::geometry::Rectangle) -> Vec<EditPartId> {
+        self.host.parts_enclosed_by(bounds)
+    }
+
+    /// Atomically validates and replaces the ordered selection.
+    pub fn set_selection(&mut self, parts: &[EditPartId]) -> Result<(), ToolError> {
+        Ok(self.host.set_selection(parts)?)
+    }
+
+    /// Attaches visuals through the same ownership and cleanup path as policy feedback.
+    pub fn attach_feedback(
+        &mut self,
+        owner: EditPartId,
+        visuals: Vec<FeedbackVisual>,
+    ) -> Result<Vec<FigureId>, ToolError> {
+        Ok(self
+            .host
+            .attach_feedback(visuals.into_iter().map(|v| (owner, v)).collect())?)
+    }
+
     /// Converts a logical surface point into the model-content domain.
     pub fn model_point_from_surface(&self, location: Point) -> Result<Point, ToolError> {
         Ok(self.host.model_point_from_surface(location)?)
+    }
+
+    /// Converts a model-content point through the current viewport into logical surface coordinates.
+    pub fn surface_point_from_model(&self, location: Point) -> Result<Point, ToolError> {
+        Ok(self.host.surface_point_from_model(location)?)
     }
 
     fn connection_point_from_surface(
@@ -432,6 +472,12 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
 pub trait Tool<A: ModelAdapter>: 'static {
     /// Returns this Tool implementation's identity.
     fn key(&self) -> ErasedToolKey;
+
+    /// Allows registered handle actions to replace this tool on pointer press.
+    /// Explicit creation and other modal tools keep ownership by default.
+    fn accepts_handle_activation(&self) -> bool {
+        false
+    }
 
     /// Activates the Tool.
     fn activate(&mut self, _context: &mut ToolContext<'_, A>) -> Result<(), ToolError> {
@@ -723,6 +769,10 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
 impl<A: ModelAdapter + 'static> Tool<A> for SelectionTool {
     fn key(&self) -> ErasedToolKey {
         ToolKey::<Self>::new("selection").erase()
+    }
+
+    fn accepts_handle_activation(&self) -> bool {
+        true
     }
 
     fn cancel(&mut self, context: &mut ToolContext<'_, A>) -> Result<(), ToolError> {

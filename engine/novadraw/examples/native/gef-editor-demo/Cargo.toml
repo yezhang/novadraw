@@ -2,17 +2,19 @@
 name = "gef-editor-demo"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 rust-version = "1.96"
 default-run = "gef-editor-demo"
 
 [dependencies]
 novadraw = { path = "../../../crates/novadraw" }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello", features = ["native"] }
 novadraw-editor = { path = "../../../crates/novadraw-editor" }
-novadraw-platform-masonry = { path = "../../../crates/novadraw-platform-masonry" }
-xilem.workspace = true
+eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
+egui = "0.35"
+egui-wgpu = { version = "0.35", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
-masonry_testing.workspace = true
-masonry_imaging.workspace = true
-tokio = { version = "1", features = ["rt-multi-thread"] }

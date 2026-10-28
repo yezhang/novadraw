@@ -65,6 +65,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [045](adr-045-host-background-submission.md) | 宿主背景统一帧提交 | 已接受 | 2026-10-23 |
 | [052](adr-052-independent-corners-and-edge-borders.md) | 逐角圆角与矩形分边描边 | 已接受 | 2026-10-27 |
 | [053](adr-053-embedded-vello-scene-target.md) | 嵌入式 Vello Scene 输出目标 | 按用户批准方向实施 | 2026-10-28 |
+| [054](adr-054-template-creation-and-marquee.md) | 类型化模板创建与框选 | 按已批准样例方向实施 | 2026-10-28 |
 
 ## 现行与历史隔离
 

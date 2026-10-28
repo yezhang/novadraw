@@ -12,6 +12,8 @@
   可见绘制与安全增量边界
 - [SWT GC macOS](swt/gc-macos.md)：平台绘图实现
 - [Zed 响应式机制](zed/reactive-design.md)：通知与订阅生命周期
+- [Imaging 绘图中间表示](imaging-render-ir.md)：流式绘制、场景录制、多后端生态，
+  以及与 Novadraw 自有 Render IR、Masonry 宿主接入的关系
 - [文本渲染管线与自研替换范围](fonts/text-rendering-pipeline.md)：当前项目从字体、
   shaping、排版到 GPU 输出的完整链路、直接／间接依赖职责与替换分析
 - [字形轮廓存储与填充规范](fonts/glyph-outline-storage-conventions.md)：TrueType 与

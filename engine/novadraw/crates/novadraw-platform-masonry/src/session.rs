@@ -20,6 +20,9 @@ pub struct CanvasAction {
     pub can_undo: bool,
     pub can_redo: bool,
     pub error: Option<String>,
+    pub dirty: bool,
+    pub model_revision: u64,
+    pub active_tool: &'static str,
 }
 
 impl<A: ModelAdapter + 'static, F: EditPartFactory<A>> EditorSession<A, F> {
@@ -38,6 +41,9 @@ impl<A: ModelAdapter + 'static, F: EditPartFactory<A>> EditorSession<A, F> {
             can_undo: self.domain.has_undo(),
             can_redo: self.domain.has_redo(),
             error,
+            dirty: self.domain.is_dirty(),
+            model_revision: self.viewer.applied_revision().value(),
+            active_tool: self.domain.active_tool_key().name(),
         }
     }
 

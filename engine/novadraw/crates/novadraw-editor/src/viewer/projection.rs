@@ -411,6 +411,11 @@ where
         }
         let mut build = VisualBuildContext::new(&mut self.runtime, primary);
         behavior.configure_visual(&self.model, descriptor.id(), &mut build)?;
+        let connection_children = build
+            .take_connection_children()
+            .into_iter()
+            .map(|(id, locator)| (id, std::rc::Rc::from(locator)))
+            .collect::<Vec<_>>();
         let (content_pane, visuals) = build.finish();
         if visuals
             .iter()
@@ -447,6 +452,13 @@ where
             router,
             constraint,
         )?;
+        for (child, locator) in &connection_children {
+            self.runtime.connections().set_locator(
+                connection,
+                *child,
+                Box::new(SharedConnectionLocator(std::rc::Rc::clone(locator))),
+            )?;
+        }
 
         let part = self.parts.insert_connection(
             descriptor.id(),
@@ -475,6 +487,7 @@ where
                 source_anchor_key: Some(source_anchor_key),
                 target_anchor_key: Some(target_anchor_key),
                 registered: true,
+                children: connection_children,
             },
         );
         let initialization = (|| {
@@ -633,6 +646,13 @@ where
             router,
             constraint,
         )?;
+        for (child, locator) in &current.children {
+            self.runtime.connections().set_locator(
+                current.connection,
+                *child,
+                Box::new(SharedConnectionLocator(std::rc::Rc::clone(locator))),
+            )?;
+        }
         let connection = current.connection;
         let projection = self
             .connection_projections

@@ -46,8 +46,8 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | verified | G4 |
 | `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，SelectionTool 复用相同 outcome | verified | G3/G4 |
 | `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | verified | G4 |
-| `interaction.selection` | SelectionTool / marquee | click、modifier、多选与拖拽已闭合；marquee 后置 | partial | G3/G4/P2 |
-| `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/P2 |
+| `interaction.selection` | SelectionTool / marquee | click、modifier、多选、拖拽与节点完全包含框选；取消不改变选择 | verified | G3/G4/P2 |
+| `interaction.create` | CreationTool / CreateRequest | 开放模板关联 RequestProtocol；点击/拖动和 typed drop 共用 policy/Command；取消清理 | verified | G4/P2 |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
 | `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/P2 |
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
@@ -102,6 +102,17 @@ text selection 和 composition，Core P2-T02 提供 immutable text geometry，
 Native/Web adapter 通过带 session identity 的 host lease 桥接 IME。Viewer selection
 与 text selection 始终分离。规范见
 [`../../design/editor/p2-direct-text-edit.md`](../../design/editor/p2-direct-text-edit.md)。
+
+### 模板与框选
+
+2026-10-28 新增 CreationTool / MarqueeTool 与 EditorDomain typed drop。
+外部消费者使用独立 RequestProtocol、payload、policy 和 template，验证同一错误、
+命令与历史通道；框选覆盖替换、追加、切换、取消和外部身份拒绝。
+Shapes 的 Native harness 验证实际模板 capture、message/rebuild 和 GPU 合成。
+契约见 [ADR-054](../../adr/adr-054-template-creation-and-marquee.md)，
+证据见 [Shapes 验证](../../verification/reviews/shapes-editor-implementation-2026-10-28.md)。
+应用 JSON schema、Outline 控件和模板 Palette 不改变 document/tree.viewer/palette
+family 的既定引擎边界。
 
 ## 推进规则
 

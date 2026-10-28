@@ -33,3 +33,7 @@
 当前源码的完整流程与库职责见
 [文本渲染管线分析](../../reference/fonts/text-rendering-pipeline.md)，
 包含标注库作用的管线图、字形／路径分支和自研替换范围；不定义新的包边界。
+
+外部绘图协议见 [Imaging 分析](../../reference/imaging-render-ir.md)，
+记录流式 sink、拥有数据的场景录制与多后端接入，并核对当前 Masonry adapter
+和 Core 自有 Render IR 的关系；不作为替换 Core 协议的决策。

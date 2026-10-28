@@ -169,8 +169,33 @@ where
         self.selection().items()
     }
 
+    fn contents(&self) -> EditPartId {
+        self.contents()
+    }
+
+    fn parts_enclosed_by(&self, bounds: Rectangle) -> Vec<EditPartId> {
+        self.parts_enclosed_by(bounds)
+    }
+
+    fn set_selection(&mut self, parts: &[EditPartId]) -> Result<(), ViewerError> {
+        self.set_selection(parts)
+    }
+
     fn model_point_from_surface(&self, location: Point) -> Result<Point, ViewerError> {
         self.model_point_from_surface(location)
+    }
+
+    fn surface_point_from_model(&self, location: Point) -> Result<Point, ViewerError> {
+        let point = self
+            .runtime
+            .tree()
+            .child_content_to_surface_transform(self.root_layers.scalable())
+            .map_err(ViewerError::Coordinate)?
+            .transform_point(location);
+        if !point.x().is_finite() || !point.y().is_finite() {
+            return Err(ViewerError::InconsistentState);
+        }
+        Ok(point)
     }
 
     fn connection_point_from_surface(
@@ -1051,6 +1076,27 @@ struct ConnectionProjection<I> {
     source_anchor_key: Option<AnchorSemanticKey>,
     target_anchor_key: Option<AnchorSemanticKey>,
     registered: bool,
+    children: Vec<(
+        FigureId,
+        std::rc::Rc<dyn novadraw::connection::ConnectionLocatorStrategy>,
+    )>,
+}
+
+struct SharedConnectionLocator(std::rc::Rc<dyn novadraw::connection::ConnectionLocatorStrategy>);
+impl novadraw::connection::ConnectionLocatorStrategy for SharedConnectionLocator {
+    fn locate(
+        &self,
+        points: &novadraw::geometry::PointList,
+    ) -> Result<novadraw::connection::LocatorPlacement, novadraw::connection::LocatorError> {
+        self.0.locate(points)
+    }
+    fn locate_child(
+        &self,
+        input: &novadraw::connection::LocatorInput<'_>,
+    ) -> Result<novadraw::connection::ChildLocatorPlacement, novadraw::connection::LocatorError>
+    {
+        self.0.locate_child(input)
+    }
 }
 
 /// Owns one application model projection, its EditPart tree, and its Figure Runtime.
@@ -1096,6 +1142,7 @@ where
     model_registry: HashMap<A::ModelId, EditPartId>,
     connection_projections: HashMap<A::ModelId, ConnectionProjection<A::ModelId>>,
     connection_routers: HashMap<ConnectionRouterKey, RouterId>,
+    managed_layer_router: Option<RouterId>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
     direct_text_edit: Option<ActiveDirectTextEdit<A>>,
@@ -1323,6 +1370,7 @@ where
             model_registry: HashMap::new(),
             connection_projections: HashMap::new(),
             connection_routers,
+            managed_layer_router: None,
             visual_registry: HashMap::from([(root_layers.root(), VisualOwner::part(root_part))]),
             selection: SelectionModel::new(),
             direct_text_edit: None,
@@ -1493,6 +1541,31 @@ where
             return Err(ConnectionRuntimeError::Faulted);
         }
         self.runtime.connections().try_register_router(router)
+    }
+
+    /// Removes an application router after all layer and explicit bindings release it.
+    pub fn remove_connection_router(
+        &mut self,
+        router: RouterId,
+    ) -> Result<Box<dyn ConnectionRouter>, ConnectionRuntimeError> {
+        self.runtime.connections().remove_router(router)
+    }
+
+    /// Replaces a Viewer-owned default router and releases the preceding managed router.
+    /// Applications can refresh obstacle identities without accumulating router registrations.
+    pub fn replace_connection_layer_router(
+        &mut self,
+        router: Box<dyn ConnectionRouter>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        let next = self.register_connection_router(router)?;
+        if let Err(error) = self.set_connection_layer_router(next) {
+            self.remove_connection_router(next)?;
+            return Err(error);
+        }
+        if let Some(previous) = self.managed_layer_router.replace(next) {
+            self.remove_connection_router(previous)?;
+        }
+        Ok(())
     }
 
     /// Selects a Router for the standard connection layer.
@@ -1810,6 +1883,51 @@ where
     /// Clears visual selection and EditPart focus.
     pub fn clear_selection(&mut self) -> Option<SelectionDelta<EditPartId>> {
         self.selection.clear()
+    }
+
+    /// Validates the entire batch before replacing selection, preserving input order.
+    pub fn set_selection(&mut self, parts: &[EditPartId]) -> Result<(), ViewerError> {
+        for part in parts {
+            self.validate_selectable(*part)?;
+        }
+        self.selection.clear();
+        for part in parts {
+            self.selection.append(*part);
+        }
+        Ok(())
+    }
+
+    /// Returns fully enclosed node parts in containment order using surface bounds.
+    /// Contents and connections are excluded; querying does not change selection.
+    pub fn parts_enclosed_by(&self, bounds: Rectangle) -> Vec<EditPartId> {
+        let mut enclosed = Vec::new();
+        let mut pending = self
+            .parts
+            .children(self.contents())
+            .unwrap_or_default()
+            .iter()
+            .rev()
+            .copied()
+            .collect::<Vec<_>>();
+        while let Some(part) = pending.pop() {
+            if self.validate_selectable(part).is_ok()
+                && self.part_bounds_in_surface(part).is_some_and(|b| {
+                    bounds.contains(Point::new(b.x, b.y))
+                        && bounds.contains(Point::new(b.x + b.width, b.y + b.height))
+                })
+            {
+                enclosed.push(part);
+            }
+            pending.extend(
+                self.parts
+                    .children(part)
+                    .unwrap_or_default()
+                    .iter()
+                    .rev()
+                    .copied(),
+            );
+        }
+        enclosed
     }
 
     /// Sets EditPart focus independently from Figure keyboard focus.

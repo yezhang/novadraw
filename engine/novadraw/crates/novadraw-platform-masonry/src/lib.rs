@@ -2,5 +2,6 @@
 pub mod host;
 mod render;
 pub mod session;
+pub mod template;
 pub mod view;
 pub mod widget;

@@ -17,8 +17,11 @@ cargo +1.96.0 test -p gef-editor-demo --lib -- --test-threads=1
 ```
 
 build 回调只创建一次 session，sync 回调消费应用动作，返回是否需准备新 Scene。
-不要在 sync 中重新创建 Viewer。CanvasAction 回传 undo/redo 资格及失败诊断，
-应用可在 action 回调读取自己需要的 UI 状态。paint 只合成缓存 Scene；
+同一文档的 rebuild 不重新创建 Viewer；明确打开另一文档时由应用替换 session。
+CanvasAction 回传 undo/redo 资格、保存点、model revision、工具与失败诊断。
+`.project(...)` 在稳定 action 时投影模型、选择及画布窗口逻辑 bounds，
+`.on_key(...)` 提供焦点内应用快捷键；返回 false 时可表示键继续交给 Tool。
+paint 只合成缓存 Scene；
 输入、layout/rebuild、DPI 变化和 Retry 请求一次动画回调进行完整帧提交。
 Native 应用组合 `host::run`，由公开的上游宿主委托入口处理 DPI / exposure。
 绘制目标支持默认 AA、Core 文字轮廓、路径、裁剪、描边、渐变和图像；
@@ -26,5 +29,9 @@ Native 应用组合 `host::run`，由公开的上游宿主委托入口处理 DPI
 [接入契约](../../doc/design/editor/masonry-xilem-canvas-integration.md)。
 
 普通画布接受键盘焦点，Escape、失焦、禁用、stash 与 teardown 取消工具反馈；
-不接受平台 IME。完整文字输入、系统 AT、模板拖放、窗口外 capture 与自动 expose
-仍需后续桥接验收。内置 Canvas description 只说明画布，不代表已提供节点级 AT。
+不接受平台 IME。`template::template_source` 是携带应用 typed payload 的模板源，
+支持点击、窗口内 capture 拖放和取消，应用根据窗口逻辑点判断 drop 目标。
+滚轮与中键平移走 EditorDomain 视口协议，动画驱动现有 auto-expose。
+pointer feedback 在 widget 内更新；稳定快照、选择、会话和画布尺寸变化才回传 action。
+完整文字输入、系统 AT、窗口外 capture 和原生 auto-expose 人工验收仍待完成。
+内置 Canvas description 只说明画布，不代表已提供节点级 AT。

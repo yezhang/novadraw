@@ -931,6 +931,10 @@ pub struct VisualBuildContext<'a> {
     primary: FigureId,
     content_pane: FigureId,
     visuals: Vec<FigureId>,
+    connection_children: Vec<(
+        FigureId,
+        Box<dyn novadraw::connection::ConnectionLocatorStrategy>,
+    )>,
 }
 
 impl<'a> VisualBuildContext<'a> {
@@ -940,6 +944,7 @@ impl<'a> VisualBuildContext<'a> {
             primary,
             content_pane: primary,
             visuals: vec![primary],
+            connection_children: Vec::new(),
         }
     }
 
@@ -973,6 +978,36 @@ impl<'a> VisualBuildContext<'a> {
         }
         self.content_pane = content_pane;
         Ok(())
+    }
+
+    /// Adds an owned connection decoration with its route-relative locator.
+    pub fn add_connection_child(
+        &mut self,
+        figure: Box<dyn Figure>,
+        locator: Box<dyn novadraw::connection::ConnectionLocatorStrategy>,
+    ) -> Result<FigureId, EditPartError> {
+        if !self
+            .runtime
+            .tree()
+            .is_connection_figure(self.primary)
+            .map_err(|e| EditPartError::operation(e.to_string()))?
+        {
+            return Err(EditPartError::operation(
+                "connection child requires a Connection Figure",
+            ));
+        }
+        let child = self.add_child(self.primary, figure)?;
+        self.connection_children.push((child, locator));
+        Ok(child)
+    }
+
+    pub(crate) fn take_connection_children(
+        &mut self,
+    ) -> Vec<(
+        FigureId,
+        Box<dyn novadraw::connection::ConnectionLocatorStrategy>,
+    )> {
+        std::mem::take(&mut self.connection_children)
     }
 
     pub(crate) fn finish(self) -> (FigureId, Vec<FigureId>) {

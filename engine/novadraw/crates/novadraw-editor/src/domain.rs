@@ -209,6 +209,57 @@ impl<A: ModelAdapter + 'static> EditorDomain<A> {
         self.command_stack.has_redo()
     }
 
+    /// Returns whether history differs from the last successfully saved state.
+    pub fn is_dirty(&self) -> bool {
+        self.command_stack.is_dirty()
+    }
+
+    /// Marks the current command-history identity after application storage succeeds.
+    pub fn mark_save_location(&mut self) -> Result<(), EditorDomainError> {
+        Ok(self.command_stack.mark_save_location()?)
+    }
+
+    /// Executes an application command through the same model transaction as typed requests.
+    pub fn execute_command<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        command: Box<dyn Command<A>>,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        viewer.cancel_direct_text_edit()?;
+        self.cancel_active_tools(viewer)?;
+        self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))
+    }
+
+    /// Drops an application template through its typed request and installed policies.
+    /// The location is in logical surface coordinates, as with pointer input.
+    pub fn drop_template<T, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        template: &T,
+        location: Point,
+        modifiers: crate::RequestModifiers,
+    ) -> Result<(), EditorDomainError>
+    where
+        T: crate::tool::CreationTemplate<A>,
+        F: EditPartFactory<A>,
+    {
+        self.cancel_active_tools(viewer)?;
+        viewer.stabilize_for_query()?;
+        let location = viewer.model_point_from_surface(location)?;
+        let size = template.default_size();
+        let revision = self.next_interaction_revision()?;
+        let (metadata, payload) = template.request(
+            viewer.contents(),
+            novadraw::geometry::Rectangle::new(location.x(), location.y(), size.width, size.height),
+            modifiers,
+            revision,
+        );
+        self.execute::<T::Request, F>(viewer, &metadata, &payload)
+    }
+
     /// Checks whether the top command currently permits undo.
     pub fn check_undo(&mut self) -> Result<bool, EditorDomainError> {
         Ok(self.command_stack.check_undo()?)
@@ -651,7 +702,7 @@ where
                 ));
             }
         }
-        if !self.is_connection_creation_active() {
+        if self.active_tool.accepts_handle_activation() {
             if self.has_active_gesture() {
                 self.cancel_active_tools(viewer)?;
             }
