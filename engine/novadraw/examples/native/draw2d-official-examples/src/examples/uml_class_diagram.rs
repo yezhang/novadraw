@@ -16,7 +16,13 @@ use novadraw::{
     tree::FigureId,
 };
 
-use super::runtime_with_fonts;
+use super::{
+    runtime_with_fonts,
+    system_fonts::{
+        BOLD_FONT_WEIGHT, NORMAL_FONT_WEIGHT, RegisteredHostFont, font_descriptor,
+        register_system_ui_fonts,
+    },
+};
 
 const WIDTH: f64 = 500.0;
 const HEIGHT: f64 = 300.0;
@@ -32,6 +38,8 @@ const STICKY_FILL_FOLD: f64 = 6.0;
 const STICKY_BORDER_FOLD: f64 = 5.0;
 const STICKY_BORDER_WIDTH: f64 = 1.0;
 const STICKY_INSET: f64 = 3.0;
+const DEFAULT_UI_FONT_SIZE: f32 = 12.0;
+const HEADER_FONT_POINTS: f32 = 10.0;
 
 struct UmlClassFigure {
     bounds: Rectangle,
@@ -272,6 +280,8 @@ struct Fixture {
     second_class: FigureId,
     connection: FigureId,
     sticky_note: FigureId,
+    #[cfg(test)]
+    ui_fonts: [RegisteredHostFont; 2],
 }
 
 pub fn uml_class_diagram() -> Runtime {
@@ -280,6 +290,15 @@ pub fn uml_class_diagram() -> Runtime {
 
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
+    let ui_fonts: [RegisteredHostFont; 2] = register_system_ui_fonts(
+        &mut runtime,
+        &[NORMAL_FONT_WEIGHT, BOLD_FONT_WEIGHT],
+        novadraw::render::BuiltinFont::Inter,
+    )
+    .try_into()
+    .expect("regular and bold system UI fonts");
+    let default_font = format!("{}px {}", DEFAULT_UI_FONT_SIZE, ui_fonts[0].family);
+    let header_font = font_descriptor(&ui_fonts[1], HEADER_FONT_POINTS, BOLD_FONT_WEIGHT);
     let class_image = register_class_image(&mut runtime);
     let root = runtime
         .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
@@ -293,6 +312,15 @@ fn fixture() -> Fixture {
     runtime
         .figure(root)
         .expect("UMLClassDiagram root")
+        .set_style(FigureStyle {
+            foreground: Some(Color::BLACK),
+            font: Some(default_font),
+            ..FigureStyle::default()
+        })
+        .expect("UMLClassDiagram host font");
+    runtime
+        .figure(root)
+        .expect("UMLClassDiagram root")
         .set_layout_manager(Box::new(XYLayout::new()))
         .expect("UMLClassDiagram XYLayout");
 
@@ -301,12 +329,14 @@ fn fixture() -> Fixture {
         root,
         Rectangle::new(20.0, 20.0, CLASS_WIDTH, CLASS_HEIGHT),
         class_image,
+        &header_font,
     );
     let second_class = add_class(
         &mut runtime,
         root,
         Rectangle::new(230.0, 102.0, CLASS_WIDTH, CLASS_HEIGHT),
         class_image,
+        &header_font,
     );
 
     let connection = runtime
@@ -428,6 +458,8 @@ fn fixture() -> Fixture {
         second_class,
         connection,
         sticky_note,
+        #[cfg(test)]
+        ui_fonts,
     }
 }
 
@@ -449,6 +481,7 @@ fn add_class(
     parent: FigureId,
     bounds: Rectangle,
     image: novadraw::runtime::ImageId,
+    header_font: &str,
 ) -> FigureId {
     let class = runtime
         .figure(parent)
@@ -481,7 +514,7 @@ fn add_class(
         .expect("class header")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some("bold 10px Inter Variable".to_owned()),
+            font: Some(header_font.to_owned()),
             ..FigureStyle::default()
         })
         .expect("class header style");
@@ -517,7 +550,6 @@ fn add_compartment(runtime: &mut Runtime, parent: FigureId, rows: &[&str]) {
             .expect("member label")
             .set_style(FigureStyle {
                 foreground: Some(Color::BLACK),
-                font: Some("10px Inter Variable".to_owned()),
                 ..FigureStyle::default()
             })
             .expect("member label style");
@@ -556,7 +588,6 @@ fn add_label(
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
             background: bordered.then_some(Color::rgba(1.0, 1.0, 225.0 / 255.0, 1.0)),
-            font: Some("12px Inter Variable".to_owned()),
             ..FigureStyle::default()
         })
         .expect("connection label style");
@@ -566,6 +597,71 @@ fn add_label(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_ui_font_is_inherited_by_members_and_overridden_by_bold_header() {
+        use novadraw::render::{BackendCapabilities, RenderCommandKind, SurfaceInfo};
+
+        let mut fixture = fixture();
+        #[cfg(target_os = "macos")]
+        assert!(
+            fixture.ui_fonts.iter().all(|font| font.system),
+            "macOS must provide regular and bold system UI fonts"
+        );
+        let submission = fixture
+            .runtime
+            .frames()
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: WIDTH,
+                    logical_height: HEIGHT,
+                    pixel_width: WIDTH as u32,
+                    pixel_height: HEIGHT as u32,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .into_ready()
+            .expect("UML output");
+        let glyph_runs = submission.commands.iter().filter_map(|command| {
+            let RenderCommandKind::DrawGlyphRun { run, .. } = &command.kind else {
+                return None;
+            };
+            Some(run)
+        });
+        let runs = glyph_runs.collect::<Vec<_>>();
+        assert!(
+            submission
+                .commands
+                .iter()
+                .any(|command| matches!(command.kind, RenderCommandKind::Image { .. })),
+            "class_obj image must reach Render IR"
+        );
+        assert!(runs.iter().any(|run| {
+            run.font.resource_id() == fixture.ui_fonts[0].resource_id
+                && (run.font_size - DEFAULT_UI_FONT_SIZE).abs() < 1e-4
+        }));
+        assert!(runs.iter().any(|run| {
+            fixture
+                .ui_fonts
+                .iter()
+                .any(|font| run.font.resource_id() == font.resource_id)
+                && (run.font_size
+                    - HEADER_FONT_POINTS * super::super::system_fonts::LOGICAL_PIXELS_PER_POINT)
+                    .abs()
+                    < 1e-4
+        }));
+        assert_eq!(
+            novadraw::text::FontDescriptor::parse(&font_descriptor(
+                &fixture.ui_fonts[1],
+                HEADER_FONT_POINTS,
+                BOLD_FONT_WEIGHT,
+            ))
+            .expect("bold system UI descriptor")
+            .weight(),
+            BOLD_FONT_WEIGHT
+        );
+    }
 
     #[test]
     fn dogear_border_has_independent_five_unit_fold_and_inset_outline() {

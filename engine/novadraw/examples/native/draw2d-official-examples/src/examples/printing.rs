@@ -11,15 +11,46 @@ use novadraw::{
     runtime::Runtime,
 };
 
-use super::runtime_with_fonts;
+use super::{
+    runtime_with_fonts,
+    system_fonts::{
+        BOLD_FONT_WEIGHT, NORMAL_FONT_WEIGHT, RegisteredHostFont, SystemFontRequest,
+        font_descriptor, register_system_fonts,
+    },
+};
 
 const WIDTH: f64 = 300.0;
 const HEIGHT: f64 = 500.0;
 const SHAPE_SIZE: f64 = 50.0;
 const CORNER_SIZE: f64 = 8.0;
+const PRINT_FONT_REQUESTS: [SystemFontRequest; 3] = [
+    SystemFontRequest {
+        family: "Helvetica",
+        weight: NORMAL_FONT_WEIGHT,
+        fallback: novadraw::render::BuiltinFont::Inter,
+    },
+    SystemFontRequest {
+        family: "Times New Roman",
+        weight: BOLD_FONT_WEIGHT,
+        fallback: novadraw::render::BuiltinFont::Inter,
+    },
+    SystemFontRequest {
+        family: "Perpetua",
+        weight: NORMAL_FONT_WEIGHT,
+        fallback: novadraw::render::BuiltinFont::Inter,
+    },
+];
+const PRINT_FONT_POINTS: [f32; 3] = [16.0, 24.0, 48.0];
 
 pub fn print_example() -> Runtime {
+    build_print_example().0
+}
+
+fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
     let mut runtime = runtime_with_fonts();
+    let fonts: [RegisteredHostFont; 3] = register_system_fonts(&mut runtime, &PRINT_FONT_REQUESTS)
+        .try_into()
+        .expect("three print fonts");
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -39,17 +70,12 @@ pub fn print_example() -> Runtime {
         .unwrap()
         .set_layout_manager(Box::new(FlowLayout::new()))
         .unwrap();
-    // Built-in faces make the fixture portable. Text preserves the source names.
-    for (name, font) in [
-        ("Helvetica", "16px Inter Variable"),
-        ("Times New Roman", "bold 24px Inter Variable"),
-        ("Perpetua", "48px Inter Variable"),
-    ] {
+    for ((font, points), request) in fonts.iter().zip(PRINT_FONT_POINTS).zip(PRINT_FONT_REQUESTS) {
         let id = runtime
             .figure(root)
             .unwrap()
             .add(Box::new(
-                LabelFigure::new(name).with_border(LineBorder::default_border()),
+                LabelFigure::new(request.family).with_border(LineBorder::default_border()),
             ))
             .unwrap();
         runtime
@@ -57,7 +83,7 @@ pub fn print_example() -> Runtime {
             .unwrap()
             .set_style(FigureStyle {
                 foreground: Some(Color::BLACK),
-                font: Some(font.to_owned()),
+                font: Some(font_descriptor(font, points, request.weight)),
                 ..FigureStyle::default()
             })
             .unwrap();
@@ -152,7 +178,7 @@ pub fn print_example() -> Runtime {
             None,
         )
         .unwrap();
-    runtime
+    (runtime, fonts)
 }
 
 #[cfg(test)]
@@ -286,7 +312,19 @@ mod tests {
 
     #[test]
     fn canvas_outputs_fonts_icon_and_rerouted_connection_after_resize() {
-        let mut runtime = print_example();
+        let (mut runtime, fonts) = build_print_example();
+        for (font, request) in fonts.iter().zip(PRINT_FONT_REQUESTS) {
+            if font.system {
+                assert_eq!(font.family, request.family);
+            } else {
+                assert_eq!(font.family, request.fallback.family());
+            }
+        }
+        #[cfg(target_os = "macos")]
+        assert!(
+            fonts[0].system && fonts[1].system,
+            "macOS must provide Helvetica and Times New Roman"
+        );
         let root = runtime.tree().contents().unwrap();
         let children = runtime.tree().child_order(root).unwrap();
         assert_eq!(children.len(), 11);
@@ -323,6 +361,23 @@ mod tests {
                     .iter()
                     .any(|c| matches!(c.kind, RenderCommandKind::Image { .. }))
             );
+            let glyph_runs = submission
+                .commands
+                .iter()
+                .filter_map(|command| match &command.kind {
+                    RenderCommandKind::DrawGlyphRun { run, .. } => Some(run),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for (font, points) in fonts.iter().zip(PRINT_FONT_POINTS) {
+                assert!(glyph_runs.iter().any(|run| {
+                    run.font.resource_id() == font.resource_id
+                        && (run.font_size
+                            - points * super::super::system_fonts::LOGICAL_PIXELS_PER_POINT)
+                            .abs()
+                            < 1e-4
+                }));
+            }
             for id in &children[3..6] {
                 let bounds = runtime.tree().figure_bounds(*id).unwrap();
                 assert_eq!(bounds.width, SHAPE_SIZE);

@@ -19,7 +19,7 @@ use novadraw::runtime::Runtime;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
-/// Stable, one-based labels from the complete official catalog, including blocked entries.
+/// Stable, one-based labels and parity state from the complete official catalog.
 pub fn official_scene_title(name: &str) -> String {
     let entries = catalog();
     entries
@@ -27,7 +27,15 @@ pub fn official_scene_title(name: &str) -> String {
         .position(|entry| entry.name == name)
         .map_or_else(
             || name.to_string(),
-            |index| format!("[{:02}/{}] {name}", index + 1, entries.len()),
+            |index| {
+                let entry = &entries[index];
+                format!(
+                    "[{:02}/{} · {}] {name}",
+                    index + 1,
+                    entries.len(),
+                    entry.status.title_label()
+                )
+            },
         )
 }
 
@@ -56,6 +64,15 @@ impl ParityStatus {
             Self::InProgress => "in_progress",
             Self::NotImplemented => "not_implemented",
             Self::Blocked => "blocked",
+        }
+    }
+
+    pub const fn title_label(self) -> &'static str {
+        match self {
+            Self::Complete => "已完成",
+            Self::InProgress => "进行中",
+            Self::NotImplemented => "未实现",
+            Self::Blocked => "阻塞",
         }
     }
 }
@@ -189,7 +206,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "PrintExample",
             "org/eclipse/draw2d/examples/printing/PrintExample.java",
             &[
-                "Canvas composition, original ICO and graphics output are verified; built-in Inter substitutes the three upstream system font faces",
+                "Canvas composition, original ICO and graphics output are verified; the host now injects available system faces and converts SWT point heights to logical pixels",
+                "macOS adopts Helvetica and Times New Roman; unavailable Perpetua falls back explicitly, while cross-platform font adoption and pixels remain pending",
             ],
             examples::print_example,
         ),
@@ -280,13 +298,10 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/tree/TreeExample.java",
             examples::tree_example,
         ),
-        OfficialExample::in_progress(
+        OfficialExample::complete(
             "uml-class-diagram",
             "UMLClassDiagram",
             "org/eclipse/draw2d/examples/uml/UMLClassDiagram.java",
-            &[
-                "owner-side endpoint label placement is implemented; header/member font metrics and DogEar border still require visual parity verification",
-            ],
             examples::uml_class_diagram,
         ),
         OfficialExample::in_progress(
@@ -295,7 +310,8 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/zoom/ZoomExample.java",
             &[
                 "ScrollBar composition/range/repeat and SchemeBorder are implemented",
-                "retained SVG zoom/DPI raster density, shared-resource revision and Native GPU restore are verified; system DPI and full visual parity remain pending",
+                "retained SVG zoom/DPI raster density, shared-resource revision and Native GPU restore are verified; the host adopts available Arial bold at the upstream point size",
+                "cross-display system DPI, other-platform font adoption and full visual parity remain pending",
             ],
             examples::zoom_example,
         ),
@@ -382,7 +398,7 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.status == ParityStatus::Complete)
                 .count(),
-            16
+            17
         );
 
         let mut ids = BTreeSet::new();
@@ -406,6 +422,21 @@ mod tests {
                 entry.gaps.is_empty()
             );
         }
+    }
+
+    #[test]
+    fn scene_titles_include_stable_index_and_chinese_parity_status() {
+        assert_eq!(
+            official_scene_title("HelloWorld"),
+            "[01/25 · 已完成] HelloWorld"
+        );
+        assert_eq!(
+            official_scene_title("FlowLayoutExample"),
+            "[07/25 · 进行中] FlowLayoutExample"
+        );
+        assert_eq!(official_scene_title("unknown"), "unknown");
+        assert_eq!(ParityStatus::NotImplemented.title_label(), "未实现");
+        assert_eq!(ParityStatus::Blocked.title_label(), "阻塞");
     }
 
     #[test]

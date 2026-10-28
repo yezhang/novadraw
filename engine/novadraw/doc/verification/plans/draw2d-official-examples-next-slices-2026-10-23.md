@@ -9,21 +9,21 @@
 
 ## 还有 8 个入口未收口
 
-2026-10-26 Tree 验收后，当前 catalog 为 17 complete、7 in_progress、1 blocked，24 个可运行。
+2026-10-28 当前 catalog 为 17 complete、8 in_progress，25 个入口均可运行。
 下表将待验证的消费者行为和确实缺失的 Core 能力分开记录。
 完成判据取自 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
 不以可运行、测试数或一幅截图代替完整验收。
 
 | 入口 | 剩余工作 | 能力批次 |
 |---|---|---|
-| FlowLayoutExample | 窄容器换行、双轴 alignment/不等 spacing、真实面板 stretch/方向、窗口视口与零可用空间恢复、Native GPU 擦除已验证；连续 Native 窗口 resize、文字 minimum 与 retained-partial 像素仍待验收 | K02/H04 |
-| GridLayoutExample | span/grab/hints/indent 的真实面板、Add/Clear 与选择释放、零可用空间恢复、Native GPU 清空擦除已验证；连续 Native 窗口 resize、文字消费者与 retained-partial 像素仍待验收 | K01/K02/H04 |
-| ToolbarLayoutExample | 5 个 Shape 的真实面板 alignment/方向/stretch、窗口视口收缩和零可用空间恢复、Native GPU 擦除已验证；连续 Native 窗口 resize、文字 minimum 与 retained-partial 像素仍待验收 | K02/H04 |
-| PrintExample | Canvas 组合、原始 ICO 和通用命令输出已验证；三个上游系统字体目前均以 Inter 替代，需宿主字体来源及真实字体指标证据 | K09/H01/H04 |
+| FlowLayoutExample | 形状与文字消费者、真实面板、收缩恢复及 retained-partial 擦除已验证；连续窗口事件、surface present 与跨平台像素仍待验收 | K02/H04 |
+| GridLayoutExample | span/grab/hints/indent、分配列宽后的文字重测、真实面板及 retained-partial 擦除已验证；连续窗口事件、surface present 与跨平台像素仍待验收 | K01/K02/H04 |
+| ToolbarLayoutExample | 形状与文字 minimum、方向/stretch/恢复、真实面板及 retained-partial 擦除已验证；连续窗口事件、surface present 与跨平台像素仍待验收 | K02/H04 |
+| PrintExample | Canvas 组合、原始 ICO 与通用输出已验证；宿主已采用可用系统字族并按 point 映射逻辑像素，macOS 使用 Helvetica/Times New Roman，Perpetua 缺失时明确回退；其他平台字体与像素仍待验收 | K09/H01/H04 |
 | ScrollPaneExample | 五部件 ScrollBar 已由 ADR-041 实现，不再作为缺失 Core 能力；现有拖拽、resize、自动显隐与 cursor 回归继续保留，尚需完整主题与 Canvas 视觉验收 | K02/K04/H04 |
-| UMLClassDiagram | owner-aware 端点标签和重新测量已实现；类标题/成员字体、图标、StickyNote 的 DogEar 边框与窄宽度换行仍需视觉对等验收 | K02/K03/K05/H04 |
-| ZoomExample | 保留 SVG 源、缩放/DPI 密度选择、资源 revision 替换及 Native GPU 像素恢复已验证；跨显示器系统 DPI 与完整视觉对等仍待验收 | K08/H01/H02/H04 |
-| ShapeStylesExample | 尚缺 per-shape AA ON/OFF/DEFAULT 的 Graphics/IR/backend 完整链路；OFF 必须有像素证据，结构化拒绝不能视为完成 | K08/H02/H04 |
+| ZoomExample | 保留 SVG 源、缩放/DPI 密度选择、资源 revision 替换及 Native GPU 像素恢复已验证；宿主已采用可用 Arial bold 12 point；跨显示器系统 DPI、其他平台字体与完整视觉对等仍待验收 | K08/H01/H02/H04 |
+| ShapeStylesExample | 逐操作 AA、低 miter 与 Cocoa 零宽 profile 已实现并通过 GPU 矩阵；上游原生栅格、系统颜色和跨平台像素仍待验收，通用设备 hairline 是独立可选增量 | K08/H02/H04 |
+| BidiBlockExample | 继承镜像、段落方向、相对/绝对对齐、caret/selection 和共享纵向 range 已实现；上游栅格与跨平台呈现仍待验收 | K05/K07/H04 |
 
 ## 本批继续推进已有契约
 

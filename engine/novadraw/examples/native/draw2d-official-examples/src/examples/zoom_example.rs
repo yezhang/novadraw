@@ -23,7 +23,12 @@ use novadraw::{
 };
 use novadraw_example_support::panel::{Panel, PanelScene};
 
-use super::runtime_with_fonts;
+#[cfg(test)]
+use super::system_fonts::RegisteredHostFont;
+use super::{
+    runtime_with_fonts,
+    system_fonts::{BOLD_FONT_WEIGHT, SystemFontRequest, font_descriptor, register_system_fonts},
+};
 
 const WINDOW_SIZE: f64 = 800.0;
 const BAR_HEIGHT: f64 = 24.0;
@@ -33,6 +38,12 @@ const MAXIMUM: f64 = 200.0;
 const EXTENT: f64 = 25.0;
 const CLASS_COLOR: Color = Color::rgba(1.0, 1.0, 206.0 / 255.0, 1.0);
 const ICON_PIXEL_BUDGET: u64 = 1024 * 1024;
+const CLASS_FONT_POINTS: f32 = 12.0;
+const CLASS_FONT_REQUEST: SystemFontRequest = SystemFontRequest {
+    family: "Arial",
+    weight: BOLD_FONT_WEIGHT,
+    fallback: novadraw::render::BuiltinFont::Inter,
+};
 
 struct ZoomIcons {
     sources: [SvgImageSource; 3],
@@ -214,6 +225,8 @@ struct Fixture {
     classes: [FigureId; 2],
     model: Arc<DefaultRangeModel>,
     icons: ZoomIcons,
+    #[cfg(test)]
+    class_font: RegisteredHostFont,
 }
 
 pub fn zoom_example() -> Runtime {
@@ -239,6 +252,11 @@ pub(super) fn panel_scene() -> PanelScene {
 
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
+    let class_font = register_system_fonts(&mut runtime, &[CLASS_FONT_REQUEST])
+        .pop()
+        .expect("Zoom class font");
+    let class_font_descriptor =
+        font_descriptor(&class_font, CLASS_FONT_POINTS, CLASS_FONT_REQUEST.weight);
     let icons = ZoomIcons::new(&mut runtime);
     let images = icons.images;
     let root = runtime
@@ -302,20 +320,26 @@ fn fixture() -> Fixture {
     let table = add_class(
         &mut runtime,
         contents,
-        "Table",
-        (10.0, 10.0),
-        ["columns: Column[]", "rows: Row[]"],
-        ["getColumns(): Column[]", "getRows(): Row[]"],
+        ClassSpec {
+            name: "Table",
+            position: (10.0, 10.0),
+            attributes: ["columns: Column[]", "rows: Row[]"],
+            methods: ["getColumns(): Column[]", "getRows(): Row[]"],
+        },
         images,
+        &class_font_descriptor,
     );
     let column = add_class(
         &mut runtime,
         contents,
-        "Column",
-        (150.0, 150.0),
-        ["columnID: int", "items: List"],
-        ["getColumnID(): int", "getItems(): List"],
+        ClassSpec {
+            name: "Column",
+            position: (150.0, 150.0),
+            attributes: ["columnID: int", "items: List"],
+            methods: ["getColumnID(): int", "getItems(): List"],
+        },
         images,
+        &class_font_descriptor,
     );
     let model = Arc::new(DefaultRangeModel::new(0.0, EXTENT, MAXIMUM).expect("zoom range"));
     model.set_value(40.0).expect("initial value");
@@ -358,17 +382,24 @@ fn fixture() -> Fixture {
         classes: [table, column],
         model,
         icons,
+        #[cfg(test)]
+        class_font,
     }
+}
+
+struct ClassSpec<'a> {
+    name: &'a str,
+    position: (f64, f64),
+    attributes: [&'a str; 2],
+    methods: [&'a str; 2],
 }
 
 fn add_class(
     runtime: &mut Runtime,
     parent: FigureId,
-    name: &str,
-    position: (f64, f64),
-    attributes: [&str; 2],
-    methods: [&str; 2],
+    spec: ClassSpec<'_>,
     images: [ImageId; 3],
+    header_font: &str,
 ) -> FigureId {
     let class = runtime
         .figure(parent)
@@ -381,7 +412,7 @@ fn add_class(
     runtime
         .figure(class)
         .expect("class")
-        .set_layout_constraint(XYConstraint::at(position.0, position.1))
+        .set_layout_constraint(XYConstraint::at(spec.position.0, spec.position.1))
         .expect("class constraint");
     runtime
         .figure(class)
@@ -391,17 +422,17 @@ fn add_class(
     let header = runtime
         .figure(class)
         .expect("class")
-        .add(Box::new(LabelFigure::new(name).with_icon(images[0])))
+        .add(Box::new(LabelFigure::new(spec.name).with_icon(images[0])))
         .expect("header");
     runtime
         .figure(header)
         .expect("header")
         .set_style(FigureStyle {
-            font: Some("bold 16px Arial".to_owned()),
+            font: Some(header_font.to_owned()),
             ..FigureStyle::default()
         })
         .expect("header font");
-    for (rows, image) in [(attributes, images[1]), (methods, images[2])] {
+    for (rows, image) in [(spec.attributes, images[1]), (spec.methods, images[2])] {
         let compartment = runtime
             .figure(class)
             .expect("class")
@@ -764,7 +795,33 @@ mod tests {
 
     #[test]
     fn official_two_class_fixture_and_scroll_range_are_preserved() {
-        let fixture = fixture();
+        let mut fixture = fixture();
+        #[cfg(target_os = "macos")]
+        assert!(
+            fixture.class_font.system,
+            "macOS must provide the upstream Arial family"
+        );
+        let class_layout = fixture
+            .runtime
+            .text()
+            .layout(
+                "Table",
+                &FontDescriptor::parse(&font_descriptor(
+                    &fixture.class_font,
+                    CLASS_FONT_POINTS,
+                    CLASS_FONT_REQUEST.weight,
+                ))
+                .expect("class font"),
+                TextConstraints::UNBOUNDED,
+            )
+            .expect("class label");
+        assert!(class_layout.glyph_runs().iter().any(|run| {
+            run.font.resource_id() == fixture.class_font.resource_id
+                && (run.font_size
+                    - CLASS_FONT_POINTS * super::super::system_fonts::LOGICAL_PIXELS_PER_POINT)
+                    .abs()
+                    < 1e-4
+        }));
         for class in fixture.classes {
             assert_eq!(
                 fixture

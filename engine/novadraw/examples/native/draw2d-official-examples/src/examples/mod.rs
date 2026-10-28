@@ -20,6 +20,7 @@ mod printing;
 mod scroll_pane_example;
 mod shape_styles;
 mod simple_tree_example;
+mod system_fonts;
 mod text_examples;
 mod text_interaction;
 mod text_surrounding;

@@ -20,9 +20,11 @@ cargo run -p draw2d-official-examples -- --screenshot-all
 历史 complete 只保留当时证据范围，其他状态在 Canvas 功能验收后更新；
 移除原生控件需求不会自动关闭尚未核对的 Canvas 差额。
 
-窗口标题按完整官方目录显示固定序号，例如 `[01/25] HelloWorld`、
-`[23/25] TreeExample`、`[25/25] ZoomExample`。独立 InheritBackground 窗口使用
-`[13/25]`，ShapeStyles 使用 `[14/25]`；场景列表跳过独立宿主条目时不重编号。
+窗口标题按完整官方目录显示固定序号和状态，例如
+`[01/25 · 已完成] HelloWorld`、`[07/25 · 进行中] FlowLayoutExample`、
+`[25/25 · 进行中] ZoomExample`。独立 InheritBackground 窗口使用
+`[13/25 · 已完成]`，ShapeStyles 使用 `[14/25 · 进行中]`；场景列表跳过独立宿主
+条目时不重编号。状态标签还包括 `阻塞` 和 `未实现`，与 catalog 使用同一状态来源。
 `--list` 的首列是同一序号，后续列给出状态、ID、原始类名和上游源码路径。
 截图继续使用原始场景名；数字截图参数仍是运行列表中从 0 开始的索引。
 
@@ -37,7 +39,7 @@ Flow/Toolbar/Grid 的真实 Label/FlowPage 消费者、span/indent/height hint �
 实际 Vello retained target 的 60 组对照中，18 帧为 Partial；共享离屏纹理后端
 仍是 FULL_FRAME_ONLY，不能以它证明局部擦除。Caret 保留 alpha 高亮变体，
 连续窗口 resize、surface present、字体与跨平台验收继续保留。
-当前目录是 16 complete、9 in_progress、25 个工厂，完整记录见
+该批结束时目录是 16 complete、9 in_progress、25 个工厂，完整记录见
 [本批核验](../../../doc/verification/reviews/official-layout-caret-consumers-2026-10-27.md)。
 
 ```sh
@@ -64,6 +66,14 @@ Path 的范围下划线通过 `MeasureContext::prepare_underlines` 准备，
 按实际 fallback 字体、字号、行与 bidi run 拆分，再由公开 Graphics 绘制。
 `cargo xtask verify text.underlines` 覆盖混合字体、组合字符、资源替换及
 收缩、恢复和移除后的 GPU Partial/Full 一致性。
+
+Print、Zoom 和 UML 由样例宿主通过 Fontique 查询系统集合，再使用 Core 的普通字体
+资源入口注入实际字节。macOS 已采用 Helvetica、Times New Roman、Arial 和 system-ui；
+本机没有 Perpetua 时明确回退 Inter。字号按 96/72 从 point 转成逻辑像素，Print
+标签继续保留上游请求名。UML 的 regular 字体由根 Figure 继承，标题覆盖 10 point
+bold；图标、DogEar、窄宽便笺和最终截图已复核，入口升级为 `complete`。系统字体
+不打包进产物，其他平台的采用结果和像素仍待验收。当前目录为
+17 complete、8 in_progress。
 
 HelloWorld 使用已有 StackLayout，文字区域随 Canvas 收缩、放大和恢复。
 UML 便笺使用独立 DogEar Border，填充折角为 6 单位，描边折角为 5 单位，
