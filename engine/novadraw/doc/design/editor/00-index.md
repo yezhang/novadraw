@@ -32,6 +32,11 @@ Viewport 协作。
 - [Masonry 编辑画布与 Xilem View 接入](masonry-xilem-canvas-integration.md)：
   固定上游依赖、session 所有权、Widget 输入/绘制与 View rebuild。
 
+延期的应用外壳候选（不进入当前执行队列）：
+
+- [egui Docking 延期方案](egui-docking-deferred-plan.md)：固定三栏继续生效；
+  记录重新评审的触发条件、候选版本、状态所有权和验收门禁。
+
 核心能力补充（分批评审与实施）：
 
 - [Editor 核心能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
