@@ -3,9 +3,9 @@ use crate::{
     model::{EdgeStyle, MIN_SIZE, ShapeKind},
 };
 use egui::{
-    Align, Align2, Color32, DragValue, Event, Frame, Grid, Image, Key, Layout, Margin,
-    PointerButton, Rect, Response, RichText, ScrollArea, Sense, Stroke, TextEdit, TextStyle,
-    TextureId, Vec2, load::SizedTexture,
+    Align, Align2, Color32, DragValue, Event, Frame, Image, Key, Layout, Margin, PointerButton,
+    Rect, Response, RichText, ScrollArea, Sense, Stroke, TextEdit, TextStyle, TextureId, Vec2,
+    load::SizedTexture,
 };
 use novadraw::event::{Key as EditorKey, KeyEvent, KeyEventKind, KeyModifiers, MouseButton};
 use novadraw::geometry::{Point, Rectangle};
@@ -14,6 +14,10 @@ const LEFT_PANEL_WIDTH: f32 = 232.0;
 const RIGHT_PANEL_WIDTH: f32 = 264.0;
 const COMMAND_BUTTON_WIDTH: f32 = 64.0;
 const TOOL_BUTTON_WIDTH: f32 = 72.0;
+const FILE_BUTTON_WIDTH: f32 = 30.0;
+const FILE_BUTTON_HEIGHT: f32 = 26.0;
+const FILE_ICON_SIZE: f32 = 16.0;
+const FILE_ICON_STROKE: f32 = 1.5;
 const ALIGN_BUTTON_WIDTH: f32 = 28.0;
 const ALIGN_BUTTON_HEIGHT: f32 = 26.0;
 const ALIGN_ICON_SIZE: f32 = 16.0;
@@ -27,10 +31,20 @@ const PALETTE_ROW_PADDING_X: f32 = 4.0;
 const PALETTE_ICON_LABEL_GAP: f32 = 10.0;
 const FILTER_FIELD_HEIGHT: f32 = 30.0;
 const PROPERTY_ROW_HEIGHT: f32 = 26.0;
+const PROPERTY_LABEL_WIDTH: f32 = 48.0;
+const PROPERTY_COLUMN_GAP: f32 = 8.0;
+const PROPERTY_ROW_GAP: f32 = 4.0;
+const PROPERTY_GROUP_GAP: f32 = 8.0;
+const PROPERTY_FIELD_MAX_WIDTH: f32 = 152.0;
+const INSPECTOR_DIVIDER_GAP: f32 = 8.0;
 const PANEL_TITLE_SIZE: f32 = 17.0;
 const SECTION_TITLE_SIZE: f32 = 11.0;
 const SECONDARY_TEXT: Color32 = Color32::from_gray(96);
 const PANEL_BORDER: Color32 = Color32::from_gray(214);
+const PROPERTY_FIELD_FILL: Color32 = Color32::from_gray(247);
+const PROPERTY_FIELD_HOVER_FILL: Color32 = Color32::from_gray(242);
+const PROPERTY_FIELD_ACTIVE_FILL: Color32 = Color32::from_gray(238);
+const PROPERTY_FIELD_BORDER: Color32 = Color32::from_gray(216);
 const PRIMARY_BLUE: Color32 = Color32::from_rgb(45, 105, 145);
 pub(crate) const SELECTION_BLUE: Color32 = Color32::from_rgb(224, 236, 244);
 pub(crate) const SELECTION_TEXT: Color32 = Color32::from_rgb(35, 73, 96);
@@ -128,15 +142,16 @@ impl EditorUi {
                             .vertical_align(Align::Center)
                             .margin(Margin::symmetric(6, 3)),
                     );
-                    command_button(ui, "Open", !app.disabled, app, UiCommand::Open);
-                    command_button(ui, "Save", !app.disabled, app, UiCommand::Save);
-                    command_button(ui, "Save as", !app.disabled, app, UiCommand::SaveAs);
-                    command_button(
+                    file_action_group(ui, app);
+                    ui.separator();
+                    file_action_button(
                         ui,
-                        "Discard + open",
+                        FileActionIcon::DiscardAndOpen,
+                        "Discard unsaved changes and open document",
                         app.canvas.dirty && !app.disabled,
                         app,
                         UiCommand::DiscardAndOpen,
+                        egui::CornerRadius::same(4),
                     );
                 });
                 ui.add_space(2.0);
@@ -364,11 +379,9 @@ impl EditorUi {
                 if let Some((id, _)) = app.property_subject {
                     let item = app.outline.iter().find(|item| item.id == id);
                     object_summary(ui, id, item.map(|item| item.kind), app.selected.len());
-                    ui.add_space(PANEL_SECTION_GAP);
+                    ui.add_space(INSPECTOR_DIVIDER_GAP);
                     ui.separator();
-                    ui.add_space(PANEL_SECTION_GAP);
-                    section_title(ui, "Geometry");
-                    ui.add_space(6.0);
+                    ui.add_space(INSPECTOR_DIVIDER_GAP);
                     geometry_editor(ui, app);
                 } else {
                     inspector_empty_state(ui, app);
@@ -487,16 +500,11 @@ fn geometry_editor(ui: &mut egui::Ui, app: &mut AppState) {
     ui.add_enabled_ui(!app.disabled, |ui| {
         section_title(ui, "Position");
         ui.add_space(4.0);
-        property_grid(ui, "position_grid", &mut app.properties[..2], ["X", "Y"]);
-        ui.add_space(8.0);
+        property_rows(ui, &mut app.properties[..2], ["X", "Y"]);
+        ui.add_space(PROPERTY_GROUP_GAP);
         section_title(ui, "Size");
         ui.add_space(4.0);
-        property_grid(
-            ui,
-            "size_grid",
-            &mut app.properties[2..],
-            ["Width", "Height"],
-        );
+        property_rows(ui, &mut app.properties[2..], ["Width", "Height"]);
     });
 
     if !finite {
@@ -542,29 +550,54 @@ fn geometry_editor(ui: &mut egui::Ui, app: &mut AppState) {
     );
 }
 
-fn property_grid<const N: usize>(
-    ui: &mut egui::Ui,
-    id: &'static str,
-    values: &mut [f64],
-    labels: [&'static str; N],
-) {
-    Grid::new(id)
-        .num_columns(2)
-        .spacing([12.0, 6.0])
-        .show(ui, |ui| {
-            for (label, value) in labels.into_iter().zip(values) {
-                ui.label(RichText::new(label).small().color(SECONDARY_TEXT));
-                ui.add_sized(
-                    [ui.available_width(), PROPERTY_ROW_HEIGHT],
-                    DragValue::new(value)
-                        .speed(1.0)
-                        .min_decimals(0)
-                        .max_decimals(2)
-                        .suffix(" px"),
-                );
-                ui.end_row();
+fn property_rows<const N: usize>(ui: &mut egui::Ui, values: &mut [f64], labels: [&'static str; N]) {
+    ui.scope(|ui| {
+        let widgets = &mut ui.visuals_mut().widgets;
+        widgets.inactive.weak_bg_fill = PROPERTY_FIELD_FILL;
+        widgets.inactive.bg_fill = PROPERTY_FIELD_FILL;
+        widgets.inactive.bg_stroke = Stroke::new(1.0, PROPERTY_FIELD_BORDER);
+        widgets.hovered.weak_bg_fill = PROPERTY_FIELD_HOVER_FILL;
+        widgets.hovered.bg_fill = PROPERTY_FIELD_HOVER_FILL;
+        widgets.hovered.bg_stroke = Stroke::new(1.0, PROPERTY_FIELD_BORDER);
+        widgets.active.weak_bg_fill = PROPERTY_FIELD_ACTIVE_FILL;
+        widgets.active.bg_fill = PROPERTY_FIELD_ACTIVE_FILL;
+        widgets.active.bg_stroke = Stroke::new(1.0, SELECTION_TEXT);
+        widgets.open.weak_bg_fill = PROPERTY_FIELD_FILL;
+        widgets.open.bg_fill = PROPERTY_FIELD_FILL;
+        widgets.open.bg_stroke = Stroke::new(1.0, SELECTION_TEXT);
+
+        for (index, (label, value)) in labels.into_iter().zip(values).enumerate() {
+            if index > 0 {
+                ui.add_space(PROPERTY_ROW_GAP);
             }
-        });
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = PROPERTY_COLUMN_GAP;
+                ui.allocate_ui_with_layout(
+                    Vec2::new(PROPERTY_LABEL_WIDTH, PROPERTY_ROW_HEIGHT),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        ui.label(RichText::new(label).small().color(SECONDARY_TEXT));
+                    },
+                );
+                let field_width = ui.available_width().min(PROPERTY_FIELD_MAX_WIDTH);
+                ui.allocate_ui_with_layout(
+                    Vec2::new(field_width, PROPERTY_ROW_HEIGHT),
+                    Layout::left_to_right(Align::Center).with_main_align(Align::Min),
+                    |ui| {
+                        ui.spacing_mut().interact_size =
+                            Vec2::new(field_width, PROPERTY_ROW_HEIGHT);
+                        ui.add(
+                            DragValue::new(value)
+                                .speed(1.0)
+                                .min_decimals(0)
+                                .max_decimals(2)
+                                .suffix(" px"),
+                        );
+                    },
+                );
+            });
+        }
+    });
 }
 
 fn command_button(
@@ -583,6 +616,77 @@ fn command_button(
     {
         app.pending.push_back(command);
     }
+}
+
+#[derive(Clone, Copy)]
+enum FileActionIcon {
+    Open,
+    Save,
+    SaveAs,
+    DiscardAndOpen,
+}
+
+fn file_action_group(ui: &mut egui::Ui, app: &mut AppState) -> [Response; 3] {
+    let actions = [
+        (FileActionIcon::Open, "Open document", UiCommand::Open),
+        (FileActionIcon::Save, "Save document", UiCommand::Save),
+        (
+            FileActionIcon::SaveAs,
+            "Save document as",
+            UiCommand::SaveAs,
+        ),
+    ];
+    ui.allocate_ui_with_layout(
+        Vec2::new(FILE_BUTTON_WIDTH * actions.len() as f32, FILE_BUTTON_HEIGHT),
+        Layout::left_to_right(Align::Center),
+        |ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            std::array::from_fn(|index| {
+                let (icon, label, command) = actions[index];
+                file_action_button(
+                    ui,
+                    icon,
+                    label,
+                    !app.disabled,
+                    app,
+                    command,
+                    grouped_corner_radius(index, actions.len()),
+                )
+            })
+        },
+    )
+    .inner
+}
+
+fn file_action_button(
+    ui: &mut egui::Ui,
+    icon: FileActionIcon,
+    label: &'static str,
+    enabled: bool,
+    app: &mut AppState,
+    command: UiCommand,
+    corner_radius: egui::CornerRadius,
+) -> Response {
+    let response = ui.add_enabled(
+        enabled,
+        egui::Button::new("")
+            .min_size(Vec2::new(FILE_BUTTON_WIDTH, FILE_BUTTON_HEIGHT))
+            .corner_radius(corner_radius),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), label)
+    });
+    let color = if response.enabled() {
+        ui.style().interact(&response).text_color()
+    } else {
+        SECONDARY_TEXT.gamma_multiply(0.6)
+    };
+    paint_file_action_icon(ui.painter(), response.rect, icon, color);
+    let response = response.on_hover_text(label);
+    if response.clicked() {
+        app.pending.push_back(command);
+    }
+    response
 }
 
 fn tool_button(
@@ -612,17 +716,11 @@ fn alignment_group(ui: &mut egui::Ui, app: &mut AppState, modes: [Alignment; 3])
             ui.spacing_mut().item_spacing.x = 0.0;
             std::array::from_fn(|index| {
                 let alignment = modes[index];
-                let radius = egui::CornerRadius {
-                    nw: if index == 0 { 4 } else { 0 },
-                    sw: if index == 0 { 4 } else { 0 },
-                    ne: if index == modes.len() - 1 { 4 } else { 0 },
-                    se: if index == modes.len() - 1 { 4 } else { 0 },
-                };
                 let response = ui.add_enabled(
                     !app.disabled && app.can_align,
                     egui::Button::new("")
                         .min_size(Vec2::new(ALIGN_BUTTON_WIDTH, ALIGN_BUTTON_HEIGHT))
-                        .corner_radius(radius),
+                        .corner_radius(grouped_corner_radius(index, modes.len())),
                 );
                 response.widget_info(|| {
                     egui::WidgetInfo::labeled(
@@ -650,6 +748,133 @@ fn alignment_group(ui: &mut egui::Ui, app: &mut AppState, modes: [Alignment; 3])
         },
     )
     .inner
+}
+
+fn grouped_corner_radius(index: usize, len: usize) -> egui::CornerRadius {
+    egui::CornerRadius {
+        nw: if index == 0 { 4 } else { 0 },
+        sw: if index == 0 { 4 } else { 0 },
+        ne: if index == len - 1 { 4 } else { 0 },
+        se: if index == len - 1 { 4 } else { 0 },
+    }
+}
+
+#[cfg(test)]
+mod file_action_button_tests {
+    use super::*;
+
+    #[test]
+    fn grouped_file_buttons_dispatch_commands_and_share_edges() {
+        for index in 0..3 {
+            let context = egui::Context::default();
+            let mut app = AppState::default();
+            let mut buttons = None;
+            let _ = context.run_ui(egui::RawInput::default(), |ui| {
+                buttons = Some(file_action_group(ui, &mut app));
+            });
+            let buttons = buttons.unwrap();
+            assert_eq!(buttons[0].rect.right(), buttons[1].rect.left());
+            assert_eq!(buttons[1].rect.right(), buttons[2].rect.left());
+            let position = buttons[index].rect.center();
+            for pressed in [true, false] {
+                let _ = context.run_ui(
+                    egui::RawInput {
+                        events: vec![
+                            Event::PointerMoved(position),
+                            Event::PointerButton {
+                                pos: position,
+                                button: PointerButton::Primary,
+                                pressed,
+                                modifiers: egui::Modifiers::default(),
+                            },
+                        ],
+                        ..Default::default()
+                    },
+                    |ui| {
+                        file_action_group(ui, &mut app);
+                    },
+                );
+            }
+            assert!(matches!(
+                (index, app.pending.pop_front()),
+                (0, Some(UiCommand::Open))
+                    | (1, Some(UiCommand::Save))
+                    | (2, Some(UiCommand::SaveAs))
+            ));
+            assert!(app.pending.is_empty());
+            app.disabled = true;
+            let _ = context.run_ui(egui::RawInput::default(), |ui| {
+                for button in file_action_group(ui, &mut app) {
+                    assert!(!button.enabled());
+                }
+            });
+        }
+    }
+
+    #[test]
+    fn discard_and_open_requires_dirty_enabled_document() {
+        let context = egui::Context::default();
+        let mut app = AppState::default();
+        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            let response = file_action_button(
+                ui,
+                FileActionIcon::DiscardAndOpen,
+                "Discard unsaved changes and open document",
+                app.canvas.dirty && !app.disabled,
+                &mut app,
+                UiCommand::DiscardAndOpen,
+                egui::CornerRadius::same(4),
+            );
+            assert!(!response.enabled());
+        });
+
+        app.canvas.dirty = true;
+        let mut response = None;
+        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            response = Some(file_action_button(
+                ui,
+                FileActionIcon::DiscardAndOpen,
+                "Discard unsaved changes and open document",
+                app.canvas.dirty && !app.disabled,
+                &mut app,
+                UiCommand::DiscardAndOpen,
+                egui::CornerRadius::same(4),
+            ));
+        });
+        let position = response.unwrap().rect.center();
+        for pressed in [true, false] {
+            let _ = context.run_ui(
+                egui::RawInput {
+                    events: vec![
+                        Event::PointerMoved(position),
+                        Event::PointerButton {
+                            pos: position,
+                            button: PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::default(),
+                        },
+                    ],
+                    ..Default::default()
+                },
+                |ui| {
+                    file_action_button(
+                        ui,
+                        FileActionIcon::DiscardAndOpen,
+                        "Discard unsaved changes and open document",
+                        app.canvas.dirty && !app.disabled,
+                        &mut app,
+                        UiCommand::DiscardAndOpen,
+                        egui::CornerRadius::same(4),
+                    );
+                },
+            );
+        }
+        assert!(matches!(
+            app.pending.pop_front(),
+            Some(UiCommand::DiscardAndOpen)
+        ));
+        assert!(app.pending.is_empty());
+    }
 }
 
 #[cfg(test)]
@@ -711,6 +936,115 @@ mod alignment_button_tests {
                 });
             }
         }
+    }
+}
+
+fn paint_file_action_icon(
+    painter: &egui::Painter,
+    rect: Rect,
+    icon: FileActionIcon,
+    color: Color32,
+) {
+    let origin = rect.center() - Vec2::splat(FILE_ICON_SIZE / 2.0);
+    let point = |x: f32, y: f32| {
+        egui::pos2(
+            origin.x + x * FILE_ICON_SIZE / 24.0,
+            origin.y + y * FILE_ICON_SIZE / 24.0,
+        )
+    };
+    let stroke = Stroke::new(FILE_ICON_STROKE, color);
+    match icon {
+        FileActionIcon::Open => {
+            painter.add(egui::Shape::line(
+                vec![
+                    point(2.0, 18.0),
+                    point(2.0, 5.0),
+                    point(4.0, 3.0),
+                    point(8.0, 3.0),
+                    point(10.5, 6.0),
+                    point(18.0, 6.0),
+                    point(20.0, 8.0),
+                    point(20.0, 10.0),
+                ],
+                stroke,
+            ));
+            painter.add(egui::Shape::line(
+                vec![
+                    point(2.0, 18.0),
+                    point(4.0, 20.0),
+                    point(18.5, 20.0),
+                    point(20.5, 18.5),
+                    point(22.0, 12.5),
+                    point(20.0, 10.0),
+                    point(9.25, 10.0),
+                    point(7.5, 11.0),
+                    point(6.0, 14.0),
+                ],
+                stroke,
+            ));
+        }
+        FileActionIcon::Save => paint_save_icon(painter, &point, stroke, false),
+        FileActionIcon::SaveAs => paint_save_icon(painter, &point, stroke, true),
+        FileActionIcon::DiscardAndOpen => {
+            painter.add(egui::Shape::closed_line(
+                vec![
+                    point(2.0, 18.0),
+                    point(2.0, 5.0),
+                    point(4.0, 3.0),
+                    point(8.0, 3.0),
+                    point(10.5, 6.0),
+                    point(20.0, 6.0),
+                    point(22.0, 8.0),
+                    point(22.0, 18.0),
+                    point(20.0, 20.0),
+                    point(4.0, 20.0),
+                ],
+                stroke,
+            ));
+            painter.line_segment([point(9.5, 10.5), point(14.5, 15.5)], stroke);
+            painter.line_segment([point(14.5, 10.5), point(9.5, 15.5)], stroke);
+        }
+    }
+}
+
+fn paint_save_icon(
+    painter: &egui::Painter,
+    point: &impl Fn(f32, f32) -> egui::Pos2,
+    stroke: Stroke,
+    save_as: bool,
+) {
+    painter.add(egui::Shape::closed_line(
+        vec![
+            point(5.0, 3.0),
+            point(15.0, 3.0),
+            point(21.0, 9.0),
+            point(21.0, 19.0),
+            point(19.0, 21.0),
+            point(5.0, 21.0),
+            point(3.0, 19.0),
+            point(3.0, 5.0),
+        ],
+        stroke,
+    ));
+    painter.add(egui::Shape::line(
+        vec![point(7.0, 3.0), point(7.0, 8.0), point(15.0, 8.0)],
+        stroke,
+    ));
+    painter.add(egui::Shape::line(
+        vec![
+            point(7.0, 21.0),
+            point(7.0, 13.0),
+            point(17.0, 13.0),
+            point(17.0, 21.0),
+        ],
+        stroke,
+    ));
+    if save_as {
+        painter.line_segment([point(13.5, 17.0), point(22.5, 17.0)], stroke);
+        painter.add(egui::Shape::line(
+            vec![point(19.5, 14.0), point(22.5, 17.0), point(19.5, 20.0)],
+            stroke,
+        ));
     }
 }
 

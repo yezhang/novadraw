@@ -8,6 +8,11 @@ use novadraw_backend_vello::texture::VelloTextureRenderer;
 
 const WINDOW_WIDTH: f32 = 1180.0;
 const WINDOW_HEIGHT: f32 = 820.0;
+const CONTROL_HOVER_FILL: egui::Color32 = egui::Color32::from_gray(220);
+const CONTROL_ACTIVE_FILL: egui::Color32 = egui::Color32::from_gray(210);
+const CONTROL_OPEN_FILL: egui::Color32 = egui::Color32::from_gray(224);
+const CONTROL_HOVER_TEXT: egui::Color32 = egui::Color32::from_gray(45);
+const CONTROL_ACTIVE_TEXT: egui::Color32 = egui::Color32::from_gray(35);
 
 pub fn run() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -170,12 +175,54 @@ fn configure_style(context: &egui::Context) {
     context.style_mut_of(egui::Theme::Light, |style| {
         style.spacing.item_spacing = egui::vec2(6.0, 4.0);
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
-        style.visuals.widgets.inactive.corner_radius = 3.0.into();
-        style.visuals.widgets.hovered.corner_radius = 3.0.into();
-        style.visuals.widgets.active.corner_radius = 3.0.into();
-        style.visuals.widgets.open.corner_radius = 3.0.into();
+        let widgets = &mut style.visuals.widgets;
+        widgets.inactive.corner_radius = 3.0.into();
+        widgets.hovered.corner_radius = 3.0.into();
+        widgets.hovered.weak_bg_fill = CONTROL_HOVER_FILL;
+        widgets.hovered.bg_fill = CONTROL_HOVER_FILL;
+        widgets.hovered.bg_stroke = widgets.inactive.bg_stroke;
+        widgets.hovered.fg_stroke =
+            egui::Stroke::new(widgets.inactive.fg_stroke.width, CONTROL_HOVER_TEXT);
+        widgets.active.corner_radius = 3.0.into();
+        widgets.active.weak_bg_fill = CONTROL_ACTIVE_FILL;
+        widgets.active.bg_fill = CONTROL_ACTIVE_FILL;
+        widgets.active.bg_stroke = egui::Stroke::new(1.0, crate::ui::SELECTION_TEXT);
+        widgets.active.fg_stroke =
+            egui::Stroke::new(widgets.inactive.fg_stroke.width, CONTROL_ACTIVE_TEXT);
+        widgets.open.corner_radius = 3.0.into();
+        widgets.open.weak_bg_fill = CONTROL_OPEN_FILL;
+        widgets.open.bg_fill = CONTROL_OPEN_FILL;
+        widgets.open.bg_stroke = egui::Stroke::new(1.0, crate::ui::SELECTION_TEXT);
+        widgets.open.fg_stroke =
+            egui::Stroke::new(widgets.inactive.fg_stroke.width, CONTROL_ACTIVE_TEXT);
         style.visuals.selection.bg_fill = crate::ui::SELECTION_BLUE;
         style.visuals.selection.stroke = egui::Stroke::new(1.0, crate::ui::SELECTION_TEXT);
         style.animation_time = 0.0;
     });
+}
+
+#[cfg(test)]
+mod style_tests {
+    use super::*;
+
+    #[test]
+    fn hover_uses_fill_while_focus_and_open_use_borders() {
+        let context = egui::Context::default();
+        configure_style(&context);
+        let style = context.style_of(egui::Theme::Light);
+        let widgets = &style.visuals.widgets;
+
+        assert_ne!(widgets.hovered.weak_bg_fill, widgets.inactive.weak_bg_fill);
+        assert_eq!(widgets.hovered.bg_stroke, widgets.inactive.bg_stroke);
+        assert_eq!(
+            widgets.hovered.fg_stroke.width,
+            widgets.inactive.fg_stroke.width
+        );
+        assert_ne!(widgets.active.bg_stroke, widgets.inactive.bg_stroke);
+        assert_ne!(widgets.open.bg_stroke, widgets.inactive.bg_stroke);
+        assert_ne!(
+            style.visuals.selection.bg_fill,
+            widgets.inactive.weak_bg_fill
+        );
+    }
 }
