@@ -139,6 +139,7 @@ scopes=(
   "module.container:container/index.html"
   "module.event:event/index.html"
   "module.figure:figure/index.html"
+  "module.figure.border:figure/border/index.html"
   "module.geometry:geometry/index.html"
   "module.graphics:graphics/index.html"
   "module.host:host/index.html"

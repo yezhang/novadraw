@@ -18,7 +18,9 @@ fn surface() -> SurfaceInfo {
 fn runtime_with_frame() -> (Runtime, novadraw::render::RenderSubmission) {
     let mut runtime = Runtime::empty();
     runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 80.0, 60.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 80.0, 60.0).expect("valid figure bounds"),
+        ))
         .expect("valid fixture");
     let FramePreparation::Ready(submission) = runtime
         .frames()

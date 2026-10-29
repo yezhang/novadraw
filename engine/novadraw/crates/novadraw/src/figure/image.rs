@@ -35,9 +35,9 @@ impl ImageFigure {
         }
     }
 
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(mut self, bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        self.bounds = super::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
 
     pub fn image(&self) -> ImageId {
@@ -100,8 +100,16 @@ impl Bounded for ImageFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

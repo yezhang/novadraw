@@ -188,12 +188,15 @@ pub struct ScrollPaneFigure {
 }
 
 impl ScrollPaneFigure {
-    fn new(bounds: Rectangle, runtime: Arc<Mutex<ScrollPaneRuntime>>) -> Self {
-        Self {
-            bounds,
+    fn new(
+        bounds: Rectangle,
+        runtime: Arc<Mutex<ScrollPaneRuntime>>,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             runtime,
             border: None,
-        }
+        })
     }
 }
 
@@ -202,9 +205,18 @@ impl Bounded for ScrollPaneFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
         lock_unpoisoned(&self.runtime).pane_bounds = self.bounds;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -255,8 +267,11 @@ impl BorderedFigure for ScrollPaneFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: crate::figure::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -519,7 +534,8 @@ impl FigureTree {
             Arc::clone(&horizontal_model),
             Arc::clone(&vertical_model),
         )));
-        let pane = ScrollPaneFigure::new(bounds, Arc::clone(&runtime));
+        let pane = ScrollPaneFigure::new(bounds, Arc::clone(&runtime))
+            .map_err(GraphMutationError::InvalidInitialBounds)?;
         let pane_id = self.try_add_child_to(parent, Box::new(pane))?;
         let viewport = self.add_viewport_with_models_to(
             pane_id,

@@ -14,13 +14,10 @@ const HEIGHT: f64 = 100.0;
 pub fn hello_world() -> Runtime {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid example bounds"),
+        ))
         .expect("HelloWorld root");
     runtime
         .figure(root)
@@ -31,7 +28,9 @@ pub fn hello_world() -> Runtime {
         .figure(root)
         .expect("HelloWorld root")
         .add(Box::new(
-            LabelFigure::new("Hello World").with_bounds(Rectangle::new(0.0, 0.0, WIDTH, HEIGHT)),
+            LabelFigure::new("Hello World")
+                .with_bounds(Rectangle::new(0.0, 0.0, WIDTH, HEIGHT))
+                .expect("valid label bounds"),
         ))
         .expect("HelloWorld label");
     runtime

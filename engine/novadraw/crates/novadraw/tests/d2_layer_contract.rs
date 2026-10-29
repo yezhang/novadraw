@@ -41,13 +41,13 @@ impl FigureEventHandler for EnqueueLayersFigure {
         let second = key("callback-second");
         ctx.effects().add_layer_later(
             self.pane,
-            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input")),
             first.clone(),
             LayerPlacement::Last,
         );
         ctx.effects().add_layer_later(
             self.pane,
-            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input")),
             second.clone(),
             LayerPlacement::Last,
         );
@@ -62,7 +62,9 @@ fn transparent_layer_returns_descendant_but_never_itself() {
     let mut tree = FigureTree::new();
     let layer = tree
         .builder()
-        .set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            LayerFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid detached figure input"),
+        ))
         .expect("valid FigureTree construction");
 
     assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
@@ -71,7 +73,7 @@ fn transparent_layer_returns_descendant_but_never_itself() {
         .builder()
         .add_child(
             layer,
-            Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     assert_eq!(tree.hit_test_simple((25.0, 25.0)), Some(child));
@@ -81,7 +83,9 @@ fn transparent_layer_returns_descendant_but_never_itself() {
 fn layered_pane_rejects_duplicate_keys_and_generic_add() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let pane = runtime
         .layers()
@@ -94,7 +98,9 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input"),
+                ),
                 content.clone(),
                 LayerPlacement::Last,
             )
@@ -102,7 +108,9 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
         assert_eq!(
             runtime.layers().add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input")
+                ),
                 content,
                 LayerPlacement::Last,
             ),
@@ -111,7 +119,7 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
         assert_eq!(
             runtime.layers().add(
                 pane,
-                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
                 key("not-layer"),
                 LayerPlacement::Last,
             ),
@@ -121,10 +129,9 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
     };
 
     assert_eq!(
-        runtime
-            .figure(pane)
-            .unwrap()
-            .add(Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),),
+        runtime.figure(pane).unwrap().add(Box::new(
+            LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input")
+        ),),
         Err(RuntimeMutationError::LayeredParent(pane))
     );
     assert_eq!(
@@ -141,13 +148,17 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
 fn runtime_registers_layered_pane_used_as_contents() {
     let mut runtime = Runtime::empty();
     let pane = runtime
-        .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 160.0, 100.0)))
+        .set_contents(Box::new(
+            LayeredPane::new(0.0, 0.0, 160.0, 100.0).expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     let layer = runtime
         .layers()
         .add(
             pane,
-            Box::new(LayerFigure::new(0.0, 0.0, 160.0, 100.0)),
+            Box::new(
+                LayerFigure::new(0.0, 0.0, 160.0, 100.0).expect("valid detached figure input"),
+            ),
             key("content"),
             LayerPlacement::Last,
         )
@@ -160,7 +171,9 @@ fn runtime_registers_layered_pane_used_as_contents() {
 fn layer_order_drives_reverse_z_hit_testing() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let pane = runtime
         .layers()
@@ -175,7 +188,9 @@ fn layer_order_drives_reverse_z_hit_testing() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input"),
+                ),
                 lower_key.clone(),
                 LayerPlacement::Last,
             )
@@ -184,7 +199,9 @@ fn layer_order_drives_reverse_z_hit_testing() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input"),
+                ),
                 upper_key.clone(),
                 LayerPlacement::Last,
             )
@@ -193,7 +210,9 @@ fn layer_order_drives_reverse_z_hit_testing() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid detached figure input"),
+                ),
                 middle_key,
                 LayerPlacement::Before(upper_key.clone()),
             )
@@ -207,17 +226,23 @@ fn layer_order_drives_reverse_z_hit_testing() {
     let lower_child = runtime
         .figure(lower)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let upper_child = runtime
         .figure(upper)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let _middle_child = runtime
         .figure(middle)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
 
     assert_eq!(
@@ -240,7 +265,9 @@ fn layer_order_drives_reverse_z_hit_testing() {
 fn reparent_and_remove_update_both_membership_indexes() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 160.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let left = runtime
         .layers()
@@ -256,7 +283,9 @@ fn reparent_and_remove_update_both_membership_indexes() {
         .layers()
         .add(
             left,
-            Box::new(LayerFigure::new(0.0, 0.0, 140.0, 160.0)),
+            Box::new(
+                LayerFigure::new(0.0, 0.0, 140.0, 160.0).expect("valid detached figure input"),
+            ),
             old_key.clone(),
             LayerPlacement::Last,
         )
@@ -300,7 +329,9 @@ fn layer_key_rejects_empty_values() {
 fn callback_layer_mutations_commit_in_fifo_order() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 240.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 240.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let pane = runtime
         .layers()
@@ -387,13 +418,17 @@ fn keyed_layer_resource_rejection_preserves_keys_topology_and_lifecycle() {
     for retired in [false, true] {
         let mut runtime = Runtime::empty();
         let pane = runtime
-            .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 100.0, 80.0)))
+            .set_contents(Box::new(
+                LayeredPane::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input"),
+            ))
             .unwrap();
         let existing = runtime
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input"),
+                ),
                 key("existing"),
                 LayerPlacement::Last,
             )
@@ -436,7 +471,9 @@ fn keyed_layer_resource_rejection_preserves_keys_topology_and_lifecycle() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input"),
+                ),
                 candidate,
                 LayerPlacement::Before(key("existing")),
             )
@@ -453,7 +490,9 @@ fn keyed_layer_pending_resource_registration_is_deduplicated_and_released() {
     };
     let mut runtime = Runtime::empty();
     let pane = runtime
-        .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 100.0, 80.0)))
+        .set_contents(Box::new(
+            LayeredPane::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input"),
+        ))
         .unwrap();
     let resource = runtime.resources().register_image().unwrap().resource_id();
     let attached = Arc::new(AtomicUsize::new(0));
@@ -526,7 +565,7 @@ impl FigureEventHandler for EnqueueResourceLayer {
         );
         ctx.effects().add_layer_later(
             self.pane,
-            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid detached figure input")),
             key("queued"),
             LayerPlacement::Last,
         );
@@ -538,7 +577,9 @@ impl FigureEventHandler for EnqueueResourceLayer {
 fn deferred_layer_resource_rejection_keeps_error_and_allows_next_request() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 80.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 80.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let pane = runtime
         .layers()

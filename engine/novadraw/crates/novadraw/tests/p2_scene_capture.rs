@@ -17,7 +17,9 @@ use novadraw::{
 fn fixture() -> (Runtime, FigureId, FigureId, FigureId) {
     let mut runtime = Runtime::empty();
     let ancestor = runtime
-        .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(10.0, 20.0, 800.0, 600.0).unwrap(),
+        ))
         .unwrap();
     runtime
         .figure(ancestor)
@@ -33,12 +35,16 @@ fn fixture() -> (Runtime, FigureId, FigureId, FigureId) {
     let source = runtime
         .figure(ancestor)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(120.0, 90.0, 200.0, 100.0)))
+        .add(Box::new(
+            RectangleFigure::new(120.0, 90.0, 200.0, 100.0).unwrap(),
+        ))
         .unwrap();
     let child = runtime
         .figure(source)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 10.0, 40.0, 30.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 10.0, 40.0, 30.0).unwrap(),
+        ))
         .unwrap();
     runtime
         .figure(child)
@@ -283,7 +289,9 @@ fn capture_does_not_consume_source_inflight_or_resource_pending_prefix() {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ImageFigure::new(image).with_bounds(Rectangle::new(0.0, 0.0, 10.0, 10.0)),
+            ImageFigure::new(image)
+                .with_bounds(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+                .unwrap(),
         ))
         .unwrap();
     let source = runtime.scenes().register_source(root).unwrap();
@@ -501,7 +509,9 @@ impl Figure for RejectPaint {
 fn recording_error_isolated_from_other_capture_but_main_frame_still_rejects() {
     let mut runtime = Runtime::empty();
     let parent = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).unwrap(),
+        ))
         .unwrap();
     let bad_figure = runtime
         .figure(parent)
@@ -511,7 +521,9 @@ fn recording_error_isolated_from_other_capture_but_main_frame_still_rejects() {
     let child = runtime
         .figure(parent)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 30.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 40.0, 30.0).unwrap(),
+        ))
         .unwrap();
     let bad_source = runtime.scenes().register_source(bad_figure).unwrap();
     let good_source = runtime.scenes().register_source(child).unwrap();

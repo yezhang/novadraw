@@ -85,9 +85,10 @@ fn scene_runtime(title: &str, subtitle: &str) -> (Runtime, FigureId) {
             .expect("built-in font");
     }
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0, 0.0, WIDTH, HEIGHT, BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(root)
@@ -130,7 +131,9 @@ fn add_panel(runtime: &mut Runtime, root: FigureId, bounds: Rectangle) -> Figure
                 6.0,
                 PANEL_FILL,
             )
-            .with_stroke(PANEL_STROKE, 1.0),
+            .expect("valid figure bounds")
+            .with_stroke(PANEL_STROKE, 1.0)
+            .expect("valid detached figure input"),
         ))
         .expect("valid panel")
 }
@@ -146,7 +149,11 @@ fn add_label(
     let label = runtime
         .figure(parent)
         .expect("label parent")
-        .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(bounds)
+                .expect("valid detached figure input"),
+        ))
         .expect("valid label");
     runtime
         .figure(label)
@@ -179,7 +186,9 @@ fn add_node(
                 10.0,
                 fill,
             )
-            .with_stroke(INK, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(INK, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("valid node");
     add_label(
@@ -210,7 +219,9 @@ fn connection_decoration_scene() -> Runtime {
         .add(Box::new(
             ConnectionFigure::new()
                 .with_stroke(BLUE, CONNECTION_WIDTH)
-                .with_decoration_insets(SOURCE_DECORATION_INSET, TARGET_DECORATION_INSET),
+                .expect("valid detached figure input")
+                .with_decoration_insets(SOURCE_DECORATION_INSET, TARGET_DECORATION_INSET)
+                .expect("valid detached figure input"),
         ))
         .expect("valid connection");
     let source = add_node(
@@ -236,7 +247,9 @@ fn connection_decoration_scene() -> Runtime {
                 .expect("valid decoration scale")
                 .with_color(BLUE)
                 .with_width(3.0)
-                .with_join(LineJoin::Miter),
+                .expect("valid detached figure input")
+                .with_join(LineJoin::Miter)
+                .expect("valid outline geometry"),
         ))
         .expect("valid source decoration");
     let target_decoration = runtime
@@ -248,7 +261,9 @@ fn connection_decoration_scene() -> Runtime {
                 .expect("valid decoration scale")
                 .with_fill_color(RED)
                 .with_stroke(INK, 1.5)
-                .with_join(LineJoin::Miter),
+                .expect("valid detached figure input")
+                .with_join(LineJoin::Miter)
+                .expect("valid outline geometry"),
         ))
         .expect("valid target decoration");
     let badge = add_label(
@@ -331,7 +346,9 @@ fn shortest_path_scene() -> Runtime {
                 8.0,
                 Color::rgba(0.91, 0.92, 0.94, 1.0),
             )
-            .with_stroke(MUTED, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(MUTED, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("valid obstacle");
     add_label(
@@ -386,7 +403,9 @@ fn shortest_path_scene() -> Runtime {
             .figure(root)
             .expect("root container")
             .add(Box::new(
-                ConnectionFigure::new().with_stroke(color, CONNECTION_WIDTH),
+                ConnectionFigure::new()
+                    .with_stroke(color, CONNECTION_WIDTH)
+                    .expect("valid detached figure input"),
             ))
             .expect("valid connection");
         let source_anchor = runtime
@@ -494,7 +513,8 @@ fn scalable_polygon_scene() -> Runtime {
                     .with_scale_mode(mode)
                     .with_alignment(horizontal, vertical)
                     .with_fill_color(color)
-                    .with_stroke(INK, 5.0, LineJoin::Miter),
+                    .with_stroke(INK, 5.0, LineJoin::Miter)
+                    .expect("valid detached figure input"),
             ))
             .expect("valid scalable polygon");
         if index == 2 {
@@ -539,7 +559,8 @@ fn scalable_polygon_scene() -> Runtime {
                 .expect("valid scalable polygon")
                 .with_scale_mode(PolygonScaleMode::PreserveAspect)
                 .with_fill_color(RED)
-                .with_stroke(INK, 5.0, LineJoin::Round),
+                .with_stroke(INK, 5.0, LineJoin::Round)
+                .expect("valid detached figure input"),
         ))
         .expect("valid scalable polygon");
     runtime
@@ -582,10 +603,10 @@ fn text_flow_scene() -> Runtime {
     runtime
         .figure(root)
         .expect("root container")
-        .add(Box::new(TextFlowFigure::new(
-            Rectangle::new(65.0, 165.0, 405.0, 330.0),
-            page,
-        )))
+        .add(Box::new(
+            TextFlowFigure::new(Rectangle::new(65.0, 165.0, 405.0, 330.0), page)
+                .expect("valid detached figure input"),
+        ))
         .expect("valid text flow");
 
     add_panel(
@@ -610,7 +631,7 @@ fn text_flow_scene() -> Runtime {
                 FlowPage::from_text(
                     "第一段 mixed-script content is intentionally longer than the available two lines.",
                 ),
-            )
+            ).expect("valid detached figure input")
             .with_wrapping(FlowWrapping::Truncate { max_lines: 2 }),
         ))
         .expect("valid truncated text flow");
@@ -636,6 +657,7 @@ fn text_flow_scene() -> Runtime {
                 Rectangle::new(540.0, 390.0, 200.0, 90.0),
                 FlowPage::from_text("Single unwrapped line"),
             )
+            .expect("valid detached figure input")
             .with_wrapping(FlowWrapping::NoWrap),
         ))
         .expect("valid no-wrap text flow");

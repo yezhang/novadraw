@@ -505,7 +505,9 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let badge = tree
         .builder()
@@ -586,7 +588,9 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let figure = tree
         .builder()

@@ -614,6 +614,8 @@ pub enum ViewerError {
     Zoom(ZoomError),
     /// Figure shape or border mutation failed.
     Shape(ShapeMutationError),
+    /// Detached Figure geometry was rejected before publication.
+    Geometry(novadraw::figure::ShapeGeometryError),
     /// Runtime derived state could not converge for an Editor query.
     RuntimePreparation(FramePreparationError),
     /// Host-provided monotonic time violated Runtime timing constraints.
@@ -713,6 +715,7 @@ impl fmt::Display for ViewerError {
             Self::Runtime(error) => error.fmt(formatter),
             Self::Zoom(error) => error.fmt(formatter),
             Self::Shape(error) => error.fmt(formatter),
+            Self::Geometry(error) => error.fmt(formatter),
             Self::RuntimePreparation(error) => error.fmt(formatter),
             Self::RuntimeTime(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
@@ -740,6 +743,7 @@ impl Error for ViewerError {
             Self::Runtime(error) => Some(error),
             Self::Zoom(error) => Some(error),
             Self::Shape(error) => Some(error),
+            Self::Geometry(error) => Some(error),
             Self::RuntimePreparation(error) => Some(error),
             Self::RuntimeTime(error) => Some(error),
             Self::Connection(error) => Some(error),
@@ -784,6 +788,12 @@ impl From<ZoomError> for ViewerError {
 impl From<ShapeMutationError> for ViewerError {
     fn from(value: ShapeMutationError) -> Self {
         Self::Shape(value)
+    }
+}
+
+impl From<novadraw::figure::ShapeGeometryError> for ViewerError {
+    fn from(value: novadraw::figure::ShapeGeometryError) -> Self {
+        Self::Geometry(value)
     }
 }
 
@@ -974,7 +984,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )))
+        )?))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let viewport_layer = add_layer(
@@ -985,7 +995,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         VIEWPORT_LAYER,
     )?;
     let feedback = add_layer(
@@ -996,7 +1006,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         FEEDBACK_LAYER,
     )?;
     let handles = add_layer(
@@ -1007,7 +1017,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         HANDLE_LAYER,
     )?;
     let viewport = runtime.viewports().add(viewport_layer, bounds)?;
@@ -1019,7 +1029,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
                 0.0,
                 bounds.width,
                 bounds.height,
-            )))?;
+            )?))?;
     let grid = add_layer(
         &mut runtime,
         scalable,
@@ -1028,7 +1038,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         GRID_LAYER,
     )?;
     let printable = add_layer(
@@ -1039,7 +1049,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         PRINTABLE_LAYERS,
     )?;
     let scaled_feedback = add_layer(
@@ -1050,7 +1060,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         SCALED_FEEDBACK_LAYER,
     )?;
     let primary = add_layer(
@@ -1061,7 +1071,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
             bounds.y,
             bounds.width,
             bounds.height,
-        )),
+        )?),
         PRIMARY_LAYER,
     )?;
     let connection = add_layer(
@@ -3381,7 +3391,7 @@ where
                 bounds.width,
                 bounds.height,
                 color,
-            )),
+            )?),
         )?;
         figures.push(figure);
         Ok(figure)

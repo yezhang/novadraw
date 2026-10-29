@@ -123,8 +123,10 @@ impl PageNode {
             selection: None,
             border: CompoundBorder::new(
                 FoldedPageBorder,
-                MarginBorder::new(Color::BLACK, 0.0).with_margins(4.0, 4.0, 8.0, 3.0),
-            ),
+                MarginBorder::new(novadraw::geometry::Insets::new(4.0, 4.0, 8.0, 3.0))
+                    .expect("valid margins"),
+            )
+            .expect("valid border"),
         }
     }
 
@@ -448,13 +450,10 @@ pub(super) fn branch_subtree(
 fn fixture(horizontal: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
     let canvas = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            800.0,
-            600.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 800.0, 600.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("white Canvas");
     runtime
         .figure(canvas)

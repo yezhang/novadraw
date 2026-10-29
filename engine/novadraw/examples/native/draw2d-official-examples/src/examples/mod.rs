@@ -83,8 +83,10 @@ fn scrollbar_label_border() -> novadraw::figure::border::CompoundBorder {
             vec![Some(Color::rgba(0.94, 0.94, 0.94, 1.0)), Some(Color::WHITE)],
             vec![Some(Color::BLACK), Some(Color::rgba(0.5, 0.5, 0.5, 1.0))],
         ),
-        MarginBorder::new(Color::TRANSPARENT, 0.0).with_margins(0.0, 0.0, 1.0, 1.0),
+        MarginBorder::new(novadraw::geometry::Insets::new(0.0, 0.0, 1.0, 1.0))
+            .expect("valid margins"),
     )
+    .expect("valid border")
 }
 
 pub fn panel_scene(name: &str) -> Option<novadraw_example_support::panel::PanelScene> {

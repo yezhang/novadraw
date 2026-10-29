@@ -52,13 +52,10 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
         .try_into()
         .expect("three print fonts");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid example bounds"),
+        ))
         .expect("print contents");
     runtime
         .figure(root)
@@ -75,7 +72,9 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
             .figure(root)
             .unwrap()
             .add(Box::new(
-                LabelFigure::new(request.family).with_border(LineBorder::default_border()),
+                LabelFigure::new(request.family)
+                    .with_border(LineBorder::default_border())
+                    .expect("valid label border"),
             ))
             .unwrap();
         runtime
@@ -97,13 +96,17 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
     }
     let rectangle = || {
         RectangleFigure::new_with_color(0.0, 0.0, SHAPE_SIZE, SHAPE_SIZE, Color::WHITE)
+            .expect("valid shape bounds")
             .with_stroke(Color::BLACK, 1.0)
+            .expect("valid shape stroke")
     };
     let shapes: Vec<Box<dyn novadraw::figure::Figure>> = vec![
         Box::new(rectangle()),
         Box::new(
             EllipseFigure::new_with_color(0.0, 0.0, SHAPE_SIZE, SHAPE_SIZE, Color::WHITE)
-                .with_stroke(Color::BLACK, 1.0),
+                .expect("valid shape bounds")
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid shape stroke"),
         ),
         Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -114,7 +117,9 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
                 CORNER_SIZE,
                 Color::WHITE,
             )
-            .with_stroke(Color::BLACK, 1.0),
+            .expect("valid shape bounds")
+            .with_stroke(Color::BLACK, 1.0)
+            .expect("valid shape stroke"),
         ),
     ];
     for shape in shapes {
@@ -165,7 +170,9 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ConnectionFigure::new().with_stroke(Color::BLACK, 1.0),
+            ConnectionFigure::new()
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid connection stroke"),
         ))
         .unwrap();
     let source = runtime

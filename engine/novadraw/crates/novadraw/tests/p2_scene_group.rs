@@ -20,7 +20,9 @@ use novadraw::{
 fn participant(group: &SceneBindingGroup) -> (Runtime, FigureId, SceneSourceId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.scenes().join_group(group.clone()).unwrap();
     let source = runtime.scenes().register_source(root).unwrap();
@@ -39,7 +41,9 @@ fn hidden_zero_size_rect_outside_and_pending_views_are_structural_members() {
     let view = a
         .figure(root_a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(1000.0, 1000.0, 0.0, 0.0)))
+        .add(Box::new(
+            RectangleFigure::new(1000.0, 1000.0, 0.0, 0.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     a.figure(view).unwrap().set_visible(false).unwrap();
     a.scenes()
@@ -85,12 +89,16 @@ fn direct_reparent_rejects_cycle_before_changing_parent_or_graph() {
     let outside = a
         .figure(root_a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let inside = a
         .figure(root_a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     // The registered source is a strict subtree; outside is excluded structurally.
     a.scenes().remove_source(source_a).unwrap();
@@ -98,7 +106,9 @@ fn direct_reparent_rejects_cycle_before_changing_parent_or_graph() {
     let view = a
         .figure(outside)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     a.scenes()
         .bind_view_dependency(view, SCENE_SOURCE_VIEW, source_b)
@@ -171,7 +181,9 @@ fn typed_component_reparent_is_rejected_before_component_revision_changes() {
     let inside = a
         .figure(root_a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     a.scenes().remove_source(source_a).unwrap();
     let source_a = a.scenes().register_source(inside).unwrap();
@@ -300,7 +312,9 @@ fn callback_deferred_reparent_uses_runtime_admission_and_does_not_retry_forever(
     let inside = a
         .figure(root_a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(50.0, 50.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(50.0, 50.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     a.scenes().remove_source(source_a).unwrap();
     let source_a = a.scenes().register_source(inside).unwrap();
@@ -371,7 +385,9 @@ fn subtree_replacement_commits_once_and_retires_structural_members() {
     a.scenes().capture(subscription).unwrap();
     let revision = group.graph_revision().unwrap();
     let new_root = a
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 30.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 30.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(!a.tree().contains(root_a));
     assert!(a.tree().contains(new_root));

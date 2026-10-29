@@ -171,7 +171,12 @@ fn build() -> (Runtime, ThumbnailHost) {
     let root = source
         .set_contents(Box::new(
             RectangleFigure::new_with_color(0.0, 0.0, SOURCE_SIZE, SOURCE_SIZE, Color::WHITE)
-                .with_border(novadraw::figure::border::LineBorder::new(Color::BLACK, 1.0)),
+                .expect("valid figure bounds")
+                .with_border(
+                    novadraw::figure::border::LineBorder::new(Color::BLACK, 1.0)
+                        .expect("valid border"),
+                )
+                .expect("valid detached figure input"),
         ))
         .expect("source");
     for (bounds, color) in [
@@ -202,13 +207,16 @@ fn build() -> (Runtime, ThumbnailHost) {
     let mut target = runtime_with_fonts();
     target.scenes().join_group(group).expect("group");
     let target_root = target
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            1200.0,
-            800.0,
-            Color::rgba(0.94, 0.94, 0.94, 1.0),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                1200.0,
+                800.0,
+                Color::rgba(0.94, 0.94, 0.94, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("target");
     let input = Arc::new(Mutex::new(Vec::new()));
     let main_handle = target
@@ -241,7 +249,9 @@ fn build() -> (Runtime, ThumbnailHost) {
         .add(Box::new(
             SceneViewFigure::new(handle)
                 .with_bounds(Rectangle::new(OVERVIEW_X, OVERVIEW_Y, 200.0, 200.0))
-                .with_border(GroupBoxBorder { title }),
+                .expect("valid detached figure input")
+                .with_border(GroupBoxBorder { title })
+                .expect("valid detached figure input"),
         ))
         .expect("overview");
     let bindings = [main, overview]

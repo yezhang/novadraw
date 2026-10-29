@@ -19,13 +19,10 @@ pub fn bidi_block_example() -> Runtime {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            600.0,
-            500.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 600.0, 500.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("two canvases");
     tree.builder()
         .set_layout_manager(
@@ -82,7 +79,11 @@ pub fn bidi_block_example() -> Runtime {
             .viewports()
             .set_scroll_contents(
                 &pane,
-                Box::new(FlowPageFigure::new(Rectangle::ZERO).with_style(font("13px Arial"))),
+                Box::new(
+                    FlowPageFigure::new(Rectangle::ZERO)
+                        .expect("valid detached figure input")
+                        .with_style(font("13px Arial")),
+                ),
             )
             .expect("page");
         for direction in [

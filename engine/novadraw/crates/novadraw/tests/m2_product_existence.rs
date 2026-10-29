@@ -56,8 +56,17 @@ impl Bounded for PaintMarkerFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -96,18 +105,26 @@ impl Figure for PaintMarkerFigure {
 #[test]
 fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
     let figures: Vec<Box<dyn Figure>> = vec![
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
-        Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0)),
-        Box::new(PolygonFigure::from_points(vec![
-            Point::new(0.0, 0.0),
-            Point::new(20.0, 0.0),
-            Point::new(10.0, 10.0),
-        ])),
-        Box::new(RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)),
-        Box::new(TriangleFigure::new_with_direction(
-            Rectangle::new(0.0, 0.0, 20.0, 10.0),
-            Direction::South,
-        )),
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds")),
+        Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds")),
+        Box::new(
+            PolygonFigure::from_points(vec![
+                Point::new(0.0, 0.0),
+                Point::new(20.0, 0.0),
+                Point::new(10.0, 10.0),
+            ])
+            .expect("valid detached figure input"),
+        ),
+        Box::new(
+            RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0).expect("valid figure bounds"),
+        ),
+        Box::new(
+            TriangleFigure::new_with_direction(
+                Rectangle::new(0.0, 0.0, 20.0, 10.0),
+                Direction::South,
+            )
+            .expect("valid detached figure input"),
+        ),
     ];
 
     let names: Vec<_> = figures.iter().map(|figure| figure.name()).collect();
@@ -134,13 +151,19 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
 
     let strategies = [
         FigureContainer::child_clipping_strategy(
-            &RectangleFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+            &RectangleFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid figure bounds")
+                .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
-            &EllipseFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+            &EllipseFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid figure bounds")
+                .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
-            &PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+            &PolylineFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
             &PolygonFigure::from_points(vec![
@@ -148,21 +171,28 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
                 Point::new(20.0, 0.0),
                 Point::new(10.0, 10.0),
             ])
+            .expect("valid detached figure input")
             .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
             &RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)
+                .expect("valid figure bounds")
                 .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
             &TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0))
+                .expect("valid detached figure input")
                 .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
-            &RootFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+            &RootFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_child_clipping_strategy(strategy),
         ),
         FigureContainer::child_clipping_strategy(
-            &ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+            &ViewportFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_child_clipping_strategy(strategy),
         ),
     ];
 
@@ -171,24 +201,66 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
 
 #[test]
 fn existing_product_figures_expose_border_api() {
-    let border = || LineBorder::new(Color::BLACK, 1.0).with_insets(1.0, 2.0, 3.0, 4.0);
+    let border = || {
+        LineBorder::new(Color::BLACK, 1.0)
+            .unwrap()
+            .with_insets(novadraw::geometry::Insets::new(1.0, 2.0, 3.0, 4.0))
+            .unwrap()
+    };
 
     let figures: Vec<Box<dyn Figure>> = vec![
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
-        Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
-        Box::new(PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
+        Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid figure bounds")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
+        Box::new(
+            EllipseFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid figure bounds")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
+        Box::new(
+            PolylineFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
         Box::new(
             PolygonFigure::from_points(vec![
                 Point::new(0.0, 0.0),
                 Point::new(20.0, 0.0),
                 Point::new(10.0, 10.0),
             ])
-            .with_border(border()),
+            .expect("valid detached figure input")
+            .with_border(border())
+            .expect("valid detached figure input"),
         ),
-        Box::new(RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0).with_border(border())),
-        Box::new(TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0)).with_border(border())),
-        Box::new(RootFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
-        Box::new(ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
+        Box::new(
+            RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)
+                .expect("valid figure bounds")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
+        Box::new(
+            TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0))
+                .expect("valid detached figure input")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
+        Box::new(
+            RootFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
+        Box::new(
+            ViewportFigure::new(0.0, 0.0, 20.0, 10.0)
+                .expect("valid detached figure input")
+                .with_border(border())
+                .expect("valid detached figure input"),
+        ),
     ];
 
     assert!(figures.iter().all(|figure| figure.get_border().is_some()));
@@ -204,20 +276,22 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     let mut scene = FigureTree::new();
     let root_id = scene
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let bottom_id = scene
         .builder()
         .add_child(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 80.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 80.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let top_id = scene
         .builder()
         .add_child(
             root_id,
-            Box::new(EllipseFigure::new(30.0, 30.0, 80.0, 80.0)),
+            Box::new(EllipseFigure::new(30.0, 30.0, 80.0, 80.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
 

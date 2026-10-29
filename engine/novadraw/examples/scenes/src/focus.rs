@@ -29,13 +29,16 @@ pub fn build_focus_traversal_scene(
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            800.0,
-            500.0,
-            Color::from_hex("#eef1f4").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                800.0,
+                500.0,
+                Color::from_hex("#eef1f4").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let a = tree
         .builder()
@@ -52,13 +55,16 @@ pub fn build_focus_traversal_scene(
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new_with_color(
-                220.0,
-                45.0,
-                360.0,
-                250.0,
-                Color::from_hex("#dfe6e9").expect("valid color literal"),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    220.0,
+                    45.0,
+                    360.0,
+                    250.0,
+                    Color::from_hex("#dfe6e9").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
     let b = tree
@@ -144,12 +150,15 @@ mod tests {
     #[test]
     fn shared_focus_scene_has_stable_nested_traversal_order() {
         let (tree, ids) = build_focus_traversal_scene(|spec| {
-            Box::new(RectangleFigure::new(
-                spec.bounds.x,
-                spec.bounds.y,
-                spec.bounds.width,
-                spec.bounds.height,
-            ))
+            Box::new(
+                RectangleFigure::new(
+                    spec.bounds.x,
+                    spec.bounds.y,
+                    spec.bounds.width,
+                    spec.bounds.height,
+                )
+                .expect("valid figure bounds"),
+            )
         });
         let mut policy = TreeOrderFocusTraversal;
 

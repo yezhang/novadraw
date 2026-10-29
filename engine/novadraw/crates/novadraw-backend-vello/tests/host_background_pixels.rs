@@ -36,31 +36,26 @@ fn background_pixels_follow_host_position_preserve_canvas_alpha_and_clear_after_
     let mut runtime = Runtime::empty();
     let orange = Color::rgba8(255, 165, 0, 255);
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            32.0,
-            16.0,
-            Color::TRANSPARENT,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 32.0, 16.0, Color::TRANSPARENT)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let opaque = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            2.0, 2.0, 6.0, 6.0, orange,
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(2.0, 2.0, 6.0, 6.0, orange)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            10.0,
-            2.0,
-            6.0,
-            6.0,
-            Color::rgba8(255, 0, 0, 128),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(10.0, 2.0, 6.0, 6.0, Color::rgba8(255, 0, 0, 128))
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut recorder = CommandRecorder::new();
     let mut g = recorder.paint();

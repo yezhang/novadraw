@@ -121,7 +121,9 @@ impl EditPartBehavior<BadgeModel> for BadgePart {
         _model: &BadgeModel,
         _model_id: ModelId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 40.0)))
+        Ok(Box::new(
+            RectangleFigure::new(0.0, 0.0, 120.0, 40.0).expect("valid figure bounds"),
+        ))
     }
 
     fn configure_visual(

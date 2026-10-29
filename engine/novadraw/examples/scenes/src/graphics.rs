@@ -175,7 +175,9 @@ impl GraphicsScene {
                 .unwrap()
                 .add(Box::new(
                     RectangleFigure::new_with_color(120.0, 400.0, 260.0, 120.0, Color::TRANSPARENT)
-                        .with_stroke(Color::rgba(1.0, 0.6, 0.0, 1.0), 6.0),
+                        .expect("valid figure bounds")
+                        .with_stroke(Color::rgba(1.0, 0.6, 0.0, 1.0), 6.0)
+                        .expect("valid detached figure input"),
                 ))
                 .unwrap(),
         );
@@ -221,13 +223,10 @@ pub fn fixture() -> GraphicsScene {
         .complete_image(image, ImageData::from_rgba(1, 1, vec![0, 255, 0, 255], 1.0))
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            SIZE.0 as f64,
-            SIZE.1 as f64,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, SIZE.0 as f64, SIZE.1 as f64, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
         .figure(root)
@@ -241,9 +240,10 @@ pub fn fixture() -> GraphicsScene {
     runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            720.0, 280.0, 40.0, 40.0, GREEN,
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(720.0, 280.0, 40.0, 40.0, GREEN)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let miter = runtime
         .figure(root)
@@ -254,6 +254,7 @@ pub fn fixture() -> GraphicsScene {
                 Point::new(620.0, 430.0),
                 Point::new(660.0, 530.0),
             ])
+            .expect("valid detached figure input")
             .with_color(Color::BLACK)
             .with_stroke_style(
                 StrokeStyle::default()
@@ -261,18 +262,17 @@ pub fn fixture() -> GraphicsScene {
                     .unwrap()
                     .with_miter_limit(1.0)
                     .unwrap(),
-            ),
+            )
+            .expect("valid outline geometry"),
         ))
         .unwrap();
     let feedback_layer = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(LayerFigure::new(
-            0.0,
-            0.0,
-            SIZE.0 as f64,
-            SIZE.1 as f64,
-        )))
+        .add(Box::new(
+            LayerFigure::new(0.0, 0.0, SIZE.0 as f64, SIZE.1 as f64)
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     GraphicsScene {
         runtime,

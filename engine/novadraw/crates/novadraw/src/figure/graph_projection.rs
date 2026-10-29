@@ -19,12 +19,12 @@ pub struct GraphProjectionFigure {
     projection: Option<GraphProjection>,
 }
 impl GraphProjectionFigure {
-    pub fn new(bounds: Rectangle) -> Self {
-        Self {
-            bounds,
+    pub fn new(bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(bounds)?,
             style: FigureStyle::default(),
             projection: None,
-        }
+        })
     }
     pub fn with_style(mut self, style: FigureStyle) -> Self {
         self.style = style;

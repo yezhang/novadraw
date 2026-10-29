@@ -203,8 +203,14 @@ pub trait Bounded {
     /// 设置图形边界
     ///
     /// 对应 draw2d: setBounds(Rectangle)
-    /// 注意：本实现只更新 bounds 本身，不触发事件通知
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64);
+    /// 失败保持原配置；detached 更新不触发 Runtime 事件通知。
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), ShapeGeometryError>;
 
     /// 获取名称（用于调试）
     fn name(&self) -> &'static str;
@@ -619,10 +625,16 @@ pub trait Figure: AsAny {
     }
 }
 
-/// Runtime-controlled immutable Border replacement capability.
+/// Checked immutable Border replacement capability, shared by detached and Runtime updates.
+///
+/// ```compile_fail
+/// use novadraw::figure::{BorderedFigure, RectangleFigure};
+/// let mut figure = RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap();
+/// figure.replace_border(None);
+/// ```
 pub trait BorderedFigure {
     fn border(&self) -> Option<&Arc<dyn Border>>;
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>>;
+    fn replace_border(&mut self, border: border::BorderCandidate) -> Option<Arc<dyn Border>>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

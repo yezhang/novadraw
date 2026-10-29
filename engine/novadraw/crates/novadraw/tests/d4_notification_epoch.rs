@@ -79,7 +79,9 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     let mut tree = FigureTree::new();
     let figure = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let baseline = runtime

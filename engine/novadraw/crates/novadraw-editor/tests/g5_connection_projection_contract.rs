@@ -186,14 +186,12 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.bounds[&model_id];
         Ok(if model_id == ROOT {
-            Box::new(RootFigure::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            ))
+            Box::new(
+                RootFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid detached figure input"),
+            )
         } else {
-            Box::new(RectangleFigure::from_bounds(bounds))
+            Box::new(RectangleFigure::from_bounds(bounds).expect("valid figure bounds"))
         })
     }
 
@@ -372,7 +370,9 @@ impl EditPartBehavior<DiagramModel> for NonConnectionPart {
         _model: &DiagramModel,
         _model_id: ModelId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        Ok(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
     }
 }
 

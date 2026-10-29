@@ -301,13 +301,16 @@ fn fixture() -> Fixture {
     let header_font = font_descriptor(&ui_fonts[1], HEADER_FONT_POINTS, BOLD_FONT_WEIGHT);
     let class_image = register_class_image(&mut runtime);
     let root = runtime
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WIDTH,
+                HEIGHT,
+                Color::WHITE,
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("UMLClassDiagram root");
     runtime
         .figure(root)
@@ -343,7 +346,9 @@ fn fixture() -> Fixture {
         .figure(root)
         .expect("diagram")
         .add(Box::new(
-            ConnectionFigure::new().with_stroke(Color::BLACK, 1.0),
+            ConnectionFigure::new()
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid detached figure input"),
         ))
         .expect("association");
     let source_anchor = runtime
@@ -378,7 +383,8 @@ fn fixture() -> Fixture {
             .with_scale(7.0, 3.0)
             .expect("diamond scale")
             .with_fill_color(Color::BLACK)
-            .with_stroke(Color::BLACK, 1.0),
+            .with_stroke(Color::BLACK, 1.0)
+            .expect("valid detached figure input"),
         ))
         .expect("containment decoration");
     runtime
@@ -445,7 +451,8 @@ fn fixture() -> Fixture {
         FlowPage::new(vec![novadraw::figure::FlowParagraph::new(vec![
             InlineTextFragment::new("This is a sticky note.  It wraps text based on its width."),
         ])]),
-    );
+    )
+    .expect("valid detached figure input");
     runtime
         .figure(sticky_note)
         .expect("StickyNote")
@@ -505,8 +512,13 @@ fn add_class(
         .add(Box::new(
             LabelFigure::new("ClassName")
                 .with_icon(image)
-                .with_border(MarginBorder::default_border().with_margins(3.0, 5.0, 3.0, 5.0))
-                .with_bounds(Rectangle::new(0.0, 0.0, CLASS_WIDTH - 2.0, HEADER_HEIGHT)),
+                .with_border(
+                    MarginBorder::new(novadraw::geometry::Insets::new(3.0, 5.0, 3.0, 5.0))
+                        .expect("valid margins"),
+                )
+                .expect("valid detached figure input")
+                .with_bounds(Rectangle::new(0.0, 0.0, CLASS_WIDTH - 2.0, HEADER_HEIGHT))
+                .expect("valid detached figure input"),
         ))
         .expect("class header");
     runtime
@@ -541,9 +553,11 @@ fn add_compartment(runtime: &mut Runtime, parent: FigureId, rows: &[&str]) {
         let label = runtime
             .figure(compartment)
             .expect("CompartmentFigure")
-            .add(Box::new(LabelFigure::new(*row).with_bounds(
-                Rectangle::new(0.0, 0.0, CLASS_WIDTH - 12.0, 17.0),
-            )))
+            .add(Box::new(
+                LabelFigure::new(*row)
+                    .with_bounds(Rectangle::new(0.0, 0.0, CLASS_WIDTH - 12.0, 17.0))
+                    .expect("valid detached figure input"),
+            ))
             .expect("member label");
         runtime
             .figure(label)
@@ -566,9 +580,13 @@ fn add_label(
     let figure = if bordered {
         LabelFigure::new(text)
             .with_bounds(bounds)
+            .expect("valid detached figure input")
             .with_border(LineBorder::default_border())
+            .expect("valid detached figure input")
     } else {
-        LabelFigure::new(text).with_bounds(bounds)
+        LabelFigure::new(text)
+            .with_bounds(bounds)
+            .expect("valid detached figure input")
     };
     let label = runtime
         .figure(parent)

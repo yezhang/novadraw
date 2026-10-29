@@ -16,7 +16,7 @@ fn main() {
             640.0,
             480.0,
             Color::WHITE,
-        )))
+        ).expect("valid figure bounds")))
         .unwrap();
     for index in 0..100 {
         runtime
@@ -28,7 +28,7 @@ fn main() {
                 40.0,
                 20.0,
                 Color::RED,
-            )))
+            ).expect("valid figure bounds")))
             .unwrap();
     }
     let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(

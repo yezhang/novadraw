@@ -40,17 +40,23 @@ impl ConnectionAnchor for DependentAnchor {
 fn missing_tracked_dependency_stabilizes_and_new_binding_recovers() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 180.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 180.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(root)
@@ -120,7 +126,9 @@ fn missing_tracked_dependency_stabilizes_and_new_binding_recovers() {
     let replacement = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(40.0, 50.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(40.0, 50.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert_ne!(replacement, source);
     let new_anchor = runtime

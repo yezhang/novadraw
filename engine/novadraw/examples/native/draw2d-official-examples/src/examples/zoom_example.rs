@@ -260,13 +260,10 @@ fn fixture() -> Fixture {
     let icons = ZoomIcons::new(&mut runtime);
     let images = icons.images;
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_SIZE,
-            WINDOW_SIZE,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW_SIZE, WINDOW_SIZE, Color::WHITE)
+                .expect("valid example bounds"),
+        ))
         .expect("ZoomExample root");
     let title = runtime
         .text()
@@ -282,7 +279,9 @@ fn fixture() -> Fixture {
         .expect("root")
         .add(Box::new(
             ScalableLayeredPaneFigure::new(0.0, BAR_HEIGHT, 500.0, 500.0)
-                .with_border(SharedGroupBorder(border)),
+                .expect("valid pane bounds")
+                .with_border(SharedGroupBorder(border))
+                .expect("valid group border"),
         ))
         .expect("ZoomContainer");
     runtime
@@ -304,13 +303,10 @@ fn fixture() -> Fixture {
     let contents = runtime
         .figure(panel)
         .expect("panel")
-        .add(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            500.0,
-            500.0,
-            Color::WHITE,
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 500.0, 500.0, Color::WHITE)
+                .expect("valid contents bounds"),
+        ))
         .expect("contents");
     runtime
         .figure(contents)
@@ -345,6 +341,7 @@ fn fixture() -> Fixture {
     model.set_value(40.0).expect("initial value");
     let scrollbar = ScrollBarFigure::new(model.clone())
         .with_bounds(Rectangle::new(0.0, 0.0, WINDOW_SIZE, BAR_HEIGHT))
+        .expect("valid scrollbar bounds")
         .with_config(ScrollBarConfig {
             orientation: ScrollOrientation::Horizontal,
             thickness: BAR_HEIGHT,
@@ -356,7 +353,11 @@ fn fixture() -> Fixture {
         .with_consumer(Arc::new(ZoomValue(panel)))
         .with_part(
             ScrollBarPart::Thumb,
-            Box::new(LabelFigure::new("< Zoom >").with_border(super::scrollbar_label_border())),
+            Box::new(
+                LabelFigure::new("< Zoom >")
+                    .with_border(super::scrollbar_label_border())
+                    .expect("valid scrollbar border"),
+            ),
         )
         .into_subtree();
     let receipt = runtime
@@ -406,7 +407,9 @@ fn add_class(
         .expect("contents")
         .add(Box::new(
             RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, CLASS_COLOR)
-                .with_border(LineBorder::default_border()),
+                .expect("valid class bounds")
+                .with_border(LineBorder::default_border())
+                .expect("valid class border"),
         ))
         .expect("UMLClassFigure");
     runtime

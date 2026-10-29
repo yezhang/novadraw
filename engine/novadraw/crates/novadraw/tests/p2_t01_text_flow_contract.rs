@@ -36,15 +36,17 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 240.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let flow = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(TextFlowFigure::new(
-            Rectangle::new(20.0, 20.0, 120.0, 180.0),
-            page(),
-        )))
+        .add(Box::new(
+            TextFlowFigure::new(Rectangle::new(20.0, 20.0, 120.0, 180.0), page())
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
 
     let frame = record_full_submission(&mut runtime);
@@ -87,7 +89,9 @@ fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 220.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 220.0, 160.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let flow = runtime
         .figure(root)
@@ -97,6 +101,7 @@ fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
                 Rectangle::new(10.0, 10.0, 90.0, 120.0),
                 FlowPage::from_text("第一行内容 mixed content 第二行内容 and more words"),
             )
+            .expect("valid detached figure input")
             .with_wrapping(FlowWrapping::Truncate { max_lines: 2 }),
         ))
         .unwrap();
@@ -121,15 +126,20 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 240.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let flow = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(TextFlowFigure::new(
-            Rectangle::new(20.0, 20.0, 180.0, 180.0),
-            FlowPage::from_text("alpha beta gamma delta epsilon"),
-        )))
+        .add(Box::new(
+            TextFlowFigure::new(
+                Rectangle::new(20.0, 20.0, 180.0, 180.0),
+                FlowPage::from_text("alpha beta gamma delta epsilon"),
+            )
+            .expect("valid detached figure input"),
+        ))
         .unwrap();
     record_full_submission(&mut runtime);
     let wide_lines = runtime

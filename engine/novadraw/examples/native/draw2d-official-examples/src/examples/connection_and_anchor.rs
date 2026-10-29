@@ -200,13 +200,10 @@ pub fn connection_and_anchor() -> Runtime {
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid example bounds"),
+        ))
         .expect("ConnectionAndAnchorExample root");
 
     let (midpoint_panel, first_node, first_connection_figure, first_connection) =
@@ -306,7 +303,9 @@ fn fixture() -> Fixture {
                     f64::from(instruction_layout.width()) + insets.width(),
                     f64::from(instruction_layout.height()) + insets.height(),
                 ))
-                .with_border(instruction_border),
+                .expect("valid instruction bounds")
+                .with_border(instruction_border)
+                .expect("valid instruction border"),
         ))
         .expect("instructions");
     runtime
@@ -353,12 +352,16 @@ fn add_connected_group(
     let label = subtree
         .add(
             group,
-            Box::new(LabelFigure::new(title).with_bounds(Rectangle::new(
-                8.0,
-                0.0,
-                title_width,
-                f64::from(title_layout.height()),
-            ))),
+            Box::new(
+                LabelFigure::new(title)
+                    .with_bounds(Rectangle::new(
+                        8.0,
+                        0.0,
+                        title_width,
+                        f64::from(title_layout.height()),
+                    ))
+                    .expect("valid title bounds"),
+            ),
         )
         .expect("GroupBox title");
     subtree
@@ -387,7 +390,11 @@ fn add_connected_group(
     let figure = subtree
         .add(
             group,
-            Box::new(ConnectionFigure::new().with_stroke(Color::BLACK, 1.0)),
+            Box::new(
+                ConnectionFigure::new()
+                    .with_stroke(Color::BLACK, 1.0)
+                    .expect("valid connection stroke"),
+            ),
         )
         .expect("connection Figure");
     let router = runtime.connections().direct_router();
@@ -437,7 +444,9 @@ fn add_connection_label(
         .add(Box::new(
             LabelFigure::new(text)
                 .with_bounds(Rectangle::new(0.0, 0.0, width, 24.0))
-                .with_border(LineBorder::default_border()),
+                .expect("valid label bounds")
+                .with_border(LineBorder::default_border())
+                .expect("valid label border"),
         ))
         .expect("connection label");
     runtime
@@ -464,7 +473,8 @@ fn add_target_decoration(
         .add(Box::new(
             PolygonDecorationFigure::triangle()
                 .with_fill_color(Color::BLACK)
-                .with_stroke(Color::BLACK, 1.0),
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid decoration stroke"),
         ))
         .expect("target decoration");
     runtime

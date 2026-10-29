@@ -73,7 +73,9 @@ impl EditPartBehavior<DeepModel> for DeepPart {
         _model: &DeepModel,
         _model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        Ok(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+        ))
     }
 }
 
@@ -168,7 +170,9 @@ impl EditPartBehavior<DiagramModel> for RectanglePart {
         model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.bounds[&model_id];
-        Ok(Box::new(RectangleFigure::from_bounds(bounds)))
+        Ok(Box::new(
+            RectangleFigure::from_bounds(bounds).expect("valid figure bounds"),
+        ))
     }
 
     fn configure_visual(
@@ -181,7 +185,10 @@ impl EditPartBehavior<DiagramModel> for RectanglePart {
             let bounds = model.bounds[&model_id];
             let pane = context.add_child(
                 context.primary(),
-                Box::new(RootFigure::new(0.0, 0.0, bounds.width, bounds.height)),
+                Box::new(
+                    RootFigure::new(0.0, 0.0, bounds.width, bounds.height)
+                        .expect("valid detached figure input"),
+                ),
             )?;
             context.set_content_pane(pane)?;
         }
@@ -290,9 +297,9 @@ impl EditPartBehavior<DiagramModel> for PolicyActivationPart {
         model: &DiagramModel,
         model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(RectangleFigure::from_bounds(
-            model.bounds[&model_id],
-        )))
+        Ok(Box::new(
+            RectangleFigure::from_bounds(model.bounds[&model_id]).expect("valid figure bounds"),
+        ))
     }
 
     fn create_policies(
@@ -381,6 +388,34 @@ fn viewer() -> (
     )
     .unwrap();
     (viewer, lifecycle)
+}
+
+#[test]
+fn invalid_viewer_geometry_returns_error_before_part_creation() {
+    for bounds in [
+        Rectangle::new(0.0, 0.0, -1.0, 10.0),
+        Rectangle::new(f64::NAN, 0.0, 10.0, 10.0),
+    ] {
+        let lifecycle = Arc::new(Mutex::new(Vec::new()));
+        let result = GraphicalViewer::new(
+            DiagramModel::initial(),
+            RectangleFactory {
+                lifecycle: lifecycle.clone(),
+            },
+            bounds,
+        );
+        let error = match result {
+            Err(error) => error,
+            Ok(_) => panic!("invalid Viewer bounds were accepted"),
+        };
+        assert!(matches!(error, ViewerError::Geometry(_)));
+        assert!(
+            std::error::Error::source(&error)
+                .unwrap()
+                .is::<novadraw::figure::ShapeGeometryError>()
+        );
+        assert!(lifecycle.lock().unwrap().is_empty());
+    }
 }
 
 #[test]
@@ -755,7 +790,7 @@ fn duplicate_overlay_batch_rejects_before_disposing_the_first_figure() {
         .add_feedback_visual(
             None,
             false,
-            Box::new(RectangleFigure::new(1.0, 1.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(1.0, 1.0, 20.0, 20.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert!(viewer.remove_overlay_visuals(&[figure, figure]).is_err());
@@ -770,14 +805,14 @@ fn overlay_foreign_and_stale_batches_leave_valid_prefix_alive() {
         .add_feedback_visual(
             None,
             false,
-            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
         )
         .unwrap();
     let (_, b) = viewer
         .add_feedback_visual(
             None,
             false,
-            Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)),
+            Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert!(
@@ -804,7 +839,7 @@ fn overlay_foreign_and_stale_batches_leave_valid_prefix_alive() {
         .add_feedback_visual(
             None,
             false,
-            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert!(viewer.remove_overlay_visuals(&[replacement, a]).is_err());
@@ -917,7 +952,10 @@ fn unregistered_internal_visual_resolves_through_its_registered_ancestor() {
     let (mut viewer, _) = viewer();
     let node_two = viewer.part_for_model(NodeId(2)).unwrap();
     let internal = viewer
-        .add_internal_visual(node_two, Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0)))
+        .add_internal_visual(
+            node_two,
+            Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0).expect("valid figure bounds")),
+        )
         .unwrap();
 
     assert_eq!(viewer.part_for_visual(internal), None);

@@ -4,7 +4,7 @@ use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{FontDescriptor, TextError, TextLayoutEngine};
 
-use super::{Border, BorderSnapshot, add_insets};
+use super::{Border, BorderInputError, BorderMetrics, BorderSnapshot, add_insets};
 
 /// Draw2D-compatible outer/inner Border composition.
 #[derive(Clone, Default)]
@@ -14,15 +14,36 @@ pub struct CompoundBorder {
 }
 
 impl CompoundBorder {
-    pub fn new(outer: impl Border + 'static, inner: impl Border + 'static) -> Self {
-        Self {
-            outer: Some(Arc::new(outer)),
-            inner: Some(Arc::new(inner)),
-        }
+    pub fn new(
+        outer: impl Border + 'static,
+        inner: impl Border + 'static,
+    ) -> Result<Self, BorderInputError> {
+        Self::from_optional(Some(Arc::new(outer)), Some(Arc::new(inner)))
     }
 
-    pub fn from_optional(outer: Option<Arc<dyn Border>>, inner: Option<Arc<dyn Border>>) -> Self {
-        Self { outer, inner }
+    pub fn from_optional(
+        outer: Option<Arc<dyn Border>>,
+        inner: Option<Arc<dyn Border>>,
+    ) -> Result<Self, BorderInputError> {
+        let candidate = Self { outer, inner };
+        candidate.prepare_metrics()?;
+        Ok(candidate)
+    }
+
+    /// A fixed, two-unit configuration with no raw numeric input.
+    pub(super) fn etched(highlight: crate::Color, shadow: crate::Color) -> Self {
+        Self {
+            outer: Some(Arc::new(super::BevelBorder::single_layer(
+                super::BevelStyle::Lowered,
+                highlight,
+                shadow,
+            ))),
+            inner: Some(Arc::new(super::BevelBorder::single_layer(
+                super::BevelStyle::Raised,
+                highlight,
+                shadow,
+            ))),
+        }
     }
 
     pub fn outer(&self) -> Option<&dyn Border> {
@@ -39,19 +60,26 @@ impl CompoundBorder {
             .or_else(|| border.map(Border::get_insets))
             .unwrap_or_default()
     }
-
-    fn resolved_preferred_size(
-        border: Option<&dyn Border>,
-        snapshot: Option<&BorderSnapshot>,
-    ) -> Dimension {
-        snapshot
-            .map(BorderSnapshot::preferred_size)
-            .or_else(|| border.map(Border::preferred_size))
-            .unwrap_or_default()
-    }
 }
 
 impl Border for CompoundBorder {
+    fn prepare_metrics(&self) -> Result<BorderMetrics, BorderInputError> {
+        let capture = |border: Option<&dyn Border>, role| {
+            border
+                .map(Border::prepare_metrics)
+                .transpose()
+                .map(|metrics| metrics.unwrap_or_default())
+                .map_err(|source| BorderInputError::Child {
+                    role,
+                    source: Box::new(source),
+                })
+        };
+        BorderMetrics::compose(
+            capture(self.outer(), "outer")?,
+            capture(self.inner(), "inner")?,
+        )
+    }
+
     fn snapshot_bounds_drawing(
         &self,
         snapshot: Option<&BorderSnapshot>,
@@ -208,34 +236,51 @@ impl Border for CompoundBorder {
             .and_then(BorderSnapshot::compound_parts)
             .unwrap_or((None, None));
         let outer = match self.outer.as_deref() {
-            Some(border) => border.resolve_owner_snapshot(previous_outer, font, text)?,
-            None => None,
+            Some(border) if border.has_owner_snapshot() => border
+                .resolve_owner_snapshot(previous_outer, font, text)
+                .map_err(|source| TextError::BorderChild {
+                    role: "outer",
+                    source: Box::new(source),
+                })?,
+            _ => None,
         };
         let inner = match self.inner.as_deref() {
-            Some(border) => border.resolve_owner_snapshot(previous_inner, font, text)?,
-            None => None,
+            Some(border) if border.has_owner_snapshot() => border
+                .resolve_owner_snapshot(previous_inner, font, text)
+                .map_err(|source| TextError::BorderChild {
+                    role: "inner",
+                    source: Box::new(source),
+                })?,
+            _ => None,
         };
+        let capture = |border: Option<&dyn Border>, snapshot: Option<&BorderSnapshot>, role| {
+            let result = match snapshot {
+                Some(snapshot) => BorderMetrics::new(snapshot.insets(), snapshot.preferred_size()),
+                None => border
+                    .map(Border::prepare_metrics)
+                    .transpose()
+                    .map(|metrics| metrics.unwrap_or_default()),
+            };
+            result.map_err(|source| {
+                TextError::BorderInput(Box::new(BorderInputError::Child {
+                    role,
+                    source: Box::new(source),
+                }))
+            })
+        };
+        let metrics = BorderMetrics::compose(
+            capture(self.outer(), outer.as_ref(), "outer")?,
+            capture(self.inner(), inner.as_ref(), "inner")?,
+        )
+        .map_err(|source| TextError::BorderInput(Box::new(source)))?;
         if outer.is_none() && inner.is_none() {
             return Ok(None);
         }
-
-        let outer_insets = Self::resolved_insets(self.outer.as_deref(), outer.as_ref());
-        let inner_insets = Self::resolved_insets(self.inner.as_deref(), inner.as_ref());
-        let outer_preferred = Self::resolved_preferred_size(self.outer.as_deref(), outer.as_ref());
-        let inner_preferred = Self::resolved_preferred_size(self.inner.as_deref(), inner.as_ref());
-        let preferred = Dimension::new(
-            outer_preferred
-                .width
-                .max(inner_preferred.width + outer_insets.width()),
-            outer_preferred
-                .height
-                .max(inner_preferred.height + outer_insets.height()),
-        );
         Ok(Some(BorderSnapshot::compound(
             outer,
             inner,
-            add_insets(outer_insets, inner_insets),
-            preferred,
+            metrics.insets(),
+            metrics.preferred_size(),
         )))
     }
 

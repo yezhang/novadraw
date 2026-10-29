@@ -296,7 +296,9 @@ fn descendant_layout_feedback_preserves_domain_identity_and_does_not_reroute() {
         .runtime
         .figure(f.connection.figure())
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     frame(&mut f.runtime).unwrap();
     // Adding a source node changes the frozen topology, so it replaces the result.
@@ -374,7 +376,9 @@ fn rejected_same_source_candidate_keeps_the_old_identity() {
         .runtime
         .figure(f.connection.figure())
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     frame(&mut f.runtime).unwrap();
     let stable = f.seen.lock().unwrap().last().unwrap().identity();
@@ -394,7 +398,9 @@ fn same_source_route_failure_restores_successful_metadata_and_generation() {
         .runtime
         .figure(f.owner)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     *f.inputs.measurement_read.lock().unwrap() = Some(measured);
     frame(&mut f.runtime).unwrap();
@@ -624,7 +630,9 @@ fn image_dependency_changes_preserve_committed_source_through_failed_preparation
         .runtime
         .figure(f.owner)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     *f.inputs.measurement_read.lock().unwrap() = Some(measured);
     let image = f.runtime.resources().register_image().unwrap();

@@ -11,7 +11,9 @@ pub fn make(name: &str) -> (Runtime, FigureId, String) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 500.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 600.0, 500.0).expect("valid workload bounds"),
+        ))
         .unwrap();
     tree.builder()
         .set_layout_manager(root, Box::new(StackLayout::new()))
@@ -34,14 +36,14 @@ pub fn make(name: &str) -> (Runtime, FigureId, String) {
         .set_scroll_contents(
             &pane,
             Box::new(
-                FlowPageFigure::new(Rectangle::new(0.0, 0.0, 600.0, 500.0)).with_style(
-                    FigureStyle {
+                FlowPageFigure::new(Rectangle::new(0.0, 0.0, 600.0, 500.0))
+                    .expect("valid page bounds")
+                    .with_style(FigureStyle {
                         font: Some(
                             novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap(),
                         ),
                         ..Default::default()
-                    },
-                ),
+                    }),
             ),
         )
         .unwrap();
@@ -79,7 +81,9 @@ pub fn make(name: &str) -> (Runtime, FigureId, String) {
             let rectangle = runtime
                 .figure(adapter)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 18.0)))
+                .add(Box::new(
+                    RectangleFigure::new(0.0, 0.0, 20.0, 18.0).expect("valid inline bounds"),
+                ))
                 .unwrap();
             runtime
                 .figure(rectangle)

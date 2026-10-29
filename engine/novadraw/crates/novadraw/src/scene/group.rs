@@ -455,9 +455,10 @@ mod tests {
         let group = SceneBindingGroup::default();
         let mut runtime = crate::runtime::Runtime::empty();
         let old = runtime
-            .set_contents(Box::new(crate::figure::RectangleFigure::new(
-                0.0, 0.0, 20.0, 20.0,
-            )))
+            .set_contents(Box::new(
+                crate::figure::RectangleFigure::new(0.0, 0.0, 20.0, 20.0)
+                    .expect("valid figure bounds"),
+            ))
             .unwrap();
         runtime.scenes().join_group(group.clone()).unwrap();
         let source = runtime.scenes().register_source(old).unwrap();
@@ -471,9 +472,10 @@ mod tests {
             .unwrap();
         group.inner.lock().unwrap().revision = u64::MAX - 1;
         let new = runtime
-            .set_contents(Box::new(crate::figure::RectangleFigure::new(
-                0.0, 0.0, 30.0, 30.0,
-            )))
+            .set_contents(Box::new(
+                crate::figure::RectangleFigure::new(0.0, 0.0, 30.0, 30.0)
+                    .expect("valid figure bounds"),
+            ))
             .unwrap();
         assert!(!runtime.tree().contains(old));
         assert!(runtime.tree().contains(new));
@@ -486,9 +488,10 @@ mod tests {
             runtime
                 .figure(new)
                 .unwrap()
-                .add(Box::new(crate::figure::RectangleFigure::new(
-                    0.0, 0.0, 5.0, 5.0
-                )))
+                .add(Box::new(
+                    crate::figure::RectangleFigure::new(0.0, 0.0, 5.0, 5.0)
+                        .expect("valid figure bounds")
+                ))
                 .is_err()
         );
         assert!(runtime.tree().child_order(new).unwrap().is_empty());
@@ -499,9 +502,10 @@ mod tests {
         let group = SceneBindingGroup::default();
         let mut runtime = crate::runtime::Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(crate::figure::RectangleFigure::new(
-                0.0, 0.0, 20.0, 20.0,
-            )))
+            .set_contents(Box::new(
+                crate::figure::RectangleFigure::new(0.0, 0.0, 20.0, 20.0)
+                    .expect("valid figure bounds"),
+            ))
             .unwrap();
         runtime.scenes().join_group(group.clone()).unwrap();
         group.inner.lock().unwrap().revision = u64::MAX - 1;
@@ -509,12 +513,18 @@ mod tests {
             .add_figures(vec![
                 (
                     root,
-                    Box::new(crate::figure::RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+                    Box::new(
+                        crate::figure::RectangleFigure::new(0.0, 0.0, 5.0, 5.0)
+                            .expect("valid figure bounds"),
+                    ),
                     None,
                 ),
                 (
                     root,
-                    Box::new(crate::figure::RectangleFigure::new(5.0, 0.0, 5.0, 5.0)),
+                    Box::new(
+                        crate::figure::RectangleFigure::new(5.0, 0.0, 5.0, 5.0)
+                            .expect("valid figure bounds"),
+                    ),
                     None,
                 ),
             ])
@@ -532,7 +542,10 @@ mod tests {
             .builder()
             .add_child(
                 root,
-                Box::new(crate::figure::RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
+                Box::new(
+                    crate::figure::RectangleFigure::new(0.0, 0.0, 1.0, 1.0)
+                        .expect("valid figure bounds"),
+                ),
             )
             .unwrap();
         group

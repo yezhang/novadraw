@@ -6,63 +6,57 @@ use crate::Color;
 use crate::geometry::{Insets, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext, StrokeStyle};
 
-use super::{
-    Border, BorderBuilder, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle, render_line_style,
-};
+use super::{Border, BorderInputError, StrokeBorderConfig, inset_rectangle};
 
 /// 线条边框
 ///
 /// 绘制简单的矩形边框，支持不同样式和宽度。
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LineBorder {
     /// 边框颜色
     pub color: Color,
-    /// 边框宽度
-    pub width: f64,
-    /// 边框样式
-    pub style: BorderStyle,
-    /// 内边距
-    pub insets: Insets,
+    pub(super) config: StrokeBorderConfig,
 }
 
 impl LineBorder {
     /// 创建线条边框
-    pub fn new(color: Color, width: f64) -> Self {
-        assert!(
-            width.is_finite() && width > 0.0,
-            "line border width must be finite and positive"
-        );
-        Self {
+    pub fn new(color: Color, width: f64) -> Result<Self, BorderInputError> {
+        Ok(Self {
             color,
-            width,
-            style: BorderStyle::Solid,
-            insets: Insets::uniform(width),
-        }
+            config: StrokeBorderConfig::new(width)?,
+        })
+    }
+
+    pub fn from_stroke(color: Color, stroke: StrokeStyle) -> Result<Self, BorderInputError> {
+        Ok(Self {
+            color,
+            config: StrokeBorderConfig::from_stroke(stroke)?,
+        })
+    }
+
+    pub fn stroke(&self) -> &StrokeStyle {
+        &self.config.stroke
+    }
+
+    pub fn with_stroke(mut self, stroke: StrokeStyle) -> Result<Self, BorderInputError> {
+        self.config = self.config.with_stroke(stroke)?;
+        Ok(self)
     }
 
     /// 创建默认线条边框
     ///
     /// 使用黑色，宽度为 1
     pub fn default_border() -> Self {
-        Self::new(Color::rgba(0.0, 0.0, 0.0, 1.0), DEFAULT_BORDER_WIDTH)
+        Self {
+            color: Color::BLACK,
+            config: StrokeBorderConfig::default(),
+        }
     }
 
     /// 设置内边距
-    pub fn with_insets(mut self, top: f64, left: f64, bottom: f64, right: f64) -> Self {
-        assert!(
-            [top, left, bottom, right]
-                .into_iter()
-                .all(|value| value.is_finite() && value >= 0.0),
-            "line border insets must be finite and non-negative"
-        );
-        self.insets = Insets::new(top, left, bottom, right);
-        self
-    }
-
-    /// 设置边框样式
-    pub fn with_style(mut self, style: BorderStyle) -> Self {
-        self.style = style;
-        self
+    pub fn with_insets(mut self, insets: Insets) -> Result<Self, BorderInputError> {
+        self.config = self.config.with_insets(insets)?;
+        Ok(self)
     }
 }
 
@@ -72,16 +66,19 @@ impl Border for LineBorder {
         _snapshot: Option<&super::BorderSnapshot>,
     ) -> Result<crate::figure::BoundsDrawing, GraphicsError> {
         const LINE_BORDER_RECORDING_BYTES: usize = 4096;
-        Ok(crate::figure::BoundsDrawing::new(
-            *self,
+        crate::figure::BoundsDrawing::stroked(
+            self.color,
+            self.stroke().clone(),
             LINE_BORDER_RECORDING_BYTES,
-            |inputs, bounds, context| inputs.paint(bounds, context),
-            |_, bounds| Ok(bounds),
-        ))
+            |color, stroke, bounds, context| {
+                super::paint_stroke_border(*color, stroke, bounds, context)
+            },
+            |_, _, bounds| Ok(bounds),
+        )
     }
 
     fn get_insets(&self) -> Insets {
-        self.insets
+        self.config.insets()
     }
 
     fn paint(
@@ -98,29 +95,12 @@ impl Border for LineBorder {
         incoming: Insets,
         context: &mut PaintContext<'_>,
     ) -> Result<(), GraphicsError> {
-        let figure_bounds = inset_rectangle(figure_bounds, incoming);
-        let half_width = self.width / 2.0;
-        let x = figure_bounds.x + half_width;
-        let y = figure_bounds.y + half_width;
-        let width = figure_bounds.width - self.width;
-        let height = figure_bounds.height - self.width;
-
-        if width <= 0.0 || height <= 0.0 {
-            return Ok(());
-        }
-
-        let cap = crate::render::command::LineCap::Butt;
-        let join = crate::render::command::LineJoin::Miter;
-
-        context.set_stroke_paint(self.color);
-        context.set_stroke_style(
-            StrokeStyle::default()
-                .with_width(self.width)?
-                .with_cap(cap)
-                .with_join(join)
-                .with_dash_pattern(render_line_style(self.style).into()),
-        );
-        context.stroke_rect(Rectangle::new(x, y, width, height))
+        super::paint_stroke_border(
+            self.color,
+            self.stroke(),
+            inset_rectangle(figure_bounds, incoming),
+            context,
+        )
     }
 
     fn is_opaque(&self) -> bool {
@@ -132,13 +112,6 @@ impl Border for LineBorder {
     }
 
     fn get_width(&self) -> f64 {
-        self.width
-    }
-}
-
-impl BorderBuilder {
-    /// 从构建器创建 LineBorder（别名方法）
-    pub fn build(self) -> LineBorder {
-        self.build_line()
+        self.stroke().width()
     }
 }

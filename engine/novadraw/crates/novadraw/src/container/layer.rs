@@ -141,10 +141,17 @@ pub struct LayerFigure {
 }
 
 impl LayerFigure {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-        }
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?,
+        })
     }
 }
 
@@ -153,8 +160,17 @@ impl Bounded for LayerFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -192,10 +208,17 @@ pub struct FreeformLayerFigure {
 }
 
 impl FreeformLayerFigure {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-        }
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?,
+        })
     }
 }
 
@@ -204,8 +227,17 @@ impl Bounded for FreeformLayerFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -248,10 +280,17 @@ pub struct LayeredPane {
 }
 
 impl LayeredPane {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-        }
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?,
+        })
     }
 }
 
@@ -260,8 +299,17 @@ impl Bounded for LayeredPane {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -303,10 +351,17 @@ pub struct FreeformLayeredPane {
 }
 
 impl FreeformLayeredPane {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-        }
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?,
+        })
     }
 }
 
@@ -315,8 +370,17 @@ impl Bounded for FreeformLayeredPane {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

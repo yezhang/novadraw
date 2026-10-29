@@ -41,8 +41,15 @@ impl Bounded for TestFigure {
         self.name
     }
 
-    fn set_bounds(&mut self, _x: f64, _y: f64, _width: f64, _height: f64) {
+    fn set_bounds(
+        &mut self,
+        _x: f64,
+        _y: f64,
+        _width: f64,
+        _height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
         // 不支持设置 bounds
+        Ok(())
     }
 }
 
@@ -70,7 +77,8 @@ impl Figure for TestFigure {
 
 fn create_scene_clear() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let _bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -80,7 +88,8 @@ fn create_scene_clear() -> novadraw::tree::FigureTree {
 
 fn create_scene_fill_rect() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -152,7 +161,8 @@ fn stroke_polyline(
 
 fn create_scene_stroke_rect() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -188,7 +198,8 @@ fn create_scene_stroke_rect() -> novadraw::tree::FigureTree {
 
 fn create_scene_ellipse() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -220,7 +231,8 @@ fn create_scene_ellipse() -> novadraw::tree::FigureTree {
 
 fn create_scene_line() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -291,7 +303,8 @@ fn create_scene_line() -> novadraw::tree::FigureTree {
 
 fn create_scene_polyline() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -386,7 +399,8 @@ fn create_scene_polyline() -> novadraw::tree::FigureTree {
 
 fn create_scene_line_join() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))
@@ -442,7 +456,8 @@ fn create_scene_line_join() -> novadraw::tree::FigureTree {
 
 fn create_scene_transform() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
+    let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     let bg_id = scene
         .builder()
         .set_contents(Box::new(bg))

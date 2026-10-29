@@ -474,11 +474,14 @@ mod tests {
     #[test]
     fn test_propagate_damage_to_root_uses_figure_local_coordinate_roots() {
         let mut graph = FigureTree::new();
-        let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
+        let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK)
+            .expect("valid figure bounds");
         let root_id = graph.set_contents(Box::new(root));
-        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE);
+        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+            .expect("valid figure bounds");
         let parent_id = graph.add_child_to(root_id, Box::new(parent));
-        let child = RectangleFigure::new_with_color(20.0, 30.0, 80.0, 60.0, Color::WHITE);
+        let child = RectangleFigure::new_with_color(20.0, 30.0, 80.0, 60.0, Color::WHITE)
+            .expect("valid figure bounds");
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
@@ -490,11 +493,14 @@ mod tests {
     #[test]
     fn test_propagate_damage_to_root_translates_through_parent_local_ancestors() {
         let mut graph = FigureTree::new();
-        let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
+        let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK)
+            .expect("valid figure bounds");
         let root_id = graph.set_contents(Box::new(root));
-        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE);
+        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+            .expect("valid figure bounds");
         let parent_id = graph.add_child_to(root_id, Box::new(parent));
-        let child = RectangleFigure::new_with_color(120.0, 80.0, 80.0, 60.0, Color::WHITE);
+        let child = RectangleFigure::new_with_color(120.0, 80.0, 80.0, 60.0, Color::WHITE)
+            .expect("valid figure bounds");
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
@@ -506,11 +512,14 @@ mod tests {
     #[test]
     fn test_propagate_damage_to_root_applies_root_clip() {
         let mut graph = FigureTree::new();
-        let root = RectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, Color::BLACK);
+        let root = RectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, Color::BLACK)
+            .expect("valid figure bounds");
         let root_id = graph.set_contents(Box::new(root));
-        let parent = RectangleFigure::new_with_color(70.0, 50.0, 40.0, 40.0, Color::WHITE);
+        let parent = RectangleFigure::new_with_color(70.0, 50.0, 40.0, 40.0, Color::WHITE)
+            .expect("valid figure bounds");
         let parent_id = graph.add_child_to(root_id, Box::new(parent));
-        let child = RectangleFigure::new_with_color(20.0, 20.0, 30.0, 30.0, Color::WHITE);
+        let child = RectangleFigure::new_with_color(20.0, 20.0, 30.0, 30.0, Color::WHITE)
+            .expect("valid figure bounds");
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =

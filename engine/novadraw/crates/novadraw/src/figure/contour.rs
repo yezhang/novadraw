@@ -12,6 +12,7 @@ pub enum ShapeGeometryError {
     RadiusCount { vertices: usize, radii: usize },
     DegeneratePolygon,
     SelfIntersection,
+    StrokeInput(crate::graphics::GraphicsInputError),
 }
 
 impl std::fmt::Display for ShapeGeometryError {
@@ -20,9 +21,33 @@ impl std::fmt::Display for ShapeGeometryError {
     }
 }
 
-impl std::error::Error for ShapeGeometryError {}
+impl std::error::Error for ShapeGeometryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::StrokeInput(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl From<crate::graphics::GraphicsInputError> for ShapeGeometryError {
+    fn from(error: crate::graphics::GraphicsInputError) -> Self {
+        Self::StrokeInput(error)
+    }
+}
 
 impl ShapeGeometryError {
+    /// 检查布局边界及右、下端点；负坐标和零尺寸合法。
+    pub fn validate_bounds(bounds: Rectangle) -> Result<Rectangle, Self> {
+        finite(bounds.x)?;
+        finite(bounds.y)?;
+        metric(bounds.width)?;
+        metric(bounds.height)?;
+        finite(bounds.x + bounds.width)?;
+        finite(bounds.y + bounds.height)?;
+        Ok(bounds)
+    }
+
     pub(crate) fn drawing_error(self) -> crate::graphics::GraphicsError {
         crate::render::GraphicsInputError::InvalidPath { index: 0 }.into()
     }

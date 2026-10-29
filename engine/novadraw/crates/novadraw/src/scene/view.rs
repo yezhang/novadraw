@@ -366,14 +366,21 @@ impl SceneViewFigure {
         }
     }
     /// Sets detached placement.
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(
+        mut self,
+        bounds: Rectangle,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
     /// Adds an ordinary Border, measured by Core exactly once.
-    pub fn with_border(mut self, border: impl crate::figure::Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl crate::figure::Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 }
 impl crate::figure::BorderedFigure for SceneViewFigure {
@@ -382,9 +389,9 @@ impl crate::figure::BorderedFigure for SceneViewFigure {
     }
     fn replace_border(
         &mut self,
-        border: Option<Arc<dyn crate::figure::Border>>,
+        border: crate::figure::border::BorderCandidate,
     ) -> Option<Arc<dyn crate::figure::Border>> {
-        std::mem::replace(&mut self.border, border)
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 impl SceneViewConsumer for SceneViewFigure {
@@ -455,9 +462,10 @@ mod tests {
         let group = crate::scene::SceneBindingGroup::default();
         let mut producer = crate::runtime::Runtime::empty();
         let root = producer
-            .set_contents(Box::new(crate::figure::RectangleFigure::new(
-                0.0, 0.0, 100.0, 50.0,
-            )))
+            .set_contents(Box::new(
+                crate::figure::RectangleFigure::new(0.0, 0.0, 100.0, 50.0)
+                    .expect("valid figure bounds"),
+            ))
             .unwrap();
         producer.scenes().join_group(group.clone()).unwrap();
         let source = producer.scenes().register_source(root).unwrap();
@@ -478,7 +486,9 @@ mod tests {
             .unwrap();
         let figure = destination
             .set_contents(Box::new(
-                SceneViewFigure::new(view).with_bounds(Rectangle::new(0.0, 0.0, 100.0, 50.0)),
+                SceneViewFigure::new(view)
+                    .with_bounds(Rectangle::new(0.0, 0.0, 100.0, 50.0))
+                    .expect("valid detached figure input"),
             ))
             .unwrap();
         let binding = destination

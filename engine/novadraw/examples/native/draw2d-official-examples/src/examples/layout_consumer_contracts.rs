@@ -17,13 +17,9 @@ const TEXT: &str = "alpha beta gamma delta epsilon zeta eta theta";
 fn text_fixture(layout: Box<dyn LayoutManager>, grid: bool) -> (Runtime, FigureId, FigureId) {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            360.0,
-            500.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 360.0, 500.0, Color::WHITE).unwrap(),
+        ))
         .unwrap();
     runtime
         .figure(root)
@@ -46,7 +42,7 @@ fn text_fixture(layout: Box<dyn LayoutManager>, grid: bool) -> (Runtime, FigureI
     let page = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(FlowPageFigure::new(Rectangle::ZERO)))
+        .add(Box::new(FlowPageFigure::new(Rectangle::ZERO).unwrap()))
         .unwrap();
     let block = runtime
         .figure(page)

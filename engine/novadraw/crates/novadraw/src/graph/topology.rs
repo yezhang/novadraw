@@ -774,19 +774,20 @@ impl FigureTree {
         replacing: Option<FigureId>,
     ) -> Result<PreparedChild, GraphMutationError> {
         let bounds = figure.initial_bounds();
-        if !bounds.x.is_finite()
-            || !bounds.y.is_finite()
-            || !bounds.width.is_finite()
-            || !bounds.height.is_finite()
-            || bounds.width < 0.0
-            || bounds.height < 0.0
-        {
-            return Err(GraphMutationError::InvalidInitialBounds);
-        }
         let insets = figure.initial_insets();
         let style = style.unwrap_or_else(|| figure.initial_style());
         let is_focusable = figure.initial_focusable();
         let is_focus_traversable = figure.initial_focus_traversable();
+        crate::figure::ShapeGeometryError::validate_bounds(bounds)
+            .map_err(GraphMutationError::InvalidInitialBounds)?;
+        crate::figure::border::validate_insets(insets)
+            .map_err(GraphMutationError::InvalidInitialInsets)?;
+        let border_metrics = figure
+            .get_border()
+            .map(crate::figure::Border::prepare_metrics)
+            .transpose()
+            .map_err(GraphMutationError::InvalidInitialBorder)?
+            .unwrap_or_default();
         let capabilities = FigureCapabilitySet::build(figure.as_ref())
             .map_err(GraphMutationError::CapabilityRegistration)?;
         let parent_depth = self
@@ -828,6 +829,7 @@ impl FigureTree {
             state: NodeState {
                 bounds,
                 insets,
+                border_preferred: border_metrics.preferred_size(),
                 is_focusable,
                 is_focus_traversable,
                 style,

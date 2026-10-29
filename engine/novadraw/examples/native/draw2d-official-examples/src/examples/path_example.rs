@@ -225,20 +225,17 @@ impl FigureDrawing for Drawing {
 pub fn path_example() -> Runtime {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW,
-            WINDOW,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW, WINDOW, Color::WHITE)
+                .expect("valid example bounds"),
+        ))
         .expect("root");
     let zoom = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ScalableLayeredPaneFigure::new(
-            0.0, BAR, 500.0, 800.0,
-        )))
+        .add(Box::new(
+            ScalableLayeredPaneFigure::new(0.0, BAR, 500.0, 800.0).expect("valid pane bounds"),
+        ))
         .unwrap();
     runtime
         .figure(zoom)
@@ -271,7 +268,11 @@ pub fn path_example() -> Runtime {
             .with_consumer(Arc::new(ZoomValue(zoom)))
             .with_part(
                 ScrollBarPart::Thumb,
-                Box::new(LabelFigure::new("<Zoom>").with_border(super::scrollbar_label_border())),
+                Box::new(
+                    LabelFigure::new("<Zoom>")
+                        .with_border(super::scrollbar_label_border())
+                        .expect("valid scrollbar border"),
+                ),
             )
             .into_subtree();
     let receipt = runtime
@@ -381,13 +382,9 @@ mod tests {
         }
         let mut runtime = runtime_with_fonts();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                512.0,
-                512.0,
-                Color::WHITE,
-            )))
+            .set_contents(Box::new(
+                RectangleFigure::new_with_color(0.0, 0.0, 512.0, 512.0, Color::WHITE).unwrap(),
+            ))
             .unwrap();
         let id = runtime
             .figure(root)

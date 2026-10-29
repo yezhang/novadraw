@@ -1403,7 +1403,7 @@ mod measurement_tests {
             let mut tree = FigureTree::new();
             let root = tree
                 .builder()
-                .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO)))
+                .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO).unwrap()))
                 .unwrap();
             let calls = Arc::new(AtomicUsize::new(0));
             let block = tree
@@ -1441,7 +1441,7 @@ mod measurement_tests {
                 .builder()
                 .add_child(
                     adapter,
-                    Box::new(RectangleFigure::new(0.0, 0.0, 33.0, 21.0)),
+                    Box::new(RectangleFigure::new(0.0, 0.0, 33.0, 21.0).unwrap()),
                 )
                 .unwrap();
             let tail = tree

@@ -216,7 +216,9 @@ impl FigureComponentUpdate for SetLabelIconTextGap {
     }
 
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
-        target.set_icon_text_gap(prepared);
+        target
+            .set_icon_text_gap(prepared)
+            .expect("prepared icon text gap");
     }
 }
 
@@ -308,6 +310,9 @@ impl FigureComponentUpdate for ReplaceScalablePolygonTemplate {
             .0
             .iter()
             .any(|point| !point.x().is_finite() || !point.y().is_finite())
+            || self.0.bounds().is_some_and(|bounds| {
+                crate::figure::ShapeGeometryError::validate_bounds(bounds).is_err()
+            })
         {
             return Err(ShapeMutationError::NonFiniteGeometry);
         }
@@ -514,7 +519,9 @@ impl FigureComponentUpdate for SetRoundedRectangleCorners {
     }
 
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
-        target.set_corner_dimensions(prepared);
+        target
+            .set_corner_dimensions(prepared)
+            .expect("prepared corner dimensions");
     }
 }
 
@@ -554,15 +561,17 @@ impl FigureComponentUpdate for SetTriangleDirection {
     }
 }
 
-struct RefreshBorderState;
+struct RefreshBorderState {
+    border: Option<Arc<dyn Border>>,
+    metrics: crate::figure::border::BorderMetrics,
+}
 
 impl FigureUpdateEffect for RefreshBorderState {
     fn prepare(
         self: Box<Self>,
         context: &mut FigureUpdateEffectContext<'_>,
     ) -> Result<(), RuntimeMutationError> {
-        context.refresh_border_state();
-        Ok(())
+        context.prepare_border_state(self.border.as_deref(), self.metrics)
     }
 }
 
@@ -584,8 +593,8 @@ impl ReplaceFigureBorder {
 
 impl FigureCapabilityUpdate for ReplaceFigureBorder {
     type Capability = BorderCapability;
-    type Prepared = Option<Arc<dyn Border>>;
-    type Error = ShapeMutationError;
+    type Prepared = crate::figure::border::BorderCandidate;
+    type Error = crate::figure::border::BorderInputError;
 
     const KEY: crate::figure::CapabilityKey<Self::Capability> = BORDER;
 
@@ -595,38 +604,29 @@ impl FigureCapabilityUpdate for ReplaceFigureBorder {
         target: &dyn Figure,
         _context: FigureCapabilityContext,
     ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error> {
-        if self.0.as_deref().is_some_and(|border| {
-            let insets = border.get_insets();
-            let preferred = border.preferred_size();
-            [
-                insets.top,
-                insets.left,
-                insets.bottom,
-                insets.right,
-                preferred.width,
-                preferred.height,
-            ]
-            .into_iter()
-            .any(|value| !value.is_finite() || value < 0.0)
-        }) {
-            return Err(ShapeMutationError::NegativeMetric);
-        }
+        let candidate = crate::figure::border::BorderCandidate::new(self.0)?;
         let current = capability
             .resolve(target)
             .expect("registered Border capability must resolve");
-        let unchanged = match (current.border(), self.0.as_ref()) {
+        let unchanged = match (current.border(), candidate.border()) {
             (Some(old), Some(new)) => Arc::ptr_eq(old, new),
             (None, None) => true,
             _ => false,
         };
         if unchanged {
-            return Ok(PreparedCapabilityUpdate::unchanged(self.0));
+            return Ok(PreparedCapabilityUpdate::unchanged(candidate));
         }
         let had_border = current.border().is_some();
-        let has_border = self.0.is_some();
-        Ok(PreparedCapabilityUpdate::layout_geometry_and_paint(self.0)
-            .with_property_change(property::BORDER, had_border, has_border)
-            .with_effect(RefreshBorderState))
+        let has_border = candidate.border().is_some();
+        let effect = RefreshBorderState {
+            border: candidate.border().cloned(),
+            metrics: candidate.metrics(),
+        };
+        Ok(
+            PreparedCapabilityUpdate::layout_geometry_and_paint(candidate)
+                .with_property_change(property::BORDER, had_border, has_border)
+                .with_effect(effect),
+        )
     }
 
     fn commit(capability: &Self::Capability, prepared: Self::Prepared, target: &mut dyn Figure) {
@@ -764,7 +764,8 @@ fn prepare_polyline_points(
         return Ok(PreparedFigureUpdate::unchanged(None));
     }
     let (bounds, local_points) =
-        crate::figure::normalize_points(points.clone(), current.stroke_style(), 2);
+        crate::figure::normalize_points(points.clone(), current.stroke_style(), 2)
+            .map_err(|_| ShapeMutationError::NonFiniteGeometry)?;
     Ok(
         PreparedFigureUpdate::layout_geometry_and_paint(Some(PreparedPolylineGeometry {
             bounds,
@@ -785,7 +786,8 @@ fn prepare_polyline_stroke(
         return Ok(PreparedFigureUpdate::unchanged(None));
     }
     let points = current.parent_points();
-    let (bounds, local_points) = crate::figure::normalize_points(points, &stroke, 2);
+    let (bounds, local_points) = crate::figure::normalize_points(points, &stroke, 2)
+        .map_err(|_| ShapeMutationError::NonFiniteGeometry)?;
     let mut prepared =
         PreparedFigureUpdate::layout_geometry_and_paint(Some(PreparedPolylineGeometry {
             bounds,

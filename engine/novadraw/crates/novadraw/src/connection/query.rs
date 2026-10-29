@@ -920,19 +920,23 @@ mod s07_query_failure_tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .set_contents(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).unwrap(),
+            ))
             .unwrap();
         let retired = tree
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO).unwrap()),
             )
             .unwrap();
         let mut other = FigureTree::new();
         let foreign = other
             .builder()
-            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .set_contents(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).unwrap(),
+            ))
             .unwrap();
         let mut runtime = Runtime::new(tree);
         runtime.figure(root).unwrap().remove(retired).unwrap();
@@ -969,13 +973,15 @@ mod s07_query_failure_tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .set_contents(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).unwrap(),
+            ))
             .unwrap();
         let child = tree
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+                Box::new(RectangleFigure::from_bounds(Rectangle::ZERO).unwrap()),
             )
             .unwrap();
         let mut runtime = Runtime::new(tree);

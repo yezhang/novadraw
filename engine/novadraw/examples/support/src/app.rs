@@ -1300,7 +1300,7 @@ impl AppBuilder {
 ///
 /// fn create_rect_scene() -> novadraw::runtime::Runtime {
 ///     let mut runtime = novadraw::runtime::Runtime::empty();
-///     let rect = novadraw::figure::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
+///     let rect = novadraw::figure::RectangleFigure::new(100.0, 100.0, 200.0, 150.0).expect("valid bounds");
 ///     runtime.set_contents(Box::new(rect)).expect("valid Runtime mutation");
 ///     runtime
 /// }
@@ -1500,7 +1500,9 @@ mod tests {
             .set_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
             .unwrap();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 320.0, 200.0).unwrap(),
+            ))
             .expect("valid Runtime mutation");
         assert!(
             runtime

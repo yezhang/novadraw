@@ -128,9 +128,9 @@ struct Part;
 impl EditPartBehavior<Model> for Part {
     fn create_figure(&mut self, m: &Model, id: u64) -> Result<Box<dyn Figure>, EditPartError> {
         Ok(if id == 0 {
-            Box::new(RootFigure::new(0.0, 0.0, 600.0, 400.0))
+            Box::new(RootFigure::new(0.0, 0.0, 600.0, 400.0).expect("valid detached figure input"))
         } else {
-            Box::new(RectangleFigure::from_bounds(m.nodes[&id]))
+            Box::new(RectangleFigure::from_bounds(m.nodes[&id]).expect("valid figure bounds"))
         })
     }
     fn create_policies(

@@ -92,13 +92,16 @@ fn runtime() -> Runtime {
 
 fn root(runtime: &mut Runtime) -> FigureId {
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            Color::rgba(0.93, 0.94, 0.95, 1.0),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                Color::rgba(0.93, 0.94, 0.95, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(root)
@@ -124,7 +127,9 @@ fn panel(runtime: &mut Runtime, parent: FigureId, bounds: Rectangle) -> FigureId
                 bounds.height,
                 PANEL_FILL,
             )
-            .with_stroke(PANEL_STROKE, 1.0),
+            .expect("valid figure bounds")
+            .with_stroke(PANEL_STROKE, 1.0)
+            .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation")
 }
@@ -140,7 +145,11 @@ fn add_label(
     let id = runtime
         .figure(parent)
         .unwrap()
-        .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(bounds)
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(id)
@@ -341,7 +350,8 @@ fn icon_placement_scene() -> Runtime {
             .add(Box::new(
                 LabelFigure::new(format!("{placement:?}"))
                     .with_icon(icon)
-                    .with_bounds(Rectangle::new(24.0, 24.0, 232.0, 82.0)),
+                    .with_bounds(Rectangle::new(24.0, 24.0, 232.0, 82.0))
+                    .expect("valid detached figure input"),
             ))
             .expect("valid Runtime mutation");
         runtime
@@ -397,7 +407,8 @@ fn style_inheritance_scene() -> Runtime {
         .unwrap()
         .add(Box::new(
             LabelFigure::new("继承颜色和字体，不在 Label 中复制通用样式。")
-                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
+                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -420,7 +431,8 @@ fn style_inheritance_scene() -> Runtime {
         .unwrap()
         .add(Box::new(
             LabelFigure::new("inherited: FontDescriptor -> GlyphRun")
-                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
+                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     runtime
@@ -434,13 +446,16 @@ fn title_bar_border_scene() -> Runtime {
         Color::rgba(0.08, 0.35, 0.62, 1.0),
     )
     .with_alignment(Alignment::Start)
-    .with_padding(18.0, 8.0);
+    .with_padding(18.0, 8.0)
+    .expect("valid title padding");
     let panel = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
-                .with_border(title_bar),
+                .expect("valid figure bounds")
+                .with_border(title_bar)
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     runtime
@@ -455,13 +470,16 @@ fn title_bar_border_scene() -> Runtime {
     runtime
         .figure(panel)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            640.0,
-            300.0,
-            Color::rgba(0.78, 0.9, 0.84, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                640.0,
+                300.0,
+                Color::rgba(0.78, 0.9, 0.84, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
 }
@@ -529,7 +547,9 @@ fn image_resources_scene() -> Runtime {
             .figure(card)
             .unwrap()
             .add(Box::new(
-                ImageFigure::new(image).with_bounds(Rectangle::new(18.0, 68.0, 129.0, 190.0)),
+                ImageFigure::new(image)
+                    .with_bounds(Rectangle::new(18.0, 68.0, 129.0, 190.0))
+                    .expect("valid detached figure input"),
             ))
             .expect("valid Runtime mutation");
     }
@@ -549,13 +569,15 @@ fn text_flow_scene() -> Runtime {
             InlineTextFragment::new("share the same wrapping and bidi pipeline."),
         ]),
     ]);
-    let flow = TextFlowFigure::new(Rectangle::new(70.0, 70.0, 300.0, 220.0), page);
+    let flow = TextFlowFigure::new(Rectangle::new(70.0, 70.0, 300.0, 220.0), page)
+        .expect("valid detached figure input");
     let truncated = TextFlowFigure::new(
         Rectangle::new(430.0, 70.0, 280.0, 90.0),
         FlowPage::from_text(
             "A constrained flow truncates at a grapheme boundary after the configured line count.",
         ),
     )
+    .expect("valid detached figure input")
     .with_wrapping(FlowWrapping::Truncate { max_lines: 2 });
     runtime
         .figure(root)

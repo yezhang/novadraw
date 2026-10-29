@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use novadraw::event::{KeyModifiers, MonotonicTime, MouseButton};
-use novadraw::figure::border::{BorderStyle, LineBorder};
+use novadraw::figure::border::LineBorder;
 use novadraw::render::text::BuiltinFont;
 use novadraw::render::{
     BackendCapabilities, BackendSessionId, FrameId, RenderDisposition, RenderResult,
@@ -70,12 +70,16 @@ impl EditorHarness {
         }
         viewer
             .set_root_viewport_border(
-                LineBorder::new(
+                LineBorder::from_stroke(
                     Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal"),
-                    VIEWPORT_BORDER_WIDTH,
+                    novadraw::graphics::StrokeStyle::default()
+                        .with_width(VIEWPORT_BORDER_WIDTH)
+                        .map_err(|error| error.to_string())?
+                        .with_dash_pattern(novadraw::graphics::DashPattern::Dash),
                 )
-                .with_style(BorderStyle::Dash)
-                .with_insets(0.0, 0.0, 0.0, 0.0),
+                .map_err(|error| error.to_string())?
+                .with_insets(novadraw::geometry::Insets::ZERO)
+                .map_err(|error| error.to_string())?,
             )
             .map_err(|error| error.to_string())?;
         Ok(Self {
@@ -625,7 +629,9 @@ impl EditorHarness {
                     HANDLE_SIZE,
                     color,
                 )
-                .with_stroke(Color::BLACK, 1.0);
+                .expect("valid figure bounds")
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid detached figure input");
                 let result = if Some(part) == primary {
                     self.viewer.add_handle_visual_with_action::<ResizeAction>(
                         part,
@@ -706,7 +712,9 @@ impl EditorHarness {
             size,
             color,
         )
-        .with_stroke(Color::BLACK, 1.0);
+        .expect("valid figure bounds")
+        .with_stroke(Color::BLACK, 1.0)
+        .expect("valid detached figure input");
         let (_, figure) = self
             .viewer
             .add_handle_visual_with_action::<R>(owner, payload, Box::new(handle))

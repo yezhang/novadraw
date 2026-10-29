@@ -11,7 +11,9 @@ fn fractional_grid_space_preserves_extent_and_nonnegative_grab_tracks() {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, width, 80.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, width, 80.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         tree.builder()
             .set_layout_manager(
@@ -23,7 +25,12 @@ fn fractional_grid_space_preserves_extent_and_nonnegative_grab_tracks() {
         for _ in 0..2 {
             let child = tree
                 .builder()
-                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 70.0, 70.0)))
+                .add_child(
+                    root,
+                    Box::new(
+                        RectangleFigure::new(0.0, 0.0, 70.0, 70.0).expect("valid figure bounds"),
+                    ),
+                )
                 .unwrap();
             tree.builder()
                 .set_layout_constraint(child, GridConstraint::fill())
@@ -46,7 +53,9 @@ fn replacing_a_spanning_hint_invalidates_measurement_and_preserves_fixed_columns
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 155.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 155.0, 160.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     tree.builder()
         .set_layout_manager(root, Box::new(GridLayout::new(2)))
@@ -55,7 +64,12 @@ fn replacing_a_spanning_hint_invalidates_measurement_and_preserves_fixed_columns
     for _ in 0..3 {
         children.push(
             tree.builder()
-                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 70.0, 70.0)))
+                .add_child(
+                    root,
+                    Box::new(
+                        RectangleFigure::new(0.0, 0.0, 70.0, 70.0).expect("valid figure bounds"),
+                    ),
+                )
                 .unwrap(),
         );
     }

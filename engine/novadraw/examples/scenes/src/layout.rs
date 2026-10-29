@@ -20,7 +20,8 @@ fn create_scene_xy_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -55,7 +56,8 @@ fn create_scene_xy_layout() -> novadraw::tree::FigureTree {
                 _ => "#95a5a6",
             })
             .expect("valid color literal"),
-        );
+        )
+        .expect("valid figure bounds");
         let child_id = scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -92,7 +94,8 @@ fn create_scene_fill_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -112,7 +115,8 @@ fn create_scene_fill_layout() -> novadraw::tree::FigureTree {
         100.0,
         100.0,
         novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     scene
         .builder()
         .add_child(container_id, Box::new(first))
@@ -125,7 +129,8 @@ fn create_scene_fill_layout() -> novadraw::tree::FigureTree {
         50.0,
         50.0,
         novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _second = scene
         .builder()
         .add_child(container_id, Box::new(second))
@@ -153,7 +158,8 @@ fn create_scene_flow_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -186,7 +192,8 @@ fn create_scene_flow_layout() -> novadraw::tree::FigureTree {
             w,
             h,
             novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-        );
+        )
+        .expect("valid figure bounds");
         let _child_id = scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -215,7 +222,8 @@ fn create_scene_nested_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -243,7 +251,8 @@ fn create_scene_nested_layout() -> novadraw::tree::FigureTree {
             w,
             h,
             novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
-        );
+        )
+        .expect("valid figure bounds");
         let region_id = scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -270,7 +279,8 @@ fn create_scene_nested_layout() -> novadraw::tree::FigureTree {
             w,
             h,
             novadraw::graphics::Color::rgba(0.2, 0.5, 0.9, 1.0),
-        );
+        )
+        .expect("valid figure bounds");
         let child_id = scene
             .builder()
             .add_child(region_id, Box::new(child))
@@ -306,7 +316,8 @@ fn create_scene_constraint_update() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -330,7 +341,8 @@ fn create_scene_constraint_update() -> novadraw::tree::FigureTree {
             80.0,
             80.0,
             novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-        );
+        )
+        .expect("valid figure bounds");
         let child_id = scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -369,7 +381,8 @@ fn create_scene_grid_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -402,7 +415,8 @@ fn create_scene_grid_layout() -> novadraw::tree::FigureTree {
                     0.6,
                     1.0,
                 ),
-            );
+            )
+            .expect("valid figure bounds");
             let child_id = scene
                 .builder()
                 .add_child(container_id, Box::new(rect))
@@ -428,13 +442,16 @@ fn create_scene_toolbar_layout() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
     let container_id = scene
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     scene
         .builder()
@@ -455,13 +472,16 @@ fn create_scene_toolbar_layout() -> novadraw::tree::FigureTree {
             .builder()
             .add_child(
                 container_id,
-                Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    240.0 - index as f64 * 20.0,
-                    80.0,
-                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    novadraw::figure::RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        240.0 - index as f64 * 20.0,
+                        80.0,
+                        novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
         scene
@@ -480,13 +500,16 @@ fn create_scene_stack_layout() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
     let container_id = scene
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            80.0,
-            60.0,
-            640.0,
-            480.0,
-            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                80.0,
+                60.0,
+                640.0,
+                480.0,
+                novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     scene
         .builder()
@@ -497,13 +520,16 @@ fn create_scene_stack_layout() -> novadraw::tree::FigureTree {
             .builder()
             .add_child(
                 container_id,
-                Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    100.0,
-                    100.0,
-                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    novadraw::figure::RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        100.0,
+                        100.0,
+                        novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
     }
@@ -526,7 +552,8 @@ fn create_scene_no_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -539,21 +566,24 @@ fn create_scene_no_layout() -> novadraw::tree::FigureTree {
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect2 = novadraw::figure::RectangleFigure::new_with_color(
         300.0,
         150.0,
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect3 = novadraw::figure::RectangleFigure::new_with_color(
         500.0,
         200.0,
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     let _r1 = scene
         .builder()
@@ -583,7 +613,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -611,7 +642,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         100.0,
         50.0,
         novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let north_id = scene
         .builder()
         .add_child(container_id, Box::new(north))
@@ -632,7 +664,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         100.0,
         50.0,
         novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let south_id = scene
         .builder()
         .add_child(container_id, Box::new(south))
@@ -653,7 +686,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         50.0,
         100.0,
         novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let west_id = scene
         .builder()
         .add_child(container_id, Box::new(west))
@@ -674,7 +708,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         50.0,
         100.0,
         novadraw::graphics::Color::from_hex("#f1c40f").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let east_id = scene
         .builder()
         .add_child(container_id, Box::new(east))
@@ -695,7 +730,8 @@ fn create_scene_border_layout() -> novadraw::tree::FigureTree {
         100.0,
         100.0,
         novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let center_id = scene
         .builder()
         .add_child(container_id, Box::new(center))
@@ -727,13 +763,16 @@ fn create_scene_root_viewport_resize() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            novadraw::graphics::Color::from_hex("#20252b").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::graphics::Color::from_hex("#20252b").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     scene
         .builder()
@@ -775,13 +814,16 @@ fn create_scene_root_viewport_resize() -> novadraw::tree::FigureTree {
             .builder()
             .add_child(
                 contents,
-                Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    10.0,
-                    10.0,
-                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    novadraw::figure::RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        10.0,
+                        10.0,
+                        novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
         scene

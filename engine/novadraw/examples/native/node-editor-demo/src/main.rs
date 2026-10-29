@@ -713,7 +713,9 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
             target_point.y(),
             FEEDBACK_COLOR,
         )
-        .with_width(3.0);
+        .expect("valid detached figure input")
+        .with_width(3.0)
+        .expect("valid detached figure input");
         let mut feedback = vec![FeedbackVisual::scaled(Box::new(line))];
         if let Some(target) = target {
             let bounds = model.nodes[&target.model()].bounds;
@@ -724,7 +726,9 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
                 bounds.height,
                 Color::TRANSPARENT,
             )
-            .with_stroke(FEEDBACK_COLOR, 3.0);
+            .expect("valid figure bounds")
+            .with_stroke(FEEDBACK_COLOR, 3.0)
+            .expect("valid detached figure input");
             feedback.push(FeedbackVisual::scaled(Box::new(highlight)));
         }
         Ok(feedback)
@@ -748,7 +752,9 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
             route.target().y(),
             FEEDBACK_COLOR,
         )
-        .with_width(3.0);
+        .expect("valid detached figure input")
+        .with_width(3.0)
+        .expect("valid detached figure input");
         let mut feedback = vec![FeedbackVisual::scaled(Box::new(line))];
         if let Some(target) = target {
             let bounds = model.nodes[&target.model()].bounds;
@@ -760,7 +766,9 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
                     bounds.height,
                     Color::TRANSPARENT,
                 )
-                .with_stroke(FEEDBACK_COLOR, 3.0),
+                .expect("valid figure bounds")
+                .with_stroke(FEEDBACK_COLOR, 3.0)
+                .expect("valid detached figure input"),
             )));
         }
         Ok(feedback)
@@ -822,10 +830,13 @@ impl DirectTextEdit<DemoModel> for NodeDirectTextEdit {
                         bounds.height,
                         color,
                     )
-                    .with_stroke(FEEDBACK_COLOR, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(FEEDBACK_COLOR, 2.0)
+                    .expect("valid detached figure input"),
                 )),
                 FeedbackVisual::scaled(Box::new(
                     TextFlowFigure::new(text_bounds, FlowPage::from_text(state.draft()))
+                        .expect("valid detached figure input")
                         .with_wrapping(FlowWrapping::NoWrap)
                         .with_alignment(Alignment::Center, Alignment::Center),
                 ))
@@ -885,7 +896,9 @@ impl NodePolicy {
             bounds.height,
             Color::TRANSPARENT,
         )
-        .with_stroke(FEEDBACK_COLOR, 2.0);
+        .expect("valid figure bounds")
+        .with_stroke(FEEDBACK_COLOR, 2.0)
+        .expect("valid detached figure input");
         Ok(Some(EditingContribution::new(
             Some(Box::new(SetBoundsCommand {
                 id: host.model(),
@@ -1040,12 +1053,15 @@ impl EditPartBehavior<DemoModel> for DemoPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let node = model.nodes[&model_id];
         Ok(match node.kind {
-            NodeKind::Canvas => Box::new(FreeformLayerFigure::new(
-                node.bounds.x,
-                node.bounds.y,
-                node.bounds.width,
-                node.bounds.height,
-            )),
+            NodeKind::Canvas => Box::new(
+                FreeformLayerFigure::new(
+                    node.bounds.x,
+                    node.bounds.y,
+                    node.bounds.width,
+                    node.bounds.height,
+                )
+                .expect("valid detached figure input"),
+            ),
             NodeKind::Shape(_) => Box::new(
                 LabelFigure::new(
                     model
@@ -1055,14 +1071,21 @@ impl EditPartBehavior<DemoModel> for DemoPart {
                         .clone(),
                 )
                 .with_bounds(node.bounds)
-                .with_border(LineBorder::new(
-                    Color::from_hex("#17202A").expect("valid color literal"),
-                    2.0,
-                )),
+                .expect("valid detached figure input")
+                .with_border(
+                    LineBorder::new(
+                        Color::from_hex("#17202A").expect("valid color literal"),
+                        2.0,
+                    )
+                    .expect("valid border"),
+                )
+                .expect("valid detached figure input"),
             ),
-            NodeKind::Widget => {
-                Box::new(novadraw::figure::ButtonFigure::new("Widget").with_bounds(node.bounds))
-            }
+            NodeKind::Widget => Box::new(
+                novadraw::figure::ButtonFigure::new("Widget")
+                    .with_bounds(node.bounds)
+                    .expect("valid detached figure input"),
+            ),
         })
     }
 
@@ -1197,7 +1220,9 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
         };
         Ok(vec![FeedbackVisual::scaled(Box::new(
             PolylineFigure::new_with_color(start.x(), start.y(), end.x(), end.y(), FEEDBACK_COLOR)
-                .with_width(3.0),
+                .expect("valid detached figure input")
+                .with_width(3.0)
+                .expect("valid detached figure input"),
         ))])
     }
 
@@ -1252,8 +1277,10 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
         points.push(target);
         Ok(vec![FeedbackVisual::scaled(Box::new(
             PolylineFigure::from_points(points)
+                .expect("valid detached figure input")
                 .with_color(FEEDBACK_COLOR)
-                .with_width(3.0),
+                .with_width(3.0)
+                .expect("valid detached figure input"),
         ))])
     }
 
@@ -1404,8 +1431,10 @@ impl ConnectionBendpointPolicy {
             command,
             vec![FeedbackVisual::scaled(Box::new(
                 PolylineFigure::from_points(points)
+                    .expect("valid detached figure input")
                     .with_color(FEEDBACK_COLOR)
-                    .with_width(3.0),
+                    .with_width(3.0)
+                    .expect("valid detached figure input"),
             ))],
         )))
     }
@@ -1509,10 +1538,14 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
         _model: &DemoModel,
         _model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(ConnectionFigure::new().with_stroke(
-            Color::from_hex("#34495E").expect("valid color literal"),
-            3.0,
-        )))
+        Ok(Box::new(
+            ConnectionFigure::new()
+                .with_stroke(
+                    Color::from_hex("#34495E").expect("valid color literal"),
+                    3.0,
+                )
+                .expect("valid detached figure input"),
+        ))
     }
 
     fn create_policies(

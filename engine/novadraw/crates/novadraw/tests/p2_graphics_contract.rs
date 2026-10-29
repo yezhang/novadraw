@@ -788,17 +788,18 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
     ];
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let line = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            PolylineFigure::from_points(points.clone()).with_stroke_style(stroke(
-                DashPattern::Solid,
-                0.0,
-                2.0,
-            )),
+            PolylineFigure::from_points(points.clone())
+                .expect("valid detached figure input")
+                .with_stroke_style(stroke(DashPattern::Solid, 0.0, 2.0))
+                .unwrap(),
         ))
         .unwrap();
     prepare_next_submission(&mut runtime).unwrap();
@@ -885,12 +886,16 @@ fn runtime_dash_changes_repaint_without_moving_geometry() {
     };
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let line = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(PolylineFigure::new(40.0, 60.0, 160.0, 62.0)))
+        .add(Box::new(
+            PolylineFigure::new(40.0, 60.0, 160.0, 62.0).expect("valid detached figure input"),
+        ))
         .unwrap();
     prepare_next_submission(&mut runtime).unwrap();
     let bounds = runtime.tree().figure_bounds(line);
@@ -957,10 +962,12 @@ fn connection_and_decorations_use_actual_stroke_for_geometry_and_recording() {
     ]);
     let mut closed = PolygonDecorationFigure::from_template(template.clone())
         .unwrap()
-        .with_stroke_style(style.clone());
+        .with_stroke_style(style.clone())
+        .unwrap();
     let mut open = PolylineDecorationFigure::from_template(template)
         .unwrap()
-        .with_stroke_style(style.clone());
+        .with_stroke_style(style.clone())
+        .unwrap();
     let placement = LocatorPlacement {
         point: Point::new(100.0, 100.0),
         reference: Point::new(90.0, 100.0),
@@ -1008,7 +1015,10 @@ fn polygon_and_scalable_polygon_record_complete_strokes() {
         Point::new(100.0, 0.0),
         Point::new(50.0, 100.0),
     ];
-    let polygon = PolygonFigure::from_points(points.clone()).with_stroke_style(style.clone());
+    let polygon = PolygonFigure::from_points(points.clone())
+        .expect("valid detached figure input")
+        .with_stroke_style(style.clone())
+        .unwrap();
     assert_eq!(
         polygon.initial_bounds(),
         Rectangle::new(-12.0, -12.0, 124.0, 124.0)
@@ -1051,17 +1061,18 @@ fn miter_transaction_updates_freeform_extent_with_one_move_notification() {
     }
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            FreeformLayerFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid detached figure input"),
+        ))
         .unwrap();
     let line = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            PolylineFigure::new(40.0, 60.0, 160.0, 62.0).with_stroke_style(stroke(
-                DashPattern::Solid,
-                0.0,
-                2.0,
-            )),
+            PolylineFigure::new(40.0, 60.0, 160.0, 62.0)
+                .expect("valid detached figure input")
+                .with_stroke_style(stroke(DashPattern::Solid, 0.0, 2.0))
+                .unwrap(),
         ))
         .unwrap();
     prepare_next_submission(&mut runtime).unwrap();

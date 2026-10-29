@@ -62,7 +62,7 @@ impl CanvasScene {
                 rect.width(),
                 rect.height(),
                 Color::rgba(0.07, 0.13, 0.20, 1.0),
-            )))?;
+            )?))?;
         let shape = tree.builder().add_child(
             root,
             Box::new(RectangleFigure::new_with_color(
@@ -71,12 +71,12 @@ impl CanvasScene {
                 SHAPE_WIDTH,
                 SHAPE_HEIGHT,
                 color,
-            )),
+            )?),
         )?;
         let label = tree.builder().add_child(
             root,
             Box::new(
-                LabelFigure::new(title).with_bounds(Rectangle::new(MARGIN, MARGIN, 300.0, 32.0)),
+                LabelFigure::new(title).with_bounds(Rectangle::new(MARGIN, MARGIN, 300.0, 32.0))?,
             ),
         )?;
         let mut runtime = Runtime::new(tree);

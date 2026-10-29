@@ -1135,6 +1135,15 @@ impl TextLayout {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextError {
     RuntimeFaulted,
+    BorderInput(Box<crate::figure::border::BorderInputError>),
+    BorderChild {
+        role: &'static str,
+        source: Box<TextError>,
+    },
+    BorderOwner {
+        figure: crate::FigureId,
+        source: Box<TextError>,
+    },
     InvalidFontDescriptor(String),
     InvalidFontData,
     InvalidMetric,
@@ -1160,6 +1169,11 @@ impl fmt::Display for TextError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RuntimeFaulted => formatter.write_str("Runtime is faulted"),
+            Self::BorderInput(error) => error.fmt(formatter),
+            Self::BorderChild { role, source } => write!(formatter, "{role} border: {source}"),
+            Self::BorderOwner { figure, source } => {
+                write!(formatter, "owner {figure:?} border: {source}")
+            }
             Self::InvalidFontDescriptor(descriptor) => {
                 write!(formatter, "invalid font descriptor: {descriptor}")
             }
@@ -1207,6 +1221,10 @@ impl fmt::Display for TextError {
 impl Error for TextError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::BorderInput(error) => Some(error.as_ref()),
+            Self::BorderChild { source, .. } | Self::BorderOwner { source, .. } => {
+                Some(source.as_ref())
+            }
             Self::PreparationMeasurement(error) => Some(error.as_ref()),
             Self::PreparationRoute(error) => Some(error.as_ref()),
             Self::PreparationDependency(error) => Some(error.as_ref()),

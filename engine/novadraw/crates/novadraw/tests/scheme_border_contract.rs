@@ -15,9 +15,10 @@ fn external_consumer_reserves_missing_layers_and_accumulates_insets() {
     assert_eq!(scheme.get_insets(), Insets::new(2.0, 2.0, 1.0, 1.0));
     assert!(!scheme.is_opaque());
     let border = CompoundBorder::new(
-        MarginBorder::new(Color::TRANSPARENT, 0.0).with_margins(3.0, 4.0, 5.0, 6.0),
+        MarginBorder::new(Insets::new(3.0, 4.0, 5.0, 6.0)).unwrap(),
         scheme,
-    );
+    )
+    .unwrap();
     let mut recorder = CommandRecorder::new();
     border
         .paint(
@@ -65,7 +66,10 @@ fn external_consumer_reserves_missing_layers_and_accumulates_insets() {
     let mut runtime = Runtime::empty();
     let root = runtime
         .set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).with_border(border),
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0)
+                .expect("valid figure bounds")
+                .with_border(border)
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     assert_eq!(

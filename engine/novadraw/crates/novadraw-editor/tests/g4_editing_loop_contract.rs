@@ -275,7 +275,8 @@ impl NodePolicy {
     ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
         let before = model.nodes[&host.model()].bounds;
         let bounds = request.transformed_bounds(model.nodes[&host.model()].bounds);
-        let figure = RectangleFigure::new(bounds.x, bounds.y, bounds.width, bounds.height);
+        let figure = RectangleFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+            .expect("valid figure bounds");
         Ok(Some(EditingContribution::new(
             Some(Box::new(SetBoundsCommand {
                 id: host.model(),
@@ -358,19 +359,15 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.nodes[&model_id].bounds;
         Ok(if model_id == ROOT {
-            Box::new(RootFigure::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            ))
+            Box::new(
+                RootFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid detached figure input"),
+            )
         } else {
-            Box::new(RectangleFigure::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            ))
+            Box::new(
+                RectangleFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid figure bounds"),
+            )
         })
     }
 
@@ -453,9 +450,10 @@ impl RoutingPolicy {
         );
         self.state.borrow_mut().feedback_hosts.push(host.model());
         Ok(Some(EditingContribution::feedback(vec![
-            FeedbackVisual::scaled(Box::new(RectangleFigure::from_bounds(
-                model.nodes[&host.model()].bounds,
-            ))),
+            FeedbackVisual::scaled(Box::new(
+                RectangleFigure::from_bounds(model.nodes[&host.model()].bounds)
+                    .expect("valid figure bounds"),
+            )),
         ])))
     }
 
@@ -521,7 +519,9 @@ impl EditPartBehavior<DiagramModel> for RoutingPart {
         model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.nodes[&model_id].bounds;
-        Ok(Box::new(RectangleFigure::from_bounds(bounds)))
+        Ok(Box::new(
+            RectangleFigure::from_bounds(bounds).expect("valid figure bounds"),
+        ))
     }
 
     fn create_policies(
@@ -881,7 +881,7 @@ fn resize_handle_commits_resize_request_without_changing_selection() {
         .add_handle_visual_with_action::<ResizeAction>(
             first,
             ResizeDirection::SouthEast,
-            Box::new(RectangleFigure::new(145.0, 135.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(145.0, 135.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert_eq!(

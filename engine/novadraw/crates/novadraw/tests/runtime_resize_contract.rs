@@ -36,13 +36,15 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
     let mut tree = FigureTree::new();
     let contents = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 240.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(30.0, 40.0, 80.0, 60.0)),
+            Box::new(RectangleFigure::new(30.0, 40.0, 80.0, 60.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
@@ -92,7 +94,9 @@ fn replacing_contents_after_resize_uses_the_current_logical_viewport() {
             .unwrap()
     );
     let contents = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
 
     complete_frame(&mut runtime, surface(500, 360));

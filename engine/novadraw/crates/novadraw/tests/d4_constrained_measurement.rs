@@ -142,12 +142,9 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
     let expected_baseline = f64::from(constrained.baseline());
     let expected_runs = constrained.glyph_runs().to_vec();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(
-            0.0,
-            0.0,
-            f64::from(WIDTH),
-            120.0,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, f64::from(WIDTH), 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let text_figure = runtime
         .figure(root)
@@ -223,7 +220,9 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
 
     let expected_height = f64::from(constrained.height());
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 160.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let text_figure = runtime
         .figure(root)

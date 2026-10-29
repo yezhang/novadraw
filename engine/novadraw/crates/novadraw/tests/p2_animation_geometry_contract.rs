@@ -77,10 +77,16 @@ fn external_bounds_paint_and_compound_border_use_frozen_inputs_and_sampled_size(
     let mut runtime = Runtime::empty();
     let root = runtime
         .set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 100.0, 80.0).with_border(CompoundBorder::new(
-                MarginBorder::default_border().with_margins(3.0, 4.0, 5.0, 6.0),
-                LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-            )),
+            RectangleFigure::new(0.0, 0.0, 100.0, 80.0)
+                .expect("valid figure bounds")
+                .with_border(
+                    CompoundBorder::new(
+                        MarginBorder::new(Insets::new(3.0, 4.0, 5.0, 6.0)).unwrap(),
+                        LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+                    )
+                    .unwrap(),
+                )
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let child = runtime
@@ -173,7 +179,9 @@ fn bounded_self_paint_overrun_fails_its_owner_and_repairs_with_static_content() 
     }
     let mut runtime = Runtime::empty();
     let host = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let bad = runtime
         .figure(host)
@@ -183,7 +191,9 @@ fn bounded_self_paint_overrun_fails_its_owner_and_repairs_with_static_content() 
     let good = runtime
         .figure(host)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 80.0)))
+        .add(Box::new(
+            RectangleFigure::new(150.0, 0.0, 100.0, 80.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut owners = Vec::new();
     for figure in [bad, good] {
@@ -521,11 +531,17 @@ fn title_bar_recording_keeps_glyphs_colors_and_font_leases_while_width_changes()
         .unwrap();
     let foreground = Color::rgba(0.2, 0.3, 0.4, 1.0);
     let mut rectangle = RectangleFigure::new(0.0, 0.0, 300.0, 100.0)
+        .expect("valid figure bounds")
         .with_stroke(foreground, 1.0)
-        .with_border(CompoundBorder::new(
-            MarginBorder::default_border().with_margins(2.0, 3.0, 4.0, 5.0),
-            TitleBarBorder::new("Frozen title", Color::WHITE),
-        ));
+        .expect("valid detached figure input")
+        .with_border(
+            CompoundBorder::new(
+                MarginBorder::new(Insets::new(2.0, 3.0, 4.0, 5.0)).unwrap(),
+                TitleBarBorder::new("Frozen title", Color::WHITE),
+            )
+            .unwrap(),
+        )
+        .expect("valid detached figure input");
     rectangle.fill_color = Color::WHITE;
     let root = runtime.set_contents(Box::new(rectangle)).unwrap();
     let baseline = record_full_submission(&mut runtime);
@@ -645,13 +661,17 @@ fn sampled_label_bounds_keep_prepared_glyphs_and_do_not_shape_again() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let label = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new("Tree title").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0)),
+            LabelFigure::new("Tree title")
+                .with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let baseline = record_full_submission(&mut runtime);
@@ -832,7 +852,9 @@ fn submission_retention_survives_completion_clones_and_retry_without_evicting_ow
     };
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -979,7 +1001,9 @@ fn owned_capture_retention_rejects_new_capture_and_downsize_until_drop() {
     use novadraw::animation::{AnimationBudgetKind, GeometryCaptureError};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let first = runtime.animation().capture_geometry([root]).unwrap();
     let used = runtime.animation().timeline().reservations().capture_bytes;
@@ -1060,12 +1084,16 @@ fn capture_closure_is_bounded_even_without_active_animation() {
     use novadraw::animation::{AnimationBudgetKind, GeometryCaptureError};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut limits = runtime.animation().timeline().limits();
     limits.staging_work.nodes = 1;
@@ -1087,12 +1115,16 @@ fn drawing_stage_reads_derived_geometry_and_records_owned_bounded_lines() {
     use novadraw::animation::{GeometryLine, GeometryProvider, GeometryProviderKey};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -1176,7 +1208,9 @@ fn drawing_output_overrun_fails_only_its_group_and_static_repair_skips_provider(
     use std::sync::atomic::{AtomicUsize, Ordering};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -1266,7 +1300,9 @@ fn oversized_drawing_declaration_rejects_retarget_before_callback_or_owner_trans
     use std::sync::atomic::{AtomicUsize, Ordering};
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 0.0, 50.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 0.0, 50.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -1337,12 +1373,15 @@ fn true_bounds_capture_uses_last_advance_without_recording_or_affine_size_scale(
     let mut runtime = Runtime::empty();
     let final_bounds = Rectangle::new(80.0, 60.0, 40.0, 20.0);
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(
-            final_bounds.x,
-            final_bounds.y,
-            final_bounds.width,
-            final_bounds.height,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new(
+                final_bounds.x,
+                final_bounds.y,
+                final_bounds.width,
+                final_bounds.height,
+            )
+            .expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -1448,7 +1487,9 @@ impl AnimationValue for ExternalRectangle {
 fn external_semantics_share_registration_and_queries_without_aliasing_rectangle_values() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(40.0, 20.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(40.0, 20.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let layout = runtime
         .animation()
@@ -1519,7 +1560,9 @@ fn external_semantics_share_registration_and_queries_without_aliasing_rectangle_
 fn query_rejects_undeclared_identity_and_never_materializes_on_pull() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(matches!(
         runtime.animation().geometry(),
@@ -1528,7 +1571,9 @@ fn query_rejects_undeclared_identity_and_never_materializes_on_pull() {
     let capture = runtime.animation().capture_geometry([figure]).unwrap();
     let mut foreign = Runtime::empty();
     let other = foreign
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(matches!(
         capture.geometry().figure(other),
@@ -1557,9 +1602,9 @@ fn duplicate_geometry_writers_are_rejected_before_any_owner_transfer() {
     let mut runtime = Runtime::empty();
     let end = Rectangle::new(40.0, 20.0, 30.0, 10.0);
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(
-            end.x, end.y, end.width, end.height,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new(end.x, end.y, end.width, end.height).expect("valid figure bounds"),
+        ))
         .unwrap();
     let layout = runtime
         .animation()
@@ -1632,7 +1677,9 @@ fn duplicate_geometry_writers_are_rejected_before_any_owner_transfer() {
 fn geometry_adapter_panic_crosses_the_runtime_fault_boundary() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         runtime
@@ -1659,7 +1706,9 @@ fn geometry_adapter_panic_crosses_the_runtime_fault_boundary() {
 fn descriptor_refresh_invalidates_cached_geometry_without_advancing_time() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let capture = runtime.animation().capture_geometry([figure]).unwrap();
     let previous = capture.geometry().version();
@@ -1744,7 +1793,9 @@ fn nested_sampled_bounds_preserve_four_insets_and_scale_rotation_edge_compositio
     let child = runtime
         .figure(parent)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 40.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -1826,7 +1877,9 @@ fn sampled_zero_client_clip_and_overflow_follow_the_same_ancestor_contract() {
         let child = runtime
             .figure(parent)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)))
+            .add(Box::new(
+                RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         // Establish the ordinary clipping ancestor's surface before testing overflow.
         record_full_submission(&mut runtime);
@@ -1876,7 +1929,9 @@ fn sampled_zero_client_clip_and_overflow_follow_the_same_ancestor_contract() {
 fn runtime_real_bounds_transaction_retargets_from_unrecorded_sample_and_commits_source_once() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let transition = BoundsTransition::new(Duration::from_millis(100));
@@ -1925,7 +1980,9 @@ fn rejected_real_bounds_candidate_restores_old_terminal_owner_and_version() {
     use novadraw::animation::{AnimationBudgetKind, AnimationState};
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let transition = BoundsTransition::new(Duration::from_millis(100));
@@ -2009,12 +2066,16 @@ fn geometry_work_downsize_is_atomic_and_dependency_styles_cancel_only_their_grou
     let a = runtime
         .figure(parent)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let b = runtime
         .figure(parent)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(100.0, 10.0, 30.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(100.0, 10.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let mut owners = Vec::new();
@@ -2077,12 +2138,16 @@ fn derived_providers_schedule_typed_dependencies_and_reject_cycles_before_owner_
     use novadraw::animation::{GeometryProvider, GeometryProviderKey};
     let mut runtime = Runtime::empty();
     let a = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let b = runtime
         .figure(a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(2.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(2.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2179,7 +2244,9 @@ fn derived_query_failure_clears_complete_group_and_cached_geometry_never_reruns_
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(100.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(100.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2254,12 +2321,16 @@ fn provider_prepare_rejects_undeclared_queries_even_inside_captured_subtree() {
     use novadraw::animation::{GeometryProvider, GeometryProviderKey};
     let mut runtime = Runtime::empty();
     let a = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 0.0, 30.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 0.0, 30.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let b = runtime
         .figure(a)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(2.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(2.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2313,7 +2384,9 @@ fn repeated_provider_queries_cannot_hide_work_overrun_by_ignoring_errors() {
     use novadraw::animation::{GeometryPatch, GeometryProvider, GeometryProviderKey};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(10.0, 0.0, 40.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(10.0, 0.0, 40.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2370,17 +2443,23 @@ fn repeated_provider_queries_cannot_hide_work_overrun_by_ignoring_errors() {
 fn nested_capture_counts_each_node_once_and_cached_reads_add_no_geometry_work() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 40.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(2.0, 3.0, 10.0, 5.0)))
+        .add(Box::new(
+            RectangleFigure::new(2.0, 3.0, 10.0, 5.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let grandchild = runtime
         .figure(child)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(1.0, 1.0, 2.0, 2.0)))
+        .add(Box::new(
+            RectangleFigure::new(1.0, 1.0, 2.0, 2.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let capture = runtime
         .animation()
@@ -2409,7 +2488,9 @@ fn inline_provider_configuration_is_charged_before_retarget_callbacks() {
     let mut runtime = Runtime::empty();
     runtime.animation().advance_time(time(0)).unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(10.0, 0.0, 40.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(10.0, 0.0, 40.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2565,7 +2646,9 @@ fn explicit_geometry_endpoint_does_not_replace_committed_final_bounds() {
     let mut runtime = Runtime::empty();
     runtime.animation().advance_time(time(0)).unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(10.0, 0.0, 40.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(10.0, 0.0, 40.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -2639,22 +2722,30 @@ fn collapse_visibility_retention_does_not_trigger_pause_or_finish_suspension() {
     for policy in [SuspensionPolicy::Pause, SuspensionPolicy::Finish] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let contents = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)))
+            .add(Box::new(
+                RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let child = runtime
             .figure(contents)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add(Box::new(
+                RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let unrelated = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(60.0, 0.0, 10.0, 10.0)))
+            .add(Box::new(
+                RectangleFigure::new(60.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         record_full_submission(&mut runtime);
         runtime
@@ -2736,12 +2827,16 @@ fn external_ancestor_hide_obeys_group_suspension_and_revokes_local_retention() {
     ] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let child = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add(Box::new(
+                RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         record_full_submission(&mut runtime);
         let channel = runtime
@@ -2828,7 +2923,9 @@ fn origin_takeover_materializes_latest_sample_and_failure_preserves_all_owners()
     use novadraw::animation::{AnimationState, GeometryCaptureError, ViewportOrigin};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let viewport = runtime
         .viewports()
@@ -2838,7 +2935,7 @@ fn origin_takeover_materializes_latest_sample_and_failure_preserves_all_owners()
         .viewports()
         .set_contents(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 500.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 500.0).expect("valid figure bounds")),
         )
         .unwrap();
     runtime
@@ -2922,12 +3019,16 @@ fn origin_takeover_materializes_latest_sample_and_failure_preserves_all_owners()
 fn bootstrap_root_does_not_clip_presentation_repair_envelopes_or_make_midframe_idle() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     record_full_submission(&mut runtime);
     let channel = runtime
@@ -2982,7 +3083,9 @@ fn legacy_contents_transform_rejects_new_origin_owner_without_double_pan() {
     use novadraw::animation::{AnimationState, InteractionGeometryPolicy, ViewportOrigin};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let viewport = runtime
         .viewports()
@@ -2992,7 +3095,7 @@ fn legacy_contents_transform_rejects_new_origin_owner_without_double_pan() {
         .viewports()
         .set_contents(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 500.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 500.0).expect("valid figure bounds")),
         )
         .unwrap();
     runtime.frames().stabilize_for_query().unwrap();
@@ -3055,7 +3158,9 @@ fn inflight_capture_and_reset_keep_latest_sample_and_do_not_restore_old_geometry
     use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(100.0, 0.0, 20.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(100.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()
@@ -3123,7 +3228,9 @@ fn overlapping_nested_targets_materialize_linear_geometry_work() {
     for count in [8, 32, 128] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let mut targets = vec![root];
         for _ in 1..count {
@@ -3131,7 +3238,9 @@ fn overlapping_nested_targets_materialize_linear_geometry_work() {
             let child = runtime
                 .figure(parent)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+                .add(Box::new(
+                    RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+                ))
                 .unwrap();
             targets.push(child);
         }
@@ -3154,7 +3263,9 @@ fn sampled_geometry_surface_pause_resumes_without_advancing_local_motion() {
     };
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(100.0, 0.0, 20.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(100.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let channel = runtime
         .animation()

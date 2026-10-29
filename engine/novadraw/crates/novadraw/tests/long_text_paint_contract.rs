@@ -271,9 +271,10 @@ fn paragraph_hierarchy_prunes_known_ink_and_keeps_unknown_native_paragraphs() {
             .register_builtin_font(BuiltinFont::Inter)
             .unwrap();
         let page = runtime
-            .set_contents(Box::new(FlowPageFigure::new(Rectangle::new(
-                0.0, 0.0, 100.0, 400.0,
-            ))))
+            .set_contents(Box::new(
+                FlowPageFigure::new(Rectangle::new(0.0, 0.0, 100.0, 400.0))
+                    .expect("valid detached figure input"),
+            ))
             .unwrap();
         for _ in 0..128 {
             let block = runtime

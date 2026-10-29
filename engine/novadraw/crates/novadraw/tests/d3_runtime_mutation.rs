@@ -220,7 +220,9 @@ fn runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures() 
     let (mut runtime, root, _) = runtime_with_child();
     let mut foreign = Runtime::empty();
     let foreign_figure = foreign
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let original = runtime.tree().figure_bounds(root).unwrap();
 
@@ -247,7 +249,9 @@ fn runtime_update_requests_validate_target_and_damage_geometry() {
     let (mut runtime, root, child) = runtime_with_child();
     let mut foreign = Runtime::empty();
     let foreign_figure = foreign
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
 
     assert!(matches!(
@@ -268,20 +272,22 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let bottom = tree
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let top = tree
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
@@ -349,20 +355,22 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let mut expected = FigureTree::new();
     let expected_root = expected
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let expected_bottom = expected
         .builder()
         .add_child(
             expected_root,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let expected_top = expected
         .builder()
         .add_child(
             expected_root,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     assert!(
@@ -435,7 +443,9 @@ fn ordinary_child_order_api_rejects_layered_panes() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let (pane, first) = {
@@ -447,7 +457,9 @@ fn ordinary_child_order_api_rejects_layered_panes() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 200.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid detached figure input"),
+                ),
                 LayerKey::new("first").unwrap(),
                 LayerPlacement::Last,
             )
@@ -456,7 +468,9 @@ fn ordinary_child_order_api_rejects_layered_panes() {
             .layers()
             .add(
                 pane,
-                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 200.0)),
+                Box::new(
+                    LayerFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid detached figure input"),
+                ),
                 LayerKey::new("second").unwrap(),
                 LayerPlacement::Last,
             )
@@ -475,7 +489,9 @@ fn checked_topology_mutations_preserve_error_categories() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let single = tree
         .builder()
@@ -485,14 +501,15 @@ fn checked_topology_mutations_preserve_error_categories() {
     runtime
         .figure(single)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
 
     assert_eq!(
-        runtime
-            .figure(single)
-            .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),),
+        runtime.figure(single).unwrap().add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")
+        ),),
         Err(RuntimeMutationError::Graph(
             GraphMutationError::ChildLimitExceeded { limit: 1 }
         ))
@@ -508,7 +525,9 @@ fn checked_topology_mutations_preserve_error_categories() {
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.dispose_subtree(child).unwrap();
     assert_eq!(
@@ -522,11 +541,16 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 40.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 40.0).expect("valid figure bounds")),
+        )
         .expect("valid FigureTree construction");
     tree.builder()
         .add_child(
@@ -572,11 +596,16 @@ fn runtime_with_child() -> (Runtime, FigureId, FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0).expect("valid figure bounds")),
+        )
         .expect("valid FigureTree construction");
     (Runtime::new(tree), root, child)
 }

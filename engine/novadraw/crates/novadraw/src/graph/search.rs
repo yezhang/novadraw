@@ -336,10 +336,12 @@ mod tests {
     #[test]
     fn hit_test_checks_deepest_candidate_before_parent_acceptance() {
         let mut tree = FigureTree::new();
-        let parent = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let child = tree.add_child_to(
             parent,
-            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds")),
         );
         let mut search = RecordingSearch {
             rejected: Some(child),
@@ -356,13 +358,20 @@ mod tests {
     #[test]
     fn exclusion_search_prunes_the_complete_topmost_subtree() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let lower = tree.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 60.0, 60.0)));
-        let excluded =
-            tree.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 60.0, 60.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let lower = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 60.0, 60.0).expect("valid figure bounds")),
+        );
+        let excluded = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 60.0, 60.0).expect("valid figure bounds")),
+        );
         tree.add_child_to(
             excluded,
-            Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0).expect("valid figure bounds")),
         );
 
         let hit = tree.hit_test_excluding((20.0, 20.0), [excluded]);
@@ -373,10 +382,21 @@ mod tests {
     #[test]
     fn structural_queries_have_stable_order_and_hide_the_synthetic_root() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let first = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        let nested = tree.add_child_to(first, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let second = tree.add_child_to(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let first = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
+        let nested = tree.add_child_to(
+            first,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let second = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
 
         assert_eq!(tree.ancestor_ids(root), Ok(Vec::new()));
         assert_eq!(tree.ancestor_ids(nested), Ok(vec![first, root]));
@@ -389,8 +409,13 @@ mod tests {
     #[test]
     fn find_in_subtree_distinguishes_unknown_root_from_no_match() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let child = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         let mut no_match = RecordingSearch {
             rejected: Some(root),
             pruned: Some(child),
@@ -408,11 +433,21 @@ mod tests {
     #[test]
     fn structural_prune_never_visits_descendants() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let branch = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        let leaf = tree.add_child_to(branch, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let sibling =
-            tree.add_child_to(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let branch = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
+        let leaf = tree.add_child_to(
+            branch,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let sibling = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         let mut search = RecordingSearch {
             rejected: Some(root),
             pruned: Some(branch),

@@ -208,13 +208,10 @@ fn fixture() -> Fixture {
 pub(super) fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
     let host = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            1200.0,
-            800.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 1200.0, 800.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("white FigureCanvas");
     let viewport = runtime
         .viewports()
@@ -356,20 +353,25 @@ pub(super) fn canvas_fixture(_legacy_controls: bool) -> Fixture {
             let caption_group = runtime
                 .figure(host)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new_with_color(
-                    PANEL_X,
-                    label_y,
-                    PANEL_WIDTH,
-                    CONTROL_HEIGHT,
-                    Color::WHITE,
-                )))
+                .add(Box::new(
+                    RectangleFigure::new_with_color(
+                        PANEL_X,
+                        label_y,
+                        PANEL_WIDTH,
+                        CONTROL_HEIGHT,
+                        Color::WHITE,
+                    )
+                    .expect("valid figure bounds"),
+                ))
                 .unwrap();
             runtime
                 .figure(caption_group)
                 .unwrap()
-                .add(Box::new(LabelFigure::new(text).with_bounds(
-                    Rectangle::new(2.0, 0.0, PANEL_WIDTH, CONTROL_HEIGHT),
-                )))
+                .add(Box::new(
+                    LabelFigure::new(text)
+                        .with_bounds(Rectangle::new(2.0, 0.0, PANEL_WIDTH, CONTROL_HEIGHT))
+                        .expect("valid detached figure input"),
+                ))
                 .unwrap();
             let model = model.clone();
             controls.push(
@@ -535,9 +537,11 @@ fn caption(runtime: &mut Runtime, host: FigureId, text: &str, y: f64) {
     runtime
         .figure(host)
         .unwrap()
-        .add(Box::new(LabelFigure::new(text).with_bounds(
-            Rectangle::new(PANEL_X, y, PANEL_WIDTH, CONTROL_HEIGHT),
-        )))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(PANEL_X, y, PANEL_WIDTH, CONTROL_HEIGHT))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
 }
 

@@ -62,7 +62,7 @@ pub enum Direction {
 #[derive(Clone)]
 pub struct TriangleFigure {
     /// 边界矩形
-    pub bounds: Rectangle,
+    bounds: Rectangle,
     /// 填充颜色
     pub fill_color: Color,
     /// 描边颜色
@@ -87,9 +87,9 @@ pub struct TriangleFigure {
 impl TriangleFigure {
     /// 创建三角形
     ///
-    pub fn new(bounds: Rectangle) -> Self {
-        Self {
-            bounds,
+    pub fn new(bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(bounds)?,
             fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
             stroke_color: Color::from_hex("#c0392b").expect("valid color literal"),
             stroke: StrokeStyle::default(),
@@ -101,12 +101,15 @@ impl TriangleFigure {
             corner_radii: [0.0; 3],
             contour: None,
             contour_points: None,
-        }
+        })
     }
 
     /// 创建指定方向的三角形
-    pub fn new_with_direction(bounds: Rectangle, direction: Direction) -> Self {
-        Self::new(bounds).with_direction(direction)
+    pub fn new_with_direction(
+        bounds: Rectangle,
+        direction: Direction,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self::new(bounds)?.with_direction(direction))
     }
 
     /// 设置填充颜色
@@ -195,23 +198,29 @@ impl TriangleFigure {
     /// 参考 draw2d: Triangle.primTranslate(int, int)
     /// 平移时直接平移缓存的顶点，不需要重新计算。
     /// 这是性能优化，避免在纯位置变化时触发 validate 重算。
-    pub fn prim_translate(&mut self, dx: f64, dy: f64) {
-        self.bounds.x += dx;
-        self.bounds.y += dy;
-
-        // 平移缓存的顶点
-        if let Some(ref mut points) = self.cached_points {
-            for point in points.iter_mut() {
-                point.0 += dx;
-                point.1 += dy;
-            }
+    pub fn prim_translate(&mut self, dx: f64, dy: f64) -> Result<(), super::ShapeGeometryError> {
+        let translated = |bounds: Rectangle| {
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(
+                bounds.x + dx,
+                bounds.y + dy,
+                bounds.width,
+                bounds.height,
+            ))
+        };
+        let bounds = translated(self.bounds)?;
+        let cached_bounds = self.cached_bounds.map(translated).transpose()?;
+        let cached_points = self
+            .cached_points
+            .map(|points| points.map(|(x, y)| (x + dx, y + dy)));
+        if cached_points
+            .is_some_and(|points| points.iter().any(|(x, y)| !x.is_finite() || !y.is_finite()))
+        {
+            return Err(super::ShapeGeometryError::NonFinite);
         }
-
-        // 更新缓存的 bounds
-        if let Some(ref mut cached) = self.cached_bounds {
-            cached.x += dx;
-            cached.y += dy;
-        }
+        self.bounds = bounds;
+        self.cached_bounds = cached_bounds;
+        self.cached_points = cached_points;
+        Ok(())
     }
 
     /// 设置线条样式
@@ -229,9 +238,13 @@ impl TriangleFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     /// 计算三角形的三个顶点
@@ -351,17 +364,30 @@ impl Bounded for TriangleFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        let new_bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        let new_bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        let mut candidate = self.clone();
+        candidate.bounds = new_bounds;
+        if self.corner_radii.iter().any(|radius| *radius > 0.0) {
+            candidate.replace_corner_radii(self.corner_radii)?;
+        }
 
         // 参考 draw2d: setBounds() 只有在大小变化时才调用 invalidate()
         // 纯位置变化通过 prim_translate() 处理，不需要重新计算顶点
         if self.bounds.width != width || self.bounds.height != height {
             // 大小变化：清除缓存，触发 validate 时重新计算
-            self.invalidate();
+            candidate.invalidate();
         }
 
-        self.bounds = new_bounds;
+        *self = candidate;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -471,8 +497,11 @@ impl BorderedFigure for TriangleFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -602,7 +631,8 @@ mod tests {
     /// 测试：validate 计算并缓存顶点
     #[test]
     fn test_validate_computes_and_caches_points() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
 
         // 初始没有缓存
         assert!(triangle.cached_points.is_none());
@@ -621,14 +651,15 @@ mod tests {
     /// 测试：bounds 变化后 validate 重新计算顶点
     #[test]
     fn test_validate_recomputes_when_bounds_change() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 获取原始缓存的顶点
         let original_points = triangle.cached_points.unwrap();
 
         // 改变大小
-        triangle.set_bounds(0.0, 0.0, 40.0, 40.0);
+        triangle.set_bounds(0.0, 0.0, 40.0, 40.0).unwrap();
 
         // 再次 validate
         triangle.validate();
@@ -644,14 +675,15 @@ mod tests {
     /// 测试：大小不变只平移时缓存被保留
     #[test]
     fn test_prim_translate_preserves_cache() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 获取原始缓存
         let original_points = triangle.cached_points.unwrap();
 
         // 平移（不改变大小）
-        triangle.prim_translate(10.0, 10.0);
+        triangle.prim_translate(10.0, 10.0).unwrap();
 
         // 缓存应该仍然存在且平移了
         let translated_points = triangle.cached_points.unwrap();
@@ -662,7 +694,8 @@ mod tests {
     /// 测试：set_direction 清除缓存
     #[test]
     fn test_set_direction_clears_cache() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 缓存存在
@@ -678,14 +711,15 @@ mod tests {
     /// 测试：set_bounds 大小变化时清除缓存
     #[test]
     fn test_set_bounds_size_change_clears_cache() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 缓存存在
         assert!(triangle.cached_points.is_some());
 
         // 改变大小
-        triangle.set_bounds(0.0, 0.0, 30.0, 30.0);
+        triangle.set_bounds(0.0, 0.0, 30.0, 30.0).unwrap();
 
         // 缓存被清除
         assert!(triangle.cached_points.is_none());
@@ -694,14 +728,15 @@ mod tests {
     /// 测试：set_bounds 只改变位置不清除缓存
     #[test]
     fn test_set_bounds_position_only_preserves_cache() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 缓存存在
         let original_points = triangle.cached_points.unwrap();
 
         // 只改变位置（大小不变）
-        triangle.set_bounds(10.0, 10.0, 20.0, 20.0);
+        triangle.set_bounds(10.0, 10.0, 20.0, 20.0).unwrap();
 
         // 注意：当前实现中 set_bounds 不清除缓存，
         // 因为只检查了大小变化。但如果需要更严格的优化，
@@ -714,7 +749,8 @@ mod tests {
     /// 测试：invalidate 清除缓存
     #[test]
     fn test_invalidate_clears_cache() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
         triangle.validate();
 
         // 缓存存在
@@ -731,14 +767,18 @@ mod tests {
     fn stroke_configuration_is_validated_before_paint() {
         let bounds = Rectangle::new(0.0, 0.0, 20.0, 20.0);
         assert!(matches!(
-            TriangleFigure::new(bounds).with_stroke_width(f64::NAN),
+            TriangleFigure::new(bounds)
+                .expect("valid detached figure input")
+                .with_stroke_width(f64::NAN),
             Err(GraphicsInputError::NonFinite {
                 field: "stroke width",
                 index: None,
             })
         ));
         assert!(matches!(
-            TriangleFigure::new(bounds).with_stroke_width(-1.0),
+            TriangleFigure::new(bounds)
+                .expect("valid detached figure input")
+                .with_stroke_width(-1.0),
             Err(GraphicsInputError::NegativeStrokeWidth)
         ));
 
@@ -746,14 +786,17 @@ mod tests {
             .with_width(3.0)
             .expect("valid stroke width")
             .with_join(crate::render::LineJoin::Round);
-        let triangle = TriangleFigure::new(bounds).with_stroke_style(stroke.clone());
+        let triangle = TriangleFigure::new(bounds)
+            .expect("valid detached figure input")
+            .with_stroke_style(stroke.clone());
         assert_eq!(triangle.stroke_style(), &stroke);
     }
 
     /// 测试：不同方向的顶点计算
     #[test]
     fn test_different_directions() {
-        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .expect("valid detached figure input");
 
         // North 方向
         triangle.direction = Direction::North;

@@ -43,7 +43,9 @@ pub fn panel_scene() -> PanelScene {
     let root = runtime
         .set_contents(Box::new(
             RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
-                .with_border(canvas_margins()),
+                .expect("valid figure bounds")
+                .with_border(canvas_margins())
+                .expect("valid detached figure input"),
         ))
         .expect("Grid root");
     configure_canvas_layout(&mut runtime, root);
@@ -279,12 +281,13 @@ const CONTROL_FONT: &str = "13px Inter Variable";
 fn canvas_margins() -> novadraw::figure::border::MarginBorder {
     use novadraw::figure::border::MarginBorder;
 
-    MarginBorder::default_border().with_margins(
+    MarginBorder::new(novadraw::geometry::Insets::new(
         CONTENT_Y,
         CONTENT_X,
         HEIGHT - CONTENT_Y - CONTENT_HEIGHT,
         WIDTH - CONTENT_X - CONTENT_WIDTH,
-    )
+    ))
+    .expect("valid margins")
 }
 
 fn configure_canvas_layout(runtime: &mut Runtime, root: FigureId) {
@@ -615,11 +618,15 @@ impl SelectableShapeFigure {
         match self.kind {
             OfficialShapeKind::Ellipse => Box::new(
                 EllipseFigure::new_with_color(0.0, 0.0, bounds.width, bounds.height, self.color)
-                    .with_stroke(Color::BLACK, stroke_width),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::BLACK, stroke_width)
+                    .expect("valid detached figure input"),
             ),
             OfficialShapeKind::Rectangle => Box::new(
                 RectangleFigure::new_with_color(0.0, 0.0, bounds.width, bounds.height, self.color)
-                    .with_stroke(Color::BLACK, stroke_width),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::BLACK, stroke_width)
+                    .expect("valid detached figure input"),
             ),
             OfficialShapeKind::RoundedRectangle => Box::new(
                 RoundedRectangleFigure::new_with_color(
@@ -630,10 +637,13 @@ impl SelectableShapeFigure {
                     8.0,
                     self.color,
                 )
-                .with_stroke(Color::BLACK, stroke_width),
+                .expect("valid figure bounds")
+                .with_stroke(Color::BLACK, stroke_width)
+                .expect("valid detached figure input"),
             ),
             OfficialShapeKind::Triangle => Box::new(
                 TriangleFigure::new(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
+                    .expect("valid detached figure input")
                     .with_fill_color(self.color)
                     .with_stroke_color(Color::BLACK)
                     .with_stroke_width(stroke_width)
@@ -825,13 +835,10 @@ pub fn grid_layout_example() -> Runtime {
 fn fixture() -> Fixture {
     let mut runtime = runtime_with_fonts();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("GridLayoutExample root");
     let state = Arc::new(GridExampleState::default());
     let settings = Arc::new(Mutex::new(GridSettings::default()));
@@ -1334,7 +1341,9 @@ fn add_caption(
         .figure(root)
         .expect("root")
         .add(Box::new(
-            LabelFigure::new(text).with_bounds(Rectangle::new(x, y, width, 22.0)),
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(x, y, width, 22.0))
+                .expect("valid detached figure input"),
         ))
         .expect("Label");
     runtime
@@ -1564,9 +1573,10 @@ mod tests {
             runtime
                 .figure(content)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new(
-                    0.0, 0.0, SHAPE_SIZE, SHAPE_SIZE,
-                )))
+                .add(Box::new(
+                    RectangleFigure::new(0.0, 0.0, SHAPE_SIZE, SHAPE_SIZE)
+                        .expect("valid figure bounds"),
+                ))
                 .unwrap();
         }
         let context = egui::Context::default();

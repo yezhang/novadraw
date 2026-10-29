@@ -19,25 +19,25 @@ fn texture_backend_rebuilds_full_frames_validates_targets_and_rejects_stale_sess
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            32.0,
-            16.0,
-            Color::rgba(0.0, 0.0, 0.0, 1.0),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 32.0, 16.0, Color::rgba(0.0, 0.0, 0.0, 1.0))
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let shape = tree
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new_with_color(
-                2.0,
-                2.0,
-                6.0,
-                6.0,
-                Color::rgba(1.0, 0.0, 0.0, 1.0),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    2.0,
+                    2.0,
+                    6.0,
+                    6.0,
+                    Color::rgba(1.0, 0.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);

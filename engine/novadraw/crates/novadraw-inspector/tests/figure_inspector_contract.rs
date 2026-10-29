@@ -46,12 +46,14 @@ fn runtime_with_contents() -> (Runtime, novadraw::tree::FigureId, novadraw::tree
     let mut tree = FigureTree::new();
     let mut builder = tree.builder();
     let contents = builder
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 80.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 120.0, 80.0).expect("valid figure bounds"),
+        ))
         .expect("valid contents Figure");
     let child = builder
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(10.0, 12.0, 20.0, 24.0)),
+            Box::new(RectangleFigure::new(10.0, 12.0, 20.0, 24.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     (Runtime::new(tree), contents, child)

@@ -49,7 +49,8 @@ impl InteractivePage {
             target: None,
             pointer: None,
             focused: false,
-            border: LineBorder::new(Color::rgba(0.25, 0.25, 0.25, 1.0), 10.0),
+            border: LineBorder::new(Color::rgba(0.25, 0.25, 0.25, 1.0), 10.0)
+                .expect("valid border"),
         }
     }
 }

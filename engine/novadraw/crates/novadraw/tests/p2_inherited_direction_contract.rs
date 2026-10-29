@@ -57,9 +57,10 @@ fn external_engine_receives_inherited_direction_and_mutation_replaces_snapshot()
     let mut tree = FigureTree::new();
     let page = tree
         .builder()
-        .set_contents(Box::new(FlowPageFigure::new(Rectangle::new(
-            0.0, 0.0, 240.0, 100.0,
-        ))))
+        .set_contents(Box::new(
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 240.0, 100.0))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     tree.builder()
         .add_child(page, Box::new(StructuredTextFigure::new("abc عربي xyz")))
@@ -316,18 +317,23 @@ fn nested_override_and_noop_mutation_preserve_resolved_direction() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = tree
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 60.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 60.0).expect("valid figure bounds")),
         )
         .unwrap();
     let leaf = tree
         .builder()
-        .add_child(child, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .add_child(
+            child,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let mut runtime = Runtime::new(tree);
     let mirrored = FigureStyle {
@@ -426,7 +432,9 @@ fn mirrored_scroll_pane_places_vertical_bar_on_left_and_restores_on_mutation() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let pane = tree
         .builder()
@@ -435,7 +443,7 @@ fn mirrored_scroll_pane_places_vertical_bar_on_left_and_restores_on_mutation() {
     tree.builder()
         .set_scroll_pane_contents(
             &pane,
-            Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 320.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 320.0).expect("valid figure bounds")),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
@@ -561,11 +569,16 @@ fn external_layout_reads_direction_through_frozen_query_and_revalidates() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        )
         .unwrap();
     tree.builder()
         .set_layout_manager(root, Box::new(ExternalLayout(child)))

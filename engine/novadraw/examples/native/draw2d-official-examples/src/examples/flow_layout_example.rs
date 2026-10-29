@@ -152,14 +152,20 @@ fn fixture() -> Fixture {
 
 fn canvas_fixture(_legacy_controls: bool) -> Fixture {
     let mut runtime = runtime_with_fonts();
-    let mut root_figure = RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE);
+    let mut root_figure = RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+        .expect("valid figure bounds");
     if !_legacy_controls {
-        root_figure = root_figure.with_border(MarginBorder::default_border().with_margins(
-            CANVAS_INSET,
-            CANVAS_INSET,
-            HEIGHT - CANVAS_INSET - CONTENT_HEIGHT,
-            WIDTH - CANVAS_INSET - CONTENT_WIDTH,
-        ));
+        root_figure = root_figure
+            .with_border(
+                MarginBorder::new(novadraw::geometry::Insets::new(
+                    CANVAS_INSET,
+                    CANVAS_INSET,
+                    HEIGHT - CANVAS_INSET - CONTENT_HEIGHT,
+                    WIDTH - CANVAS_INSET - CONTENT_WIDTH,
+                ))
+                .expect("valid margins"),
+            )
+            .expect("valid detached figure input");
     }
     let root = runtime
         .set_contents(Box::new(root_figure))
@@ -182,7 +188,9 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
                 CONTENT_HEIGHT,
                 Color::WHITE,
             )
-            .with_border(LineBorder::default_border()),
+            .expect("valid figure bounds")
+            .with_border(LineBorder::default_border())
+            .expect("valid detached figure input"),
         ))
         .expect("FlowLayout container");
     let settings = Arc::new(Mutex::new(FlowSettings::default()));
@@ -208,7 +216,9 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
                     CONTENT_HEIGHT,
                     Color::rgba(0.96, 0.96, 0.96, 1.0),
                 )
-                .with_border(LineBorder::default_border()),
+                .expect("valid figure bounds")
+                .with_border(LineBorder::default_border())
+                .expect("valid detached figure input"),
             ))
             .expect("control panel");
         add_heading(&mut runtime, controls_panel, "FlowLayout Properties", 8.0);
@@ -316,123 +326,158 @@ fn canvas_fixture(_legacy_controls: bool) -> Fixture {
 fn add_official_shapes(runtime: &mut Runtime, parent: FigureId) {
     let shapes: Vec<(Box<dyn novadraw::figure::Figure>, Dimension)> = vec![
         (
-            Box::new(EllipseFigure::new_with_color(
-                0.0,
-                0.0,
-                60.0,
-                40.0,
-                Color::rgba(0.0, 0.0, 1.0, 1.0),
-            )),
+            Box::new(
+                EllipseFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    60.0,
+                    40.0,
+                    Color::rgba(0.0, 0.0, 1.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(60.0, 40.0),
         ),
         (
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                30.0,
-                70.0,
-                Color::rgba(1.0, 0.0, 0.0, 1.0),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    30.0,
+                    70.0,
+                    Color::rgba(1.0, 0.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(30.0, 70.0),
         ),
         (
-            Box::new(RoundedRectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                90.0,
-                30.0,
-                8.0,
-                Color::rgba(1.0, 1.0, 0.0, 1.0),
-            )),
+            Box::new(
+                RoundedRectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    90.0,
+                    30.0,
+                    8.0,
+                    Color::rgba(1.0, 1.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(90.0, 30.0),
         ),
         (
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                80.0,
-                Color::rgba(128.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0, 1.0),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    80.0,
+                    Color::rgba(128.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 80.0),
         ),
         (
-            Box::new(EllipseFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                50.0,
-                Color::rgba(0.0, 1.0, 0.0, 1.0),
-            )),
+            Box::new(
+                EllipseFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                    Color::rgba(0.0, 1.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 50.0),
         ),
         (
             Box::new(
                 TriangleFigure::new(Rectangle::new(0.0, 0.0, 50.0, 50.0))
+                    .expect("valid detached figure input")
                     .with_fill_color(Color::BLACK),
             ),
             Dimension::new(50.0, 50.0),
         ),
         (
-            Box::new(RoundedRectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                50.0,
-                8.0,
-                Color::rgba(0.0, 1.0, 1.0, 1.0),
-            )),
+            Box::new(
+                RoundedRectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                    8.0,
+                    Color::rgba(0.0, 1.0, 1.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 50.0),
         ),
         (
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                70.0,
-                Color::rgba(0.0, 127.0 / 255.0, 0.0, 1.0),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    70.0,
+                    Color::rgba(0.0, 127.0 / 255.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 70.0),
         ),
         (
             Box::new(
                 TriangleFigure::new(Rectangle::new(0.0, 0.0, 50.0, 50.0))
+                    .expect("valid detached figure input")
                     .with_fill_color(Color::rgba(1.0, 196.0 / 255.0, 0.0, 1.0)),
             ),
             Dimension::new(50.0, 50.0),
         ),
         (
-            Box::new(EllipseFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                50.0,
-                Color::rgba(1.0, 0.0, 0.0, 1.0),
-            )),
+            Box::new(
+                EllipseFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                    Color::rgba(1.0, 0.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 50.0),
         ),
         (
-            Box::new(RoundedRectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                50.0,
-                50.0,
-                8.0,
-                Color::rgba(1.0, 1.0, 0.0, 1.0),
-            )),
+            Box::new(
+                RoundedRectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                    8.0,
+                    Color::rgba(1.0, 1.0, 0.0, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ),
             Dimension::new(50.0, 50.0),
         ),
     ];
     for (mut figure, size) in shapes {
         if let Some(shape) = figure.as_any_mut().downcast_mut::<RectangleFigure>() {
-            shape.stroke_color = Some(Color::BLACK);
-            shape.stroke_width = 1.0;
+            *shape = shape
+                .clone()
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid shape stroke");
         } else if let Some(shape) = figure.as_any_mut().downcast_mut::<EllipseFigure>() {
-            shape.stroke_color = Some(Color::BLACK);
-            shape.stroke_width = 1.0;
+            *shape = shape
+                .clone()
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid shape stroke");
         } else if let Some(shape) = figure.as_any_mut().downcast_mut::<RoundedRectangleFigure>() {
-            shape.stroke_color = Some(Color::BLACK);
-            shape.stroke_width = 1.0;
+            *shape = shape
+                .clone()
+                .with_stroke(Color::BLACK, 1.0)
+                .expect("valid shape stroke");
         } else if let Some(shape) = figure.as_any_mut().downcast_mut::<TriangleFigure>() {
             shape.stroke_color = Color::BLACK;
         }
@@ -528,7 +573,9 @@ fn add_text(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64, font: &
         .figure(parent)
         .expect("control panel")
         .add(Box::new(
-            LabelFigure::new(text).with_bounds(Rectangle::new(12.0, y, 210.0, 22.0)),
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(12.0, y, 210.0, 22.0))
+                .expect("valid detached figure input"),
         ))
         .expect("control panel label");
     runtime

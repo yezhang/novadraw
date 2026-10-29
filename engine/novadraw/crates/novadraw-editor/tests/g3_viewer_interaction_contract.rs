@@ -81,16 +81,18 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.bounds[&model_id];
         if model_id == NodeId(4) {
-            Ok(Box::new(ClickableFigure::new(bounds)))
+            Ok(Box::new(
+                ClickableFigure::new(bounds).expect("valid detached figure input"),
+            ))
         } else if model_id == NodeId(1) {
-            Ok(Box::new(RootFigure::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            )))
+            Ok(Box::new(
+                RootFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid detached figure input"),
+            ))
         } else {
-            Ok(Box::new(RectangleFigure::from_bounds(bounds)))
+            Ok(Box::new(
+                RectangleFigure::from_bounds(bounds).expect("valid figure bounds"),
+            ))
         }
     }
 
@@ -261,7 +263,7 @@ fn handles_win_targeting_and_feedback_is_transparent() {
         .add_feedback_visual(
             Some(owner),
             false,
-            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 60.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 60.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -270,7 +272,7 @@ fn handles_win_targeting_and_feedback_is_transparent() {
     let (handle, _) = viewer
         .add_handle_visual(
             owner,
-            Box::new(RectangleFigure::new(20.0, 20.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 20.0, 20.0).expect("valid figure bounds")),
         )
         .unwrap();
     let ViewerTarget::Handle {
@@ -296,7 +298,7 @@ fn removing_parts_reconciles_selection_focus_and_owned_overlays() {
     let (_, handle) = viewer
         .add_handle_visual(
             removed,
-            Box::new(RectangleFigure::new(20.0, 20.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 20.0, 20.0).expect("valid figure bounds")),
         )
         .unwrap();
 

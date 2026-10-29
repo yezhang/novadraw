@@ -141,12 +141,15 @@ fn fixture_in_viewport(dynamic: bool, viewport: bool) -> Fixture {
     }
     let request = builder.build(&mut solve).unwrap();
     let mut runtime = Runtime::empty();
-    let graph = Box::new(GraphProjectionFigure::new(Rectangle::new(
-        0.0, 0.0, 600.0, 400.0,
-    )));
+    let graph = Box::new(
+        GraphProjectionFigure::new(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+            .expect("valid detached figure input"),
+    );
     let owner = if viewport {
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 600.0, 400.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let viewport = runtime
             .viewports()
@@ -171,12 +174,15 @@ fn fixture_in_viewport(dynamic: bool, viewport: bool) -> Fixture {
         let figure: Box<dyn Figure> = if dynamic && node.id() == a {
             Box::new(WidthSensitive(fail.clone()))
         } else {
-            Box::new(RectangleFigure::new(
-                0.0,
-                0.0,
-                node.size.preferred().width,
-                node.size.preferred().height,
-            ))
+            Box::new(
+                RectangleFigure::new(
+                    0.0,
+                    0.0,
+                    node.size.preferred().width,
+                    node.size.preferred().height,
+                )
+                .expect("valid figure bounds"),
+            )
         };
         let id = runtime.figure(owner).unwrap().add(figure).unwrap();
         entities.push((node.id().into(), id));
@@ -545,9 +551,10 @@ fn oscillating_external_measurement_feedback_is_rejected_without_publication() {
     let request = builder.build(&mut context).unwrap();
     let mut runtime = Runtime::empty();
     let owner = runtime
-        .set_contents(Box::new(GraphProjectionFigure::new(Rectangle::new(
-            0.0, 0.0, 600.0, 400.0,
-        ))))
+        .set_contents(Box::new(
+            GraphProjectionFigure::new(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(owner)
@@ -670,19 +677,24 @@ fn external_non_layered_algorithm_uses_the_same_projection_and_repeated_frames_d
     let request = builder.build(&mut context).unwrap();
     let mut runtime = Runtime::empty();
     let owner = runtime
-        .set_contents(Box::new(GraphProjectionFigure::new(Rectangle::new(
-            0.0, 0.0, 600.0, 400.0,
-        ))))
+        .set_contents(Box::new(
+            GraphProjectionFigure::new(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(owner)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let second_figure = runtime
         .figure(owner)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let connection_figure = runtime
         .figure(owner)
@@ -781,9 +793,10 @@ fn project_fixture(request: GraphLayoutRequest, service: Arc<GraphLayoutService>
             budget.allocation,
         ));
     let owner = runtime
-        .set_contents(Box::new(GraphProjectionFigure::new(Rectangle::new(
-            0.0, 0.0, 600.0, 400.0,
-        ))))
+        .set_contents(Box::new(
+            GraphProjectionFigure::new(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     let mut entities = Vec::new();
     for entity in request
@@ -800,7 +813,9 @@ fn project_fixture(request: GraphLayoutRequest, service: Arc<GraphLayoutService>
         let figure = runtime
             .figure(owner)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)))
+            .add(Box::new(
+                RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         entities.push((entity, figure));
     }

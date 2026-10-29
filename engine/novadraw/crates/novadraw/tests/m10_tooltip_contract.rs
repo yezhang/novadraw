@@ -12,17 +12,23 @@ fn tooltip_runtime() -> (Runtime, FigureId, FigureId, FigureId) {
         )
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let left = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(10.0, 10.0, 100.0, 100.0)))
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let right = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(150.0, 10.0, 100.0, 100.0)))
+        .add(Box::new(
+            RectangleFigure::new(150.0, 10.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     assert!(
         runtime

@@ -31,7 +31,9 @@ use novadraw::{
 fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
     let ellipse =
         novadraw::figure::EllipseFigure::new_with_color(0.0, 0.0, 100.0, 60.0, Color::WHITE)
-            .with_stroke(Color::BLACK, 4.0);
+            .expect("valid figure bounds")
+            .with_stroke(Color::BLACK, 4.0)
+            .expect("valid detached figure input");
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
@@ -100,7 +102,9 @@ fn rounded_rectangle_fill_and_outline_share_optimized_path() {
     for stroke_width in [1.0_f64, 2.0, 4.0, 8.0] {
         let rounded =
             RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED)
-                .with_stroke(Color::WHITE, stroke_width);
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, stroke_width)
+                .expect("valid detached figure input");
         let mut recorder = CommandRecorder::new();
         {
             let mut context = recorder.paint();
@@ -145,7 +149,8 @@ fn rounded_rectangle_fill_and_outline_share_optimized_path() {
 
 #[test]
 fn rounded_rectangle_fill_without_outline_uses_full_bounds() {
-    let rounded = RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED);
+    let rounded = RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED)
+        .expect("valid figure bounds");
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
@@ -175,7 +180,8 @@ fn rounded_rectangle_fill_without_outline_uses_full_bounds() {
 
 #[test]
 fn rounded_rectangle_precise_hit_rejects_clipped_corner() {
-    let rounded = RoundedRectangleFigure::new(0.0, 0.0, 100.0, 60.0, 20.0);
+    let rounded =
+        RoundedRectangleFigure::new(0.0, 0.0, 100.0, 60.0, 20.0).expect("valid figure bounds");
     let bounds = Rectangle::new(0.0, 0.0, 100.0, 60.0);
 
     assert!(!rounded.precise_hit(1.0, 1.0, bounds));
@@ -187,7 +193,9 @@ fn rounded_rectangle_precise_hit_rejects_clipped_corner() {
 fn polyline_precise_hit_uses_segment_distance() {
     let polyline =
         PolylineFigure::from_points(vec![Point::new(0.0, 0.0), Point::new(100.0, 100.0)])
-            .with_width(2.0);
+            .expect("valid detached figure input")
+            .with_width(2.0)
+            .expect("valid detached figure input");
     let bounds = polyline.initial_bounds();
 
     assert!(polyline.precise_hit(50.0, 50.0, bounds));
@@ -201,13 +209,22 @@ fn point_list_visual_bounds_follow_line_join_contract() {
         Point::new(60.0, 21.0),
         Point::new(110.0, 20.0),
     ];
-    let miter = PolylineFigure::from_points(points.clone()).with_width(4.0);
-    let round = PolylineFigure::from_points(points.clone())
+    let miter = PolylineFigure::from_points(points.clone())
+        .expect("valid detached figure input")
         .with_width(4.0)
-        .with_join(LineJoin::Round);
+        .expect("valid detached figure input");
+    let round = PolylineFigure::from_points(points.clone())
+        .expect("valid detached figure input")
+        .with_width(4.0)
+        .expect("valid detached figure input")
+        .with_join(LineJoin::Round)
+        .unwrap();
     let bevel = PolygonFigure::from_points(points)
+        .expect("valid detached figure input")
         .with_stroke(Color::BLACK, 4.0)
-        .with_join(LineJoin::Bevel);
+        .expect("valid detached figure input")
+        .with_join(LineJoin::Bevel)
+        .unwrap();
 
     let miter_outset = 2.0 * DEFAULT_STROKE_MITER_LIMIT;
     assert_eq!(
@@ -235,7 +252,8 @@ fn polygon_precise_hit_uses_closed_interior() {
         Point::new(0.0, 0.0),
         Point::new(100.0, 0.0),
         Point::new(50.0, 100.0),
-    ]);
+    ])
+    .expect("valid detached figure input");
     let bounds = polygon.initial_bounds();
 
     assert!(polygon.precise_hit(50.0, 30.0, bounds));
@@ -244,7 +262,8 @@ fn polygon_precise_hit_uses_closed_interior() {
 
 #[test]
 fn triangle_uses_draw2d_resize_and_centering_geometry() {
-    let triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
+    let triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+        .expect("valid detached figure input");
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
@@ -274,15 +293,17 @@ fn triangle_uses_draw2d_resize_and_centering_geometry() {
 fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomically() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let line = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(PolylineFigure::from_points(vec![
-            Point::new(10.0, 20.0),
-            Point::new(110.0, 20.0),
-        ])))
+        .add(Box::new(
+            PolylineFigure::from_points(vec![Point::new(10.0, 20.0), Point::new(110.0, 20.0)])
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
 
     assert_eq!(
@@ -382,16 +403,21 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
 fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let line = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(PolylineFigure::from_points(vec![
-            Point::new(20.0, 30.0),
-            Point::new(100.0, 32.0),
-            Point::new(180.0, 30.0),
-        ])))
+        .add(Box::new(
+            PolylineFigure::from_points(vec![
+                Point::new(20.0, 30.0),
+                Point::new(100.0, 32.0),
+                Point::new(180.0, 30.0),
+            ])
+            .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
 
     assert_eq!(
@@ -470,12 +496,12 @@ impl Border for MetricBorder {
 
 #[test]
 fn border_metrics_and_compound_formula_match_draw2d() {
-    let line = LineBorder::new(Color::BLACK, 2.0);
+    let line = LineBorder::new(Color::BLACK, 2.0).unwrap();
     assert_eq!(line.get_insets(), Insets::uniform(2.0));
     assert_eq!(line.preferred_size(), Dimension::ZERO);
     assert!(line.is_opaque());
 
-    let margin = MarginBorder::new(Color::TRANSPARENT, 1.0).with_margins(1.0, 2.0, 3.0, 4.0);
+    let margin = MarginBorder::new(Insets::new(1.0, 2.0, 3.0, 4.0)).unwrap();
     assert_eq!(margin.get_insets(), Insets::new(1.0, 2.0, 3.0, 4.0));
     assert!(!margin.is_opaque());
 
@@ -485,7 +511,8 @@ fn border_metrics_and_compound_formula_match_draw2d() {
             insets: Insets::new(3.0, 4.0, 5.0, 6.0),
             preferred: Dimension::new(10.0, 20.0),
         },
-    );
+    )
+    .unwrap();
     assert_eq!(compound.get_insets(), Insets::new(5.0, 6.0, 7.0, 8.0));
     assert_eq!(compound.preferred_size(), Dimension::new(14.0, 24.0));
     assert!(!compound.is_opaque());
@@ -494,9 +521,10 @@ fn border_metrics_and_compound_formula_match_draw2d() {
 #[test]
 fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
     let compound = CompoundBorder::new(
-        LineBorder::new(Color::RED, 2.0),
-        LineBorder::new(Color::BLUE, 2.0),
-    );
+        LineBorder::new(Color::RED, 2.0).unwrap(),
+        LineBorder::new(Color::BLUE, 2.0).unwrap(),
+    )
+    .unwrap();
     let mut recorder = CommandRecorder::new();
     compound
         .paint(Rectangle::new(0.0, 0.0, 40.0, 30.0), &mut recorder.paint())
@@ -535,24 +563,27 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
 fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let rounded = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RoundedRectangleFigure::new(
-            10.0, 10.0, 100.0, 60.0, 8.0,
-        )))
+        .add(Box::new(
+            RoundedRectangleFigure::new(10.0, 10.0, 100.0, 60.0, 8.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let triangle = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(TriangleFigure::new(Rectangle::new(
-            150.0, 20.0, 40.0, 40.0,
-        ))))
+        .add(Box::new(
+            TriangleFigure::new(Rectangle::new(150.0, 20.0, 40.0, 40.0))
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
 
-    let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));
+    let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0).unwrap());
     assert!(
         runtime
             .figure(rounded)
@@ -610,14 +641,18 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
 fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let rectangle = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
-                .with_stroke(Color::BLUE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::BLUE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let fill = Color::rgba(0.2, 0.7, 0.3, 1.0);
@@ -654,14 +689,18 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
 fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let bordered = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new(10.0, 10.0, 100.0, 50.0)
-                .with_border(LineBorder::new(Color::BLACK, 3.0)),
+                .expect("valid figure bounds")
+                .with_border(LineBorder::new(Color::BLACK, 3.0).unwrap())
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -699,8 +738,8 @@ fn etched_and_bevel_borders_expose_product_metrics_and_commands() {
     let highlight = Color::WHITE;
     let shadow = Color::BLACK;
     let etched = EtchedBorder::new(highlight, shadow);
-    let raised = BevelBorder::new(BevelStyle::Raised, highlight, shadow, 2);
-    let lowered = BevelBorder::new(BevelStyle::Lowered, highlight, shadow, 2);
+    let raised = BevelBorder::new(BevelStyle::Raised, highlight, shadow, 2).unwrap();
+    let lowered = BevelBorder::new(BevelStyle::Lowered, highlight, shadow, 2).unwrap();
 
     assert_eq!(etched.get_insets(), Insets::uniform(2.0));
     assert_eq!(raised.get_insets(), Insets::uniform(2.0));

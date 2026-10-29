@@ -139,7 +139,7 @@ impl LayoutListener for Events {
 }
 
 fn rectangle() -> Box<dyn Figure> {
-    Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0))
+    Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"))
 }
 
 fn tree_with_layout(trace: Trace) -> (FigureTree, FigureId) {
@@ -448,22 +448,22 @@ fn initial_bounds_are_rejected_before_topology_publication() {
         Rectangle::new(0.0, 0.0, 10.0, -1.0),
     ] {
         let mut tree = FigureTree::new();
-        assert_eq!(
+        assert!(matches!(
             tree.builder()
                 .set_contents(Box::new(InvalidInitialBoundsFigure(bounds))),
-            Err(GraphMutationError::InvalidInitialBounds)
-        );
+            Err(GraphMutationError::InvalidInitialBounds(_))
+        ));
         assert_eq!(tree.contents(), None);
 
         let parent = tree
             .builder()
             .set_contents(rectangle())
             .expect("valid FigureTree construction");
-        assert_eq!(
+        assert!(matches!(
             tree.builder()
                 .add_child(parent, Box::new(InvalidInitialBoundsFigure(bounds))),
-            Err(GraphMutationError::InvalidInitialBounds)
-        );
+            Err(GraphMutationError::InvalidInitialBounds(_))
+        ));
         assert_eq!(tree.child_order(parent), Ok(vec![]));
     }
 }

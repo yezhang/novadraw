@@ -968,13 +968,10 @@ fn root_tree() -> (FigureTree, FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            ROOT_WIDTH,
-            ROOT_HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, ROOT_WIDTH, ROOT_HEIGHT, Color::WHITE)
+                .expect("valid benchmark bounds"),
+        ))
         .expect("valid FigureTree construction");
     (tree, root)
 }
@@ -989,12 +986,10 @@ fn build_large_tree() -> (FigureTree, Vec<FigureId>) {
             tree.builder()
                 .add_child(
                     root,
-                    Box::new(RectangleFigure::new(
-                        column as f64 * 8.0,
-                        row as f64 * 8.0,
-                        7.0,
-                        7.0,
-                    )),
+                    Box::new(
+                        RectangleFigure::new(column as f64 * 8.0, row as f64 * 8.0, 7.0, 7.0)
+                            .expect("valid benchmark bounds"),
+                    ),
                 )
                 .expect("valid FigureTree construction"),
         );
@@ -1008,7 +1003,10 @@ fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, FigureId, FigureId) {
     for _ in 1..depth {
         parent = tree
             .builder()
-            .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .add_child(
+                parent,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid benchmark bounds")),
+            )
             .expect("valid FigureTree construction");
     }
     (tree, root, parent)
@@ -1033,9 +1031,16 @@ fn build_label_runtime(deep: bool) -> Runtime {
             .builder()
             .add_child(
                 parent,
-                Box::new(LabelFigure::new(format!("label-{index:04}")).with_bounds(
-                    Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
-                )),
+                Box::new(
+                    LabelFigure::new(format!("label-{index:04}"))
+                        .with_bounds(Rectangle::new(
+                            column as f64 * 48.0,
+                            row as f64 * 15.0,
+                            46.0,
+                            14.0,
+                        ))
+                        .expect("valid benchmark bounds"),
+                ),
             )
             .expect("valid Label tree");
         if deep {
@@ -1071,10 +1076,13 @@ fn build_text_flow_runtime(deep: bool) -> Runtime {
             .builder()
             .add_child(
                 parent,
-                Box::new(TextFlowFigure::new(
-                    Rectangle::new(0.0, index as f64 * 18.0, 160.0, 18.0),
-                    FlowPage::from_text(format!("flow paragraph {index:04}")),
-                )),
+                Box::new(
+                    TextFlowFigure::new(
+                        Rectangle::new(0.0, index as f64 * 18.0, 160.0, 18.0),
+                        FlowPage::from_text(format!("flow paragraph {index:04}")),
+                    )
+                    .expect("valid benchmark bounds"),
+                ),
             )
             .expect("valid TextFlow tree");
         if deep {
@@ -1099,22 +1107,24 @@ struct ConnectionWorkload {
 fn build_connection_runtime(count: usize, grouped: bool) -> ConnectionWorkload {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(
-            0.0,
-            0.0,
-            ROOT_WIDTH,
-            ROOT_HEIGHT,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, ROOT_WIDTH, ROOT_HEIGHT)
+                .expect("valid benchmark bounds"),
+        ))
         .expect("benchmark root");
     let source = runtime
         .figure(root)
         .expect("root container")
-        .add(Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 40.0, 80.0, 40.0).expect("valid benchmark bounds"),
+        ))
         .expect("source Figure");
     let target = runtime
         .figure(root)
         .expect("root container")
-        .add(Box::new(RectangleFigure::new(900.0, 600.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(900.0, 600.0, 80.0, 40.0).expect("valid benchmark bounds"),
+        ))
         .expect("target Figure");
     let source_anchor = runtime
         .connections()
@@ -1182,12 +1192,10 @@ fn build_viewport_tree() -> FigureTree {
         tree.builder()
             .add_child(
                 scalable.figure_id(),
-                Box::new(RectangleFigure::new(
-                    column as f64 * 56.0,
-                    row as f64 * 48.0,
-                    48.0,
-                    40.0,
-                )),
+                Box::new(
+                    RectangleFigure::new(column as f64 * 56.0, row as f64 * 48.0, 48.0, 40.0)
+                        .expect("valid benchmark bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
     }

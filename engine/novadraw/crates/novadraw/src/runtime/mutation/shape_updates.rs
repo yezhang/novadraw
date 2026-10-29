@@ -3,8 +3,8 @@
 use super::{FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate};
 use crate::event::property;
 use crate::figure::{
-    PolygonFigure, RectangleCorners, RectangleEdges, RoundedRectangleFigure, ShapeGeometryError,
-    TriangleFigure,
+    Bounded, PolygonFigure, RectangleCorners, RectangleEdges, RoundedRectangleFigure,
+    ShapeGeometryError, TriangleFigure,
 };
 use crate::geometry::{Point, Rectangle};
 
@@ -32,9 +32,11 @@ impl FigureComponentUpdate for SetRectangleCorners {
             return Ok(PreparedFigureUpdate::unchanged(current.clone()));
         }
         let mut candidate = current.clone();
-        candidate.bounds = context.bounds;
+        let bounds = context.bounds;
+        candidate.set_bounds(bounds.x, bounds.y, bounds.width, bounds.height)?;
         candidate.replace_corners(self.0)?;
-        candidate.bounds = current.bounds;
+        let bounds = current.bounds();
+        candidate.set_bounds(bounds.x, bounds.y, bounds.width, bounds.height)?;
         Ok(
             PreparedFigureUpdate::geometry_and_paint(candidate).with_property_change(
                 property::RECTANGLE_CORNERS,
@@ -72,11 +74,13 @@ impl FigureComponentUpdate for SetRectangleEdges {
             return Ok(PreparedFigureUpdate::unchanged(current.clone()));
         }
         let mut candidate = current.clone();
-        candidate.bounds = context.bounds;
+        let bounds = context.bounds;
+        candidate.set_bounds(bounds.x, bounds.y, bounds.width, bounds.height)?;
         // Preflight geometry even for a transition from the legacy path.
         candidate.replace_corners(current.corners())?;
         candidate.replace_edges(self.0);
-        candidate.bounds = current.bounds;
+        let bounds = current.bounds();
+        candidate.set_bounds(bounds.x, bounds.y, bounds.width, bounds.height)?;
         Ok(PreparedFigureUpdate::paint(candidate).with_property_change(
             property::RECTANGLE_EDGES,
             old,
@@ -151,7 +155,8 @@ impl FigureComponentUpdate for SetTriangleCornerRadii {
             return Ok(PreparedFigureUpdate::unchanged(current.clone()));
         }
         let mut candidate = current.clone();
-        candidate.bounds = context.bounds;
+        let bounds = context.bounds;
+        candidate.set_bounds(bounds.x, bounds.y, bounds.width, bounds.height)?;
         candidate.invalidate();
         candidate.replace_corner_radii(self.0)?;
         candidate.validate();
@@ -213,7 +218,7 @@ impl FigureComponentUpdate for ReplacePolygonGeometry {
             return Ok(PreparedFigureUpdate::unchanged(current.clone()));
         }
         let (bounds, points) =
-            crate::figure::normalize_points(self.points.clone(), current.stroke_style(), 3);
+            crate::figure::normalize_points(self.points.clone(), current.stroke_style(), 3)?;
         let mut candidate = current.clone();
         // Old radii need not match the new count.
         candidate.clear_corner_radii();

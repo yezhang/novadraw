@@ -174,16 +174,20 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
     let mut tree = novadraw::tree::FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
-            0.0, 0.0, 100.0, 100.0,
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     (0..count)
         .map(|_| {
             tree.builder()
                 .add_child(
                     root,
-                    Box::new(novadraw::figure::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+                    Box::new(
+                        novadraw::figure::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)
+                            .expect("valid figure bounds"),
+                    ),
                 )
                 .expect("valid FigureTree construction")
         })

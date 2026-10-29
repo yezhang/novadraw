@@ -41,7 +41,7 @@ fn scene(transform: Affine2D) -> (FigureTree, FigureId, FigureId) {
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+            Box::new(RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds")),
         )
         .unwrap();
     (tree, parent, child)
@@ -121,13 +121,15 @@ fn finite_parent_composition_overflow_is_a_geometry_error() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(f64::MAX, 0.0, 0.0, 0.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(f64::MAX, 0.0, 0.0, 0.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = tree
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::new(f64::MAX, 0.0, 0.0, 0.0)),
+            Box::new(RectangleFigure::new(f64::MAX, 0.0, 0.0, 0.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert!(tree.local_to_parent_transform(child).is_ok());

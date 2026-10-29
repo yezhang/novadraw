@@ -1085,13 +1085,16 @@ fn provider_panic_faults_runtime_and_clears_presentation() {
 fn figure_opacity_and_transform_are_presentation_only() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            20.0,
-            30.0,
-            40.0,
-            20.0,
-            Color::rgba(0.2, 0.4, 0.8, 1.0),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                20.0,
+                30.0,
+                40.0,
+                20.0,
+                Color::rgba(0.2, 0.4, 0.8, 1.0),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     complete_frame(&mut runtime, 200, 120);
     runtime.animation().advance_time(time(0)).unwrap();
@@ -1159,7 +1162,9 @@ fn figure_opacity_and_transform_are_presentation_only() {
 fn presentation_damage_unions_old_and_new_surface_envelopes() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(20.0, 10.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(20.0, 10.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     complete_frame(&mut runtime, 100, 100);
     runtime.animation().advance_time(time(0)).unwrap();
@@ -1199,13 +1204,15 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).unwrap()),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
@@ -1305,7 +1312,9 @@ fn temporary_visual_is_non_source_and_removed_with_its_owner() {
 fn disposing_a_figure_cancels_bound_presentation_without_source_revival() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let channel = runtime
@@ -1396,7 +1405,9 @@ fn pause_policy_excludes_surface_suspension_from_local_time() {
 fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
     let mut paused_runtime = Runtime::empty();
     let paused_figure = paused_runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     paused_runtime.animation().advance_time(time(0)).unwrap();
     let paused_channel = paused_runtime
@@ -1465,7 +1476,9 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
 
     let mut finish_runtime = Runtime::empty();
     let finish_figure = finish_runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     let finish_channel = finish_runtime
         .animation()
@@ -1564,7 +1577,9 @@ fn temporary_visual_is_removed_on_natural_completion() {
 fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
     let mut retry_runtime = Runtime::empty();
     let figure = retry_runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     complete_frame(&mut retry_runtime, 100, 100);
     retry_runtime.animation().advance_time(time(0)).unwrap();
@@ -1668,7 +1683,9 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
 fn unsupported_presentation_hit_testing_is_rejected_before_channel_creation() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     assert_eq!(
         runtime

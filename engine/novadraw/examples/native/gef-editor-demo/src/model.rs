@@ -689,11 +689,15 @@ fn shape_figure(shape: Shape, presentation: ShapePresentation) -> Box<dyn Figure
     match shape.kind {
         ShapeKind::Rectangle => Box::new(
             RectangleFigure::new_with_color(b.x, b.y, b.width, b.height, fill)
-                .with_stroke(stroke, OUTLINE_WIDTH),
+                .expect("valid figure bounds")
+                .with_stroke(stroke, OUTLINE_WIDTH)
+                .expect("valid detached figure input"),
         ),
         ShapeKind::Ellipse => Box::new(
             EllipseFigure::new_with_color(b.x, b.y, b.width, b.height, fill)
-                .with_stroke(stroke, OUTLINE_WIDTH),
+                .expect("valid figure bounds")
+                .with_stroke(stroke, OUTLINE_WIDTH)
+                .expect("valid detached figure input"),
         ),
     }
 }
@@ -706,7 +710,9 @@ pub(crate) fn selection_handle(point: Point) -> RectangleFigure {
         HANDLE_SIZE,
         Color::WHITE,
     )
+    .expect("valid figure bounds")
     .with_stroke(Color::from_hex(SELECTION_BLUE).unwrap(), 1.0)
+    .expect("valid detached figure input")
 }
 
 pub(crate) fn resize_handle_sites(bounds: Rectangle) -> [(Point, ResizeDirection); 8] {
@@ -751,7 +757,9 @@ fn shape_change_feedback(shape: Shape) -> Vec<FeedbackVisual> {
                 bounds.height,
                 Color::TRANSPARENT,
             )
-            .with_stroke(stroke, OUTLINE_WIDTH),
+            .expect("valid figure bounds")
+            .with_stroke(stroke, OUTLINE_WIDTH)
+            .expect("valid detached figure input"),
         ),
         ShapeKind::Ellipse => Box::new(
             EllipseFigure::new_with_color(
@@ -761,7 +769,9 @@ fn shape_change_feedback(shape: Shape) -> Vec<FeedbackVisual> {
                 bounds.height,
                 Color::TRANSPARENT,
             )
-            .with_stroke(stroke, OUTLINE_WIDTH),
+            .expect("valid figure bounds")
+            .with_stroke(stroke, OUTLINE_WIDTH)
+            .expect("valid detached figure input"),
         ),
     };
     let mut feedback = vec![FeedbackVisual::scaled(outline)];
@@ -969,7 +979,10 @@ impl EditPartBehavior<Diagram> for ShapePart {
         id: u64,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         Ok(if id == ROOT {
-            Box::new(FreeformLayerFigure::new(0.0, 0.0, 640.0, 480.0))
+            Box::new(
+                FreeformLayerFigure::new(0.0, 0.0, 640.0, 480.0)
+                    .expect("valid detached figure input"),
+            )
         } else {
             shape_figure(model.shapes[&id], model.presentation(id))
         })
@@ -1286,7 +1299,8 @@ fn edge_preview(
             route.source().y(),
             route.target().x(),
             route.target().y(),
-        ),
+        )
+        .expect("valid detached figure input"),
     ))])
 }
 struct NodeConnectionPolicy;
@@ -1435,6 +1449,7 @@ impl EditPartBehavior<Diagram> for EdgePart {
         Ok(Box::new(
             ConnectionFigure::new()
                 .with_stroke(Color::BLACK, OUTLINE_WIDTH)
+                .expect("valid detached figure input")
                 .with_stroke_style(stroke),
         ))
     }

@@ -75,7 +75,9 @@ fn deep_label_style_refresh_visits_each_tree_node_once() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let mut parent = root;
     for index in 0..LABEL_COUNT {
@@ -85,7 +87,8 @@ fn deep_label_style_refresh_visits_each_tree_node_once() {
                 parent,
                 Box::new(
                     LabelFigure::new(format!("label-{index}"))
-                        .with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0)),
+                        .with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0))
+                        .expect("valid detached figure input"),
                 ),
             )
             .unwrap();
@@ -111,7 +114,9 @@ fn deep_label_style_refresh_visits_each_tree_node_once() {
 fn non_text_tree_skips_style_propagation_work() {
     let mut runtime = Runtime::empty();
     runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .unwrap();
 
     prepare_next_submission(&mut runtime).expect("first frame");
@@ -128,13 +133,17 @@ fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let label = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new(TEXT).with_bounds(Rectangle::new(20.0, 20.0, 72.0, 24.0)),
+            LabelFigure::new(TEXT)
+                .with_bounds(Rectangle::new(20.0, 20.0, 72.0, 24.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -177,7 +186,9 @@ fn first_submission_shapes_label_after_parent_layout() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(root)
@@ -220,13 +231,17 @@ fn label_cache_reshapes_only_when_measurement_inputs_change() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let label = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new("cache").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0)),
+            LabelFigure::new("cache")
+                .with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -271,7 +286,9 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
         )
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let label = runtime
         .figure(root)
@@ -279,8 +296,10 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
         .add(Box::new(
             LabelFigure::new("Icon")
                 .with_icon(image)
-                .with_border(LineBorder::new(novadraw::graphics::Color::BLACK, 2.0))
-                .with_bounds(Rectangle::new(20.0, 20.0, 160.0, 40.0)),
+                .with_border(LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap())
+                .expect("valid detached figure input")
+                .with_bounds(Rectangle::new(20.0, 20.0, 160.0, 40.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let replacement = runtime
@@ -408,7 +427,9 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
             )
             .unwrap();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let label = runtime
             .figure(root)
@@ -416,7 +437,8 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
             .add(Box::new(
                 LabelFigure::new("Placement")
                     .with_icon(image)
-                    .with_bounds(Rectangle::new(0.0, 0.0, 160.0, 80.0)),
+                    .with_bounds(Rectangle::new(0.0, 0.0, 160.0, 80.0))
+                    .expect("valid detached figure input"),
             ))
             .expect("valid Runtime mutation");
         runtime
@@ -498,7 +520,10 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
     .with_alignment(Alignment::Start);
     let root = runtime
         .set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 320.0, 120.0).with_border(title_bar),
+            RectangleFigure::new(0.0, 0.0, 320.0, 120.0)
+                .expect("valid figure bounds")
+                .with_border(title_bar)
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -531,37 +556,51 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
 fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
     let borders: Vec<(Arc<dyn Border>, usize)> = vec![
         (
-            Arc::new(CompoundBorder::new(
-                LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-                TitleBarBorder::new("Inner", novadraw::graphics::Color::RED),
-            )),
-            1,
-        ),
-        (
-            Arc::new(CompoundBorder::new(
-                TitleBarBorder::new("Outer", novadraw::graphics::Color::RED),
-                LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-            )),
-            1,
-        ),
-        (
-            Arc::new(CompoundBorder::new(
-                MarginBorder::new(novadraw::graphics::Color::TRANSPARENT, 1.0),
+            Arc::new(
                 CompoundBorder::new(
-                    LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-                    TitleBarBorder::new("Nested", novadraw::graphics::Color::RED),
-                ),
-            )),
+                    LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+                    TitleBarBorder::new("Inner", novadraw::graphics::Color::RED),
+                )
+                .unwrap(),
+            ),
             1,
         ),
         (
-            Arc::new(CompoundBorder::new(
-                TitleBarBorder::new("First", novadraw::graphics::Color::RED),
+            Arc::new(
                 CompoundBorder::new(
-                    LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-                    TitleBarBorder::new("Second", novadraw::graphics::Color::BLUE),
-                ),
-            )),
+                    TitleBarBorder::new("Outer", novadraw::graphics::Color::RED),
+                    LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+                )
+                .unwrap(),
+            ),
+            1,
+        ),
+        (
+            Arc::new(
+                CompoundBorder::new(
+                    MarginBorder::default_border(),
+                    CompoundBorder::new(
+                        LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+                        TitleBarBorder::new("Nested", novadraw::graphics::Color::RED),
+                    )
+                    .unwrap(),
+                )
+                .unwrap(),
+            ),
+            1,
+        ),
+        (
+            Arc::new(
+                CompoundBorder::new(
+                    TitleBarBorder::new("First", novadraw::graphics::Color::RED),
+                    CompoundBorder::new(
+                        LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+                        TitleBarBorder::new("Second", novadraw::graphics::Color::BLUE),
+                    )
+                    .unwrap(),
+                )
+                .unwrap(),
+            ),
             2,
         ),
     ];
@@ -573,7 +612,9 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
             .register_builtin_font(BuiltinFont::Inter)
             .unwrap();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 120.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 320.0, 120.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         runtime
             .figure(root)
@@ -619,12 +660,16 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 60.0, 200.0, 100.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 60.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(root)
@@ -642,13 +687,16 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
-    let shared: Arc<dyn Border> = Arc::new(CompoundBorder::new(
-        LineBorder::new(novadraw::graphics::Color::BLACK, 2.0),
-        TitleBarBorder::new(
-            "Shared",
-            novadraw::graphics::Color::rgba(0.1, 0.3, 0.6, 1.0),
-        ),
-    ));
+    let shared: Arc<dyn Border> = Arc::new(
+        CompoundBorder::new(
+            LineBorder::new(novadraw::graphics::Color::BLACK, 2.0).unwrap(),
+            TitleBarBorder::new(
+                "Shared",
+                novadraw::graphics::Color::rgba(0.1, 0.3, 0.6, 1.0),
+            ),
+        )
+        .unwrap(),
+    );
     runtime
         .figure(root)
         .unwrap()
@@ -686,17 +734,22 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .unwrap();
     let root = runtime
         .set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 320.0, 180.0).with_border(TitleBarBorder::new(
-                "Title",
-                novadraw::graphics::Color::BLACK,
-            )),
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0)
+                .expect("valid figure bounds")
+                .with_border(TitleBarBorder::new(
+                    "Title",
+                    novadraw::graphics::Color::BLACK,
+                ))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let label = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new("Label").with_bounds(Rectangle::new(20.0, 60.0, 120.0, 30.0)),
+            LabelFigure::new("Label")
+                .with_bounds(Rectangle::new(20.0, 60.0, 120.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 
@@ -819,7 +872,9 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
 fn image_figure_tracks_pending_ready_and_failed_resource_states() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let image = runtime
         .resources()
@@ -829,7 +884,9 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0)),
+            ImageFigure::new(image)
+                .with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     assert_eq!(
@@ -936,7 +993,9 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
 fn removing_ready_image_clears_all_shared_figure_references() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let image = runtime
         .resources()
@@ -950,14 +1009,18 @@ fn removing_ready_image_clears_all_shared_figure_references() {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0)),
+            ImageFigure::new(image)
+                .with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let second = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ImageFigure::new(image).with_bounds(Rectangle::new(80.0, 20.0, 40.0, 30.0)),
+            ImageFigure::new(image)
+                .with_bounds(Rectangle::new(80.0, 20.0, 40.0, 30.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
 

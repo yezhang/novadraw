@@ -86,7 +86,9 @@ fn external_scaled_stack_fills_physical_client_area_after_each_zoom() {
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     for scale in [1.0, 0.2, 3.7, 0.5] {
         runtime.viewports().set_scale(root, scale).unwrap();
@@ -220,7 +222,9 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -230,7 +234,7 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
         .builder()
         .add_child(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -255,7 +259,9 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -265,7 +271,7 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
         .builder()
         .add_child(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0).expect("valid figure bounds")),
         )
         .unwrap();
     let mut runtime = Runtime::new(graph);
@@ -273,7 +279,7 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
         .viewports()
         .set_contents(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -293,7 +299,9 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -303,7 +311,7 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
         .builder()
         .add_child(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0).expect("valid figure bounds")),
         )
         .unwrap();
     graph
@@ -332,7 +340,9 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -342,7 +352,7 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
         .builder()
         .add_child(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0).expect("valid figure bounds")),
         )
         .unwrap();
     graph
@@ -366,7 +376,9 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -381,13 +393,10 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
         .builder()
         .add_child(
             scalable.figure_id(),
-            Box::new(RectangleFigure::new_with_color(
-                20.0,
-                30.0,
-                40.0,
-                20.0,
-                child_color,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(20.0, 30.0, 40.0, 20.0, child_color)
+                    .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
@@ -451,7 +460,9 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let scalable = graph
         .builder()
@@ -496,7 +507,9 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -535,8 +548,17 @@ impl Bounded for WheelIgnoringFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -567,7 +589,9 @@ fn large_scroll_pane_scene() -> (FigureTree, ScrollPaneHandle, UpdateManager) {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let pane = graph
         .builder()
@@ -578,7 +602,7 @@ fn large_scroll_pane_scene() -> (FigureTree, ScrollPaneHandle, UpdateManager) {
         .builder()
         .set_scroll_pane_contents(
             &pane,
-            Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0).expect("valid figure bounds")),
         )
         .unwrap();
     graph
@@ -698,7 +722,9 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let pane = graph
         .builder()
@@ -760,7 +786,9 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let pane = graph
         .builder()
@@ -872,7 +900,9 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let pane = graph
         .builder()
@@ -1099,7 +1129,9 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -1144,7 +1176,9 @@ fn zoom_rejects_non_finite_policy_output_before_mutating_scale_or_viewport() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -1180,7 +1214,9 @@ fn zoom_manager_uses_configured_levels_for_step_zoom() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -1213,8 +1249,16 @@ fn zoom_manager_uses_configured_levels_for_step_zoom() {
 #[test]
 fn viewport_border_insets_define_child_transform_and_client_extent() {
     let viewport = ViewportFigure::new(100.0, 50.0, 300.0, 200.0)
+        .expect("valid detached figure input")
         .with_origin(20.0, 30.0)
-        .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(10.0, 10.0, 10.0, 10.0));
+        .unwrap()
+        .with_border(
+            LineBorder::new(Color::BLACK, 1.0)
+                .unwrap()
+                .with_insets(novadraw::geometry::Insets::uniform(10.0))
+                .unwrap(),
+        )
+        .expect("valid detached figure input");
 
     let mut content_origin = Rectangle::new(20.0, 30.0, 1.0, 1.0);
     viewport.child_transform().apply_to(&mut content_origin);
@@ -1233,24 +1277,28 @@ fn viewport_rejects_a_second_contents_child_atomically() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 400.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_child(
             root,
-            Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 200.0)),
+            Box::new(
+                ViewportFigure::new(20.0, 20.0, 300.0, 200.0).expect("valid detached figure input"),
+            ),
         )
         .expect("valid FigureTree construction");
     let first = graph.builder().add_child(
         viewport,
-        Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0).expect("valid figure bounds")),
     );
     assert!(first.is_ok());
 
     let second = graph.builder().add_child(
         viewport,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
 
     assert!(second.is_err());

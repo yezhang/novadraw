@@ -253,9 +253,9 @@ pub struct TextFlowFigure {
 }
 
 impl TextFlowFigure {
-    pub fn new(bounds: Rectangle, page: FlowPage) -> Self {
-        Self {
-            bounds,
+    pub fn new(bounds: Rectangle, page: FlowPage) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(bounds)?,
             page,
             revision: 1,
             wrapping: FlowWrapping::SoftWrap,
@@ -263,7 +263,7 @@ impl TextFlowFigure {
             vertical_alignment: Alignment::Start,
             viewport: TextFlowViewport::UNCLIPPED,
             layout: None,
-        }
+        })
     }
 
     pub fn with_wrapping(mut self, wrapping: FlowWrapping) -> Self {
@@ -578,8 +578,16 @@ impl super::Bounded for TextFlowFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

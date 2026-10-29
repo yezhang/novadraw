@@ -266,9 +266,12 @@ impl ScrollBarFigure {
             parts: Vec::new(),
         }
     }
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(
+        mut self,
+        bounds: Rectangle,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
     pub fn with_config(mut self, config: ScrollBarConfig) -> Result<Self, InvalidScrollBarConfig> {
         self.config = config.validate()?;
@@ -711,16 +714,19 @@ fn default_part(role: ScrollBarPart, config: ScrollBarConfig) -> Box<dyn Figure>
             config,
             direction: 1.0,
         }),
-        _ => Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            if role == ScrollBarPart::Thumb {
-                THUMB
-            } else {
-                TRACK
-            },
-        )),
+        _ => Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                if role == ScrollBarPart::Thumb {
+                    THUMB
+                } else {
+                    TRACK
+                },
+            )
+            .expect("valid figure bounds"),
+        ),
     }
 }

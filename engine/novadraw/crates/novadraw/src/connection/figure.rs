@@ -157,13 +157,14 @@ impl ConnectionFigure {
     }
 
     /// Sets immutable construction-time stroke style.
-    pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
+    pub fn with_stroke(
+        mut self,
+        color: Color,
+        width: f64,
+    ) -> Result<Self, crate::graphics::GraphicsInputError> {
+        self.stroke = self.stroke.with_width(width)?;
         self.stroke_color = color;
-        self.stroke = self
-            .stroke
-            .with_width(width.max(0.0))
-            .expect("valid stroke width");
-        self
+        Ok(self)
     }
 
     /// Sets line cap and join style.
@@ -179,18 +180,34 @@ impl ConnectionFigure {
     }
 
     /// Sets additional hit tolerance without changing visual bounds.
-    pub fn with_hit_tolerance(mut self, tolerance: f64) -> Self {
-        self.hit_tolerance = tolerance.max(0.0);
-        self
+    pub fn with_hit_tolerance(
+        mut self,
+        tolerance: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            0.0, 0.0, tolerance, 0.0,
+        ))?;
+        self.hit_tolerance = tolerance;
+        Ok(self)
     }
 
     /// Stops the painted centerline before endpoint decorations.
     ///
     /// Route points remain unchanged and continue to represent Anchor truth.
-    pub fn with_decoration_insets(mut self, source: f64, target: f64) -> Self {
-        self.source_decoration_inset = finite_non_negative(source);
-        self.target_decoration_inset = finite_non_negative(target);
-        self
+    pub fn with_decoration_insets(
+        mut self,
+        source: f64,
+        target: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            0.0, 0.0, source, target,
+        ))?;
+        if !(source + target).is_finite() {
+            return Err(crate::figure::ShapeGeometryError::NonFinite);
+        }
+        self.source_decoration_inset = source;
+        self.target_decoration_inset = target;
+        Ok(self)
     }
 
     fn painted_points(&self) -> Vec<Point> {
@@ -381,8 +398,17 @@ impl Bounded for ConnectionLayerFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -428,14 +454,6 @@ fn point_segment_distance(point: Point, start: Point, end: Point) -> f64 {
     (point - (start + segment * projection)).length()
 }
 
-fn finite_non_negative(value: f64) -> f64 {
-    if value.is_finite() {
-        value.max(0.0)
-    } else {
-        0.0
-    }
-}
-
 fn finite_rectangle(rectangle: Rectangle) -> bool {
     rectangle.x.is_finite()
         && rectangle.y.is_finite()
@@ -478,7 +496,9 @@ mod tests {
 
     #[test]
     fn target_decoration_inset_trims_only_painted_geometry() {
-        let mut figure = ConnectionFigure::new().with_decoration_insets(0.0, 14.0);
+        let mut figure = ConnectionFigure::new()
+            .with_decoration_insets(0.0, 14.0)
+            .expect("valid detached figure input");
         figure.commit_route_points(PointList::from_points(vec![
             Point::new(0.0, 0.0),
             Point::new(100.0, 0.0),

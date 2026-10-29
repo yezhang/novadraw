@@ -215,13 +215,10 @@ pub fn build_example() -> AnimationExample {
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid animation root");
     runtime
         .figure(root)
@@ -381,13 +378,10 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid animation root");
     runtime
         .figure(root)
@@ -432,7 +426,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("trigger panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(28.0, 82.0, 94.0, 54.0, 10.0, BLUE)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("trigger Figure");
     let trigger_channel = runtime
@@ -487,7 +483,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("layout panel")
         .add(Box::new(
             RectangleFigure::new_with_color(18.0, 72.0, 112.0, 72.0, Color::TRANSPARENT)
-                .with_stroke(GHOST, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(GHOST, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("layout container");
     let layout_child = runtime
@@ -495,7 +493,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("layout container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(0.0, 0.0, 20.0, 20.0, 8.0, GREEN)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("layout child");
     runtime
@@ -540,7 +540,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
             viewport.figure_id(),
             Box::new(
                 RectangleFigure::new_with_color(0.0, 0.0, 320.0, 84.0, VIOLET)
-                    .with_stroke(Color::WHITE, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, 2.0)
+                    .expect("valid detached figure input"),
             ),
         )
         .expect("viewport contents");
@@ -550,7 +552,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
             .expect("viewport contents")
             .add(Box::new(
                 RoundedRectangleFigure::new_with_color(x, 18.0, 72.0, 48.0, 8.0, color)
-                    .with_stroke(Color::WHITE, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, 2.0)
+                    .expect("valid detached figure input"),
             ))
             .expect("viewport marker");
     }
@@ -586,7 +590,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(34.0, 76.0, 88.0, 54.0, 8.0, BLUE)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("source");
     let target = runtime
@@ -594,13 +600,19 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(420.0, 76.0, 88.0, 54.0, 8.0, CORAL)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("target");
     let connection_figure = runtime
         .figure(connection_panel)
         .expect("connection panel")
-        .add(Box::new(ConnectionFigure::new().with_stroke(BLUE, 3.0)))
+        .add(Box::new(
+            ConnectionFigure::new()
+                .with_stroke(BLUE, 3.0)
+                .expect("valid detached figure input"),
+        ))
         .expect("connection Figure");
 
     add_label(
@@ -616,7 +628,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(70.0, 194.0, 58.0, 34.0, 8.0, VIOLET)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("arrow source");
     let arrow_target = runtime
@@ -624,7 +638,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(430.0, 194.0, 58.0, 34.0, 8.0, GREEN)
-                .with_stroke(Color::WHITE, 2.0),
+                .expect("valid figure bounds")
+                .with_stroke(Color::WHITE, 2.0)
+                .expect("valid detached figure input"),
         ))
         .expect("arrow target");
     let arrow_connection_figure = runtime
@@ -638,7 +654,8 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
                         .expect("stroke width")
                         .with_dash_pattern(DashPattern::Dash),
                 )
-                .with_decoration_insets(0.0, 28.0),
+                .with_decoration_insets(0.0, 28.0)
+                .expect("valid detached figure input"),
         ))
         .expect("arrow connection Figure");
     let arrow_decoration = runtime
@@ -650,7 +667,9 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
                 .expect("valid arrow scale")
                 .with_color(GOLD)
                 .with_width(4.0)
-                .with_join(LineJoin::Miter),
+                .expect("valid detached figure input")
+                .with_join(LineJoin::Miter)
+                .expect("valid outline geometry"),
         ))
         .expect("target arrow decoration");
     let source_anchor = runtime
@@ -797,13 +816,10 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid animation root");
     runtime
         .figure(root)
@@ -981,13 +997,10 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid animation root");
     runtime
         .figure(root)
@@ -1060,7 +1073,9 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
                 hit_bounds.height,
                 Color::TRANSPARENT,
             )
-            .with_stroke(GHOST, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(GHOST, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("committed hit guide");
     let moving_hit_toggle = add_control_toggle(&mut runtime, root, "MOVING VISUAL", hit_bounds);
@@ -1306,13 +1321,10 @@ fn add_sampler_gallery(runtime: &mut Runtime, root: FigureId) -> [FigureId; 5] {
         runtime
             .figure(root)
             .expect("root container")
-            .add(Box::new(RectangleFigure::new_with_color(
-                x - 62.0,
-                y + 19.0,
-                104.0,
-                2.0,
-                GHOST,
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(x - 62.0, y + 19.0, 104.0, 2.0, GHOST)
+                    .expect("valid figure bounds"),
+            ))
             .expect("sampler guide");
         figures.push(
             runtime
@@ -1320,7 +1332,9 @@ fn add_sampler_gallery(runtime: &mut Runtime, root: FigureId) -> [FigureId; 5] {
                 .expect("root container")
                 .add(Box::new(
                     EllipseFigure::new_with_color(x, y, 40.0, 40.0, color)
-                        .with_stroke(Color::WHITE, 2.0),
+                        .expect("valid figure bounds")
+                        .with_stroke(Color::WHITE, 2.0)
+                        .expect("valid detached figure input"),
                 ))
                 .expect("sampler Figure"),
         );
@@ -1372,7 +1386,9 @@ fn add_composition_gallery(
                 8.0,
                 GREEN,
             )
-            .with_stroke(Color::WHITE, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::WHITE, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("delayed Figure");
     (sequence, stagger, delayed)
@@ -1394,7 +1410,9 @@ fn add_small_figure_group(
                 .expect("root container")
                 .add(Box::new(
                     RoundedRectangleFigure::new_with_color(x, y, 44.0, 34.0, 8.0, color)
-                        .with_stroke(Color::WHITE, 2.0),
+                        .expect("valid figure bounds")
+                        .with_stroke(Color::WHITE, 2.0)
+                        .expect("valid detached figure input"),
                 ))
                 .expect("composition Figure")
         })
@@ -1431,7 +1449,9 @@ fn add_channel_gallery(runtime: &mut Runtime, root: FigureId) -> (FigureId, [Fig
                 12.0,
                 VIOLET,
             )
-            .with_stroke(Color::WHITE, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::WHITE, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("choreography Figure");
     let loop_figures = [(430.0, BLUE), (554.0, CORAL), (676.0, GOLD)].map(|(x, color)| {
@@ -1440,7 +1460,9 @@ fn add_channel_gallery(runtime: &mut Runtime, root: FigureId) -> (FigureId, [Fig
             .expect("root container")
             .add(Box::new(
                 EllipseFigure::new_with_color(x, THIRD_ROW_Y + 74.0, 42.0, 42.0, color)
-                    .with_stroke(Color::WHITE, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, 2.0)
+                    .expect("valid detached figure input"),
             ))
             .expect("loop Figure")
     });
@@ -1621,7 +1643,9 @@ fn add_mechanism_panel(
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(bounds.x, bounds.y, bounds.width, bounds.height, PANEL)
-                .with_stroke(PANEL_STROKE, 1.0),
+                .expect("valid figure bounds")
+                .with_stroke(PANEL_STROKE, 1.0)
+                .expect("valid detached figure input"),
         ))
         .expect("mechanism panel");
     add_label(
@@ -1656,7 +1680,9 @@ fn add_panel(runtime: &mut Runtime, root: FigureId, y: f64) {
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(PANEL_X, y, PANEL_WIDTH, PANEL_HEIGHT, PANEL)
-                .with_stroke(PANEL_STROKE, 1.0),
+                .expect("valid figure bounds")
+                .with_stroke(PANEL_STROKE, 1.0)
+                .expect("valid detached figure input"),
         ))
         .expect("panel");
 }
@@ -1670,7 +1696,11 @@ fn add_control_toggle(
     let toggle = runtime
         .figure(root)
         .expect("root container")
-        .add(Box::new(ToggleFigure::new(text).with_bounds(bounds)))
+        .add(Box::new(
+            ToggleFigure::new(text)
+                .with_bounds(bounds)
+                .expect("valid detached figure input"),
+        ))
         .expect("control toggle");
     runtime
         .figure(toggle)
@@ -1703,7 +1733,9 @@ fn add_control_target(
                 10.0,
                 color,
             )
-            .with_stroke(Color::WHITE, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::WHITE, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("control target");
     add_label(
@@ -1728,7 +1760,11 @@ fn add_label(
     let label = runtime
         .figure(root)
         .expect("root container")
-        .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(bounds)
+                .expect("valid detached figure input"),
+        ))
         .expect("label");
     runtime
         .figure(label)
@@ -1762,7 +1798,9 @@ fn add_target_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
             .expect("root container")
             .add(Box::new(
                 RectangleFigure::new_with_color(positions[0], y, SHAPE_WIDTH, SHAPE_HEIGHT, BLUE)
-                    .with_stroke(Color::WHITE, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, 2.0)
+                    .expect("valid detached figure input"),
             ))
             .expect("target rectangle"),
         runtime
@@ -1770,20 +1808,25 @@ fn add_target_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
             .expect("root container")
             .add(Box::new(
                 EllipseFigure::new_with_color(positions[1], y, SHAPE_WIDTH, SHAPE_HEIGHT, GREEN)
-                    .with_stroke(Color::WHITE, 2.0),
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, 2.0)
+                    .expect("valid detached figure input"),
             ))
             .expect("target ellipse"),
         runtime
             .figure(root)
             .expect("root container")
-            .add(Box::new(RoundedRectangleFigure::new_with_color(
-                positions[2],
-                y,
-                SHAPE_WIDTH,
-                SHAPE_HEIGHT,
-                12.0,
-                CORAL,
-            )))
+            .add(Box::new(
+                RoundedRectangleFigure::new_with_color(
+                    positions[2],
+                    y,
+                    SHAPE_WIDTH,
+                    SHAPE_HEIGHT,
+                    12.0,
+                    CORAL,
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("target rounded rectangle"),
     ]
 }
@@ -1809,7 +1852,9 @@ fn add_motion_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
                 .expect("root container")
                 .add(Box::new(
                     EllipseFigure::new_with_color(x, y, SHAPE_WIDTH, SHAPE_HEIGHT, color)
-                        .with_stroke(Color::WHITE, 2.0),
+                        .expect("valid figure bounds")
+                        .with_stroke(Color::WHITE, 2.0)
+                        .expect("valid detached figure input"),
                 ))
                 .expect("motion Figure"),
         );
@@ -1831,7 +1876,9 @@ fn add_presentation_row(runtime: &mut Runtime, root: FigureId) -> (FigureId, Rec
                 old_bounds.height,
                 Color::TRANSPARENT,
             )
-            .with_stroke(GHOST, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(GHOST, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("old bounds guide");
     let figure = runtime
@@ -1846,7 +1893,9 @@ fn add_presentation_row(runtime: &mut Runtime, root: FigureId) -> (FigureId, Rec
                 10.0,
                 CORAL,
             )
-            .with_stroke(Color::WHITE, 2.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::WHITE, 2.0)
+            .expect("valid detached figure input"),
         ))
         .expect("bounds transition Figure");
     add_label(

@@ -152,6 +152,7 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
             vec![
                 FeedbackVisual::scaled(Box::new(
                     TextFlowFigure::new(model.bounds, FlowPage::from_text(state.draft()))
+                        .unwrap()
                         .with_wrapping(FlowWrapping::NoWrap)
                         .with_alignment(Alignment::Center, Alignment::Center),
                 ))
@@ -222,9 +223,9 @@ impl EditPartBehavior<TextModel> for TextPart {
         model_id: ModelId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         Ok(if model_id == ROOT {
-            Box::new(RootFigure::new(0.0, 0.0, 480.0, 320.0))
+            Box::new(RootFigure::new(0.0, 0.0, 480.0, 320.0).unwrap())
         } else {
-            Box::new(RectangleFigure::from_bounds(model.bounds))
+            Box::new(RectangleFigure::from_bounds(model.bounds).unwrap())
         })
     }
 

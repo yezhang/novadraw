@@ -4,7 +4,7 @@ use crate::Color;
 use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 
-use super::{BevelBorder, BevelStyle, Border, CompoundBorder};
+use super::{Border, CompoundBorder};
 
 /// Two-layer etched border with opposing light and shadow bands.
 #[derive(Clone)]
@@ -15,10 +15,8 @@ pub struct EtchedBorder {
 
 impl EtchedBorder {
     pub fn new(highlight: Color, shadow: Color) -> Self {
-        let outer = BevelBorder::new(BevelStyle::Lowered, highlight, shadow, 1);
-        let inner = BevelBorder::new(BevelStyle::Raised, highlight, shadow, 1);
         Self {
-            compound: CompoundBorder::new(outer, inner),
+            compound: CompoundBorder::etched(highlight, shadow),
             opaque: highlight.is_opaque() && shadow.is_opaque(),
         }
     }

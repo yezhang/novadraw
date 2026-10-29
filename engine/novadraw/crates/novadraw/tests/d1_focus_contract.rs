@@ -5,22 +5,30 @@ use novadraw::{figure::RectangleFigure, runtime::Runtime};
 fn public_runtime_focus_api_separates_direct_and_traversal_eligibility() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let first_traversal = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let last_traversal = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(30.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let direct_only = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(60.0, 0.0, 20.0, 20.0)))
+        .add(Box::new(
+            RectangleFigure::new(60.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(first_traversal)

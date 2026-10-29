@@ -30,13 +30,16 @@ pub fn base_scene() -> (FigureTree, novadraw::tree::FigureId) {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            color("#eeeeee"),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                color("#eeeeee"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     (graph, root)
 }
@@ -54,13 +57,16 @@ fn add_grid(graph: &mut FigureTree, parent: novadraw::tree::FigureId) {
                 .builder()
                 .add_child(
                     parent,
-                    Box::new(RectangleFigure::new_with_color(
-                        TILE_GAP + column as f64 * (TILE_WIDTH + TILE_GAP),
-                        TILE_GAP + row as f64 * (TILE_HEIGHT + TILE_GAP),
-                        TILE_WIDTH,
-                        TILE_HEIGHT,
-                        fill,
-                    )),
+                    Box::new(
+                        RectangleFigure::new_with_color(
+                            TILE_GAP + column as f64 * (TILE_WIDTH + TILE_GAP),
+                            TILE_GAP + row as f64 * (TILE_HEIGHT + TILE_GAP),
+                            TILE_WIDTH,
+                            TILE_HEIGHT,
+                            fill,
+                        )
+                        .expect("valid figure bounds"),
+                    ),
                 )
                 .expect("valid FigureTree construction");
         }
@@ -90,13 +96,16 @@ fn scene_with_policy(
         .builder()
         .set_scroll_pane_contents(
             &pane,
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                content_width,
-                content_height,
-                Color::WHITE,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    content_width,
+                    content_height,
+                    Color::WHITE,
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .expect("set scroll pane contents");
     add_grid(&mut graph, contents);

@@ -68,7 +68,7 @@ pub struct FigureCapabilityContext {
 
 /// Read-only Runtime view and target-scoped operation sink for Figure update effects.
 pub struct FigureUpdateEffectContext<'a> {
-    pub(crate) runtime: &'a Runtime,
+    pub(crate) runtime: &'a mut Runtime,
     pub(crate) figure_id: FigureId,
     pub(crate) parent: FigureId,
     pub(crate) effects: Vec<ValidatedFigureEffect>,
@@ -107,7 +107,10 @@ pub(crate) enum ValidatedFigureEffect {
         parent: FigureId,
         constraint: Option<Box<dyn crate::connection::RoutingConstraint>>,
     },
-    Border,
+    Border {
+        metrics: crate::figure::border::BorderMetrics,
+        snapshot: Option<crate::figure::border::BorderSnapshot>,
+    },
     Bounds(Rectangle),
 }
 
@@ -390,6 +393,10 @@ impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
 pub enum RuntimeMutationError {
     ForeignRuntime(FigureId),
     Faulted,
+    BorderPreparation {
+        figure: FigureId,
+        source: crate::text::TextError,
+    },
     /// Input rejected by whole-batch validation before publishing any Figure.
     FigureBatch {
         index: usize,
@@ -447,6 +454,9 @@ pub enum RuntimeMutationError {
 impl fmt::Display for RuntimeMutationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::BorderPreparation { figure, source } => {
+                write!(formatter, "Figure {figure:?} border preparation: {source}")
+            }
             Self::Animation(error) => error.fmt(formatter),
             Self::ForeignRuntime(figure) => write!(formatter, "foreign Runtime Figure: {figure:?}"),
             Self::Faulted => formatter.write_str("Runtime is faulted"),
@@ -533,7 +543,10 @@ impl fmt::Display for RuntimeMutationError {
 impl Error for RuntimeMutationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::BorderPreparation { source, .. } => Some(source),
             Self::FigureBatch { source, .. } => Some(source.as_ref()),
+            Self::Graph(error) => Some(error),
+            Self::Layout(error) => Some(error),
             Self::Animation(error) => Some(error),
             _ => None,
         }

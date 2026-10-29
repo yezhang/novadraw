@@ -210,7 +210,7 @@ fn record_range_changes(
     out.repaint_parent(viewport);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ViewportError {
     Graph(GraphMutationError),
     Identity(crate::tree::TreeQueryError),
@@ -574,30 +574,41 @@ pub struct ViewportFigure {
 
 impl ViewportFigure {
     /// 创建 Viewport Figure。
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Self::with_runtime(
             Rectangle::new(x, y, width, height),
             Arc::new(Mutex::new(ViewportRuntime::new())),
         )
     }
 
-    fn with_runtime(bounds: Rectangle, runtime: Arc<Mutex<ViewportRuntime>>) -> Self {
-        Self {
-            bounds,
+    fn with_runtime(
+        bounds: Rectangle,
+        runtime: Arc<Mutex<ViewportRuntime>>,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             runtime,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
-        }
+        })
     }
 
     /// 设置 content origin。
-    pub fn with_origin(self, x: f64, y: f64) -> Self {
+    pub fn with_origin(self, x: f64, y: f64) -> Result<Self, ViewportError> {
+        if !x.is_finite() || !y.is_finite() {
+            return Err(ViewportError::InvalidViewLocation);
+        }
         {
             let runtime = lock_unpoisoned(&self.runtime);
-            let _ = runtime.horizontal.set_value(x);
-            let _ = runtime.vertical.set_value(y);
+            runtime.horizontal.set_value(x)?;
+            runtime.vertical.set_value(y)?;
         }
-        self
+        Ok(self)
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -607,9 +618,13 @@ impl ViewportFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 }
 
@@ -618,8 +633,17 @@ impl Bounded for ViewportFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -714,8 +738,11 @@ impl BorderedFigure for ViewportFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: crate::figure::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -765,7 +792,8 @@ impl FigureTree {
         let runtime = Arc::new(Mutex::new(ViewportRuntime::with_models(
             horizontal, vertical,
         )));
-        let figure = ViewportFigure::with_runtime(bounds, Arc::clone(&runtime));
+        let figure = ViewportFigure::with_runtime(bounds, Arc::clone(&runtime))
+            .map_err(GraphMutationError::InvalidInitialBounds)?;
         let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
         self.replace_layout_manager(
             figure_id,
@@ -887,9 +915,9 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(crate::RectangleFigure::new(
-                0.0, 0.0, 800.0, 600.0,
-            )))
+            .set_contents(Box::new(
+                crate::RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+            ))
             .expect("valid FigureTree construction");
         let viewport = tree
             .builder()
@@ -900,7 +928,10 @@ mod tests {
             .set_contents(
                 &mut tree,
                 &mut updates,
-                Box::new(crate::RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+                Box::new(
+                    crate::RectangleFigure::new(0.0, 0.0, 600.0, 450.0)
+                        .expect("valid figure bounds"),
+                ),
             )
             .unwrap();
         tree.revalidate(viewport.figure_id());

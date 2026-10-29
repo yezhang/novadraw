@@ -224,7 +224,9 @@ fn nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 240.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 240.0, 160.0).unwrap(),
+        ))
         .expect("valid root");
     runtime
         .figure(root)
@@ -257,14 +259,18 @@ fn nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission() {
         .figure(compartment)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new("first").with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0)),
+            LabelFigure::new("first")
+                .with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0))
+                .unwrap(),
         ))
         .unwrap();
     let second = runtime
         .figure(compartment)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new("second").with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0)),
+            LabelFigure::new("second")
+                .with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0))
+                .unwrap(),
         ))
         .unwrap();
 

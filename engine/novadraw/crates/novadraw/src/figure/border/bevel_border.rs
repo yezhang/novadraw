@@ -3,7 +3,7 @@ use crate::geometry::{Insets, Point, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext, StrokeStyle};
 use crate::render::command::{LineCap, LineJoin};
 
-use super::{Border, inset_rectangle};
+use super::{Border, BorderInputError, inset_rectangle};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BevelStyle {
@@ -21,13 +21,29 @@ pub struct BevelBorder {
 }
 
 impl BevelBorder {
-    pub fn new(style: BevelStyle, highlight: Color, shadow: Color, width: u32) -> Self {
-        assert!(width > 0, "bevel border width must be positive");
-        Self {
+    pub fn new(
+        style: BevelStyle,
+        highlight: Color,
+        shadow: Color,
+        width: u32,
+    ) -> Result<Self, BorderInputError> {
+        if width == 0 {
+            return Err(BorderInputError::NonPositiveWidth);
+        }
+        Ok(Self {
             style,
             highlight,
             shadow,
             width,
+        })
+    }
+
+    pub(super) fn single_layer(style: BevelStyle, highlight: Color, shadow: Color) -> Self {
+        Self {
+            style,
+            highlight,
+            shadow,
+            width: 1,
         }
     }
 

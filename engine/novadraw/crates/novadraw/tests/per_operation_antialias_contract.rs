@@ -197,13 +197,17 @@ fn scene_capture_and_destination_replay_preserve_aa_admission() {
         .create_view(ASPECT_FIT_VIEW, AspectFitView::default())
         .unwrap();
     let root = destination
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let view = destination
         .figure(root)
         .unwrap()
         .add(Box::new(
-            SceneViewFigure::new(handle).with_bounds(Rectangle::new(0.0, 0.0, 100.0, 100.0)),
+            SceneViewFigure::new(handle)
+                .with_bounds(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let binding = destination

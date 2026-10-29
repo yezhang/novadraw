@@ -89,7 +89,9 @@ impl LayoutListener for TypedRecorder {
 fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let _ = prepare_next_submission(&mut runtime);
 
@@ -133,9 +135,10 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     let clickable = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))))
+        .add(Box::new(
+            ClickableFigure::new(Rectangle::new(20.0, 20.0, 100.0, 40.0))
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     assert!(
         runtime
@@ -212,12 +215,16 @@ impl PropertyChangeListener for RemoveAfterFirstProperty {
 fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 20.0, 100.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let _ = prepare_next_submission(&mut runtime);
 
@@ -274,14 +281,17 @@ fn action_listener_can_remove_itself_after_the_current_action() {
 
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let clickable = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))))
+        .add(Box::new(
+            ClickableFigure::new(Rectangle::new(20.0, 20.0, 100.0, 40.0))
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     let _ = prepare_next_submission(&mut runtime);
 
@@ -300,14 +310,17 @@ fn action_listener_can_remove_itself_after_the_current_action() {
 fn pointer_dispatch_remains_available_after_listener_api_completion() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let clickable = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))))
+        .add(Box::new(
+            ClickableFigure::new(Rectangle::new(20.0, 20.0, 100.0, 40.0))
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
 
     runtime

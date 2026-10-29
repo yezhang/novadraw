@@ -210,21 +210,22 @@ impl Runtime {
     }
 
     pub(super) fn prepare_figure_effects<T>(
-        &self,
+        &mut self,
         figure: FigureId,
         prepared: &mut PreparedFigureUpdate<T>,
     ) -> Result<Vec<ValidatedFigureEffect>, RuntimeMutationError> {
         if !prepared.changed() {
             return Ok(Vec::new());
         }
+        let parent = self
+            .tree
+            .parent_id(figure)
+            .expect("validated update target")
+            .ok_or(RuntimeMutationError::DetachedFigure(figure))?;
         let mut context = FigureUpdateEffectContext {
             runtime: self,
             figure_id: figure,
-            parent: self
-                .tree
-                .parent_id(figure)
-                .expect("validated update target")
-                .ok_or(RuntimeMutationError::DetachedFigure(figure))?,
+            parent,
             effects: Vec::new(),
             rejected: false,
         };
@@ -367,8 +368,44 @@ impl FigureUpdateEffectContext<'_> {
         )));
     }
 
-    pub fn refresh_border_state(&mut self) {
-        self.effects.push(ValidatedFigureEffect::Border);
+    /// Prepares owner metrics before source commit and installs those captured values.
+    pub fn prepare_border_state(
+        &mut self,
+        border: Option<&dyn crate::figure::Border>,
+        metrics: crate::figure::border::BorderMetrics,
+    ) -> Result<(), RuntimeMutationError> {
+        let result = (|| {
+            let font = self
+                .runtime
+                .tree
+                .resolved_style(self.figure_id)
+                .expect("attached effect target")
+                .font;
+            let snapshot = match border {
+                Some(border) if border.has_owner_snapshot() => border
+                    .resolve_owner_snapshot(None, &font, self.runtime.text.as_mut())
+                    .map_err(|source| RuntimeMutationError::BorderPreparation {
+                        figure: self.figure_id,
+                        source,
+                    })?,
+                _ => None,
+            };
+            if let Some(snapshot) = &snapshot {
+                crate::figure::border::BorderMetrics::new(
+                    snapshot.insets(),
+                    snapshot.preferred_size(),
+                )
+                .map_err(|source| RuntimeMutationError::BorderPreparation {
+                    figure: self.figure_id,
+                    source: crate::text::TextError::BorderInput(Box::new(source)),
+                })?;
+            }
+            self.effects
+                .push(ValidatedFigureEffect::Border { metrics, snapshot });
+            Ok(())
+        })();
+        self.rejected |= result.is_err();
+        result
     }
 }
 
@@ -409,17 +446,16 @@ impl Runtime {
                 self.tree.complete_detachment(figure, old_parent);
                 self.tree.complete_attachment(figure, parent);
             }
-            ValidatedFigureEffect::Border => {
+            ValidatedFigureEffect::Border { metrics, snapshot } => {
                 let node = self
                     .tree
                     .node_mut(figure)
                     .expect("validated Figure update target must remain attached");
-                node.state.border_snapshot = None;
-                node.state.insets = node
-                    .figure
-                    .get_border()
-                    .map(crate::figure::Border::get_insets)
-                    .unwrap_or_default();
+                node.state.insets = snapshot
+                    .as_ref()
+                    .map_or(metrics.insets(), |snapshot| snapshot.insets());
+                node.state.border_snapshot = snapshot;
+                node.state.border_preferred = metrics.preferred_size();
             }
             ValidatedFigureEffect::Bounds(bounds) => {
                 self.set_bounds_inner(figure, bounds);

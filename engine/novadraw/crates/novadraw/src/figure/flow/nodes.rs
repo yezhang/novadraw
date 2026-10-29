@@ -111,14 +111,14 @@ pub struct FlowPageFigure {
     block: FlowBlockStyle,
 }
 impl FlowPageFigure {
-    pub fn new(bounds: Rectangle) -> Self {
-        Self {
-            bounds,
+    pub fn new(bounds: Rectangle) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             style: FigureStyle::default(),
             service: super::FlowLayoutService::default(),
             border: None,
             block: FlowBlockStyle::default(),
-        }
+        })
     }
     pub fn with_registry(mut self, registry: FlowContributionRegistry) -> Self {
         self.service = super::FlowLayoutService::new(registry);
@@ -128,9 +128,13 @@ impl FlowPageFigure {
         self.style = style;
         self
     }
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
     pub fn with_block_style(mut self, style: FlowBlockStyle) -> Result<Self, FlowError> {
         self.block = style.validate()?;
@@ -242,9 +246,13 @@ impl BlockFlowFigure {
         self.fragment_border = Some(Arc::new(border));
         self
     }
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 }
 impl Default for BlockFlowFigure {
@@ -411,9 +419,9 @@ macro_rules! bordered_figure {
             }
             fn replace_border(
                 &mut self,
-                border: Option<Arc<dyn Border>>,
+                border: crate::figure::border::BorderCandidate,
             ) -> Option<Arc<dyn Border>> {
-                std::mem::replace(&mut self.border, border)
+                std::mem::replace(&mut self.border, border.into_border())
             }
         }
     };

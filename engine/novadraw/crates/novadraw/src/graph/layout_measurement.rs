@@ -55,8 +55,8 @@ fn prepared_measurement(
     let measurement = crate::layout::validate_measurement(figure, measurement)?;
     if node.border_snapshot.is_some() {
         owner_scoped_border_measurement(figure, measurement, node.border_snapshot.as_ref())
-    } else if let Some(border) = node.figure.get_border() {
-        border_measurement(figure, measurement, node.insets(), border.preferred_size())
+    } else if node.figure.get_border().is_some() {
+        border_measurement(figure, measurement, node.insets(), node.border_preferred)
     } else {
         Ok(measurement)
     }
@@ -1097,7 +1097,7 @@ impl FigureTree {
                 prepared_measurement(figure_id, block, prepared.presentation.measurement())?,
             );
         }
-        let measurement = if block.border_snapshot.is_some() {
+        let measurement = if block.figure.get_border().is_some() {
             block.figure.intrinsic_content_measurement(constraints)
         } else {
             block.figure.intrinsic_measurement(constraints)
@@ -1105,11 +1105,7 @@ impl FigureTree {
         let measurement = crate::layout::validate_measurement(figure_id, measurement)?;
         validate_projected_measurement(
             figure_id,
-            owner_scoped_border_measurement(
-                figure_id,
-                measurement,
-                block.border_snapshot.as_ref(),
-            )?,
+            prepared_measurement(figure_id, block, measurement)?,
         )
     }
 
@@ -1156,7 +1152,7 @@ impl FigureTree {
             )?
             .size());
         }
-        let measurement = if block.border_snapshot.is_some() {
+        let measurement = if block.figure.get_border().is_some() {
             block
                 .figure
                 .intrinsic_content_minimum_measurement(constraints)
@@ -1166,11 +1162,7 @@ impl FigureTree {
         let measurement = crate::layout::validate_measurement(figure_id, measurement)?;
         let projected = validate_projected_measurement(
             figure_id,
-            owner_scoped_border_measurement(
-                figure_id,
-                measurement,
-                block.border_snapshot.as_ref(),
-            )?,
+            prepared_measurement(figure_id, block, measurement)?,
         )?;
         Ok(projected.size())
     }
@@ -1595,12 +1587,14 @@ mod connection_placement_tests {
     fn parent_placement_preserves_connection_geometry_in_both_commit_paths() {
         for with_update in [false, true] {
             let mut tree = FigureTree::new();
-            let root = tree.set_contents(Box::new(crate::RectangleFigure::new(
-                0.0, 0.0, 300.0, 200.0,
-            )));
+            let root = tree.set_contents(Box::new(
+                crate::RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+            ));
             let ordinary = tree.add_child_to(
                 root,
-                Box::new(crate::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+                Box::new(
+                    crate::RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+                ),
             );
             let connection =
                 tree.add_child_to(root, Box::new(crate::connection::ConnectionFigure::new()));
@@ -1635,7 +1629,9 @@ mod s07_query_failure_tests {
 
     fn subject() -> (FigureTree, FigureId) {
         let mut tree = FigureTree::new();
-        let id = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        let id = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds"),
+        ));
         (tree, id)
     }
 
@@ -1753,7 +1749,10 @@ mod s07_query_failure_tests {
     #[test]
     fn layout_relationship_and_optional_absence_have_separate_results() {
         let (mut tree, root) = subject();
-        let child = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        let child = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds")),
+        );
         let query = LayoutSceneQuery::new(&tree);
         assert_eq!(query.children(child), Ok(Vec::new()));
         assert!(query.constraint(child).unwrap().is_none());
@@ -1772,7 +1771,10 @@ mod s07_query_failure_tests {
     #[test]
     fn layout_constraint_type_and_unvalidated_freeform_are_not_absence() {
         let (mut tree, root) = subject();
-        let child = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        let child = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds")),
+        );
         tree.set_boxed_constraint(child, Box::new(Rectangle::ZERO));
         let query = LayoutSceneQuery::new(&tree);
         assert_eq!(
@@ -1786,14 +1788,17 @@ mod s07_query_failure_tests {
         ));
         let mut freeform_tree = FigureTree::new();
         let freeform = freeform_tree.set_contents(Box::new(
-            crate::container::FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0),
+            crate::container::FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0)
+                .expect("valid detached figure input"),
         ));
         assert_eq!(
             LayoutSceneQuery::new(&freeform_tree).freeform_extent(freeform),
             Err(LayoutError::Freeform(FreeformError::Unvalidated(freeform)))
         );
         let mut other = FigureTree::new();
-        let foreign = other.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 0.0, 0.0)));
+        let foreign = other.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds"),
+        ));
         assert_eq!(
             query.constraint_as::<Rectangle>(foreign, child),
             Err(LayoutError::Identity(TreeQueryError::ForeignFigure(
@@ -1971,7 +1976,10 @@ mod s07_query_failure_tests {
             }
         }
         let (mut tree, root) = subject();
-        let survivor = tree.add_child_to(root, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
+        let survivor = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0).expect("valid figure bounds")),
+        );
         let missing = FigureId::from_local(root.namespace(), slotmap::KeyData::from_ffi(u64::MAX));
         tree.replace_layout_manager(root, Some(Box::new(FailingLayout { survivor, missing })));
         tree.drain_notification_effects();

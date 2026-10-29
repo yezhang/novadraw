@@ -19,9 +19,21 @@ use novadraw::{
 fn runtime() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     (runtime, root)
+}
+
+struct ExternalBounds(Rectangle);
+impl Figure for ExternalBounds {
+    fn initial_bounds(&self) -> Rectangle {
+        self.0
+    }
+    fn name(&self) -> &'static str {
+        "ExternalBounds"
+    }
 }
 
 #[test]
@@ -58,7 +70,9 @@ fn paired_binding_is_published_with_the_complete_subtree_and_retired_with_it() {
     }
     let (mut runtime, root) = runtime();
     let router = runtime.connections().direct_router();
-    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let mut subtree = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+    ));
     let source = subtree
         .add(subtree.root(), Box::new(LabelFigure::new("source")))
         .unwrap();
@@ -113,7 +127,9 @@ fn last_binding_rejection_retires_reserved_ids_without_publishing_a_connection()
     let router = runtime.connections().direct_router();
     let before = runtime.tree().descendant_ids(root).unwrap();
     let observed = Arc::new(Mutex::new(Vec::new()));
-    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let mut subtree = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+    ));
     for router in [router, foreign_router] {
         let line = subtree
             .add(subtree.root(), Box::new(ConnectionFigure::new()))
@@ -159,8 +175,9 @@ fn binding_rejects_non_connection_foreign_owner_and_constraint_without_replacing
     let (mut runtime, root) = runtime();
     let router = runtime.connections().direct_router();
     for case in 0..3 {
-        let mut subtree =
-            FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let mut subtree = FigureSubtree::new(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let node = subtree
             .add(
                 subtree.root(),
@@ -215,14 +232,18 @@ fn binding_preparation_panic_publishes_no_reserved_nodes() {
 #[test]
 fn external_description_preserves_order_layout_style_and_scoped_identity_mapping() {
     let (mut runtime, root) = runtime();
-    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+    let mut subtree = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+    ));
     let parent = subtree.root();
     let first = subtree
         .add(
             parent,
-            Box::new(LabelFigure::new("first").with_border(
-                novadraw::figure::border::MarginBorder::new(Color::BLACK, 2.0),
-            )),
+            Box::new(
+                LabelFigure::new("first")
+                    .with_border(novadraw::figure::border::MarginBorder::default_border())
+                    .expect("valid detached figure input"),
+            ),
         )
         .unwrap();
     let second = subtree
@@ -309,15 +330,7 @@ fn last_input_failure_and_internal_child_policy_publish_no_nodes() {
             Rectangle::ZERO
         };
         subtree
-            .add(
-                subtree.root(),
-                Box::new(RectangleFigure::new(
-                    bounds.x,
-                    bounds.y,
-                    bounds.width,
-                    bounds.height,
-                )),
-            )
+            .add(subtree.root(), Box::new(ExternalBounds(bounds)))
             .unwrap();
         assert!(matches!(
             runtime.figure(root).unwrap().add_subtree(subtree),
@@ -1166,7 +1179,9 @@ fn replacement_retires_old_tree_before_new_attachment_and_returns_complete_mappi
         }))
         .unwrap();
     events.lock().unwrap().clear();
-    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+    let mut subtree = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+    ));
     let root = subtree.root();
     let child = subtree
         .add(
@@ -1222,7 +1237,9 @@ fn replacement_retirement_panic_keeps_new_contents_and_blocks_further_mutation()
         }))
         .unwrap();
     let image = runtime.resources().register_image().unwrap();
-    let mut subtree = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+    let mut subtree = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+    ));
     subtree
         .add(
             subtree.root(),
@@ -1271,17 +1288,18 @@ impl Figure for ReplaceTrigger {
 impl FigureEventHandler for ReplaceTrigger {
     fn on_mouse_pressed(&self, _: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         for valid in [false, true] {
-            let mut subtree =
-                FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)));
+            let mut subtree = FigureSubtree::new(Box::new(
+                RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds"),
+            ));
             subtree
                 .add(
                     subtree.root(),
-                    Box::new(RectangleFigure::new(
+                    Box::new(ExternalBounds(Rectangle::new(
                         0.0,
                         0.0,
                         if valid { 1.0 } else { f64::NAN },
                         1.0,
-                    )),
+                    ))),
                 )
                 .unwrap();
             let outcomes = self.outcomes.clone();
@@ -1370,7 +1388,10 @@ fn viewport_replacement_admits_new_branch_without_removing_old_contents_first() 
     assert!(
         runtime
             .viewports()
-            .set_contents(id, Box::new(RectangleFigure::new(0.0, 0.0, f64::NAN, 1.0)))
+            .set_contents(
+                id,
+                Box::new(ExternalBounds(Rectangle::new(0.0, 0.0, f64::NAN, 1.0)))
+            )
             .is_err()
     );
     assert_eq!(viewport.contents(runtime.tree()), Ok(Some(old)));
@@ -1401,7 +1422,10 @@ fn event_viewport_replacement_preserves_outer_scene_and_rejects_retired_targets(
     let id = viewport.figure_id();
     let old = runtime
         .viewports()
-        .set_contents(id, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(
+            id,
+            Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let receipt = Arc::new(Mutex::new(None));

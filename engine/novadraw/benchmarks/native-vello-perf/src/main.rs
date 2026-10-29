@@ -1122,13 +1122,10 @@ fn build_runtime(include_input_marker: bool) -> (Runtime, Option<FigureId>) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            LOGICAL_WIDTH,
-            LOGICAL_HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, LOGICAL_WIDTH, LOGICAL_HEIGHT, Color::WHITE)
+                .expect("valid benchmark figure input"),
+        ))
         .expect("valid FigureTree construction");
     for index in 0..FIGURE_COUNT {
         let column = index % COLUMNS;
@@ -1136,12 +1133,10 @@ fn build_runtime(include_input_marker: bool) -> (Runtime, Option<FigureId>) {
         tree.builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new(
-                    column as f64 * 8.0,
-                    row as f64 * 8.0,
-                    7.0,
-                    7.0,
-                )),
+                Box::new(
+                    RectangleFigure::new(column as f64 * 8.0, row as f64 * 8.0, 7.0, 7.0)
+                        .expect("valid benchmark figure input"),
+                ),
             )
             .expect("performance Figure");
     }
@@ -1149,13 +1144,16 @@ fn build_runtime(include_input_marker: bool) -> (Runtime, Option<FigureId>) {
         tree.builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new_with_color(
-                    (LOGICAL_WIDTH - MARKER_SIZE) / 2.0,
-                    (LOGICAL_HEIGHT - MARKER_SIZE) / 2.0,
-                    MARKER_SIZE,
-                    MARKER_SIZE,
-                    Color::RED,
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        (LOGICAL_WIDTH - MARKER_SIZE) / 2.0,
+                        (LOGICAL_HEIGHT - MARKER_SIZE) / 2.0,
+                        MARKER_SIZE,
+                        MARKER_SIZE,
+                        Color::RED,
+                    )
+                    .expect("valid benchmark figure input"),
+                ),
             )
             .expect("input marker Figure")
     });

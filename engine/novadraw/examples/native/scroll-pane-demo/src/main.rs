@@ -30,12 +30,10 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
         .builder()
         .set_scroll_pane_contents(
             &pane,
-            Box::new(RectangleFigure::new(
-                0.0,
-                0.0,
-                LARGE_CONTENT_WIDTH,
-                LARGE_CONTENT_HEIGHT,
-            )),
+            Box::new(
+                RectangleFigure::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT)
+                    .expect("valid figure bounds"),
+            ),
         )
         .map_err(|error| error.to_string())?;
     graph
@@ -79,12 +77,10 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
         .builder()
         .set_scroll_pane_contents(
             &pane,
-            Box::new(RectangleFigure::new(
-                0.0,
-                0.0,
-                LARGE_CONTENT_WIDTH,
-                LARGE_CONTENT_HEIGHT,
-            )),
+            Box::new(
+                RectangleFigure::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT)
+                    .expect("valid figure bounds"),
+            ),
         )
         .map_err(|error| error.to_string())?;
     graph
@@ -122,7 +118,7 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
         .builder()
         .add_child(
             scalable.figure_id(),
-            Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
+            Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     graph
@@ -175,12 +171,10 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         .builder()
         .add_child(
             scalable.figure_id(),
-            Box::new(RectangleFigure::new(
-                0.0,
-                0.0,
-                LARGE_CONTENT_WIDTH,
-                LARGE_CONTENT_HEIGHT,
-            )),
+            Box::new(
+                RectangleFigure::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT)
+                    .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
     graph

@@ -302,13 +302,10 @@ fn label(runtime: &mut Runtime, root: FigureId, text: String, bounds: Rectangle)
 }
 fn rebuild(runtime: &mut Runtime, settings: Settings) {
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            1200.0,
-            950.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 1200.0, 950.0, Color::WHITE)
+                .expect("valid matrix bounds"),
+        ))
         .expect("matrix root");
     let xs = labels(settings.x);
     let ys = labels(settings.y);

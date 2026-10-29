@@ -28,12 +28,16 @@ fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::t
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 480.0, 320.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let flow = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(TextFlowFigure::new(bounds, page)))
+        .add(Box::new(
+            TextFlowFigure::new(bounds, page).expect("valid detached figure input"),
+        ))
         .unwrap();
     prepare_next_submission(&mut runtime).expect("initial TextFlow frame");
     (runtime, flow)
@@ -66,13 +70,16 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 480.0, 320.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let unaligned_flow = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
+                .expect("valid detached figure input")
                 .with_wrapping(FlowWrapping::NoWrap),
         ))
         .unwrap();
@@ -81,6 +88,7 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
+                .expect("valid detached figure input")
                 .with_wrapping(FlowWrapping::NoWrap)
                 .with_alignment(Alignment::Center, Alignment::Center),
         ))
@@ -125,13 +133,16 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 480.0, 320.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let flow = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text(text))
+                .expect("valid detached figure input")
                 .with_wrapping(FlowWrapping::NoWrap)
                 .with_viewport(TextFlowViewport::clipped(Point::new(-80.0, 0.0))),
         ))
@@ -334,7 +345,9 @@ fn caret_geometry_follows_nested_viewport_and_scale_transforms() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 480.0, 320.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
@@ -348,10 +361,13 @@ fn caret_geometry_follows_nested_viewport_and_scale_transforms() {
         .builder()
         .add_child(
             scalable.figure_id(),
-            Box::new(TextFlowFigure::new(
-                Rectangle::new(15.0, 20.0, 160.0, 80.0),
-                FlowPage::from_text("scaled"),
-            )),
+            Box::new(
+                TextFlowFigure::new(
+                    Rectangle::new(15.0, 20.0, 160.0, 80.0),
+                    FlowPage::from_text("scaled"),
+                )
+                .expect("valid detached figure input"),
+            ),
         )
         .unwrap();
     let mut runtime = Runtime::new(graph);
@@ -574,11 +590,15 @@ fn runtime_text_queries_distinguish_unknown_and_wrong_capability() {
     let rectangle = runtime
         .figure(contents)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let foreign = novadraw::tree::FigureTree::new()
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
 
     assert!(matches!(

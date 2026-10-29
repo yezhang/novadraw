@@ -46,13 +46,16 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let pane = graph
         .builder()
@@ -83,12 +86,10 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             .layers()
             .add(
                 scalable.figure_id(),
-                Box::new(FreeformLayerFigure::new(
-                    0.0,
-                    0.0,
-                    LAYER_WIDTH,
-                    LAYER_HEIGHT,
-                )),
+                Box::new(
+                    FreeformLayerFigure::new(0.0, 0.0, LAYER_WIDTH, LAYER_HEIGHT)
+                        .expect("valid detached figure input"),
+                ),
                 key("content"),
                 LayerPlacement::Last,
             )
@@ -97,12 +98,10 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             .layers()
             .add(
                 scalable.figure_id(),
-                Box::new(FreeformLayerFigure::new(
-                    0.0,
-                    0.0,
-                    LAYER_WIDTH,
-                    LAYER_HEIGHT,
-                )),
+                Box::new(
+                    FreeformLayerFigure::new(0.0, 0.0, LAYER_WIDTH, LAYER_HEIGHT)
+                        .expect("valid detached figure input"),
+                ),
                 key("overlay"),
                 LayerPlacement::Last,
             )
@@ -115,26 +114,32 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         runtime
             .figure(content_layer)
             .unwrap()
-            .add(Box::new(RectangleFigure::new_with_color(
-                x,
-                CONTENT_MIN_Y,
-                GRID_LINE_WIDTH,
-                CONTENT_MAX_Y - CONTENT_MIN_Y,
-                Color::from_hex("#dfe6ee").expect("valid color literal"),
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    x,
+                    CONTENT_MIN_Y,
+                    GRID_LINE_WIDTH,
+                    CONTENT_MAX_Y - CONTENT_MIN_Y,
+                    Color::from_hex("#dfe6ee").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         x += GRID_STEP;
     }
     runtime
         .figure(content_layer)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            CONTENT_MAX_X - GRID_LINE_WIDTH,
-            CONTENT_MIN_Y,
-            GRID_LINE_WIDTH,
-            CONTENT_MAX_Y - CONTENT_MIN_Y,
-            Color::from_hex("#dfe6ee").expect("valid color literal"),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                CONTENT_MAX_X - GRID_LINE_WIDTH,
+                CONTENT_MIN_Y,
+                GRID_LINE_WIDTH,
+                CONTENT_MAX_Y - CONTENT_MIN_Y,
+                Color::from_hex("#dfe6ee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
 
     let mut y = CONTENT_MIN_Y;
@@ -142,26 +147,32 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         runtime
             .figure(content_layer)
             .unwrap()
-            .add(Box::new(RectangleFigure::new_with_color(
-                CONTENT_MIN_X,
-                y,
-                CONTENT_MAX_X - CONTENT_MIN_X,
-                GRID_LINE_WIDTH,
-                Color::from_hex("#dfe6ee").expect("valid color literal"),
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    CONTENT_MIN_X,
+                    y,
+                    CONTENT_MAX_X - CONTENT_MIN_X,
+                    GRID_LINE_WIDTH,
+                    Color::from_hex("#dfe6ee").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         y += GRID_STEP;
     }
     runtime
         .figure(content_layer)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            CONTENT_MIN_X,
-            CONTENT_MAX_Y - GRID_LINE_WIDTH,
-            CONTENT_MAX_X - CONTENT_MIN_X,
-            GRID_LINE_WIDTH,
-            Color::from_hex("#dfe6ee").expect("valid color literal"),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                CONTENT_MIN_X,
+                CONTENT_MAX_Y - GRID_LINE_WIDTH,
+                CONTENT_MAX_X - CONTENT_MIN_X,
+                GRID_LINE_WIDTH,
+                Color::from_hex("#dfe6ee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
 
     for (bounds, fill) in [
@@ -185,36 +196,45 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         runtime
             .figure(content_layer)
             .unwrap()
-            .add(Box::new(RectangleFigure::new_with_color(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-                fill,
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    bounds.height,
+                    fill,
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
     }
     let lower_overlap = runtime
         .figure(content_layer)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            OVERLAP_X,
-            OVERLAP_Y,
-            180.0,
-            130.0,
-            Color::from_hex("#eb5757").expect("valid color literal"),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                OVERLAP_X,
+                OVERLAP_Y,
+                180.0,
+                130.0,
+                Color::from_hex("#eb5757").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let upper_overlap = runtime
         .figure(overlay_layer)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            OVERLAP_X + 45.0,
-            OVERLAP_Y + 35.0,
-            180.0,
-            130.0,
-            Color::from_hex("#56ccf2").expect("valid color literal"),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                OVERLAP_X + 45.0,
+                OVERLAP_Y + 35.0,
+                180.0,
+                130.0,
+                Color::from_hex("#56ccf2").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
 
     runtime

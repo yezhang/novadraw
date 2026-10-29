@@ -238,17 +238,23 @@ fn runtime_external_locator_tracks_owner_and_rejects_size_override_atomically() 
     use novadraw::{connection::*, figure::RectangleFigure, runtime::Runtime};
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 40.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 40.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(root)
@@ -258,7 +264,9 @@ fn runtime_external_locator_tracks_owner_and_rejects_size_override_atomically() 
     let child = runtime
         .figure(figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let a = runtime
         .connections()
@@ -388,7 +396,9 @@ fn owner_envelope_is_mapped_through_nested_scale_and_rotation() {
     ] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let group = runtime
             .figure(root)
@@ -398,7 +408,9 @@ fn owner_envelope_is_mapped_through_nested_scale_and_rotation() {
         let owner = runtime
             .figure(group)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+            .add(Box::new(
+                RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let figure = runtime
             .figure(root)
@@ -408,7 +420,9 @@ fn owner_envelope_is_mapped_through_nested_scale_and_rotation() {
         let child = runtime
             .figure(figure)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+            .add(Box::new(
+                RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let a = runtime
             .connections()

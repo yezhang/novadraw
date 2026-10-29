@@ -226,6 +226,7 @@ fn paint_focus(
 
 fn default_button_border(style: BevelStyle) -> BevelBorder {
     BevelBorder::new(style, BORDER_HIGHLIGHT, BORDER_SHADOW, BUTTON_BEVEL_WIDTH)
+        .expect("valid button border")
 }
 
 fn paint_widget(
@@ -290,11 +291,11 @@ pub struct ClickableFigure {
 }
 
 impl ClickableFigure {
-    pub fn new(bounds: Rectangle) -> Self {
-        Self {
-            bounds,
+    pub fn new(bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(bounds)?,
             model: ClickableModel::new(ClickableKind::Push),
-        }
+        })
     }
 
     pub fn snapshot(&self) -> ClickableSnapshot {
@@ -342,8 +343,16 @@ impl Bounded for ClickableFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -421,9 +430,9 @@ impl ButtonFigure {
         }
     }
 
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(mut self, bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        self.bounds = super::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
 
     pub fn with_icon(mut self, icon: crate::ImageId) -> Self {
@@ -527,8 +536,16 @@ impl Bounded for ButtonFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -580,9 +597,9 @@ impl ToggleFigure {
         }
     }
 
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(mut self, bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        self.bounds = super::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
 
     pub fn with_icon(mut self, icon: crate::ImageId) -> Self {
@@ -691,8 +708,16 @@ impl Bounded for ToggleFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

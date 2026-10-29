@@ -86,8 +86,18 @@ impl Bounded for EventProbeFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -252,26 +262,32 @@ fn build_probe_scene(
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let parent = if local_coordinates {
         graph
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new_with_color(
-                    100.0,
-                    80.0,
-                    500.0,
-                    360.0,
-                    Color::from_hex("#dfe6e9").expect("valid color literal"),
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        100.0,
+                        80.0,
+                        500.0,
+                        360.0,
+                        Color::from_hex("#dfe6e9").expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction")
     } else {

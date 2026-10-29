@@ -303,7 +303,9 @@ fn tree_with_external_child() -> (
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let external = tree
         .builder()
@@ -467,17 +469,22 @@ fn external_capability_effect_uses_validated_runtime_structural_commit() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let left = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let right = tree
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new(100.0, 0.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(100.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
         )
         .unwrap();
     let external = tree
@@ -512,7 +519,10 @@ fn conflicting_effects_reject_before_component_or_structure_commit() {
     let (mut tree, root, external) = tree_with_external_child();
     let sibling = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let mut runtime = Runtime::new(tree);
     record_full_submission(&mut runtime);
@@ -559,13 +569,16 @@ fn target_effect_batch_validates_sequential_moves_and_rejects_late_failure() {
     let (mut tree, root, external) = tree_with_external_child();
     let sibling = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let descendant = tree
         .builder()
         .add_child(
             external,
-            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
@@ -637,7 +650,10 @@ fn late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged() {
     let (mut tree, root, external) = tree_with_external_child();
     let sibling = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(50.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let mut runtime = Runtime::new(tree);
     let resource = runtime.resources().register_image().unwrap().resource_id();
@@ -767,13 +783,18 @@ fn standard_capabilities_are_discovered_without_concrete_type_branches() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let clickable = tree
         .builder()
         .add_child(
             root,
-            Box::new(ClickableFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))),
+            Box::new(
+                ClickableFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+                    .expect("valid detached figure input"),
+            ),
         )
         .unwrap();
     let connection = tree
@@ -795,7 +816,9 @@ fn external_presentation_binding_drives_immutable_content_without_core_dispatch(
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let external = tree
         .builder()
@@ -880,7 +903,9 @@ fn presentation_binding_absence_and_parallel_content_conflict_are_structured() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let external = tree
         .builder()

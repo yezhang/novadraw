@@ -301,15 +301,14 @@ impl ConnectionCreation<DiagramModel> for EdgeCreation {
                 bounds.y + bounds.height / 2.0,
             )
         });
-        let mut feedback = vec![FeedbackVisual::scaled(Box::new(PolylineFigure::new(
-            start.x(),
-            start.y(),
-            end.x(),
-            end.y(),
-        )))];
+        let mut feedback = vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::new(start.x(), start.y(), end.x(), end.y())
+                .expect("valid detached figure input"),
+        ))];
         if let Some(target) = target {
             feedback.push(FeedbackVisual::scaled(Box::new(
-                RectangleFigure::from_bounds(model.bounds[&target.model()]),
+                RectangleFigure::from_bounds(model.bounds[&target.model()])
+                    .expect("valid figure bounds"),
             )));
         }
         Ok(feedback)
@@ -324,15 +323,19 @@ impl ConnectionCreation<DiagramModel> for EdgeCreation {
         model: &DiagramModel,
     ) -> Result<Vec<FeedbackVisual>, PolicyError> {
         let route = route.ok_or_else(|| PolicyError::operation("missing Anchor preview route"))?;
-        let mut feedback = vec![FeedbackVisual::scaled(Box::new(PolylineFigure::new(
-            route.source().x(),
-            route.source().y(),
-            route.target().x(),
-            route.target().y(),
-        )))];
+        let mut feedback = vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::new(
+                route.source().x(),
+                route.source().y(),
+                route.target().x(),
+                route.target().y(),
+            )
+            .expect("valid detached figure input"),
+        ))];
         if let Some(target) = target {
             feedback.push(FeedbackVisual::scaled(Box::new(
-                RectangleFigure::from_bounds(model.bounds[&target.model()]),
+                RectangleFigure::from_bounds(model.bounds[&target.model()])
+                    .expect("valid figure bounds"),
             )));
         }
         Ok(feedback)
@@ -401,16 +404,14 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let bounds = model.bounds[&model_id];
         Ok(if model_id == ROOT {
-            Box::new(RootFigure::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            ))
+            Box::new(
+                RootFigure::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid detached figure input"),
+            )
         } else if model_id == WIDGET {
-            Box::new(ClickableFigure::new(bounds))
+            Box::new(ClickableFigure::new(bounds).expect("valid detached figure input"))
         } else {
-            Box::new(RectangleFigure::from_bounds(bounds))
+            Box::new(RectangleFigure::from_bounds(bounds).expect("valid figure bounds"))
         })
     }
 
@@ -515,12 +516,15 @@ impl ConnectionReconnection<DiagramModel> for EdgeReconnection {
         _model: &DiagramModel,
     ) -> Result<Vec<FeedbackVisual>, PolicyError> {
         let route = route.ok_or_else(|| PolicyError::operation("missing Anchor preview route"))?;
-        Ok(vec![FeedbackVisual::scaled(Box::new(PolylineFigure::new(
-            route.source().x(),
-            route.source().y(),
-            route.target().x(),
-            route.target().y(),
-        )))])
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::new(
+                route.source().x(),
+                route.source().y(),
+                route.target().x(),
+                route.target().y(),
+            )
+            .expect("valid detached figure input"),
+        ))])
     }
 
     fn command(
@@ -635,12 +639,15 @@ impl ConnectionBendpointPolicy {
             }
             _ => return Err(PolicyError::operation("invalid bendpoint index")),
         }
-        let feedback = FeedbackVisual::scaled(Box::new(RectangleFigure::new(
-            request.location().x() - 2.0,
-            request.location().y() - 2.0,
-            4.0,
-            4.0,
-        )));
+        let feedback = FeedbackVisual::scaled(Box::new(
+            RectangleFigure::new(
+                request.location().x() - 2.0,
+                request.location().y() - 2.0,
+                4.0,
+                4.0,
+            )
+            .expect("valid figure bounds"),
+        ));
         Ok(Some(EditingContribution::new(
             Some(Box::new(SetEdgeBendpointsCommand {
                 id: host.model(),
@@ -1088,7 +1095,7 @@ fn target_endpoint_handle_reconnects_and_undo_preserves_connection_part_identity
         .add_handle_visual_with_action::<ConnectionEndpointAction>(
             original_part,
             ConnectionEndpoint::Target,
-            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -1146,7 +1153,7 @@ fn source_endpoint_reconnects_while_invalid_drop_has_no_effect() {
         .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
             ConnectionEndpoint::Source,
-            Box::new(RectangleFigure::new(75.0, 85.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(75.0, 85.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -1203,7 +1210,7 @@ fn reconnect_cancel_clears_feedback_without_model_change() {
         .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
             ConnectionEndpoint::Target,
-            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
 
@@ -1248,7 +1255,7 @@ fn endpoint_reconnect_autoexpose_scrolls_both_corner_axes() {
         .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
             ConnectionEndpoint::Target,
-            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     prepare_next_submission(&mut viewer).unwrap();
@@ -1312,7 +1319,7 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
         .add_handle_visual_with_action::<BendpointCreateAction>(
             original_part,
             0,
-            Box::new(RectangleFigure::new(175.0, 95.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(175.0, 95.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     domain
@@ -1374,7 +1381,7 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
         .add_handle_visual_with_action::<BendpointMoveAction>(
             original_part,
             0,
-            Box::new(RectangleFigure::new(175.0, 175.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(175.0, 175.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     domain
@@ -1443,7 +1450,7 @@ fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
         .add_handle_visual_with_action::<BendpointMoveAction>(
             connection.edit_part(),
             0,
-            Box::new(RectangleFigure::new(355.0, 355.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(355.0, 355.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
 

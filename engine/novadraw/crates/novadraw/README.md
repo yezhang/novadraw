@@ -13,7 +13,9 @@ use novadraw::tree::FigureTree;
 let mut tree = FigureTree::new();
 let root = tree
     .builder()
-    .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)))
+    .set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 640.0, 480.0).expect("valid Figure bounds"),
+    ))
     .expect("valid FigureTree construction");
 let runtime = Runtime::new(tree);
 

@@ -58,7 +58,9 @@ impl FigureListener for FigureEventRecorder {
 fn ordinary_mutation_stays_static_without_an_installed_behavior() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
 
@@ -77,7 +79,9 @@ fn ordinary_mutation_stays_static_without_an_installed_behavior() {
 fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recording() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
     runtime.animation().advance_time(time(0)).unwrap();
@@ -156,7 +160,9 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
 fn property_state_and_transaction_triggers_match_committed_facts() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
     let property_calls = Arc::new(AtomicUsize::new(0));
@@ -223,7 +229,9 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
 fn retry_and_idle_do_not_replay_consumed_facts() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
     let calls = Arc::new(AtomicUsize::new(0));
@@ -290,7 +298,9 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
 fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
     runtime.animation().advance_time(time(0)).unwrap();
@@ -361,11 +371,16 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add_child(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+        )
         .unwrap();
     let mut runtime = Runtime::new(tree);
     flush_initial_state(&mut runtime);
@@ -418,7 +433,9 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
 fn behavior_factory_panic_faults_runtime_and_clears_presentation() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     flush_initial_state(&mut runtime);
     runtime

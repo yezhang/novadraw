@@ -40,8 +40,17 @@ impl Bounded for TestCoordRootFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn insets(&self) -> Insets {
@@ -74,8 +83,17 @@ impl Bounded for TestInsetFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn insets(&self) -> Insets {
@@ -230,11 +248,11 @@ fn test_bounds_absolute_coordinates() {
     let mut scene = FigureTree::new();
 
     // parent bounds = (0, 0, 100, 100)
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
     // child bounds = (10, 10, 50, 50)
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let _child_id = scene.add_child_to(parent_id, Box::new(child));
 
     let gc = scene.render();
@@ -265,7 +283,7 @@ fn test_bounds_absolute_coordinates() {
 fn test_render_commands_coords() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
     // 使用不同颜色以便区分
@@ -275,7 +293,8 @@ fn test_render_commands_coords() {
         50.0,
         50.0,
         Color::from_hex("#e74c3c").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let _child_id = scene.add_child_to(parent_id, Box::new(child));
 
     let gc = scene.render();
@@ -302,15 +321,15 @@ fn test_nested_structure_render_order() {
     let mut scene = FigureTree::new();
 
     // root (内容容器)
-    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
     // parent
-    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
     // child 嵌套在 parent 内部
-    let child = RectangleFigure::new(60.0, 60.0, 30.0, 30.0);
+    let child = RectangleFigure::new(60.0, 60.0, 30.0, 30.0).expect("valid figure bounds");
     let _child_id = scene.add_child_to(parent_id, Box::new(child));
 
     let gc = scene.render();
@@ -336,16 +355,16 @@ fn test_nested_structure_render_order() {
 fn test_hit_test_prefers_topmost_deepest_child() {
     let mut scene = FigureTree::new();
 
-    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
-    let bottom = RectangleFigure::new(20.0, 20.0, 120.0, 120.0);
+    let bottom = RectangleFigure::new(20.0, 20.0, 120.0, 120.0).expect("valid figure bounds");
     let bottom_id = scene.add_child_to(root_id, Box::new(bottom));
 
-    let top = RectangleFigure::new(40.0, 40.0, 120.0, 120.0);
+    let top = RectangleFigure::new(40.0, 40.0, 120.0, 120.0).expect("valid figure bounds");
     let top_id = scene.add_child_to(root_id, Box::new(top));
 
-    let nested = RectangleFigure::new(20.0, 20.0, 40.0, 40.0);
+    let nested = RectangleFigure::new(20.0, 20.0, 40.0, 40.0).expect("valid figure bounds");
     let nested_id = scene.add_child_to(top_id, Box::new(nested));
 
     assert_eq!(scene.find_mouse_event_target_at(70.0, 70.0), None);
@@ -365,10 +384,10 @@ fn test_hit_test_prefers_topmost_deepest_child() {
 fn test_prim_translate_propagates() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 平移前验证
@@ -401,13 +420,13 @@ fn test_prim_translate_propagates() {
 fn test_prim_translate_nested_propagation() {
     let mut scene = FigureTree::new();
 
-    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
-    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 平移根节点 (5, 5)
@@ -435,10 +454,10 @@ fn test_prim_translate_nested_propagation() {
 fn test_render_commands_after_translate() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 平移前收集 RenderCommand
@@ -474,7 +493,7 @@ fn test_local_coordinates_mode() {
     let root_id = scene.set_contents(Box::new(coord_root));
 
     // 子节点 (30, 40, 50, 50)
-    let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0);
+    let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0).expect("valid figure bounds");
     let _child_id = scene.add_child_to(root_id, Box::new(child));
 
     let gc = scene.render();
@@ -511,7 +530,7 @@ fn test_render_clips_parent_local_figure_to_client_area() {
     )));
     scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 30.0)),
+        Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 30.0).expect("valid figure bounds")),
     );
 
     let gc = scene.render();
@@ -526,22 +545,30 @@ fn test_render_clips_parent_local_figure_to_client_area() {
 #[test]
 fn test_viewport_figure_render_uses_content_clip_and_transform() {
     let mut scene = FigureTree::new();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let viewport_id = scene.add_child_to(
         root_id,
-        Box::new(ViewportFigure::new(100.0, 50.0, 200.0, 100.0).with_origin(40.0, 20.0)),
+        Box::new(
+            ViewportFigure::new(100.0, 50.0, 200.0, 100.0)
+                .expect("valid detached figure input")
+                .with_origin(40.0, 20.0)
+                .unwrap(),
+        ),
     );
     let scalable_id = scene.add_child_to(
         viewport_id,
         Box::new(
             ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 200.0)
+                .expect("valid detached figure input")
                 .with_scale(2.0)
                 .unwrap(),
         ),
     );
     scene.add_child_to(
         scalable_id,
-        Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0)),
+        Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0).expect("valid figure bounds")),
     );
 
     let gc = scene.render();
@@ -562,22 +589,22 @@ fn test_bounds_integrity() {
     let mut scene = FigureTree::new();
 
     // root
-    let root = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+    let root = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
     // layer 1
-    let layer1 = RectangleFigure::new(100.0, 100.0, 600.0, 400.0);
+    let layer1 = RectangleFigure::new(100.0, 100.0, 600.0, 400.0).expect("valid figure bounds");
     let layer1_id = scene.add_child_to(root_id, Box::new(layer1));
 
     // layer 2 (嵌套在 layer1 中)
-    let layer2 = RectangleFigure::new(150.0, 150.0, 500.0, 300.0);
+    let layer2 = RectangleFigure::new(150.0, 150.0, 500.0, 300.0).expect("valid figure bounds");
     let layer2_id = scene.add_child_to(layer1_id, Box::new(layer2));
 
     // 多个子元素
     for i in 0..3 {
         let x = 160.0 + i as f64 * 120.0;
         let y = 160.0;
-        let item = RectangleFigure::new(x, y, 100.0, 80.0);
+        let item = RectangleFigure::new(x, y, 100.0, 80.0).expect("valid figure bounds");
         scene.add_child_to(layer2_id, Box::new(item));
     }
 
@@ -608,7 +635,7 @@ fn test_bounds_integrity() {
 fn test_horizontal_layout_coords() {
     let mut scene = FigureTree::new();
 
-    let container = RectangleFigure::new(0.0, 0.0, 400.0, 100.0);
+    let container = RectangleFigure::new(0.0, 0.0, 400.0, 100.0).expect("valid figure bounds");
     let container_id = scene.set_contents(Box::new(container));
 
     // 三个水平排列的矩形
@@ -618,7 +645,8 @@ fn test_horizontal_layout_coords() {
         100.0,
         80.0,
         Color::from_hex("#3498db").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let _ = scene.add_child_to(container_id, Box::new(rect1));
 
     let rect2 = RectangleFigure::new_with_color(
@@ -627,7 +655,8 @@ fn test_horizontal_layout_coords() {
         100.0,
         80.0,
         Color::from_hex("#e74c3c").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let _ = scene.add_child_to(container_id, Box::new(rect2));
 
     let rect3 = RectangleFigure::new_with_color(
@@ -636,7 +665,8 @@ fn test_horizontal_layout_coords() {
         100.0,
         80.0,
         Color::from_hex("#2ecc71").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let _ = scene.add_child_to(container_id, Box::new(rect3));
 
     let gc = scene.render();
@@ -664,7 +694,7 @@ fn test_horizontal_layout_coords() {
 /// 期望：内部点返回 true，外部点返回 false
 #[test]
 fn test_contains_point_basic() {
-    let rect = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let rect = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
 
     // 边界内
     assert!(rect.contains_point(0.0, 0.0), "左上角应包含");
@@ -684,7 +714,7 @@ fn test_contains_point_basic() {
 /// 期望：边界上返回 true（包含边界）
 #[test]
 fn test_contains_point_boundary() {
-    let rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
 
     assert!(rect.contains_point(0.0, 0.0), "左上角边界应包含");
     assert!(rect.contains_point(100.0, 100.0), "右下角边界应包含");
@@ -696,28 +726,28 @@ fn test_contains_point_boundary() {
 /// 期望：相交返回 true，不相交返回 false
 #[test]
 fn test_intersects_basic() {
-    let rect_a = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let rect_a = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
 
     // 相交
-    let rect_b = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
-    assert!(rect_a.intersects(rect_b.bounds), "相交矩形应返回 true");
+    let rect_b = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
+    assert!(rect_a.intersects(rect_b.bounds()), "相交矩形应返回 true");
 
     // 部分重叠
-    let rect_c = RectangleFigure::new(80.0, 80.0, 50.0, 50.0);
-    assert!(rect_a.intersects(rect_c.bounds), "部分重叠应返回 true");
+    let rect_c = RectangleFigure::new(80.0, 80.0, 50.0, 50.0).expect("valid figure bounds");
+    assert!(rect_a.intersects(rect_c.bounds()), "部分重叠应返回 true");
 
     // 包含
-    let rect_d = RectangleFigure::new(25.0, 25.0, 50.0, 50.0);
-    assert!(rect_a.intersects(rect_d.bounds), "被包含应返回 true");
+    let rect_d = RectangleFigure::new(25.0, 25.0, 50.0, 50.0).expect("valid figure bounds");
+    assert!(rect_a.intersects(rect_d.bounds()), "被包含应返回 true");
 
     // 不相交
-    let rect_e = RectangleFigure::new(150.0, 150.0, 50.0, 50.0);
-    assert!(!rect_a.intersects(rect_e.bounds), "不相交应返回 false");
+    let rect_e = RectangleFigure::new(150.0, 150.0, 50.0, 50.0).expect("valid figure bounds");
+    assert!(!rect_a.intersects(rect_e.bounds()), "不相交应返回 false");
 
     // 刚好相切
-    let rect_f = RectangleFigure::new(100.0, 100.0, 50.0, 50.0);
+    let rect_f = RectangleFigure::new(100.0, 100.0, 50.0, 50.0).expect("valid figure bounds");
     assert!(
-        !rect_a.intersects(rect_f.bounds),
+        !rect_a.intersects(rect_f.bounds()),
         "刚好相切应返回 false（按 > 判断）"
     );
 }
@@ -728,8 +758,8 @@ fn test_intersects_basic() {
 /// 期望：应返回 true
 #[test]
 fn test_intersects_self() {
-    let rect = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
-    assert!(rect.intersects(rect.bounds), "与自身相交应返回 true");
+    let rect = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
+    assert!(rect.intersects(rect.bounds()), "与自身相交应返回 true");
 }
 
 /// 测试：set_bounds 功能
@@ -738,7 +768,7 @@ fn test_intersects_self() {
 /// 期望：bounds 正确更新
 #[test]
 fn test_set_bounds() {
-    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
 
     // 初始验证
     let b = rect.bounds();
@@ -748,7 +778,7 @@ fn test_set_bounds() {
     assert_eq!(b.height, 100.0);
 
     // 使用 set_bounds 更新
-    rect.set_bounds(50.0, 50.0, 200.0, 150.0);
+    rect.set_bounds(50.0, 50.0, 200.0, 150.0).unwrap();
 
     let b = rect.bounds();
     assert_eq!(b.x, 50.0, "x 应为 50");
@@ -763,13 +793,13 @@ fn test_set_bounds() {
 /// 期望：contains_point 使用新的 bounds 位置
 #[test]
 fn test_set_bounds_affects_contains_point() {
-    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
 
     // 原始位置：点 (50, 50) 应在内部
     assert!(rect.contains_point(50.0, 50.0));
 
     // 移动到 (100, 100)
-    rect.set_bounds(100.0, 100.0, 100.0, 100.0);
+    rect.set_bounds(100.0, 100.0, 100.0, 100.0).unwrap();
 
     // node-local 命中只受 size 影响，不受 parent-local origin 影响。
     assert!(rect.contains_point(50.0, 50.0));
@@ -782,10 +812,10 @@ fn test_set_bounds_affects_contains_point() {
 /// 期望：正确更新 bounds
 #[test]
 fn test_figure_set_bounds() {
-    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let mut rect = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
 
     // 通过 trait 调用 set_bounds
-    <RectangleFigure as Bounded>::set_bounds(&mut rect, 10.0, 20.0, 80.0, 60.0);
+    <RectangleFigure as Bounded>::set_bounds(&mut rect, 10.0, 20.0, 80.0, 60.0).unwrap();
 
     let b = rect.bounds();
     assert_eq!(b.x, 10.0);
@@ -801,7 +831,7 @@ fn test_figure_set_bounds() {
 #[test]
 fn test_empty_bounds() {
     // 宽和高都为 0 的矩形
-    let rect = RectangleFigure::new(10.0, 10.0, 0.0, 0.0);
+    let rect = RectangleFigure::new(10.0, 10.0, 0.0, 0.0).expect("valid figure bounds");
 
     // 宽度和高度都为 0 时，边界外的点不在内部
     assert!(!rect.contains_point(5.0, 5.0), "点 (5,5) 应不在空矩形内");
@@ -831,10 +861,10 @@ fn test_empty_bounds() {
 fn test_scene_set_bounds_basic() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 验证初始状态
@@ -875,10 +905,10 @@ fn test_scene_set_bounds_basic() {
 fn test_scene_set_bounds_position_only() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 只改变位置：偏移 (+50, +60)
@@ -904,13 +934,13 @@ fn test_scene_set_bounds_position_only() {
 fn test_scene_set_bounds_nested_propagation() {
     let mut scene = FigureTree::new();
 
-    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+    let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
-    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // set_bounds: 偏移 (+10, +10)
@@ -939,10 +969,10 @@ fn test_scene_set_bounds_nested_propagation() {
 fn test_scene_set_bounds_size_only() {
     let mut scene = FigureTree::new();
 
-    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+    let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
     let parent_id = scene.set_contents(Box::new(parent));
 
-    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+    let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
     let child_id = scene.add_child_to(parent_id, Box::new(child));
 
     // 只改变尺寸：位置不变
@@ -973,7 +1003,8 @@ fn test_clip_test_scene_commands() {
 
     // Root
     let root =
-        RectangleFigure::new_with_color(0.0, 0.0, 800.0, 600.0, Color::rgba(0.0, 0.0, 0.0, 0.0));
+        RectangleFigure::new_with_color(0.0, 0.0, 800.0, 600.0, Color::rgba(0.0, 0.0, 0.0, 0.0))
+            .expect("valid figure bounds");
     let root_id = scene.set_contents(Box::new(root));
 
     // Parent - 半透明蓝色容器 (350, 250, 100, 100)
@@ -983,24 +1014,28 @@ fn test_clip_test_scene_commands() {
         100.0,
         100.0,
         Color::rgba(0.2, 0.4, 0.8, 0.5),
-    );
+    )
+    .expect("valid figure bounds");
     let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
     // Child 1 - 完全在父容器内 (360, 260, 30, 30) - 绿色
     let child1 =
-        RectangleFigure::new_with_color(360.0, 260.0, 30.0, 30.0, Color::rgba(0.2, 0.8, 0.3, 1.0));
+        RectangleFigure::new_with_color(360.0, 260.0, 30.0, 30.0, Color::rgba(0.2, 0.8, 0.3, 1.0))
+            .expect("valid figure bounds");
     let _child1_id = scene.add_child_to(parent_id, Box::new(child1));
 
     // Child 2 - 超出父容器右边界 (430, 280, 50, 40) - 红色
     // 父容器右边界是 450，子元素从 430 开始，宽度 50，应该超出到 480
     let child2 =
-        RectangleFigure::new_with_color(430.0, 280.0, 50.0, 40.0, Color::rgba(0.9, 0.2, 0.2, 1.0));
+        RectangleFigure::new_with_color(430.0, 280.0, 50.0, 40.0, Color::rgba(0.9, 0.2, 0.2, 1.0))
+            .expect("valid figure bounds");
     let _child2_id = scene.add_child_to(parent_id, Box::new(child2));
 
     // Child 3 - 超出父容器下边界 (380, 340, 40, 40) - 黄色
     // 父容器下边界是 350，子元素从 340 开始，高度 40，应该超出到 380
     let child3 =
-        RectangleFigure::new_with_color(380.0, 340.0, 40.0, 40.0, Color::rgba(0.9, 0.8, 0.2, 1.0));
+        RectangleFigure::new_with_color(380.0, 340.0, 40.0, 40.0, Color::rgba(0.9, 0.8, 0.2, 1.0))
+            .expect("valid figure bounds");
     let _child3_id = scene.add_child_to(parent_id, Box::new(child3));
 
     // 渲染并分析命令

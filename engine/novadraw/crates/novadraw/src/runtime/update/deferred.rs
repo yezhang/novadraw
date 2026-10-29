@@ -975,13 +975,16 @@ mod tests {
     fn test_perform_update_writes_damage_set_to_canvas() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            400.0,
-            300.0,
-            Color::rgba(0.1, 0.1, 0.1, 1.0),
-        )));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                400.0,
+                300.0,
+                Color::rgba(0.1, 0.1, 0.1, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ));
         manager.add_dirty_region(root_id, Rectangle::new(10.0, 20.0, 30.0, 40.0));
 
         let mut canvas = NdCanvas::new();
@@ -1001,13 +1004,16 @@ mod tests {
     fn test_perform_update_records_update_phase_effects() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            400.0,
-            300.0,
-            Color::rgba(0.1, 0.1, 0.1, 1.0),
-        )));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                400.0,
+                300.0,
+                Color::rgba(0.1, 0.1, 0.1, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ));
         manager.add_dirty_region(root_id, Rectangle::new(10.0, 20.0, 30.0, 40.0));
 
         let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -1056,14 +1062,16 @@ mod tests {
     fn test_update_notifications_report_root_domain_damage() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ));
         let coordinate_root = graph.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
+            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0).expect("valid figure bounds")),
         );
         let child = graph.add_child_to(
             coordinate_root,
-            Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)),
+            Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0).expect("valid figure bounds")),
         );
         manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 30.0, 40.0));
 
@@ -1104,7 +1112,9 @@ mod tests {
     fn test_clipped_damage_notifies_without_rendering() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         manager.add_dirty_region(root_id, Rectangle::new(200.0, 200.0, 10.0, 10.0));
 
         let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -1151,7 +1161,9 @@ mod tests {
     fn test_update_without_dirty_regions_skips_rendering() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
 
         let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         struct CaptureUpdate {
@@ -1185,7 +1197,9 @@ mod tests {
     fn test_direct_invalid_queue_entry_invalidates_and_validates_graph_node() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         graph.revalidate(root_id);
         assert!(graph.is_valid(root_id).unwrap());
 
@@ -1200,7 +1214,9 @@ mod tests {
     fn test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         graph.revalidate(root_id);
         graph.replace_layout_manager(
             root_id,
@@ -1246,10 +1262,12 @@ mod tests {
     fn test_validation_figure_effects_preserve_causal_order() {
         let mut manager = UpdateManager::new();
         let mut graph = FigureTree::new();
-        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let root_id = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
         let child_id = graph.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
         );
         graph.replace_layout_manager(root_id, Some(Box::new(XYLayout::new())));
         graph.set_boxed_constraint(
@@ -1392,9 +1410,13 @@ mod tests {
         }));
 
         let mut graph = FigureTree::new();
-        let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child =
-            graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
+        let root = graph.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let child = graph.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         graph.replace_layout_manager(root, Some(Box::new(StackLayout::new())));
         graph.set_visible(child, false);
         graph.set_visible(child, true);

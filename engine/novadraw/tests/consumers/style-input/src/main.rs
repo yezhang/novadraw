@@ -33,6 +33,54 @@ static ALLOCATOR: CountingAllocator = CountingAllocator;
 fn main() {
     const SAMPLES: usize = 101;
     const UPDATES: usize = 120;
+    for mode in 0..3 {
+        std::hint::black_box(novadraw_style_input_consumer::frame_workload(mode, UPDATES));
+        let mut elapsed = Vec::with_capacity(SAMPLES);
+        CALLS.store(0, Ordering::Relaxed);
+        BYTES.store(0, Ordering::Relaxed);
+        for _ in 0..SAMPLES {
+            ENABLED.store(true, Ordering::Relaxed);
+            let start = Instant::now();
+            std::hint::black_box(novadraw_style_input_consumer::frame_workload(mode, UPDATES));
+            let duration = start.elapsed().as_nanos();
+            ENABLED.store(false, Ordering::Relaxed);
+            elapsed.push(duration);
+        }
+        elapsed.sort_unstable();
+        println!(
+            "frame_mode={mode} samples={SAMPLES} updates={UPDATES} nodes=64 p50_ns={} p95_ns={} allocations={} requested_bytes={}",
+            elapsed[SAMPLES / 2],
+            elapsed[SAMPLES * 95 / 100],
+            CALLS.load(Ordering::Relaxed),
+            BYTES.load(Ordering::Relaxed)
+        );
+    }
+    for mode in 0..4 {
+        std::hint::black_box(novadraw_style_input_consumer::border_workload(
+            mode, UPDATES,
+        ));
+        let mut elapsed = Vec::with_capacity(SAMPLES);
+        CALLS.store(0, Ordering::Relaxed);
+        BYTES.store(0, Ordering::Relaxed);
+        for _ in 0..SAMPLES {
+            ENABLED.store(true, Ordering::Relaxed);
+            let start = Instant::now();
+            std::hint::black_box(novadraw_style_input_consumer::border_workload(
+                mode, UPDATES,
+            ));
+            let duration = start.elapsed().as_nanos();
+            ENABLED.store(false, Ordering::Relaxed);
+            elapsed.push(duration);
+        }
+        elapsed.sort_unstable();
+        println!(
+            "border_mode={mode} samples={SAMPLES} updates={UPDATES} p50_ns={} p95_ns={} allocations={} requested_bytes={}",
+            elapsed[SAMPLES / 2],
+            elapsed[SAMPLES * 95 / 100],
+            CALLS.load(Ordering::Relaxed),
+            BYTES.load(Ordering::Relaxed)
+        );
+    }
     std::hint::black_box(novadraw_style_input_consumer::style_workload(
         12.0, 0.5, UPDATES,
     ));

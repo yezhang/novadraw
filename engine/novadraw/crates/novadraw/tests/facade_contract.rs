@@ -14,11 +14,13 @@ fn explicit_domain_imports_support_a_backend_neutral_scene() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 240.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let runtime = Runtime::new(tree);
 
-    accepts_figure(&RectangleFigure::new(0.0, 0.0, 1.0, 1.0));
+    accepts_figure(&RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"));
     accepts_layout(&FillLayout::new());
     accepts_host::<novadraw::host::HeadlessHost>();
 

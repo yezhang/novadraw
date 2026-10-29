@@ -15,11 +15,13 @@ fn new_scene() -> (FigureTree, UpdateManager) {
 #[test]
 fn test_add_child_marks_layout_invalid() {
     let (mut scene, _) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.try_revalidate(container_id).unwrap();
     scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     assert!(!scene.is_layout_valid());
 }
@@ -27,7 +29,9 @@ fn test_add_child_marks_layout_invalid() {
 #[test]
 fn test_mark_invalid_adds_to_queue() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     assert!(!update_manager.is_update_queued());
     scene.mark_invalid(&mut update_manager, container_id);
     assert!(update_manager.is_update_queued());
@@ -37,7 +41,9 @@ fn test_mark_invalid_adds_to_queue() {
 #[test]
 fn test_repaint_adds_dirty_region() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     assert!(!update_manager.has_pending_repaint());
     scene.repaint(&mut update_manager, container_id, None);
     assert!(update_manager.has_pending_repaint());
@@ -47,7 +53,9 @@ fn test_repaint_adds_dirty_region() {
 #[test]
 fn test_repaint_uses_specified_rect() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let partial_rect = Rectangle::new(10.0, 10.0, 50.0, 50.0);
     scene.repaint(&mut update_manager, container_id, Some(partial_rect));
     let damage = update_manager.compute_damage();
@@ -57,7 +65,9 @@ fn test_repaint_uses_specified_rect() {
 #[test]
 fn test_multiple_repaints_merge_regions() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.repaint(
         &mut update_manager,
         container_id,
@@ -78,7 +88,9 @@ fn test_multiple_repaints_merge_regions() {
 #[test]
 fn test_invisible_block_no_dirty_region() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.blocks.get_mut(container_id).unwrap().is_visible = false;
     scene.repaint(&mut update_manager, container_id, None);
     assert!(!update_manager.has_pending_repaint());
@@ -87,10 +99,12 @@ fn test_invisible_block_no_dirty_region() {
 #[test]
 fn test_effective_visibility_follows_parent_chain() {
     let (mut scene, _) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     assert!(scene.is_visible(child_id).unwrap());
@@ -108,10 +122,12 @@ fn test_effective_visibility_follows_parent_chain() {
 #[test]
 fn test_effective_enabled_follows_parent_chain() {
     let (mut scene, _) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     assert!(scene.is_enabled(child_id).unwrap());
@@ -129,10 +145,12 @@ fn test_effective_enabled_follows_parent_chain() {
 #[test]
 fn test_repaint_skips_effectively_invisible_child() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     scene.set_visible(parent_id, false);
@@ -144,10 +162,12 @@ fn test_repaint_skips_effectively_invisible_child() {
 #[test]
 fn test_hidden_parent_skips_child_validation_but_drains_queue() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     scene.set_visible(parent_id, false);
@@ -162,10 +182,12 @@ fn test_hidden_parent_skips_child_validation_but_drains_queue() {
 #[test]
 fn disabled_parent_does_not_block_child_validation() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     scene.set_enabled(parent_id, false);
@@ -181,10 +203,12 @@ fn disabled_parent_does_not_block_child_validation() {
 #[test]
 fn test_showing_hidden_subtree_requeues_deferred_validation() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     scene.set_visible(parent_id, false);
     scene.mark_invalid(&mut update_manager, child_id);
@@ -202,10 +226,12 @@ fn test_showing_hidden_subtree_requeues_deferred_validation() {
 #[test]
 fn enabling_disabled_subtree_starts_a_new_validation_transaction() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     scene.set_enabled(parent_id, false);
     scene.mark_invalid(&mut update_manager, child_id);
@@ -223,7 +249,9 @@ fn enabling_disabled_subtree_starts_a_new_validation_transaction() {
 #[test]
 fn test_perform_update_two_phase() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.repaint(&mut update_manager, container_id, None);
     let canvas = scene.perform_update(&mut update_manager);
@@ -236,7 +264,9 @@ fn test_perform_update_two_phase() {
 #[test]
 fn test_perform_update_marks_layout_valid() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
     assert!(!update_manager.has_pending_layout());
@@ -246,7 +276,9 @@ fn test_perform_update_marks_layout_valid() {
 #[test]
 fn test_clear_updates() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.repaint(&mut update_manager, container_id, None);
     assert!(update_manager.is_update_queued());
@@ -257,7 +289,9 @@ fn test_clear_updates() {
 #[test]
 fn test_revalidate_flow() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.try_revalidate(container_id).unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
@@ -268,7 +302,9 @@ fn test_revalidate_flow() {
 fn test_repaint_contents() {
     let (mut scene, mut update_manager) = new_scene();
     assert!(!update_manager.has_pending_repaint());
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.repaint(&mut update_manager, container_id, None);
     assert!(update_manager.has_pending_repaint());
 }
@@ -276,7 +312,9 @@ fn test_repaint_contents() {
 #[test]
 fn test_empty_rect_ignored() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.repaint(
         &mut update_manager,
         container_id,
@@ -300,14 +338,16 @@ fn test_empty_rect_ignored() {
 #[test]
 fn test_multiple_blocks_independent_dirty_regions() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child1_id = scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     let child2_id = scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(100.0, 0.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(100.0, 0.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     scene.repaint(
         &mut update_manager,
@@ -328,7 +368,9 @@ fn test_multiple_blocks_independent_dirty_regions() {
 #[test]
 fn test_mark_invalid_with_repaint() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.repaint(&mut update_manager, container_id, None);
     assert!(update_manager.has_pending_layout());
@@ -343,12 +385,14 @@ fn test_mark_invalid_with_repaint() {
 #[test]
 fn test_add_child_triggers_updates() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     assert!(!update_manager.is_update_queued());
     scene.add_child(
         &mut update_manager,
         container_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     assert!(update_manager.has_pending_layout());
     assert!(update_manager.has_pending_repaint());
@@ -358,22 +402,21 @@ fn test_add_child_triggers_updates() {
 #[test]
 fn test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let contents_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let coordinate_root_id = scene.add_child_to(
         contents_id,
-        Box::new(RectangleFigure::new_with_color(
-            100.0,
-            50.0,
-            200.0,
-            150.0,
-            Color::WHITE,
-        )),
+        Box::new(
+            RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ),
     );
 
     scene.add_child(
         &mut update_manager,
         coordinate_root_id,
-        Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 40.0)),
+        Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 40.0).expect("valid figure bounds")),
     );
 
     let canvas = scene.perform_update(&mut update_manager);
@@ -386,15 +429,23 @@ fn test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain() {
 #[test]
 fn test_add_child_under_viewport_repair_uses_content_transform() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let contents_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let viewport_id = scene.add_child_to(
         contents_id,
-        Box::new(ViewportFigure::new(100.0, 50.0, 200.0, 100.0).with_origin(40.0, 20.0)),
+        Box::new(
+            ViewportFigure::new(100.0, 50.0, 200.0, 100.0)
+                .expect("valid detached figure input")
+                .with_origin(40.0, 20.0)
+                .unwrap(),
+        ),
     );
     let scalable_id = scene.add_child_to(
         viewport_id,
         Box::new(
             ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 300.0)
+                .expect("valid detached figure input")
                 .with_scale(2.0)
                 .unwrap(),
         ),
@@ -403,7 +454,7 @@ fn test_add_child_under_viewport_repair_uses_content_transform() {
     scene.add_child(
         &mut update_manager,
         scalable_id,
-        Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0)),
+        Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0).expect("valid figure bounds")),
     );
 
     let canvas = scene.perform_update(&mut update_manager);
@@ -416,18 +467,20 @@ fn test_add_child_under_viewport_repair_uses_content_transform() {
 #[test]
 fn test_layout_repositions_descendants_via_set_bounds_protocol() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let contents_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let container_id = scene.add_child_to(
         contents_id,
-        Box::new(RectangleFigure::new(50.0, 50.0, 200.0, 150.0)),
+        Box::new(RectangleFigure::new(50.0, 50.0, 200.0, 150.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds")),
     );
     let grandchild_id = scene.add_child_to(
         child_id,
-        Box::new(RectangleFigure::new(15.0, 15.0, 10.0, 10.0)),
+        Box::new(RectangleFigure::new(15.0, 15.0, 10.0, 10.0).expect("valid figure bounds")),
     );
 
     scene
@@ -450,8 +503,13 @@ fn test_layout_repositions_descendants_via_set_bounds_protocol() {
 #[test]
 fn test_layout_constraint_is_owned_by_parent_and_typed() {
     let (mut scene, _) = new_scene();
-    let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let child = scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+    let parent = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
+    let child = scene.add_child_to(
+        parent,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+    );
 
     assert!(
         scene
@@ -471,13 +529,21 @@ fn test_layout_constraint_is_owned_by_parent_and_typed() {
 #[test]
 fn test_reparent_removes_constraint_owned_by_old_parent() {
     let (mut scene, mut update_manager) = new_scene();
-    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let left = scene.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let root = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+    ));
+    let left = scene.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
+    );
     let right = scene.add_child_to(
         root,
-        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
-    let child = scene.add_child_to(left, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+    let child = scene.add_child_to(
+        left,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+    );
     assert!(
         scene
             .builder()
@@ -505,20 +571,19 @@ fn test_reparent_removes_constraint_owned_by_old_parent() {
 #[test]
 fn test_layout_uses_local_client_area_for_coordinate_root_container() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let contents_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let container_id = scene.add_child_to(
         contents_id,
-        Box::new(RectangleFigure::new_with_color(
-            100.0,
-            50.0,
-            200.0,
-            150.0,
-            Color::WHITE,
-        )),
+        Box::new(
+            RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ),
     );
     let child_id = scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0).expect("valid figure bounds")),
     );
 
     scene
@@ -539,14 +604,16 @@ fn test_layout_uses_local_client_area_for_coordinate_root_container() {
 #[test]
 fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
     let (mut scene, mut update_manager) = new_scene();
-    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let root = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+    ));
     let container = scene.add_child_to(
         root,
-        Box::new(RectangleFigure::new(50.0, 50.0, 200.0, 150.0)),
+        Box::new(RectangleFigure::new(50.0, 50.0, 200.0, 150.0).expect("valid figure bounds")),
     );
     let child = scene.add_child_to(
         container,
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     scene
         .builder()
@@ -586,7 +653,9 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
 #[test]
 fn test_explicit_size_overrides_take_precedence() {
     let (mut scene, _) = new_scene();
-    let block = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 40.0)));
+    let block = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 30.0, 40.0).expect("valid figure bounds"),
+    ));
 
     assert_eq!(
         scene
@@ -621,7 +690,9 @@ fn test_explicit_size_overrides_take_precedence() {
 #[test]
 fn test_perform_update_clears_dirty_regions() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.repaint(
         &mut update_manager,
         container_id,
@@ -635,7 +706,9 @@ fn test_perform_update_clears_dirty_regions() {
 #[test]
 fn test_perform_update_uses_damage_region() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.repaint(
         &mut update_manager,
         container_id,
@@ -648,14 +721,16 @@ fn test_perform_update_uses_damage_region() {
 #[test]
 fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+    let contents_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 300.0, 240.0).expect("valid figure bounds"),
+    ));
     let coordinate_root_id = scene.add_child_to(
         contents_id,
-        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
+        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         coordinate_root_id,
-        Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
+        Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0).expect("valid figure bounds")),
     );
 
     assert!(scene.set_bounds_with_update(
@@ -682,14 +757,16 @@ fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
 #[test]
 fn test_batch_construction_no_updates() {
     let (mut scene, update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(100.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(100.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     assert!(!update_manager.is_update_queued());
 }
@@ -697,10 +774,12 @@ fn test_batch_construction_no_updates() {
 #[test]
 fn test_batch_then_manual_update() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.add_child_to(
         container_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     scene.mark_invalid(&mut update_manager, container_id);
     scene.repaint(&mut update_manager, container_id, None);
@@ -712,7 +791,9 @@ fn test_batch_then_manual_update() {
 #[test]
 fn test_mark_invalid_updates_block_validity() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.try_revalidate(container_id).unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
     assert!(!scene.node(container_id).unwrap().is_valid);
@@ -722,7 +803,9 @@ fn test_mark_invalid_updates_block_validity() {
 #[test]
 fn test_hidden_block_skips_validation_but_drains_queue() {
     let (mut scene, mut update_manager) = new_scene();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     scene.try_revalidate(container_id).unwrap();
     scene.blocks.get_mut(container_id).unwrap().is_visible = false;
 
@@ -737,7 +820,9 @@ fn test_hidden_block_skips_validation_but_drains_queue() {
 #[test]
 fn test_interaction_state_accessors() {
     let mut scene = FigureTree::new();
-    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let container_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let mut interaction = InteractionState::default();
     assert_eq!(interaction.mouse_target(), None);
     assert_eq!(interaction.focus_owner(), None);
@@ -759,11 +844,13 @@ fn test_interaction_state_accessors() {
 #[test]
 fn test_apply_pending_add_child_figure_allocates_and_attaches_child() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::add_child_figure(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     ));
 
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain(),));
@@ -776,13 +863,15 @@ fn test_apply_pending_add_child_figure_allocates_and_attaches_child() {
 #[test]
 fn test_apply_pending_add_child_with_invalid_parent_has_no_side_effect() {
     let (mut scene, mut update_manager) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let block_count = scene.blocks.len();
     let uuid_count = scene.uuid_map.len();
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::add_child_figure(
         FigureId::null(),
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     ));
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
@@ -795,13 +884,15 @@ fn test_apply_pending_add_child_with_invalid_parent_has_no_side_effect() {
 #[test]
 fn add_child_to_invalid_parent_returns_error_without_side_effect() {
     let (mut scene, _) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let block_count = scene.blocks.len();
     let uuid_count = scene.uuid_map.len();
 
     let child_id = scene.try_add_child_to(
         FigureId::null(),
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     assert_eq!(child_id, Err(GraphMutationError::ParentNotFound));
@@ -813,11 +904,16 @@ fn add_child_to_invalid_parent_returns_error_without_side_effect() {
 #[test]
 fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
     let mut scene = FigureTree::new();
-    let mut parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let mut parent = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+    ));
 
     for expected_depth in 2..=MAX_TREE_DEPTH {
         parent = scene
-            .try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .try_add_child_to(
+                parent,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
+            )
             .expect("depth at the configured boundary must be accepted");
         assert_eq!(scene.depth(parent), Ok(expected_depth));
     }
@@ -831,7 +927,10 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
     let child_count = scene.node(parent).unwrap().children_count();
     let effects = scene.notification_effects().to_vec();
 
-    let result = scene.try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let result = scene.try_add_child_to(
+        parent,
+        Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
+    );
 
     assert_eq!(
         result,
@@ -848,16 +947,23 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
 #[test]
 fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effects() {
     let (mut scene, mut update_manager) = new_scene();
-    let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
-    let subtree = scene.add_child_to(contents, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
-    let subtree_child =
-        scene.add_child_to(subtree, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let contents = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+    ));
+    let subtree = scene.add_child_to(
+        contents,
+        Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
+    );
+    let subtree_child = scene.add_child_to(
+        subtree,
+        Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
+    );
 
     let mut deep_parent = contents;
     for _ in 2..MAX_TREE_DEPTH {
         deep_parent = scene.add_child_to(
             deep_parent,
-            Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
         );
     }
     assert_eq!(scene.depth(deep_parent), Ok(MAX_TREE_DEPTH - 1));
@@ -883,14 +989,16 @@ fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effe
 #[test]
 fn test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect() {
     let (mut scene, mut update_manager) = new_scene();
-    let _parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let _parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let block_count = scene.blocks.len();
     let uuid_count = scene.uuid_map.len();
 
     let child_id = scene.add_child(
         &mut update_manager,
         FigureId::null(),
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
 
     assert_eq!(child_id, FigureId::null());
@@ -905,10 +1013,12 @@ fn test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect()
 fn test_apply_pending_remove_child_clears_non_focus_interaction_state() {
     let (mut scene, mut update_manager) = new_scene();
     let mut interaction = InteractionState::default();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let parent_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
     );
     interaction.set_mouse_target(Some(child_id));
     interaction.set_cursor_target(Some(child_id));
@@ -934,18 +1044,20 @@ fn test_apply_pending_remove_child_clears_non_focus_interaction_state() {
 fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
     let (mut scene, mut update_manager) = new_scene();
     let mut interaction = InteractionState::default();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let left_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let right_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         left_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     interaction.set_mouse_target(Some(child_id));
     interaction.set_focus_owner(Some(child_id));
@@ -969,18 +1081,20 @@ fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
 #[test]
 fn test_apply_pending_reparent_moves_child_between_containers() {
     let (mut scene, mut update_manager) = new_scene();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let left_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let right_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         left_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
 
     let mut pending_mutations = PendingMutations::new();
@@ -995,18 +1109,20 @@ fn test_apply_pending_reparent_moves_child_between_containers() {
 #[test]
 fn test_apply_pending_reparent_with_duplicate_new_parent_entry_has_no_side_effects() {
     let (mut scene, mut update_manager) = new_scene();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let left_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let right_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(200.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         left_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     scene
         .blocks
@@ -1039,14 +1155,16 @@ fn test_apply_pending_reparent_with_duplicate_new_parent_entry_has_no_side_effec
 #[test]
 fn test_apply_pending_reparent_to_invalid_parent_keeps_original_tree() {
     let (mut scene, mut update_manager) = new_scene();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let left_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         left_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::reparent(child_id, FigureId::null()));
@@ -1060,10 +1178,12 @@ fn test_apply_pending_reparent_to_invalid_parent_keeps_original_tree() {
 #[test]
 fn test_apply_pending_reparent_to_self_keeps_original_tree() {
     let (mut scene, mut update_manager) = new_scene();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let child_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::reparent(child_id, child_id));
@@ -1077,18 +1197,20 @@ fn test_apply_pending_reparent_to_self_keeps_original_tree() {
 #[test]
 fn test_apply_pending_reparent_to_descendant_keeps_original_tree() {
     let (mut scene, mut update_manager) = new_scene();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let root_id = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
     let parent_id = scene.add_child_to(
         root_id,
-        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child_id = scene.add_child_to(
         parent_id,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     let grandchild_id = scene.add_child_to(
         child_id,
-        Box::new(RectangleFigure::new(12.0, 12.0, 8.0, 8.0)),
+        Box::new(RectangleFigure::new(12.0, 12.0, 8.0, 8.0).expect("valid figure bounds")),
     );
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::reparent(child_id, grandchild_id));
@@ -1110,16 +1232,20 @@ fn test_apply_pending_reparent_to_descendant_keeps_original_tree() {
 #[test]
 fn pending_mutations_preserve_fifo_causality() {
     let (mut scene, mut update_manager) = new_scene();
-    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
-    let old_parent =
-        scene.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let root = scene.set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+    ));
+    let old_parent = scene.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
+    );
     let new_parent = scene.add_child_to(
         root,
-        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0)),
+        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0).expect("valid figure bounds")),
     );
     let child = scene.add_child_to(
         old_parent,
-        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
     );
     let mut pending = PendingMutations::new();
     pending.enqueue(PendingMutation::reparent(child, new_parent));

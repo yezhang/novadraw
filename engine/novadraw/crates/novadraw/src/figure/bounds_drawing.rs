@@ -8,8 +8,8 @@ use crate::{
 
 /// Immutable, size-dependent self-paint inputs with a finite recording bound.
 ///
-/// Application inputs are `Copy`; owned recordings and compositions use explicit storage
-/// accounting. Callbacks are plain function pointers and cannot retain opaque captured heaps.
+/// Application inputs are `Copy`; checked stroke storage, owned recordings and compositions
+/// use explicit accounting. Callbacks cannot retain opaque captured heaps.
 #[derive(Clone)]
 pub struct BoundsDrawing {
     payload: Arc<dyn Any + Send + Sync>,
@@ -26,6 +26,77 @@ impl BoundsDrawing {
     pub fn new<D: Copy + Send + Sync + 'static>(
         inputs: D,
         recording_bytes: usize,
+        paint: fn(&D, Rectangle, &mut PaintContext<'_>) -> Result<(), GraphicsError>,
+        envelope: fn(&D, Rectangle) -> Result<Rectangle, GraphicsError>,
+    ) -> Self {
+        Self::accounted(inputs, recording_bytes, 0, paint, envelope)
+    }
+
+    /// Freezes inline inputs with a checked stroke, including its shared dash storage.
+    ///
+    /// This accepts the same bounded inputs for built-in and external painters; arbitrary
+    /// captured heaps remain unavailable. Cloning a drawing shares the complete payload.
+    pub fn stroked<D: Copy + Send + Sync + 'static>(
+        inputs: D,
+        stroke: crate::graphics::StrokeStyle,
+        recording_bytes: usize,
+        paint: fn(
+            &D,
+            &crate::graphics::StrokeStyle,
+            Rectangle,
+            &mut PaintContext<'_>,
+        ) -> Result<(), GraphicsError>,
+        envelope: fn(
+            &D,
+            &crate::graphics::StrokeStyle,
+            Rectangle,
+        ) -> Result<Rectangle, GraphicsError>,
+    ) -> Result<Self, GraphicsError> {
+        struct Stroked<D> {
+            inputs: D,
+            stroke: crate::graphics::StrokeStyle,
+            paint: fn(
+                &D,
+                &crate::graphics::StrokeStyle,
+                Rectangle,
+                &mut PaintContext<'_>,
+            ) -> Result<(), GraphicsError>,
+            envelope: fn(
+                &D,
+                &crate::graphics::StrokeStyle,
+                Rectangle,
+            ) -> Result<Rectangle, GraphicsError>,
+        }
+        let owned = match stroke.dash_pattern() {
+            crate::graphics::DashPattern::Custom(dash) => dash
+                .lengths()
+                .len()
+                .checked_mul(std::mem::size_of::<f64>())
+                .and_then(|bytes| bytes.checked_add(2 * std::mem::size_of::<usize>()))
+                .ok_or(GraphicsError::ImmutableDrawingUnavailable)?,
+            _ => 0,
+        };
+        let recording_bytes = recording_bytes
+            .checked_add(owned)
+            .ok_or(GraphicsError::ImmutableDrawingUnavailable)?;
+        Ok(Self::accounted(
+            Stroked {
+                inputs,
+                stroke,
+                paint,
+                envelope,
+            },
+            recording_bytes,
+            owned,
+            |value, bounds, context| (value.paint)(&value.inputs, &value.stroke, bounds, context),
+            |value, bounds| (value.envelope)(&value.inputs, &value.stroke, bounds),
+        ))
+    }
+
+    fn accounted<D: Send + Sync + 'static>(
+        inputs: D,
+        recording_bytes: usize,
+        owned_bytes: usize,
         paint: fn(&D, Rectangle, &mut PaintContext<'_>) -> Result<(), GraphicsError>,
         envelope: fn(&D, Rectangle) -> Result<Rectangle, GraphicsError>,
     ) -> Self {
@@ -50,7 +121,9 @@ impl BoundsDrawing {
                 (inputs.envelope)(&inputs.value, bounds)
             },
             recording_bytes,
-            payload_bytes: std::mem::size_of::<Inputs<D>>() + 2 * std::mem::size_of::<usize>(),
+            payload_bytes: std::mem::size_of::<Inputs<D>>()
+                + 2 * std::mem::size_of::<usize>()
+                + owned_bytes,
             resource_inputs: Vec::new(),
             resources: Vec::new(),
         }
@@ -336,3 +409,43 @@ impl BoundsSnapshotCapability {
 
 pub const BOUNDS_SNAPSHOT: CapabilityKey<BoundsSnapshotCapability> =
     CapabilityKey::new("novadraw.bounds-snapshot");
+
+#[cfg(test)]
+mod stroke_storage_tests {
+    use super::*;
+    use crate::graphics::{CustomDash, DashPattern, StrokeStyle};
+
+    fn freeze(stroke: StrokeStyle) -> BoundsDrawing {
+        BoundsDrawing::stroked(
+            crate::Color::BLACK,
+            stroke,
+            4096,
+            |color, stroke, bounds, context| {
+                context.set_stroke_paint(*color);
+                context.set_stroke_style(stroke.clone());
+                context.stroke_rect(bounds)
+            },
+            |_, _, bounds| Ok(bounds),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn custom_dash_storage_is_charged_and_drawing_clones_share_payload() {
+        let inline = freeze(StrokeStyle::default());
+        let dash = CustomDash::try_new(&[3.0, 1.0, 1.0]).unwrap();
+        let owned =
+            dash.lengths().len() * std::mem::size_of::<f64>() + 2 * std::mem::size_of::<usize>();
+        let shared = freeze(StrokeStyle::default().with_dash_pattern(DashPattern::Custom(dash)));
+        assert_eq!(shared.retained_bytes() - inline.retained_bytes(), owned);
+        assert_eq!(shared.recording_bytes() - inline.recording_bytes(), owned);
+        let cloned = shared.clone();
+        assert!(Arc::ptr_eq(&cloned.payload, &shared.payload));
+        let prepared = cloned.materialize(
+            Rectangle::new(0.0, 0.0, 100.0, 80.0),
+            crate::Color::BLACK,
+            crate::Color::WHITE,
+        );
+        assert!(prepared.is_ok());
+    }
+}

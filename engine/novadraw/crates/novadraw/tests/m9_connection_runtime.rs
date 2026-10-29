@@ -78,17 +78,23 @@ impl<T: 'static> ConnectionRouter for TypedRouter<T> {
 fn runtime_fixture() -> (Runtime, FigureId, FigureId, FigureId, FigureId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 170.0, 100.0, 60.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection = runtime
         .figure(root)
@@ -191,17 +197,23 @@ fn independent_routing_supplies_one_order_entry_per_connection() {
 fn invalid_connection_geometry_never_commits_resolved_state() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 170.0, 100.0, 60.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
         .figure(root)
@@ -269,7 +281,9 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     let label = runtime
         .figure(connection_figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -342,7 +356,9 @@ fn locator_remeasures_child_size_without_endpoint_movement() {
     let child = runtime
         .figure(figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source_anchor = runtime
         .connections()
@@ -535,7 +551,9 @@ fn runtime_orients_endpoint_decorations_and_offsets_labels_in_terminal_frames() 
     let target_label = runtime
         .figure(connection_figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -638,17 +656,23 @@ fn invalid_decoration_template_is_rejected_before_attachment() {
 fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
         .figure(root)
@@ -658,7 +682,9 @@ fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
     let label = runtime
         .figure(connection_figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -731,7 +757,9 @@ fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
     let label = runtime
         .figure(connection_figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -1374,17 +1402,23 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
 fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let old_parent = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let new_parent = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)))
+        .add(Box::new(
+            RectangleFigure::new(100.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
         .figure(old_parent)
@@ -1469,17 +1503,23 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
 fn reparenting_connection_with_unknown_constraint_is_rejected_atomically() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let old_parent = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let new_parent = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)))
+        .add(Box::new(
+            RectangleFigure::new(100.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
         .figure(old_parent)
@@ -1703,12 +1743,16 @@ fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
     let second_source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 130.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 130.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let second_target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 170.0, 100.0, 60.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let second_figure = runtime
         .figure(root)
@@ -1865,30 +1909,34 @@ fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
     let mut tree = novadraw::tree::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 600.0, 400.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = builder
         .add_child(
             root,
-            Box::new(ViewportFigure::new(20.0, 20.0, 240.0, 180.0)),
+            Box::new(
+                ViewportFigure::new(20.0, 20.0, 240.0, 180.0).expect("valid detached figure input"),
+            ),
         )
         .expect("valid FigureTree construction");
     let contents = builder
         .add_child(
             viewport,
-            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let source = builder
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let target = builder
         .add_child(
             root,
-            Box::new(RectangleFigure::new(400.0, 200.0, 100.0, 60.0)),
+            Box::new(RectangleFigure::new(400.0, 200.0, 100.0, 60.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let connection_figure = builder
@@ -1947,30 +1995,34 @@ fn matching_viewport_topology_routes_normally() {
     let mut tree = novadraw::tree::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 600.0, 400.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = builder
         .add_child(
             root,
-            Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 220.0)),
+            Box::new(
+                ViewportFigure::new(20.0, 20.0, 300.0, 220.0).expect("valid detached figure input"),
+            ),
         )
         .expect("valid FigureTree construction");
     let contents = builder
         .add_child(
             viewport,
-            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 350.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 350.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let source = builder
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let target = builder
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let connection_figure = builder
@@ -2009,15 +2061,20 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
     let mut tree = novadraw::tree::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 700.0, 420.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 700.0, 420.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let valid_source = builder
-        .add_child(root, Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0).expect("valid figure bounds")),
+        )
         .expect("valid FigureTree construction");
     let valid_target = builder
         .add_child(
             root,
-            Box::new(RectangleFigure::new(420.0, 90.0, 100.0, 60.0)),
+            Box::new(RectangleFigure::new(420.0, 90.0, 100.0, 60.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let first_figure = builder
@@ -2026,25 +2083,28 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
     let viewport = builder
         .add_child(
             root,
-            Box::new(ViewportFigure::new(20.0, 200.0, 260.0, 180.0)),
+            Box::new(
+                ViewportFigure::new(20.0, 200.0, 260.0, 180.0)
+                    .expect("valid detached figure input"),
+            ),
         )
         .expect("valid FigureTree construction");
     let contents = builder
         .add_child(
             viewport,
-            Box::new(RectangleFigure::new(0.0, 0.0, 420.0, 300.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 420.0, 300.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let invalid_source = builder
         .add_child(
             contents,
-            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 40.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 40.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let invalid_target = builder
         .add_child(
             root,
-            Box::new(RectangleFigure::new(440.0, 260.0, 100.0, 60.0)),
+            Box::new(RectangleFigure::new(440.0, 260.0, 100.0, 60.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let second_figure = builder

@@ -33,8 +33,17 @@ impl Bounded for InputProbeFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -194,11 +203,15 @@ fn event_context_projects_scene_query_and_defers_effect_visibility() {
     let observed = Arc::new(Mutex::new(Vec::new()));
     let mut foreign_runtime = Runtime::empty();
     let foreign_figure = foreign_runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let initial = Rectangle::new(10.0, 20.0, 40.0, 30.0);
     let probe = runtime
@@ -235,13 +248,15 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let coordinate_root = graph
         .builder()
         .add_child(
             root,
-            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
+            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let probe = graph
@@ -323,7 +338,9 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     graph
         .builder()
@@ -412,7 +429,9 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     let second_events = Arc::new(Mutex::new(Vec::new()));
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 160.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let first_viewport = runtime
         .viewports()
@@ -537,7 +556,9 @@ fn interactive_parent_remains_mouse_target_across_non_interactive_children() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let parent = graph
         .builder()
@@ -553,7 +574,7 @@ fn interactive_parent_remains_mouse_target_across_non_interactive_children() {
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 30.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 30.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
     let mut update_manager = UpdateManager::new();

@@ -113,11 +113,13 @@ fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rect
 }
 
 /// Figure 树结构变更失败。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GraphMutationError {
     SceneAdmission(crate::scene::SceneAdmissionError),
     FigureNotFound(FigureId),
-    InvalidInitialBounds,
+    InvalidInitialBounds(crate::figure::ShapeGeometryError),
+    InvalidInitialInsets(crate::figure::border::BorderInputError),
+    InvalidInitialBorder(crate::figure::border::BorderInputError),
     CapabilityRegistration(FigureCapabilityRegistrationError),
     ParentNotFound,
     ChildNotFound,
@@ -146,9 +148,9 @@ impl fmt::Display for GraphMutationError {
                 write!(f, "scene dependency admission failed: {error:?}")
             }
             Self::FigureNotFound(figure) => write!(f, "Figure does not exist: {figure:?}"),
-            Self::InvalidInitialBounds => {
-                write!(f, "Figure initial bounds must be finite and non-negative")
-            }
+            Self::InvalidInitialBounds(source) => write!(f, "Figure initial bounds: {source}"),
+            Self::InvalidInitialInsets(source) => write!(f, "Figure initial insets: {source}"),
+            Self::InvalidInitialBorder(source) => write!(f, "Figure initial border: {source}"),
             Self::CapabilityRegistration(error) => error.fmt(f),
             Self::ParentNotFound => write!(f, "parent Figure does not exist"),
             Self::ChildNotFound => write!(f, "child Figure does not exist"),
@@ -175,7 +177,15 @@ impl fmt::Display for GraphMutationError {
     }
 }
 
-impl Error for GraphMutationError {}
+impl Error for GraphMutationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::InvalidInitialBounds(source) => Some(source),
+            Self::InvalidInitialInsets(source) | Self::InvalidInitialBorder(source) => Some(source),
+            _ => None,
+        }
+    }
+}
 
 /// A child insertion rejected by topology admission or layout constraint validation.
 #[derive(Debug, Clone, PartialEq)]
@@ -346,6 +356,7 @@ fn checked_measurement_insets(figure: FigureId, insets: Insets) -> Result<Insets
 pub struct NodeState {
     pub(crate) bounds: Rectangle,
     pub(crate) insets: Insets,
+    pub(crate) border_preferred: Dimension,
     pub(crate) border_snapshot: Option<BorderSnapshot>,
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
@@ -365,6 +376,7 @@ impl Default for NodeState {
         Self {
             bounds: Rectangle::ZERO,
             insets: Insets::ZERO,
+            border_preferred: Dimension::ZERO,
             border_snapshot: None,
             is_visible: true,
             is_enabled: true,
@@ -948,11 +960,11 @@ impl FigureNode {
 /// let mut scene = FigureTree::new();
 ///
 /// // 创建根内容块（类似 Draw2d 的 setContents）
-/// let contents = RectangleFigure::new(0.0, 0.0, 100.0, 50.0);
+/// let contents = RectangleFigure::new(0.0, 0.0, 100.0, 50.0).expect("valid figure bounds");
 /// let contents_id = scene.builder().set_contents(Box::new(contents)).expect("valid FigureTree construction");
 ///
 /// // 添加子块到指定父块（类似 Draw2d 的 parent.addChild(child)）
-/// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0);
+/// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0).expect("valid figure bounds");
 /// scene.builder().add_child(contents_id, Box::new(child)).expect("valid FigureTree construction");
 /// ```
 pub struct FigureTree {
@@ -1064,7 +1076,8 @@ impl<'a> FigureTreeBuilder<'a> {
             bounds.width,
             bounds.height,
             color,
-        );
+        )
+        .expect("valid figure bounds");
         self.tree.try_add_child_to(parent, Box::new(figure))
     }
 
@@ -1270,8 +1283,10 @@ impl FigureTree {
         let mut blocks = RuntimeArena::new(RuntimeNamespace::new());
         let uuid = Uuid::new_v4();
         let root_bounds = Rectangle::ZERO;
-        let root_figure: Box<dyn super::Figure> =
-            Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0));
+        let root_figure: Box<dyn super::Figure> = Box::new(
+            super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)
+                .expect("valid detached figure input"),
+        );
         let root_capabilities = FigureCapabilitySet::build(root_figure.as_ref())
             .expect("the built-in synthetic root must register valid capabilities");
 
@@ -2107,8 +2122,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -2171,8 +2196,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -2242,8 +2277,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -2305,8 +2350,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn insets(&self) -> Insets {
@@ -2374,8 +2429,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -2528,8 +2593,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -2567,17 +2642,17 @@ mod tests {
         let mut scene = FigureTree::new();
 
         // 创建父容器（100x100）
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.set_contents(Box::new(parent));
 
         // 添加三个子矩形（从下到上添加）
-        let child1 = RectangleFigure::new(10.0, 10.0, 20.0, 20.0);
+        let child1 = RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds");
         let _c1 = scene.add_child_to(parent_id, Box::new(child1));
 
-        let child2 = RectangleFigure::new(30.0, 30.0, 20.0, 20.0);
+        let child2 = RectangleFigure::new(30.0, 30.0, 20.0, 20.0).expect("valid figure bounds");
         let _c2 = scene.add_child_to(parent_id, Box::new(child2));
 
-        let child3 = RectangleFigure::new(50.0, 50.0, 20.0, 20.0);
+        let child3 = RectangleFigure::new(50.0, 50.0, 20.0, 20.0).expect("valid figure bounds");
         let _c3 = scene.add_child_to(parent_id, Box::new(child3));
 
         // 打印树结构（用于手动验证）
@@ -2629,15 +2704,15 @@ mod tests {
         let mut scene = FigureTree::new();
 
         // 根
-        let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+        let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
         let root_id = scene.set_contents(Box::new(root));
 
         // 子
-        let child = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
+        let child = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(root_id, Box::new(child));
 
         // 孙
-        let grandchild = RectangleFigure::new(60.0, 60.0, 30.0, 30.0);
+        let grandchild = RectangleFigure::new(60.0, 60.0, 30.0, 30.0).expect("valid figure bounds");
         let _gc_id = scene.add_child_to(child_id, Box::new(grandchild));
 
         // 打印树结构
@@ -2676,15 +2751,17 @@ mod tests {
     fn test_visibility_filter() {
         let mut scene = FigureTree::new();
 
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.set_contents(Box::new(parent));
 
         // 可见子元素
-        let visible_child = RectangleFigure::new(10.0, 10.0, 20.0, 20.0);
+        let visible_child =
+            RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds");
         let _ = scene.add_child_to(parent_id, Box::new(visible_child));
 
         // 不可见子元素
-        let invisible_child = RectangleFigure::new(50.0, 50.0, 20.0, 20.0);
+        let invisible_child =
+            RectangleFigure::new(50.0, 50.0, 20.0, 20.0).expect("valid figure bounds");
         let invisible_id = scene.add_child_to(parent_id, Box::new(invisible_child));
 
         // 设置不可见
@@ -2707,10 +2784,10 @@ mod tests {
     fn test_transform_accumulation() {
         let mut scene = FigureTree::new();
 
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.set_contents(Box::new(parent));
 
-        let child = RectangleFigure::new(25.0, 25.0, 50.0, 50.0);
+        let child = RectangleFigure::new(25.0, 25.0, 50.0, 50.0).expect("valid figure bounds");
         let _child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // 打印场景结构
@@ -2752,7 +2829,9 @@ mod tests {
     #[test]
     fn test_find_mouse_event_target_at_skips_non_interactive_figures() {
         let mut scene = FigureTree::new();
-        scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
 
         assert_eq!(scene.find_mouse_event_target_at(10.0, 10.0), None);
     }
@@ -2760,7 +2839,9 @@ mod tests {
     #[test]
     fn test_find_mouse_event_target_at_prefers_deepest_interactive_figure() {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let root_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
         let interactive_parent = scene.add_child_to(
             root_id,
             Box::new(TestInteractiveFigure::new(10.0, 10.0, 120.0, 120.0)),
@@ -2792,7 +2873,7 @@ mod tests {
         )));
         let child_id = scene.add_child_to(
             parent_id,
-            Box::new(RectangleFigure::new(-5.0, -5.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(-5.0, -5.0, 20.0, 20.0).expect("valid figure bounds")),
         );
 
         assert_eq!(scene.hit_test_simple((105.0, 105.0)), Some(parent_id));
@@ -2824,18 +2905,20 @@ mod tests {
     #[test]
     fn test_child_order_appends_children_back_to_front() {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let root_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
         let first = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
         );
         let second = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 50.0, 50.0).expect("valid figure bounds")),
         );
         let third = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(30.0, 30.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(30.0, 30.0, 50.0, 50.0).expect("valid figure bounds")),
         );
 
         assert_eq!(scene.child_order(root_id), Ok(vec![first, second, third]));
@@ -2853,7 +2936,7 @@ mod tests {
         let synthetic_root = scene.synthetic_root();
         let right_id = scene.add_child_to(
             left_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 50.0, 50.0).expect("valid figure bounds")),
         );
         let child_id = scene.add_child_to(
             left_id,
@@ -2940,18 +3023,20 @@ mod tests {
     #[test]
     fn test_z_order_reorder_changes_topmost_hit_test_target() {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let root_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
         let bottom = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         );
         let middle = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         );
         let top = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         );
 
         assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(top));
@@ -2968,18 +3053,20 @@ mod tests {
     #[test]
     fn test_z_order_reorder_rejects_invalid_inputs_without_side_effects() {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let root_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
         let child = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         );
         let _sibling = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(40.0, 40.0, 100.0, 100.0)),
+            Box::new(RectangleFigure::new(40.0, 40.0, 100.0, 100.0).expect("valid figure bounds")),
         );
         let other_parent = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
         );
         let initial_order = scene.child_order(root_id);
 
@@ -2992,15 +3079,16 @@ mod tests {
     #[test]
     fn test_hit_test_translates_through_coordinate_root() {
         let mut scene = FigureTree::new();
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 300.0).expect("valid figure bounds"),
+        ));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
             Box::new(TestCoordinateRootFigure::new(100.0, 50.0, 120.0, 120.0)),
         );
         let child_id = scene.add_child_to(
             coordinate_root_id,
-            Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 40.0)),
+            Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 40.0).expect("valid figure bounds")),
         );
 
         assert_eq!(scene.hit_test_simple((130.0, 90.0)), Some(child_id));
@@ -3014,23 +3102,30 @@ mod tests {
     #[test]
     fn test_hit_test_translates_through_viewport_figure() {
         let mut scene = FigureTree::new();
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 300.0).expect("valid figure bounds"),
+        ));
         let viewport_id = scene.add_child_to(
             contents_id,
-            Box::new(ViewportFigure::new(100.0, 50.0, 120.0, 80.0).with_origin(40.0, 20.0)),
+            Box::new(
+                ViewportFigure::new(100.0, 50.0, 120.0, 80.0)
+                    .expect("valid detached figure input")
+                    .with_origin(40.0, 20.0)
+                    .unwrap(),
+            ),
         );
         let scalable_id = scene.add_child_to(
             viewport_id,
             Box::new(
                 ScalableLayeredPaneFigure::new(0.0, 0.0, 240.0, 160.0)
+                    .expect("valid detached figure input")
                     .with_scale(2.0)
                     .unwrap(),
             ),
         );
         let child_id = scene.add_child_to(
             scalable_id,
-            Box::new(RectangleFigure::new(30.0, 20.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(30.0, 20.0, 20.0, 20.0).expect("valid figure bounds")),
         );
 
         assert_eq!(scene.hit_test_simple((120.0, 70.0)), Some(child_id));
@@ -3041,8 +3136,9 @@ mod tests {
     #[test]
     fn test_find_mouse_event_target_at_translates_through_coordinate_root() {
         let mut scene = FigureTree::new();
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 300.0).expect("valid figure bounds"),
+        ));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
             Box::new(TestCoordinateRootFigure::new(100.0, 50.0, 120.0, 120.0)),
@@ -3070,10 +3166,10 @@ mod tests {
         let mut scene = FigureTree::new();
 
         // 创建父子层次
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.set_contents(Box::new(parent));
 
-        let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // 平移父节点 (10, 20)
@@ -3093,10 +3189,12 @@ mod tests {
     #[test]
     fn test_prim_translate_records_figure_moved_effects() {
         let mut scene = FigureTree::new();
-        let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let child_id = scene.add_child_to(
             parent_id,
-            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
         );
 
         scene.drain_notification_effects();
@@ -3134,7 +3232,7 @@ mod tests {
         )));
         let child_id = scene.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+            Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds")),
         );
 
         scene.drain_notification_effects();
@@ -3169,13 +3267,13 @@ mod tests {
         let mut scene = FigureTree::new();
 
         // 创建三层层次：root -> parent -> child
-        let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
+        let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds");
         let root_id = scene.set_contents(Box::new(root));
 
-        let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(50.0, 50.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
-        let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // 平移根节点 (5, 10)
@@ -3205,7 +3303,7 @@ mod tests {
     fn test_local_to_parent_transform_basic() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root_id = scene.add_child_to(
@@ -3223,7 +3321,7 @@ mod tests {
     fn test_local_to_parent_transform_with_insets() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root_id = scene.add_child_to(
@@ -3250,13 +3348,13 @@ mod tests {
     fn test_local_to_parent_transform_not_coordinate_root() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
+        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds");
         let parent_id = scene.add_child_to(contents_id, Box::new(parent));
 
-        let child = RectangleFigure::new(10.0, 20.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 20.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         let mut point = (10.0, 20.0);
@@ -3274,7 +3372,7 @@ mod tests {
     fn test_parent_to_local_transform_basic() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root_id = scene.add_child_to(
@@ -3296,7 +3394,7 @@ mod tests {
     fn test_parent_to_local_transform_with_insets() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root_id = scene.add_child_to(
@@ -3330,7 +3428,7 @@ mod tests {
     fn test_surface_to_local_transform_basic() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let parent_id = scene.add_child_to(
@@ -3338,7 +3436,7 @@ mod tests {
             Box::new(TestCoordinateRootFigure::new(0.0, 0.0, 100.0, 100.0)),
         );
 
-        let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0);
+        let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // 绝对坐标位于 child 原点，转换后得到 node-local 原点。
@@ -3355,7 +3453,7 @@ mod tests {
     fn test_surface_to_local_transform_nested() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         // coord_root1 (20, 30)
@@ -3371,7 +3469,7 @@ mod tests {
         );
 
         // child 相对于 coord_root2 (15, 25)
-        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0);
+        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         // 绝对坐标 = coord_root1 + coord_root2 + child = (20+10+15, 30+5+25) = (45, 60)
@@ -3390,8 +3488,9 @@ mod tests {
     fn test_surface_to_local_transform_roundtrips_target_coordinate_root() {
         let mut scene = FigureTree::new();
 
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ));
 
         let coord_root1_id = scene.add_child_to(
             contents_id,
@@ -3424,7 +3523,7 @@ mod tests {
     fn test_surface_to_local_transform_rect() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         // coord_root (10, 20)
@@ -3434,7 +3533,7 @@ mod tests {
         );
 
         // child 相对于 coord_root (30, 40)
-        let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0);
+        let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // 绝对矩形从 child 原点开始。
@@ -3454,7 +3553,7 @@ mod tests {
     fn test_local_to_surface_transform_basic() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         // coord_root (20, 30)
@@ -3464,7 +3563,7 @@ mod tests {
         );
 
         // child 相对于 coord_root (10, 5)
-        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
@@ -3477,7 +3576,7 @@ mod tests {
     fn test_local_to_surface_transform_includes_parent_insets() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root_id = scene.add_child_to(
@@ -3491,7 +3590,7 @@ mod tests {
             )),
         );
 
-        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
@@ -3507,7 +3606,7 @@ mod tests {
     fn test_local_to_surface_transform_nested() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         // coord_root1 (10, 20)
@@ -3523,7 +3622,7 @@ mod tests {
         );
 
         // child 相对于 coord_root2 (15, 25)
-        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0);
+        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         // 绝对坐标 = coord_root1 + coord_root2 + child = (10+5+15, 20+10+25) = (30, 55)
@@ -3537,7 +3636,7 @@ mod tests {
     fn test_local_to_surface_transform_nested_insets_follow_parent_chain_protocol() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         let coord_root1_id = scene.add_child_to(
@@ -3562,7 +3661,7 @@ mod tests {
             )),
         );
 
-        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0);
+        let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
@@ -3578,7 +3677,7 @@ mod tests {
     fn test_local_to_surface_transform_rect() {
         let mut scene = FigureTree::new();
 
-        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
+        let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds");
         let contents_id = scene.set_contents(Box::new(contents));
 
         // coord_root (20, 30)
@@ -3588,7 +3687,7 @@ mod tests {
         );
 
         // child 相对于 coord_root (10, 5)
-        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
+        let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0).expect("valid figure bounds");
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut rect = Rectangle::new(0.0, 0.0, 50.0, 50.0);
@@ -3600,7 +3699,9 @@ mod tests {
     #[test]
     fn moved_figure_damage_uses_old_and_new_projected_visual_bounds() {
         let mut scene = FigureTree::new();
-        let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+        let contents = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 240.0).expect("valid figure bounds"),
+        ));
         let figure = scene.add_child_to(
             contents,
             Box::new(OverflowPaintFigure::new(
@@ -3624,23 +3725,31 @@ mod tests {
         let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(
-                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
-                    2.0,
+            RectangleFigure::new(0.0, 0.0, 120.0, 100.0)
+                .expect("valid figure bounds")
+                .with_border(
+                    LineBorder::new(
+                        NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                        2.0,
+                    )
+                    .unwrap()
+                    .with_insets(crate::geometry::Insets::new(10.0, 20.0, 30.0, 40.0))
+                    .unwrap(),
                 )
-                .with_insets(10.0, 20.0, 30.0, 40.0),
-            ),
+                .expect("valid detached figure input"),
         ));
         scene.add_child_to(
             parent_id,
-            Box::new(RectangleFigure::new_with_color(
-                5.0,
-                5.0,
-                20.0,
-                20.0,
-                NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    5.0,
+                    5.0,
+                    20.0,
+                    20.0,
+                    NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ),
         );
 
         let recursive = scene.render();
@@ -3676,23 +3785,31 @@ mod tests {
         let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(
-                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
-                    2.0,
+            RectangleFigure::new(0.0, 0.0, 120.0, 100.0)
+                .expect("valid figure bounds")
+                .with_border(
+                    LineBorder::new(
+                        NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                        2.0,
+                    )
+                    .unwrap()
+                    .with_insets(crate::geometry::Insets::new(10.0, 20.0, 30.0, 40.0))
+                    .unwrap(),
                 )
-                .with_insets(10.0, 20.0, 30.0, 40.0),
-            ),
+                .expect("valid detached figure input"),
         ));
         let child_id = scene.add_child_to(
             parent_id,
-            Box::new(RectangleFigure::new_with_color(
-                5.0,
-                5.0,
-                20.0,
-                20.0,
-                NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(
+                    5.0,
+                    5.0,
+                    20.0,
+                    20.0,
+                    NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ),
         );
 
         let recursive = scene.render();
@@ -3718,7 +3835,9 @@ mod tests {
     fn test_default_clipping_strategy_clips_children_to_child_bounds() {
         let mut scene = FigureTree::new();
 
-        let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         scene.add_child_to(
             parent_id,
             Box::new(OverflowPaintFigure::new(
@@ -3749,6 +3868,7 @@ mod tests {
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+                .expect("valid figure bounds")
                 .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
         ));
         scene.add_child_to(
@@ -3781,6 +3901,7 @@ mod tests {
         let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+                .expect("valid figure bounds")
                 .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
         ));
         let first = scene.add_child_to(
@@ -3828,9 +3949,11 @@ mod tests {
                 "ellipse",
                 Box::new(|| {
                     Box::new(
-                        EllipseFigure::new(0.0, 0.0, 100.0, 100.0).with_child_clipping_strategy(
-                            ChildClippingStrategy::DoNotClipChildBounds,
-                        ),
+                        EllipseFigure::new(0.0, 0.0, 100.0, 100.0)
+                            .expect("valid figure bounds")
+                            .with_child_clipping_strategy(
+                                ChildClippingStrategy::DoNotClipChildBounds,
+                            ),
                     )
                 }),
             ),
@@ -3839,6 +3962,7 @@ mod tests {
                 Box::new(|| {
                     Box::new(
                         RoundedRectangleFigure::new(0.0, 0.0, 100.0, 100.0, 8.0)
+                            .expect("valid figure bounds")
                             .with_child_clipping_strategy(
                                 ChildClippingStrategy::DoNotClipChildBounds,
                             ),
@@ -3849,9 +3973,11 @@ mod tests {
                 "polyline",
                 Box::new(|| {
                     Box::new(
-                        PolylineFigure::new(0.0, 0.0, 100.0, 100.0).with_child_clipping_strategy(
-                            ChildClippingStrategy::DoNotClipChildBounds,
-                        ),
+                        PolylineFigure::new(0.0, 0.0, 100.0, 100.0)
+                            .expect("valid detached figure input")
+                            .with_child_clipping_strategy(
+                                ChildClippingStrategy::DoNotClipChildBounds,
+                            ),
                     )
                 }),
             ),
@@ -3865,6 +3991,7 @@ mod tests {
                             Point::new(100.0, 100.0),
                             Point::new(0.0, 100.0),
                         ])
+                        .expect("valid detached figure input")
                         .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
                     )
                 }),
@@ -3874,6 +4001,7 @@ mod tests {
                 Box::new(|| {
                     Box::new(
                         TriangleFigure::new(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+                            .expect("valid detached figure input")
                             .with_child_clipping_strategy(
                                 ChildClippingStrategy::DoNotClipChildBounds,
                             ),
@@ -3884,9 +4012,11 @@ mod tests {
                 "root",
                 Box::new(|| {
                     Box::new(
-                        RootFigure::new(0.0, 0.0, 100.0, 100.0).with_child_clipping_strategy(
-                            ChildClippingStrategy::DoNotClipChildBounds,
-                        ),
+                        RootFigure::new(0.0, 0.0, 100.0, 100.0)
+                            .expect("valid detached figure input")
+                            .with_child_clipping_strategy(
+                                ChildClippingStrategy::DoNotClipChildBounds,
+                            ),
                     )
                 }),
             ),
@@ -3894,9 +4024,11 @@ mod tests {
                 "viewport",
                 Box::new(|| {
                     Box::new(
-                        ViewportFigure::new(0.0, 0.0, 100.0, 100.0).with_child_clipping_strategy(
-                            ChildClippingStrategy::DoNotClipChildBounds,
-                        ),
+                        ViewportFigure::new(0.0, 0.0, 100.0, 100.0)
+                            .expect("valid detached figure input")
+                            .with_child_clipping_strategy(
+                                ChildClippingStrategy::DoNotClipChildBounds,
+                            ),
                     )
                 }),
             ),
@@ -3934,13 +4066,18 @@ mod tests {
         let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
-            RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(
-                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
-                    2.0,
+            RectangleFigure::new(0.0, 0.0, 120.0, 100.0)
+                .expect("valid figure bounds")
+                .with_border(
+                    LineBorder::new(
+                        NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                        2.0,
+                    )
+                    .unwrap()
+                    .with_insets(crate::geometry::Insets::new(10.0, 20.0, 30.0, 40.0))
+                    .unwrap(),
                 )
-                .with_insets(10.0, 20.0, 30.0, 40.0),
-            ),
+                .expect("valid detached figure input"),
         ));
         let child_id = scene.add_child_to(
             parent_id,
@@ -3954,13 +4091,10 @@ mod tests {
     #[test]
     fn node_bounds_drive_rendering_without_writing_back_to_figure() {
         let mut scene = FigureTree::new();
-        let id = scene.set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            20.0,
-            20.0,
-            NovadrawCoreColor::WHITE,
-        )));
+        let id = scene.set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 20.0, 20.0, NovadrawCoreColor::WHITE)
+                .expect("valid figure bounds"),
+        ));
 
         scene.set_bounds(id, 0.0, 0.0, 80.0, 60.0);
 
@@ -3969,7 +4103,7 @@ mod tests {
             .as_any()
             .downcast_ref::<RectangleFigure>()
             .unwrap();
-        assert_eq!(figure.bounds, Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        assert_eq!(figure.bounds(), Rectangle::new(0.0, 0.0, 20.0, 20.0));
         assert_eq!(
             scene.figure_bounds(id),
             Ok(Rectangle::new(0.0, 0.0, 80.0, 60.0))
@@ -3983,9 +4117,12 @@ mod tests {
     #[test]
     fn replacing_contents_detaches_the_previous_root_subtree() {
         let mut scene = FigureTree::new();
-        let previous = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let replacement =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let previous = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let replacement = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ));
 
         assert_eq!(
             scene.is_attached(previous),
@@ -3999,9 +4136,13 @@ mod tests {
     #[test]
     fn node_style_inherits_each_unset_property_independently() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child =
-            scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let child = scene.add_child_to(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         let foreground = NovadrawCoreColor::from_hex("#123456").expect("valid color literal");
         let background = NovadrawCoreColor::from_hex("#abcdef").expect("valid color literal");
 
@@ -4047,7 +4188,9 @@ mod tests {
     #[test]
     fn resolved_style_is_applied_to_descendant_graphics_state() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         scene.set_figure_style(
             parent,
             FigureStyle {
@@ -4082,7 +4225,9 @@ mod tests {
     #[test]
     fn opaque_figure_fills_bounds_with_resolved_background_before_content() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let child = scene.add_child_to(
             parent,
             Box::new(OpaqueProbeFigure {
@@ -4110,7 +4255,9 @@ mod tests {
     #[test]
     fn local_alpha_override_replaces_inherited_graphics_alpha() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         scene.set_figure_style(
             parent,
             FigureStyle {
@@ -4152,8 +4299,13 @@ mod tests {
     #[test]
     fn default_style_does_not_emit_redundant_alpha_commands() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        scene.add_child_to(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
 
         assert!(
             scene
@@ -4167,9 +4319,13 @@ mod tests {
     #[test]
     fn style_change_emits_typed_properties_and_queues_subtree_repaint() {
         let mut scene = FigureTree::new();
-        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child =
-            scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let parent = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let child = scene.add_child_to(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         let mut updates = UpdateManager::new();
 
         assert!(scene.set_figure_style_with_update(

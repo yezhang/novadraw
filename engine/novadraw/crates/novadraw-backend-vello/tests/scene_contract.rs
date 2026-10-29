@@ -28,13 +28,10 @@ fn surface(scale: f64) -> SurfaceInfo {
 fn fixture() -> Runtime {
     let mut runtime = Runtime::empty();
     runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            2.0,
-            2.0,
-            6.0,
-            6.0,
-            Color::RED,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(2.0, 2.0, 6.0, 6.0, Color::RED)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
 }

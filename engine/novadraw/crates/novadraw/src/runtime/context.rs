@@ -1075,8 +1075,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -1143,8 +1153,10 @@ mod tests {
         fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
             let target = ctx.target_id();
             ctx.effects().invalidate();
-            ctx.effects()
-                .add_child_later(target, Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0)));
+            ctx.effects().add_child_later(
+                target,
+                Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0).expect("valid figure bounds")),
+            );
             true
         }
     }
@@ -1179,8 +1191,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -1260,17 +1282,15 @@ mod tests {
     fn test_scene_dispatch_context_translates_mouse_point_to_target_coordinate_domain() {
         let recorded = Arc::new(Mutex::new(None));
         let mut scene = FigureTree::new();
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
-            Box::new(RectangleFigure::new_with_color(
-                100.0,
-                50.0,
-                200.0,
-                150.0,
-                Color::WHITE,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+                    .expect("valid figure bounds"),
+            ),
         );
         scene.add_child_to(
             coordinate_root_id,
@@ -1308,17 +1328,15 @@ mod tests {
     fn test_scene_dispatch_context_uses_target_local_coordinate_domain() {
         let recorded = Arc::new(Mutex::new(None));
         let mut scene = FigureTree::new();
-        let contents_id =
-            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let contents_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 300.0).expect("valid figure bounds"),
+        ));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
-            Box::new(RectangleFigure::new_with_color(
-                100.0,
-                50.0,
-                200.0,
-                150.0,
-                Color::WHITE,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
+                    .expect("valid figure bounds"),
+            ),
         );
         scene.add_child_to(
             coordinate_root_id,

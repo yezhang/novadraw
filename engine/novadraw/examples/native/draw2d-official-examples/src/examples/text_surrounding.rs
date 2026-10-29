@@ -26,7 +26,11 @@ pub fn text_surrounding_figure_example() -> Runtime {
         &mut runtime,
         adapter,
         RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, Color::WHITE)
-            .with_border(LineBorder::new(Color::rgba(1.0, 0.65, 0.0, 1.0), 3.0)),
+            .expect("valid figure bounds")
+            .with_border(
+                LineBorder::new(Color::rgba(1.0, 0.65, 0.0, 1.0), 3.0).expect("valid border"),
+            )
+            .expect("valid detached figure input"),
     );
     runtime
         .figure(group)
@@ -37,12 +41,15 @@ pub fn text_surrounding_figure_example() -> Runtime {
         &mut runtime,
         group,
         RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 40.0, 25.0, Color::GREEN)
-            .with_stroke(Color::BLACK, 1.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::BLACK, 1.0)
+            .expect("valid detached figure input"),
     );
     let triangle = add(
         &mut runtime,
         group,
         TriangleFigure::new(Rectangle::new(0.0, 0.0, 80.0, 80.0))
+            .expect("valid detached figure input")
             .with_fill_color(Color::RED)
             .with_stroke_color(Color::BLACK),
     );
@@ -50,7 +57,9 @@ pub fn text_surrounding_figure_example() -> Runtime {
         &mut runtime,
         group,
         EllipseFigure::new_with_color(0.0, 0.0, 70.0, 70.0, Color::BLUE)
-            .with_stroke(Color::BLACK, 1.0),
+            .expect("valid figure bounds")
+            .with_stroke(Color::BLACK, 1.0)
+            .expect("valid detached figure input"),
     );
     for (id, width, height) in [
         (rounded, 100.0, 40.0),
@@ -69,7 +78,11 @@ pub fn text_surrounding_figure_example() -> Runtime {
         &mut runtime,
         adapter,
         RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, Color::WHITE)
-            .with_border(LineBorder::new(Color::rgba(1.0, 0.65, 0.0, 1.0), 3.0)),
+            .expect("valid figure bounds")
+            .with_border(
+                LineBorder::new(Color::rgba(1.0, 0.65, 0.0, 1.0), 3.0).expect("valid border"),
+            )
+            .expect("valid detached figure input"),
     );
     runtime
         .figure(group)
@@ -80,6 +93,7 @@ pub fn text_surrounding_figure_example() -> Runtime {
         &mut runtime,
         group,
         FlowPageFigure::new(Rectangle::new(0.0, 0.0, 240.0, 100.0))
+            .expect("valid detached figure input")
             .with_style(font("13px Arial"))
             .with_block_style(FlowBlockStyle {
                 direction: ParagraphDirection::RightToLeft,

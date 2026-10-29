@@ -811,7 +811,9 @@ mod tests {
         let mut dispatcher = EventDispatcher;
         let mut ctx = MockDispatchContext::new(None);
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         ctx.hit_target = Some(target);
         ctx.cursor_hit = Some(target);
         ctx.hover_hit = Some(target);
@@ -838,10 +840,12 @@ mod tests {
     fn mouse_target_transitions_are_independent_of_cursor_and_hover_sources() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let event_target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let event_target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let visual_hit = scene.add_child_to(
             event_target,
-            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)),
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
         );
         let mut ctx = MockDispatchContext::new(Some(event_target));
         ctx.cursor_hit = Some(visual_hit);
@@ -880,10 +884,12 @@ mod tests {
     fn test_captured_target_overrides_hit_target() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let hit_target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let hit_target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let captured = scene.add_child_to(
             hit_target,
-            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)),
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
         );
         let mut ctx = MockDispatchContext::new(Some(hit_target));
         ctx.set_captured(Some(captured));
@@ -898,7 +904,9 @@ mod tests {
     fn test_press_sets_capture_when_handled() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.handled = true;
 
@@ -913,7 +921,9 @@ mod tests {
     fn test_release_uses_capture_and_then_clears_it() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let mut ctx = MockDispatchContext::new(None);
         ctx.mouse_target = Some(target);
         ctx.hover_source = Some(target);
@@ -949,9 +959,13 @@ mod tests {
     fn pointer_exit_clears_capture_and_exits_the_mouse_target() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let tooltip_source =
-            scene.add_child_to(target, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
+        let tooltip_source = scene.add_child_to(
+            target,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
+        );
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.mouse_target = Some(target);
         ctx.hover_source = Some(tooltip_source);
@@ -981,8 +995,13 @@ mod tests {
     fn test_drag_keeps_mouse_target_while_cursor_tracks_physical_hit() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let captured = scene.add_child_to(root, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let root = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
+        let captured = scene.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
+        );
         let mut ctx = MockDispatchContext::new(Some(root));
         ctx.captured = Some(captured);
 
@@ -1009,7 +1028,9 @@ mod tests {
     fn test_handled_press_assigns_focus_and_key_events_follow_focus_owner() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.handled = true;
         ctx.can_request_focus = true;
@@ -1042,10 +1063,12 @@ mod tests {
     fn handled_press_on_ineligible_target_preserves_existing_focus() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let old_focus = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let old_focus = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let target = scene.add_child_to(
             old_focus,
-            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)),
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
         );
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.focus_owner = Some(old_focus);
@@ -1065,8 +1088,13 @@ mod tests {
     fn focus_transition_commits_owner_before_lost_and_gained_events() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let previous = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let next = scene.add_child_to(previous, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let previous = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
+        let next = scene.add_child_to(
+            previous,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
+        );
         let mut ctx = MockDispatchContext::new(None);
         ctx.focus_owner = Some(previous);
         ctx.can_request_focus = true;
@@ -1106,9 +1134,13 @@ mod tests {
     fn test_wheel_hover_and_double_click_use_pointer_target() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let hover_source =
-            scene.add_child_to(target, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
+        let hover_source = scene.add_child_to(
+            target,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0).expect("valid figure bounds")),
+        );
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.hover_hit = Some(hover_source);
 
@@ -1146,7 +1178,9 @@ mod tests {
     fn unhandled_gestures_dispatch_once_before_specialized_fallback() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
-        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         let mut ctx = MockDispatchContext::new(Some(target));
         let wheel = WheelEvent::new(2.0, 3.0, 0.0, -1.0);
         let zoom = ZoomEvent::new(

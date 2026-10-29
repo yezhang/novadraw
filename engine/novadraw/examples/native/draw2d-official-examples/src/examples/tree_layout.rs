@@ -788,14 +788,18 @@ mod tests {
     fn model() -> TreeModel {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let mut branches = Vec::new();
         for _ in 0..5 {
             let figure = runtime
                 .figure(root)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+                .add(Box::new(
+                    RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+                ))
                 .unwrap();
             branches.push(Branch {
                 figure,

@@ -93,7 +93,9 @@ fn fixture(
 ) -> (Runtime, FigureId, FigureId, Arc<DefaultRangeModel>) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 400.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let model = Arc::new(DefaultRangeModel::new(10.0, 20.0, 110.0).unwrap());
     model.set_value(30.0).unwrap();
@@ -103,6 +105,7 @@ fn fixture(
     };
     let description = ScrollBarFigure::new(model.clone())
         .with_bounds(bounds)
+        .expect("valid detached figure input")
         .with_config(ScrollBarConfig {
             orientation,
             ..ScrollBarConfig::default()
@@ -110,7 +113,7 @@ fn fixture(
         .unwrap()
         .with_part(
             ScrollBarPart::Thumb,
-            Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
         )
         .into_subtree();
     let thumb_node = description
@@ -320,7 +323,9 @@ fn replacing_thumb_uses_atomic_subtree_admission() {
             .is_err()
     );
     assert!(runtime.tree().node(thumb).is_ok());
-    let mut replacement = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let mut replacement = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+    ));
     let node = replacement.root();
     replacement
         .set_constraint(node, Box::new(ScrollBarPart::Thumb))
@@ -369,7 +374,9 @@ fn external_activity_shares_clock_and_panic_boundary() {
     for panic in [false, true] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         let polls = Arc::new(Mutex::new(Vec::new()));
         runtime

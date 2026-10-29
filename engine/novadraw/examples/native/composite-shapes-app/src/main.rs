@@ -25,13 +25,16 @@ fn scene() -> Runtime {
         .register_builtin_font(novadraw::render::BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::rgba8(242, 245, 250, 255),
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WIDTH,
+                HEIGHT,
+                Color::rgba8(242, 245, 250, 255),
+            )
+            .expect("valid scene bounds"),
+        ))
         .unwrap();
     runtime
         .figure(root)
@@ -56,7 +59,9 @@ fn scene() -> Runtime {
             0.0,
             Color::WHITE,
         )
+        .expect("valid card bounds")
         .with_stroke(ink, BORDER_WIDTH)
+        .expect("valid card stroke")
         .with_corners(RectangleCorners::uniform(RADIUS).unwrap())
         .unwrap();
         let card_id = runtime.figure(root).unwrap().add(Box::new(card)).unwrap();
@@ -68,7 +73,9 @@ fn scene() -> Runtime {
             0.0,
             accent,
         )
+        .expect("valid header bounds")
         .with_stroke(ink, BORDER_WIDTH)
+        .expect("valid header stroke")
         .with_corners(
             RectangleCorners::circular([RADIUS - BORDER_WIDTH, RADIUS - BORDER_WIDTH, 0.0, 0.0])
                 .unwrap(),
@@ -86,12 +93,14 @@ fn scene() -> Runtime {
             .unwrap()
             .add(Box::new(header))
             .unwrap();
-        let label = LabelFigure::new(title).with_bounds(Rectangle::new(
-            18.0,
-            12.0,
-            CARD_WIDTH - 36.0,
-            TITLE_HEIGHT - 16.0,
-        ));
+        let label = LabelFigure::new(title)
+            .with_bounds(Rectangle::new(
+                18.0,
+                12.0,
+                CARD_WIDTH - 36.0,
+                TITLE_HEIGHT - 16.0,
+            ))
+            .expect("valid label bounds");
         let label_id = runtime
             .figure(card_id)
             .unwrap()
@@ -112,19 +121,23 @@ fn scene() -> Runtime {
             runtime
                 .figure(card_id)
                 .unwrap()
-                .add(Box::new(LabelFigure::new(text).with_bounds(
-                    Rectangle::new(
-                        20.0,
-                        TITLE_HEIGHT + 20.0 + line as f64 * 36.0,
-                        CARD_WIDTH - 40.0,
-                        30.0,
-                    ),
-                )))
+                .add(Box::new(
+                    LabelFigure::new(text)
+                        .with_bounds(Rectangle::new(
+                            20.0,
+                            TITLE_HEIGHT + 20.0 + line as f64 * 36.0,
+                            CARD_WIDTH - 40.0,
+                            30.0,
+                        ))
+                        .expect("valid label bounds"),
+                ))
                 .unwrap();
         }
     }
     let open = RoundedRectangleFigure::new_with_color(60.0, 368.0, 220.0, 150.0, 0.0, Color::WHITE)
+        .expect("valid shape bounds")
         .with_stroke(ink, 8.0)
+        .expect("valid shape stroke")
         .with_corners(RectangleCorners::circular([30.0, 12.0, 0.0, 0.0]).unwrap())
         .unwrap()
         .with_edges(RectangleEdges([
@@ -136,6 +149,7 @@ fn scene() -> Runtime {
         .unwrap();
     runtime.figure(root).unwrap().add(Box::new(open)).unwrap();
     let triangle = TriangleFigure::new(Rectangle::new(325.0, 358.0, 180.0, 180.0))
+        .expect("valid triangle bounds")
         .with_fill_color(blue)
         .with_stroke_color(Color::TRANSPARENT)
         .with_corner_radii([24.0, 12.0, 18.0])
@@ -152,8 +166,10 @@ fn scene() -> Runtime {
         Point::new(636.0, 466.0),
         Point::new(558.0, 520.0),
     ])
+    .expect("valid polygon points")
     .with_fill_color(green)
     .with_stroke(ink, BORDER_WIDTH)
+    .expect("valid polygon stroke")
     .with_corner_radii(vec![18.0, 30.0, 10.0, 16.0, 26.0])
     .unwrap();
     runtime

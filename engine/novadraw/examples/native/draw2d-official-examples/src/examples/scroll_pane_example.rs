@@ -97,8 +97,10 @@ struct InternalFrame {
 
 impl InternalFrame {
     fn border_for(title: TextLayout) -> CompoundBorder {
-        let raised = BevelBorder::new(BevelStyle::Raised, Color::WHITE, Color::BLACK, 1);
-        let lowered = BevelBorder::new(BevelStyle::Lowered, Color::WHITE, Color::BLACK, 1);
+        let raised = BevelBorder::new(BevelStyle::Raised, Color::WHITE, Color::BLACK, 1)
+            .expect("valid bevel");
+        let lowered = BevelBorder::new(BevelStyle::Lowered, Color::WHITE, Color::BLACK, 1)
+            .expect("valid bevel");
         let mixed = Color::rgba(
             (238.0 / 255.0 + 0.5) / 2.0,
             (238.0 / 255.0 + 0.5) / 2.0,
@@ -106,9 +108,14 @@ impl InternalFrame {
             1.0,
         );
         CompoundBorder::new(
-            CompoundBorder::new(raised, TitleBorder(title)),
-            CompoundBorder::new(LineBorder::new(mixed, RING_WIDTH), lowered),
+            CompoundBorder::new(raised, TitleBorder(title)).expect("valid title border"),
+            CompoundBorder::new(
+                LineBorder::new(mixed, RING_WIDTH).expect("valid ring"),
+                lowered,
+            )
+            .expect("valid border"),
         )
+        .expect("valid frame border")
     }
 
     fn new() -> Self {
@@ -164,8 +171,11 @@ impl BorderedFigure for InternalFrame {
     fn border(&self) -> Option<&Arc<dyn Border>> {
         self.border.as_ref()
     }
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: novadraw::figure::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -305,9 +315,10 @@ fn fixture() -> Fixture {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0, 0.0, 800.0, 600.0, BUTTON,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 800.0, 600.0, BUTTON)
+                .expect("valid figure bounds"),
+        ))
         .expect("main panel");
     let mut frames = Vec::new();
     let mut panes = Vec::new();
@@ -361,7 +372,9 @@ fn fixture() -> Fixture {
             &panes[0],
             Box::new(
                 RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, BUTTON)
-                    .with_border(toolbar_border),
+                    .expect("valid figure bounds")
+                    .with_border(toolbar_border)
+                    .expect("valid detached figure input"),
             ),
         )
         .expect("toolbar");
@@ -376,7 +389,10 @@ fn fixture() -> Fixture {
             .figure(toolbar)
             .expect("toolbar")
             .add(Box::new(
-                RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, BUTTON).with_border(border),
+                RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, BUTTON)
+                    .expect("valid figure bounds")
+                    .with_border(border)
+                    .expect("valid detached figure input"),
             ))
             .expect("flow panel");
         runtime
@@ -400,7 +416,9 @@ fn fixture() -> Fixture {
             &panes[1],
             Box::new(
                 RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, Color::TRANSPARENT)
-                    .with_border(LineBorder::default_border()),
+                    .expect("valid figure bounds")
+                    .with_border(LineBorder::default_border())
+                    .expect("valid detached figure input"),
             ),
         )
         .expect("fixed contents");

@@ -192,10 +192,12 @@ fn independent_engine_drives_flow_mapping_paint_hit_caret_and_selection() {
     let page = tree
         .builder()
         .set_contents(Box::new(
-            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 200.0, 100.0)).with_style(FigureStyle {
-                font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
-                ..FigureStyle::default()
-            }),
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 200.0, 100.0))
+                .unwrap()
+                .with_style(FigureStyle {
+                    font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
+                    ..FigureStyle::default()
+                }),
         ))
         .unwrap();
     let a = tree

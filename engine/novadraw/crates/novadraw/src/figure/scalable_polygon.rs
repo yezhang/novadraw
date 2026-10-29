@@ -92,19 +92,15 @@ impl ScalablePolygonFigure {
     }
 
     /// Sets outline color, width, and join.
-    pub fn with_stroke(mut self, color: Color, width: f64, join: LineJoin) -> Self {
+    pub fn with_stroke(
+        mut self,
+        color: Color,
+        width: f64,
+        join: LineJoin,
+    ) -> Result<Self, crate::graphics::GraphicsInputError> {
+        self.stroke = self.stroke.with_width(width)?.with_join(join);
         self.stroke_color = color;
-        let width = if width.is_finite() {
-            width.max(0.0)
-        } else {
-            0.0
-        };
-        self.stroke = self
-            .stroke
-            .with_width(width)
-            .expect("valid stroke width")
-            .with_join(join);
-        self
+        Ok(self)
     }
 
     /// Reserves the complete stroke envelope inside the assigned bounds.
@@ -156,8 +152,16 @@ impl super::Bounded for ScalablePolygonFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -271,41 +275,40 @@ fn map_template(
     );
     let source_width = template_bounds.width;
     let source_height = template_bounds.height;
-    let stretch_x = if source_width > f64::EPSILON {
-        available.width / source_width
+    let mut mapped_width = if source_width > f64::EPSILON {
+        available.width
     } else {
         0.0
     };
-    let stretch_y = if source_height > f64::EPSILON {
-        available.height / source_height
+    let mut mapped_height = if source_height > f64::EPSILON {
+        available.height
     } else {
         0.0
     };
-    let (scale_x, scale_y) = match mode {
-        PolygonScaleMode::Stretch => (stretch_x, stretch_y),
-        PolygonScaleMode::PreserveAspect => {
-            let scale = match (source_width > f64::EPSILON, source_height > f64::EPSILON) {
-                (true, true) => stretch_x.min(stretch_y),
-                (true, false) => stretch_x,
-                (false, true) => stretch_y,
-                (false, false) => 0.0,
-            };
-            (
-                if source_width > f64::EPSILON {
-                    scale
-                } else {
-                    0.0
-                },
-                if source_height > f64::EPSILON {
-                    scale
-                } else {
-                    0.0
-                },
-            )
+    if mode == PolygonScaleMode::PreserveAspect
+        && source_width > f64::EPSILON
+        && source_height > f64::EPSILON
+    {
+        // Compare using a ratio no greater than one. Dividing target dimensions
+        // by a tiny template span first can overflow despite finite final points.
+        if source_width >= source_height {
+            let ratio = source_height / source_width;
+            if available.width * ratio > available.height {
+                mapped_width = available.height / ratio;
+                mapped_height = available.height;
+            } else {
+                mapped_height = available.width * ratio;
+            }
+        } else {
+            let ratio = source_width / source_height;
+            if available.height * ratio > available.width {
+                mapped_height = available.width / ratio;
+                mapped_width = available.width;
+            } else {
+                mapped_width = available.height * ratio;
+            }
         }
-    };
-    let mapped_width = source_width * scale_x;
-    let mapped_height = source_height * scale_y;
+    }
     let offset_x =
         available.x + alignment_offset(available.width - mapped_width, horizontal_alignment);
     let offset_y =
@@ -315,8 +318,18 @@ fn map_template(
         .iter()
         .map(|point| {
             Point::new(
-                offset_x + (point.x() - template_bounds.x) * scale_x,
-                offset_y + (point.y() - template_bounds.y) * scale_y,
+                offset_x
+                    + if source_width > f64::EPSILON {
+                        (point.x() - template_bounds.x) / source_width * mapped_width
+                    } else {
+                        0.0
+                    },
+                offset_y
+                    + if source_height > f64::EPSILON {
+                        (point.y() - template_bounds.y) / source_height * mapped_height
+                    } else {
+                        0.0
+                    },
             )
         })
         .collect()
@@ -334,6 +347,9 @@ fn validate_template(template: &PointList) -> Result<(), ScalablePolygonError> {
     if template
         .iter()
         .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        || template
+            .bounds()
+            .is_some_and(|bounds| super::ShapeGeometryError::validate_bounds(bounds).is_err())
     {
         Err(ScalablePolygonError::NonFiniteTemplate)
     } else {

@@ -93,7 +93,9 @@ impl ConnectionRouter for ExternalGroupSolver {
 fn external_group_outputs_are_atomic_and_recover_after_invalid_identity_sets() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 400.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mode = Arc::new(AtomicUsize::new(0));
     let router = runtime
@@ -171,7 +173,9 @@ fn external_group_outputs_are_atomic_and_recover_after_invalid_identity_sets() {
     let child = runtime
         .figure(connections[1].figure())
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let reject = Arc::new(AtomicUsize::new(1));
     runtime
@@ -219,20 +223,25 @@ fn sibling_admission_is_atomic_and_contents_remains_single_root() {
     use novadraw::tree::FigureSubtree;
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 400.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let old = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
-    let mut description =
-        FigureSubtree::new(Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
+    let mut description = FigureSubtree::new(Box::new(
+        RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds"),
+    ));
     let first = description.root();
     let second = description
         .add_sibling(
             first,
-            Box::new(RectangleFigure::new(40.0, 10.0, 20.0, 20.0)),
+            Box::new(RectangleFigure::new(40.0, 10.0, 20.0, 20.0).expect("valid figure bounds")),
         )
         .unwrap();
     let receipt = runtime
@@ -253,11 +262,13 @@ fn sibling_admission_is_atomic_and_contents_remains_single_root() {
         Some(root)
     );
     assert_eq!(runtime.tree().child_order(root).unwrap().len(), 2);
-    let mut contents = FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    let mut contents = FigureSubtree::new(Box::new(
+        RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+    ));
     contents
         .add_sibling(
             contents.root(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     assert!(runtime.set_contents_subtree(contents).is_err());

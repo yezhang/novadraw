@@ -556,9 +556,9 @@ impl EditPartBehavior<Model> for Part {
         if id == FIRST && model.trace.borrow().projection_fail {
             return Err(EditPartError::operation("external projection failed"));
         }
-        Ok(Box::new(RectangleFigure::from_bounds(
-            model.nodes[&id].bounds,
-        )))
+        Ok(Box::new(
+            RectangleFigure::from_bounds(model.nodes[&id].bounds).unwrap(),
+        ))
     }
     fn refresh_visuals(
         &mut self,
@@ -2250,12 +2250,10 @@ fn source_subtree_and_feedback_are_excluded_from_container_hits() {
             Probe(Box::new(move |ctx| {
                 let visuals = ctx.attach_feedback(
                     left,
-                    vec![FeedbackVisual::unscaled(Box::new(RectangleFigure::new(
-                        pointer.x() - 5.0,
-                        pointer.y() - 5.0,
-                        10.0,
-                        10.0,
-                    )))],
+                    vec![FeedbackVisual::unscaled(Box::new(
+                        RectangleFigure::new(pointer.x() - 5.0, pointer.y() - 5.0, 10.0, 10.0)
+                            .unwrap(),
+                    ))],
                 )?;
                 assert_eq!(ctx.container_target_at(pointer, &[nested])?, left);
                 ctx.remove_overlay_visuals(&visuals)?;

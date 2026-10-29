@@ -37,13 +37,14 @@ pub struct PolylineFigure {
     child_clipping_strategy: ChildClippingStrategy,
     /// 边框装饰器
     border: Option<Arc<dyn Border>>,
+    painted_minimum: usize,
 }
 
 impl PolylineFigure {
     /// 创建两点折线（直线）
     ///
     /// 从 (x1, y1) 到 (x2, y2)
-    pub fn new(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
+    pub fn new(x1: f64, y1: f64, x2: f64, y2: f64) -> Result<Self, super::ShapeGeometryError> {
         Self::from_points(vec![
             crate::geometry::Point::new(x1, y1),
             crate::geometry::Point::new(x2, y2),
@@ -51,12 +52,21 @@ impl PolylineFigure {
     }
 
     /// 从点列表创建折线
-    pub fn from_points(points: Vec<crate::geometry::Point>) -> Self {
+    pub fn from_points(
+        points: Vec<crate::geometry::Point>,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        Self::from_points_with_minimum(points, 2)
+    }
+
+    pub(crate) fn from_points_with_minimum(
+        points: Vec<crate::geometry::Point>,
+        painted_minimum: usize,
+    ) -> Result<Self, super::ShapeGeometryError> {
         let stroke = StrokeStyle::default()
             .with_width(DEFAULT_STROKE_WIDTH)
             .expect("valid default stroke");
-        let (bounds, points) = normalize_points(points, &stroke, 2);
-        Self {
+        let (bounds, points) = normalize_points(points, &stroke, painted_minimum)?;
+        Ok(Self {
             points,
             bounds,
             stroke_color: Color::from_hex("#2c3e50").expect("valid color literal"),
@@ -64,19 +74,26 @@ impl PolylineFigure {
             hit_tolerance: DEFAULT_HIT_TOLERANCE,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
-        }
+            painted_minimum,
+        })
     }
 
     /// 创建指定颜色的折线
-    pub fn new_with_color(x1: f64, y1: f64, x2: f64, y2: f64, color: Color) -> Self {
-        Self::new(x1, y1, x2, y2).with_color(color)
+    pub fn new_with_color(
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        color: Color,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self::new(x1, y1, x2, y2)?.with_color(color))
     }
 
     /// 添加点
-    pub fn add_point(&mut self, x: f64, y: f64) {
+    pub fn add_point(&mut self, x: f64, y: f64) -> Result<(), super::ShapeGeometryError> {
         let mut points = self.parent_points();
         points.push(crate::geometry::Point::new(x, y));
-        self.set_points(points);
+        self.set_points(points)
     }
 
     /// 获取点列表（引用）
@@ -85,8 +102,12 @@ impl PolylineFigure {
     }
 
     /// 设置点列表
-    pub fn set_points(&mut self, points: Vec<crate::geometry::Point>) {
-        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
+    pub fn set_points(
+        &mut self,
+        points: Vec<crate::geometry::Point>,
+    ) -> Result<(), super::ShapeGeometryError> {
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, self.painted_minimum)?;
+        Ok(())
     }
 
     /// 获取起点
@@ -111,22 +132,20 @@ impl PolylineFigure {
     }
 
     /// 设置线条宽度
-    pub fn with_width(mut self, width: f64) -> Self {
-        let points = self.parent_points();
-        self.stroke = self
-            .stroke
-            .with_width(width.max(0.0))
-            .expect("valid stroke width");
-        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
-        self
+    pub fn with_width(self, width: f64) -> Result<Self, super::ShapeGeometryError> {
+        let stroke = self.stroke.with_width(width)?;
+        self.with_stroke_style(stroke)
     }
 
     /// Replaces the complete checked stroke and recomputes its envelope.
-    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+    pub fn with_stroke_style(
+        mut self,
+        stroke: StrokeStyle,
+    ) -> Result<Self, super::ShapeGeometryError> {
         let points = self.parent_points();
-        (self.bounds, self.points) = normalize_points(points, &stroke, 2);
+        (self.bounds, self.points) = normalize_points(points, &stroke, self.painted_minimum)?;
         self.stroke = stroke;
-        self
+        Ok(self)
     }
 
     pub fn stroke_style(&self) -> &StrokeStyle {
@@ -134,25 +153,33 @@ impl PolylineFigure {
     }
 
     /// 设置线帽样式
-    pub fn with_cap(mut self, cap: crate::render::command::LineCap) -> Self {
-        let points = self.parent_points();
-        self.stroke = self.stroke.with_cap(cap);
-        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
-        self
+    pub fn with_cap(
+        self,
+        cap: crate::render::command::LineCap,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        let stroke = self.stroke.clone().with_cap(cap);
+        self.with_stroke_style(stroke)
     }
 
     /// 设置连接样式
-    pub fn with_join(mut self, join: crate::render::command::LineJoin) -> Self {
-        let points = self.parent_points();
-        self.stroke = self.stroke.with_join(join);
-        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
-        self
+    pub fn with_join(
+        self,
+        join: crate::render::command::LineJoin,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        let stroke = self.stroke.clone().with_join(join);
+        self.with_stroke_style(stroke)
     }
 
     /// 设置精确命中的最小容差。
-    pub fn with_hit_tolerance(mut self, tolerance: f64) -> Self {
-        self.hit_tolerance = tolerance.max(0.0);
-        self
+    pub fn with_hit_tolerance(mut self, tolerance: f64) -> Result<Self, super::ShapeGeometryError> {
+        if !tolerance.is_finite() {
+            return Err(super::ShapeGeometryError::NonFinite);
+        }
+        if tolerance < 0.0 {
+            return Err(super::ShapeGeometryError::NegativeMetric);
+        }
+        self.hit_tolerance = tolerance;
+        Ok(self)
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -162,9 +189,13 @@ impl PolylineFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     /// 计算包含线宽的边界矩形
@@ -193,11 +224,6 @@ impl PolylineFigure {
     pub(crate) fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
         self.stroke = stroke;
     }
-
-    pub(crate) fn renormalize_for_minimum(&mut self, painted_minimum: usize) {
-        let points = self.parent_points();
-        (self.bounds, self.points) = normalize_points(points, &self.stroke, painted_minimum);
-    }
 }
 
 // 实现 Bounded trait
@@ -206,22 +232,42 @@ impl Bounded for PolylineFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        let bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
         // 折线通过点定义，set_bounds 需要重新计算点位置
         let current_bounds = self.bounds;
         if current_bounds.width == 0.0 || current_bounds.height == 0.0 {
-            return;
+            return Ok(());
         }
         let scale_x = width / current_bounds.width;
         let scale_y = height / current_bounds.height;
+        if !scale_x.is_finite() || !scale_y.is_finite() {
+            return Err(super::ShapeGeometryError::NonFinite);
+        }
 
         let new_points: Vec<crate::geometry::Point> = self
             .points
             .iter()
             .map(|p| crate::geometry::Point::new(p.x() * scale_x, p.y() * scale_y))
             .collect();
+        if new_points.iter().any(|p| {
+            !p.x().is_finite()
+                || !p.y().is_finite()
+                || !(x + p.x()).is_finite()
+                || !(y + p.y()).is_finite()
+        }) {
+            return Err(super::ShapeGeometryError::NonFinite);
+        }
         self.points = new_points;
-        self.bounds = Rectangle::new(x, y, width, height);
+        self.bounds = bounds;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -266,7 +312,8 @@ impl Figure for PolylineFigure {
         bounds: Rectangle,
     ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
-        Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height);
+        Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height)
+            .map_err(super::ShapeGeometryError::drawing_error)?;
         Shape::paint_shape(&local, context)
     }
 
@@ -302,8 +349,11 @@ impl BorderedFigure for PolylineFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -391,15 +441,18 @@ pub(crate) fn normalize_points(
     points: Vec<crate::geometry::Point>,
     stroke: &StrokeStyle,
     painted_minimum: usize,
-) -> (Rectangle, Vec<crate::geometry::Point>) {
+) -> Result<(Rectangle, Vec<crate::geometry::Point>), super::ShapeGeometryError> {
     if points.is_empty() {
-        return (Rectangle::ZERO, points);
+        return Ok((Rectangle::ZERO, points));
     }
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;
     let mut max_y = f64::NEG_INFINITY;
     for point in &points {
+        if !point.x().is_finite() || !point.y().is_finite() {
+            return Err(super::ShapeGeometryError::NonFinite);
+        }
         min_x = min_x.min(point.x());
         min_y = min_y.min(point.y());
         max_x = max_x.max(point.x());
@@ -410,15 +463,21 @@ pub(crate) fn normalize_points(
     } else {
         0.0
     };
-    let bounds = Rectangle::new(
+    let bounds = super::ShapeGeometryError::validate_bounds(Rectangle::new(
         min_x - expansion,
         min_y - expansion,
         max_x - min_x + expansion * 2.0,
         max_y - min_y + expansion * 2.0,
-    );
-    let local = points
+    ))?;
+    let local: Vec<_> = points
         .into_iter()
         .map(|point| crate::geometry::Point::new(point.x() - bounds.x, point.y() - bounds.y))
         .collect();
-    (bounds, local)
+    if local
+        .iter()
+        .any(|point| !point.x().is_finite() || !point.y().is_finite())
+    {
+        return Err(super::ShapeGeometryError::NonFinite);
+    }
+    Ok((bounds, local))
 }

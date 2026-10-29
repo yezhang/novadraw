@@ -64,7 +64,9 @@ fn layout_strategies_select_their_measurement_axis() {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 301.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 301.0, 100.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         tree.builder().set_layout_manager(root, layout).unwrap();
         tree.builder()
@@ -84,7 +86,9 @@ fn toolbar_distributes_integer_shrink_without_losing_extent() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 61.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 61.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     tree.builder()
         .set_layout_manager(root, Box::new(ToolbarLayout::new().with_spacing(5.0)))
@@ -93,7 +97,12 @@ fn toolbar_distributes_integer_shrink_without_losing_extent() {
     for height in [20.0, 30.0, 40.0] {
         let child = tree
             .builder()
-            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, height)))
+            .add_child(
+                root,
+                Box::new(
+                    RectangleFigure::new(0.0, 0.0, 40.0, height).expect("valid figure bounds"),
+                ),
+            )
             .unwrap();
         tree.builder()
             .set_minimum_size(child, Some(Dimension::new(20.0, 10.0)))

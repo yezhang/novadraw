@@ -6,13 +6,18 @@ fn runtime_with_clickable() -> (Runtime, novadraw::tree::FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let clickable = tree
         .builder()
         .add_child(
             root,
-            Box::new(ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))),
+            Box::new(
+                ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))
+                    .expect("valid detached figure input"),
+            ),
         )
         .expect("valid FigureTree construction");
     (Runtime::new(tree), clickable)

@@ -18,6 +18,7 @@ fn gray_background() -> RectangleFigure {
         WINDOW_HEIGHT,
         Color::from_hex("#eeeeee").expect("valid color literal"),
     )
+    .expect("valid figure bounds")
 }
 
 pub fn baseline_scene() -> FigureTree {
@@ -31,13 +32,16 @@ pub fn baseline_scene() -> FigureTree {
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new_with_color(
-                    x,
-                    200.0,
-                    150.0,
-                    100.0,
-                    Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        x,
+                        200.0,
+                        150.0,
+                        100.0,
+                        Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
     }
@@ -79,13 +83,16 @@ pub fn validation_scene() -> FigureTree {
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    140.0,
-                    90.0,
-                    Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        140.0,
+                        90.0,
+                        Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
         graph
@@ -126,13 +133,16 @@ pub fn stress_scene() -> FigureTree {
             .builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    20.0,
-                    14.0,
-                    Color::rgba(channel, 0.55, 1.0 - channel, 1.0),
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        20.0,
+                        14.0,
+                        Color::rgba(channel, 0.55, 1.0 - channel, 1.0),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
     }

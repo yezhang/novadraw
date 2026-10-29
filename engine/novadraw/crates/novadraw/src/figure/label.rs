@@ -112,9 +112,9 @@ impl LabelFigure {
         }
     }
 
-    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
-        self.bounds = bounds;
-        self
+    pub fn with_bounds(mut self, bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        self.bounds = super::ShapeGeometryError::validate_bounds(bounds)?;
+        Ok(self)
     }
 
     pub fn with_icon(mut self, icon: ImageId) -> Self {
@@ -122,9 +122,13 @@ impl LabelFigure {
         self
     }
 
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, super::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     pub fn text(&self) -> &str {
@@ -201,10 +205,17 @@ impl LabelFigure {
         self.presentation = None;
     }
 
-    pub fn set_icon_text_gap(&mut self, gap: f64) {
+    pub fn set_icon_text_gap(&mut self, gap: f64) -> Result<(), super::ShapeGeometryError> {
+        if !gap.is_finite() {
+            return Err(super::ShapeGeometryError::NonFinite);
+        }
+        if gap < 0.0 {
+            return Err(super::ShapeGeometryError::NegativeMetric);
+        }
         self.icon_text_gap = gap;
         self.intrinsic = None;
         self.presentation = None;
+        Ok(())
     }
 
     pub(crate) fn refresh_intrinsic(
@@ -410,8 +421,16 @@ impl Bounded for LabelFigure {
     fn bounds(&self) -> Rectangle {
         self.bounds
     }
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
     fn name(&self) -> &'static str {
         "LabelFigure"
@@ -535,8 +554,11 @@ impl BorderedFigure for LabelFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 

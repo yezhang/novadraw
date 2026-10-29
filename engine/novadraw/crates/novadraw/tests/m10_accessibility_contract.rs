@@ -74,20 +74,26 @@ fn accessible_runtime() -> (Runtime, FigureId, FigureId) {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let button = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0)),
+            ButtonFigure::new("Apply")
+                .with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let toggle = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0)),
+            ToggleFigure::new("Snap")
+                .with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     (runtime, button, toggle)

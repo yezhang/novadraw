@@ -105,8 +105,18 @@ impl Bounded for WebProbeFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

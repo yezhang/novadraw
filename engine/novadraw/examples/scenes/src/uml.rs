@@ -329,9 +329,10 @@ pub fn build_example() -> UmlExample {
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0, 0.0, WIDTH, HEIGHT, BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid UML root");
     runtime
         .figure(root)
@@ -616,6 +617,7 @@ fn add_relation(
         .add(Box::new(
             ConnectionFigure::new()
                 .with_stroke(color, RELATION_LINE_WIDTH)
+                .expect("valid detached figure input")
                 .with_stroke_style(stroke)
                 .with_decoration_insets(
                     if has_source_decoration {
@@ -628,7 +630,8 @@ fn add_relation(
                     } else {
                         0.0
                     },
-                ),
+                )
+                .expect("valid detached figure input"),
         ))
         .expect("valid UML relation");
 
@@ -649,7 +652,9 @@ fn add_relation(
                     .expect("valid diamond")
                     .with_fill_color(INK)
                     .with_stroke(INK, 1.5)
-                    .with_join(LineJoin::Miter),
+                    .expect("valid detached figure input")
+                    .with_join(LineJoin::Miter)
+                    .expect("valid outline geometry"),
                 ))
                 .expect("valid composition decoration"),
         );
@@ -668,7 +673,9 @@ fn add_relation(
                     .expect("valid realization triangle")
                     .with_fill_color(BACKGROUND)
                     .with_stroke(color, 1.5)
-                    .with_join(LineJoin::Miter),
+                    .expect("valid detached figure input")
+                    .with_join(LineJoin::Miter)
+                    .expect("valid outline geometry"),
                 ))
                 .expect("valid realization decoration"),
             RelationKind::Dependency => {
@@ -677,7 +684,9 @@ fn add_relation(
                     .expect("valid dependency arrow scale")
                     .with_color(color)
                     .with_width(RELATION_LINE_WIDTH)
-                    .with_join(LineJoin::Miter);
+                    .expect("valid detached figure input")
+                    .with_join(LineJoin::Miter)
+                    .expect("valid outline geometry");
                 runtime
                     .figure(connection)
                     .expect("connection is a container")
@@ -757,7 +766,9 @@ fn add_relation_label(runtime: &mut Runtime, connection: FigureId, text: &str) -
         .expect("connection is a container")
         .add(Box::new(
             RectangleFigure::new_with_color(0.0, 0.0, width, 22.0, BACKGROUND)
-                .with_stroke(BACKGROUND, 3.0),
+                .expect("valid figure bounds")
+                .with_stroke(BACKGROUND, 3.0)
+                .expect("valid detached figure input"),
         ))
         .expect("valid relation badge");
     add_label(
@@ -781,7 +792,9 @@ fn add_label(
     alignment: Alignment,
     color: Color,
 ) -> FigureId {
-    let mut figure = LabelFigure::new(text).with_bounds(bounds);
+    let mut figure = LabelFigure::new(text)
+        .with_bounds(bounds)
+        .expect("valid detached figure input");
     figure.set_label_alignment(alignment);
     figure.set_text_alignment(alignment);
     let label = runtime

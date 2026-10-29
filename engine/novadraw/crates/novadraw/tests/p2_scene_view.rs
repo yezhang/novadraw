@@ -23,7 +23,9 @@ fn producer(
 ) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 50.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 50.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let image = runtime.resources().register_image().unwrap();
     runtime
@@ -34,7 +36,9 @@ fn producer(
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ImageFigure::new(image).with_bounds(Rectangle::new(5.0, 5.0, 10.0, 10.0)),
+            ImageFigure::new(image)
+                .with_bounds(Rectangle::new(5.0, 5.0, 10.0, 10.0))
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     runtime.scenes().join_group(group.clone()).unwrap();
@@ -57,13 +61,17 @@ fn destination(
         .create_view(ASPECT_FIT_VIEW, AspectFitView::default())
         .unwrap();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            SceneViewFigure::new(handle).with_bounds(Rectangle::new(0.0, 0.0, 200.0, 200.0)),
+            SceneViewFigure::new(handle)
+                .with_bounds(Rectangle::new(0.0, 0.0, 200.0, 200.0))
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let binding = runtime
@@ -214,7 +222,9 @@ fn old_and_new_resource_versions_coexist_and_survive_inflight_reset() {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            SceneViewFigure::new(handle).with_bounds(Rectangle::new(100.0, 100.0, 50.0, 50.0)),
+            SceneViewFigure::new(handle)
+                .with_bounds(Rectangle::new(100.0, 100.0, 50.0, 50.0))
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let b = target
@@ -321,7 +331,9 @@ fn capture_evidence_is_rechecked_against_current_source_topology() {
     source
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 20.0, 5.0, 5.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 20.0, 5.0, 5.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(matches!(
         target.scenes().install_view(binding, old),
@@ -593,21 +605,26 @@ fn border_insets_are_applied_once_during_authoritative_view_measurement() {
     let mut target = Runtime::empty();
     target.scenes().join_group(group.clone()).unwrap();
     let root = target
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let handle = target
         .scenes()
         .create_view(ASPECT_FIT_VIEW, AspectFitView::default())
         .unwrap();
-    let border = novadraw::figure::border::MarginBorder::new(novadraw::graphics::Color::BLACK, 0.0)
-        .with_margins(10.0, 10.0, 10.0, 10.0);
+    let border =
+        novadraw::figure::border::MarginBorder::new(novadraw::geometry::Insets::uniform(10.0))
+            .unwrap();
     let view = target
         .figure(root)
         .unwrap()
         .add(Box::new(
             SceneViewFigure::new(handle)
                 .with_bounds(Rectangle::new(0.0, 0.0, 200.0, 200.0))
-                .with_border(border),
+                .expect("valid detached figure input")
+                .with_border(border)
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let binding = target

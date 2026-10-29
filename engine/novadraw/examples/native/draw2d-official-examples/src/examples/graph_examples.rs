@@ -241,13 +241,10 @@ fn install(
         .frames()
         .set_preparation_budget(PreparationBudget::new(BUDGET.work, BUDGET.allocation));
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("graph Canvas");
     if let Some(previous) = registrations.take() {
         previous.retire(runtime);
@@ -272,7 +269,9 @@ fn install(
         .viewports()
         .set_contents(
             viewport,
-            Box::new(GraphProjectionFigure::new(Rectangle::ZERO)),
+            Box::new(
+                GraphProjectionFigure::new(Rectangle::ZERO).expect("valid detached figure input"),
+            ),
         )
         .expect("graph Panel");
     *registrations = Some(populate(runtime, owner, request, labels, &mut context));
@@ -294,7 +293,12 @@ fn populate(
             .unwrap()
             .add(Box::new(
                 RectangleFigure::new_with_color(0.0, 0.0, 0.0, 0.0, Color::TRANSPARENT)
-                    .with_border(LineBorder::new(GROUP_COLOR, group.border_insets.left)),
+                    .expect("valid figure bounds")
+                    .with_border(
+                        LineBorder::new(GROUP_COLOR, group.border_insets.left)
+                            .expect("valid group border"),
+                    )
+                    .expect("valid detached figure input"),
             ))
             .unwrap();
         entities.push((GraphEndpoint::Group(group.id()), figure));
@@ -306,12 +310,17 @@ fn populate(
         let figure = runtime
             .figure(owner)
             .unwrap()
-            .add(Box::new(LabelFigure::new(label).with_border(
-                LineBorder::new(
-                    Color::BLACK,
-                    if incoming { NODE_BORDER } else { ROOT_BORDER },
-                ),
-            )))
+            .add(Box::new(
+                LabelFigure::new(label)
+                    .with_border(
+                        LineBorder::new(
+                            Color::BLACK,
+                            if incoming { NODE_BORDER } else { ROOT_BORDER },
+                        )
+                        .expect("valid node border"),
+                    )
+                    .expect("valid detached figure input"),
+            ))
             .unwrap();
         runtime
             .figure(figure)
@@ -333,7 +342,9 @@ fn populate(
             .figure(owner)
             .unwrap()
             .add(Box::new(
-                ConnectionFigure::new().with_stroke(EDGE_COLOR, NODE_BORDER),
+                ConnectionFigure::new()
+                    .with_stroke(EDGE_COLOR, NODE_BORDER)
+                    .expect("valid detached figure input"),
             ))
             .unwrap();
         runtime
@@ -362,7 +373,8 @@ fn populate(
             .add(Box::new(
                 PolygonDecorationFigure::triangle()
                     .with_fill_color(EDGE_COLOR)
-                    .with_stroke(EDGE_COLOR, NODE_BORDER),
+                    .with_stroke(EDGE_COLOR, NODE_BORDER)
+                    .expect("valid detached figure input"),
             ))
             .unwrap();
         runtime

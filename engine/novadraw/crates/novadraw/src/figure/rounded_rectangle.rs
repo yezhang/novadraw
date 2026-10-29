@@ -1,4 +1,10 @@
 //! 圆角矩形图形
+//!
+//! ```compile_fail
+//! use novadraw::figure::RoundedRectangleFigure;
+//! let mut figure = RoundedRectangleFigure::new(0.0, 0.0, 10.0, 10.0, 4.0).unwrap();
+//! figure.corner_dimensions = novadraw::geometry::Dimension::new(-1.0, 4.0);
+//! ```
 
 use std::sync::Arc;
 
@@ -19,19 +25,15 @@ use super::{
 #[derive(Clone)]
 pub struct RoundedRectangleFigure {
     /// 边界矩形
-    pub bounds: Rectangle,
+    bounds: Rectangle,
     /// 圆角宽高，对应 Draw2D `corner.width/height`。
-    pub corner_dimensions: Dimension,
+    corner_dimensions: Dimension,
     /// 填充颜色
     pub fill_color: Color,
     /// 边框颜色
     pub stroke_color: Option<Color>,
-    /// 边框宽度
-    pub stroke_width: f64,
-    /// 线帽样式
-    pub line_cap: crate::render::command::LineCap,
-    /// 连接样式
-    pub line_join: crate::render::command::LineJoin,
+    /// 受检描边几何。
+    stroke: StrokeStyle,
     /// 绘制子节点时使用的裁剪策略
     child_clipping_strategy: ChildClippingStrategy,
     /// 边框装饰器
@@ -91,16 +93,16 @@ impl RoundedRectangleFigure {
         if let Some(cache) = &self.prepared
             && cache.bounds == bounds
             && cache.corners == corners
-            && cache.width == self.stroke_width
+            && cache.width == self.stroke.width()
         {
             return Ok(Arc::clone(cache));
         }
         Ok(Arc::new(PreparedRectangle {
             bounds,
             corners,
-            width: self.stroke_width,
+            width: self.stroke.width(),
             contour: ShapeContour::rectangle(bounds, corners)?,
-            border: RectangleBorderGeometry::new(bounds, corners, self.stroke_width)?,
+            border: RectangleBorderGeometry::new(bounds, corners, self.stroke.width())?,
         }))
     }
 
@@ -113,8 +115,11 @@ impl RoundedRectangleFigure {
         &mut self,
         corners: Option<RectangleCorners>,
     ) -> Result<(), ShapeGeometryError> {
-        self.corners = corners;
-        self.refresh_contour()
+        let mut candidate = self.clone();
+        candidate.corners = corners;
+        candidate.refresh_contour()?;
+        *self = candidate;
+        Ok(())
     }
 
     pub(crate) fn replace_edges(&mut self, edges: RectangleEdges) {
@@ -123,7 +128,7 @@ impl RoundedRectangleFigure {
 
     fn paint_geometry(&self) -> Option<(Rectangle, Dimension)> {
         let line_inset = if self.outline_enabled() {
-            (1.0_f64).max(self.stroke_width) / 2.0
+            (1.0_f64).max(self.stroke.width()) / 2.0
         } else {
             0.0
         };
@@ -148,39 +153,34 @@ impl RoundedRectangleFigure {
     ///
     /// 旧参数 `corner_radius` 设置等宽高 corner dimensions（直径）。
     /// 真实半径使用 [`Self::with_corners`]；0 表示直角。
-    pub fn new(x: f64, y: f64, width: f64, height: f64, corner_radius: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
-            fill_color: Color::from_hex("#9b59b6").expect("valid color literal"),
-            stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
-            child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
-            border: None,
-            corners: None,
-            edges: RectangleEdges::INHERIT,
-            prepared: None,
-        }
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        corner_radius: f64,
+    ) -> Result<Self, ShapeGeometryError> {
+        Self::from_bounds(Rectangle::new(x, y, width, height), corner_radius)
     }
 
     /// 从 Rectangle 创建圆角矩形
-    pub fn from_bounds(bounds: Rectangle, corner_radius: f64) -> Self {
-        Self {
-            bounds,
-            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
+    pub fn from_bounds(bounds: Rectangle, corner_radius: f64) -> Result<Self, ShapeGeometryError> {
+        let dimensions = Dimension::new(corner_radius, corner_radius);
+        RectangleCorners::new([dimensions; 4])?;
+        Ok(Self {
+            bounds: ShapeGeometryError::validate_bounds(bounds)?,
+            corner_dimensions: dimensions,
             fill_color: Color::from_hex("#9b59b6").expect("valid color literal"),
             stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
+            stroke: StrokeStyle::default()
+                .with_width(0.0)
+                .expect("zero shape stroke"),
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
             corners: None,
             edges: RectangleEdges::INHERIT,
             prepared: None,
-        }
+        })
     }
 
     /// 创建指定颜色的圆角矩形
@@ -191,28 +191,30 @@ impl RoundedRectangleFigure {
         height: f64,
         corner_radius: f64,
         color: Color,
-    ) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
-            fill_color: color,
-            stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
-            child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
-            border: None,
-            corners: None,
-            edges: RectangleEdges::INHERIT,
-            prepared: None,
-        }
+    ) -> Result<Self, ShapeGeometryError> {
+        let mut figure = Self::new(x, y, width, height, corner_radius)?;
+        figure.fill_color = color;
+        Ok(figure)
     }
 
     /// 添加边框
-    pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
+    pub fn with_stroke(
+        mut self,
+        color: Color,
+        width: f64,
+    ) -> Result<Self, crate::graphics::GraphicsInputError> {
+        self.stroke = self.stroke.with_width(width)?;
         self.stroke_color = Some(color);
-        self.stroke_width = width;
+        Ok(self)
+    }
+
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.stroke = stroke;
         self
+    }
+
+    pub fn stroke_style(&self) -> &StrokeStyle {
+        &self.stroke
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -222,32 +224,58 @@ impl RoundedRectangleFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, super::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     /// 平移
-    pub fn translate(&mut self, dx: f64, dy: f64) {
-        self.bounds.x += dx;
-        self.bounds.y += dy;
+    pub fn translate(&mut self, dx: f64, dy: f64) -> Result<(), ShapeGeometryError> {
+        self.set_bounds(
+            self.bounds.x + dx,
+            self.bounds.y + dy,
+            self.bounds.width,
+            self.bounds.height,
+        )
     }
 
     /// 设置边界
-    pub fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    pub fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), ShapeGeometryError> {
+        let bounds = ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        let mut candidate = self.clone();
+        candidate.bounds = bounds;
+        candidate.prepared = None;
+        if candidate.corners.is_some() || candidate.edges != RectangleEdges::INHERIT {
+            candidate.refresh_contour()?;
+        }
+        *self = candidate;
+        Ok(())
     }
 
     /// 设置等宽高 corner dimensions（旧参数名 radius，单位为直径），恢复统一圆角模式。
-    pub fn set_corner_radius(&mut self, radius: f64) {
-        self.corners = None;
-        self.corner_dimensions = Dimension::new(radius.max(0.0), radius.max(0.0));
+    pub fn set_corner_radius(&mut self, radius: f64) -> Result<(), ShapeGeometryError> {
+        self.set_corner_dimensions(Dimension::new(radius, radius))
     }
 
-    pub fn set_corner_dimensions(&mut self, dimensions: Dimension) {
+    pub fn set_corner_dimensions(
+        &mut self,
+        dimensions: Dimension,
+    ) -> Result<(), ShapeGeometryError> {
+        RectangleCorners::new([dimensions; 4])?;
         self.corners = None;
-        self.corner_dimensions =
-            Dimension::new(dimensions.width.max(0.0), dimensions.height.max(0.0));
+        self.corner_dimensions = dimensions;
+        self.prepared = None;
+        Ok(())
     }
 
     pub fn corner_dimensions(&self) -> Dimension {
@@ -261,8 +289,14 @@ impl Bounded for RoundedRectangleFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), ShapeGeometryError> {
+        Self::set_bounds(self, x, y, width, height)
     }
 
     fn name(&self) -> &'static str {
@@ -367,8 +401,11 @@ impl BorderedFigure for RoundedRectangleFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -385,7 +422,7 @@ impl Shape for RoundedRectangleFigure {
     }
 
     fn stroke_width(&self) -> f64 {
-        self.stroke_width
+        self.stroke.width()
     }
 
     fn fill_color(&self) -> Option<Color> {
@@ -393,11 +430,11 @@ impl Shape for RoundedRectangleFigure {
     }
 
     fn line_cap(&self) -> crate::render::command::LineCap {
-        self.line_cap
+        self.stroke.cap()
     }
 
     fn line_join(&self) -> crate::render::command::LineJoin {
-        self.line_join
+        self.stroke.join()
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -445,9 +482,7 @@ impl Shape for RoundedRectangleFigure {
                 corner_dimensions,
                 fill_color: Color::TRANSPARENT,
                 stroke_color: Some(color),
-                stroke_width: self.stroke_width,
-                line_cap: self.line_cap,
-                line_join: self.line_join,
+                stroke: self.stroke.clone(),
                 child_clipping_strategy: self.child_clipping_strategy,
                 border: None,
                 corners: None,
@@ -500,12 +535,7 @@ impl RoundedRectangleFigure {
             }
             if let Some(color) = stroke_color {
                 context.set_stroke_paint(color);
-                context.set_stroke_style(
-                    StrokeStyle::default()
-                        .with_width(self.stroke_width)?
-                        .with_cap(self.line_cap)
-                        .with_join(self.line_join),
-                );
+                context.set_stroke_style(self.stroke.clone());
                 context.stroke_rect(self.bounds)?;
             }
             return Ok(());
@@ -532,12 +562,7 @@ impl RoundedRectangleFigure {
         // 描边
         if let Some(color) = stroke_color {
             context.set_stroke_paint(color);
-            context.set_stroke_style(
-                StrokeStyle::default()
-                    .with_width(self.stroke_width)?
-                    .with_cap(self.line_cap)
-                    .with_join(self.line_join),
-            );
+            context.set_stroke_style(self.stroke.clone());
             context.stroke_path(&path)?;
         }
         Ok(())

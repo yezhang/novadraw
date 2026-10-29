@@ -60,13 +60,10 @@ fn input() -> BackgroundFrameInput {
 fn runtime() -> Runtime {
     let mut runtime = Runtime::empty();
     runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            5.0,
-            5.0,
-            10.0,
-            10.0,
-            Color::BLACK,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(5.0, 5.0, 10.0, 10.0, Color::BLACK)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
 }

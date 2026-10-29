@@ -8,7 +8,7 @@ use novadraw::{
         PreparationMeasurement, PreparationMetric, PreparationScene, PreparedScene,
         border::{Border, MarginBorder},
     },
-    geometry::{Dimension, Rectangle},
+    geometry::{Dimension, Insets, Rectangle},
     graphics::{GraphicsError, PaintContext},
     layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery, StackLayout},
     render::{BackendCapabilities, SurfaceInfo},
@@ -119,7 +119,7 @@ enum Mode {
 struct External {
     mode: Mode,
     calls: Arc<AtomicUsize>,
-    border: Option<MarginBorder>,
+    border: Option<Arc<dyn Border>>,
     scale: f64,
 }
 impl Figure for External {
@@ -131,11 +131,11 @@ impl Figure for External {
     }
     fn initial_insets(&self) -> novadraw::geometry::Insets {
         self.border
-            .as_ref()
+            .as_deref()
             .map_or(novadraw::geometry::Insets::ZERO, Border::get_insets)
     }
     fn get_border(&self) -> Option<&dyn Border> {
-        self.border.as_ref().map(|border| border as &dyn Border)
+        self.border.as_deref()
     }
     fn register_capabilities(
         &self,
@@ -230,7 +230,7 @@ fn fixture(mode: Mode) -> (FigureTree, FigureId, MeasurementLog, Arc<AtomicUsize
 }
 fn projection_fixture(
     mode: Mode,
-    border: Option<MarginBorder>,
+    border: Option<Arc<dyn Border>>,
     scale: f64,
 ) -> (FigureTree, FigureId, MeasurementLog, Arc<AtomicUsize>) {
     let log = Arc::new(Mutex::new(Vec::new()));
@@ -364,7 +364,9 @@ fn nested_layout_remeasures_text_flow_in_the_authoritative_session() {
     let (mut runtime, container, log) = text_fixture(External {
         mode: Mode::Unsupported,
         calls: calls.clone(),
-        border: Some(MarginBorder::default_border().with_margins(2.0, 3.0, 5.0, 7.0)),
+        border: Some(Arc::new(
+            MarginBorder::new(Insets::new(2.0, 3.0, 5.0, 7.0)).unwrap(),
+        )),
         scale: 1.0,
     });
     runtime
@@ -375,10 +377,13 @@ fn nested_layout_remeasures_text_flow_in_the_authoritative_session() {
     runtime
         .figure(container)
         .unwrap()
-        .add(Box::new(TextFlowFigure::new(
-            Rectangle::new(0.0, 0.0, 300.0, 200.0),
-            FlowPage::from_text(WRAPPING_TEXT),
-        )))
+        .add(Box::new(
+            TextFlowFigure::new(
+                Rectangle::new(0.0, 0.0, 300.0, 200.0),
+                FlowPage::from_text(WRAPPING_TEXT),
+            )
+            .expect("valid detached figure input"),
+        ))
         .unwrap();
     prepare_text(&mut runtime).unwrap();
     assert_eq!(calls.load(Ordering::Relaxed), 0);
@@ -396,7 +401,9 @@ fn structured_flow_measures_unbounded_and_candidate_width_without_mutating_attac
     let initial = Rectangle::new(0.0, 0.0, 300.0, 200.0);
     let (mut runtime, page, log) = text_fixture(
         FlowPageFigure::new(initial)
-            .with_border(MarginBorder::default_border().with_margins(2.0, 3.0, 5.0, 7.0)),
+            .expect("valid detached figure input")
+            .with_border(MarginBorder::new(Insets::new(2.0, 3.0, 5.0, 7.0)).unwrap())
+            .expect("valid detached figure input"),
     );
     runtime
         .figure(page)
@@ -431,6 +438,7 @@ fn text_flow_candidate_measurement_uses_wrapping_and_truncation_algorithm() {
                 Rectangle::new(0.0, 0.0, 300.0, 200.0),
                 FlowPage::from_text(WRAPPING_TEXT),
             )
+            .expect("valid detached figure input")
             .with_wrapping(wrapping),
         );
         prepare_text(&mut runtime).unwrap();
@@ -457,8 +465,10 @@ fn text_flow_candidate_measurement_uses_wrapping_and_truncation_algorithm() {
 #[test]
 fn structured_flow_inline_measurement_preserves_unsupported_leaf_error() {
     use novadraw::figure::flow::{FlowAdapterFigure, FlowPageFigure};
-    let (mut runtime, page, log) =
-        text_fixture(FlowPageFigure::new(Rectangle::new(0.0, 0.0, 300.0, 200.0)));
+    let (mut runtime, page, log) = text_fixture(
+        FlowPageFigure::new(Rectangle::new(0.0, 0.0, 300.0, 200.0))
+            .expect("valid detached figure input"),
+    );
     let adapter = runtime
         .figure(page)
         .unwrap()
@@ -691,9 +701,10 @@ fn structured_failures_keep_the_subject_constraints_and_original_cause() {
 
 #[test]
 fn asymmetric_border_and_container_projection_are_applied_once() {
-    let border = MarginBorder::default_border().with_margins(3.0, 5.0, 5.0, 7.0);
+    let border = MarginBorder::new(Insets::new(3.0, 5.0, 5.0, 7.0)).unwrap();
     for overrides in [false, true] {
-        let (mut tree, child, log, calls) = projection_fixture(Mode::Supported, Some(border), 2.0);
+        let (mut tree, child, log, calls) =
+            projection_fixture(Mode::Supported, Some(Arc::new(border)), 2.0);
         if overrides {
             tree.builder()
                 .set_preferred_size(child, Some(Dimension::new(17.0, 19.0)))
@@ -719,22 +730,43 @@ fn asymmetric_border_and_container_projection_are_applied_once() {
 }
 
 #[test]
-fn finite_inset_overflow_is_distinct_and_happens_before_the_callback() {
-    let border =
-        MarginBorder::default_border().with_margins(f64::MAX, f64::MAX, f64::MAX, f64::MAX);
-    let (tree, child, _, calls) = projection_fixture(Mode::Supported, Some(border), 1.0);
-    let Err(FramePreparationError::Text(TextError::PreparationMeasurement(error))) = run(tree)
-    else {
-        panic!("expected structured overflow");
-    };
-    assert_eq!(error.figure, child);
-    assert_eq!(error.content_constraints, None);
-    assert_eq!(
-        error.kind,
-        PreparationMeasureErrorKind::DerivedOverflow {
-            stage: novadraw::figure::PreparationMeasureStage::ConstraintShrink,
+fn finite_inset_overflow_is_rejected_at_admission_before_the_measurement_callback() {
+    struct OverflowBorder;
+    impl Border for OverflowBorder {
+        fn get_insets(&self) -> Insets {
+            Insets::uniform(f64::MAX)
         }
+        fn paint(&self, _: Rectangle, _: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
+    }
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(Probe(Arc::new(Mutex::new(Vec::new())))))
+        .unwrap();
+    let error = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(External {
+                mode: Mode::Supported,
+                calls: calls.clone(),
+                border: Some(Arc::new(OverflowBorder)),
+                scale: 1.0,
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error,
+        novadraw::tree::GraphMutationError::InvalidInitialInsets(
+            novadraw::figure::border::BorderInputError::Overflow {
+                field: "horizontal insets"
+            }
+        )
     );
+    assert!(tree.child_order(root).unwrap().is_empty());
     assert_eq!(calls.load(Ordering::Relaxed), 0);
 }
 

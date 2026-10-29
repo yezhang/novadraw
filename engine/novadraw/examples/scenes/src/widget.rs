@@ -92,19 +92,24 @@ fn runtime() -> Runtime {
 
 fn root(runtime: &mut Runtime, title: &str) -> FigureId {
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            SCENE_BACKGROUND,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                SCENE_BACKGROUND,
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let heading = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new(title).with_bounds(Rectangle::new(40.0, 28.0, 720.0, 42.0)),
+            LabelFigure::new(title)
+                .with_bounds(Rectangle::new(40.0, 28.0, 720.0, 42.0))
+                .expect("valid figure bounds"),
         ))
         .expect("valid Runtime mutation");
     runtime
@@ -124,7 +129,9 @@ fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, y: f64) {
         .figure(root)
         .unwrap()
         .add(Box::new(
-            LabelFigure::new(text).with_bounds(Rectangle::new(60.0, y, 180.0, 32.0)),
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(60.0, y, 180.0, 32.0))
+                .expect("valid figure bounds"),
         ))
         .expect("valid Runtime mutation");
     runtime
@@ -142,7 +149,11 @@ fn add_button(runtime: &mut Runtime, root: FigureId, text: &str, bounds: Rectang
     let button = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ButtonFigure::new(text).with_bounds(bounds)))
+        .add(Box::new(
+            ButtonFigure::new(text)
+                .with_bounds(bounds)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(button)
@@ -201,7 +212,8 @@ fn toggle_states() -> Runtime {
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Snap to grid")
-                .with_bounds(Rectangle::new(270.0, 135.0, 210.0, 48.0)),
+                .with_bounds(Rectangle::new(270.0, 135.0, 210.0, 48.0))
+                .expect("valid figure bounds"),
         ))
         .expect("valid Runtime mutation");
     add_caption(&mut runtime, root, "Selected", 225.0);
@@ -211,6 +223,7 @@ fn toggle_states() -> Runtime {
         .add(Box::new(
             ToggleFigure::new("Show guides")
                 .with_bounds(Rectangle::new(270.0, 220.0, 210.0, 48.0))
+                .expect("valid figure bounds")
                 .with_selected(true),
         ))
         .expect("valid Runtime mutation");
@@ -244,7 +257,8 @@ fn interactive_widgets() -> Runtime {
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Persistent toggle")
-                .with_bounds(Rectangle::new(210.0, 240.0, 230.0, 52.0)),
+                .with_bounds(Rectangle::new(210.0, 240.0, 230.0, 52.0))
+                .expect("valid figure bounds"),
         ))
         .expect("valid Runtime mutation");
     runtime
@@ -275,13 +289,10 @@ fn tooltip_accessibility() -> Runtime {
     let inherited_panel = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            70.0,
-            125.0,
-            300.0,
-            150.0,
-            INHERITED_PANEL_BACKGROUND,
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(70.0, 125.0, 300.0, 150.0, INHERITED_PANEL_BACKGROUND)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     runtime
         .figure(inherited_panel)
@@ -297,7 +308,8 @@ fn tooltip_accessibility() -> Runtime {
         .unwrap()
         .add(Box::new(
             LabelFigure::new("Inherited tooltip")
-                .with_bounds(Rectangle::new(35.0, 48.0, 230.0, 42.0)),
+                .with_bounds(Rectangle::new(35.0, 48.0, 230.0, 42.0))
+                .expect("valid figure bounds"),
         ))
         .expect("valid Runtime mutation");
     runtime

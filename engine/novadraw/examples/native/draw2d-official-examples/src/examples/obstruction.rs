@@ -415,7 +415,9 @@ impl FigureEventHandler for Canvas {
                     return true;
                 };
                 let mut subtree = FigureSubtree::new(Box::new(
-                    ConnectionFigure::new().with_stroke(BLUE, LINE_WIDTH),
+                    ConnectionFigure::new()
+                        .with_stroke(BLUE, LINE_WIDTH)
+                        .expect("valid detached figure input"),
                 ));
                 let connection = subtree.root();
                 let source = subtree

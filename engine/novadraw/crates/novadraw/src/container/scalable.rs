@@ -19,7 +19,7 @@ fn valid_scale(scale: f64) -> bool {
     scale.is_finite() && scale > 0.0
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScaleError {
     Graph(GraphMutationError),
     Capability(crate::figure::CapabilityQueryError),
@@ -160,17 +160,25 @@ pub struct ScalableLayeredPaneFigure {
 }
 
 impl ScalableLayeredPaneFigure {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Self::with_scale_model(Rectangle::new(x, y, width, height), ScaleModel::new())
     }
 
-    fn with_scale_model(bounds: Rectangle, scale_model: ScaleModel) -> Self {
-        Self {
-            bounds,
+    fn with_scale_model(
+        bounds: Rectangle,
+        scale_model: ScaleModel,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             scale_model,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
-        }
+        })
     }
 
     pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
@@ -183,9 +191,13 @@ impl ScalableLayeredPaneFigure {
         self
     }
 
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     fn project_layout_size(&self, size: Dimension) -> Dimension {
@@ -203,8 +215,17 @@ impl Bounded for ScalableLayeredPaneFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -328,16 +349,24 @@ pub struct ScalableFreeformLayeredPane {
 }
 
 impl ScalableFreeformLayeredPane {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn new(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Self::with_scale_model(Rectangle::new(x, y, width, height), ScaleModel::new())
     }
 
-    fn with_scale_model(bounds: Rectangle, scale_model: ScaleModel) -> Self {
-        Self {
-            bounds,
+    fn with_scale_model(
+        bounds: Rectangle,
+        scale_model: ScaleModel,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        Ok(Self {
+            bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             scale_model,
             border: None,
-        }
+        })
     }
 
     pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
@@ -345,9 +374,13 @@ impl ScalableFreeformLayeredPane {
         Ok(self)
     }
 
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     fn project_layout_size(&self, size: Dimension) -> Dimension {
@@ -365,8 +398,17 @@ impl Bounded for ScalableFreeformLayeredPane {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), crate::figure::ShapeGeometryError> {
+        self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -514,7 +556,8 @@ impl FigureTree {
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
         let model = ScaleModel::new();
-        let figure = ScalableLayeredPaneFigure::with_scale_model(bounds, model.clone());
+        let figure = ScalableLayeredPaneFigure::with_scale_model(bounds, model.clone())
+            .map_err(GraphMutationError::InvalidInitialBounds)?;
         let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
         Ok(ScaleHandle { figure_id, model })
     }
@@ -525,7 +568,8 @@ impl FigureTree {
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
         let model = ScaleModel::new();
-        let figure = ScalableFreeformLayeredPane::with_scale_model(bounds, model.clone());
+        let figure = ScalableFreeformLayeredPane::with_scale_model(bounds, model.clone())
+            .map_err(GraphMutationError::InvalidInitialBounds)?;
         let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
         Ok(ScaleHandle { figure_id, model })
     }

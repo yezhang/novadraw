@@ -29,13 +29,10 @@ fn main() {
     });
     let mut runtime = Runtime::empty();
     runtime
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            64.0,
-            64.0,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 64.0, 64.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut backend = renderer.bind(&target);
     let frame = runtime

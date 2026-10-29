@@ -9,7 +9,8 @@ const WINDOW_HEIGHT: f64 = 600.0;
 
 fn create_scene_0_basic_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -21,7 +22,8 @@ fn create_scene_0_basic_clip() -> novadraw::tree::FigureTree {
         500.0,
         500.0,
         novadraw::graphics::Color::rgba(0.2, 0.6, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _big = scene
         .builder()
         .add_child(container_id, Box::new(big_rect))
@@ -34,7 +36,9 @@ fn create_scene_0_basic_clip() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::rgba(0.0, 0.0, 0.0, 1.0), 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(0.0, 0.0, 0.0, 1.0), 2.0)
+    .expect("valid detached figure input");
     let _clip = scene
         .builder()
         .add_child(container_id, Box::new(clip_boundary))
@@ -45,7 +49,8 @@ fn create_scene_0_basic_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_1_nested_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -57,7 +62,8 @@ fn create_scene_1_nested_clip() -> novadraw::tree::FigureTree {
         300.0,
         250.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let parent_id = scene
         .builder()
         .add_child(container_id, Box::new(parent))
@@ -69,7 +75,8 @@ fn create_scene_1_nested_clip() -> novadraw::tree::FigureTree {
         350.0,
         260.0,
         novadraw::graphics::Color::rgba(0.2, 0.8, 0.4, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _child_id = scene
         .builder()
         .add_child(parent_id, Box::new(child))
@@ -80,7 +87,8 @@ fn create_scene_1_nested_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_2_multi_layer_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -92,7 +100,8 @@ fn create_scene_2_multi_layer_clip() -> novadraw::tree::FigureTree {
         250.0,
         200.0,
         novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let level1_id = scene
         .builder()
         .add_child(container_id, Box::new(level1))
@@ -104,7 +113,8 @@ fn create_scene_2_multi_layer_clip() -> novadraw::tree::FigureTree {
         200.0,
         150.0,
         novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let level2_id = scene
         .builder()
         .add_child(level1_id, Box::new(level2))
@@ -116,7 +126,8 @@ fn create_scene_2_multi_layer_clip() -> novadraw::tree::FigureTree {
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _level3_id = scene
         .builder()
         .add_child(level2_id, Box::new(level3))
@@ -127,7 +138,8 @@ fn create_scene_2_multi_layer_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_3_circle_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -139,7 +151,8 @@ fn create_scene_3_circle_clip() -> novadraw::tree::FigureTree {
         300.0,
         200.0,
         novadraw::graphics::Color::rgba(0.6, 0.4, 0.8, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _ellipse = scene
         .builder()
         .add_child(container_id, Box::new(ellipse))
@@ -151,7 +164,8 @@ fn create_scene_3_circle_clip() -> novadraw::tree::FigureTree {
         300.0,
         300.0,
         novadraw::graphics::Color::rgba(0.2, 0.7, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _content = scene
         .builder()
         .add_child(container_id, Box::new(content))
@@ -162,7 +176,8 @@ fn create_scene_3_circle_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_4_path_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -174,7 +189,8 @@ fn create_scene_4_path_clip() -> novadraw::tree::FigureTree {
         200.0,
         100.0,
         novadraw::graphics::Color::rgba(0.8, 0.6, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _poly = scene
         .builder()
         .add_child(container_id, Box::new(poly_clip))
@@ -186,7 +202,8 @@ fn create_scene_4_path_clip() -> novadraw::tree::FigureTree {
         400.0,
         300.0,
         novadraw::graphics::Color::rgba(0.3, 0.6, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _content = scene
         .builder()
         .add_child(container_id, Box::new(content))
@@ -197,7 +214,8 @@ fn create_scene_4_path_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_5_clip_with_events() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -209,7 +227,8 @@ fn create_scene_5_clip_with_events() -> novadraw::tree::FigureTree {
         300.0,
         200.0,
         novadraw::graphics::Color::rgba(0.4, 0.7, 0.4, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _event = scene
         .builder()
         .add_child(container_id, Box::new(event_area))
@@ -220,7 +239,8 @@ fn create_scene_5_clip_with_events() -> novadraw::tree::FigureTree {
 
 fn create_scene_6_transparent_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -232,7 +252,8 @@ fn create_scene_6_transparent_clip() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _bg = scene
         .builder()
         .add_child(container_id, Box::new(bg))
@@ -244,7 +265,8 @@ fn create_scene_6_transparent_clip() -> novadraw::tree::FigureTree {
         200.0,
         200.0,
         novadraw::graphics::Color::rgba(0.3, 0.5, 0.8, 0.5),
-    );
+    )
+    .expect("valid figure bounds");
     let _trans = scene
         .builder()
         .add_child(container_id, Box::new(transparent))
@@ -255,7 +277,8 @@ fn create_scene_6_transparent_clip() -> novadraw::tree::FigureTree {
 
 fn create_scene_7_clip_animation() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -267,7 +290,8 @@ fn create_scene_7_clip_animation() -> novadraw::tree::FigureTree {
         200.0,
         200.0,
         novadraw::graphics::Color::rgba(0.6, 0.3, 0.7, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _clip = scene
         .builder()
         .add_child(container_id, Box::new(clip_window))
@@ -278,7 +302,8 @@ fn create_scene_7_clip_animation() -> novadraw::tree::FigureTree {
 
 fn create_scene_8_clip_performance() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -297,7 +322,8 @@ fn create_scene_8_clip_performance() -> novadraw::tree::FigureTree {
                     0.5,
                     1.0,
                 ),
-            );
+            )
+            .expect("valid figure bounds");
             let _rect = scene
                 .builder()
                 .add_child(container_id, Box::new(rect))
@@ -310,7 +336,8 @@ fn create_scene_8_clip_performance() -> novadraw::tree::FigureTree {
 
 fn create_scene_9_inverted_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -322,7 +349,8 @@ fn create_scene_9_inverted_clip() -> novadraw::tree::FigureTree {
         600.0,
         440.0,
         novadraw::graphics::Color::rgba(0.3, 0.5, 0.7, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _outer = scene
         .builder()
         .add_child(container_id, Box::new(outer))
@@ -334,7 +362,8 @@ fn create_scene_9_inverted_clip() -> novadraw::tree::FigureTree {
         400.0,
         240.0,
         novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let _inner = scene
         .builder()
         .add_child(container_id, Box::new(inner))
@@ -351,13 +380,16 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            novadraw::graphics::Color::from_hex("#20252b").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::graphics::Color::from_hex("#20252b").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     scene
         .builder()
@@ -390,13 +422,16 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::tree::FigureTree {
             .builder()
             .add_child(
                 contents,
-                Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    10.0,
-                    10.0,
-                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
-                )),
+                Box::new(
+                    novadraw::figure::RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        10.0,
+                        10.0,
+                        novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
+                    )
+                    .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
         scene
@@ -420,10 +455,15 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::tree::FigureTree {
                     10.0,
                     novadraw::graphics::Color::from_hex("#f39c12").expect("valid color literal"),
                 )
-                .with_border(novadraw::figure::border::LineBorder::new(
-                    novadraw::graphics::Color::BLACK,
-                    4.0,
-                )),
+                .expect("valid figure bounds")
+                .with_border(
+                    novadraw::figure::border::LineBorder::new(
+                        novadraw::graphics::Color::BLACK,
+                        4.0,
+                    )
+                    .expect("valid border"),
+                )
+                .expect("valid detached figure input"),
             ),
         )
         .expect("valid FigureTree construction");
@@ -439,26 +479,32 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::tree::FigureTree {
         .builder()
         .add_child(
             clip_parent,
-            Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                150.0,
-                90.0,
-                700.0,
-                500.0,
-                novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"),
-            )),
+            Box::new(
+                novadraw::figure::RectangleFigure::new_with_color(
+                    150.0,
+                    90.0,
+                    700.0,
+                    500.0,
+                    novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
     scene
         .builder()
         .add_child(
             child,
-            Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                180.0,
-                120.0,
-                420.0,
-                300.0,
-                novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"),
-            )),
+            Box::new(
+                novadraw::figure::RectangleFigure::new_with_color(
+                    180.0,
+                    120.0,
+                    420.0,
+                    300.0,
+                    novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"),
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
 

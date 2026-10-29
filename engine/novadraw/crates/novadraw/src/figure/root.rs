@@ -29,12 +29,14 @@ pub struct RootFigure {
 
 impl RootFigure {
     /// 创建新的根图形
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
+    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
-        }
+        })
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -44,14 +46,24 @@ impl RootFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, super::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     /// 设置边界
-    pub fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    pub fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        Bounded::set_bounds(self, x, y, width, height)
     }
 }
 
@@ -61,8 +73,16 @@ impl Bounded for RootFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

@@ -1064,9 +1064,16 @@ fn add_control_label(runtime: &mut Runtime, control: FigureId, text: &str, width
     let label = runtime
         .figure(control)
         .expect("control")
-        .add(Box::new(LabelFigure::new(text).with_bounds(
-            Rectangle::new(LABEL_X, 0.0, (width - LABEL_X).max(0.0), CONTROL_HEIGHT),
-        )))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(
+                    LABEL_X,
+                    0.0,
+                    (width - LABEL_X).max(0.0),
+                    CONTROL_HEIGHT,
+                ))
+                .expect("valid control label bounds"),
+        ))
         .expect("control label");
     runtime
         .figure(label)
@@ -1083,9 +1090,11 @@ fn add_text_value(runtime: &mut Runtime, control: FigureId, text: &str, width: f
     let label = runtime
         .figure(control)
         .expect("control")
-        .add(Box::new(LabelFigure::new(text).with_bounds(
-            Rectangle::new(2.0, 0.0, width.max(0.0), CONTROL_HEIGHT),
-        )))
+        .add(Box::new(
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(2.0, 0.0, width.max(0.0), CONTROL_HEIGHT))
+                .expect("valid control value bounds"),
+        ))
         .expect("control value");
     runtime
         .figure(label)
@@ -1115,11 +1124,10 @@ pub fn replace_text_value_later(
     }
     context.effects().add_child_later(
         control,
-        Box::new(LabelFigure::new(text).with_bounds(Rectangle::new(
-            2.0,
-            0.0,
-            width.max(0.0),
-            CONTROL_HEIGHT,
-        ))),
+        Box::new(
+            LabelFigure::new(text)
+                .with_bounds(Rectangle::new(2.0, 0.0, width.max(0.0), CONTROL_HEIGHT))
+                .expect("valid control value bounds"),
+        ),
     );
 }

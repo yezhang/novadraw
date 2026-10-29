@@ -528,7 +528,7 @@ mod tests {
                     detached: Arc::clone(&self.detached),
                 })
             } else {
-                Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0))
+                Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap())
             })
         }
         fn configure_visual(
@@ -542,7 +542,7 @@ mod tests {
             }
             ctx.add_child(
                 ctx.primary(),
-                Box::new(RectangleFigure::new(0.0, 0.0, 2.0, 2.0)),
+                Box::new(RectangleFigure::new(0.0, 0.0, 2.0, 2.0).unwrap()),
             )?;
             match self.failure {
                 Failure::Configure | Failure::DetachPanic => {
@@ -659,7 +659,7 @@ mod tests {
                 .add_feedback_visual(
                     None,
                     false,
-                    Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))
+                    Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap())
                 )
                 .is_err()
         );
@@ -789,14 +789,14 @@ mod tests {
             .add_feedback_visual(
                 None,
                 false,
-                Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)),
+                Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).unwrap()),
             )
             .unwrap();
         let (_, child) = viewer
             .add_feedback_visual(
                 None,
                 false,
-                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
             )
             .unwrap();
         viewer
@@ -829,19 +829,35 @@ mod tests {
             viewer.runtime.tree().child_order(scaled),
             viewer.runtime.tree().child_order(unscaled),
         ];
+        struct InvalidBounds(Rectangle);
+        impl Figure for InvalidBounds {
+            fn initial_bounds(&self) -> Rectangle {
+                self.0
+            }
+            fn name(&self) -> &'static str {
+                "InvalidBounds"
+            }
+        }
         for invalid in [
-            FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, -1.0, 5.0))),
-            FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, f64::NAN, 5.0)))
-                .with_style(FigureStyle {
-                    alpha: Some(novadraw::graphics::Opacity::OPAQUE),
-                    ..Default::default()
-                }),
+            FeedbackVisual::unscaled(Box::new(InvalidBounds(Rectangle::new(0.0, 0.0, -1.0, 5.0)))),
+            FeedbackVisual::unscaled(Box::new(InvalidBounds(Rectangle::new(
+                0.0,
+                0.0,
+                f64::NAN,
+                5.0,
+            ))))
+            .with_style(FigureStyle {
+                alpha: Some(novadraw::graphics::Opacity::OPAQUE),
+                ..Default::default()
+            }),
         ] {
             let error = viewer
                 .add_feedback_batch(vec![
                     (
                         Some(owner),
-                        FeedbackVisual::scaled(Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0))),
+                        FeedbackVisual::scaled(Box::new(
+                            RectangleFigure::new(0.0, 0.0, 5.0, 5.0).unwrap(),
+                        )),
                     ),
                     (Some(owner), invalid),
                 ])
@@ -862,7 +878,9 @@ mod tests {
             viewer.add_feedback_batch(vec![
                 (
                     None,
-                    FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+                    FeedbackVisual::unscaled(Box::new(
+                        RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap(),
+                    )),
                 ),
                 (
                     None,

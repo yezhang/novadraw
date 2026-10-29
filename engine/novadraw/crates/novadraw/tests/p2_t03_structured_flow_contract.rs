@@ -26,10 +26,12 @@ fn fixture(width: f64) -> (Runtime, FigureId) {
         .unwrap();
     let page = runtime
         .set_contents(Box::new(
-            FlowPageFigure::new(Rectangle::new(0.0, 0.0, width, 400.0)).with_style(FigureStyle {
-                font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
-                ..FigureStyle::default()
-            }),
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, width, 400.0))
+                .expect("valid detached figure input")
+                .with_style(FigureStyle {
+                    font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
+                    ..FigureStyle::default()
+                }),
         ))
         .unwrap();
     (runtime, page)
@@ -95,9 +97,10 @@ fn padded_flow_outline_instances_follow_the_same_glyph_baselines() {
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let page = runtime
-        .set_contents(Box::new(FlowPageFigure::new(Rectangle::new(
-            0.0, 0.0, 85.0, 300.0,
-        ))))
+        .set_contents(Box::new(
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 85.0, 300.0))
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     let inline = add(
         &mut runtime,
@@ -308,6 +311,7 @@ fn page_alignment_is_inherited_through_inline_and_nested_blocks() {
     let page = runtime
         .set_contents(Box::new(
             FlowPageFigure::new(Rectangle::new(0.0, 0.0, 300.0, 400.0))
+                .expect("valid detached figure input")
                 .with_block_style(FlowBlockStyle {
                     alignment: Some(ParagraphAlignment::Center),
                     ..FlowBlockStyle::default()
@@ -574,7 +578,9 @@ fn external_contributor_uses_same_registry_source_mapping_and_layout() {
     let (mut runtime, _) = fixture(180.0);
     let page = runtime
         .set_contents(Box::new(
-            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 180.0, 200.0)).with_registry(registry),
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 180.0, 200.0))
+                .expect("valid detached figure input")
+                .with_registry(registry),
         ))
         .unwrap();
     let text = add(&mut runtime, page, ExternalText("external consumer".into()));
@@ -752,14 +758,16 @@ fn completed_font_resource_invalidates_source_caret_revision() {
 fn source_moved_out_of_flow_releases_the_old_presentation_owner() {
     let (mut runtime, _) = fixture(180.0);
     let root = runtime
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
-            0.0, 0.0, 300.0, 300.0,
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new(0.0, 0.0, 300.0, 300.0)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let page = add(
         &mut runtime,
         root,
-        FlowPageFigure::new(Rectangle::new(0.0, 0.0, 180.0, 100.0)),
+        FlowPageFigure::new(Rectangle::new(0.0, 0.0, 180.0, 100.0))
+            .expect("valid detached figure input"),
     );
     let text = add(
         &mut runtime,
@@ -791,18 +799,24 @@ fn nested_ordinary_borders_reserve_each_inset_once_and_keep_coordinates() {
     let page = runtime
         .set_contents(Box::new(
             FlowPageFigure::new(Rectangle::new(0.0, 0.0, 200.0, 300.0))
-                .with_border(LineBorder::new(Color::BLACK, 10.0)),
+                .expect("valid detached figure input")
+                .with_border(LineBorder::new(Color::BLACK, 10.0).unwrap())
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let outer = add(
         &mut runtime,
         page,
-        BlockFlowFigure::default().with_border(LineBorder::new(Color::RED, 3.0)),
+        BlockFlowFigure::default()
+            .with_border(LineBorder::new(Color::RED, 3.0).unwrap())
+            .expect("valid detached figure input"),
     );
     let inner = add(
         &mut runtime,
         outer,
-        BlockFlowFigure::default().with_border(LineBorder::new(Color::BLUE, 5.0)),
+        BlockFlowFigure::default()
+            .with_border(LineBorder::new(Color::BLUE, 5.0).unwrap())
+            .expect("valid detached figure input"),
     );
     let text = add(
         &mut runtime,
@@ -1016,7 +1030,9 @@ fn owner_measured_block_border_is_added_once_to_preferred_measurement() {
     let block = add(
         &mut runtime,
         page,
-        BlockFlowFigure::default().with_border(TitleBarBorder::new("Title", Color::BLUE)),
+        BlockFlowFigure::default()
+            .with_border(TitleBarBorder::new("Title", Color::BLUE))
+            .expect("valid detached figure input"),
     );
     add(&mut runtime, block, StructuredTextFigure::new("body"));
     record_full_submission(&mut runtime);

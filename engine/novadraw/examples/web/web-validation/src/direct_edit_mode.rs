@@ -181,10 +181,13 @@ impl DirectTextEdit<DirectEditModel> for LabelDirectEdit {
                         LABEL_HEIGHT,
                         NODE_COLOR,
                     )
-                    .with_stroke(EDIT_BORDER_COLOR, NODE_BORDER_WIDTH),
+                    .expect("valid figure bounds")
+                    .with_stroke(EDIT_BORDER_COLOR, NODE_BORDER_WIDTH)
+                    .expect("valid detached figure input"),
                 )),
                 FeedbackVisual::scaled(Box::new(
                     TextFlowFigure::new(text_bounds, FlowPage::from_text(state.draft()))
+                        .expect("valid detached figure input")
                         .with_wrapping(FlowWrapping::NoWrap)
                         .with_alignment(Alignment::Center, Alignment::Center),
                 ))
@@ -251,17 +254,20 @@ impl EditPartBehavior<DirectEditModel> for DirectEditPart {
         model_id: DirectEditNode,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         Ok(if model_id == ROOT {
-            Box::new(FreeformLayerFigure::new(
-                0.0,
-                0.0,
-                LOGICAL_WIDTH,
-                LOGICAL_HEIGHT,
-            ))
+            Box::new(
+                FreeformLayerFigure::new(0.0, 0.0, LOGICAL_WIDTH, LOGICAL_HEIGHT)
+                    .expect("valid detached figure input"),
+            )
         } else if self.render_text {
             Box::new(
                 LabelFigure::new(model.label.clone())
                     .with_bounds(label_bounds())
-                    .with_border(LineBorder::new(NODE_BORDER_COLOR, NODE_BORDER_WIDTH)),
+                    .expect("valid detached figure input")
+                    .with_border(
+                        LineBorder::new(NODE_BORDER_COLOR, NODE_BORDER_WIDTH)
+                            .expect("valid node border"),
+                    )
+                    .expect("valid detached figure input"),
             )
         } else {
             Box::new(
@@ -272,7 +278,9 @@ impl EditPartBehavior<DirectEditModel> for DirectEditPart {
                     LABEL_HEIGHT,
                     NODE_COLOR,
                 )
-                .with_stroke(NODE_BORDER_COLOR, NODE_BORDER_WIDTH),
+                .expect("valid figure bounds")
+                .with_stroke(NODE_BORDER_COLOR, NODE_BORDER_WIDTH)
+                .expect("valid detached figure input"),
             )
         })
     }

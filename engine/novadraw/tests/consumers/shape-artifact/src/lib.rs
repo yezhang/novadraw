@@ -8,13 +8,13 @@ use novadraw::{
 #[unsafe(no_mangle)]
 pub extern "C" fn record_shapes(radius: f64) -> usize {
     let bounds = Rectangle::new(0.0, 0.0, 100.0, 80.0);
-    let rectangle = RoundedRectangleFigure::from_bounds(bounds, radius);
-    let triangle = TriangleFigure::new(bounds);
+    let rectangle = RoundedRectangleFigure::from_bounds(bounds, radius).expect("valid figure bounds");
+    let triangle = TriangleFigure::new(bounds).expect("valid detached figure input");
     let polygon = PolygonFigure::from_points(vec![
         Point::new(0.0, 0.0),
         Point::new(100.0, 0.0),
         Point::new(50.0, 80.0),
-    ]);
+    ]).expect("valid detached figure input");
     #[cfg(feature = "independent")]
     let (rectangle, triangle, polygon) = {
         use novadraw::figure::{EdgeStroke, RectangleCorners, RectangleEdges};

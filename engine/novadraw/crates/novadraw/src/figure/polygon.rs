@@ -30,24 +30,26 @@ pub struct PolygonFigure {
 
 impl PolygonFigure {
     /// 创建多边形（从点列表）
-    pub fn from_points(points: Vec<crate::geometry::Point>) -> Self {
-        let mut polyline = PolylineFigure::from_points(points);
-        polyline.renormalize_for_minimum(3);
-        Self {
+    pub fn from_points(
+        points: Vec<crate::geometry::Point>,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        let polyline = PolylineFigure::from_points_with_minimum(points, 3)?;
+        Ok(Self {
             polyline,
             fill_color: Color::from_hex("#3498db").expect("valid color literal"),
             corner_radii: Vec::new(),
             contour: None,
             contour_size: crate::geometry::Dimension::ZERO,
-        }
+        })
     }
 
     /// 添加点
-    pub fn add_point(&mut self, x: f64, y: f64) {
-        self.polyline.add_point(x, y);
+    pub fn add_point(&mut self, x: f64, y: f64) -> Result<(), super::ShapeGeometryError> {
+        self.polyline.add_point(x, y)?;
         // Legacy point edits restore straight corners. Rounded edits use checked replacement.
         self.corner_radii.clear();
         self.contour = None;
+        Ok(())
     }
 
     /// 获取点列表
@@ -81,13 +83,15 @@ impl PolygonFigure {
         Ok(())
     }
 
-    fn refresh_contour(&mut self) {
+    fn refresh_contour(&mut self) -> Result<(), super::ShapeGeometryError> {
         if !self.corner_radii.is_empty() {
-            self.contour = super::ShapeContour::polygon(self.get_points(), &self.corner_radii)
-                .ok()
-                .map(Arc::new);
+            self.contour = Some(Arc::new(super::ShapeContour::polygon(
+                self.get_points(),
+                &self.corner_radii,
+            )?));
             self.contour_size = bounds_size(Bounded::bounds(self));
         }
+        Ok(())
     }
 
     pub(crate) fn contour_in(
@@ -130,27 +134,31 @@ impl PolygonFigure {
     }
 
     /// 设置线条样式
-    pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
-        self.polyline = self.polyline.with_color(color).with_width(width);
-        self.polyline.renormalize_for_minimum(3);
-        self.refresh_contour();
-        self
+    pub fn with_stroke(
+        mut self,
+        color: Color,
+        width: f64,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        self.polyline = self.polyline.with_color(color).with_width(width)?;
+        self.refresh_contour()?;
+        Ok(self)
     }
 
     /// Sets the complete checked outline and updates its envelope.
-    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
-        self.polyline = self.polyline.with_stroke_style(stroke);
-        self.polyline.renormalize_for_minimum(3);
-        self.refresh_contour();
-        self
+    pub fn with_stroke_style(
+        mut self,
+        stroke: StrokeStyle,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        self.polyline = self.polyline.with_stroke_style(stroke)?;
+        self.refresh_contour()?;
+        Ok(self)
     }
 
     /// 设置轮廓连接样式。
-    pub fn with_join(mut self, join: LineJoin) -> Self {
-        self.polyline = self.polyline.with_join(join);
-        self.polyline.renormalize_for_minimum(3);
-        self.refresh_contour();
-        self
+    pub fn with_join(mut self, join: LineJoin) -> Result<Self, super::ShapeGeometryError> {
+        self.polyline = self.polyline.with_join(join)?;
+        self.refresh_contour()?;
+        Ok(self)
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -160,16 +168,19 @@ impl PolygonFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
-        self.polyline = self.polyline.with_border(border);
-        self
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, crate::figure::border::BorderInputError> {
+        self.polyline = self.polyline.with_border(border)?;
+        Ok(self)
     }
 
     pub(crate) fn local_points(&self) -> &[crate::geometry::Point] {
         self.polyline.local_points()
     }
 
-    pub(crate) fn stroke_style(&self) -> &StrokeStyle {
+    pub fn stroke_style(&self) -> &StrokeStyle {
         self.polyline.stroke_style()
     }
 
@@ -179,7 +190,7 @@ impl PolygonFigure {
         local_points: Vec<crate::geometry::Point>,
     ) {
         self.polyline.commit_geometry(bounds, local_points);
-        self.refresh_contour();
+        self.contour = None;
     }
 }
 
@@ -189,12 +200,21 @@ impl Bounded for PolygonFigure {
         Bounded::bounds(&self.polyline)
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
         let old = Bounded::bounds(self);
-        Bounded::set_bounds(&mut self.polyline, x, y, width, height);
+        let mut candidate = self.clone();
+        Bounded::set_bounds(&mut candidate.polyline, x, y, width, height)?;
         if old.width != width || old.height != height {
-            self.refresh_contour();
+            candidate.refresh_contour()?;
         }
+        *self = candidate;
+        Ok(())
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -250,7 +270,8 @@ impl Figure for PolygonFigure {
             return Ok(());
         }
         let mut local = self.clone();
-        Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height);
+        Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height)
+            .map_err(super::ShapeGeometryError::drawing_error)?;
         Shape::paint_shape(&local, context)
     }
 
@@ -310,7 +331,10 @@ impl BorderedFigure for PolygonFigure {
         BorderedFigure::border(&self.polyline)
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
         BorderedFigure::replace_border(&mut self.polyline, border)
     }
 }
@@ -435,6 +459,7 @@ mod contour_cache_tests {
             crate::geometry::Point::new(100.0, 0.0),
             crate::geometry::Point::new(50.0, 80.0),
         ])
+        .expect("valid detached figure input")
         .with_corner_radii(vec![10.0; 3])
         .unwrap();
         let source_bounds = Bounded::bounds(&polygon);

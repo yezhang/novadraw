@@ -103,13 +103,10 @@ fn fixture() -> (Runtime, Vec<Arc<AtomicBool>>) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WIDTH,
-            HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("EllipseHitting root");
     tree.builder()
         .set_layout_manager(

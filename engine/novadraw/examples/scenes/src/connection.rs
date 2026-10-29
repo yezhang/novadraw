@@ -26,12 +26,15 @@ const ARROW_LINE_OVERLAP: f64 = 1.0;
 
 fn background() -> RectangleFigure {
     RectangleFigure::new_with_color(0.0, 0.0, WIDTH, HEIGHT, Color::rgba(0.93, 0.94, 0.95, 1.0))
+        .expect("valid figure bounds")
 }
 
 fn connection(color: Color) -> ConnectionFigure {
     ConnectionFigure::new()
         .with_stroke(color, CONNECTION_WIDTH)
+        .expect("valid detached figure input")
         .with_decoration_insets(0.0, ARROW_LENGTH - ARROW_LINE_OVERLAP)
+        .expect("valid detached figure input")
 }
 
 fn resolve_with_arrow(
@@ -69,8 +72,10 @@ fn resolve_with_arrow(
         base + perpendicular * 6.0,
         base - perpendicular * 6.0,
     ])
+    .expect("valid detached figure input")
     .with_fill_color(arrow_color)
-    .with_stroke(arrow_color, 1.0);
+    .with_stroke(arrow_color, 1.0)
+    .expect("valid detached figure input");
     runtime
         .figure(connection_figure)
         .unwrap()
@@ -105,74 +110,92 @@ fn anchor_matrix() -> Runtime {
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(EllipseFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )))
+                    .add(Box::new(
+                        EllipseFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(EllipseFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )))
+                    .add(Box::new(
+                        EllipseFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
             ),
             2 => (
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(RoundedRectangleFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        24.0,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )))
+                    .add(Box::new(
+                        RoundedRectangleFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            24.0,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(RoundedRectangleFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        24.0,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )))
+                    .add(Box::new(
+                        RoundedRectangleFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            24.0,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
             ),
             _ => (
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(RectangleFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )))
+                    .add(Box::new(
+                        RectangleFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
                 runtime
                     .figure(root)
                     .unwrap()
-                    .add(Box::new(RectangleFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )))
+                    .add(Box::new(
+                        RectangleFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation"),
             ),
         };
@@ -229,24 +252,30 @@ fn anchor_matrix() -> Runtime {
                 runtime
                     .figure(source)
                     .unwrap()
-                    .add(Box::new(EllipseFigure::new_with_color(
-                        10.0,
-                        12.0,
-                        28.0,
-                        28.0,
-                        Color::rgba(0.95, 0.82, 0.22, 1.0),
-                    )))
+                    .add(Box::new(
+                        EllipseFigure::new_with_color(
+                            10.0,
+                            12.0,
+                            28.0,
+                            28.0,
+                            Color::rgba(0.95, 0.82, 0.22, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation");
                 runtime
                     .figure(target)
                     .unwrap()
-                    .add(Box::new(EllipseFigure::new_with_color(
-                        62.0,
-                        12.0,
-                        28.0,
-                        28.0,
-                        Color::rgba(0.95, 0.82, 0.22, 1.0),
-                    )))
+                    .add(Box::new(
+                        EllipseFigure::new_with_color(
+                            62.0,
+                            12.0,
+                            28.0,
+                            28.0,
+                            Color::rgba(0.95, 0.82, 0.22, 1.0),
+                        )
+                        .expect("valid figure bounds"),
+                    ))
                     .expect("valid Runtime mutation");
                 (
                     runtime
@@ -303,24 +332,30 @@ fn bendpoint_scene() -> Runtime {
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            70.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                70.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            630.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                630.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -383,24 +418,30 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
         let source = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new_with_color(
-                source_x,
-                y,
-                NODE_WIDTH,
-                NODE_HEIGHT,
-                Color::rgba(0.20, 0.65, 0.56, 1.0),
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    source_x,
+                    y,
+                    NODE_WIDTH,
+                    NODE_HEIGHT,
+                    Color::rgba(0.20, 0.65, 0.56, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let target = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new_with_color(
-                590.0,
-                y + if index % 2 == 0 { 80.0 } else { -45.0 } + target_y_offset,
-                NODE_WIDTH,
-                NODE_HEIGHT,
-                Color::rgba(0.88, 0.40, 0.38, 1.0),
-            )))
+            .add(Box::new(
+                RectangleFigure::new_with_color(
+                    590.0,
+                    y + if index % 2 == 0 { 80.0 } else { -45.0 } + target_y_offset,
+                    NODE_WIDTH,
+                    NODE_HEIGHT,
+                    Color::rgba(0.88, 0.40, 0.38, 1.0),
+                )
+                .expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let source_anchor = runtime
             .connections()
@@ -434,24 +475,30 @@ fn shared_manhattan_scene() -> Runtime {
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            80.0,
-            250.0,
-            120.0,
-            70.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                80.0,
+                250.0,
+                120.0,
+                70.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            600.0,
-            300.0,
-            120.0,
-            70.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                600.0,
+                300.0,
+                120.0,
+                70.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -497,40 +544,51 @@ fn unsupported_viewport_topology_scene() -> Runtime {
     let viewport = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ViewportFigure::new(45.0, 90.0, 300.0, 360.0)))
+        .add(Box::new(
+            ViewportFigure::new(45.0, 90.0, 300.0, 360.0).expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     let contents = runtime
         .figure(viewport)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            500.0,
-            420.0,
-            Color::rgba(0.84, 0.90, 0.96, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                500.0,
+                420.0,
+                Color::rgba(0.84, 0.90, 0.96, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source = runtime
         .figure(contents)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            60.0,
-            135.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                60.0,
+                135.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new_with_color(
-            610.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )))
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                610.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
         .figure(root)
@@ -591,24 +649,30 @@ fn fan_scene() -> Runtime {
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(EllipseFigure::new_with_color(
-            80.0,
-            250.0,
-            120.0,
-            82.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )))
+        .add(Box::new(
+            EllipseFigure::new_with_color(
+                80.0,
+                250.0,
+                120.0,
+                82.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(EllipseFigure::new_with_color(
-            600.0,
-            250.0,
-            120.0,
-            82.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )))
+        .add(Box::new(
+            EllipseFigure::new_with_color(
+                600.0,
+                250.0,
+                120.0,
+                82.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
@@ -671,26 +735,32 @@ fn connection_layer_scene() -> Runtime {
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RoundedRectangleFigure::new_with_color(
-            110.0,
-            250.0,
-            120.0,
-            70.0,
-            20.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )))
+        .add(Box::new(
+            RoundedRectangleFigure::new_with_color(
+                110.0,
+                250.0,
+                120.0,
+                70.0,
+                20.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RoundedRectangleFigure::new_with_color(
-            580.0,
-            180.0,
-            120.0,
-            70.0,
-            20.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )))
+        .add(Box::new(
+            RoundedRectangleFigure::new_with_color(
+                580.0,
+                180.0,
+                120.0,
+                70.0,
+                20.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime.connections().register_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(source, Dimension::new(40.0, 40.0)),

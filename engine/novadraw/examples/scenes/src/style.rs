@@ -49,7 +49,8 @@ fn gray_container() -> (novadraw::tree::FigureTree, novadraw::tree::FigureId) {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         bg_gray(),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -74,7 +75,8 @@ fn create_scene_0_fill_colors() -> novadraw::tree::FigureTree {
             160.0,
             120.0,
             color,
-        );
+        )
+        .expect("valid figure bounds");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -93,7 +95,8 @@ fn create_scene_1_alpha() -> novadraw::tree::FigureTree {
         200.0,
         200.0,
         novadraw::graphics::Color::WHITE,
-    );
+    )
+    .expect("valid figure bounds");
     scene
         .builder()
         .add_child(container_id, Box::new(base_rect))
@@ -107,7 +110,8 @@ fn create_scene_1_alpha() -> novadraw::tree::FigureTree {
             160.0,
             120.0,
             novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, alpha),
-        );
+        )
+        .expect("valid figure bounds");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -132,7 +136,9 @@ fn create_scene_2_stroke_width() -> novadraw::tree::FigureTree {
             120.0,
             fill_color,
         )
-        .with_stroke(stroke_color, width);
+        .expect("valid figure bounds")
+        .with_stroke(stroke_color, width)
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -161,7 +167,9 @@ fn create_scene_3_stroke_color() -> novadraw::tree::FigureTree {
             120.0,
             fill_color,
         )
-        .with_stroke(stroke_color, 3.0);
+        .expect("valid figure bounds")
+        .with_stroke(stroke_color, 3.0)
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -197,8 +205,11 @@ fn create_scene_4_line_cap() -> novadraw::tree::FigureTree {
             180.0 + i as f64 * 120.0,
             color,
         )
+        .expect("valid detached figure input")
         .with_width(12.0)
-        .with_cap(cap);
+        .expect("valid detached figure input")
+        .with_cap(cap)
+        .expect("valid outline geometry");
         scene
             .builder()
             .add_child(container_id, Box::new(line))
@@ -234,8 +245,11 @@ fn create_scene_5_line_join() -> novadraw::tree::FigureTree {
             novadraw::geometry::Point::new(base_x + 80.0, base_y),
             novadraw::geometry::Point::new(base_x + 160.0, base_y + 200.0),
         ])
+        .expect("valid detached figure input")
         .with_width(10.0)
+        .expect("valid detached figure input")
         .with_join(join)
+        .expect("valid outline geometry")
         .with_color(color);
         scene
             .builder()
@@ -263,7 +277,9 @@ fn create_scene_6_stroke_vs_border() -> novadraw::tree::FigureTree {
             80.0,
             fill_color,
         )
-        .with_stroke(stroke_color, width);
+        .expect("valid figure bounds")
+        .with_stroke(stroke_color, width)
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -278,7 +294,9 @@ fn create_scene_6_stroke_vs_border() -> novadraw::tree::FigureTree {
             80.0,
             fill_color,
         )
-        .with_border(RectangleBorder::new(border_color, width));
+        .expect("valid figure bounds")
+        .with_border(RectangleBorder::new(border_color, width).expect("valid border"))
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -296,10 +314,16 @@ fn create_scene_6_stroke_vs_border() -> novadraw::tree::FigureTree {
             80.0,
             novadraw::graphics::Color::rgba(0.9, 0.95, 0.9, 1.0),
         )
+        .expect("valid figure bounds")
         .with_stroke(inner_stroke_color, width)
+        .expect("valid detached figure input")
         .with_border(
-            RectangleBorder::new(outer_border_color, width).with_insets(8.0, 8.0, 8.0, 8.0),
-        );
+            RectangleBorder::new(outer_border_color, width)
+                .expect("valid border")
+                .with_insets(novadraw::geometry::Insets::uniform(8.0))
+                .expect("valid insets"),
+        )
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(rect))

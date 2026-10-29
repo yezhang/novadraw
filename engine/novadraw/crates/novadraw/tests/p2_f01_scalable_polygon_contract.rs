@@ -108,7 +108,8 @@ fn scalable_polygon_reserves_miter_outset_and_uses_precise_hit() {
         ]),
     )
     .unwrap()
-    .with_stroke(novadraw::graphics::Color::BLACK, 4.0, LineJoin::Miter);
+    .with_stroke(novadraw::graphics::Color::BLACK, 4.0, LineJoin::Miter)
+    .expect("valid detached figure input");
     let points = figure.scaled_points(Rectangle::new(0.0, 0.0, 100.0, 80.0));
     assert!(
         points.iter().all(|point| {
@@ -143,7 +144,9 @@ fn scalable_polygon_reserves_miter_outset_and_uses_precise_hit() {
 fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 300.0, 200.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let polygon = runtime
         .figure(root)

@@ -48,7 +48,9 @@ impl FigureEventHandler for StyleTrigger {
 fn fixture(styles: Vec<FigureStyle>) -> (Runtime, FigureId, Arc<Mutex<Option<FigureStyle>>>) {
     let mut runtime = Runtime::empty();
     let target = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 200.0).unwrap(),
+        ))
         .unwrap();
     let observed = Arc::new(Mutex::new(None));
     runtime
@@ -128,7 +130,9 @@ fn foreign_targets_are_reported_without_mutating_the_local_tree() {
     let (foreign, target, _) = fixture(Vec::new());
     let mut runtime = Runtime::empty();
     let local = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+        ))
         .unwrap();
     // A Figure with no scene query can request a checked foreign-target write.
     struct ForeignTrigger(FigureId);

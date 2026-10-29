@@ -597,13 +597,10 @@ fn build_runtime() -> Runtime {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            LOGICAL_WIDTH,
-            LOGICAL_HEIGHT,
-            Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, LOGICAL_WIDTH, LOGICAL_HEIGHT, Color::WHITE)
+                .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     for index in 0..RECTANGLE_COUNT {
         let column = index % COLUMNS;
@@ -611,12 +608,10 @@ fn build_runtime() -> Runtime {
         tree.builder()
             .add_child(
                 root,
-                Box::new(RectangleFigure::new(
-                    column as f64 * 8.0,
-                    row as f64 * 8.0,
-                    7.0,
-                    7.0,
-                )),
+                Box::new(
+                    RectangleFigure::new(column as f64 * 8.0, row as f64 * 8.0, 7.0, 7.0)
+                        .expect("valid figure bounds"),
+                ),
             )
             .expect("performance FigureTree construction must remain valid");
     }

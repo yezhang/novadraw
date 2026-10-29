@@ -127,7 +127,9 @@ impl<A: ModelAdapter + 'static> Tool<A> for MarqueeTool {
             gesture.feedback.clear();
             let b = bounds(gesture.start_model, ctx.model_point_from_surface(location)?);
             let figure = RectangleFigure::new_with_color(b.x, b.y, b.width, b.height, MARQUEE_FILL)
-                .with_stroke(MARQUEE_COLOR, MARQUEE_WIDTH);
+                .expect("valid figure bounds")
+                .with_stroke(MARQUEE_COLOR, MARQUEE_WIDTH)
+                .expect("valid detached figure input");
             gesture.feedback = ctx.attach_feedback(
                 ctx.contents(),
                 vec![FeedbackVisual::scaled(Box::new(figure))],

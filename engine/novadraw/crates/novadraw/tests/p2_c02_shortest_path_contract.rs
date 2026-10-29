@@ -46,22 +46,30 @@ fn segment_crosses_interior(start: Point, end: Point, obstacle: Rectangle) -> bo
 fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 360.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 640.0, 360.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 150.0, 60.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 150.0, 60.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(540.0, 150.0, 60.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(540.0, 150.0, 60.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let obstacle = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(260.0, 110.0, 100.0, 120.0)))
+        .add(Box::new(
+            RectangleFigure::new(260.0, 110.0, 100.0, 120.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let connection_figure = runtime
         .figure(root)
@@ -167,7 +175,9 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     );
     let mut other = Runtime::empty();
     let foreign = other
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let foreign_router = runtime
         .connections()
@@ -219,22 +229,30 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
 fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 120.0, 60.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 120.0, 60.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(420.0, 120.0, 60.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(420.0, 120.0, 60.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let blocker = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(70.0, 100.0, 40.0, 80.0)))
+        .add(Box::new(
+            RectangleFigure::new(70.0, 100.0, 40.0, 80.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let router = runtime.connections().register_router(Box::new(
         ShortestPathConnectionRouter::new([blocker])
@@ -313,17 +331,23 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
 
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1200.0, 500.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1200.0, 500.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 20.0, 40.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 20.0, 40.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(1100.0, 20.0, 40.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(1100.0, 20.0, 40.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut obstacles = Vec::with_capacity(COUNT);
     for index in 0..COUNT {
@@ -331,12 +355,10 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
             runtime
                 .figure(root)
                 .unwrap()
-                .add(Box::new(RectangleFigure::new(
-                    100.0 + index as f64 * 12.0,
-                    300.0,
-                    8.0,
-                    20.0,
-                )))
+                .add(Box::new(
+                    RectangleFigure::new(100.0 + index as f64 * 12.0, 300.0, 8.0, 20.0)
+                        .expect("valid figure bounds"),
+                ))
                 .unwrap(),
         );
     }

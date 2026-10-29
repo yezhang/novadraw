@@ -5,7 +5,7 @@ use crate::render::{FontDescriptor, TextConstraints, TextError, TextLayout, Text
 
 use crate::Alignment;
 
-use super::{Border, BorderSnapshot, inset_rectangle};
+use super::{Border, BorderInputError, BorderSnapshot, inset_rectangle, validate_nonnegative};
 
 const DEFAULT_HORIZONTAL_PADDING: f64 = 8.0;
 const DEFAULT_VERTICAL_PADDING: f64 = 4.0;
@@ -43,30 +43,54 @@ impl TitleBarBorder {
         self
     }
 
-    pub fn with_padding(mut self, horizontal: f64, vertical: f64) -> Self {
-        assert!(
-            horizontal.is_finite() && horizontal >= 0.0 && vertical.is_finite() && vertical >= 0.0,
-            "title bar padding must be finite and non-negative"
-        );
+    pub fn with_padding(
+        mut self,
+        horizontal: f64,
+        vertical: f64,
+    ) -> Result<Self, BorderInputError> {
+        for (field, value) in [
+            ("horizontal padding", horizontal),
+            ("vertical padding", vertical),
+        ] {
+            validate_nonnegative(value, field, None)?;
+            if !(value * 2.0).is_finite() {
+                return Err(BorderInputError::Overflow { field });
+            }
+        }
         self.horizontal_padding = horizontal;
         self.vertical_padding = vertical;
-        self
+        Ok(self)
     }
 
     pub fn title(&self) -> &str {
         &self.title
     }
 
-    pub(crate) fn measure(&self, layout: TextLayout) -> TitleBarMetrics {
+    pub(crate) fn measure(&self, layout: TextLayout) -> Result<TitleBarMetrics, TextError> {
+        super::validate_preferred(Dimension::new(
+            f64::from(layout.width()),
+            f64::from(layout.height()),
+        ))
+        .map_err(|error| TextError::BorderInput(Box::new(error)))?;
         let preferred = Dimension::new(
             layout.width() as f64 + self.horizontal_padding * 2.0,
             layout.height() as f64 + self.vertical_padding * 2.0,
         );
-        TitleBarMetrics {
+        for (field, value) in [
+            ("title preferred width", preferred.width),
+            ("title preferred height", preferred.height),
+        ] {
+            if !value.is_finite() {
+                return Err(TextError::BorderInput(Box::new(
+                    BorderInputError::Overflow { field },
+                )));
+            }
+        }
+        Ok(TitleBarMetrics {
             layout,
             insets: Insets::new(preferred.height, 0.0, 0.0, 0.0),
             preferred,
-        }
+        })
     }
 
     pub(crate) fn paint_metrics(
@@ -250,7 +274,7 @@ impl Border for TitleBarBorder {
             Some(layout) => layout.clone(),
             None => text.layout(&self.title, font, TextConstraints::UNBOUNDED)?,
         };
-        Ok(Some(BorderSnapshot::title_bar(self.measure(layout))))
+        Ok(Some(BorderSnapshot::title_bar(self.measure(layout)?)))
     }
 
     fn has_owner_snapshot(&self) -> bool {

@@ -116,7 +116,9 @@ mod tests {
     #[test]
     fn focus_properties_are_local_typed_node_state() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         tree.drain_notification_effects();
 
         assert!(tree.set_focusable(root, true));
@@ -156,11 +158,21 @@ mod tests {
     #[test]
     fn tree_order_policy_is_stable_bidirectional_and_has_boundaries() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let first = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let skipped =
-            tree.add_child_to(root, Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0)));
-        let last = tree.add_child_to(root, Box::new(RectangleFigure::new(40.0, 0.0, 10.0, 10.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let first = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let skipped = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let last = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(40.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
         tree.set_focus_traversable(first, true);
         tree.set_focus_traversable(last, true);
 
@@ -196,12 +208,21 @@ mod tests {
     #[test]
     fn tree_order_policy_skips_hidden_and_disabled_candidates() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let hidden = tree.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-        let disabled =
-            tree.add_child_to(root, Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0)));
-        let eligible =
-            tree.add_child_to(root, Box::new(RectangleFigure::new(40.0, 0.0, 10.0, 10.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let hidden = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let disabled = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
+        let eligible = tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(40.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        );
         for id in [hidden, disabled, eligible] {
             tree.set_focus_traversable(id, true);
         }

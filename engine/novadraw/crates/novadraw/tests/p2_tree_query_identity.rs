@@ -79,7 +79,9 @@ fn assert_identity_queries(tree: &FigureTree, id: FigureId, error: TreeQueryErro
 fn runtime() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .set_contents(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     (runtime, root)
 }
@@ -90,13 +92,17 @@ fn arbitrary_tree_facts_reject_foreign_and_retired_generation() {
     let retired = owner
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .add(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     owner.dispose_subtree(retired).unwrap();
     let replacement = owner
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .add(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     let (_other, foreign) = runtime();
     assert_ne!(retired, replacement);
@@ -132,12 +138,16 @@ fn valid_zero_absence_and_false_remain_distinct_from_identity_failure() {
     let leaf = owner
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .add(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     let sibling = owner
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .add(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     owner.figure(root).unwrap().set_visible(false).unwrap();
     owner.figure(root).unwrap().set_enabled(false).unwrap();
@@ -186,7 +196,9 @@ fn stable_query_revalidates_ids_and_owned_values_keep_their_original_epoch() {
     let leaf = owner
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)))
+        .add(Box::new(
+            RectangleFigure::new(1.0, 2.0, 3.0, 4.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(matches!(
         owner.observations().stable_query(),

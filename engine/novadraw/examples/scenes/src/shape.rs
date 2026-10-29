@@ -19,7 +19,8 @@ const WINDOW_HEIGHT: f64 = 600.0;
 fn create_scene_0_rectangle_fill() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -32,35 +33,40 @@ fn create_scene_0_rectangle_fill() -> novadraw::tree::FigureTree {
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect_2 = novadraw::figure::RectangleFigure::new_with_color(
         250.0,
         50.0,
         100.0,
         100.0,
         novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect_3 = novadraw::figure::RectangleFigure::new_with_color(
         400.0,
         50.0,
         200.0,
         80.0,
         novadraw::graphics::Color::rgba(0.2, 0.2, 0.8, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect_4 = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         200.0,
         120.0,
         150.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let rect_5 = novadraw::figure::RectangleFigure::new_with_color(
         200.0,
         200.0,
         100.0,
         100.0,
         novadraw::graphics::Color::rgba(0.5, 0.1, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     scene
         .builder()
@@ -91,7 +97,8 @@ fn create_scene_0_rectangle_fill() -> novadraw::tree::FigureTree {
 fn create_scene_1_ellipse_fill() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -104,35 +111,40 @@ fn create_scene_1_ellipse_fill() -> novadraw::tree::FigureTree {
         200.0,
         120.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let ellipse_2 = novadraw::figure::EllipseFigure::new_with_color(
         450.0,
         100.0,
         150.0,
         150.0,
         novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let ellipse_3 = novadraw::figure::EllipseFigure::new_with_color(
         150.0,
         300.0,
         100.0,
         100.0,
         novadraw::graphics::Color::rgba(0.5, 0.9, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let ellipse_4 = novadraw::figure::EllipseFigure::new_with_color(
         350.0,
         300.0,
         180.0,
         80.0,
         novadraw::graphics::Color::rgba(0.9, 0.2, 0.5, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let ellipse_5 = novadraw::figure::EllipseFigure::new_with_color(
         600.0,
         300.0,
         120.0,
         120.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     scene
         .builder()
@@ -168,7 +180,8 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#202124").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -183,7 +196,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         0.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0)
+    .expect("valid detached figure input");
     let rect_5 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         250.0,
         50.0,
@@ -192,7 +207,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         5.0,
         novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0)
+    .expect("valid detached figure input");
     let rect_15 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         450.0,
         50.0,
@@ -201,7 +218,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         15.0,
         novadraw::graphics::Color::rgba(0.2, 0.8, 0.3, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0)
+    .expect("valid detached figure input");
     let rect_30 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         650.0,
         50.0,
@@ -210,7 +229,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         30.0,
         novadraw::graphics::Color::RED,
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0)
+    .expect("valid detached figure input");
 
     // 纯填充（无描边）
     let rect_fill = novadraw::figure::RoundedRectangleFigure::new_with_color(
@@ -220,12 +241,15 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         80.0,
         20.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     // 纯描边（无填充）
     let rect_stroke =
         novadraw::figure::RoundedRectangleFigure::new(250.0, 180.0, 150.0, 80.0, 20.0)
-            .with_stroke(novadraw::graphics::Color::RED, 3.0);
+            .expect("valid figure bounds")
+            .with_stroke(novadraw::graphics::Color::RED, 3.0)
+            .expect("valid detached figure input");
 
     // 填充 + 描边
     let rect_both = novadraw::figure::RoundedRectangleFigure::new_with_color(
@@ -236,7 +260,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         20.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::GREEN, 3.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::GREEN, 3.0)
+    .expect("valid detached figure input");
 
     // 不同描边宽度
     let rect_sw_1 = novadraw::figure::RoundedRectangleFigure::new_with_color(
@@ -247,7 +273,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         15.0,
         novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 1.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 1.0)
+    .expect("valid detached figure input");
     let rect_sw_4 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         250.0,
         300.0,
@@ -256,7 +284,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         15.0,
         novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 4.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 4.0)
+    .expect("valid detached figure input");
     let rect_sw_8 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         450.0,
         300.0,
@@ -265,7 +295,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         15.0,
         novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 8.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 8.0)
+    .expect("valid detached figure input");
 
     // 大圆角（接近圆形）
     let rect_circle = novadraw::figure::RoundedRectangleFigure::new_with_color(
@@ -276,7 +308,9 @@ fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
         40.0,
         novadraw::graphics::Color::rgba(0.9, 0.6, 0.1, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0)
+    .expect("valid detached figure input");
 
     scene
         .builder()
@@ -337,7 +371,8 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::rgba(0.15, 0.15, 0.15, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -354,7 +389,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         40.0,
         novadraw::graphics::Color::WHITE,
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(line_2pt))
@@ -366,7 +403,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(125.0, 40.0),
         novadraw::geometry::Point::new(200.0, 80.0),
     ])
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(line_3pt))
@@ -380,7 +419,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(200.0, 120.0),
         novadraw::geometry::Point::new(250.0, 160.0),
     ])
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(line_5pt))
@@ -398,7 +439,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
             80.0,
             novadraw::graphics::Color::WHITE,
         )
-        .with_width(w);
+        .expect("valid detached figure input")
+        .with_width(w)
+        .expect("valid detached figure input");
         scene
             .builder()
             .add_child(container_id, Box::new(line))
@@ -415,8 +458,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(1.0, 0.3, 0.3, 1.0),
     )
+    .expect("valid detached figure input")
     .with_width(8.0)
-    .with_cap(novadraw::graphics::LineCap::Butt);
+    .expect("valid detached figure input")
+    .with_cap(novadraw::graphics::LineCap::Butt)
+    .expect("valid outline geometry");
     scene
         .builder()
         .add_child(container_id, Box::new(cap_butt))
@@ -429,8 +475,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(0.3, 1.0, 0.3, 1.0),
     )
+    .expect("valid detached figure input")
     .with_width(8.0)
-    .with_cap(novadraw::graphics::LineCap::Round);
+    .expect("valid detached figure input")
+    .with_cap(novadraw::graphics::LineCap::Round)
+    .expect("valid outline geometry");
     scene
         .builder()
         .add_child(container_id, Box::new(cap_round))
@@ -443,8 +492,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 1.0, 1.0),
     )
+    .expect("valid detached figure input")
     .with_width(8.0)
-    .with_cap(novadraw::graphics::LineCap::Square);
+    .expect("valid detached figure input")
+    .with_cap(novadraw::graphics::LineCap::Square)
+    .expect("valid outline geometry");
     scene
         .builder()
         .add_child(container_id, Box::new(cap_square))
@@ -459,8 +511,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(100.0, 220.0),
         novadraw::geometry::Point::new(150.0, 300.0),
     ])
+    .expect("valid detached figure input")
     .with_width(8.0)
+    .expect("valid detached figure input")
     .with_join(novadraw::graphics::LineJoin::Miter)
+    .expect("valid outline geometry")
     .with_color(novadraw::graphics::Color::rgba(1.0, 0.5, 0.0, 1.0));
     scene
         .builder()
@@ -473,8 +528,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(250.0, 220.0),
         novadraw::geometry::Point::new(300.0, 300.0),
     ])
+    .expect("valid detached figure input")
     .with_width(8.0)
+    .expect("valid detached figure input")
     .with_join(novadraw::graphics::LineJoin::Round)
+    .expect("valid outline geometry")
     .with_color(novadraw::graphics::Color::rgba(0.0, 1.0, 1.0, 1.0));
     scene
         .builder()
@@ -487,8 +545,11 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(400.0, 220.0),
         novadraw::geometry::Point::new(450.0, 300.0),
     ])
+    .expect("valid detached figure input")
     .with_width(8.0)
+    .expect("valid detached figure input")
     .with_join(novadraw::graphics::LineJoin::Bevel)
+    .expect("valid outline geometry")
     .with_color(novadraw::graphics::Color::rgba(1.0, 0.0, 1.0, 1.0));
     scene
         .builder()
@@ -505,7 +566,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         40.0,
         novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(h_line))
@@ -518,7 +581,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         150.0,
         novadraw::graphics::Color::rgba(0.2, 0.2, 0.9, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(v_line))
@@ -531,7 +596,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         350.0,
         novadraw::graphics::Color::rgba(0.2, 0.9, 0.2, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(diag_45))
@@ -544,7 +611,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         350.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(diag_135))
@@ -559,7 +628,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         novadraw::geometry::Point::new(150.0, 380.0),
         novadraw::geometry::Point::new(50.0, 480.0),
     ])
+    .expect("valid detached figure input")
     .with_width(2.0)
+    .expect("valid detached figure input")
     .with_color(novadraw::graphics::Color::rgba(1.0, 1.0, 0.0, 1.0));
     scene
         .builder()
@@ -576,7 +647,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         points.push(novadraw::geometry::Point::new(x, y));
     }
     let wave = novadraw::figure::PolylineFigure::from_points(points)
+        .expect("valid detached figure input")
         .with_width(2.0)
+        .expect("valid detached figure input")
         .with_color(novadraw::graphics::Color::rgba(0.0, 0.8, 1.0, 1.0));
     scene
         .builder()
@@ -593,7 +666,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         390.0,
         novadraw::graphics::Color::WHITE,
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(short_1))
@@ -606,7 +681,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         380.0,
         novadraw::graphics::Color::WHITE,
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(short_2))
@@ -619,7 +696,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         390.0,
         novadraw::graphics::Color::WHITE,
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(short_3))
@@ -635,7 +714,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         500.0,
         novadraw::graphics::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
-    .with_width(4.0);
+    .expect("valid detached figure input")
+    .with_width(4.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(edge_1))
@@ -648,7 +729,9 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
         500.0,
         novadraw::graphics::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
-    .with_width(4.0);
+    .expect("valid detached figure input")
+    .with_width(4.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(edge_2))
@@ -666,7 +749,8 @@ fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
 fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -680,14 +764,17 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         100.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::BLACK, 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::BLACK, 2.0)
+    .expect("valid detached figure input");
     let ellipse_combo = novadraw::figure::EllipseFigure::new_with_color(
         125.0,
         100.0,
         80.0,
         50.0,
         novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     // 组合2: 椭圆 + 直线
     let ellipse_combo2 = novadraw::figure::EllipseFigure::new_with_color(
@@ -696,7 +783,8 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         100.0,
         60.0,
         novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let line_through = novadraw::figure::PolylineFigure::new_with_color(
         250.0,
         110.0,
@@ -704,7 +792,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         110.0,
         novadraw::graphics::Color::BLACK,
     )
-    .with_width(2.0);
+    .expect("valid detached figure input")
+    .with_width(2.0)
+    .expect("valid detached figure input");
 
     // 组合3: 矩形框住多个图形
     let container_rect = novadraw::figure::RectangleFigure::new_with_color(
@@ -714,21 +804,25 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         150.0,
         novadraw::graphics::Color::rgba(0.95, 0.95, 0.95, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::rgba(0.2, 0.2, 0.2, 1.0), 1.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(0.2, 0.2, 0.2, 1.0), 1.0)
+    .expect("valid detached figure input");
     let inner_rect = novadraw::figure::RectangleFigure::new_with_color(
         470.0,
         70.0,
         60.0,
         40.0,
         novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let inner_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         560.0,
         90.0,
         50.0,
         30.0,
         novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let inner_line = novadraw::figure::PolylineFigure::new_with_color(
         480.0,
         150.0,
@@ -736,7 +830,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         150.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
     )
-    .with_width(2.0);
+    .expect("valid detached figure input")
+    .with_width(2.0)
+    .expect("valid detached figure input");
 
     // 组合4: 复杂图形组合
     let complex_rect = novadraw::figure::RectangleFigure::new_with_color(
@@ -746,7 +842,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         80.0,
         novadraw::graphics::Color::rgba(0.8, 0.2, 0.5, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 3.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 3.0)
+    .expect("valid detached figure input");
     let complex_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         50.0,
         350.0,
@@ -754,7 +852,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         80.0,
         novadraw::graphics::Color::rgba(0.2, 0.5, 0.8, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::WHITE, 3.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::WHITE, 3.0)
+    .expect("valid detached figure input");
     let complex_line1 = novadraw::figure::PolylineFigure::new_with_color(
         200.0,
         250.0,
@@ -762,7 +862,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         280.0,
         novadraw::graphics::Color::rgba(0.9, 0.6, 0.1, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     let complex_line2 = novadraw::figure::PolylineFigure::new_with_color(
         200.0,
         280.0,
@@ -770,7 +872,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         250.0,
         novadraw::graphics::Color::rgba(0.1, 0.6, 0.9, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
     let complex_line3 = novadraw::figure::PolylineFigure::new_with_color(
         250.0,
         350.0,
@@ -778,7 +882,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         420.0,
         novadraw::graphics::Color::rgba(0.3, 0.8, 0.3, 1.0),
     )
-    .with_width(4.0);
+    .expect("valid detached figure input")
+    .with_width(4.0)
+    .expect("valid detached figure input");
 
     // 组合5: 细线装饰
     let decor_line1 = novadraw::figure::PolylineFigure::new_with_color(
@@ -788,7 +894,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         260.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
-    .with_width(1.0);
+    .expect("valid detached figure input")
+    .with_width(1.0)
+    .expect("valid detached figure input");
     let decor_line2 = novadraw::figure::PolylineFigure::new_with_color(
         400.0,
         300.0,
@@ -796,7 +904,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         300.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
-    .with_width(2.0);
+    .expect("valid detached figure input")
+    .with_width(2.0)
+    .expect("valid detached figure input");
     let decor_line3 = novadraw::figure::PolylineFigure::new_with_color(
         400.0,
         350.0,
@@ -804,7 +914,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         350.0,
         novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
-    .with_width(4.0);
+    .expect("valid detached figure input")
+    .with_width(4.0)
+    .expect("valid detached figure input");
 
     // 边框装饰
     let border_outer = novadraw::figure::RectangleFigure::new_with_color(
@@ -814,7 +926,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         150.0,
         novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::BLACK, 1.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::BLACK, 1.0)
+    .expect("valid detached figure input");
     let border_inner = novadraw::figure::RectangleFigure::new_with_color(
         610.0,
         260.0,
@@ -822,7 +936,9 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
         130.0,
         novadraw::graphics::Color::WHITE,
     )
-    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.5, 0.5, 1.0), 1.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.5, 0.5, 1.0), 1.0)
+    .expect("valid detached figure input");
 
     scene
         .builder()
@@ -905,7 +1021,8 @@ fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
 fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -918,14 +1035,16 @@ fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
         300.0,
         200.0,
         novadraw::graphics::Color::BLUE,
-    );
+    )
+    .expect("valid figure bounds");
     let bottom_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         250.0,
         150.0,
         200.0,
         100.0,
         novadraw::graphics::Color::GREEN,
-    );
+    )
+    .expect("valid figure bounds");
     let bottom_line = novadraw::figure::PolylineFigure::new_with_color(
         150.0,
         200.0,
@@ -933,7 +1052,9 @@ fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
         250.0,
         novadraw::graphics::Color::rgba(1.0, 1.0, 0.0, 1.0),
     )
-    .with_width(8.0);
+    .expect("valid detached figure input")
+    .with_width(8.0)
+    .expect("valid detached figure input");
 
     // 中间层（遮挡部分底层）
     let mid_rect = novadraw::figure::RectangleFigure::new_with_color(
@@ -942,14 +1063,16 @@ fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
         200.0,
         120.0,
         novadraw::graphics::Color::RED,
-    );
+    )
+    .expect("valid figure bounds");
     let mid_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         350.0,
         200.0,
         120.0,
         80.0,
         novadraw::graphics::Color::rgba(1.0, 0.65, 0.0, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     // 顶层（最后添加，遮挡所有底层）
     let top_rect = novadraw::figure::RectangleFigure::new_with_color(
@@ -958,7 +1081,8 @@ fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
         150.0,
         100.0,
         novadraw::graphics::Color::rgba(0.5, 0.0, 0.5, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     // 验证 Z-order 的辅助标记
     let marker_1 = novadraw::figure::RectangleFigure::new_with_color(
@@ -967,21 +1091,24 @@ fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
         30.0,
         30.0,
         novadraw::graphics::Color::rgba(0.2, 0.2, 0.8, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let marker_2 = novadraw::figure::RectangleFigure::new_with_color(
         80.0,
         50.0,
         30.0,
         30.0,
         novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let marker_3 = novadraw::figure::RectangleFigure::new_with_color(
         110.0,
         50.0,
         30.0,
         30.0,
         novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     scene
         .builder()
@@ -1034,7 +1161,8 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-    );
+    )
+    .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -1045,6 +1173,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(50.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(1.0)
@@ -1054,6 +1183,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(150.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
@@ -1063,6 +1193,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(250.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(5.0)
@@ -1072,6 +1203,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(350.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(10.0)
@@ -1081,6 +1213,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(450.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#f39c12").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(20.0)
@@ -1091,6 +1224,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(50.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
@@ -1100,6 +1234,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(150.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::South,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
@@ -1109,6 +1244,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(250.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::East,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
@@ -1118,6 +1254,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(350.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::West,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
@@ -1128,6 +1265,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(450.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_color(novadraw::graphics::Color::TRANSPARENT)
     .with_stroke_width(0.0)
@@ -1137,6 +1275,7 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
         novadraw::geometry::Rectangle::new(550.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
+    .expect("valid detached figure input")
     .with_fill_color(novadraw::graphics::Color::TRANSPARENT)
     .with_stroke_color(novadraw::graphics::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_width(3.0)
@@ -1195,7 +1334,8 @@ fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
 fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("valid figure bounds");
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -1209,7 +1349,9 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         250.0,
         novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 0.3),
     )
-    .with_stroke(novadraw::graphics::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0)
+    .expect("valid detached figure input");
     let parent_id = scene
         .builder()
         .add_child(container_id, Box::new(parent_rect))
@@ -1222,14 +1364,16 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         100.0,
         60.0,
         novadraw::graphics::Color::rgba(0.2, 0.5, 0.9, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let child_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         200.0,
         100.0,
         80.0,
         50.0,
         novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let child_line = novadraw::figure::PolylineFigure::new_with_color(
         100.0,
         200.0,
@@ -1237,7 +1381,9 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
     )
-    .with_width(3.0);
+    .expect("valid detached figure input")
+    .with_width(3.0)
+    .expect("valid detached figure input");
 
     scene
         .builder()
@@ -1260,7 +1406,9 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         200.0,
         novadraw::graphics::Color::rgba(0.5, 0.2, 0.8, 0.3),
     )
-    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0)
+    .expect("valid detached figure input");
     let parent_id2 = scene
         .builder()
         .add_child(container_id, Box::new(parent_rect2))
@@ -1273,14 +1421,16 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         80.0,
         60.0,
         novadraw::graphics::Color::rgba(0.3, 0.8, 0.5, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
     let grandchild_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         580.0,
         100.0,
         60.0,
         40.0,
         novadraw::graphics::Color::rgba(0.8, 0.5, 0.2, 1.0),
-    );
+    )
+    .expect("valid figure bounds");
 
     scene
         .builder()
@@ -1299,7 +1449,9 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
         100.0,
         novadraw::graphics::Color::rgba(0.1, 0.7, 0.7, 1.0),
     )
-    .with_stroke(novadraw::graphics::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0);
+    .expect("valid figure bounds")
+    .with_stroke(novadraw::graphics::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0)
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(container_id, Box::new(standalone))
@@ -1315,13 +1467,16 @@ fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
 fn create_m10_runtime_mutations() -> novadraw::runtime::Runtime {
     let mut runtime = novadraw::runtime::Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let polyline = runtime
         .figure(root)
@@ -1331,10 +1486,12 @@ fn create_m10_runtime_mutations() -> novadraw::runtime::Runtime {
                 novadraw::geometry::Point::new(70.0, 100.0),
                 novadraw::geometry::Point::new(210.0, 100.0),
             ])
+            .expect("valid detached figure input")
             .with_color(
                 novadraw::graphics::Color::from_hex("#2563eb").expect("valid color literal"),
             )
-            .with_width(5.0),
+            .with_width(5.0)
+            .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let rounded = runtime
@@ -1349,10 +1506,12 @@ fn create_m10_runtime_mutations() -> novadraw::runtime::Runtime {
                 12.0,
                 novadraw::graphics::Color::from_hex("#16a34a").expect("valid color literal"),
             )
+            .expect("valid figure bounds")
             .with_stroke(
                 novadraw::graphics::Color::from_hex("#14532d").expect("valid color literal"),
                 3.0,
-            ),
+            )
+            .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     let triangle = runtime
@@ -1362,6 +1521,7 @@ fn create_m10_runtime_mutations() -> novadraw::runtime::Runtime {
             novadraw::figure::TriangleFigure::new(novadraw::geometry::Rectangle::new(
                 570.0, 70.0, 120.0, 120.0,
             ))
+            .expect("valid detached figure input")
             .with_fill_color(
                 novadraw::graphics::Color::from_hex("#f59e0b").expect("valid color literal"),
             ),
@@ -1397,13 +1557,16 @@ fn create_p2_scalable_polygon() -> novadraw::tree::FigureTree {
     let mut scene = novadraw::tree::FigureTree::new();
     let root = scene
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
+            )
+            .expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let template = novadraw::geometry::PointList::from_points(vec![
         novadraw::geometry::Point::new(0.0, 12.0),
@@ -1422,7 +1585,8 @@ fn create_p2_scalable_polygon() -> novadraw::tree::FigureTree {
         novadraw::graphics::Color::from_hex("#0c4a6e").expect("valid color literal"),
         4.0,
         novadraw::render::LineJoin::Miter,
-    );
+    )
+    .expect("valid detached figure input");
     let preserved = novadraw::figure::ScalablePolygonFigure::new(
         novadraw::geometry::Rectangle::new(430.0, 90.0, 260.0, 140.0),
         template,
@@ -1434,7 +1598,8 @@ fn create_p2_scalable_polygon() -> novadraw::tree::FigureTree {
         novadraw::graphics::Color::from_hex("#14532d").expect("valid color literal"),
         4.0,
         novadraw::render::LineJoin::Round,
-    );
+    )
+    .expect("valid detached figure input");
     scene
         .builder()
         .add_child(root, Box::new(stretch))

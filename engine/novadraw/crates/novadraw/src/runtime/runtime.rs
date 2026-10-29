@@ -1039,11 +1039,20 @@ impl Runtime {
                 .map(|border| {
                     border.resolve_owner_snapshot(previous.as_ref(), &font, self.text.as_mut())
                 })
-                .transpose()?
+                .transpose()
+                .map_err(|source| TextError::BorderOwner {
+                    figure,
+                    source: Box::new(source),
+                })?
                 .flatten()
             else {
                 continue;
             };
+            crate::figure::border::BorderMetrics::new(snapshot.insets(), snapshot.preferred_size())
+                .map_err(|source| TextError::BorderOwner {
+                    figure,
+                    source: Box::new(TextError::BorderInput(Box::new(source))),
+                })?;
             if self.tree.set_border_snapshot(figure, snapshot) {
                 changed = true;
                 self.tree.mark_invalid(&mut self.updates, figure);
@@ -1470,12 +1479,10 @@ impl Runtime {
     ) -> Result<FigureId, LayerError> {
         let pane_id = self.tree.try_add_child_to(
             parent,
-            Box::new(LayeredPane::new(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-            )),
+            Box::new(
+                LayeredPane::new(bounds.x, bounds.y, bounds.width, bounds.height)
+                    .expect("valid detached figure input"),
+            ),
         )?;
         self.register_layered_pane(pane_id);
         self.tree.mark_invalid(&mut self.updates, parent);
@@ -3739,8 +3746,18 @@ mod tests {
             self.bounds
         }
 
-        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-            self.bounds = Rectangle::new(x, y, width, height);
+        fn set_bounds(
+            &mut self,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+        ) -> Result<(), crate::figure::ShapeGeometryError> {
+            self.bounds = crate::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+                x, y, width, height,
+            ))?;
+
+            Ok(())
         }
 
         fn name(&self) -> &'static str {
@@ -3780,7 +3797,9 @@ mod tests {
     fn focused_probe_runtime() -> (Runtime, FigureId, FigureId, Arc<Mutex<Vec<FocusEvent>>>) {
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let probe = tree.add_child_to(
             root,
             Box::new(FocusProbeFigure {
@@ -3812,11 +3831,16 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid FigureTree construction");
         let child = tree
             .builder()
-            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+            )
             .unwrap();
         tree.builder()
             .set_layout_manager(root, Box::new(StackLayout::new()))
@@ -3856,20 +3880,17 @@ mod tests {
     #[test]
     fn dispatch_flushes_structural_mutations_before_returning() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            100.0,
-            100.0,
-            Color::WHITE,
-        )));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new_with_color(0.0, 0.0, 100.0, 100.0, Color::WHITE)
+                .expect("valid figure bounds"),
+        ));
         let mut runtime = Runtime::new(tree);
 
         runtime
             .mutations
             .enqueue(crate::runtime::mutation::PendingMutation::add_child_figure(
                 root,
-                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
             ));
         runtime.dispatch(|_, _| {});
 
@@ -3881,7 +3902,9 @@ mod tests {
     fn runtime_owns_interaction_state_separately_from_tree() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
 
         runtime.interaction.set_mouse_target(Some(root));
@@ -4113,13 +4136,21 @@ mod tests {
     fn direct_and_traversal_focus_eligibility_are_independent() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let traversal_only = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         let direct_only = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         runtime
             .set_focus_traversable(traversal_only, true)
@@ -4153,10 +4184,15 @@ mod tests {
     fn direct_focus_reports_structured_eligibility_errors_without_changing_owner() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let target = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         runtime
             .set_focusable(root, true)
@@ -4194,7 +4230,9 @@ mod tests {
         assert_eq!(runtime.interaction().focus_owner(), Some(root));
 
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         assert_eq!(
             runtime.request_focus(target),
@@ -4251,7 +4289,12 @@ mod tests {
     fn reparent_under_hidden_ancestor_releases_focus() {
         let (mut runtime, root, probe, events) = focused_probe_runtime();
         let hidden_parent = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(40.0, 40.0, 40.0, 40.0)))
+            .add_figure(
+                root,
+                Box::new(
+                    RectangleFigure::new(40.0, 40.0, 40.0, 40.0).expect("valid figure bounds"),
+                ),
+            )
             .expect("valid Runtime mutation");
         runtime
             .set_visible(hidden_parent, false)
@@ -4290,11 +4333,17 @@ mod tests {
         }
 
         let mut tree = FigureTree::new();
-        let detached = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let detached = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         tree.set_focus_traversable(detached, true);
-        let scope = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let eligible =
-            tree.add_child_to(scope, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let scope = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
+        let eligible = tree.add_child_to(
+            scope,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+        );
         tree.set_focus_traversable(eligible, true);
         let mut runtime = Runtime::new(tree);
         runtime.set_focus_traversal_policy(Box::new(FixedPolicy(detached)));
@@ -4310,7 +4359,9 @@ mod tests {
     fn cursor_and_tooltip_resolve_from_the_current_pointer_targets() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         runtime
             .set_figure_style(
@@ -4337,7 +4388,9 @@ mod tests {
     fn submission_contains_surface_resources_and_monotonic_frame_id() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4392,7 +4445,9 @@ mod tests {
     fn resource_only_completion_produces_a_submission_without_scene_damage() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4432,10 +4487,17 @@ mod tests {
     fn resource_completion_invalidates_and_repaints_dependent_figure() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let child = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(
+                    RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds"),
+                ),
+            )
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4482,7 +4544,9 @@ mod tests {
     fn replacing_contents_removes_resource_dependencies_from_detached_figures() {
         let mut runtime = Runtime::empty();
         let old_contents = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4501,7 +4565,9 @@ mod tests {
             .expect("frame completion");
 
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4529,10 +4595,17 @@ mod tests {
     fn backend_capability_promotes_partial_damage_to_full() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let child = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(
+                    RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds"),
+                ),
+            )
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4582,7 +4655,9 @@ mod tests {
     fn moving_contents_forces_full_damage_to_clear_exposed_pixels() {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(20.0, 20.0, 60.0, 60.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(20.0, 20.0, 60.0, 60.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4613,7 +4688,9 @@ mod tests {
     fn surface_change_and_retry_force_full_damage() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4670,7 +4747,9 @@ mod tests {
     fn retry_restores_in_flight_resource_updates_before_newer_updates() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4726,7 +4805,9 @@ mod tests {
     fn resource_state_transitions_preserve_order_within_one_delta() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4778,7 +4859,9 @@ mod tests {
     fn backend_session_reset_rejects_old_completion_and_resends_ready_snapshot() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4849,7 +4932,9 @@ mod tests {
     fn snapshot_retry_refreezes_current_registry_state() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4897,7 +4982,9 @@ mod tests {
     fn mutations_after_snapshot_freeze_remain_as_incremental_delta() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let image = runtime.register_image().expect("image registration");
         runtime
@@ -4941,7 +5028,9 @@ mod tests {
     fn dpi_change_updates_surface_metadata_and_forces_full_damage() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -4975,7 +5064,9 @@ mod tests {
     fn suspended_surface_preserves_full_redraw_request() {
         let mut runtime = Runtime::empty();
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
 
         assert!(matches!(
@@ -5080,7 +5171,9 @@ mod tests {
         let mut runtime = Runtime::empty();
         runtime.add_update_listener(Box::new(CaptureUpdates(events.clone())));
         runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
 
         let submission = runtime
@@ -5130,13 +5223,17 @@ mod tests {
     #[test]
     fn pending_mutations_are_applied_before_validation_and_recording() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ));
         let mut runtime = Runtime::new(tree);
         runtime
             .mutations
             .enqueue(crate::runtime::mutation::PendingMutation::add_child_figure(
                 root,
-                Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+                Box::new(
+                    RectangleFigure::new(10.0, 10.0, 20.0, 20.0).expect("valid figure bounds"),
+                ),
             ));
 
         let submission = runtime
@@ -5159,7 +5256,9 @@ mod adr014_tests {
     fn scene() -> (Runtime, FigureId) {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         (runtime, root)
     }
@@ -5169,11 +5268,16 @@ mod adr014_tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+            ))
             .expect("valid FigureTree construction");
         let child = tree
             .builder()
-            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid FigureTree construction");
         let mut updates = UpdateManager::with_namespace(tree.namespace());
         assert!(tree.remove_child(&mut updates, root, child));
@@ -5280,11 +5384,15 @@ mod adr014_tests {
     #[test]
     fn dispose_supports_the_maximum_tree_depth() {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+        let root = tree.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"),
+        ));
         let mut deepest = root;
         for _ in 1..crate::MAX_TREE_DEPTH {
-            deepest =
-                tree.add_child_to(deepest, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+            deepest = tree.add_child_to(
+                deepest,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")),
+            );
         }
         assert_eq!(tree.depth(deepest), Ok(crate::MAX_TREE_DEPTH));
 
@@ -5321,7 +5429,9 @@ mod adr014_tests {
             .add_figure(root, Box::new(DropProbe(Rc::clone(&drops))))
             .expect("valid Runtime mutation");
         let replacement = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 40.0, 40.0).expect("valid figure bounds"),
+            ))
             .expect("valid Runtime mutation");
         assert_eq!(drops.get(), 1);
         assert!(runtime.tree().node(root).is_err());
@@ -5341,7 +5451,10 @@ mod adr014_tests {
     fn disposal_removes_owned_listener_but_preserves_shared_registrations() {
         let (mut runtime, root) = scene();
         let owner = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         let owned = runtime
             .add_update_listener_scoped(ListenerScope::Figure(owner), Box::new(()))
@@ -5443,7 +5556,10 @@ mod adr014_tests {
         ));
         assert!(runtime.prepare_frame().is_none());
         assert!(matches!(
-            runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            runtime.add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"))
+            ),
             Err(RuntimeMutationError::Faulted)
         ));
         assert!(matches!(
@@ -5451,7 +5567,9 @@ mod adr014_tests {
             Err(RuntimeMutationError::Faulted)
         ));
         assert!(matches!(
-            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            runtime.set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds")
+            )),
             Err(RuntimeMutationError::Faulted)
         ));
     }
@@ -5485,8 +5603,9 @@ mod adr014_tests {
         let (mut runtime, root) = scene();
         runtime.add_figure(root, Box::new(PanicOnDetach)).unwrap();
         let image = runtime.resources().register_image().unwrap();
-        let mut subtree =
-            crate::tree::FigureSubtree::new(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let mut subtree = crate::tree::FigureSubtree::new(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ));
         subtree
             .add(subtree.root(), Box::new(ImageFigure::new(image)))
             .unwrap();
@@ -5510,10 +5629,16 @@ mod adr014_tests {
     fn child_reorder_checks_identity_relation_and_index_before_noop() {
         let (mut runtime, root) = scene();
         let first = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
+            )
             .unwrap();
         let second = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
+            )
             .unwrap();
         runtime.record_full_frame();
         let frozen = runtime.updates.frozen_surface_regions.clone();
@@ -5581,7 +5706,12 @@ mod adr014_tests {
     fn disposal_freezes_old_damage_before_the_node_is_removed() {
         let (mut runtime, root) = scene();
         let child = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(20.0, 20.0, 10.0, 10.0)))
+            .add_figure(
+                root,
+                Box::new(
+                    RectangleFigure::new(20.0, 20.0, 10.0, 10.0).expect("valid figure bounds"),
+                ),
+            )
             .expect("valid Runtime mutation");
         runtime.record_full_frame();
         runtime.updates.dirty_regions.clear();
@@ -5594,6 +5724,15 @@ mod adr014_tests {
 
     #[test]
     fn s06_figure_batch_preflight_preserves_topology_damage_and_capability_registration() {
+        struct InvalidExternalFigure;
+        impl Figure for InvalidExternalFigure {
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::new(0.0, 0.0, -1.0, 1.0)
+            }
+            fn name(&self) -> &'static str {
+                "invalid external geometry"
+            }
+        }
         struct RegistrationProbe(Rc<Cell<usize>>);
         impl Figure for RegistrationProbe {
             fn initial_bounds(&self) -> Rectangle {
@@ -5618,11 +5757,7 @@ mod adr014_tests {
         let error = runtime
             .add_figures(vec![
                 (root, Box::new(RegistrationProbe(Rc::clone(&calls))), None),
-                (
-                    root,
-                    Box::new(RectangleFigure::new(0.0, 0.0, -1.0, 1.0)),
-                    None,
-                ),
+                (root, Box::new(InvalidExternalFigure), None),
             ])
             .unwrap_err();
         assert!(matches!(
@@ -5856,10 +5991,16 @@ mod adr014_tests {
             .add_figure(root, Box::new(ConnectionFigure::new()))
             .unwrap();
         let first = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
+            )
             .unwrap();
         let second = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
+            )
             .unwrap();
         let connection_id = ConnectionId::from_figure(connection);
         runtime
@@ -5928,7 +6069,12 @@ mod adr014_tests {
         let events = Arc::new(Mutex::new(Vec::new()));
         runtime.add_ancestor_listener(Box::new(Capture(Arc::clone(&events))));
         let figure = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 10.0, 10.0)))
+            .add_figure(
+                root,
+                Box::new(
+                    RectangleFigure::new(20.0, 30.0, 10.0, 10.0).expect("valid figure bounds"),
+                ),
+            )
             .unwrap();
         let scoped = Arc::new(Mutex::new(Vec::new()));
         let subscription = runtime
@@ -5976,13 +6122,22 @@ mod adr014_tests {
     fn reparent_preserves_identity_and_foreign_checked_mutation_is_rejected() {
         let (mut runtime, root) = scene();
         let left = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         let right = runtime
-            .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         let child = runtime
-            .add_figure(left, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .add_figure(
+                left,
+                Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0).expect("valid figure bounds")),
+            )
             .expect("valid Runtime mutation");
         assert!(
             runtime
@@ -6007,7 +6162,7 @@ mod adr014_tests {
         assert_eq!(
             runtime.add_figure(
                 synthetic_root,
-                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).expect("valid figure bounds"))
             ),
             Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
         );

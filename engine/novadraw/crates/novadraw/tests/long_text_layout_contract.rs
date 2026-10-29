@@ -71,9 +71,9 @@ fn external_outline_revision_replaces_ink_atomically_and_failure_retains_old_sna
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
     let page = runtime
-        .set_contents(Box::new(FlowPageFigure::new(Rectangle::new(
-            0.0, 0.0, 150.0, 400.0,
-        ))))
+        .set_contents(Box::new(
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 150.0, 400.0)).unwrap(),
+        ))
         .unwrap();
     let source = runtime
         .figure(page)
@@ -203,10 +203,12 @@ fn fixture(
         .unwrap();
     let page = runtime
         .set_contents(Box::new(
-            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 150.0, 400.0)).with_style(FigureStyle {
-                font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
-                ..FigureStyle::default()
-            }),
+            FlowPageFigure::new(Rectangle::new(0.0, 0.0, 150.0, 400.0))
+                .unwrap()
+                .with_style(FigureStyle {
+                    font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
+                    ..FigureStyle::default()
+                }),
         ))
         .unwrap();
     let mut first = None;
@@ -546,9 +548,9 @@ fn external_backend_retains_runtime_submission_after_source_retirement() {
     }
     let retained_glyphs: Vec<_> = runs.iter().map(|r| r.glyphs.to_vec()).collect();
     runtime
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
-            0.0, 0.0, 10.0, 10.0,
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+        ))
         .unwrap();
     assert!(runtime.tree().node(page).is_err());
     drop(runtime);

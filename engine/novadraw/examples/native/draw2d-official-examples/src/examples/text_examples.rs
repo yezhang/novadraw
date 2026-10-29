@@ -31,13 +31,16 @@ pub(super) fn canvas() -> TextFixture {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            PAGE_WIDTH,
-            PAGE_HEIGHT,
-            novadraw::graphics::Color::WHITE,
-        )))
+        .set_contents(Box::new(
+            RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                PAGE_WIDTH,
+                PAGE_HEIGHT,
+                novadraw::graphics::Color::WHITE,
+            )
+            .expect("valid example bounds"),
+        ))
         .expect("Canvas");
     tree.builder()
         .set_layout_manager(root, Box::new(StackLayout::new()))
@@ -76,6 +79,7 @@ pub(super) fn canvas() -> TextFixture {
             &pane,
             Box::new(
                 FlowPageFigure::new(Rectangle::new(0.0, 0.0, PAGE_WIDTH, PAGE_HEIGHT))
+                    .expect("valid page bounds")
                     .with_style(font(BASE_FONT)),
             ),
         )

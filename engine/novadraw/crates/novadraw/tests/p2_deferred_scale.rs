@@ -39,9 +39,10 @@ impl FigureEventHandler for ScaleTrigger {
 fn fixture(value: f64) -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     let target = runtime
-        .set_contents(Box::new(ScalableLayeredPaneFigure::new(
-            0.0, 0.0, 200.0, 200.0,
-        )))
+        .set_contents(Box::new(
+            ScalableLayeredPaneFigure::new(0.0, 0.0, 200.0, 200.0)
+                .expect("valid detached figure input"),
+        ))
         .unwrap();
     runtime
         .figure(target)

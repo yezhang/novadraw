@@ -65,7 +65,9 @@ fn tree_with_layout(
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .set_contents(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     tree.builder()
         .set_layout_manager(
@@ -379,30 +381,40 @@ fn foreign_and_retired_queries_discard_the_entire_candidate_output() {
     for foreign in [false, true] {
         let mut runtime = Runtime::empty();
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .set_contents(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+            ))
             .unwrap();
         let survivor = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+            .add(Box::new(
+                RectangleFigure::new(10.0, 20.0, 30.0, 40.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         support::prepare_next_submission(&mut runtime).unwrap();
         let baseline_epoch = runtime.observations().stable_query().unwrap().epoch();
         let retired = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .add(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+            ))
             .unwrap();
         runtime.figure(root).unwrap().remove(retired).unwrap();
         let replacement = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .add(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+            ))
             .unwrap();
         assert_ne!(retired, replacement);
         let mut other = Runtime::empty();
         let other_id = other
-            .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+            .set_contents(Box::new(
+                RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+            ))
             .unwrap();
         let target = if foreign { other_id } else { retired };
         let error = LayoutError::Identity(if foreign {
@@ -457,7 +469,9 @@ fn valid_absence_and_unbounded_maximum_remain_successful() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+        .set_contents(Box::new(
+            RectangleFigure::from_bounds(Rectangle::ZERO).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert_eq!(
         tree.preferred_measurement(root, CONSTRAINTS),

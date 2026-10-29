@@ -78,13 +78,16 @@ impl CanvasScene {
                 .expect("font");
         }
         let root = runtime
-            .set_contents(Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                width,
-                height,
-                if opaque { ORANGE } else { Color::TRANSPARENT },
-            )))
+            .set_contents(Box::new(
+                RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    width,
+                    height,
+                    if opaque { ORANGE } else { Color::TRANSPARENT },
+                )
+                .expect("valid canvas bounds"),
+            ))
             .expect("Canvas root");
         let viewport = runtime
             .viewports()
@@ -95,21 +98,25 @@ impl CanvasScene {
             .viewports()
             .set_contents(
                 viewport,
-                Box::new(RectangleFigure::new_with_color(
-                    0.0,
-                    0.0,
-                    CONTENT_WIDTH,
-                    CONTENT_HEIGHT,
-                    Color::TRANSPARENT,
-                )),
+                Box::new(
+                    RectangleFigure::new_with_color(
+                        0.0,
+                        0.0,
+                        CONTENT_WIDTH,
+                        CONTENT_HEIGHT,
+                        Color::TRANSPARENT,
+                    )
+                    .expect("valid contents bounds"),
+                ),
             )
             .expect("contents");
         let page = runtime
             .figure(contents)
             .expect("contents")
-            .add(Box::new(FlowPageFigure::new(Rectangle::new(
-                24.0, 24.0, 650.0, 300.0,
-            ))))
+            .add(Box::new(
+                FlowPageFigure::new(Rectangle::new(24.0, 24.0, 650.0, 300.0))
+                    .expect("valid page bounds"),
+            ))
             .expect("label page");
         runtime
             .figure(page)

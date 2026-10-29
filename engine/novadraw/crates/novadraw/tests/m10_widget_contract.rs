@@ -27,13 +27,17 @@ impl ActionListener for ActionRecorder {
 fn runtime_with_button() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let button = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+            ButtonFigure::new("Apply")
+                .with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     (runtime, button)
@@ -42,13 +46,17 @@ fn runtime_with_button() -> (Runtime, FigureId) {
 fn runtime_with_toggle() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 200.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let toggle = runtime
         .figure(root)
         .unwrap()
         .add(Box::new(
-            ToggleFigure::new("Snap").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+            ToggleFigure::new("Snap")
+                .with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0))
+                .expect("valid detached figure input"),
         ))
         .expect("valid Runtime mutation");
     (runtime, toggle)
@@ -367,14 +375,17 @@ fn button_exposes_composed_label_contract() {
 fn action_listener_flushes_at_the_update_transaction_boundary() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 120.0).expect("valid figure bounds"),
+        ))
         .expect("valid Runtime mutation");
     let clickable = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 80.0, 40.0,
-        ))))
+        .add(Box::new(
+            ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))
+                .expect("valid detached figure input"),
+        ))
         .expect("valid Runtime mutation");
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime

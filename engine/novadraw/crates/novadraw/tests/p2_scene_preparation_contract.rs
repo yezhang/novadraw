@@ -356,9 +356,10 @@ fn rejected_feedback_restores_viewport_ranges_and_content_geometry() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
-            0.0, 0.0, 120.0, 80.0,
-        )))
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new(0.0, 0.0, 120.0, 80.0)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     let viewport = tree
         .builder()
@@ -524,13 +525,10 @@ fn fragment_blank_does_not_hit_but_normal_descendants_remain_reachable() {
     let grandchild = runtime
         .figure(children[0])
         .unwrap()
-        .add(Box::new(novadraw::figure::RectangleFigure::new_with_color(
-            25.0,
-            12.0,
-            10.0,
-            8.0,
-            Color::RED,
-        )))
+        .add(Box::new(
+            novadraw::figure::RectangleFigure::new_with_color(25.0, 12.0, 10.0, 8.0, Color::RED)
+                .expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(frame(&mut runtime));
     assert_eq!(

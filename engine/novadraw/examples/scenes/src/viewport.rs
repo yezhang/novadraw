@@ -31,7 +31,8 @@ fn empty_scene() -> (novadraw::tree::FigureTree, novadraw::tree::FigureId) {
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         color(0.94, 0.94, 0.94),
-    );
+    )
+    .expect("valid figure bounds");
     let root_id = scene
         .builder()
         .set_contents(Box::new(root))
@@ -91,7 +92,9 @@ fn add_boundary(
 ) {
     let boundary =
         novadraw::figure::RectangleFigure::new_with_color(x, y, width, height, transparent())
-            .with_stroke(stroke, STROKE_WIDTH);
+            .expect("valid figure bounds")
+            .with_stroke(stroke, STROKE_WIDTH)
+            .expect("valid detached figure input");
     scene
         .builder()
         .add_child(parent_id, Box::new(boundary))
@@ -108,13 +111,16 @@ fn add_rect(
         .builder()
         .add_child(
             parent_id,
-            Box::new(novadraw::figure::RectangleFigure::new_with_color(
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
-                fill,
-            )),
+            Box::new(
+                novadraw::figure::RectangleFigure::new_with_color(
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height,
+                    fill,
+                )
+                .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
 }
@@ -376,9 +382,10 @@ mod tests {
             .builder()
             .add_child(
                 content_parent,
-                Box::new(novadraw::figure::RectangleFigure::new(
-                    80.0, 60.0, 50.0, 50.0,
-                )),
+                Box::new(
+                    novadraw::figure::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)
+                        .expect("valid figure bounds"),
+                ),
             )
             .expect("valid FigureTree construction");
         let transform = scene.local_to_surface_transform(marker).unwrap();

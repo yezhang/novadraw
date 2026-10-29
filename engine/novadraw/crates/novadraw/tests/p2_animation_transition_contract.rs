@@ -50,7 +50,9 @@ fn contains_transform(runtime: &mut Runtime, expected: Affine2D) -> bool {
 fn captured_bounds_transition_keeps_committed_geometry_final() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 20.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(10.0, 20.0, 20.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let capture = runtime
@@ -101,7 +103,9 @@ fn captured_bounds_transition_keeps_committed_geometry_final() {
 fn unchanged_and_zero_duration_transitions_are_suppressed() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let unchanged = runtime
         .animation()
@@ -142,7 +146,9 @@ fn unchanged_and_zero_duration_transitions_are_suppressed() {
 fn capture_rejects_empty_duplicate_foreign_and_disposed_targets() {
     let mut first = Runtime::empty();
     let figure = first
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(matches!(
         first.animation().timeline().capture_figures([]),
@@ -191,17 +197,22 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let first = tree
         .builder()
-        .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add_child(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        )
         .unwrap();
     let second = tree
         .builder()
         .add_child(
             parent,
-            Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0)),
+            Box::new(RectangleFigure::new(20.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
@@ -274,7 +285,9 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
 fn nonzero_to_zero_bounds_transition_is_rejected_without_active_work() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let capture = runtime
         .animation()
@@ -311,7 +324,9 @@ fn static_animation_modes_allow_collapsed_layout_without_building_a_transform() 
     ] {
         let mut runtime = Runtime::empty();
         let figure = runtime
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 50.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 50.0).expect("valid figure bounds"),
+            ))
             .unwrap();
         runtime.animation().timeline().set_mode(mode);
         let (_, start) = runtime
@@ -338,7 +353,9 @@ fn static_animation_modes_allow_collapsed_layout_without_building_a_transform() 
 fn static_bounds_fallback_still_rejects_a_disposed_capture_target() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 50.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 50.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let capture = runtime
         .animation()
@@ -361,11 +378,16 @@ fn runtime_transaction_stabilizes_layout_before_installing_presentation() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add_child(
+            parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds")),
+        )
         .unwrap();
     tree.builder()
         .set_layout_manager(parent, Box::new(StackLayout::new()))
@@ -402,7 +424,9 @@ fn runtime_transaction_stabilizes_layout_before_installing_presentation() {
 fn runtime_transaction_reports_capture_and_mutation_phases() {
     let mut runtime = Runtime::empty();
     let figure = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
 
     let empty = runtime.animation().transition_bounds(
@@ -440,7 +464,9 @@ fn viewport_transaction_animates_pan_without_changing_committed_origin() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let viewport = tree
         .builder()
@@ -450,7 +476,7 @@ fn viewport_transaction_animates_pan_without_changing_committed_origin() {
         .builder()
         .add_child(
             viewport.figure_id(),
-            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0).expect("valid figure bounds")),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
@@ -505,17 +531,23 @@ fn connection_fixture() -> (
 ) {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 500.0, 300.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let source = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .add(Box::new(
+            RectangleFigure::new(20.0, 30.0, 80.0, 40.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let target = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)))
+        .add(Box::new(
+            RectangleFigure::new(300.0, 170.0, 100.0, 60.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let figure = runtime
         .figure(root)
@@ -751,7 +783,9 @@ fn connection_pulse_uses_arc_length_and_hands_off_to_decoration() {
     let decoration = runtime
         .figure(figure)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(-3.0, -3.0, 6.0, 6.0)))
+        .add(Box::new(
+            RectangleFigure::new(-3.0, -3.0, 6.0, 6.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime.animation().advance_time(time(0)).unwrap();
     let decoration_transform = runtime

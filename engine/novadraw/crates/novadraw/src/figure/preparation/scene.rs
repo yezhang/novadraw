@@ -993,7 +993,9 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
             .unwrap();
         let provider = Arc::new(AtomicU64::new(1));
         tree.builder()
@@ -1001,7 +1003,10 @@ mod tests {
             .unwrap();
         for _ in 0..128 {
             tree.builder()
-                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+                .add_child(
+                    root,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+                )
                 .unwrap();
         }
         let styles = std::iter::once(root)
@@ -1030,11 +1035,16 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
             .unwrap();
         let child = tree
             .builder()
-            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+            )
             .unwrap();
         let mut styles: HashMap<_, _> = [root, child]
             .into_iter()
@@ -1061,13 +1071,18 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
             .unwrap();
         let mut retained = Vec::new();
         for generation in 0..512 {
             let child = tree
                 .builder()
-                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+                .add_child(
+                    root,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+                )
                 .unwrap();
             retained.push(DependencyObservation {
                 subject: DependencySubject::FigureGeometry(child),
@@ -1100,7 +1115,7 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()))
             .unwrap();
         let styles = HashMap::new();
         let mut scene = PreparationScene::new(&tree, root, &styles).unwrap();
@@ -1120,11 +1135,16 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
             .unwrap();
         let child = tree
             .builder()
-            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0).unwrap()),
+            )
             .unwrap();
         tree.builder()
             .set_layout_manager(root, Box::new(StackLayout::new()))

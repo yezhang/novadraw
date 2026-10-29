@@ -50,6 +50,7 @@ fn bez(path: &Path) -> kurbo::BezPath {
 fn top_only_corners_leave_bottom_vertices_and_hit_geometry_intact() {
     let corners = RectangleCorners::circular([20.0, 10.0, 0.0, 0.0]).unwrap();
     let shape = RoundedRectangleFigure::from_bounds(BOX, 0.0)
+        .expect("valid figure bounds")
         .with_corners(corners)
         .unwrap();
     assert!(!shape.precise_hit(0.0, 0.0, BOX));
@@ -78,8 +79,10 @@ fn elliptical_corner_matches_drawn_arc_instead_of_quadratic_approximation() {
     assert!(bounds.x.abs() < 1e-12 && bounds.y.abs() < 1e-12);
     assert!((bounds.width - BOX.width).abs() < 1e-12);
     assert!((bounds.height - BOX.height).abs() < 1e-12);
-    let mut edge_only = RoundedRectangleFigure::from_bounds(BOX, 0.0);
-    edge_only.set_corner_dimensions(Dimension::new(40.0, 20.0));
+    let mut edge_only = RoundedRectangleFigure::from_bounds(BOX, 0.0).expect("valid figure bounds");
+    edge_only
+        .set_corner_dimensions(Dimension::new(40.0, 20.0))
+        .unwrap();
     let edge_only = edge_only
         .with_edges(RectangleEdges([
             EdgeStroke::Inherit,
@@ -274,6 +277,7 @@ fn disabled_bottom_produces_three_colors_and_no_bottom_region() {
         EdgeStroke::Color(Color::BLACK),
     ]);
     let border = RectangleBorder::new(Color::WHITE, 4.0)
+        .unwrap()
         .with_edges(edges)
         .with_corners(RectangleCorners::circular([20.0, 10.0, 0.0, 0.0]).unwrap());
     assert!(!border.is_opaque());
@@ -385,12 +389,16 @@ fn rounded_free_ends_stop_at_straight_tangents_and_keep_the_fill_contour() {
 fn runtime_geometry_updates_are_atomic_and_identical_updates_are_noops() {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::from_bounds(BOX)))
+        .set_contents(Box::new(
+            RectangleFigure::from_bounds(BOX).expect("valid figure bounds"),
+        ))
         .unwrap();
     let id = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(PolygonFigure::from_points(triangle_points())))
+        .add(Box::new(
+            PolygonFigure::from_points(triangle_points()).expect("valid detached figure input"),
+        ))
         .unwrap();
     support::record_full_submission(&mut runtime);
     let before = runtime.tree().component_revision(id).unwrap();
@@ -465,7 +473,9 @@ fn runtime_geometry_updates_are_atomic_and_identical_updates_are_noops() {
 fn runtime_corner_mode_can_return_to_legacy_even_with_same_dimensions() {
     let mut runtime = Runtime::empty();
     let id = runtime
-        .set_contents(Box::new(RoundedRectangleFigure::from_bounds(BOX, 10.0)))
+        .set_contents(Box::new(
+            RoundedRectangleFigure::from_bounds(BOX, 10.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     assert!(
         runtime
@@ -521,7 +531,9 @@ fn runtime_corner_mode_can_return_to_legacy_even_with_same_dimensions() {
 fn rounded_triangle_updates_use_runtime_bounds_and_remove_tip_from_hit() {
     let mut runtime = Runtime::empty();
     let id = runtime
-        .set_contents(Box::new(TriangleFigure::new(BOX)))
+        .set_contents(Box::new(
+            TriangleFigure::new(BOX).expect("valid detached figure input"),
+        ))
         .unwrap();
     assert!(
         runtime
@@ -540,6 +552,7 @@ fn rounded_triangle_updates_use_runtime_bounds_and_remove_tip_from_hit() {
             .changed
     );
     let figure = TriangleFigure::new(BOX)
+        .expect("valid detached figure input")
         .with_corner_radii([10.0; 3])
         .unwrap();
     assert!(!figure.precise_hit(49.5, 0.0, BOX));
@@ -587,6 +600,7 @@ fn external_figure_reuses_public_contour_without_registry_or_backend_changes() {
 #[test]
 fn polygon_shape_entry_points_use_the_same_rounded_path() {
     let polygon = PolygonFigure::from_points(triangle_points())
+        .expect("valid detached figure input")
         .with_corner_radii(vec![12.0; 3])
         .unwrap();
     let mut direct = CommandRecorder::new();
@@ -615,16 +629,9 @@ fn polygon_shape_entry_points_use_the_same_rounded_path() {
 }
 
 #[test]
-fn rectangle_shape_border_records_through_runtime_snapshot_and_preserves_legacy_literal() {
-    use novadraw::figure::border::BorderStyle;
-    use novadraw::geometry::Insets;
-    let legacy = RectangleBorder {
-        color: Color::BLACK,
-        width: 4.0,
-        style: BorderStyle::Solid,
-        insets: Insets::uniform(4.0),
-    };
-    let border = legacy
+fn rectangle_shape_border_records_through_runtime_snapshot() {
+    let border = RectangleBorder::new(Color::BLACK, 4.0)
+        .unwrap()
         .with_corners(RectangleCorners::uniform(20.0).unwrap())
         .with_edges(RectangleEdges([
             EdgeStroke::Color(Color::WHITE),
@@ -635,7 +642,10 @@ fn rectangle_shape_border_records_through_runtime_snapshot_and_preserves_legacy_
     let mut runtime = Runtime::empty();
     runtime
         .set_contents(Box::new(
-            RectangleFigure::from_bounds(BOX).with_border(border),
+            RectangleFigure::from_bounds(BOX)
+                .expect("valid figure bounds")
+                .with_border(border)
+                .expect("valid detached figure input"),
         ))
         .unwrap();
     let frame = runtime

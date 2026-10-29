@@ -71,7 +71,9 @@ fn corner_color_seams_preserve_alpha_and_disabled_edge_clears_pixels() {
             0.0,
             Color::TRANSPARENT,
         )
+        .expect("valid figure bounds")
         .with_stroke(red, 10.0)
+        .expect("valid detached figure input")
         .with_corners(corners)
         .unwrap()
         .with_edges(RectangleEdges([

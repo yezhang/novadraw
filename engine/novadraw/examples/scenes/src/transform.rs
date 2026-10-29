@@ -31,11 +31,19 @@ const BORDER_WIDTH: f64 = 3.0;
 
 fn background() -> RectangleFigure {
     RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+        .expect("valid figure bounds")
 }
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64, color: Color) -> RectangleFigure {
     RectangleFigure::new_with_color(x, y, width, height, color)
-        .with_border(LineBorder::new(Color::BLACK, BORDER_WIDTH).with_insets(8.0, 12.0, 8.0, 12.0))
+        .expect("valid figure bounds")
+        .with_border(
+            LineBorder::new(Color::BLACK, BORDER_WIDTH)
+                .expect("valid border")
+                .with_insets(novadraw::geometry::Insets::new(8.0, 12.0, 8.0, 12.0))
+                .expect("valid insets"),
+        )
+        .expect("valid detached figure input")
 }
 
 fn add_nested_roots(
@@ -70,13 +78,10 @@ fn create_nested_coordinate_roots() -> novadraw::tree::FigureTree {
         .builder()
         .add_child(
             inner,
-            Box::new(RectangleFigure::new_with_color(
-                45.0,
-                40.0,
-                150.0,
-                100.0,
-                CHILD_COLOR,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(45.0, 40.0, 150.0, 100.0, CHILD_COLOR)
+                    .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
     scene
@@ -95,7 +100,10 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::tree::FigureTree {
         .add_child(
             inner,
             Box::new(
-                RectangleFigure::from_bounds(local_bounds).with_stroke(Color::WHITE, BORDER_WIDTH),
+                RectangleFigure::from_bounds(local_bounds)
+                    .expect("valid figure bounds")
+                    .with_stroke(Color::WHITE, BORDER_WIDTH)
+                    .expect("valid detached figure input"),
             ),
         )
         .expect("valid FigureTree construction");
@@ -121,7 +129,9 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::tree::FigureTree {
                     absolute_bounds.height,
                     Color::rgba(0.0, 0.0, 0.0, 0.0),
                 )
-                .with_stroke(TARGET_COLOR, BORDER_WIDTH),
+                .expect("valid figure bounds")
+                .with_stroke(TARGET_COLOR, BORDER_WIDTH)
+                .expect("valid detached figure input"),
             ),
         )
         .expect("valid FigureTree construction");
@@ -146,7 +156,9 @@ fn create_coordinate_root_move() -> novadraw::tree::FigureTree {
                     230.0,
                     Color::rgba(0.0, 0.0, 0.0, 0.0),
                 )
-                .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH),
+                .expect("valid figure bounds")
+                .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH)
+                .expect("valid detached figure input"),
             ),
         )
         .expect("valid FigureTree construction");
@@ -161,13 +173,10 @@ fn create_coordinate_root_move() -> novadraw::tree::FigureTree {
         .builder()
         .add_child(
             coordinate_root,
-            Box::new(RectangleFigure::new_with_color(
-                35.0,
-                35.0,
-                120.0,
-                80.0,
-                CHILD_COLOR,
-            )),
+            Box::new(
+                RectangleFigure::new_with_color(35.0, 35.0, 120.0, 80.0, CHILD_COLOR)
+                    .expect("valid figure bounds"),
+            ),
         )
         .expect("valid FigureTree construction");
 
@@ -189,8 +198,18 @@ impl Bounded for TargetDomainFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), novadraw::figure::ShapeGeometryError> {
+        self.bounds = novadraw::figure::ShapeGeometryError::validate_bounds(Rectangle::new(
+            x, y, width, height,
+        ))?;
+
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

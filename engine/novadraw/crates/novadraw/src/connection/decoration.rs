@@ -115,7 +115,7 @@ impl PolygonDecorationFigure {
             template,
             scale_x: 1.0,
             scale_y: 1.0,
-            polygon: PolygonFigure::from_points(Vec::new()),
+            polygon: PolygonFigure::from_points(Vec::new()).expect("valid detached figure input"),
         })
     }
 
@@ -144,20 +144,27 @@ impl PolygonDecorationFigure {
     }
 
     /// Sets outline color and width.
-    pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
-        self.polygon = self.polygon.with_stroke(color, width);
-        self
+    pub fn with_stroke(
+        mut self,
+        color: Color,
+        width: f64,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polygon = self.polygon.with_stroke(color, width)?;
+        Ok(self)
     }
 
     /// Sets outline join.
-    pub fn with_join(mut self, join: LineJoin) -> Self {
-        self.polygon = self.polygon.with_join(join);
-        self
+    pub fn with_join(mut self, join: LineJoin) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polygon = self.polygon.with_join(join)?;
+        Ok(self)
     }
 
-    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
-        self.polygon = self.polygon.with_stroke_style(stroke);
-        self
+    pub fn with_stroke_style(
+        mut self,
+        stroke: StrokeStyle,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polygon = self.polygon.with_stroke_style(stroke)?;
+        Ok(self)
     }
 }
 
@@ -242,7 +249,7 @@ impl PolylineDecorationFigure {
             template,
             scale_x: 1.0,
             scale_y: 1.0,
-            polyline: PolylineFigure::from_points(Vec::new()),
+            polyline: PolylineFigure::from_points(Vec::new()).expect("valid detached figure input"),
         })
     }
 
@@ -271,20 +278,23 @@ impl PolylineDecorationFigure {
     }
 
     /// Sets line width.
-    pub fn with_width(mut self, width: f64) -> Self {
-        self.polyline = self.polyline.with_width(width);
-        self
+    pub fn with_width(mut self, width: f64) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polyline = self.polyline.with_width(width)?;
+        Ok(self)
     }
 
     /// Sets line join.
-    pub fn with_join(mut self, join: LineJoin) -> Self {
-        self.polyline = self.polyline.with_join(join);
-        self
+    pub fn with_join(mut self, join: LineJoin) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polyline = self.polyline.with_join(join)?;
+        Ok(self)
     }
 
-    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
-        self.polyline = self.polyline.with_stroke_style(stroke);
-        self
+    pub fn with_stroke_style(
+        mut self,
+        stroke: StrokeStyle,
+    ) -> Result<Self, crate::figure::ShapeGeometryError> {
+        self.polyline = self.polyline.with_stroke_style(stroke)?;
+        Ok(self)
     }
 }
 
@@ -379,7 +389,8 @@ fn prepare_geometry(
     {
         return Err(DecorationError::NonFiniteGeometry);
     }
-    let (bounds, local_points) = normalize_points(points, stroke, painted_minimum);
+    let (bounds, local_points) = normalize_points(points, stroke, painted_minimum)
+        .map_err(|_| DecorationError::NonFiniteGeometry)?;
     if !finite_rectangle(bounds) {
         return Err(DecorationError::NonFiniteGeometry);
     }

@@ -19,11 +19,16 @@ fn runtime_with_child() -> (Runtime, novadraw::tree::FigureId, novadraw::tree::F
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 200.0, 160.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child(root, Box::new(RectangleFigure::new(10.0, 12.0, 40.0, 30.0)))
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(10.0, 12.0, 40.0, 30.0).expect("valid figure bounds")),
+        )
         .unwrap();
     (Runtime::new(tree), root, child)
 }
@@ -33,8 +38,10 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
     let root_bounds = Rectangle::new(0.0, 0.0, 80.0, 60.0);
     let child_bounds = Rectangle::new(8.0, 9.0, 24.0, 28.0);
 
-    let detached =
-        RectangleFigure::from_bounds(root_bounds).with_border(LineBorder::default_border());
+    let detached = RectangleFigure::from_bounds(root_bounds)
+        .expect("valid figure bounds")
+        .with_border(LineBorder::default_border())
+        .expect("valid detached figure input");
     let mut builder_tree = FigureTree::new();
     let builder_root = builder_tree
         .builder()
@@ -44,7 +51,7 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
         .builder()
         .add_child(
             builder_root,
-            Box::new(RectangleFigure::new(1.0, 2.0, 10.0, 12.0)),
+            Box::new(RectangleFigure::new(1.0, 2.0, 10.0, 12.0).expect("valid figure bounds")),
         )
         .unwrap();
     builder_tree
@@ -59,13 +66,17 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
     let mut runtime_tree = FigureTree::new();
     let runtime_root = runtime_tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::from_bounds(root_bounds)))
+        .set_contents(Box::new(
+            RectangleFigure::from_bounds(root_bounds).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(runtime_tree);
     let runtime_child = runtime
         .figure(runtime_root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(1.0, 2.0, 10.0, 12.0)))
+        .add(Box::new(
+            RectangleFigure::new(1.0, 2.0, 10.0, 12.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     runtime
         .figure(runtime_root)
@@ -127,11 +138,15 @@ fn scoped_editor_acquisition_rejects_replaced_contents() {
     let mut tree = FigureTree::new();
     let replaced = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 10.0, 10.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let attached = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 20.0, 20.0).expect("valid figure bounds"),
+        ))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
@@ -148,10 +163,13 @@ fn specialized_editor_rejects_a_figure_without_the_capability() {
     let text_flow = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(TextFlowFigure::new(
-            Rectangle::new(0.0, 0.0, 20.0, 20.0),
-            FlowPage::from_text("text"),
-        )))
+        .add(Box::new(
+            TextFlowFigure::new(
+                Rectangle::new(0.0, 0.0, 20.0, 20.0),
+                FlowPage::from_text("text"),
+            )
+            .expect("valid detached figure input"),
+        ))
         .unwrap();
     let pending_before = runtime.frames().has_pending_update();
     let bounds_before = runtime.tree().figure_bounds(child);

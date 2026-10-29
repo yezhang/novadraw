@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::graphics::{GraphicsError, PaintContext};
+use crate::graphics::{GraphicsError, GraphicsInputError, PaintContext, StrokeStyle};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -17,17 +17,13 @@ use super::{
 #[derive(Clone)]
 pub struct EllipseFigure {
     /// 边界矩形（外切矩形）
-    pub bounds: Rectangle,
+    bounds: Rectangle,
     /// 填充颜色
     pub fill_color: Color,
     /// 边框颜色
     pub stroke_color: Option<Color>,
-    /// 边框宽度
-    pub stroke_width: f64,
-    /// 线帽样式
-    pub line_cap: crate::render::command::LineCap,
-    /// 连接样式
-    pub line_join: crate::render::command::LineJoin,
+    /// 受检描边几何。
+    stroke: StrokeStyle,
     /// 绘制子节点时使用的裁剪策略
     child_clipping_strategy: ChildClippingStrategy,
     /// 边框装饰器
@@ -36,7 +32,7 @@ pub struct EllipseFigure {
 
 impl EllipseFigure {
     fn optimized_bounds(&self) -> Rectangle {
-        let line_inset = 1.0_f64.max(self.stroke_width) / 2.0;
+        let line_inset = 1.0_f64.max(self.stroke.width()) / 2.0;
         Rectangle::new(
             line_inset,
             line_inset,
@@ -48,52 +44,51 @@ impl EllipseFigure {
     /// 创建椭圆
     ///
     /// 椭圆外切于指定的 bounds 矩形
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
-            stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
-            child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
-            border: None,
-        }
+    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Result<Self, super::ShapeGeometryError> {
+        Self::from_bounds(Rectangle::new(x, y, width, height))
     }
 
     /// 从 Rectangle 创建椭圆
-    pub fn from_bounds(bounds: Rectangle) -> Self {
-        Self {
-            bounds,
+    pub fn from_bounds(bounds: Rectangle) -> Result<Self, super::ShapeGeometryError> {
+        Ok(Self {
+            bounds: super::ShapeGeometryError::validate_bounds(bounds)?,
             fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
             stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
+            stroke: StrokeStyle::default()
+                .with_width(0.0)
+                .expect("zero shape stroke"),
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
-        }
+        })
     }
 
     /// 创建指定颜色的椭圆
-    pub fn new_with_color(x: f64, y: f64, width: f64, height: f64, color: Color) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-            fill_color: color,
-            stroke_color: None,
-            stroke_width: 0.0,
-            line_cap: crate::render::command::LineCap::default(),
-            line_join: crate::render::command::LineJoin::default(),
-            child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
-            border: None,
-        }
+    pub fn new_with_color(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        color: Color,
+    ) -> Result<Self, super::ShapeGeometryError> {
+        let mut figure = Self::new(x, y, width, height)?;
+        figure.fill_color = color;
+        Ok(figure)
     }
 
     /// 添加边框
-    pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
+    pub fn with_stroke(mut self, color: Color, width: f64) -> Result<Self, GraphicsInputError> {
+        self.stroke = self.stroke.with_width(width)?;
         self.stroke_color = Some(color);
-        self.stroke_width = width;
+        Ok(self)
+    }
+
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.stroke = stroke;
         self
+    }
+
+    pub fn stroke_style(&self) -> &StrokeStyle {
+        &self.stroke
     }
 
     /// 设置子节点绘制裁剪策略。
@@ -103,20 +98,36 @@ impl EllipseFigure {
     }
 
     /// 添加边框装饰器。
-    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+    pub fn with_border(
+        mut self,
+        border: impl Border + 'static,
+    ) -> Result<Self, super::border::BorderInputError> {
+        border.prepare_metrics()?;
         self.border = Some(Arc::new(border));
-        self
+        Ok(self)
     }
 
     /// 平移
-    pub fn translate(&mut self, dx: f64, dy: f64) {
-        self.bounds.x += dx;
-        self.bounds.y += dy;
+    pub fn translate(&mut self, dx: f64, dy: f64) -> Result<(), super::ShapeGeometryError> {
+        self.set_bounds(
+            self.bounds.x + dx,
+            self.bounds.y + dy,
+            self.bounds.width,
+            self.bounds.height,
+        )
     }
 
     /// 设置边界
-    pub fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    pub fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        self.bounds =
+            super::ShapeGeometryError::validate_bounds(Rectangle::new(x, y, width, height))?;
+        Ok(())
     }
 
     /// 获取椭圆中心 x
@@ -146,8 +157,14 @@ impl Bounded for EllipseFigure {
         self.bounds
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
+    fn set_bounds(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), super::ShapeGeometryError> {
+        Self::set_bounds(self, x, y, width, height)
     }
 
     fn name(&self) -> &'static str {
@@ -244,35 +261,28 @@ impl super::FigureBoundsSnapshot for EllipseFigure {
         struct Inputs {
             fill: Color,
             stroke: Option<Color>,
-            width: f64,
-            cap: crate::render::command::LineCap,
-            join: crate::render::command::LineJoin,
         }
         const ELLIPSE_RECORDING_BYTES: usize = 4096;
-        Ok(super::BoundsDrawing::new(
+        super::BoundsDrawing::stroked(
             Inputs {
                 fill: self.fill_color,
                 stroke: self.stroke_color,
-                width: self.stroke_width,
-                cap: self.line_cap,
-                join: self.line_join,
             },
+            self.stroke.clone(),
             ELLIPSE_RECORDING_BYTES,
-            |inputs, bounds, context| {
+            |inputs, stroke, bounds, context| {
                 let figure = EllipseFigure {
                     bounds,
                     fill_color: inputs.fill,
                     stroke_color: inputs.stroke,
-                    stroke_width: inputs.width,
-                    line_cap: inputs.cap,
-                    line_join: inputs.join,
+                    stroke: stroke.clone(),
                     child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
                     border: None,
                 };
                 Shape::paint_shape(&figure, context)
             },
-            |_, bounds| Ok(bounds),
-        ))
+            |_, _, bounds| Ok(bounds),
+        )
     }
 }
 
@@ -281,8 +291,11 @@ impl BorderedFigure for EllipseFigure {
         self.border.as_ref()
     }
 
-    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
-        std::mem::replace(&mut self.border, border)
+    fn replace_border(
+        &mut self,
+        border: super::border::BorderCandidate,
+    ) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border.into_border())
     }
 }
 
@@ -299,7 +312,7 @@ impl Shape for EllipseFigure {
     }
 
     fn stroke_width(&self) -> f64 {
-        self.stroke_width
+        self.stroke.width()
     }
 
     fn fill_color(&self) -> Option<Color> {
@@ -307,11 +320,11 @@ impl Shape for EllipseFigure {
     }
 
     fn line_cap(&self) -> crate::render::command::LineCap {
-        self.line_cap
+        self.stroke.cap()
     }
 
     fn line_join(&self) -> crate::render::command::LineJoin {
-        self.line_join
+        self.stroke.join()
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -334,12 +347,7 @@ impl Shape for EllipseFigure {
     fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if self.stroke_color.is_some() {
             let bounds = self.optimized_bounds();
-            context.set_stroke_style(
-                crate::graphics::StrokeStyle::default()
-                    .with_width(self.stroke_width)?
-                    .with_cap(self.line_cap)
-                    .with_join(self.line_join),
-            );
+            context.set_stroke_style(self.stroke.clone());
             context.stroke_ellipse(bounds)?;
         }
         Ok(())
@@ -352,7 +360,10 @@ mod tests {
 
     #[test]
     fn frozen_ellipse_uses_sampled_radii_without_scaling_stroke() {
-        let ellipse = EllipseFigure::new(0.0, 0.0, 100.0, 60.0).with_stroke(Color::BLACK, 3.0);
+        let ellipse = EllipseFigure::new(0.0, 0.0, 100.0, 60.0)
+            .expect("valid figure bounds")
+            .with_stroke(Color::BLACK, 3.0)
+            .expect("valid detached figure input");
         let frozen = super::super::FigureBoundsSnapshot::snapshot_bounds_drawing(&ellipse).unwrap();
         for bounds in [
             Rectangle::new(0.0, 0.0, 50.0, 30.0),
@@ -387,7 +398,7 @@ mod tests {
 
     #[test]
     fn contains_point_uses_ellipse_geometry_not_only_bounds() {
-        let ellipse = EllipseFigure::new(10.0, 20.0, 100.0, 60.0);
+        let ellipse = EllipseFigure::new(10.0, 20.0, 100.0, 60.0).expect("valid figure bounds");
 
         assert!(ellipse.contains_point(50.0, 30.0));
         assert!(ellipse.contains_point(0.0, 30.0));
