@@ -44,7 +44,7 @@
 | 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
 | 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `complete` | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
 | 6 | P2-S07 查询身份与失败语义 | P1 | `complete` | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md)，ADR-038 已实现 |
-| 7 | P2-S08 Detached 输入不变量 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR/规范，先复用已有受检值 |
+| 7 | P2-S08 Detached 输入不变量 | P0 | `design-draft` | R03、TC-03、API-F04、API-10 | [ADR-056 草案](../../adr/adr-056-detached-input-invariants.md)，待评审，尚未实施 |
 | 8 | P2-S09 服务失败与 Inspector | P1 | `not_started` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 待补 ADR |
 
 执行顺序默认按表推进。只有依赖、用户优先级或新的 P0 正确性证据发生变化时才调整；
@@ -219,8 +219,12 @@ S07 已完成，下一批为 S08 Design。
 
 来源：R03、TC-03、API-F04、API-10。
 
-- [ ] 先盘点 Opacity、StrokeStyle、几何与字体现有不变量；仅为真实缺口补充受检值，
+- [x] 已形成[输入盘点与设计草案](../../design/architecture/detached-input-invariants.md)、
+  [ADR-056](../../adr/adr-056-detached-input-invariants.md)及
+  [验证矩阵](../plans/p2-s08-detached-input-invariants.md)；待评审，用例待执行。
+- [x] 先盘点 Opacity、StrokeStyle、几何与字体现有不变量；仅为真实缺口补充受检值，
   不预定 `Alpha01` 等新类型，不为所有 f64 建 wrapper。
+- [ ] 评审并接受 ADR-056，冻结构造迁移和外部输出边界。
 - [ ] 防止字段写入绕过跨字段不变量；已受检且可独立替换的字段无需一律私有化。
 - [ ] 接受未受检输入的构造/更新在对象发布前返回结构化错误；
   默认构造与安装已验证值不机械改成 Result。

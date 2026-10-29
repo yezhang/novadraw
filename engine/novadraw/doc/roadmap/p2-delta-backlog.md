@@ -74,7 +74,10 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 带正号的分量；现在按 ASCII 字节解析并保留结构化分量错误。三项外部回归、
 九项颜色单测和 Rust 1.96 严格定向 Clippy 通过，
 见[实施记录](../verification/reviews/core-color-text-input-2026-10-29.md)。
-S08 整批仍为 `not_started`，边框和样式公共边界继续先盘点、后设计。
+随后完成 [ADR-056 草案](../adr/adr-056-detached-input-invariants.md)、
+[输入不变量设计](../design/architecture/detached-input-invariants.md)与
+[验证矩阵](../verification/plans/p2-s08-detached-input-invariants.md)。
+S08 转为 `design-draft`，待评审，尚未实施；颜色修复不关闭整批审计项。
 
 2026-10-28 继续补充官方 PrintExample 与 ZoomExample 的宿主字体采用。
 样例宿主通过 Fontique 查询系统集合，使用既有字体资源协议向 Runtime 注入实际字节；
@@ -502,7 +505,7 @@ HTML/PDF 与差异空白检查通过。T-1 至 T-4 全部关闭；上文各增�
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
 | 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |
 | 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
-| 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `not_started` | ADR-020/024、TC-03 | 复用已有受检值；构造/更新拒绝非法输入；保留合法几何适配与范围收敛 |
+| 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `design-draft` | ADR-020/024、TC-03 | ADR-056 草案与验证矩阵待评审；复用受检值，构造／更新拒绝非法输入，保留合法几何适配 |
 | 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `not_started` | P2-S03、TC-10 | fault 与幂等分离；Inspector 错误及 detach 所有权；消除残余 panic 注册入口；保留可追溯错误 |
 
 本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受单链 Execute
@@ -552,7 +555,7 @@ Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 W
 2026-10-29 补充：按本节用户授权优先完成 P2-E03 Design 与评审，
 再进入首批实现；以下既有审计与平台采证队列保留。
 
-1. **审计整改主链**：P2-S06/S07 已完成，下一批 P2-S08 Design → P2-S09；两批尚未启动。每批先核对当前
+1. **审计整改主链**：P2-S06/S07 已完成，P2-S08 已形成待评审草案，尚未实施；随后为 P2-S09。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
 2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
    消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。

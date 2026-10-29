@@ -21,6 +21,7 @@
 | 文档 | 职责 |
 |---|---|
 | [figure-style.md](figure-style.md) | Figure 样式继承与覆盖 |
+| [detached-input-invariants.md](detached-input-invariants.md) | S08 草案，待评审：Border 构造、受检样式、外部准入与派生溢出 |
 | [figure-lifecycle.md](figure-lifecycle.md) | Figure 生命周期与 Runtime 身份 |
 | [tree-search-and-focus.md](tree-search-and-focus.md) | 树查询、命中与焦点遍历 |
 | [derived-state-convergence.md](derived-state-convergence.md) | 派生状态收敛事务 |

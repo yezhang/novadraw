@@ -11,6 +11,7 @@
 |---|---|
 | 2026-10-29 | [ADR-055 容器编辑实施验证](adr-055-implementation-2026-10-29.md) |
 | 2026-10-29 | [Shapes Inspector 布局分析](shapes-inspector-layout-analysis-2026-10-29.md) |
+| 2026-10-29 | [S08 输入不变量设计与检查记录](p2-s08-design-record-2026-10-29.md) |
 | 2026-10-29 | [ADR-055 容器编辑草案首轮评审](adr-055-draft-review-2026-10-29.md) |
 | 2026-10-29 | [颜色文本解析拒绝非法输入](core-color-text-input-2026-10-29.md) |
 | 2026-10-28 | [Shapes 编辑器剩余功能与 SH-01～SH-10 自动验证](shapes-editor-implementation-2026-10-28.md) |
