@@ -178,9 +178,10 @@ scroll 仍为每序列 80 次 measure/hit，resize 仍为每序列 6 miss 与 51
 新进程按两版成对交错。采样期间不运行本 Agent 的构建或测试；
 外部后台负载仍不受控。
 
-完整恢复材料位于 `target/verification/long-text/scroll-resize-shared-20261028`，
+采证时完整恢复材料位于 `target/verification/long-text/scroll-resize-shared-20261028`，
 每版保留源码归档、manifest、可执行文件与原始样本，
-会话环境与 power/load 记录保存在比较目录。摘要的顶层 extended 合并热/新进程，
+会话环境与 power/load 记录保存在比较目录。2026-10-29 复核发现这些文件已缺失，
+当前仅保留本报告及冻结报告快照，见下方证据状态。摘要的顶层 extended 合并热/新进程，
 最终热样本表须单独筛选 `fresh-runtime`；不合并预热或新进程。
 
 | 最终共享版输入 | SHA-256 |
@@ -238,14 +239,26 @@ resize 32.952 ms 与完整查询/IR 4.561 ms 仍超过本方案的 16/4 ms 目�
 没有扩展场景的完整 frame/GPU 留存；当前帧 backing、缓存、字体与旧 lease
 仍须分别归因。不可用 RSS 替代完整 backing 的实际计费或硬预算证明。
 
-完整对照与复现入口：
+证据保存状态（2026-10-29 复核）：
 
-- [热样本与五会话分布](../../../target/verification/long-text/scroll-resize-shared-20261028/hot-comparison.json)
-- [基线 manifest](../../../target/verification/long-text/scroll-resize-shared-20261028/baseline/manifest.json)、
-  [共享版 manifest](../../../target/verification/long-text/scroll-resize-shared-20261028/optimized/manifest.json)
-- [基线原始样本](../../../target/verification/long-text/scroll-resize-shared-20261028/baseline/samples.ndjson)、
-  [共享版原始样本](../../../target/verification/long-text/scroll-resize-shared-20261028/optimized/samples.ndjson)
-- [五对进程的 RSS 原始记录](../../../target/verification/long-text/scroll-resize-shared-20261028/memory.json)
+上述匹配结果保留为当时的报告结论。目前无法从原始记录重验，不能用本报告中的
+数值替代原始样本、校验 manifest 或新的性能基线。
+已检查本仓库 `target/`、提交证据目录和已知 `/tmp/novadraw-sr-*` 采证位置，
+未找到下列文件；因此将旧链接改为缺失路径记录，未补造文件或改写冻结证据。
+[当日报告快照](../evidence/wasm-rust-delivery-2026-10-28/long-text-scroll-resize-implementation-2026-10-28.md)
+仍保留原始引用和判断。
+
+缺失目录：`target/verification/long-text/scroll-resize-shared-20261028/`。
+
+| 缺失文件 | 原用途 |
+|---|---|
+| `hot-comparison.json` | 热样本及五会话分布 |
+| `baseline/manifest.json`、`optimized/manifest.json` | 冻结输入、环境及校验信息 |
+| `baseline/samples.ndjson`、`optimized/samples.ndjson` | 原始逐样本记录 |
+| `memory.json` | 五对新进程 RSS 原始记录 |
+
+恢复时必须核对原始字节与已有散列，并移入提交证据目录。若无法恢复，
+后续性能结论需重新采样，使用独立日期和路径，不覆盖本次历史结论。
 
 首批观测与共享 IR 切片已验证退出；整体 LT-00～LT-03 和窗口/平台验收仍未关闭。
 

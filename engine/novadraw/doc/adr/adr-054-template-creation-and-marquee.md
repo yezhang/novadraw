@@ -1,6 +1,6 @@
 # ADR-054：类型化模板创建与框选
 
-类型：`adr`
+类型：`architecture-decision`
 
 状态：Accepted。2026-10-28，依据已批准的 GEF 官方样例对等方案和用户继续完成
 Shapes 的授权。实施状态只在 P2 backlog 维护。
