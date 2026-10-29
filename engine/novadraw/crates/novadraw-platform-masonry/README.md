@@ -8,12 +8,12 @@
 
 该包属于根 workspace，但不在默认构建成员中。Native UI 使用未修改的上游 Git
 提交 `66c8893f12232b9d5cdf4296f773aa3dc07ee776`，不需要本地 vendor。
-Core/Editor 不依赖它。UI 要求 Rust 1.96；安装该工具链不必改变全局默认版本。
+Core/Editor 不依赖它。UI 使用系统默认 Rust 工具链，最低支持版本由依赖声明约束。
 
 ```sh
-cargo +1.96.0 check -p novadraw-platform-masonry --lib
-cargo +1.96.0 run -p gef-editor-demo
-cargo +1.96.0 test -p gef-editor-demo --lib -- --test-threads=1
+cargo check -p novadraw-platform-masonry --lib
+cargo run -p gef-editor-demo
+cargo test -p gef-editor-demo --lib -- --test-threads=1
 ```
 
 build 回调只创建一次 session，sync 回调消费应用动作，返回是否需准备新 Scene。

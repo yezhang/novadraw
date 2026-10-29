@@ -39,8 +39,9 @@ cargo xtask docs
 专项验证、外部消费者和性能采样说明见 [测试入口](tests/README.md)。
 脚本位于 `tools/scripts/`；临时输出写入 `target/`。
 
-在根目录执行 `cargo +1.96.0 run -p gef-editor-demo` 可启动 Masonry/Xilem 编辑画布。
-UI 依赖固定的未修改上游 Git 提交，不需要本地 vendor；要求 Rust 1.96。
+在根目录执行 `cargo run -p gef-editor-demo` 可启动 Masonry/Xilem 编辑画布。
+UI 依赖固定的未修改上游 Git 提交，不需要本地 vendor；系统默认 Rust
+工具链须满足依赖的最低版本要求。
 UI 包属于根 workspace，但不在 `default-members` 中；普通 `cargo build/test`
 保持原有范围，显式 `--workspace` 验证包含 UI 包。Core/Editor 不依赖 UI 包。
 接入见 [平台适配包](crates/novadraw-platform-masonry/README.md)，

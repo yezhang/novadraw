@@ -4,10 +4,9 @@
 
 入口由 [run.json](run.json) 的 `gef-shapes-macos` action 管理，
 使用 [标准 macOS bundle 启动脚本](../../tools/scripts/run_gef_macos.py)。
-需要 macOS、Python 3 和 Rust 1.96.0；脚本显式选择该工具链，
-可用 `NOVADRAW_UI_TOOLCHAIN` 指定兼容版本，不改变全局默认工具链。
+需要 macOS、Python 3 和满足依赖最低版本要求的系统默认 Rust 工具链。
 UI 包属于根 workspace，使用根目录锁文件；普通引擎构建通过 `default-members`
-排除 UI 包。也可在根目录直接执行 `cargo +1.96.0 run -p gef-editor-demo`。
+排除 UI 包。也可在根目录直接执行 `cargo run -p gef-editor-demo`。
 UI 直接依赖固定的未修改上游 Git 提交，Cargo 管理源码缓存，无需本地 vendor。
 构建和 bundle 位于忽略的 `target/masonry`；脚本通过 LaunchServices 打开确切
 bundle，并保持启动命令运行直至应用关闭。

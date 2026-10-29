@@ -3,15 +3,15 @@
 类型：`implementation-guide`
 
 ```sh
-cargo +1.96.0 run -p gef-editor-demo
-cargo +1.96.0 test -p gef-editor-demo --lib
+cargo run -p gef-editor-demo
+cargo test -p gef-editor-demo --lib
 ```
 
 从仓库根目录执行。demo 使用根 workspace 的锁文件，默认二进制为
 `gef-editor-demo`；体积基线需显式指定 `--bin ui-shell-baseline`。
 当前应用外壳使用 egui/eframe 0.35；Novadraw 通过共享的 WGPU Device/Queue
 渲染到应用持有的 RGBA8 纹理，再由 egui 中央面板合成。Viewer、EditorDomain、
-命令历史和模型不归 UI 框架所有。需要安装 Rust 1.96。
+命令历史和模型不归 UI 框架所有。构建使用系统默认 Rust 工具链。
 此前的 Xilem/Masonry 迁移作为独立 adapter 记录保留，见
 [迁移记录](../../../doc/verification/reviews/masonry-upstream-migration-2026-10-28.md)；
 功能、失败路径和成本见[Shapes 验证记录](../../../doc/verification/reviews/shapes-editor-implementation-2026-10-28.md)。

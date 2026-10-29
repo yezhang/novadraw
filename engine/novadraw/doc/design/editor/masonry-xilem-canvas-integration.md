@@ -12,9 +12,10 @@
 
 Native UI 直接依赖未修改的上游 Git 提交
 `66c8893f12232b9d5cdf4296f773aa3dc07ee776`，由 Cargo 下载并锁定；本地 vendor 已删除。
-UI 包要求 Rust 1.96。上游使用 imaging 0.0.1、Vello 0.8 / WGPU 28，
+UI 包使用系统默认 Rust 工具链，最低支持版本由依赖声明约束。上游使用
+imaging 0.0.1、Vello 0.8 / WGPU 28，
 Novadraw 现有 Vello 0.10 / WGPU 29 后端保持原有版本。双方不交换 GPU 对象。
-UI 适配和示例纳入根 workspace，支持 `cargo +1.96.0 run -p gef-editor-demo`，
+UI 适配和示例纳入根 workspace，支持 `cargo run -p gef-editor-demo`，
 通过 `default-members` 排除在普通引擎构建之外。Core/Editor 消费者不依赖 UI 包；
 显式 `--workspace` 验证包含 UI 包，也需要满足 UI 工具链要求。
 首次切片验证 Widget/View 编译、真实输入编辑、Scene 合成与稳定 rebuild；

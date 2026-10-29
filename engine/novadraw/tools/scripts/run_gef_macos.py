@@ -17,11 +17,9 @@ def main() -> None:
     build_dir = project / "target" / "egui"
     build_env = os.environ.copy()
     build_env["CARGO_TARGET_DIR"] = str(build_dir)
-    toolchain = build_env.get("NOVADRAW_UI_TOOLCHAIN", "1.96.0")
-    subprocess.run(["rustup", "run", toolchain, "rustc", "--version"], check=True)
     subprocess.run(
         [
-            "cargo", f"+{toolchain}", "build", "--release", "--locked",
+            "cargo", "build", "--release", "--locked",
             "--manifest-path", str(project / "examples/native/gef-editor-demo/Cargo.toml"),
             "--bin", "gef-editor-demo",
         ],
