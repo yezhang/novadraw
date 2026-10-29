@@ -1,0 +1,48 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[91merror[E0599][0m[1m: no method named `clone` found for struct `SceneViewHandle` in the current scope[0m
+   [1m[94m--> [0mcrates/novadraw/tests/p2_s08_detached_geometry_contract.rs:336:39
+    [1m[94m|[0m
+[1m[94m336[0m [1m[94m|[0m     assert!(SceneViewFigure::new(view.clone()).with_bounds(invalid).is_err());
+    [1m[94m|[0m                                       [1m[91m^^^^^[0m [1m[91mmethod not found in `SceneViewHandle`[0m
+
+[1m[91merror[E0277][0m[1m: the trait bound `ScrollBarFigure: Bounded` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/tests/p2_s08_detached_geometry_contract.rs:339:9
+    [1m[94m|[0m
+[1m[94m339[0m [1m[94m|[0m [1m[91m/[0m         Box::new(ScrollBarFigure::new(std::sync::Arc::new(DefaultRangeModel::default()))
+[1m[94m340[0m [1m[94m|[0m [1m[91m|[0m             .with_bounds(valid).unwrap()),
+    [1m[94m|[0m [1m[91m|_________________________________________^[0m [1m[91mthe trait `Bounded` is not implemented for `ScrollBarFigure`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `Bounded`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              ImageFigure
+              LabelFigure
+            and 15 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<ScrollBarFigure>` to `Box<dyn Bounded>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `SceneViewFigure: Bounded` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/tests/p2_s08_detached_geometry_contract.rs:341:9
+    [1m[94m|[0m
+[1m[94m341[0m [1m[94m|[0m         Box::new(SceneViewFigure::new(view).with_bounds(valid).unwrap()),
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `Bounded` is not implemented for `SceneViewFigure`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `Bounded`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              ImageFigure
+              LabelFigure
+            and 15 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<SceneViewFigure>` to `Box<dyn Bounded>`
+
+[1mSome errors have detailed explanations: E0277, E0599.[0m
+[1mFor more information about an error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `novadraw` (test "p2_s08_detached_geometry_contract") due to 3 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

@@ -1,0 +1,798 @@
+[1m[92m   Compiling[0m unicode-ident v1.0.22
+[1m[92m    Checking[0m bitflags v2.13.2
+[1m[92m    Checking[0m smallvec v1.15.1
+[1m[92m    Checking[0m cfg-if v1.0.4
+[1m[92m    Checking[0m once_cell v1.21.4
+[1m[92m    Checking[0m libc v0.2.191
+[1m[92m    Checking[0m libm v0.2.15
+[1m[92m    Checking[0m arrayvec v0.7.6
+[1m[92m    Checking[0m log v0.4.34
+[1m[92m    Checking[0m foldhash v0.2.0
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m    Checking[0m objc2-encode v4.1.0
+[1m[92m    Checking[0m allocator-api2 v0.2.21
+[1m[92m    Checking[0m equivalent v1.0.2
+[1m[92m    Checking[0m linebender_resource_handle v0.1.1
+[1m[92m    Checking[0m stable_deref_trait v1.2.1
+[1m[92m    Checking[0m polycool v0.4.0
+[1m[92m    Checking[0m writeable v0.6.4
+[1m[92m    Checking[0m objc2 v0.6.4
+[1m[92m    Checking[0m simd-adler32 v0.3.7
+[1m[92m    Checking[0m litemap v0.8.3
+[1m[92m    Checking[0m kurbo v0.13.1
+[1m[92m    Checking[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m    Checking[0m adler2 v2.0.1
+[1m[92m    Checking[0m crc32fast v1.5.0
+[1m[92m    Checking[0m num-traits v0.2.19
+[1m[92m    Checking[0m core_maths v0.1.1
+[1m[92m    Checking[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m    Checking[0m scopeguard v1.2.0
+[1m[92m    Checking[0m lock_api v0.4.14
+[1m[92m    Checking[0m parking_lot_core v0.9.12
+[1m[92m    Checking[0m flate2 v1.1.5
+[1m[92m    Checking[0m raw-window-handle v0.6.2
+[1m[92m    Checking[0m objc2-core-foundation v0.3.2
+[1m[92m    Checking[0m block2 v0.6.2
+[1m[92m    Checking[0m parking_lot v0.12.5
+[1m[92m    Checking[0m serde_core v1.0.228
+[1m[92m    Checking[0m unicode-width v0.1.14
+[1m[92m    Checking[0m fdeflate v0.3.7
+[1m[92m    Checking[0m profiling v1.0.17
+[1m[92m    Checking[0m getrandom v0.3.4
+[1m[92m    Checking[0m indexmap v2.12.1
+[1m[92m    Checking[0m rustc-hash v1.1.0
+[1m[92m    Checking[0m png v0.18.1
+[1m[92m    Checking[0m core-foundation-sys v0.8.7
+[1m[92m    Checking[0m objc2-foundation v0.3.2
+[1m[92m    Checking[0m hexf-parse v0.2.1
+[1m[92m    Checking[0m pin-project-lite v0.2.16
+[1m[92m    Checking[0m euclid v0.22.14
+[1m[92m    Checking[0m foreign-types-shared v0.3.1
+[1m[92m   Compiling[0m synstructure v0.14.0
+[1m[92m    Checking[0m svg_fmt v0.4.5
+[1m[92m    Checking[0m memmap2 v0.9.12
+[1m[92m    Checking[0m quick-error v2.0.1
+[1m[92m    Checking[0m zune-core v0.5.3
+[1m[92m    Checking[0m weezl v0.1.12
+[1m[92m    Checking[0m dispatch2 v0.3.1
+[1m[92m    Checking[0m guillotiere v0.7.0
+[1m[92m    Checking[0m tinyvec_macros v0.1.1
+[1m[92m    Checking[0m zune-jpeg v0.5.15
+[1m[92m    Checking[0m byteorder-lite v0.1.0
+[1m[92m    Checking[0m float-cmp v0.9.0
+[1m[92m    Checking[0m tinyvec v1.13.2
+[1m[92m   Compiling[0m thiserror-impl v2.0.20
+[1m[92m   Compiling[0m zerovec-derive v0.11.7
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m    Checking[0m strict-num v0.1.1
+[1m[92m    Checking[0m slotmap v1.0.7
+[1m[92m    Checking[0m objc2-core-text v0.3.2
+[1m[92m    Checking[0m tracing-core v0.1.36
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m zerocopy-derive v0.8.30
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m zerofrom-derive v0.1.8
+[1m[92m   Compiling[0m yoke-derive v0.8.4
+[1m[92m   Compiling[0m foreign-types-macros v0.2.3
+[1m[92m    Checking[0m objc2-metal v0.3.2
+[1m[92m    Checking[0m objc2-core-graphics v0.3.2
+[1m[92m    Checking[0m memchr v2.7.6
+[1m[92m    Checking[0m foreign-types v0.5.0
+[1m[92m    Checking[0m arrayref v0.3.9
+[1m[92m    Checking[0m thiserror v2.0.20
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m    Checking[0m bytemuck v1.25.2
+[1m[92m    Checking[0m serde v1.0.228
+[1m[92m    Checking[0m zerocopy v0.8.30
+[1m[92m    Checking[0m zerofrom v0.1.8
+[1m[92m    Checking[0m objc-sys v0.3.5
+[1m[92m    Checking[0m unicode-script v0.5.8
+[1m[92m    Checking[0m siphasher v1.0.3
+[1m[92m    Checking[0m yoke v0.8.4
+[1m[92m    Checking[0m svgtypes v0.16.1
+[1m[92m    Checking[0m objc2 v0.5.2
+[1m[92m    Checking[0m tracing v0.1.44
+[1m[92m    Checking[0m roxmltree v0.21.1
+[1m[92m    Checking[0m uuid v1.18.1
+[1m[92m    Checking[0m simplecss v0.2.2
+[1m[92m    Checking[0m color v0.3.3
+[1m[92m    Checking[0m font-types v0.11.3
+[1m[92m    Checking[0m font-types v0.12.4
+[1m[92m    Checking[0m tiny-skia-path v0.12.0
+[1m[92m    Checking[0m static_assertions v1.1.0
+[1m[92m    Checking[0m read-fonts v0.41.0
+[1m[92m    Checking[0m peniko v0.6.1
+[1m[92m    Checking[0m pico-args v0.5.0
+[1m[92m    Checking[0m unicode-segmentation v1.13.3
+[1m[92m    Checking[0m zerovec v0.11.8
+[1m[92m    Checking[0m zerotrie v0.2.5
+[1m[92m    Checking[0m unicode-bidi v0.3.18
+[1m[92m    Checking[0m unicode-vo v0.1.0
+[1m[92m    Checking[0m xmlwriter v0.1.0
+[1m[92m    Checking[0m data-url v0.3.2
+[1m[92m    Checking[0m half v2.7.1
+[1m[92m    Checking[0m block2 v0.5.1
+[1m[92m    Checking[0m font-types v0.10.1
+[1m[92m    Checking[0m pxfm v0.1.27
+[1m[92m   Compiling[0m object v0.39.1
+[1m[92m    Checking[0m bit-vec v0.9.1
+[1m[92m    Checking[0m dpi v0.1.2
+[1m[92m    Checking[0m fax v0.2.7
+[1m[92m    Checking[0m dispatch v0.2.0
+[1m[92m    Checking[0m color_quant v1.1.0
+[1m[92m    Checking[0m utf8_iter v1.0.4
+[1m[92m    Checking[0m gif v0.14.2
+[1m[92m    Checking[0m tinystr v0.8.4
+[1m[92m    Checking[0m potential_utf v0.1.6
+[1m[92m    Checking[0m objc2-foundation v0.2.2
+[1m[92m    Checking[0m icu_collections v2.3.0
+[1m[92m    Checking[0m icu_locale_core v2.3.0
+[1m[92m    Checking[0m moxcms v0.8.1
+[1m[92m    Checking[0m tiff v0.11.3
+[1m[92m    Checking[0m icu_provider v2.3.1
+[1m[92m   Compiling[0m ar_archive_writer v0.5.3
+[1m[92m    Checking[0m bit-set v0.9.1
+[1m[92m    Checking[0m read-fonts v0.35.0
+[1m[92m    Checking[0m tiny-skia v0.12.0
+[1m[92m    Checking[0m skrifa v0.44.0
+[1m[92m    Checking[0m rgb v0.8.53
+[1m[92m    Checking[0m image-webp v0.2.4
+[1m[92m    Checking[0m objc2-core-video v0.3.2
+[1m[92m    Checking[0m codespan-reporting v0.13.1
+[1m[92m    Checking[0m futures-core v0.3.34
+[1m[92m    Checking[0m cursor-icon v1.2.0
+[1m[92m    Checking[0m naga v29.0.4
+[1m[92m    Checking[0m objc2-app-kit v0.2.2
+[1m[92m    Checking[0m objc2-quartz-core v0.3.2
+[1m[92m    Checking[0m wgpu-types v29.0.4
+[1m[92m    Checking[0m core-foundation v0.9.4
+[1m[92m    Checking[0m image v0.25.10
+[1m[92m    Checking[0m hashbrown v0.17.1
+[1m[92m    Checking[0m bitflags v1.3.2
+[1m[92m    Checking[0m raw-window-metal v1.1.0
+[1m[92m    Checking[0m icu_properties_data v2.3.0
+[1m[92m    Checking[0m core-graphics-types v0.1.3
+[1m[92m    Checking[0m harfrust v0.12.0
+[1m[92m    Checking[0m accesskit v0.24.1
+[1m[92m    Checking[0m fontdb v0.24.0
+[1m[92m    Checking[0m base64 v0.23.1
+[1m[92m    Checking[0m imagesize v0.15.0
+[1m[92m    Checking[0m icu_properties v2.3.0
+[1m[92m    Checking[0m core-graphics v0.23.2
+[1m[92m    Checking[0m icu_normalizer_data v2.3.0
+[1m[92m    Checking[0m swash v0.2.10
+[1m[92m    Checking[0m smol_str v0.2.2
+[1m[92m    Checking[0m icu_normalizer v2.3.0
+[1m[92m    Checking[0m futures-intrusive v0.5.0
+[1m[92m    Checking[0m winit v0.30.13
+[1m[92m    Checking[0m harfrust v0.3.2
+[1m[92m    Checking[0m fontique v0.7.0
+[1m[92m    Checking[0m skrifa v0.37.0
+[1m[92m    Checking[0m usvg v0.48.1
+[1m[92m    Checking[0m read-fonts v0.39.2
+[1m[92m    Checking[0m fearless_simd v0.4.1
+[1m[92m    Checking[0m pollster v0.4.0
+[1m[92m    Checking[0m vello_encoding v0.10.0
+[1m[92m    Checking[0m wgpu-naga-bridge v29.0.4
+[1m[92m    Checking[0m emath v0.35.0
+[1m[92m    Checking[0m resvg v0.48.1
+[1m[92m    Checking[0m parley v0.7.0
+[1m[92m    Checking[0m wgpu-hal v29.0.4
+[1m[92m    Checking[0m ahash v0.8.12
+[1m[92m    Checking[0m ecolor v0.35.0
+[1m[92m    Checking[0m unicode-general-category v1.1.0
+[1m[92m    Checking[0m either v1.19.0
+[1m[92m    Checking[0m nohash-hasher v0.2.0
+[1m[92m    Checking[0m self_cell v1.3.0
+[1m[92m    Checking[0m epaint_default_fonts v0.35.0
+[1m[92m    Checking[0m vello_common v0.0.9
+[1m[92m    Checking[0m itertools v0.14.0
+[1m[92m   Compiling[0m psm v0.1.32
+[1m[92m    Checking[0m idna_adapter v1.2.2
+[1m[92m    Checking[0m percent-encoding v2.3.2
+[1m[92m    Checking[0m objc2-app-kit v0.3.2
+[1m[92m    Checking[0m ryu v1.0.20
+[1m[92m    Checking[0m form_urlencoded v1.2.2
+[1m[92m    Checking[0m itoa v1.0.15
+[1m[92m    Checking[0m rustc-hash v2.1.3
+[1m[92m    Checking[0m wgpu-core-deps-apple v29.0.4
+[1m[92m    Checking[0m idna v1.1.0
+[1m[92m    Checking[0m serde_json v1.0.145
+[1m[92m    Checking[0m web-time v1.1.0
+[1m[92m    Checking[0m wgpu-core v29.0.4
+[1m[92m    Checking[0m vello_cpu v0.0.9
+[1m[92m    Checking[0m type-map v0.5.1
+[1m[92m   Compiling[0m time-core v0.1.9
+[1m[92m    Checking[0m harfrust v0.7.0
+[1m[92m    Checking[0m skrifa v0.42.1
+[1m[92m    Checking[0m url v2.5.8
+[1m[92m   Compiling[0m num-conv v0.2.2
+[1m[92m    Checking[0m arboard v3.7.0
+[1m[92m    Checking[0m regex-syntax v0.8.8
+[1m[92m    Checking[0m powerfmt v0.2.1
+[1m[92m    Checking[0m webbrowser v1.2.5
+[1m[92m    Checking[0m lazy_static v1.5.0
+[1m[92m    Checking[0m deranged v0.5.9
+[1m[92m    Checking[0m sharded-slab v0.1.7
+[1m[92m    Checking[0m tracing-log v0.2.0
+[1m[92m    Checking[0m regex-automata v0.4.13
+[1m[92m   Compiling[0m time-macros v0.2.32
+[1m[92m    Checking[0m thread_local v1.1.9
+[1m[92m    Checking[0m epaint v0.35.0
+[1m[92m    Checking[0m nu-ansi-term v0.50.3
+[1m[92m    Checking[0m read-fonts v0.37.0
+[1m[92m    Checking[0m core-foundation v0.10.1
+[1m[92m    Checking[0m malloc_buf v0.0.6
+[1m[92m    Checking[0m bit-vec v0.8.0
+[1m[92m    Checking[0m objc v0.2.7
+[1m[92m    Checking[0m core-graphics-types v0.2.0
+[1m[92m    Checking[0m bit-set v0.8.0
+[1m[92m    Checking[0m codespan-reporting v0.12.0
+[1m[92m    Checking[0m block v0.1.6
+[1m[92m    Checking[0m wgpu-types v28.0.0
+[1m[92m    Checking[0m matchers v0.2.0
+[1m[92m    Checking[0m metal v0.33.0
+[1m[92m    Checking[0m wgpu v29.0.4
+[1m[92m    Checking[0m naga v28.0.0
+[1m[92m   Compiling[0m vello_shaders v0.10.0
+[1m[92m    Checking[0m egui v0.35.0
+[1m[92m    Checking[0m anyhow v1.0.104
+[1m[92m    Checking[0m icu_locale_fallback_data v2.3.0
+[1m[92m    Checking[0m winit-canvas v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/winit-canvas)
+[1m[92m    Checking[0m imaging v0.0.1
+[1m[92m    Checking[0m skrifa v0.40.0
+[1m[92m    Checking[0m icu_locale_fallback v2.3.0
+[1m[92m    Checking[0m icu_segmenter_data v2.3.0
+[1m[92m   Compiling[0m wasm-bindgen-shared v0.2.127
+[1m[92m    Checking[0m ttf-parser v0.25.1
+[1m[92m    Checking[0m time v0.3.55
+[1m[92m    Checking[0m egui-wgpu v0.35.0
+[1m[92m    Checking[0m egui-winit v0.35.0
+[1m[92m    Checking[0m wgpu-hal v28.0.1
+[1m[92m    Checking[0m keyboard-types v0.8.3
+[1m[92m    Checking[0m parlance v0.1.1
+[1m[92m   Compiling[0m wasm-bindgen-macro-support v0.2.127
+[1m[92m    Checking[0m fontique v0.8.0
+[1m[92m    Checking[0m ui-events v0.3.0
+[1m[92m    Checking[0m tracing-subscriber v0.3.23
+[1m[92m    Checking[0m vello_encoding v0.8.0
+[1m[92m    Checking[0m wgpu-core-deps-apple v28.0.0
+[1m[92m    Checking[0m wgpu-core v28.0.1
+[1m[92m    Checking[0m icu_segmenter v2.3.0
+[1m[92m    Checking[0m harfrust v0.5.2
+[1m[92m    Checking[0m parley_data v0.8.0
+[1m[92m    Checking[0m anymore v1.0.0
+[1m[92m    Checking[0m unicode-properties v0.1.4
+[1m[92m    Checking[0m unicode-ccc v0.4.0
+[1m[92m    Checking[0m unicode-bidi-mirroring v0.4.0
+[1m[92m    Checking[0m fontdb v0.23.0
+[1m[92m    Checking[0m tree_arena v0.2.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m rustybuzz v0.20.1
+[1m[92m    Checking[0m futures-task v0.3.34
+[1m[92m    Checking[0m imagesize v0.14.0
+[1m[92m    Checking[0m base64 v0.22.1
+[1m[92m    Checking[0m slab v0.4.11
+[1m[92m    Checking[0m anymap3 v1.1.0
+[1m[92m    Checking[0m accesskit_consumer v0.38.0
+[1m[92m    Checking[0m futures-util v0.3.34
+[1m[92m    Checking[0m eframe v0.35.0
+[1m[92m    Checking[0m vello v0.10.0
+[1m[92m    Checking[0m parley v0.8.0
+[1m[92m    Checking[0m stacker v0.1.25
+[1m[92m    Checking[0m accesskit_macos v0.26.3
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Checking[0m usvg v0.47.0
+[1m[92m   Compiling[0m wasm-bindgen-macro v0.2.127
+[1m[92m    Checking[0m egui-phosphor v0.13.0
+[1m[92m   Compiling[0m linebender_include_doc_path v0.1.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m vello_shaders v0.8.0
+[1m[92m    Checking[0m understory_virtual_list v0.1.2
+[1m[92m    Checking[0m accesskit_winit v0.32.2
+[1m[92m    Checking[0m masonry_core v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m xilem_core v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m wgpu v28.0.0
+[1m[92m    Checking[0m ui-events-winit v0.3.0
+[1m[92m    Checking[0m copypasta v0.10.2
+[1m[92m    Checking[0m resvg v0.47.0
+[1m[92m    Checking[0m tokio v1.54.1
+[1m[92m    Checking[0m vello-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/vello-app)
+[1m[92m    Checking[0m xtask v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tools/xtask)
+[1m[92m    Checking[0m imaging_wgpu v0.0.1
+[1m[92m    Checking[0m masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m wasm-bindgen v0.2.127
+[1m[92m    Checking[0m vello v0.8.0
+[1m[92m    Checking[0m js-sys v0.3.104
+[1m[92m    Checking[0m imaging_vello v0.0.1
+[1m[92m    Checking[0m xilem_masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m masonry_imaging v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m masonry_winit v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Checking[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m    Checking[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/scenes)
+[1m[92m    Checking[0m r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/r8-perf)
+[1m[92m    Checking[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Checking[0m wasm-bindgen-futures v0.4.77
+[1m[92m    Checking[0m web-sys v0.3.104
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:971:23
+    [1m[94m|[0m
+[1m[94m971[0m [1m[94m|[0m           .set_contents(Box::new(RectangleFigure::new_with_color(
+    [1m[94m|[0m [1m[91m _______________________^[0m
+[1m[94m972[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m973[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m974[0m [1m[94m|[0m [1m[91m|[0m             ROOT_WIDTH,
+[1m[94m975[0m [1m[94m|[0m [1m[91m|[0m             ROOT_HEIGHT,
+[1m[94m976[0m [1m[94m|[0m [1m[91m|[0m             Color::WHITE,
+[1m[94m977[0m [1m[94m|[0m [1m[91m|[0m         )))
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+              novadraw::container::FreeformLayerFigure
+              novadraw::container::FreeformLayeredPane
+              novadraw::container::LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:992:21
+    [1m[94m|[0m
+[1m[94m992[0m [1m[94m|[0m [1m[91m/[0m                     Box::new(RectangleFigure::new(
+[1m[94m993[0m [1m[94m|[0m [1m[91m|[0m                         column as f64 * 8.0,
+[1m[94m994[0m [1m[94m|[0m [1m[91m|[0m                         row as f64 * 8.0,
+[1m[94m995[0m [1m[94m|[0m [1m[91m|[0m                         7.0,
+[1m[94m996[0m [1m[94m|[0m [1m[91m|[0m                         7.0,
+[1m[94m997[0m [1m[94m|[0m [1m[91m|[0m                     )),
+    [1m[94m|[0m [1m[91m|______________________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+              novadraw::container::FreeformLayerFigure
+              novadraw::container::FreeformLayeredPane
+              novadraw::container::LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1011:32
+     [1m[94m|[0m
+[1m[94m1011[0m [1m[94m|[0m             .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+     [1m[94m|[0m                                [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LabelFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1036:17
+     [1m[94m|[0m
+[1m[94m1036[0m [1m[94m|[0m [1m[91m/[0m                 Box::new(LabelFigure::new(format!("label-{index:04}")).with_bounds(
+[1m[94m1037[0m [1m[94m|[0m [1m[91m|[0m                     Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
+[1m[94m1038[0m [1m[94m|[0m [1m[91m|[0m                 )),
+     [1m[94m|[0m [1m[91m|__________________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::LabelFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LabelFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-15442466740120080013.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<TextFlowFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1074:17
+     [1m[94m|[0m
+[1m[94m1074[0m [1m[94m|[0m [1m[91m/[0m                 Box::new(TextFlowFigure::new(
+[1m[94m1075[0m [1m[94m|[0m [1m[91m|[0m                     Rectangle::new(0.0, index as f64 * 18.0, 160.0, 18.0),
+[1m[94m1076[0m [1m[94m|[0m [1m[91m|[0m                     FlowPage::from_text(format!("flow paragraph {index:04}")),
+[1m[94m1077[0m [1m[94m|[0m [1m[91m|[0m                 )),
+     [1m[94m|[0m [1m[91m|__________________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::TextFlowFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<TextFlowFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-7997406683145146380.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1102:23
+     [1m[94m|[0m
+[1m[94m1102[0m [1m[94m|[0m           .set_contents(Box::new(RectangleFigure::new(
+     [1m[94m|[0m [1m[91m _______________________^[0m
+[1m[94m1103[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m1104[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m1105[0m [1m[94m|[0m [1m[91m|[0m             ROOT_WIDTH,
+[1m[94m1106[0m [1m[94m|[0m [1m[91m|[0m             ROOT_HEIGHT,
+[1m[94m1107[0m [1m[94m|[0m [1m[91m|[0m         )))
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1112:14
+     [1m[94m|[0m
+[1m[94m1112[0m [1m[94m|[0m         .add(Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
+     [1m[94m|[0m              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1117:14
+     [1m[94m|[0m
+[1m[94m1117[0m [1m[94m|[0m         .add(Box::new(RectangleFigure::new(900.0, 600.0, 80.0, 40.0)))
+     [1m[94m|[0m              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mbenchmarks/r8-perf/src/main.rs:1185:17
+     [1m[94m|[0m
+[1m[94m1185[0m [1m[94m|[0m [1m[91m/[0m                 Box::new(RectangleFigure::new(
+[1m[94m1186[0m [1m[94m|[0m [1m[91m|[0m                     column as f64 * 56.0,
+[1m[94m1187[0m [1m[94m|[0m [1m[91m|[0m                     row as f64 * 48.0,
+[1m[94m1188[0m [1m[94m|[0m [1m[91m|[0m                     48.0,
+[1m[94m1189[0m [1m[94m|[0m [1m[91m|[0m                     40.0,
+[1m[94m1190[0m [1m[94m|[0m [1m[91m|[0m                 )),
+     [1m[94m|[0m [1m[91m|__________________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/r8_perf-1d452cf7d67c0358.long-type-9740594473725111460.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `r8-perf` (bin "r8-perf") due to 9 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LayeredPane, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:972:23
+    [1m[94m|[0m
+[1m[94m972[0m [1m[94m|[0m           .set_contents(Box::new(LayeredPane::new(
+    [1m[94m|[0m [1m[91m _______________________^[0m
+[1m[94m973[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m974[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m975[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m976[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m977[0m [1m[94m|[0m [1m[91m|[0m         )))
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::container::LayeredPane, novadraw::figure::ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+              novadraw::container::FreeformLayerFigure
+              novadraw::container::FreeformLayeredPane
+              novadraw::container::LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LayeredPane, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-3686778998881141509.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:983:9
+    [1m[94m|[0m
+[1m[94m983[0m [1m[94m|[0m [1m[91m/[0m         Box::new(LayerFigure::new(
+[1m[94m984[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m985[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m986[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m987[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m988[0m [1m[94m|[0m [1m[91m|[0m         )),
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::container::LayerFigure, novadraw::figure::ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+              novadraw::container::FreeformLayerFigure
+              novadraw::container::FreeformLayeredPane
+              novadraw::container::LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-599284391978468654.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:994:9
+    [1m[94m|[0m
+[1m[94m994[0m [1m[94m|[0m [1m[91m/[0m         Box::new(LayerFigure::new(
+[1m[94m995[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m996[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m997[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m998[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m999[0m [1m[94m|[0m [1m[91m|[0m         )),
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::container::LayerFigure, novadraw::figure::ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+              novadraw::container::FreeformLayerFigure
+              novadraw::container::FreeformLayeredPane
+              novadraw::container::LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-599284391978468654.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1005:9
+     [1m[94m|[0m
+[1m[94m1005[0m [1m[94m|[0m [1m[91m/[0m         Box::new(LayerFigure::new(
+[1m[94m1006[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m1007[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m1008[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m1009[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m1010[0m [1m[94m|[0m [1m[91m|[0m         )),
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::container::LayerFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-599284391978468654.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<ScalableFreeformLayeredPane, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1017:18
+     [1m[94m|[0m
+[1m[94m1017[0m [1m[94m|[0m               .add(Box::new(ScalableFreeformLayeredPane::new(
+     [1m[94m|[0m [1m[91m __________________^[0m
+[1m[94m1018[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m1019[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m1020[0m [1m[94m|[0m [1m[91m|[0m                 bounds.width,
+[1m[94m1021[0m [1m[94m|[0m [1m[91m|[0m                 bounds.height,
+[1m[94m1022[0m [1m[94m|[0m [1m[91m|[0m             )))?;
+     [1m[94m|[0m [1m[91m|______________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `Result<ScalableFreeformLayeredPane, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<ScalableFreeformLayeredPane, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-2241337938378483484.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1026:9
+     [1m[94m|[0m
+[1m[94m1026[0m [1m[94m|[0m [1m[91m/[0m         Box::new(LayerFigure::new(
+[1m[94m1027[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m1028[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m1029[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m1030[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m1031[0m [1m[94m|[0m [1m[91m|[0m         )),
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::container::LayerFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-599284391978468654.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<FreeformLayeredPane, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1037:9
+     [1m[94m|[0m
+[1m[94m1037[0m [1m[94m|[0m [1m[91m/[0m         Box::new(FreeformLayeredPane::new(
+[1m[94m1038[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m1039[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m1040[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m1041[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m1042[0m [1m[94m|[0m [1m[91m|[0m         )),
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `Result<FreeformLayeredPane, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<FreeformLayeredPane, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-18341472048793377919.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<FreeformLayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1048:9
+     [1m[94m|[0m
+[1m[94m1048[0m [1m[94m|[0m [1m[91m/[0m         Box::new(FreeformLayerFigure::new(
+[1m[94m1049[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m1050[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m1051[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m1052[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m1053[0m [1m[94m|[0m [1m[91m|[0m         )),
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `Result<FreeformLayerFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<FreeformLayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-13082643653076474099.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<FreeformLayerFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:1059:9
+     [1m[94m|[0m
+[1m[94m1059[0m [1m[94m|[0m [1m[91m/[0m         Box::new(FreeformLayerFigure::new(
+[1m[94m1060[0m [1m[94m|[0m [1m[91m|[0m             bounds.x,
+[1m[94m1061[0m [1m[94m|[0m [1m[91m|[0m             bounds.y,
+[1m[94m1062[0m [1m[94m|[0m [1m[91m|[0m             bounds.width,
+[1m[94m1063[0m [1m[94m|[0m [1m[91m|[0m             bounds.height,
+[1m[94m1064[0m [1m[94m|[0m [1m[91m|[0m         )),
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `Result<FreeformLayerFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<FreeformLayerFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-13082643653076474099.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw-editor/src/viewer/mod.rs:3378:13
+     [1m[94m|[0m
+[1m[94m3378[0m [1m[94m|[0m [1m[91m/[0m             Box::new(RectangleFigure::new_with_color(
+[1m[94m3379[0m [1m[94m|[0m [1m[91m|[0m                 bounds.x,
+[1m[94m3380[0m [1m[94m|[0m [1m[91m|[0m                 bounds.y,
+[1m[94m3381[0m [1m[94m|[0m [1m[91m|[0m                 bounds.width,
+[1m[94m3382[0m [1m[94m|[0m [1m[91m|[0m                 bounds.height,
+[1m[94m3383[0m [1m[94m|[0m [1m[91m|[0m                 color,
+[1m[94m3384[0m [1m[94m|[0m [1m[91m|[0m             )),
+     [1m[94m|[0m [1m[91m|______________^[0m [1m[91munsatisfied trait bound[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               novadraw::advanced::RootFigure
+               novadraw::connection::ConnectionFigure
+               novadraw::connection::ConnectionLayerFigure
+               novadraw::connection::PolygonDecorationFigure
+               novadraw::connection::PolylineDecorationFigure
+               novadraw::container::FreeformLayerFigure
+               novadraw::container::FreeformLayeredPane
+               novadraw::container::LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+     [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/novadraw_editor-b34e636f45a2c71f.long-type-9743325543429755033.txt'
+     [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[0m: could not compile `novadraw-editor` (lib) due to 10 previous errors

@@ -1,0 +1,18 @@
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/tests/m10_reusable_shape_border_contract.rs:217:
+         .expect("valid detached figure input")
+         .with_width(4.0)
+         .expect("valid detached figure input")
+-        .with_join(LineJoin::Round).unwrap();
++        .with_join(LineJoin::Round)
++        .unwrap();
+     let bevel = PolygonFigure::from_points(points)
+         .expect("valid detached figure input")
+         .with_stroke(Color::BLACK, 4.0)
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/tests/m10_reusable_shape_border_contract.rs:224:
+         .expect("valid detached figure input")
+-        .with_join(LineJoin::Bevel).unwrap();
++        .with_join(LineJoin::Bevel)
++        .unwrap();
+ 
+     let miter_outset = 2.0 * DEFAULT_STROKE_MITER_LIMIT;
+     assert_eq!(

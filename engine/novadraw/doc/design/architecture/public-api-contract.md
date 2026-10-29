@@ -67,6 +67,11 @@ Core root 只公开领域模块，不提供库级 prelude 或类型平铺重导�
 | query | FigureTree 或 stable query | 读现有事实，不隐式执行 layout |
 | drive | `frames/resources/input/...` 等 Runtime 子 facade | 对应领域协调，仍由同一 Runtime 提交 |
 
+Border 的原始配置构造与更新按
+[ADR-056 输入不变量](detached-input-invariants.md#border-构造保护真实配置)返回领域错误。
+受检值构造成功后仍需走 attached 候选发布协议。冻结描边入口的受限存储规则见
+[Border 契约](reusable-shape-border.md#61-不可变可复用策略)。
+
 内置和外部 Figure 使用同一 identity、prepare、effect validation、commit、revision、
 damage、notification 与错误通道。具体类型不获得 `runtime.label/image/viewport` 等
 专用 mutation facade，也不获得闭集 adapter 快捷入口。具体私有属性用 typed component
@@ -136,6 +141,12 @@ Point 表示位置，Vec2 表示位移，Dimension 表示尺寸，Rectangle 表�
 `Graphics::set_opacity` 安装同一个 Opacity；动画通道也消费此值，旧
 `animation::Opacity` 路径退出。GraphicsInputError 保留非有限／越界原因，
 动画原始输入入口经 AnimationError 的 source 传播。
+
+Detached Figure 的原始 bounds、stroke、corner 和平移入口返回领域 Result，
+Bounded::set_bounds 也执行相同检查。BorderedFigure::replace_border 使用
+`figure::border::BorderCandidate`；它将共享 Border 和当次基础指标一起捕获，
+Runtime prepare 与 commit 消费同一候选。owner 指标、动态外部输出和挂载关系仍由
+各自的发布前检查负责，见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)。
 
 查询的目标合同以 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
 为准。P2-S07 的布局测量、五个坐标入口和 Route 身份切片已经迁移 Result；

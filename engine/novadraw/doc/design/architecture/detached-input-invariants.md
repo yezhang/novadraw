@@ -5,6 +5,8 @@
 状态：已接受；2026-10-29，S08-A 已获实施批准。决策入口为
 [ADR-056](../../adr/adr-056-detached-input-invariants.md)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
+S08-A／B／C／D 已完成，输入、外部准入、Native GPU 与成本证据见
+[整批完成记录](../../verification/reviews/p2-s08-d-completion-2026-10-29.md)。
 
 ## 输入先受检，再进入可用对象
 
@@ -93,8 +95,8 @@ weight 可用 `normal`、`bold` 或 `[1,1000]` 数值；重复或冲突的 style
 
 ## Border 构造保护真实配置
 
-建议构造和更新保留一套名称。现有 `new` 若接受未受检输入则改为 Result；
-不同时保留会 panic 的 new 和受检 try_new。以下为后续切片的目标签名：
+构造和更新保留一套名称。S08-B 将接受未受检输入的 `new` 改为 Result；
+不同时保留会 panic 的 new 和受检 try_new。以下为现行 Border 配置接口：
 
 | 对象／入口 | 返回与校验 |
 |---|---|
@@ -174,6 +176,17 @@ Detached `translate`、`set_bounds` 等原始数值更新返回 Result，包括�
 Shape 的描边宽度零合法；安装 StrokeStyle 不额外施加 Border 的正宽限制。
 接受外部 Border 的组合入口先检查静态指标，owner 相关指标随后按统一准备协议检查。
 具体 Figure 的旧 Bounded setter 若能绕过这些检查，需同步收口，不能另留未受检 alias。
+
+Bounded::set_bounds 返回 ShapeGeometryError。Viewport 的 with_origin 返回 ViewportError，
+先检查两个坐标，再交给 RangeModel 执行合法范围收敛；不再忽略输入拒绝。
+内部 ScrollPane 与 Viewport 宿主构造复用 bounds 校验，失败先于节点发布。
+
+BorderedFigure::replace_border 接收 `figure::border::BorderCandidate`。
+候选构造从同一个 Border 捕获并检查基础指标，私有字段保护候选与指标的对应关系；
+detached 安装和 Runtime commit 均消费该候选，不在 commit 再读外部回调。
+Runtime 的 ReplaceFigureBorder 仍接收原始共享 Border，在 prepare 构造候选，
+owner effect 继续在发布前准备字体相关指标。候选只证明当次基础检查成功，
+挂载与后续指标准备仍重新检查当前输出。
 
 RoundedRectangle 旧 `corner_radius` 参数仍按既有“等宽高 corner dimensions”解释，
 不借迁移改成半径；负值和非有限值改为拒绝。有效大圆角在目标矩形上适配仍合法。

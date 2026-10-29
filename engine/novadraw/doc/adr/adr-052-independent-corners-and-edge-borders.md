@@ -40,6 +40,9 @@ GPU 验证确认：单独 AA 填充各分区会使半透明交界变淡。混合
 `RectangleBorder` 的新 builder 返回 `RectangleShapeBorder`，保留旧 struct literal
 兼容性；insets 与画出的边仍分别配置。
 
+2026-10-29 的 [ADR-056](adr-056-detached-input-invariants.md)替换上述 struct literal
+兼容边界：S08-B 改为私有受检配置和 Result 构造。逐角、分边与区域填充语义保持。
+
 ## 更新与扩展
 
 新配置使用现有 `FigureComponentUpdate`，prepare 验证输入，commit 原子替换，

@@ -1,0 +1,187 @@
+[1m[92m   Compiling[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/web/web-validation)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m advanced-figures-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/advanced-figures-app)
+[1m[92m   Compiling[0m uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/uml-demo)
+[1m[92m   Compiling[0m ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/ndcanvas-app)
+[1m[92m   Compiling[0m clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/clip-app)
+[1m[92m   Compiling[0m update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/update-app)
+[1m[92m   Compiling[0m style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/style-app)
+[1m[92m   Compiling[0m connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/connections-demo)
+[1m[92m   Compiling[0m node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/node-editor-demo)
+[1m[92m   Compiling[0m scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/scroll-pane-demo)
+[1m[92m   Compiling[0m composite-shapes-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/composite-shapes-app)
+[1m[92m   Compiling[0m transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/transform-app)
+[1m[92m   Compiling[0m viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/viewport-app)
+[1m[92m   Compiling[0m event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/event-app)
+[1m[92m   Compiling[0m layout-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/layout-app)
+[1m[92m   Compiling[0m widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/widgets-app)
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m   Compiling[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m   Compiling[0m native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/native-vello-perf)
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mexamples/support/src/app.rs:1503:27
+     [1m[94m|[0m
+[1m[94m1503[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+     [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+               BlockFlowFigure
+               ButtonFigure
+               ClickableFigure
+               ConnectionFigure
+               ConnectionLayerFigure
+               EllipseFigure
+               FlowAdapterFigure
+               FlowPageFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `novadraw-example-support` (lib test) due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw_example_support::Figure` is not satisfied[0m
+    [1m[94m--> [0mexamples/native/draw2d-official-examples/src/controls.rs:1067:14
+     [1m[94m|[0m
+[1m[94m1067[0m [1m[94m|[0m           .add(Box::new(LabelFigure::new(text).with_bounds(
+     [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m1068[0m [1m[94m|[0m [1m[91m|[0m             Rectangle::new(LABEL_X, 0.0, (width - LABEL_X).max(0.0), CONTROL_HEIGHT),
+[1m[94m1069[0m [1m[94m|[0m [1m[91m|[0m         )))
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+               ButtonFigure
+               CheckBoxFigure
+               ClickableFigure
+               ComboBoxFigure
+               ComboPopupFigure
+               ConnectionLayerFigure
+               EllipseFigure
+               FlowAdapterFigure
+             and 33 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw_example_support::Figure` is not satisfied[0m
+    [1m[94m--> [0mexamples/native/draw2d-official-examples/src/controls.rs:1086:14
+     [1m[94m|[0m
+[1m[94m1086[0m [1m[94m|[0m           .add(Box::new(LabelFigure::new(text).with_bounds(
+     [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m1087[0m [1m[94m|[0m [1m[91m|[0m             Rectangle::new(2.0, 0.0, width.max(0.0), CONTROL_HEIGHT),
+[1m[94m1088[0m [1m[94m|[0m [1m[91m|[0m         )))
+     [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+               ButtonFigure
+               CheckBoxFigure
+               ClickableFigure
+               ComboBoxFigure
+               ComboPopupFigure
+               ConnectionLayerFigure
+               EllipseFigure
+               FlowAdapterFigure
+             and 33 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw_example_support::Figure` is not satisfied[0m
+    [1m[94m--> [0mexamples/native/draw2d-official-examples/src/controls.rs:1118:9
+     [1m[94m|[0m
+[1m[94m1118[0m [1m[94m|[0m [1m[91m/[0m         Box::new(LabelFigure::new(text).with_bounds(Rectangle::new(
+[1m[94m1119[0m [1m[94m|[0m [1m[91m|[0m             2.0,
+[1m[94m1120[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m1121[0m [1m[94m|[0m [1m[91m|[0m             width.max(0.0),
+[1m[94m1122[0m [1m[94m|[0m [1m[91m|[0m             CONTROL_HEIGHT,
+[1m[94m1123[0m [1m[94m|[0m [1m[91m|[0m         ))),
+     [1m[94m|[0m [1m[91m|___________^[0m [1m[91mthe trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+               ButtonFigure
+               CheckBoxFigure
+               ClickableFigure
+               ComboBoxFigure
+               ComboPopupFigure
+               ConnectionLayerFigure
+               EllipseFigure
+               FlowAdapterFigure
+             and 33 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/draw2d-official-examples/src/examples/layout_consumer_contracts.rs:20:23
+   [1m[94m|[0m
+[1m[94m20[0m [1m[94m|[0m           .set_contents(Box::new(RectangleFigure::new_with_color(
+   [1m[94m|[0m [1m[91m _______________________^[0m
+[1m[94m21[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m22[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m23[0m [1m[94m|[0m [1m[91m|[0m             360.0,
+[1m[94m24[0m [1m[94m|[0m [1m[91m|[0m             500.0,
+[1m[94m25[0m [1m[94m|[0m [1m[91m|[0m             Color::WHITE,
+[1m[94m26[0m [1m[94m|[0m [1m[91m|[0m         )))
+   [1m[94m|[0m [1m[91m|__________^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<novadraw_example_support::RectangleFigure, ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+             ButtonFigure
+             CheckBoxFigure
+             ClickableFigure
+             ComboBoxFigure
+             ConnectionLayerFigure
+             DraggableRectangle
+             EllipseFigure
+             FlowAdapterFigure
+           and 34 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<novadraw_example_support::RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/draw2d_official_examples-dbafc8be41d482bf.long-type-273609627155985764.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<FlowPageFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/draw2d-official-examples/src/examples/layout_consumer_contracts.rs:49:14
+   [1m[94m|[0m
+[1m[94m49[0m [1m[94m|[0m         .add(Box::new(FlowPageFigure::new(Rectangle::ZERO)))
+   [1m[94m|[0m              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<novadraw::figure::flow::FlowPageFigure, ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+             ButtonFigure
+             CheckBoxFigure
+             ClickableFigure
+             ComboBoxFigure
+             ConnectionLayerFigure
+             DraggableRectangle
+             EllipseFigure
+             FlowAdapterFigure
+           and 34 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<novadraw::figure::flow::FlowPageFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/draw2d_official_examples-dbafc8be41d482bf.long-type-3841715754771054622.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/native/draw2d-official-examples/src/examples/path_example.rs:385:27
+    [1m[94m|[0m
+[1m[94m385[0m [1m[94m|[0m               .set_contents(Box::new(RectangleFigure::new_with_color(
+    [1m[94m|[0m [1m[91m ___________________________^[0m
+[1m[94m386[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m387[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m388[0m [1m[94m|[0m [1m[91m|[0m                 512.0,
+[1m[94m389[0m [1m[94m|[0m [1m[91m|[0m                 512.0,
+[1m[94m390[0m [1m[94m|[0m [1m[91m|[0m                 Color::WHITE,
+[1m[94m391[0m [1m[94m|[0m [1m[91m|[0m             )))
+    [1m[94m|[0m [1m[91m|______________^[0m [1m[91munsatisfied trait bound[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the trait `novadraw_example_support::Figure` is not implemented for `std::result::Result<novadraw_example_support::RectangleFigure, ShapeGeometryError>`
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+              ButtonFigure
+              CheckBoxFigure
+              ClickableFigure
+              ComboBoxFigure
+              ConnectionLayerFigure
+              DraggableRectangle
+              EllipseFigure
+              FlowAdapterFigure
+            and 36 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<novadraw_example_support::RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw_example_support::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/draw2d_official_examples-dbafc8be41d482bf.long-type-273609627155985764.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[0m: could not compile `draw2d-official-examples` (lib test) due to 6 previous errors

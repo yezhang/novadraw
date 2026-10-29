@@ -89,7 +89,7 @@ pre-Runtime 构建可使用 Figure 构造器和 FigureTreeBuilder。Figure 进�
 - bounds 使用 `FigureMut::set_bounds`；
 - point list、corner dimensions 和 triangle direction 使用 `FigureMut` 上命名的
   typed mutation；
-- Border replacement 使用 `FigureMut::{set_border,replace_border}`。
+- Border replacement 使用 `FigureMut::update_capability(ReplaceFigureBorder)`。
 
 运行期不得向调用方暴露可变 PointList、可变 Border 引用或可绕过
 validation/damage 的具体 Figure 可变引用。
@@ -97,6 +97,12 @@ validation/damage 的具体 Figure 可变引用。
 命名 setter 不是封闭类型清单。按 ADR-014，自定义组件通过 owned typed update
 准备候选，并通过 `FigureMut::update_component` 统一发布 revision/facts；不要求
 为每个第三方 Shape 修改 Runtime。
+
+detached 数值构造和 Bounded::set_bounds 返回领域 Result，拒绝时保留原配置。
+detached 的 BorderedFigure::replace_border 接收受检 BorderCandidate；
+Runtime 的 ReplaceFigureBorder 在 prepare 捕获相同候选，commit 不重复读取基础指标。
+构造、外部指标准入与 owner 准备的边界见
+[ADR-056](../../adr/adr-056-detached-input-invariants.md)。
 
 ### 3.4 Shape 是绘制辅助，不是第二棵对象树
 
@@ -296,6 +302,16 @@ Border 并通过 FigureMut 替换。
 这保留 Draw2D 的可复用性，同时避免 mutable shared Border 修改后无法通知所有 owner。
 禁止 Border 持有 owner Figure、Runtime、FigureTree 或全局注册表。
 
+S08-B 的 Border 配置先受检再返回对象，具体构造签名、正宽、自动／显式 inset
+和 Margin 边界由
+[输入不变量专题](detached-input-invariants.md#border-构造保护真实配置)统一维护。
+BorderInputError 从 `figure::border` 导出，保留字段、side 和 source。
+
+描边冻结使用公开 `BoundsDrawing::stroked`。该入口接受 Copy 的放置输入与受检
+StrokeStyle，计入 custom dash 的共享存储；克隆绘制快照共享整个 payload。
+普通 `BoundsDrawing::new` 继续限定 Copy，不接受任意未计费堆对象。
+Line／Rectangle 和外部消费者共用这一入口，分边圆角模式仍按 ADR-052 区域填充。
+
 ### 6.2 指标
 
 Border 对外提供三个独立指标：
@@ -355,6 +371,11 @@ opaque = outer.is_opaque && inner.is_opaque
 缺失的 outer/inner 在 insets、preferred size 和 paint 中按空 Border 处理；任一侧
 缺失时 CompoundBorder 为 non-opaque。该规则保留 Draw2D 的 opacity 语义，同时避免
 其默认构造后查询 preferred size 时的空引用风险。
+
+`new`／`from_optional` 在构造时捕获每个直接 child 的基础 inset 和 preferred
+各一次，检查非负、有限与合成溢出，返回 BorderInputError；不执行 owner 测量，
+也不缓存可供未来挂载复用的成功判定。构造后的外部 child 可以改变其私有状态，
+动态指标准入与 owner 派生校验继续由 S08-C 完成。
 
 绘制时 outer 和 inner 使用隔离的 Graphics state。inner 的累计 inset 等于调用方
 inset 加 outer.insets。

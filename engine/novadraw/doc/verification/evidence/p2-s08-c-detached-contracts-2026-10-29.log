@@ -1,0 +1,126 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[33mwarning[0m[1m: unused `std::result::Result` that must be used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/independent_shape_corners.rs:82:5
+   [1m[94m|[0m
+[1m[94m82[0m [1m[94m|[0m     edge_only.set_corner_dimensions(Dimension::new(40.0, 20.0));
+   [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: this `Result` may be an `Err` variant, which should be handled
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+   [1m[94m|[0m
+[1m[94m82[0m [1m[94m| [0m    [92mlet _ = [0medge_only.set_corner_dimensions(Dimension::new(40.0, 20.0));
+   [1m[94m|[0m     [92m+++++++[0m
+
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[33mwarning[0m: `novadraw` (test "independent_shape_corners") generated 1 warning
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 9.67s
+[1m[92m     Running[0m tests/independent_shape_corners.rs (target/debug/deps/independent_shape_corners-ade4a580996f10bd)
+
+running 19 tests
+test contour_cost ... ignored, release CPU construction and stable access cost evidence
+test invalid_radii_and_topologies_return_structured_errors ... ok
+test excessive_polygon_radii_normalize_to_nonoverlapping_tangents ... ok
+test oversized_corners_scale_together_without_changing_request ... ok
+test polygon_fillets_cut_all_three_vertices_and_share_paint_and_hit_path ... ok
+test polygon_shape_entry_points_use_the_same_rounded_path ... ok
+test elliptical_corner_matches_drawn_arc_instead_of_quadratic_approximation ... ok
+test disabled_bottom_produces_three_colors_and_no_bottom_region ... ok
+test rounded_free_ends_stop_at_straight_tangents_and_keep_the_fill_contour ... ok
+test thick_border_and_zero_size_never_create_negative_geometry ... ok
+test top_only_corners_leave_bottom_vertices_and_hit_geometry_intact ... ok
+test runtime_corner_mode_can_return_to_legacy_even_with_same_dimensions ... ok
+test rounded_triangle_updates_use_runtime_bounds_and_remove_tip_from_hit ... ok
+test external_figure_reuses_public_contour_without_registry_or_backend_changes ... ok
+test rectangle_shape_border_records_through_runtime_snapshot ... ok
+test runtime_geometry_updates_are_atomic_and_identical_updates_are_noops ... ok
+test concave_corners_and_reversed_winding_have_same_region ... ok
+test all_sharp_edge_masks_cover_full_enabled_strips_without_overlap ... ok
+test rectangle_border_partitions_cover_ring_once_for_all_corner_sizes ... ok
+
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+[1m[92m     Running[0m tests/p2_f01_scalable_polygon_contract.rs (target/debug/deps/p2_f01_scalable_polygon_contract-9f7e5726be048540)
+
+running 4 tests
+test scalable_polygon_maps_one_template_with_stretch_and_preserved_aspect ... ok
+test scalable_polygon_handles_empty_and_single_axis_templates_without_nan ... ok
+test scalable_polygon_reserves_miter_outset_and_uses_precise_hit ... ok
+test runtime_mutations_and_resize_use_current_template_without_stale_geometry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_graphics_contract.rs (target/debug/deps/p2_graphics_contract-83929b1232d5ddef)
+
+running 24 tests
+test invalid_dash_and_stroke_values_are_rejected ... ok
+test invalid_gradients_reject_degenerate_endpoints_and_unordered_stops ... ok
+test low_miter_preserves_requested_state_and_uses_bevel_extent ... ok
+test linear_gradient_owns_ordered_stops_and_preserves_hard_edges ... ok
+test custom_dash_is_owned_and_odd_patterns_have_an_even_period ... ok
+test builtin_dash_scales_with_width_but_custom_dash_does_not ... ok
+test paint_context_rejects_device_overflow_without_partial_commands ... ok
+test device_preflight_replays_transform_restore_for_paints_and_clips ... ok
+test ellipse_checks_both_paints_and_its_stroke ... ok
+test mixed_clip_and_fill_rule_restore_after_pop ... ok
+test paint_context_snapshots_complete_strokes_and_restores_them ... ok
+test paint_context_primitives_share_one_stroke_style ... ok
+test clip_paths_validate_structure_and_own_curves_without_consuming_current_path ... ok
+test connection_and_decorations_use_actual_stroke_for_geometry_and_recording ... ok
+test paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients ... ok
+test polygon_and_scalable_polygon_record_complete_strokes ... ok
+test rejected_paint_setter_is_atomic_and_fails_recording ... ok
+test solid_offset_is_preserved_until_a_dash_pattern_is_selected ... ok
+test stroke_outset_uses_actual_miter_and_cap ... ok
+test runtime_dash_changes_repaint_without_moving_geometry ... ok
+test miter_transaction_updates_freeform_extent_with_one_move_notification ... ok
+test runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes ... ok
+test rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_retry ... ok
+test gradient_glyph_stroke_requires_each_capability_and_preserves_full_style ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s08_admission_contract.rs (target/debug/deps/p2_s08_admission_contract-4aff9f7c3746a693)
+
+running 8 tests
+test checked_metrics_cannot_be_created_with_invalid_values ... ok
+test initial_candidates_are_captured_once_and_legal_boundaries_are_preserved ... ok
+test replacement_installs_one_capture_and_rejection_preserves_published_state ... ok
+test owner_callback_panic_retains_existing_fault_semantics ... ok
+test bounds_extent_overflow_is_rejected_before_publication_with_geometry_source ... ok
+test nested_external_metrics_are_rechecked_after_successful_construction ... ok
+test each_external_inset_and_combination_is_rejected_by_builder_runtime_and_subtree ... ok
+test owner_combination_overflow_rejects_replacement_before_source_commit ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s08_border_input_contract.rs (target/debug/deps/p2_s08_border_input_contract-9a02ad60bf69afcb)
+
+running 10 tests
+test direct_and_builder_auto_insets_follow_stroke_while_explicit_insets_remain ... ok
+test each_inset_side_and_sum_is_checked_across_all_configuration_entries ... ok
+test padding_is_checked_before_any_title_measurement ... ok
+test compound_rejects_invalid_child_metrics_and_finite_composition_overflow ... ok
+test compound_captures_each_direct_base_metric_once_and_does_not_measure_an_owner ... ok
+test fixed_and_empty_constructors_keep_margin_optional_and_scheme_semantics ... ok
+test all_width_entries_reject_zero_nonfinite_negative_and_derived_overflow ... ok
+test rejected_configuration_preserves_mounted_border_and_valid_replacement_recovers ... ok
+test all_dash_patterns_reach_public_graphics ... ok
+test external_painter_uses_the_same_bounded_stroke_freezing_entry ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s08_detached_geometry_contract.rs (target/debug/deps/p2_s08_detached_geometry_contract-73dfecd15bf76c00)
+
+running 7 tests
+test rounded_dimensions_and_translation_fail_before_writing_and_keep_diameter_units ... ok
+test bounded_trait_cannot_bypass_checked_update_or_destroy_previous_configuration ... ok
+test raw_stroke_rejection_preserves_shape_zero_width_and_original_error_source ... ok
+test point_lists_reject_nan_span_stroke_envelope_and_scaling_overflow_atomically ... ok
+test rectangle_and_ellipse_keep_custom_dash_and_checked_stroke_at_supplied_bounds ... ok
+test bounds_constructors_reject_raw_and_endpoint_overflow_and_preserve_legal_geometry ... ok
+test scaled_template_checks_span_and_avoids_overflow_from_tiny_valid_source_span ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

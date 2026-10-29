@@ -1,0 +1,292 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/connection/query.rs:923:27
+    [1m[94m|[0m
+[1m[94m923[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+    [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/connection/query.rs:929:17
+    [1m[94m|[0m
+[1m[94m929[0m [1m[94m|[0m                 Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/connection/query.rs:935:27
+    [1m[94m|[0m
+[1m[94m935[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+    [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/connection/query.rs:972:27
+    [1m[94m|[0m
+[1m[94m972[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)))
+    [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/connection/query.rs:978:17
+    [1m[94m|[0m
+[1m[94m978[0m [1m[94m|[0m                 Box::new(RectangleFigure::from_bounds(Rectangle::ZERO)),
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<nodes::FlowPageFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/flow/snapshot.rs:1406:31
+     [1m[94m|[0m
+[1m[94m1406[0m [1m[94m|[0m                 .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO)))
+     [1m[94m|[0m                               [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<nodes::FlowPageFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<nodes::FlowPageFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/flow/snapshot.rs:1444:21
+     [1m[94m|[0m
+[1m[94m1444[0m [1m[94m|[0m                     Box::new(RectangleFigure::new(0.0, 0.0, 33.0, 21.0)),
+     [1m[94m|[0m                     [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 26 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:996:27
+    [1m[94m|[0m
+[1m[94m996[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+    [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+              ButtonFigure
+              ClickableFigure
+              ConnectionLayerFigure
+              FreeformLayerFigure
+              FreeformLayeredPane
+              GraphProjectionFigure
+              InlineFlowFigure
+              LayerFigure
+            and 27 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1004:34
+     [1m[94m|[0m
+[1m[94m1004[0m [1m[94m|[0m                 .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+     [1m[94m|[0m                                  [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1033:27
+     [1m[94m|[0m
+[1m[94m1033[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+     [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1037:30
+     [1m[94m|[0m
+[1m[94m1037[0m [1m[94m|[0m             .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+     [1m[94m|[0m                              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1064:27
+     [1m[94m|[0m
+[1m[94m1064[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+     [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1070:34
+     [1m[94m|[0m
+[1m[94m1070[0m [1m[94m|[0m                 .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+     [1m[94m|[0m                                  [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1103:27
+     [1m[94m|[0m
+[1m[94m1103[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+     [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1123:27
+     [1m[94m|[0m
+[1m[94m1123[0m [1m[94m|[0m             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+     [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: figure::Figure` is not satisfied[0m
+    [1m[94m--> [0mcrates/novadraw/src/figure/preparation/scene.rs:1127:30
+     [1m[94m|[0m
+[1m[94m1127[0m [1m[94m|[0m             .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0)))
+     [1m[94m|[0m                              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `figure::Figure` is not implemented for `Result<RectangleFigure, ShapeGeometryError>`[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mhelp[0m: the following other types implement trait `figure::Figure`:
+               ButtonFigure
+               ClickableFigure
+               ConnectionLayerFigure
+               FreeformLayerFigure
+               FreeformLayeredPane
+               GraphProjectionFigure
+               InlineFlowFigure
+               LayerFigure
+             and 27 others
+     [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn figure::Figure + 'static)>`
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `novadraw` (lib test) due to 16 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

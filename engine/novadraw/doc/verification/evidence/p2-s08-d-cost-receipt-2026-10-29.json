@@ -1,0 +1,3882 @@
+{
+  "platform": "macOS-14.7.8-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "profile": {
+    "opt_level": "s",
+    "lto": true,
+    "codegen_units": 1,
+    "panic": "abort",
+    "strip": true
+  },
+  "native_toolchain": "1.96.0",
+  "wasm_toolchain": "stable 1.99.1",
+  "baseline_commit": "cfc7ac9c",
+  "samples_per_run": 101,
+  "updates_per_sample": 120,
+  "timing_unit": "ns per batch including setup and teardown",
+  "allocations": "allocator request count; requested bytes include realloc size",
+  "artifacts": {
+    "native-default-before.bin": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/native-default-before.bin",
+      "raw_bytes": 2125040,
+      "gzip_bytes": 1034932,
+      "sha256": "7e5dabde425804d5d9ba5fc70a003b143e83e5474607fdb4f069e878f0b6c450"
+    },
+    "native-default-after.bin": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/native-default-after.bin",
+      "raw_bytes": 2141616,
+      "gzip_bytes": 1044284,
+      "sha256": "698e9d76e31d6d284bd15e00418d88a956a31261ae8277e57c88b5f05ff53a84"
+    },
+    "wasm-default-before.wasm": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/wasm-default-before.wasm",
+      "raw_bytes": 2351976,
+      "gzip_bytes": 778578,
+      "sha256": "615023a2c339fd46be84a6d17bd278c93a39d2ba894e0cee0e189a945598161e"
+    },
+    "wasm-default-after.wasm": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/wasm-default-after.wasm",
+      "raw_bytes": 2372214,
+      "gzip_bytes": 785870,
+      "sha256": "07e7d8f7511ca73b4df1a05981af3271e075bd6d2855a562f5553e1b4423f80f"
+    },
+    "native-off-before.bin": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/native-off-before.bin",
+      "raw_bytes": 2125040,
+      "gzip_bytes": 1034782,
+      "sha256": "1a772d96f04e2a5e28b226f8de7217eae4b6a8c393cba68ff652e1604d54c795"
+    },
+    "native-off-after.bin": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/native-off-after.bin",
+      "raw_bytes": 2141616,
+      "gzip_bytes": 1043921,
+      "sha256": "5563ee6603011760e4069e799fcb8b088d2e6b3f7957e255f04bc5c0cef2b4c3"
+    },
+    "wasm-off-before.wasm": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/wasm-off-before.wasm",
+      "raw_bytes": 2352002,
+      "gzip_bytes": 778719,
+      "sha256": "deb9318cf62f2be741153c4030d9f7a668c55110938fcd009d0a09faada6f028"
+    },
+    "wasm-off-after.wasm": {
+      "path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/style-input/target/s08-d/wasm-off-after.wasm",
+      "raw_bytes": 2372220,
+      "gzip_bytes": 785763,
+      "sha256": "1c8e8ba8fd9fb54d99db83dd546888cc5c12b5f1f3d1d5139956b6f75ca2bfc5"
+    }
+  },
+  "measurements": {
+    "default": {
+      "runs": {
+        "before": [
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1491958,
+              "p95_ns": 1669542,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30875416,
+              "p95_ns": 32220334,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22949000,
+              "p95_ns": 24640667,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 27166,
+              "p95_ns": 27792,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3458,
+              "p95_ns": 3666,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97500,
+              "p95_ns": 115250,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97250,
+              "p95_ns": 117166,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 161792,
+              "p95_ns": 203875,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1485208,
+              "p95_ns": 1670541,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31953167,
+              "p95_ns": 34507084,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23786792,
+              "p95_ns": 26150458,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 24583,
+              "p95_ns": 27333,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3500,
+              "p95_ns": 3834,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97834,
+              "p95_ns": 103417,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96792,
+              "p95_ns": 101916,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 159250,
+              "p95_ns": 179875,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1464041,
+              "p95_ns": 1634416,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31489708,
+              "p95_ns": 34376791,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23819291,
+              "p95_ns": 27496625,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26292,
+              "p95_ns": 27292,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2625,
+              "p95_ns": 2708,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 101375,
+              "p95_ns": 119000,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 101125,
+              "p95_ns": 149000,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 163333,
+              "p95_ns": 205042,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1494917,
+              "p95_ns": 1633083,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32377750,
+              "p95_ns": 36962000,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24050375,
+              "p95_ns": 27024875,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 24667,
+              "p95_ns": 26375,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2750,
+              "p95_ns": 3375,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98709,
+              "p95_ns": 111375,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97375,
+              "p95_ns": 101292,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 158875,
+              "p95_ns": 195542,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1462959,
+              "p95_ns": 1610167,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30648000,
+              "p95_ns": 33681250,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23596542,
+              "p95_ns": 26853667,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 27000,
+              "p95_ns": 27209,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2584,
+              "p95_ns": 2875,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100000,
+              "p95_ns": 102291,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 101000,
+              "p95_ns": 115209,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 158375,
+              "p95_ns": 195417,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1509709,
+              "p95_ns": 2101583,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 34138333,
+              "p95_ns": 37913750,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23447250,
+              "p95_ns": 25625750,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26166,
+              "p95_ns": 27250,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2667,
+              "p95_ns": 3667,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100375,
+              "p95_ns": 115333,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100000,
+              "p95_ns": 107958,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156666,
+              "p95_ns": 210000,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1484833,
+              "p95_ns": 1946667,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33343792,
+              "p95_ns": 37079917,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24311417,
+              "p95_ns": 26430417,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26166,
+              "p95_ns": 26291,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2583,
+              "p95_ns": 3375,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98583,
+              "p95_ns": 108542,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98917,
+              "p95_ns": 115583,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 160958,
+              "p95_ns": 203459,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1491250,
+              "p95_ns": 1680667,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 45512500,
+              "p95_ns": 73495500,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 25646792,
+              "p95_ns": 44801333,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 27084,
+              "p95_ns": 54333,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3458,
+              "p95_ns": 14916,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 124542,
+              "p95_ns": 259792,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 145041,
+              "p95_ns": 293417,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 224042,
+              "p95_ns": 493167,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1592750,
+              "p95_ns": 2577042,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31855958,
+              "p95_ns": 42778375,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23430334,
+              "p95_ns": 25364542,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 25458,
+              "p95_ns": 332083,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2667,
+              "p95_ns": 3917,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100666,
+              "p95_ns": 411083,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 102500,
+              "p95_ns": 389541,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 162834,
+              "p95_ns": 253250,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1503709,
+              "p95_ns": 1722250,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32276542,
+              "p95_ns": 35683792,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23366208,
+              "p95_ns": 24656708,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26083,
+              "p95_ns": 26375,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2542,
+              "p95_ns": 3375,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97708,
+              "p95_ns": 111708,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97959,
+              "p95_ns": 109333,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156958,
+              "p95_ns": 192709,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          }
+        ],
+        "after": [
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1555166,
+              "p95_ns": 5234917,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32626500,
+              "p95_ns": 36072917,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23654708,
+              "p95_ns": 26587500,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39542,
+              "p95_ns": 40917,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2917,
+              "p95_ns": 3250,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98667,
+              "p95_ns": 102958,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96208,
+              "p95_ns": 133709,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 162666,
+              "p95_ns": 201291,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1589750,
+              "p95_ns": 2020042,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31813583,
+              "p95_ns": 39202916,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23609625,
+              "p95_ns": 25428584,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 40666,
+              "p95_ns": 45084,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2959,
+              "p95_ns": 23500,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94625,
+              "p95_ns": 99875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94917,
+              "p95_ns": 108833,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156417,
+              "p95_ns": 191750,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1542875,
+              "p95_ns": 1899625,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33785334,
+              "p95_ns": 40849667,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23202083,
+              "p95_ns": 26908042,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 41000,
+              "p95_ns": 64916,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2792,
+              "p95_ns": 3125,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 99333,
+              "p95_ns": 128250,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 99250,
+              "p95_ns": 150250,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 160875,
+              "p95_ns": 260500,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1534583,
+              "p95_ns": 1840917,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33693291,
+              "p95_ns": 36862916,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23004708,
+              "p95_ns": 25268417,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 41625,
+              "p95_ns": 42042,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2875,
+              "p95_ns": 3000,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96375,
+              "p95_ns": 99875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96083,
+              "p95_ns": 99875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 160167,
+              "p95_ns": 180458,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1571833,
+              "p95_ns": 1960958,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33602917,
+              "p95_ns": 37420083,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23024708,
+              "p95_ns": 26123083,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 40042,
+              "p95_ns": 51792,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2875,
+              "p95_ns": 3500,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 95167,
+              "p95_ns": 98750,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97875,
+              "p95_ns": 110416,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 152833,
+              "p95_ns": 184875,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1505167,
+              "p95_ns": 1632375,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32997500,
+              "p95_ns": 38925958,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24169750,
+              "p95_ns": 28725667,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 41250,
+              "p95_ns": 44417,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2875,
+              "p95_ns": 3417,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97333,
+              "p95_ns": 103667,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96792,
+              "p95_ns": 149666,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 162000,
+              "p95_ns": 278125,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1493333,
+              "p95_ns": 1664792,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32513625,
+              "p95_ns": 35611583,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23963000,
+              "p95_ns": 25711333,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 38208,
+              "p95_ns": 40125,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3042,
+              "p95_ns": 3584,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98666,
+              "p95_ns": 107750,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97500,
+              "p95_ns": 101958,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 154209,
+              "p95_ns": 189916,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1503916,
+              "p95_ns": 1684666,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33774166,
+              "p95_ns": 37824625,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 26053292,
+              "p95_ns": 65725125,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 38042,
+              "p95_ns": 38542,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3000,
+              "p95_ns": 3125,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98375,
+              "p95_ns": 101042,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98959,
+              "p95_ns": 121875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 163459,
+              "p95_ns": 295666,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1507291,
+              "p95_ns": 1753375,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32277250,
+              "p95_ns": 35620375,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22548416,
+              "p95_ns": 24703042,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39833,
+              "p95_ns": 52125,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2875,
+              "p95_ns": 2958,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 99834,
+              "p95_ns": 120125,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94583,
+              "p95_ns": 113125,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 155958,
+              "p95_ns": 188125,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1500250,
+              "p95_ns": 1699416,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32114333,
+              "p95_ns": 36883791,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23909000,
+              "p95_ns": 25699417,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 40083,
+              "p95_ns": 57958,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2958,
+              "p95_ns": 3042,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98791,
+              "p95_ns": 107875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 95625,
+              "p95_ns": 101625,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 157000,
+              "p95_ns": 203833,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          }
+        ]
+      },
+      "summary": {
+        "before": {
+          "frame_0": {
+            "p50_ns": {
+              "median": 1491604.0,
+              "min": 1462959,
+              "max": 1592750
+            },
+            "p95_ns": {
+              "median": 1675604.0,
+              "min": 1610167,
+              "max": 2577042
+            },
+            "allocations": {
+              "median": 373094.0,
+              "min": 373094,
+              "max": 373094
+            },
+            "requested_bytes": {
+              "median": 335261723.0,
+              "min": 335261723,
+              "max": 335261723
+            }
+          },
+          "frame_1": {
+            "p50_ns": {
+              "median": 32114854.5,
+              "min": 30648000,
+              "max": 45512500
+            },
+            "p95_ns": {
+              "median": 36322896.0,
+              "min": 32220334,
+              "max": 73495500
+            },
+            "allocations": {
+              "median": 15038294.0,
+              "min": 15038294,
+              "max": 15038294
+            },
+            "requested_bytes": {
+              "median": 20072984723.0,
+              "min": 20072984723,
+              "max": 20072984723
+            }
+          },
+          "frame_2": {
+            "p50_ns": {
+              "median": 23691667.0,
+              "min": 22949000,
+              "max": 25646792
+            },
+            "p95_ns": {
+              "median": 26290437.5,
+              "min": 24640667,
+              "max": 44801333
+            },
+            "allocations": {
+              "median": 13378460.0,
+              "min": 13378460,
+              "max": 13378460
+            },
+            "requested_bytes": {
+              "median": 17796774387.0,
+              "min": 17796774387,
+              "max": 17796774387
+            }
+          },
+          "border_0": {
+            "p50_ns": {
+              "median": 26166.0,
+              "min": 24583,
+              "max": 27166
+            },
+            "p95_ns": {
+              "median": 27271.0,
+              "min": 26291,
+              "max": 332083
+            },
+            "allocations": {
+              "median": 48480.0,
+              "min": 48480,
+              "max": 48480
+            },
+            "requested_bytes": {
+              "median": 4072320.0,
+              "min": 4072320,
+              "max": 4072320
+            }
+          },
+          "border_1": {
+            "p50_ns": {
+              "median": 2667.0,
+              "min": 2542,
+              "max": 3500
+            },
+            "p95_ns": {
+              "median": 3520.5,
+              "min": 2708,
+              "max": 14916
+            },
+            "allocations": {
+              "median": 1111.0,
+              "min": 1111,
+              "max": 1111
+            },
+            "requested_bytes": {
+              "median": 127664.0,
+              "min": 127664,
+              "max": 127664
+            }
+          },
+          "border_2": {
+            "p50_ns": {
+              "median": 99354.5,
+              "min": 97500,
+              "max": 124542
+            },
+            "p95_ns": {
+              "median": 113479.0,
+              "min": 102291,
+              "max": 411083
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65357504.0,
+              "min": 65357504,
+              "max": 65357504
+            }
+          },
+          "border_3": {
+            "p50_ns": {
+              "median": 99458.5,
+              "min": 96792,
+              "max": 145041
+            },
+            "p95_ns": {
+              "median": 115396.0,
+              "min": 101292,
+              "max": 389541
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65357504.0,
+              "min": 65357504,
+              "max": 65357504
+            }
+          },
+          "style": {
+            "p50_ns": {
+              "median": 160104.0,
+              "min": 156666,
+              "max": 224042
+            },
+            "p95_ns": {
+              "median": 203667.0,
+              "min": 179875,
+              "max": 493167
+            },
+            "allocations": {
+              "median": 224523.0,
+              "min": 224523,
+              "max": 224523
+            },
+            "requested_bytes": {
+              "median": 52713011.0,
+              "min": 52713011,
+              "max": 52713011
+            }
+          }
+        },
+        "after": {
+          "frame_0": {
+            "p50_ns": {
+              "median": 1520937.0,
+              "min": 1493333,
+              "max": 1589750
+            },
+            "p95_ns": {
+              "median": 1797146.0,
+              "min": 1632375,
+              "max": 5234917
+            },
+            "allocations": {
+              "median": 392486.0,
+              "min": 392486,
+              "max": 392486
+            },
+            "requested_bytes": {
+              "median": 340169818.0,
+              "min": 340169818,
+              "max": 340169818
+            }
+          },
+          "frame_1": {
+            "p50_ns": {
+              "median": 32812000.0,
+              "min": 31813583,
+              "max": 33785334
+            },
+            "p95_ns": {
+              "median": 37151937.0,
+              "min": 35611583,
+              "max": 40849667
+            },
+            "allocations": {
+              "median": 15057686.0,
+              "min": 15057686,
+              "max": 15057686
+            },
+            "requested_bytes": {
+              "median": 20077832218.0,
+              "min": 20077832218,
+              "max": 20077832218
+            }
+          },
+          "frame_2": {
+            "p50_ns": {
+              "median": 23632166.5,
+              "min": 22548416,
+              "max": 26053292
+            },
+            "p95_ns": {
+              "median": 25917208.0,
+              "min": 24703042,
+              "max": 65725125
+            },
+            "allocations": {
+              "median": 13397852.0,
+              "min": 13397852,
+              "max": 13397852
+            },
+            "requested_bytes": {
+              "median": 17801621882.0,
+              "min": 17801621882,
+              "max": 17801621882
+            }
+          },
+          "border_0": {
+            "p50_ns": {
+              "median": 40062.5,
+              "min": 38042,
+              "max": 41625
+            },
+            "p95_ns": {
+              "median": 44750.5,
+              "min": 38542,
+              "max": 64916
+            },
+            "allocations": {
+              "median": 48480.0,
+              "min": 48480,
+              "max": 48480
+            },
+            "requested_bytes": {
+              "median": 4848000.0,
+              "min": 4848000,
+              "max": 4848000
+            }
+          },
+          "border_1": {
+            "p50_ns": {
+              "median": 2896.0,
+              "min": 2792,
+              "max": 3042
+            },
+            "p95_ns": {
+              "median": 3187.5,
+              "min": 2958,
+              "max": 23500
+            },
+            "allocations": {
+              "median": 1111.0,
+              "min": 1111,
+              "max": 1111
+            },
+            "requested_bytes": {
+              "median": 135744.0,
+              "min": 135744,
+              "max": 135744
+            }
+          },
+          "border_2": {
+            "p50_ns": {
+              "median": 98520.5,
+              "min": 94625,
+              "max": 99834
+            },
+            "p95_ns": {
+              "median": 103312.5,
+              "min": 98750,
+              "max": 128250
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65365584.0,
+              "min": 65365584,
+              "max": 65365584
+            }
+          },
+          "border_3": {
+            "p50_ns": {
+              "median": 96500.0,
+              "min": 94583,
+              "max": 99250
+            },
+            "p95_ns": {
+              "median": 111770.5,
+              "min": 99875,
+              "max": 150250
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65365584.0,
+              "min": 65365584,
+              "max": 65365584
+            }
+          },
+          "style": {
+            "p50_ns": {
+              "median": 158583.5,
+              "min": 152833,
+              "max": 163459
+            },
+            "p95_ns": {
+              "median": 196520.5,
+              "min": 180458,
+              "max": 295666
+            },
+            "allocations": {
+              "median": 224422.0,
+              "min": 224422,
+              "max": 224422
+            },
+            "requested_bytes": {
+              "median": 54654736.0,
+              "min": 54654736,
+              "max": 54654736
+            }
+          }
+        }
+      }
+    },
+    "off": {
+      "runs": {
+        "before": [
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1465375,
+              "p95_ns": 1628334,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30651708,
+              "p95_ns": 32573459,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24146541,
+              "p95_ns": 33071709,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 22583,
+              "p95_ns": 22875,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2625,
+              "p95_ns": 3334,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100666,
+              "p95_ns": 110542,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 101000,
+              "p95_ns": 119292,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 163209,
+              "p95_ns": 192417,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1553417,
+              "p95_ns": 2540125,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31123792,
+              "p95_ns": 34042917,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23820208,
+              "p95_ns": 26408709,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 24500,
+              "p95_ns": 29292,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2792,
+              "p95_ns": 4250,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 102458,
+              "p95_ns": 104375,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100833,
+              "p95_ns": 102416,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 167500,
+              "p95_ns": 216042,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1571250,
+              "p95_ns": 1855500,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31541916,
+              "p95_ns": 33599083,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23147084,
+              "p95_ns": 24582500,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 25917,
+              "p95_ns": 27667,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2583,
+              "p95_ns": 2667,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94458,
+              "p95_ns": 111459,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94292,
+              "p95_ns": 98250,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 151542,
+              "p95_ns": 174250,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1503750,
+              "p95_ns": 1707666,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 36629834,
+              "p95_ns": 75050834,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30231250,
+              "p95_ns": 47695250,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26541,
+              "p95_ns": 39042,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3333,
+              "p95_ns": 3500,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100375,
+              "p95_ns": 133125,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 102458,
+              "p95_ns": 147875,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 173417,
+              "p95_ns": 258500,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1506667,
+              "p95_ns": 1675750,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 37372750,
+              "p95_ns": 86525583,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24644458,
+              "p95_ns": 28330958,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 21833,
+              "p95_ns": 22750,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2542,
+              "p95_ns": 2625,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97459,
+              "p95_ns": 101209,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97875,
+              "p95_ns": 117917,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 162708,
+              "p95_ns": 338458,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1463834,
+              "p95_ns": 1568417,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32217375,
+              "p95_ns": 34708334,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22476250,
+              "p95_ns": 24210000,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 24583,
+              "p95_ns": 24667,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2584,
+              "p95_ns": 2833,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98167,
+              "p95_ns": 109958,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96625,
+              "p95_ns": 123917,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 154416,
+              "p95_ns": 209917,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1491084,
+              "p95_ns": 1769375,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 33349833,
+              "p95_ns": 37057667,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23657542,
+              "p95_ns": 27029875,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 24542,
+              "p95_ns": 27292,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2542,
+              "p95_ns": 2666,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96667,
+              "p95_ns": 102416,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97416,
+              "p95_ns": 102958,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 158583,
+              "p95_ns": 227083,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1429458,
+              "p95_ns": 1622667,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30796375,
+              "p95_ns": 35456917,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23603458,
+              "p95_ns": 25300583,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26166,
+              "p95_ns": 27334,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3334,
+              "p95_ns": 3541,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94375,
+              "p95_ns": 103875,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94166,
+              "p95_ns": 129750,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 157708,
+              "p95_ns": 240709,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1501000,
+              "p95_ns": 1900583,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 34149625,
+              "p95_ns": 40760000,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 24091417,
+              "p95_ns": 26234584,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 26292,
+              "p95_ns": 39167,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2708,
+              "p95_ns": 2792,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97541,
+              "p95_ns": 135958,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 99625,
+              "p95_ns": 136917,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156041,
+              "p95_ns": 239125,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1454500,
+              "p95_ns": 1610417,
+              "allocations": 373094,
+              "requested_bytes": 335261723
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30957625,
+              "p95_ns": 33107833,
+              "allocations": 15038294,
+              "requested_bytes": 20072984723
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23098500,
+              "p95_ns": 25317459,
+              "allocations": 13378460,
+              "requested_bytes": 17796774387
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 25459,
+              "p95_ns": 32084,
+              "allocations": 48480,
+              "requested_bytes": 4072320
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3333,
+              "p95_ns": 3583,
+              "allocations": 1111,
+              "requested_bytes": 127664
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97792,
+              "p95_ns": 112958,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96042,
+              "p95_ns": 106125,
+              "allocations": 122311,
+              "requested_bytes": 65357504
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 159125,
+              "p95_ns": 184542,
+              "allocations": 224523,
+              "requested_bytes": 52713011
+            }
+          }
+        ],
+        "after": [
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1539292,
+              "p95_ns": 2029417,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32560750,
+              "p95_ns": 42370084,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23607875,
+              "p95_ns": 31244125,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 41250,
+              "p95_ns": 42208,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3000,
+              "p95_ns": 3125,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 95958,
+              "p95_ns": 100625,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97958,
+              "p95_ns": 109833,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 157834,
+              "p95_ns": 247708,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1483541,
+              "p95_ns": 1719959,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 34034958,
+              "p95_ns": 38034417,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23442334,
+              "p95_ns": 25489625,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39459,
+              "p95_ns": 40042,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2916,
+              "p95_ns": 3000,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94625,
+              "p95_ns": 100542,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94333,
+              "p95_ns": 98125,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 164416,
+              "p95_ns": 237667,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1500459,
+              "p95_ns": 1808625,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30281750,
+              "p95_ns": 31829542,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22571125,
+              "p95_ns": 24260834,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 40792,
+              "p95_ns": 43084,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3041,
+              "p95_ns": 3666,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94833,
+              "p95_ns": 99792,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96750,
+              "p95_ns": 106875,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 161500,
+              "p95_ns": 200834,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1480042,
+              "p95_ns": 1685625,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30694083,
+              "p95_ns": 32593959,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23106083,
+              "p95_ns": 25087500,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39042,
+              "p95_ns": 39833,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3042,
+              "p95_ns": 3167,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100084,
+              "p95_ns": 152792,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 101792,
+              "p95_ns": 191416,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 163041,
+              "p95_ns": 307333,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1565916,
+              "p95_ns": 1967792,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 34282667,
+              "p95_ns": 36520333,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23228958,
+              "p95_ns": 25836291,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39542,
+              "p95_ns": 47209,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2917,
+              "p95_ns": 3041,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 95875,
+              "p95_ns": 118417,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94875,
+              "p95_ns": 109125,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 161833,
+              "p95_ns": 195584,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1459166,
+              "p95_ns": 1594750,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 30093792,
+              "p95_ns": 35389250,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22249875,
+              "p95_ns": 25886125,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39792,
+              "p95_ns": 41916,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2917,
+              "p95_ns": 3125,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 95458,
+              "p95_ns": 110125,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97792,
+              "p95_ns": 123250,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 159583,
+              "p95_ns": 201250,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1478375,
+              "p95_ns": 1687083,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31652625,
+              "p95_ns": 35446875,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23642583,
+              "p95_ns": 27577250,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39959,
+              "p95_ns": 40416,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2917,
+              "p95_ns": 3083,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 100416,
+              "p95_ns": 137792,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 98417,
+              "p95_ns": 135625,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 159917,
+              "p95_ns": 236959,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1535708,
+              "p95_ns": 1859167,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32103875,
+              "p95_ns": 55584000,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23458166,
+              "p95_ns": 25693666,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39167,
+              "p95_ns": 40125,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 2916,
+              "p95_ns": 3000,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 93417,
+              "p95_ns": 96417,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 93542,
+              "p95_ns": 107375,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 154416,
+              "p95_ns": 186959,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1510541,
+              "p95_ns": 1849417,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 31407708,
+              "p95_ns": 36160958,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 22939958,
+              "p95_ns": 25277167,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39500,
+              "p95_ns": 40125,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3042,
+              "p95_ns": 3458,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94875,
+              "p95_ns": 100333,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 96000,
+              "p95_ns": 110042,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156250,
+              "p95_ns": 195541,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          },
+          {
+            "frame_0": {
+              "frame_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 1479417,
+              "p95_ns": 1649125,
+              "allocations": 392486,
+              "requested_bytes": 340169818
+            },
+            "frame_1": {
+              "frame_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 32950833,
+              "p95_ns": 35621875,
+              "allocations": 15057686,
+              "requested_bytes": 20077832218
+            },
+            "frame_2": {
+              "frame_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "nodes": 64,
+              "p50_ns": 23625166,
+              "p95_ns": 27901917,
+              "allocations": 13397852,
+              "requested_bytes": 17801621882
+            },
+            "border_0": {
+              "border_mode": 0,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 39334,
+              "p95_ns": 40292,
+              "allocations": 48480,
+              "requested_bytes": 4848000
+            },
+            "border_1": {
+              "border_mode": 1,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 3000,
+              "p95_ns": 3083,
+              "allocations": 1111,
+              "requested_bytes": 135744
+            },
+            "border_2": {
+              "border_mode": 2,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 97084,
+              "p95_ns": 119084,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "border_3": {
+              "border_mode": 3,
+              "samples": 101,
+              "updates": 120,
+              "p50_ns": 94625,
+              "p95_ns": 112208,
+              "allocations": 122311,
+              "requested_bytes": 65365584
+            },
+            "style": {
+              "samples": 101,
+              "updates_per_sample": 120,
+              "nodes": 2,
+              "p50_ns": 156958,
+              "p95_ns": 178834,
+              "allocations": 224422,
+              "requested_bytes": 54654736
+            }
+          }
+        ]
+      },
+      "summary": {
+        "before": {
+          "frame_0": {
+            "p50_ns": {
+              "median": 1496042.0,
+              "min": 1429458,
+              "max": 1571250
+            },
+            "p95_ns": {
+              "median": 1691708.0,
+              "min": 1568417,
+              "max": 2540125
+            },
+            "allocations": {
+              "median": 373094.0,
+              "min": 373094,
+              "max": 373094
+            },
+            "requested_bytes": {
+              "median": 335261723.0,
+              "min": 335261723,
+              "max": 335261723
+            }
+          },
+          "frame_1": {
+            "p50_ns": {
+              "median": 31879645.5,
+              "min": 30651708,
+              "max": 37372750
+            },
+            "p95_ns": {
+              "median": 35082625.5,
+              "min": 32573459,
+              "max": 86525583
+            },
+            "allocations": {
+              "median": 15038294.0,
+              "min": 15038294,
+              "max": 15038294
+            },
+            "requested_bytes": {
+              "median": 20072984723.0,
+              "min": 20072984723,
+              "max": 20072984723
+            }
+          },
+          "frame_2": {
+            "p50_ns": {
+              "median": 23738875.0,
+              "min": 22476250,
+              "max": 30231250
+            },
+            "p95_ns": {
+              "median": 26321646.5,
+              "min": 24210000,
+              "max": 47695250
+            },
+            "allocations": {
+              "median": 13378460.0,
+              "min": 13378460,
+              "max": 13378460
+            },
+            "requested_bytes": {
+              "median": 17796774387.0,
+              "min": 17796774387,
+              "max": 17796774387
+            }
+          },
+          "border_0": {
+            "p50_ns": {
+              "median": 25021.0,
+              "min": 21833,
+              "max": 26541
+            },
+            "p95_ns": {
+              "median": 27500.5,
+              "min": 22750,
+              "max": 39167
+            },
+            "allocations": {
+              "median": 48480.0,
+              "min": 48480,
+              "max": 48480
+            },
+            "requested_bytes": {
+              "median": 4072320.0,
+              "min": 4072320,
+              "max": 4072320
+            }
+          },
+          "border_1": {
+            "p50_ns": {
+              "median": 2666.5,
+              "min": 2542,
+              "max": 3334
+            },
+            "p95_ns": {
+              "median": 3083.5,
+              "min": 2625,
+              "max": 4250
+            },
+            "allocations": {
+              "median": 1111.0,
+              "min": 1111,
+              "max": 1111
+            },
+            "requested_bytes": {
+              "median": 127664.0,
+              "min": 127664,
+              "max": 127664
+            }
+          },
+          "border_2": {
+            "p50_ns": {
+              "median": 97666.5,
+              "min": 94375,
+              "max": 102458
+            },
+            "p95_ns": {
+              "median": 110250.0,
+              "min": 101209,
+              "max": 135958
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65357504.0,
+              "min": 65357504,
+              "max": 65357504
+            }
+          },
+          "border_3": {
+            "p50_ns": {
+              "median": 97645.5,
+              "min": 94166,
+              "max": 102458
+            },
+            "p95_ns": {
+              "median": 118604.5,
+              "min": 98250,
+              "max": 147875
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65357504.0,
+              "min": 65357504,
+              "max": 65357504
+            }
+          },
+          "style": {
+            "p50_ns": {
+              "median": 158854.0,
+              "min": 151542,
+              "max": 173417
+            },
+            "p95_ns": {
+              "median": 221562.5,
+              "min": 174250,
+              "max": 338458
+            },
+            "allocations": {
+              "median": 224523.0,
+              "min": 224523,
+              "max": 224523
+            },
+            "requested_bytes": {
+              "median": 52713011.0,
+              "min": 52713011,
+              "max": 52713011
+            }
+          }
+        },
+        "after": {
+          "frame_0": {
+            "p50_ns": {
+              "median": 1492000.0,
+              "min": 1459166,
+              "max": 1565916
+            },
+            "p95_ns": {
+              "median": 1764292.0,
+              "min": 1594750,
+              "max": 2029417
+            },
+            "allocations": {
+              "median": 392486.0,
+              "min": 392486,
+              "max": 392486
+            },
+            "requested_bytes": {
+              "median": 340169818.0,
+              "min": 340169818,
+              "max": 340169818
+            }
+          },
+          "frame_1": {
+            "p50_ns": {
+              "median": 31878250.0,
+              "min": 30093792,
+              "max": 34282667
+            },
+            "p95_ns": {
+              "median": 35891416.5,
+              "min": 31829542,
+              "max": 55584000
+            },
+            "allocations": {
+              "median": 15057686.0,
+              "min": 15057686,
+              "max": 15057686
+            },
+            "requested_bytes": {
+              "median": 20077832218.0,
+              "min": 20077832218,
+              "max": 20077832218
+            }
+          },
+          "frame_2": {
+            "p50_ns": {
+              "median": 23335646.0,
+              "min": 22249875,
+              "max": 23642583
+            },
+            "p95_ns": {
+              "median": 25764978.5,
+              "min": 24260834,
+              "max": 31244125
+            },
+            "allocations": {
+              "median": 13397852.0,
+              "min": 13397852,
+              "max": 13397852
+            },
+            "requested_bytes": {
+              "median": 17801621882.0,
+              "min": 17801621882,
+              "max": 17801621882
+            }
+          },
+          "border_0": {
+            "p50_ns": {
+              "median": 39521.0,
+              "min": 39042,
+              "max": 41250
+            },
+            "p95_ns": {
+              "median": 40354.0,
+              "min": 39833,
+              "max": 47209
+            },
+            "allocations": {
+              "median": 48480.0,
+              "min": 48480,
+              "max": 48480
+            },
+            "requested_bytes": {
+              "median": 4848000.0,
+              "min": 4848000,
+              "max": 4848000
+            }
+          },
+          "border_1": {
+            "p50_ns": {
+              "median": 2958.5,
+              "min": 2916,
+              "max": 3042
+            },
+            "p95_ns": {
+              "median": 3104.0,
+              "min": 3000,
+              "max": 3666
+            },
+            "allocations": {
+              "median": 1111.0,
+              "min": 1111,
+              "max": 1111
+            },
+            "requested_bytes": {
+              "median": 135744.0,
+              "min": 135744,
+              "max": 135744
+            }
+          },
+          "border_2": {
+            "p50_ns": {
+              "median": 95666.5,
+              "min": 93417,
+              "max": 100416
+            },
+            "p95_ns": {
+              "median": 105375.0,
+              "min": 96417,
+              "max": 152792
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65365584.0,
+              "min": 65365584,
+              "max": 65365584
+            }
+          },
+          "border_3": {
+            "p50_ns": {
+              "median": 96375.0,
+              "min": 93542,
+              "max": 101792
+            },
+            "p95_ns": {
+              "median": 109937.5,
+              "min": 98125,
+              "max": 191416
+            },
+            "allocations": {
+              "median": 122311.0,
+              "min": 122311,
+              "max": 122311
+            },
+            "requested_bytes": {
+              "median": 65365584.0,
+              "min": 65365584,
+              "max": 65365584
+            }
+          },
+          "style": {
+            "p50_ns": {
+              "median": 159750.0,
+              "min": 154416,
+              "max": 164416
+            },
+            "p95_ns": {
+              "median": 201042.0,
+              "min": 178834,
+              "max": 307333
+            },
+            "allocations": {
+              "median": 224422.0,
+              "min": 224422,
+              "max": 224422
+            },
+            "requested_bytes": {
+              "median": 54654736.0,
+              "min": 54654736,
+              "max": 54654736
+            }
+          }
+        }
+      }
+    }
+  }
+}

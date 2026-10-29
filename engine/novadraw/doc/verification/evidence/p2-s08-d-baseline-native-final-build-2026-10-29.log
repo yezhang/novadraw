@@ -1,0 +1,24 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/tmp/novadraw-s08-baseline-20261029/crates/novadraw)
+[1m[92m   Compiling[0m novadraw-style-input-consumer v0.1.0 (/tmp/novadraw-s08-baseline-20261029/tests/consumers/style-input)
+[1m[91merror[E0061][0m[1m: this method takes 4 arguments but 1 argument was supplied[0m
+  [1m[94m--> [0msrc/lib.rs:57:18
+   [1m[94m|[0m
+[1m[94m57[0m [1m[94m|[0m                 .with_insets(Insets::new(3.0, 4.0, 5.0, 6.0)),
+   [1m[94m|[0m                  [1m[91m^^^^^^^^^^^[0m[1m[94m---------------------------------[0m
+   [1m[94m|[0m                             [1m[94m||[0m
+   [1m[94m|[0m                             [1m[94m|expected `f64`, found `Insets`[0m
+   [1m[94m|[0m                             [1m[94mthree arguments of type `f64`, `f64`, and `f64` are missing[0m
+   [1m[94m|[0m
+[1m[92mnote[0m: method defined here
+  [1m[94m--> [0m/tmp/novadraw-s08-baseline-20261029/crates/novadraw/src/figure/border/line_border.rs:51:12
+   [1m[94m|[0m
+[1m[94m51[0m [1m[94m|[0m     pub fn with_insets(mut self, top: f64, left: f64, bottom: f64, right: f64) -> Self {
+   [1m[94m|[0m            [1m[92m^^^^^^^^^^^[0m
+[1m[96mhelp[0m: provide the arguments
+   [1m[94m|[0m
+[1m[94m57[0m [91m- [0m                .with_insets[91m(Insets::new(3.0, 4.0, 5.0, 6.0))[0m,
+[1m[94m57[0m [92m+ [0m                .with_insets[92m(/* f64 */, /* f64 */, /* f64 */, /* f64 */)[0m,
+   [1m[94m|[0m
+
+[1mFor more information about this error, try `rustc --explain E0061`.[0m
+[1m[91merror[0m: could not compile `novadraw-style-input-consumer` (lib) due to 1 previous error

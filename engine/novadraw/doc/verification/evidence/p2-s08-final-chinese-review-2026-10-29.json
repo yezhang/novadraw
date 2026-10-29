@@ -1,0 +1,27 @@
+{
+  "files": [
+    "doc/verification/reviews/p2-s08-c-implementation-2026-10-29.md",
+    "doc/verification/reviews/p2-s08-d-completion-2026-10-29.md",
+    "doc/adr/adr-056-detached-input-invariants.md",
+    "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md",
+    "doc/adr/adr-058-open-editor-snapping.md",
+    "doc/design/editor/open-snapping.md",
+    "doc/verification/plans/p2-s08-detached-input-invariants.md",
+    "doc/verification/plans/p2-s09-service-failure.md",
+    "doc/verification/plans/editor-open-snapping.md",
+    "doc/verification/reviews/s09-and-snapping-design-review-2026-10-29.md"
+  ],
+  "patterns": {
+    "numbered_headings": "^#{1,6}\\s*([一二三四五六七八九十]+[、.]|第[一二三四五六七八九十0-9]+[章节、]|[0-9]+[.、）)]|其[一二三四五六七八九十])",
+    "contrast_templates": "(不是[^，。；\\n]{1,30}[，,](而)?是|这不是[^，。\\n]{1,30}|管的是[^，。\\n]{1,20}不管|不在[^，。\\n]{1,15}[，,]?而(在|是)|你以为[^，。\\n]{1,30}[，,]?其实|(看似|表面上)[^，。\\n]{1,30}[，,]?实则|回头才(发现|明白)|真正[^，。\\n]{1,20}的是|不重要[，,]重要的是)",
+    "empty_meta": "(值得深思|值得关注|值得玩味|不禁让人|引人深思|发人深省|令人深思|不禁要问)",
+    "halfwidth_punctuation": "[一-鿿][,;:]|[一-鿿],[^0-9]|[一-鿿]\\.[^0-9]"
+  },
+  "counts": {
+    "numbered_headings": 0,
+    "contrast_templates": 0,
+    "empty_meta": 0,
+    "halfwidth_punctuation": 0
+  },
+  "hits": []
+}

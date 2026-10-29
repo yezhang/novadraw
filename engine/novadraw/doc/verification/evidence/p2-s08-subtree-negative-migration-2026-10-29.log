@@ -1,0 +1,74 @@
+[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m kurbo v0.13.1
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m svgtypes v0.16.1
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m pxfm v0.1.27
+[1m[92m   Compiling[0m font-types v0.12.4
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m uuid v1.18.1
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m moxcms v0.8.1
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 39.44s
+[1m[92m     Running[0m tests/p2_subtree.rs (/tmp/novadraw-s08-workspace-target-20261029/debug/deps/p2_subtree-b701bce5e4e827d8)
+
+running 28 tests
+test checked_builder_runtime_activates_parent_first_and_accepts_resource_free_figures ... ok
+test deferred_rejection_preserves_fifo_and_later_requests_still_commit ... ok
+test binding_rejects_non_connection_foreign_owner_and_constraint_without_replacing_scene ... ok
+test event_chain_keeps_uncommitted_subtrees_invisible_and_isolates_nested_runtime_dispatch ... ok
+test event_replacement_commits_after_dispatch_and_later_old_target_rejects_in_fifo_order ... ok
+test deferred_success_receipt_follows_commit_and_foreign_rejection_does_not_publish_model ... ok
+test external_description_preserves_order_layout_style_and_scoped_identity_mapping ... ok
+test event_viewport_replacement_preserves_outer_scene_and_rejects_retired_targets ... ok
+test builder_runtime_admission_rejects_last_resource_before_any_activation ... ok
+test attachment_panic_faults_runtime_and_retains_truthful_published_topology ... ok
+test implicit_resources_reject_foreign_and_retired_ids_for_builtin_and_external_figures ... ok
+test binding_preparation_panic_publishes_no_reserved_nodes ... ok
+test last_batch_resource_rejection_publishes_no_prefix_or_dependencies ... ok
+test last_input_failure_and_internal_child_policy_publish_no_nodes ... ok
+test pending_resource_is_admitted_and_duplicate_dependencies_register_once ... ok
+test last_binding_rejection_retires_reserved_ids_without_publishing_a_connection ... ok
+test paired_binding_is_published_with_the_complete_subtree_and_retired_with_it ... ok
+test rejected_constraint_retires_reserved_ids_and_keeps_existing_topology ... ok
+test replacement_retires_old_tree_before_new_attachment_and_returns_complete_mapping ... ok
+test resource_preflight_rejects_foreign_dependency_without_publication ... ok
+test replacement_retirement_panic_keeps_new_contents_and_blocks_further_mutation ... ok
+test single_figure_contents_uses_the_same_resource_admission ... ok
+test scene_replacement_preserves_old_tree_on_last_node_rejection ... ok
+test viewport_replacement_admits_new_branch_without_removing_old_contents_first ... ok
+test single_and_batch_pending_resources_share_dependency_registration_and_retirement ... ok
+test result_callback_panic_faults_runtime_and_stops_later_requests ... ok
+test single_insertion_paths_reject_invalid_resources_for_all_figure_providers ... ok
+test depth_limit_is_checked_before_publication ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

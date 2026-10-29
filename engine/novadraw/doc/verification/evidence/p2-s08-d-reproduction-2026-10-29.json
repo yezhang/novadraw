@@ -1,0 +1,58 @@
+{
+  "support": {
+    "doc/verification/evidence/p2-s08-d-baseline-workspace-2026-10-29.toml": {
+      "bytes": 502,
+      "sha256": "c555979ee3425b3a7488793d253c9aa32c9babd6787369acd541a0b01baabe6f"
+    },
+    "doc/verification/evidence/p2-s08-d-baseline-lib-2026-10-29.rs": {
+      "bytes": 7169,
+      "sha256": "4eb5785bff3296827baa4982ac841f03d92b0f38eac9a1c1f4ae009fc194ff8b"
+    },
+    "doc/verification/evidence/p2-s08-d-driver-2026-10-29.rs": {
+      "bytes": 4150,
+      "sha256": "2597aad43e0e771d9d89a71ea7d9c3123fab71f7b85700106d2c1f9dcfcde8a6"
+    },
+    "doc/verification/evidence/p2-s08-d-consumer-2026-10-29.toml": {
+      "bytes": 379,
+      "sha256": "caa84663a3fc0f8ff157755d66fd5fa986de236926a2e8f6c476fc2735611852"
+    },
+    "doc/verification/evidence/p2-s08-d-consumer-2026-10-29.lock": {
+      "bytes": 33521,
+      "sha256": "d90d42d26bf06544ace08412ccbb1ed01b786d904700312c72a1d298288941a0"
+    },
+    "doc/verification/evidence/p2-s08-d-current-lib-2026-10-29.rs": {
+      "bytes": 7416,
+      "sha256": "35e0b1e4b4db07b58afa9f09acb92c3fe8458b1524b409c62a036f7bc8c1dcb9"
+    },
+    "doc/verification/evidence/p2-s08-d-current-core-2026-10-29.patch": {
+      "bytes": 698832,
+      "sha256": "3792a0f8cdb32434b6e688778718d664d518b66afb909b5278466514b9a2eb73"
+    },
+    "doc/verification/evidence/p2-s08-d-cost-receipt-2026-10-29.py": {
+      "bytes": 3676,
+      "sha256": "ffb140e3cfd0ddff14b7852cb299391790e989e77bee671f403161ae80683b64"
+    }
+  },
+  "fonts": {
+    "assets/fonts/JetBrainsMono-Regular.ttf": {
+      "bytes": 270224,
+      "sha256": "e6fd0d7e91550b3ed2b735d4312474362c4716edc4fc0577a0f61ed782d5aed1",
+      "matches_baseline": true
+    },
+    "assets/fonts/NotoSansSC-VF.ttf": {
+      "bytes": 17773132,
+      "sha256": "d68bafcb48a2707749396aa12bbbd833cb70401f3a9a689fd2902c7e0d295964",
+      "matches_baseline": true
+    },
+    "assets/fonts/InterVariable.ttf": {
+      "bytes": 879708,
+      "sha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
+      "matches_baseline": true
+    },
+    "assets/fonts/NotoSansArabic-VF.ttf": {
+      "bytes": 844676,
+      "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e",
+      "matches_baseline": true
+    }
+  }
+}

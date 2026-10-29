@@ -1,0 +1,65 @@
+[1m[92m    Checking[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs:14:23
+   [1m[94m|[0m
+[1m[94m14[0m [1m[94m|[0m         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 500.0)))
+   [1m[94m|[0m                       [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+             novadraw::advanced::RootFigure
+             novadraw::connection::ConnectionFigure
+             novadraw::connection::ConnectionLayerFigure
+             novadraw::connection::PolygonDecorationFigure
+             novadraw::connection::PolylineDecorationFigure
+             novadraw::container::FreeformLayerFigure
+             novadraw::container::FreeformLayeredPane
+             novadraw::container::LayerFigure
+           and 26 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/textflow_perf-06665e95c59ff1a6.long-type-11384448771127074585.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0599][0m[1m: no method named `with_style` found for enum `std::result::Result<T, E>` in the current scope[0m
+   [1m[94m--> [0mexamples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs:37:77
+    [1m[94m|[0m
+[1m[94m 37[0m [1m[94m|[0m                 FlowPageFigure::new(Rectangle::new(0.0, 0.0, 600.0, 500.0)).with_style(
+    [1m[94m|[0m                 [1m[94m------------------------------------------------------------[0m[1m[91m^^^^^^^^^^[0m [1m[91mmethod not found in `Result<FlowPageFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+[1m[92mnote[0m: the method `with_style` exists on the type `novadraw::figure::flow::FlowPageFigure`
+   [1m[94m--> [0mcrates/novadraw/src/figure/flow/nodes.rs:127:5
+    [1m[94m|[0m
+[1m[94m127[0m [1m[94m|[0m     pub fn with_style(mut self, style: FigureStyle) -> Self {
+    [1m[94m|[0m     [1m[92m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/textflow_perf-06665e95c59ff1a6.long-type-10477592814455713277.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+[1m[96mhelp[0m: consider using `Result::expect` to unwrap the `novadraw::figure::flow::FlowPageFigure` value, panicking if the value is a `Result::Err`
+    [1m[94m|[0m
+[1m[94m 37[0m [1m[94m| [0m                FlowPageFigure::new(Rectangle::new(0.0, 0.0, 600.0, 500.0))[92m.expect("REASON")[0m.with_style(
+    [1m[94m|[0m                                                                            [92m+++++++++++++++++[0m
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs:82:22
+   [1m[94m|[0m
+[1m[94m82[0m [1m[94m|[0m                 .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 18.0)))
+   [1m[94m|[0m                      [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+             novadraw::advanced::RootFigure
+             novadraw::connection::ConnectionFigure
+             novadraw::connection::ConnectionLayerFigure
+             novadraw::connection::PolygonDecorationFigure
+             novadraw::connection::PolylineDecorationFigure
+             novadraw::container::FreeformLayerFigure
+             novadraw::container::FreeformLayeredPane
+             novadraw::container::LayerFigure
+           and 26 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/textflow_perf-06665e95c59ff1a6.long-type-11384448771127074585.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1mSome errors have detailed explanations: E0277, E0599.[0m
+[1mFor more information about an error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `draw2d-official-examples` (bin "textflow-perf") due to 3 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

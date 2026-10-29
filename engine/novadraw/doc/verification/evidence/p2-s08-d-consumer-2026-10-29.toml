@@ -1,0 +1,23 @@
+[package]
+name = "novadraw-style-input-consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["novadraw/default"]
+
+[dependencies]
+novadraw = { path = "../../../crates/novadraw", default-features = false }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

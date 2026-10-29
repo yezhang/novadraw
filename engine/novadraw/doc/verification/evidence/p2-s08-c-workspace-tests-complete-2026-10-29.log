@@ -1,0 +1,2066 @@
+[1m[33mwarning[0m[1m: function `record_full_submission` is never used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/support/mod.rs:31:8
+   [1m[94m|[0m
+[1m[94m31[0m [1m[94m|[0m pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m: `novadraw` (test "p2_child_insertion") generated 1 warning
+[1m[33mwarning[0m: `novadraw` (test "m5_layout_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m8_viewport_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/d4_notification_epoch.rs:92:5
+   [1m[94m|[0m
+[1m[94m92[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m93[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m94[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m95[0m [1m[94m|[0m [1m[33m|[0m             baseline.session_id,
+[1m[94m...[0m  [1m[33m|[0m
+[1m[94m99[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+   [1m[94m|[0m [1m[33m|___________________________________^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+   [1m[94m|[0m
+[1m[94m92[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+   [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/d4_notification_epoch.rs:173:5
+    [1m[94m|[0m
+[1m[94m173[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m174[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m175[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m176[0m [1m[94m|[0m [1m[33m|[0m             submission.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m180[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m173[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "d4_notification_epoch") generated 2 warnings
+[1m[33mwarning[0m: `novadraw` (test "p2_tree_query_identity") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m10_widget_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "p2_query_failure_semantics") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m4_coordinate_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:761:5
+    [1m[94m|[0m
+[1m[94m761[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m762[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m763[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m764[0m [1m[94m|[0m [1m[33m|[0m             initial.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m768[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m761[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:791:5
+    [1m[94m|[0m
+[1m[94m791[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m792[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m793[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m794[0m [1m[94m|[0m [1m[33m|[0m             failed.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m798[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m791[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:830:5
+    [1m[94m|[0m
+[1m[94m830[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m831[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m832[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m833[0m [1m[94m|[0m [1m[33m|[0m             recovered.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m837[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m830[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:852:5
+    [1m[94m|[0m
+[1m[94m852[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m853[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m854[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m855[0m [1m[94m|[0m [1m[33m|[0m             removed.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m859[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m852[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "p2_c02_shortest_path_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m10_label_contract") generated 5 warnings (1 duplicate)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/m10_accessibility_contract.rs:59:9
+   [1m[94m|[0m
+[1m[94m59[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m60[0m [1m[94m|[0m [1m[33m|[0m             .frames()
+[1m[94m61[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m62[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m...[0m  [1m[33m|[0m
+[1m[94m66[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+   [1m[94m|[0m [1m[33m|_______________________________________^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+   [1m[94m|[0m
+[1m[94m59[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+   [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "m10_accessibility_contract") generated 1 warning
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[33mwarning[0m: `novadraw` (test "d3_runtime_listener") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m[1m: multiple methods are never used[0m
+    [1m[94m--> [0mcrates/novadraw/src/render/context.rs:374:8
+     [1m[94m|[0m
+[1m[94m  76[0m [1m[94m|[0m impl NdCanvas {
+     [1m[94m|[0m [1m[94m-------------[0m [1m[94mmethods in this implementation[0m
+[1m[94m...[0m
+[1m[94m 374[0m [1m[94m|[0m     fn color_with_global_alpha(&self, color: Color) -> Color {
+     [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 551[0m [1m[94m|[0m     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 736[0m [1m[94m|[0m     pub fn draw_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 751[0m [1m[94m|[0m     pub fn fill_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 772[0m [1m[94m|[0m     pub fn close_path(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 796[0m [1m[94m|[0m     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 820[0m [1m[94m|[0m     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 828[0m [1m[94m|[0m     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 837[0m [1m[94m|[0m     pub fn fill(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^[0m
+[1m[94m...[0m
+[1m[94m 873[0m [1m[94m|[0m     pub fn fill_and_stroke(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 923[0m [1m[94m|[0m     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 937[0m [1m[94m|[0m     pub fn clear_commands(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 958[0m [1m[94m|[0m     pub fn to_submission(&self) -> RenderSubmission {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 963[0m [1m[94m|[0m     pub fn to_submission_for_surface(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 975[0m [1m[94m|[0m     pub fn to_submission_for_frame(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1043[0m [1m[94m|[0m     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1048[0m [1m[94m|[0m     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1054[0m [1m[94m|[0m     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1060[0m [1m[94m|[0m     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1065[0m [1m[94m|[0m     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1075[0m [1m[94m|[0m     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1080[0m [1m[94m|[0m     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1089[0m [1m[94m|[0m     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4456:9
+     [1m[94m|[0m
+[1m[94m4456[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4457[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4458[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4459[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4462[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+     [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4456[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4506:9
+     [1m[94m|[0m
+[1m[94m4506[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4507[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4508[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4509[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4512[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4506[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4559:9
+     [1m[94m|[0m
+[1m[94m4559[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4560[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4561[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4562[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4565[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4559[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4576:9
+     [1m[94m|[0m
+[1m[94m4576[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4577[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4578[0m [1m[94m|[0m [1m[33m|[0m                 replacement.session_id,
+[1m[94m4579[0m [1m[94m|[0m [1m[33m|[0m                 replacement.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4582[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4576[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4614:9
+     [1m[94m|[0m
+[1m[94m4614[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4615[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4616[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4617[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4620[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4614[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4633:9
+     [1m[94m|[0m
+[1m[94m4633[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4634[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4635[0m [1m[94m|[0m [1m[33m|[0m                 partial.session_id,
+[1m[94m4636[0m [1m[94m|[0m [1m[33m|[0m                 partial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4639[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4633[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4666:9
+     [1m[94m|[0m
+[1m[94m4666[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4667[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4668[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4669[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4672[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4666[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4727:9
+     [1m[94m|[0m
+[1m[94m4727[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4728[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4729[0m [1m[94m|[0m [1m[33m|[0m                 retry.session_id,
+[1m[94m4730[0m [1m[94m|[0m [1m[33m|[0m                 retry.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4733[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4727[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4758:9
+     [1m[94m|[0m
+[1m[94m4758[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4759[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4760[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4761[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4764[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4758[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4777:9
+     [1m[94m|[0m
+[1m[94m4777[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4778[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4779[0m [1m[94m|[0m [1m[33m|[0m                 first_update.session_id,
+[1m[94m4780[0m [1m[94m|[0m [1m[33m|[0m                 first_update.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4783[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4777[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4816:9
+     [1m[94m|[0m
+[1m[94m4816[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4817[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4818[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4819[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4822[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4816[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5039:9
+     [1m[94m|[0m
+[1m[94m5039[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5040[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5041[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m5042[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5045[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5039[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5183:9
+     [1m[94m|[0m
+[1m[94m5183[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5184[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5185[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m5186[0m [1m[94m|[0m [1m[33m|[0m                 submission.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5189[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5183[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (lib test) generated 14 warnings
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 10.07s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/advanced_figures_app-4a39f9dfa347e3e4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/animation_app-5ad14a2cb7be1401)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/border_app-8fbc1846e61ffa3a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/clip_app-dcf154ca4ee5e70c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/composite_shapes_app-7e215b87d60a17fe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/connections_demo-65f35ef4a088dc7a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/draw2d_official_examples-dbafc8be41d482bf)
+
+running 106 tests
+test examples::bidi_block::tests::bidi_direction_mutation_partial_matches_full_pixels ... ignored, requires a native GPU; run through text.layout-direction
+test examples::ellipse_hitting::tests::figure_tree_and_sizes_match_the_official_example ... ok
+test examples::ellipse_hitting::tests::pointer_entry_and_exit_match_the_mouse_motion_listener ... ok
+test examples::flow_layout_example::tests::horizontal_checkbox_replaces_the_layout_with_vertical_flow ... ok
+test examples::flow_layout_example::tests::unequal_official_spacing_controls_apply_between_items_and_wrapped_rows ... ok
+test examples::flow_layout_example::tests::window_resize_reflows_official_shapes_and_restores_natural_sizes ... ok
+test examples::flow_layout_example::tests::figure_composition_matches_the_official_shape_sequence_and_control_types ... ok
+test examples::flow_layout_example::tests::official_alignment_matrix_uses_each_wrapped_line_and_integer_center_offsets ... ok
+test examples::connection_and_anchor::tests::dragging_in_offset_panel_preserves_parent_local_bounds ... ok
+test examples::connection_and_anchor::tests::figure_composition_matches_both_official_panels ... ok
+test examples::connection_and_anchor::tests::dragging_an_endpoint_moves_the_figure_and_reroutes_the_connection ... ok
+test examples::grid_layout_example::tests::add_and_clear_buttons_mutate_the_official_shape_collection ... ok
+test examples::grid_layout_example::tests::group_titles_have_opaque_region_backgrounds ... ok
+test examples::grid_layout_example::tests::fixture_matches_the_official_shape_and_control_structure ... ok
+test examples::grid_layout_example::tests::clear_releases_grid_data_and_preserves_the_official_creation_cycle ... ok
+test examples::flow_layout_example::tests::native_panel_direction_and_stretch_restore_natural_geometry ... ok
+test examples::grid_layout_example::tests::rejected_add_does_not_publish_grid_data_for_an_unmounted_shape ... ok
+test examples::grid_layout_example::tests::num_columns_accepts_digits_and_commits_the_layout_on_enter ... ok
+test examples::grid_layout_example::tests::viewport_resize_reflows_spanning_grabbing_shapes_and_restores_geometry ... ok
+test examples::grid_layout_example::tests::selecting_a_shape_populates_and_enables_the_grid_data_editor ... ok
+test examples::hello_world::tests::figure_tree_matches_the_official_example ... ok
+test examples::grid_layout_example::tests::width_hint_focus_out_and_invalid_return_match_java_callback_evidence ... ok
+test examples::hello_world::tests::label_fills_the_canvas_after_shrink_grow_and_restore ... ok
+test examples::layout_consumer_contracts::official_layout_factories_resize_and_erase_without_stale_gpu_pixels ... ignored, requires native GPU; compares actual official layout resize and child erasure
+test examples::grid_layout_example::tests::egui_numeric_edit_commits_columns_without_canvas_key_dispatch ... ok
+test examples::grid_layout_example::tests::text_and_combo_controls_update_the_selected_grid_constraint ... ok
+test examples::layout_consumer_contracts::grid_span_indent_and_explicit_height_hint_keep_their_measurement_contract ... ok
+test examples::bidi_block::tests::both_trees_keep_direction_and_share_scroll_and_resize ... ok
+test examples::obstruction::tests::obstacles_pending_pair_move_and_delete_use_real_dispatch ... ok
+test examples::obstruction::tests::pending_drag_is_used_when_completing_pair_and_rejected_admission_preserves_it ... ok
+test examples::obstruction::tests::pointer_exit_and_release_end_drag_without_leaking_a_gesture ... ok
+test examples::path_example::tests::underline_resize_and_replace_matches_full_pixels ... ignored, requires native GPU; run through text.underlines
+test examples::path_example::tests::official_path_draws_two_text_passes_and_preserves_closed_geometry ... ok
+test examples::path_example::tests::scrollbar_uses_path_formula_and_keeps_center_in_logical_coordinates ... ok
+test examples::printing::tests::gpu_connection_pixels_stay_between_rectangle_anchors ... ignored, requires native GPU; validates Print connection pixels across flow wrapping
+test examples::scroll_pane_example::tests::drag_formulas_preserve_all_eight_directions_and_official_minima ... ok
+test examples::grid_layout_example::tests::native_panel_grid_data_and_clear_follow_real_selection_lifecycle ... ok
+test examples::obstruction::tests::multiple_pairs_share_domain_and_obstacle_topology_recomputes_the_whole_group ... ok
+test examples::scroll_pane_example::tests::official_overlap_and_label_composition_are_preserved ... ok
+test examples::scroll_pane_example::tests::frame_cursor_follows_edges_corners_and_pointer_exit ... ok
+test examples::shape_styles::tests::cocoa_zero_dash_profile_preserves_input_and_uses_upstream_arrays ... ok
+test examples::shape_styles::tests::disabled_shape_draws_both_shades_and_restores_the_offset_before_dark ... ok
+test examples::shape_styles::tests::low_miter_pixels_equal_bevel_for_open_closed_reversed_paths ... ignored, requires native GPU; run through render.low-miter
+test examples::layout_consumer_contracts::layout_text_minimum_wrap_and_width_restore_use_real_prepared_consumers ... ok
+test examples::scroll_pane_example::tests::title_drag_moves_only_the_top_frame_and_keeps_paint_order ... ok
+test examples::shape_styles::tests::shape_styles_native_matrix_pixels_and_scene_replacement ... ignored, requires a native GPU; run through render.antialias
+test examples::scroll_pane_example::tests::resizing_revalidates_fixed_contents_and_automatic_scrollbars ... ok
+test examples::simple_tree_example::tests::normal_children_share_a_row_and_hanging_child_is_indented ... ok
+test examples::shape_styles::tests::official_shape_geometry_uses_integer_outlines_and_separate_fill ... ok
+test examples::simple_tree_example::tests::official_page_and_branch_composition ... ok
+test examples::simple_tree_example::tests::page_gradient_follows_selection_and_restores_normal_palette ... ok
+test examples::simple_tree_example::tests::transposition_preserves_the_same_tree_geometry ... ok
+test examples::text_examples::tests::narrowing_the_canvas_reflows_text_and_keeps_real_children ... ok
+test examples::text_interaction::tests::caret_hover_affinity_source_edges_and_stale_snapshots_are_checked ... ok
+test examples::text_interaction::tests::caret_hover_covers_combining_cluster_without_invalid_endpoint ... ok
+test examples::text_interaction::tests::mouse_move_uses_admitted_fragment_and_preserves_source_geometry ... ok
+test examples::text_interaction::tests::multiline_label_focus_and_keyboard_scroll_use_the_core_viewport ... ok
+test examples::shape_styles::tests::shape_styles_all_axes_and_shapes_use_public_graphics_without_clamping ... ok
+test examples::thumbnail::tests::one_source_drag_updates_both_views_and_resize_does_not_recapture ... ok
+test examples::toolbar_layout_example::tests::horizontal_checkbox_switches_the_toolbar_orientation ... ok
+test examples::toolbar_layout_example::tests::native_panel_alignment_and_stretch_commit_geometry_without_mock_controls ... ok
+test examples::toolbar_layout_example::tests::official_shape_sequence_and_control_types_are_preserved ... ok
+test examples::toolbar_layout_example::tests::stretch_orientation_shrink_and_reset_preserve_official_preferred_sizes ... ok
+test examples::graph_examples::tests::native_graph_submissions_include_every_glyph_font_resource ... ok
+test examples::graph_examples::tests::host_combo_clicks_rebuild_fixture_and_direction ... ok
+test examples::tree_animation::tests::disposing_dependency_cancels_tree_and_releases_active_reservations ... ok
+test examples::tree_animation::tests::disabled_tree_matches_static_source_geometry ... ok
+test examples::text_examples::tests::inline_figure_metrics_are_stable_across_font_registry_instances ... ok
+test examples::tree_animation::tests::native_press_release_pairs_toggle_tree_with_animation_on_and_off ... ok
+test examples::tree_animation::tests::tree_reverse_uses_latest_unrecorded_sample_and_scroll_cancels_whole_group ... ok
+test examples::tree_animation::tests::first_expand_preserves_nested_hidden_branch_and_repeated_reversal_anchor ... ok
+test examples::tree_animation::tests::tree_collapse_preserves_first_frame_and_converges_all_descendant_centers ... ok
+test examples::tree_example::tests::full_official_tree_has_nineteen_nodes_and_five_root_branches ... ok
+test examples::tree_example::tests::more_children_mounts_full_official_branch_and_inherits_parent_style ... ok
+test examples::tree_example::tests::selecting_another_page_restores_gradient_and_inherited_text ... ok
+test examples::tree_example::tests::selection_style_collapse_and_delete_follow_official_actions ... ok
+test examples::tree_layout::tests::compression_uses_contours_and_retains_the_official_gap ... ok
+test examples::tree_layout::tests::contour_contact_and_distant_sibling_history_match_tree_layout ... ok
+test examples::tree_layout::tests::mixed_hanging_and_normal_branches_share_root_row_heights ... ok
+test examples::tree_example::tests::spacing_scales_use_official_five_pixel_keyboard_increment_and_update_caption ... ok
+test examples::tree_example::tests::shared_connector_providers_replay_static_normal_hanging_and_nested_endpoints ... ok
+test examples::uml_class_diagram::tests::dogear_border_has_independent_five_unit_fold_and_inset_outline ... ok
+test examples::tree_example::tests::floating_panel_routes_canvas_selection_and_native_double_clicks ... ok
+test examples::text_examples::tests::six_text_scenes_stabilize_and_publish_flow_snapshots ... ok
+test examples::text_interaction::tests::typing_changes_only_first_source_and_reflows_the_document ... ok
+test examples::printing::tests::canvas_outputs_fonts_icon_and_rerouted_connection_after_resize ... ok
+test examples::uml_class_diagram::tests::official_figure_composition_is_preserved ... ok
+test examples::uml_class_diagram::tests::association_has_decoration_and_both_locator_labels ... ok
+test examples::uml_class_diagram::tests::host_ui_font_is_inherited_by_members_and_overridden_by_bold_header ... ok
+test examples::uml_class_diagram::tests::endpoint_label_uses_owner_side_with_official_u_and_v_distances ... ok
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ignored, requires native GPU; validates Zoom scrollbar button pixels
+test examples::uml_class_diagram::tests::connection_label_text_remeasures_without_moving_classes ... ok
+test examples::uml_class_diagram::tests::sticky_note_height_is_measured_from_its_width ... ok
+test tests::catalog_is_the_exact_official_main_denominator ... ok
+test examples::printing::tests::connection_follows_anchors_across_flow_wrap_thresholds ... ok
+test inherit_background::tests::both_canvases_shape_the_same_text_and_scroll_without_changing_host_input ... ok
+test tests::scene_titles_include_stable_index_and_chinese_parity_status ... ok
+test tests::hosted_panels_preserve_canvas_without_mock_widgets ... ok
+test examples::zoom_example::tests::arrow_page_and_drag_apply_the_official_zoom_formula ... ok
+test examples::zoom_example::tests::official_two_class_fixture_and_scroll_range_are_preserved ... ok
+test examples::zoom_example::tests::repeated_zoom_keeps_the_bar_height_and_unscaled_content_visible ... ok
+test examples::zoom_example::tests::native_thumb_drag_survives_panel_frames_and_clock_ticks ... ok
+test examples::zoom_example::tests::zoom_and_dpi_replace_shared_icons_only_when_density_changes ... ok
+test tests::every_runnable_entry_is_owned_by_this_crate ... ok
+test examples::long_text_gpu::long_text_outline_full_partial_gpu_pixels ... ok
+test examples::graph_examples::tests::every_official_graph_switch_replaces_bindings_and_publishes_labels_and_routes ... ok
+
+test result: ok. 99 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 42.67s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/draw2d_official_examples-eec14e8d75a2ae39)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/inherit-background.rs (target/debug/deps/inherit_background-c49d4087d854132d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/layout-consumer-proof.rs (target/debug/deps/layout_consumer_proof-28b98297b85f9bd7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/textflow-perf.rs (target/debug/deps/textflow_perf-f2c3e83b3f7e20ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/textflow-scroll-gpu.rs (target/debug/deps/textflow_scroll_gpu-52df9b9010647ab1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/tree-animation-proof.rs (target/debug/deps/tree_animation_proof-8b9d04af1dd3ef63)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/layout_submission.rs (target/debug/deps/layout_submission-faf5aaecd2d537f9)
+
+running 4 tests
+test native_gpu_layout_changes_erase_old_pixels_and_restore_the_same_image ... ignored, requires a native GPU adapter
+test native_gpu_zoom_uses_replaced_svg_pixels_and_restores_original_layout ... ignored, requires a native GPU adapter
+test canvas_minimum_extent_is_finite_and_resize_restores_all_child_geometry ... ok
+test layout_changes_damage_both_old_and_new_shape_positions ... ok
+
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+[1m[92m     Running[0m tests/shared_glyph_backing.rs (target/debug/deps/shared_glyph_backing-9417511910e95637)
+
+running 1 test
+test original_large_frame_clones_retain_identical_backing_and_old_resize_leases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+
+[1m[92m     Running[0m tests/source_contracts.rs (target/debug/deps/source_contracts-22649c692699a13b)
+
+running 2 tests
+test completion_scopes_cover_all_entries_and_preserve_canvas_dependencies ... ok
+test inventory_covers_every_official_canvas_entry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/event_app-5fe50edc34ec95dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/gef_editor_demo-29c3e8b5a04e376b)
+
+running 29 tests
+test model::tests::target_arrow_matches_the_official_shapes_default_span ... ok
+test tests::document_parser_rejects_invalid_references_and_geometry ... ok
+test native::style_tests::hover_uses_fill_while_focus_and_open_use_borders ... ok
+test tests::creation_uses_session_grid_snap_without_persisting_the_setting ... ok
+test tests::create_delete_and_undo_share_the_editor_command_chain ... ok
+test tests::alignment_filters_connections_and_respects_disabled_and_primary_selection ... ok
+test tests::connection_creation_rejects_self_and_duplicate_and_preserves_style ... ok
+test tests::groups_order_names_and_appearance_roundtrip_through_history_and_json ... ok
+test tests::invalid_geometry_draft_does_not_enter_command_history ... ok
+test tests::layer_visibility_and_lock_are_undoable_and_gate_canvas_editing ... ok
+test tests::move_feedback_carries_selection_outline_and_handles_until_commit ... ok
+test tests::default_showcase_projects_shapes_connections_and_routed_geometry ... ok
+test tests::egui_focus_loss_cancels_active_drag_without_committing ... ok
+test tests::session_render_tracks_dpi_without_replacing_viewer_or_history ... ok
+test tests::focused_canvas_shortcuts_undo_without_rebuilding_session ... ok
+test tests::outline_projection_keeps_shape_and_connection_types_explicit ... ok
+test tests::fit_visible_shapes_centers_content_in_viewport ... ok
+test tests::egui_canvas_uses_local_coordinates_and_one_history_entry ... ok
+test tests::tool_mode_tracks_typed_tools_and_one_shot_completion ... ok
+test tests::workspace_grid_snap_and_zoom_do_not_change_document_history ... ok
+test tests::projected_resize_handle_commits_one_bounds_command_and_tracks_geometry ... ok
+test ui::file_action_button_tests::discard_and_open_requires_dirty_enabled_document ... ok
+test ui::file_action_button_tests::document_path_and_file_buttons_share_height_and_centerline ... ok
+test tests::failed_save_as_does_not_move_savepoint_or_replace_path ... ok
+test tests::egui_template_drop_creates_at_canvas_local_position ... ok
+test tests::geometry_savepoint_and_open_roundtrip_preserve_document_state ... ok
+test ui::file_action_button_tests::grouped_file_buttons_dispatch_commands_and_share_edges ... ok
+test ui::alignment_button_tests::grouped_buttons_dispatch_each_alignment_and_disable_without_selection ... ok
+test tests::six_alignments_use_primary_shape_and_one_undo_entry ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/gef_editor_demo-5040c35447f7c30d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/ui-shell-baseline.rs (target/debug/deps/ui_shell_baseline-de70434c09c0d462)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/layout_app-e83a04271615b843)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/native_vello_perf-eab0bd8393e6b83b)
+
+running 2 tests
+test tests::input_marker_color_change_uses_paint_only_component_update ... ok
+test tests::standard_scenario_has_no_input_marker ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+[1m[92m     Running[0m unittests src/bin/graphics-proof.rs (target/debug/deps/graphics_proof-9e1f79a87e8436b1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/ndcanvas_app-143b8ef034c43122)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/node_editor_demo-d9add8847d0d5447)
+
+running 17 tests
+test tests::node_labels_render_model_colors_before_interaction ... ok
+test replay::tests::g4_replay_passes ... ok
+test replay::tests::g3_replay_passes ... ok
+test tests::long_direct_text_edit_clips_to_the_node_and_commits_the_complete_label ... ok
+test tests::direct_text_edit_commits_one_rename_and_round_trips_history ... ok
+test tests::reconnecting_both_self_loop_endpoints_rebases_bendpoints_to_the_new_owner ... ok
+test tests::self_loop_owns_two_bendpoints_and_moving_one_preserves_the_other ... ok
+test tests::pointer_leave_cancels_autoexpose_and_clears_the_active_gesture ... ok
+test tests::dragging_committed_target_back_preserves_the_feedback_surface_position ... ok
+test tests::resized_viewport_does_not_retain_the_initial_canvas_clip ... ok
+test tests::autoexpose_release_keeps_viewport_on_the_committed_target ... ok
+test tests::viewport_guide_uses_light_background_and_dashed_outline ... ok
+test tests::viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp ... ok
+test tests::zoom_keeps_unscaled_selection_handles_aligned_after_frame_stabilization ... ok
+test tests::autoexpose_and_pointer_return_keep_selection_handles_aligned ... ok
+test tests::reconnect_release_reprojects_handles_after_temporary_range_clamps ... ok
+test replay::tests::g5_connection_replays_pass ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw-d240ed6249559b9e)
+
+running 429 tests
+test color::tests::test_rgba ... ok
+test color::tests::test_constants ... ok
+test color::tests::test_with_alpha ... ok
+test color::tests::test_hex_8_digits ... ok
+test color::tests::test_hex_6_digits ... ok
+test color::tests::rgba_clamps_every_component_to_the_public_invariant ... ok
+test color::tests::invalid_hex_is_rejected_without_panicking ... ok
+test color::tests::try_rgba_rejects_non_finite_and_out_of_range_components ... ok
+test color::tests::serde_rejects_components_outside_the_public_invariant ... ok
+test connection::figure::tests::decoration_inset_can_cross_short_terminal_segments ... ok
+test connection::figure::tests::target_decoration_inset_trims_only_painted_geometry ... ok
+test connection::shortest_path::tests::configuration_rejects_negative_and_non_finite_metrics ... ok
+test animation::storage::tests::retention_is_shared_and_released_only_with_its_owner ... ok
+test connection::shortest_path::tests::shortest_path_uses_obstacle_boundary_and_removes_collinear_points ... ok
+test connection::visibility::tests::unobstructed_diagonal_and_identical_endpoints_are_finite ... ok
+test connection::visibility::tests::endpoint_strictly_inside_excludes_obstacle_but_boundary_does_not ... ok
+test connection::visibility::tests::separated_overlapping_and_squeezed_obstacles_keep_endpoints_and_stable_output ... ok
+test figure::border::scheme_border::tests::frozen_layers_match_static_endpoints_at_each_sampled_size ... ok
+test figure::bounds_drawing::stroke_storage_tests::custom_dash_storage_is_charged_and_drawing_clones_share_payload ... ok
+test connection::visibility::tests::single_obstacle_has_diagonal_tangents_and_shared_corner_spacing ... ok
+test figure::contour::free_end_tests::free_end_path_cost ... ignored, release measurement of free-end construction and cached access
+test container::viewport::tests::invalid_layout_output_does_not_commit_viewport_range_effect ... ok
+test figure::capability::tests::malformed_descriptor_remains_a_type_error ... ok
+test figure::contour::free_end_tests::terminal_paths_are_shared_and_cache_retains_only_the_latest_mask ... ok
+test connection::visibility::tests::grouped_routes_avoid_obstacle_interiors_across_endpoint_directions ... ok
+test figure::ellipse::tests::contains_point_uses_ellipse_geometry_not_only_bounds ... ok
+test figure::ellipse::tests::frozen_ellipse_uses_sampled_radii_without_scaling_stroke ... ok
+test figure::preparation::budget::tests::overflow_cannot_replenish_or_partially_charge_the_shared_counter ... ok
+test connection::query::s07_query_failure_tests::adapter_dependency_fingerprint_changes_when_a_subject_is_deleted ... ok
+test figure::preparation::dependency::tests::unfinished_reachability_reports_budget_not_a_proven_cycle ... ok
+test connection::query::s07_query_failure_tests::adapter_rejects_identity_before_missing_anchor_or_detachment ... ok
+test figure::polygon::contour_cache_tests::resized_contour_is_shared_without_changing_intrinsic_geometry ... ok
+test figure::preparation::scene::tests::cached_layout_measurement_retains_transitive_observations ... ok
+test figure::preparation::scene::tests::observation_index_reserves_both_entries_and_keeps_budget_failure_sticky ... ok
+test figure::preparation::scene::tests::parsed_fonts_share_only_equal_descriptors_and_do_not_bypass_failed_budget ... ok
+test figure::tests::measurement_constraints_reject_invalid_axis_limits ... ok
+test figure::tests::singular_child_transform_has_no_inverse_mapping ... ok
+test figure::tests::non_interactive_figure_needs_no_event_or_lifecycle_methods ... ok
+test figure::triangle::tests::test_different_directions ... ok
+test figure::tests::shape_can_customize_figure_paint_behavior ... ok
+test figure::triangle::tests::stroke_configuration_is_validated_before_paint ... ok
+test figure::triangle::tests::test_prim_translate_preserves_cache ... ok
+test figure::triangle::tests::test_invalidate_clears_cache ... ok
+test figure::triangle::tests::test_set_bounds_position_only_preserves_cache ... ok
+test figure::triangle::tests::test_set_bounds_size_change_clears_cache ... ok
+test figure::triangle::tests::test_set_direction_clears_cache ... ok
+test figure::triangle::tests::test_validate_computes_and_caches_points ... ok
+test figure::triangle::tests::test_validate_recomputes_when_bounds_change ... ok
+test geometry::checked_inverse::s07_checked_inverse_tests::avoids_intermediate_determinant_range_limits ... ok
+test geometry::checked_inverse::s07_checked_inverse_tests::classifies_exact_singularity_and_range_failures ... ok
+test geometry::checked_inverse::s07_checked_inverse_tests::distinguishes_exact_cancellation_from_rounded_product_equality ... ok
+test geometry::point_list::tests::bounds_returns_minimum_rectangle_containing_all_points ... ok
+test geometry::point_list::tests::empty_bounds_returns_none ... ok
+test geometry::point_list::tests::transformed_returns_new_point_list ... ok
+test geometry::point_list::tests::translate_and_scale_apply_to_all_points ... ok
+test geometry::precision::tests::point_rectangle_and_transform_support_approx_eq ... ok
+test geometry::precision::tests::precision_compares_floats_within_epsilon ... ok
+test geometry::precision::tests::precision_snaps_near_zero_values ... ok
+test geometry::rect::tests::test_contains ... ok
+test geometry::rect::tests::test_from_corners ... ok
+test geometry::rect::tests::test_intersects ... ok
+test geometry::rect::tests::test_union ... ok
+test geometry::transform::tests::post_concat_keeps_parent_scale_outside_child_translation ... ok
+test geometry::transform::tests::test_coeffs ... ok
+test geometry::transform::tests::pre_concat_places_parent_before_existing_local_transform ... ok
+test geometry::transform::tests::test_identity ... ok
+test geometry::transform::tests::test_inverse ... ok
+test geometry::transform::tests::test_multiplication_order ... ok
+test geometry::transform::tests::test_reverse_order ... ok
+test geometry::transform::tests::test_rotation ... ok
+test geometry::transform::tests::test_scale ... ok
+test geometry::transform::tests::test_then_chain ... ok
+test geometry::transform::tests::test_then_equivalent_to_multiply ... ok
+test geometry::transform::tests::test_then_rotate ... ok
+test geometry::transform::tests::test_then_rotate_about ... ok
+test geometry::transform::tests::test_then_scale ... ok
+test geometry::transform::tests::test_then_scale_about ... ok
+test geometry::transform::tests::test_then_scale_non_uniform ... ok
+test figure::preparation::scene::tests::immutable_revision_base_reuses_tree_work_but_rechecks_external_providers_and_budget ... ok
+test geometry::transform::tests::test_then_transform ... ok
+test geometry::transform::tests::test_then_transform_equivalent ... ok
+test geometry::transform::tests::test_then_translate ... ok
+test geometry::transform::tests::test_transform_vector ... ok
+test geometry::transform::tests::test_translation ... ok
+test geometry::translatable::tests::rectangle_affine_transform_returns_conservative_aabb ... ok
+test geometry::translatable::tests::test_point_scale ... ok
+test geometry::translatable::tests::test_point_translate ... ok
+test geometry::translatable::tests::test_point_translate_by_point ... ok
+test geometry::translatable::tests::test_rectangle_scale ... ok
+test geometry::translatable::tests::test_rectangle_translate ... ok
+test geometry::translatable::tests::test_rectangle_translate_by_size ... ok
+test geometry::vec2::tests::test_add ... ok
+test geometry::vec2::tests::test_div ... ok
+test geometry::vec2::tests::test_mul_scalar ... ok
+test figure::preparation::scene::tests::observations_preserve_first_generation_and_order_with_linear_work ... ok
+test geometry::vec2::tests::test_mul_vec ... ok
+test geometry::vec2::tests::test_neg ... ok
+test graph::bounds_test::test_bounds_absolute_coordinates ... ok
+test geometry::vec2::tests::test_sub ... ok
+test graph::bounds_test::test_client_area_resets_origin_for_coordinate_root ... ok
+test graph::bounds_test::test_contains_point_basic ... ok
+test graph::bounds_test::test_contains_point_boundary ... ok
+test graph::bounds_test::test_empty_bounds ... ok
+test graph::bounds_test::test_figure_set_bounds ... ok
+test graph::bounds_test::test_bounds_integrity ... ok
+test graph::bounds_test::test_clip_test_scene_commands ... ok
+test graph::bounds_test::test_hit_test_prefers_topmost_deepest_child ... ok
+test graph::bounds_test::test_intersects_basic ... ok
+test graph::bounds_test::test_horizontal_layout_coords ... ok
+test graph::bounds_test::test_intersects_self ... ok
+test graph::bounds_test::test_local_coordinates_mode ... ok
+test graph::bounds_test::test_nested_structure_render_order ... ok
+test graph::bounds_test::test_prim_translate_nested_propagation ... ok
+test graph::bounds_test::test_prim_translate_propagates ... ok
+test graph::bounds_test::test_render_clips_parent_local_figure_to_client_area ... ok
+test graph::bounds_test::test_render_commands_after_translate ... ok
+test graph::bounds_test::test_scene_set_bounds_basic ... ok
+test graph::bounds_test::test_render_commands_coords ... ok
+test graph::bounds_test::test_scene_set_bounds_nested_propagation ... ok
+test graph::bounds_test::test_scene_set_bounds_position_only ... ok
+test graph::bounds_test::test_scene_set_bounds_size_only ... ok
+test graph::bounds_test::test_set_bounds ... ok
+test graph::bounds_test::test_set_bounds_affects_contains_point ... ok
+test graph::layout_measurement::connection_placement_tests::parent_placement_preserves_connection_geometry_in_both_commit_paths ... ok
+test graph::bounds_test::test_viewport_figure_render_uses_content_clip_and_transform ... ok
+test graph::layout_measurement::s07_query_failure_tests::failed_candidate_publishes_no_geometry_notifications_or_damage ... ok
+test graph::layout_measurement::s07_query_failure_tests::inset_overflow_fails_before_constraint_reduction_and_retries_after_invalidation ... ok
+test graph::layout_measurement::s07_query_failure_tests::constrained_measurement_source_ignores_cache_invalidation_but_observes_source_changes ... ok
+test graph::layout_measurement::s07_query_failure_tests::layout_constraint_type_and_unvalidated_freeform_are_not_absence ... ok
+test graph::layout_measurement::s07_query_failure_tests::override_admission_distinguishes_bounded_and_unbounded_measurement ... ok
+test graph::layout_measurement::s07_query_failure_tests::layout_relationship_and_optional_absence_have_separate_results ... ok
+test graph::layout_measurement::s07_query_failure_tests::same_namespace_missing_identity_is_rejected_by_every_layout_query ... ok
+test graph::layout_measurement::s07_query_failure_tests::prepared_and_border_composition_checks_each_selected_stage ... ok
+test graph::query::s07_tree_identity_tests::never_live_identity_is_rejected_by_every_fact_query ... ok
+test graph::search::tests::exclusion_search_prunes_the_complete_topmost_subtree ... ok
+test graph::search::tests::find_in_subtree_distinguishes_unknown_root_from_no_match ... ok
+test graph::search::tests::hit_test_checks_deepest_candidate_before_parent_acceptance ... ok
+test graph::search::tests::structural_prune_never_visits_descendants ... ok
+test graph::search::tests::structural_queries_have_stable_order_and_hide_the_synthetic_root ... ok
+test graph::tests::default_style_does_not_emit_redundant_alpha_commands ... ok
+test graph::tests::local_alpha_override_replaces_inherited_graphics_alpha ... ok
+test graph::tests::node_bounds_drive_rendering_without_writing_back_to_figure ... ok
+test graph::tests::moved_figure_damage_uses_old_and_new_projected_visual_bounds ... ok
+test graph::tests::node_style_inherits_each_unset_property_independently ... ok
+test graph::tests::opaque_figure_fills_bounds_with_resolved_background_before_content ... ok
+test graph::tests::resolved_style_is_applied_to_descendant_graphics_state ... ok
+test graph::tests::replacing_contents_detaches_the_previous_root_subtree ... ok
+test graph::tests::style_change_emits_typed_properties_and_queues_subtree_repaint ... ok
+test graph::tests::test_border_insets_define_client_area_clip_for_children ... ok
+test graph::tests::test_child_order_appends_children_back_to_front ... ok
+test graph::tests::test_custom_clipping_strategy_can_skip_child_bounds_clip ... ok
+test graph::tests::test_default_clipping_strategy_clips_children_to_child_bounds ... ok
+test graph::tests::test_find_mouse_event_target_at_prefers_deepest_interactive_figure ... ok
+test graph::tests::test_find_mouse_event_target_at_skips_non_interactive_figures ... ok
+test graph::tests::test_find_mouse_event_target_at_translates_through_coordinate_root ... ok
+test graph::tests::test_hit_test_descends_only_through_parent_client_area ... ok
+test graph::tests::test_hit_test_translates_through_coordinate_root ... ok
+test graph::tests::test_local_to_parent_transform_basic ... ok
+test graph::tests::test_hit_test_translates_through_viewport_figure ... ok
+test graph::tests::test_figure_lifecycle_hooks_follow_runtime_realization_and_completion ... ok
+test graph::tests::test_local_to_parent_transform_with_insets ... ok
+test graph::tests::test_local_to_parent_transform_not_coordinate_root ... ok
+test graph::tests::test_local_to_surface_transform_basic ... ok
+test graph::tests::test_local_to_surface_transform_includes_parent_insets ... ok
+test graph::tests::test_local_to_surface_transform_nested ... ok
+test graph::tests::test_local_to_surface_transform_rect ... ok
+test graph::tests::test_mouse_event_target_descends_only_through_parent_client_area ... ok
+test graph::tests::test_local_to_surface_transform_nested_insets_follow_parent_chain_protocol ... ok
+test graph::tests::test_existing_figures_expose_child_clipping_strategy ... ok
+test graph::tests::test_paint_clip_and_hit_test_share_border_inset_client_area ... ok
+test graph::tests::test_mouse_event_target_uses_same_border_inset_client_area_as_paint ... ok
+test graph::tests::test_parent_to_local_transform_basic ... ok
+test graph::tests::test_parent_to_local_transform_with_insets ... ok
+test graph::tests::test_prim_translate_basic ... ok
+test graph::tests::test_prim_translate_nested ... ok
+test graph::tests::test_prim_translate_records_figure_moved_effects ... ok
+test graph::tests::test_render_order_nested ... ok
+test graph::tests::test_render_order_z_order ... ok
+test graph::tests::test_surface_to_local_transform_basic ... ok
+test graph::tests::test_surface_to_local_transform_nested ... ok
+test graph::tests::test_surface_to_local_transform_rect ... ok
+test graph::tests::test_prim_translate_records_coordinate_system_changed_effect ... ok
+test graph::tests::test_surface_to_local_transform_roundtrips_target_coordinate_root ... ok
+test graph::tests::test_transform_accumulation ... ok
+test graph::tests::test_unclipped_children_restore_parent_graphics_state_between_siblings ... ok
+test graph::tests::test_z_order_reorder_changes_topmost_hit_test_target ... ok
+test graph::tests::test_z_order_reorder_rejects_invalid_inputs_without_side_effects ... ok
+test graph::tests::test_visibility_filter ... ok
+test graph::update_integration_test::add_child_to_invalid_parent_returns_error_without_side_effect ... ok
+test graph::update_integration_test::disabled_parent_does_not_block_child_validation ... ok
+test graph::update_integration_test::enabling_disabled_subtree_starts_a_new_validation_transaction ... ok
+test graph::update_integration_test::test_add_child_marks_layout_invalid ... ok
+test graph::update_integration_test::pending_mutations_preserve_fifo_causality ... ok
+test graph::update_integration_test::test_add_child_triggers_updates ... ok
+test graph::update_integration_test::test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain ... ok
+test graph::update_integration_test::test_apply_pending_add_child_figure_allocates_and_attaches_child ... ok
+test graph::update_integration_test::test_add_child_under_viewport_repair_uses_content_transform ... ok
+test graph::update_integration_test::test_apply_pending_remove_child_clears_non_focus_interaction_state ... ok
+test graph::update_integration_test::test_apply_pending_add_child_with_invalid_parent_has_no_side_effect ... ok
+test graph::update_integration_test::test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects ... ok
+test graph::update_integration_test::test_apply_pending_reparent_moves_child_between_containers ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_descendant_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_invalid_parent_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_self_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_with_duplicate_new_parent_entry_has_no_side_effects ... ok
+test graph::update_integration_test::test_batch_construction_no_updates ... ok
+test graph::update_integration_test::test_batch_then_manual_update ... ok
+test graph::update_integration_test::test_clear_updates ... ok
+test graph::update_integration_test::test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect ... ok
+test graph::update_integration_test::test_coordinate_root_move_repairs_old_and_new_parent_regions ... ok
+test graph::update_integration_test::test_effective_enabled_follows_parent_chain ... ok
+test graph::update_integration_test::test_effective_visibility_follows_parent_chain ... ok
+test graph::update_integration_test::test_empty_rect_ignored ... ok
+test graph::update_integration_test::test_explicit_size_overrides_take_precedence ... ok
+test graph::update_integration_test::test_hidden_block_skips_validation_but_drains_queue ... ok
+test graph::update_integration_test::test_hidden_parent_skips_child_validation_but_drains_queue ... ok
+test graph::update_integration_test::test_interaction_state_accessors ... ok
+test graph::update_integration_test::test_layout_constraint_is_owned_by_parent_and_typed ... ok
+test graph::update_integration_test::test_invisible_block_no_dirty_region ... ok
+test graph::update_integration_test::test_mark_invalid_adds_to_queue ... ok
+test graph::update_integration_test::test_mark_invalid_updates_block_validity ... ok
+test graph::update_integration_test::test_layout_uses_local_client_area_for_coordinate_root_container ... ok
+test graph::update_integration_test::test_layout_repositions_descendants_via_set_bounds_protocol ... ok
+test graph::update_integration_test::test_mark_invalid_with_repaint ... ok
+test graph::update_integration_test::test_multiple_blocks_independent_dirty_regions ... ok
+test graph::update_integration_test::test_multiple_repaints_merge_regions ... ok
+test graph::update_integration_test::test_perform_update_clears_dirty_regions ... ok
+test graph::update_integration_test::test_perform_update_marks_layout_valid ... ok
+test graph::update_integration_test::test_perform_update_two_phase ... ok
+test graph::update_integration_test::test_perform_update_uses_damage_region ... ok
+test graph::update_integration_test::test_repaint_adds_dirty_region ... ok
+test graph::update_integration_test::test_repaint_contents ... ok
+test graph::update_integration_test::test_repaint_skips_effectively_invisible_child ... ok
+test graph::update_integration_test::test_repaint_uses_specified_rect ... ok
+test graph::update_integration_test::test_reparent_removes_constraint_owned_by_old_parent ... ok
+test graph::update_integration_test::test_revalidate_flow ... ok
+test graph::update_integration_test::test_showing_hidden_subtree_requeues_deferred_validation ... ok
+test graph::update_integration_test::test_validation_promotes_queued_child_to_highest_invalid_ancestor ... ok
+test host::scene_host::tests::headless_host_drives_a_deterministic_runtime_frame ... ok
+test host::scene_host::tests::headless_host_records_platform_effects_deterministically ... ok
+test layout::border_layout::tests::test_border_layout_creation ... ok
+test layout::border_layout::tests::test_border_layout_with_sizes ... ok
+test layout::border_layout::tests::test_border_region_from_str ... ok
+test layout::flow_layout::tests::major_and_minor_alignment_match_draw2d_ordered_layout_semantics ... ok
+test layout::flow_layout::tests::stretch_minor_axis_uses_the_wrapped_line_extent ... ok
+test layout::flow_layout::tests::test_flow_layout_creation ... ok
+test layout::flow_layout::tests::test_flow_layout_with_spacing ... ok
+test layout::graph::directed::tests::ordering_and_placement_charge_allocation_before_work ... ok
+test layout::graph::ranking::tests::arbitrary_node_order_and_parallel_edges_preserve_feasibility ... ok
+test layout::graph::directed::tests::ordering_independently_reduces_crossings ... ok
+test layout::flow_layout::tests::test_flow_layout_with_direction ... ok
+test layout::graph::ranking::tests::ranking_uses_shared_budget_and_rejects_nonfinite_arithmetic ... ok
+test render::command::tests::path_bounds_include_curve_extrema ... ok
+test render::command::tests::path_bounds_include_svg_arc_extent ... ok
+test render::context::tests::arc_honors_clockwise_and_anticlockwise_sweeps ... ok
+test render::context::tests::clip_reset_and_restore_are_visible_in_command_snapshot ... ok
+test render::context::tests::concat_transform_uses_parent_times_local_order ... ok
+test render::context::tests::draw_image_records_destination_and_alpha_snapshot ... ok
+test render::context::tests::first_command_promotes_unspecified_damage_to_full ... ok
+test render::context::tests::graphics_state_stack_restores_nested_clip_transform_and_stroke_state ... ok
+test render::context::tests::global_alpha_is_scoped_and_applied_to_shapes ... ok
+test render::context::tests::rotate_uses_draw2d_degree_units ... ok
+test figure::flow::snapshot::measurement_tests::measurement_matches_preparation_and_rechecks_border_metrics ... ok
+test render::context::tests::set_transform_and_reset_transform_emit_snapshot_commands ... ok
+test render::recorder::tests::bounded_recorder_latches_rejection_even_when_extension_ignores_it ... ok
+test render::recorder::tests::overlapping_glyph_ranges_charge_complete_backing_once_in_observations ... ok
+test render::submission::tests::backend_session_gate_requires_snapshot_baselines_and_rejects_stale_generations ... ok
+test render::submission::tests::backend_session_ids_are_non_zero_and_do_not_wrap ... ok
+test render::submission::tests::damage_mode_distinguishes_none_full_and_partial ... ok
+test render::submission::tests::empty_snapshot_still_represents_cache_replacement ... ok
+test render::submission::tests::frame_ids_are_monotonic_and_skip_zero_after_wrap ... ok
+test render::submission::tests::resource_delta_preserves_append_order ... ok
+test render::submission::tests::surface_info_defaults_to_a_valid_logical_scale ... ok
+test render::text::tests::external_layout_parts_reject_invalid_metrics_and_utf8_ranges ... ok
+test layout::graph::ranking::tests::weighted_rank_matches_exhaustive_feasible_assignments ... ok
+test render::text::tests::invalid_font_data_does_not_advance_revision ... ok
+test render::text::tests::parses_existing_figure_style_font_descriptor ... ok
+test render::text::tests::invalid_replacement_preserves_the_registered_font ... ok
+test render::text::tests::replacing_and_removing_a_font_rebuilds_the_font_context ... ok
+test runtime::context::tests::test_scene_dispatch_context_defers_structure_mutation_until_after_callback ... ok
+test runtime::context::tests::test_scene_dispatch_context_translates_mouse_point_to_target_coordinate_domain ... ok
+test runtime::context::tests::test_scene_dispatch_context_uses_target_local_coordinate_domain ... ok
+test runtime::event::tests::focus_transition_commits_owner_before_lost_and_gained_events ... ok
+test runtime::event::tests::handled_press_on_ineligible_target_preserves_existing_focus ... ok
+test runtime::event::tests::mouse_target_transitions_are_independent_of_cursor_and_hover_sources ... ok
+test runtime::event::tests::pointer_exit_clears_capture_and_exits_the_mouse_target ... ok
+test runtime::event::tests::test_captured_target_overrides_hit_target ... ok
+test runtime::event::tests::test_drag_keeps_mouse_target_while_cursor_tracks_physical_hit ... ok
+test runtime::event::tests::test_handled_press_assigns_focus_and_key_events_follow_focus_owner ... ok
+test runtime::event::tests::test_press_sets_capture_when_handled ... ok
+test runtime::event::tests::test_receive_updates_mouse_target ... ok
+test runtime::event::tests::test_release_uses_capture_and_then_clears_it ... ok
+test runtime::event::tests::test_wheel_hover_and_double_click_use_pointer_target ... ok
+test render::text::tests::proportional_font_measurement_is_not_character_count_estimation ... ok
+test render::text::tests::canvas_records_positioned_glyph_runs_with_scoped_alpha ... ok
+test render::text::tests::parley_layout_produces_real_metrics_and_glyphs ... ok
+test runtime::event::tests::unhandled_gestures_dispatch_once_before_specialized_fallback ... ok
+test runtime::focus::tests::focus_properties_are_local_typed_node_state ... ok
+test render::text::tests::registered_cjk_font_falls_back_when_the_requested_font_lacks_glyphs ... ok
+test render::text::tests::width_constraint_breaks_text_into_multiple_lines ... ok
+test render::command::tests::decodes_png_and_svg_into_rgba ... ok
+test runtime::focus::tests::tree_order_policy_is_stable_bidirectional_and_has_boundaries ... ok
+test runtime::interaction::tests::gesture_target_and_typed_controllers_share_one_session ... ok
+test runtime::focus::tests::tree_order_policy_skips_hidden_and_disabled_candidates ... ok
+test runtime::resource::tests::completion_queues_payload_and_returns_dependents ... ok
+test runtime::resource::tests::dependency_reconciliation_removes_detached_figures ... ok
+test runtime::resource::tests::failed_ready_resource_releases_backend_copy ... ok
+test runtime::resource::tests::ready_snapshot_is_stable_and_supersedes_pending_ops ... ok
+test runtime::resource::tests::ready_failed_ready_preserves_backend_operation_order ... ok
+test runtime::resource::tests::recovery_after_failure_advances_revision ... ok
+test runtime::resource::tests::removed_slot_gets_a_new_generation_and_rejects_the_old_id ... ok
+test runtime::runtime::adr014_tests::child_reorder_checks_identity_relation_and_index_before_noop ... ok
+test runtime::runtime::adr014_tests::contents_replacement_releases_old_tree_and_preserves_namespace ... ok
+test runtime::runtime::adr014_tests::disposal_freezes_old_damage_before_the_node_is_removed ... ok
+test runtime::runtime::adr014_tests::disposal_removes_owned_listener_but_preserves_shared_registrations ... ok
+test render::text::tests::bundled_fonts_cover_ui_cjk_and_monospace_roles ... ok
+test runtime::runtime::adr014_tests::foreign_registry_handles_do_not_remove_local_entries ... ok
+test runtime::runtime::adr014_tests::foreign_listener_does_not_unregister_local_subscription ... ok
+test runtime::runtime::adr014_tests::layer_resource_refusal_preserves_damage_and_all_notification_queues ... ok
+test runtime::runtime::adr014_tests::moving_runtime_preserves_registry_identity_and_state ... ok
+test runtime::runtime::adr014_tests::lifecycle_panic_happens_after_extraction_and_blocks_recording ... ok
+test runtime::runtime::adr014_tests::contents_retirement_fault_keeps_new_scene_resource_dependencies ... ok
+test runtime::runtime::adr014_tests::remove_releases_subtree_and_invalidates_old_ids ... ok
+test runtime::runtime::adr014_tests::layered_lifecycle_panic_faults_runtime_after_structural_commit ... ok
+test runtime::runtime::adr014_tests::resource_refusal_preserves_damage_notifications_and_dependency_registry ... ok
+test runtime::runtime::adr014_tests::s06_connection_admission_and_disposal_refuse_before_revision_overflow_writes ... ok
+test runtime::runtime::adr014_tests::s06_figure_batch_preflight_preserves_topology_damage_and_capability_registration ... ok
+test runtime::runtime::adr014_tests::s06_explicit_cleanup_keeps_real_notifications_damage_and_retires_subscriptions ... ok
+test runtime::runtime::adr014_tests::foreign_figure_does_not_read_or_modify_matching_local_slot ... ok
+test runtime::runtime::adr014_tests::reparent_preserves_identity_and_foreign_checked_mutation_is_rejected ... ok
+test runtime::runtime::adr014_tests::s06_late_disposal_prepare_rejection_keeps_retired_prefix_and_live_suffix ... ok
+test runtime::runtime::adr014_tests::scoped_editor_rejects_an_internally_detached_figure ... ok
+test runtime::runtime::adr014_tests::synthetic_root_is_rejected_by_public_lifecycle_mutations ... ok
+test runtime::runtime::adr014_tests::subtree_binding_replacement_checks_the_complete_revision_budget_before_publication ... ok
+test runtime::runtime::adr014_tests::subtree_attachment_fault_keeps_all_published_resource_dependencies ... ok
+test runtime::runtime::background_submission::tests::exhausted_identity_does_not_replace_request_or_clear_installed_state ... ok
+test runtime::runtime::tests::backend_sessions_are_namespaced_per_runtime ... ok
+test runtime::runtime::tests::backend_session_reset_rejects_old_completion_and_resends_ready_snapshot ... ok
+test runtime::runtime::tests::cursor_and_tooltip_resolve_from_the_current_pointer_targets ... ok
+test runtime::runtime::tests::direct_and_traversal_focus_eligibility_are_independent ... ok
+test runtime::runtime::tests::backend_capability_promotes_partial_damage_to_full ... ok
+test runtime::runtime::tests::dispatch_flushes_structural_mutations_before_returning ... ok
+test runtime::runtime::tests::direct_focus_reports_structured_eligibility_errors_without_changing_owner ... ok
+test runtime::runtime::tests::dpi_change_updates_surface_metadata_and_forces_full_damage ... ok
+test runtime::runtime::tests::first_full_submission_paints_each_figure_once ... ok
+test runtime::runtime::tests::frame_preparation_reports_distinct_non_ready_states ... ok
+test runtime::runtime::tests::explicit_font_registration_is_included_in_the_next_submission ... ok
+test runtime::runtime::tests::invalid_focus_owner_emits_one_lost_event_for_hide_disable_and_remove ... ok
+test runtime::runtime::tests::builtin_fonts_require_explicit_runtime_registration ... ok
+test runtime::runtime::tests::moving_contents_forces_full_damage_to_clear_exposed_pixels ... ok
+test runtime::runtime::tests::mutations_after_snapshot_freeze_remain_as_incremental_delta ... ok
+test runtime::runtime::tests::pending_mutations_are_applied_before_validation_and_recording ... ok
+test runtime::runtime::tests::reparent_under_hidden_ancestor_releases_focus ... ok
+test runtime::runtime::tests::resource_only_completion_produces_a_submission_without_scene_damage ... ok
+test runtime::runtime::tests::invalid_font_replacement_preserves_the_ready_revision ... ok
+test runtime::runtime::tests::removing_a_builtin_font_removes_its_layout_and_backend_resources ... ok
+test runtime::runtime::tests::frame_preparation_reports_permanent_backend_capability_mismatch ... ok
+test runtime::runtime::tests::replacing_contents_removes_resource_dependencies_from_detached_figures ... ok
+test runtime::runtime::tests::resource_completion_invalidates_and_repaints_dependent_figure ... ok
+test runtime::runtime::tests::resource_state_transitions_preserve_order_within_one_delta ... ok
+test runtime::runtime::tests::runtime_accepts_a_non_parley_text_layout_engine ... ok
+test runtime::runtime::tests::retry_restores_in_flight_resource_updates_before_newer_updates ... ok
+test runtime::runtime::tests::runtime_imports_builder_validation_state_before_first_frame ... ok
+test runtime::runtime::tests::runtime_owns_interaction_state_separately_from_tree ... ok
+test runtime::runtime::tests::runtime_rejects_invalid_custom_policy_candidate ... ok
+test runtime::runtime::tests::snapshot_retry_refreezes_current_registry_state ... ok
+test runtime::timing::tests::disabled_and_failed_scopes_leave_no_live_stack_or_cross_instance_work ... ok
+test runtime::runtime::tests::submission_notifications_are_flushed_in_causal_order ... ok
+test runtime::runtime::tests::submission_contains_surface_resources_and_monotonic_frame_id ... ok
+test runtime::runtime::tests::surface_change_and_retry_force_full_damage ... ok
+test runtime::timing::tests::nesting_accounts_children_once_and_accumulates_repeated_stages ... ok
+test runtime::runtime::tests::suspended_surface_preserves_full_redraw_request ... ok
+test runtime::tooltip::tests::placement_flips_and_clamps_to_surface ... ok
+test runtime::tooltip::tests::rejects_clock_rollback_without_changing_deadline ... ok
+test runtime::tooltip::tests::waits_replaces_and_hides_on_deadlines ... ok
+test runtime::update::deferred::tests::test_clear ... ok
+test runtime::update::deferred::tests::test_clear_dirty_and_flag_preserves_next_cycle_work ... ok
+test runtime::update::deferred::tests::test_clipped_damage_notifies_without_rendering ... ok
+test runtime::update::deferred::tests::test_dirty_region_merge ... ok
+test runtime::update::deferred::tests::test_direct_invalid_queue_entry_invalidates_and_validates_graph_node ... ok
+test runtime::update::deferred::tests::test_dirty_region_tracking ... ok
+test runtime::update::deferred::tests::test_drain_invalid_blocks ... ok
+test runtime::update::deferred::tests::test_invalid_block_dedup ... ok
+test runtime::update::deferred::tests::test_invalid_block_queue ... ok
+test runtime::update::deferred::tests::test_invalid_region ... ok
+test runtime::update::deferred::tests::test_perform_update_records_update_phase_effects ... ok
+test runtime::update::deferred::tests::test_perform_update_writes_damage_set_to_canvas ... ok
+test runtime::update::deferred::tests::test_take_dirty_snapshot_freezes_current_cycle ... ok
+test runtime::update::deferred::tests::test_typed_listeners_dispatch_and_remove_independently ... ok
+test runtime::update::deferred::tests::test_update_panic_restores_frozen_surface_damage ... ok
+test runtime::update::deferred::tests::test_update_without_dirty_regions_skips_rendering ... ok
+test runtime::update::deferred::tests::test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes ... ok
+test runtime::update::deferred::tests::test_update_notifications_report_root_domain_damage ... ok
+test runtime::update::deferred::tests::test_validation_figure_effects_preserve_causal_order ... ok
+test runtime::update::listener::tests::test_notification_queue_drains_at_transaction_boundary ... ok
+test runtime::update::listener::tests::test_notification_queue_separates_notify_and_typed_event ... ok
+test runtime::update::repair::tests::test_compute_damage_union_merges_multiple_rectangles ... ok
+test runtime::update::repair::tests::test_merge_dirty_region_rejects_invalid_rectangles ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_falls_back_to_union_when_region_count_exceeds_limit ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_keeps_separated_rects ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_merges_overlapping_and_touching_rects ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_merges_small_fragments_into_nearest_neighbor ... ok
+test runtime::update::repair::tests::test_parent_chain_multi_level_propagation ... ok
+test runtime::update::repair::tests::test_parent_chain_single_level_propagation ... ok
+test runtime::update::repair::tests::test_parent_chain_propagation_intersects_clip_regions ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_applies_root_clip ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_translates_through_parent_local_ancestors ... ok
+test runtime::update::repair::tests::test_write_damage_set_clears_canvas_for_empty_damage ... ok
+test runtime::update::repair::tests::test_write_damage_set_preserves_regions_and_union ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_uses_figure_local_coordinate_roots ... ok
+test scene::group::tests::exhausted_revision_rejects_all_new_metadata ... ok
+test scene::group::tests::interleaved_candidates_revalidate_revision_before_any_local_write ... ok
+test scene::group::tests::nested_capture_roots_each_receive_the_entire_structural_dependency ... ok
+test scene::group::tests::last_revision_commits_both_nodes_in_an_atomic_append_batch ... ok
+test scene::import::tests::import_failure_does_not_allocate_registry_or_modify_current_table ... ok
+test scene::import::tests::import_key_deduplicates_exact_payload_and_reclaims_after_last_cpu_lease ... ok
+test scene::tests::configuration_exhaustion_preserves_previous_configuration ... ok
+test scene::group::tests::last_revision_commits_the_entire_replacement_and_rejects_later_insertion ... ok
+test scene::tests::identity_exhaustion_never_wraps_or_registers_a_source ... ok
+test scene::view::tests::aspect_measurement_obeys_natural_size_axis_hints_and_explicit_box ... ok
+test scene::view::tests::aspect_placement_preserves_client_origin_and_rejects_overflow_at_preparation ... ok
+test scene::view::tests::conflict_and_broken_closure_leave_installed_content_and_graph_unchanged ... ok
+test runtime::runtime::tests::runtime_owns_an_isolated_text_layout_context ... ok
+test text::outline::paint_index::tests::overlapping_and_remote_ink_keep_source_order ... ok
+test text::outline::paint_index::tests::unknown_leaf_survives_and_does_not_disable_known_sibling_pruning ... ok
+test text::outline::paint_index::tests::disjoint_subtrees_are_pruned_but_full_overlap_is_linear ... ok
+test graph::update_integration_test::test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effects ... ok
+test graph::update_integration_test::test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically ... ok
+test runtime::runtime::adr014_tests::dispose_supports_the_maximum_tree_depth has been running for over 60 seconds
+test runtime::runtime::adr014_tests::dispose_supports_the_maximum_tree_depth ... ok
+
+test result: ok. 428 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 78.44s
+
+[1m[92m     Running[0m tests/api_scoped_editor_contract.rs (target/debug/deps/api_scoped_editor_contract-359c9adf4514794c)
+
+running 4 tests
+test specialized_editor_rejects_a_figure_without_the_capability ... ok
+test scoped_editor_acquisition_rejects_replaced_contents ... ok
+test builder_and_scoped_editors_cover_distinct_lifecycle_phases ... ok
+test scoped_editor_acquisition_rejects_foreign_and_disposed_figures ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/color_text_input_contract.rs (target/debug/deps/color_text_input_contract-39d1584ba1cf25b5)
+
+running 3 tests
+test signed_components_and_whitespace_are_not_hexadecimal_digits ... ok
+test non_ascii_input_returns_the_first_invalid_component_without_panicking ... ok
+test all_ascii_component_values_preserve_case_prefix_and_alpha_semantics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/d1_focus_contract.rs (target/debug/deps/d1_focus_contract-8e55a74b7a008200)
+
+running 1 test
+test public_runtime_focus_api_separates_direct_and_traversal_eligibility ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/d1_tree_search_contract.rs (target/debug/deps/d1_tree_search_contract-fdd26a1a17fc10ae)
+
+running 2 tests
+test public_search_strategy_filters_hit_test_without_changing_geometry_order ... ok
+test public_exclusion_search_prunes_by_figure_id ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/d2_freeform_contract.rs (target/debug/deps/d2_freeform_contract-840939f9f6c3ddf6)
+
+running 19 tests
+test freeform_constraint_rejects_invalid_values_and_accepts_explicit_zero ... ok
+test builder_rejects_invalid_constraint_type_before_layout ... ok
+test empty_freeform_extent_is_zero ... ok
+test freeform_extent_unions_positive_and_negative_child_bounds ... ok
+test freeform_query_distinguishes_unknown_non_freeform_and_unvalidated ... ok
+test freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback ... ok
+test nested_freeform_uses_derived_extent_not_presentation_bounds ... ok
+test normal_ancestor_still_clips_freeform_overflow ... ok
+test overflow_visible_allows_hits_outside_freeform_border_box ... ok
+test freeform_viewport_range_uses_unscaled_content_domain ... ok
+test moving_overflow_visible_child_damages_old_and_new_surface_regions ... ok
+test overflow_visible_damage_is_not_clipped_to_host_bounds ... ok
+test visibility_does_not_change_freeform_extent ... ok
+test freeform_fit_uses_derived_extent_instead_of_presentation_bounds ... ok
+test freeform_zoom_preserves_anchor_and_keeps_range_unscaled ... ok
+test child_move_keeps_old_stable_extent_until_revalidation ... ok
+test viewport_does_not_clip_freeform_contents_to_presentation_bounds ... ok
+test freeform_extent_shrink_clamps_origin_and_repaints_viewport ... ok
+test overflow_visible_skips_host_clip_during_rendering ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d2_layer_contract.rs (target/debug/deps/d2_layer_contract-9986534acda487a1)
+
+running 10 tests
+test layer_key_rejects_empty_values ... ok
+test transparent_layer_returns_descendant_but_never_itself ... ok
+test layered_pane_rejects_duplicate_keys_and_generic_add ... ok
+test layer_order_drives_reverse_z_hit_testing ... ok
+test runtime_registers_layered_pane_used_as_contents ... ok
+test callback_layer_mutations_commit_in_fifo_order ... ok
+test keyed_layer_pending_resource_registration_is_deduplicated_and_released ... ok
+test deferred_layer_resource_rejection_keeps_error_and_allows_next_request ... ok
+test reparent_and_remove_update_both_membership_indexes ... ok
+test keyed_layer_resource_rejection_preserves_keys_topology_and_lifecycle ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d3_runtime_listener.rs (target/debug/deps/d3_runtime_listener-ff80e011b0571fb6)
+
+running 4 tests
+test pointer_dispatch_remains_available_after_listener_api_completion ... ok
+test action_listener_can_remove_itself_after_the_current_action ... ok
+test listener_self_removal_finishes_current_effect_and_skips_later_effects ... ok
+test runtime_exposes_all_listener_categories_with_one_removal_namespace ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d3_runtime_mutation.rs (target/debug/deps/d3_runtime_mutation-0f2481b5b636b6c4)
+
+running 9 tests
+test runtime_size_overrides_are_checked_and_clearable ... ok
+test runtime_child_order_controls_paint_and_reverse_hit_order_atomically ... ok
+test runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures ... ok
+test ordinary_child_order_api_rejects_layered_panes ... ok
+test runtime_replaces_layout_and_constraints_only_after_validation ... ok
+test callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix ... ok
+test checked_topology_mutations_preserve_error_categories ... ok
+test runtime_update_requests_validate_target_and_damage_geometry ... ok
+test runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d4_component_update.rs (target/debug/deps/d4_component_update-d6542899888e4b61)
+
+running 8 tests
+test component_effect_failure_does_not_commit_value_revision_or_property_fact ... ok
+test deferred_component_rejection_is_reported_without_losing_fifo_suffix ... ok
+test external_figure_callback_can_defer_a_typed_self_update ... ok
+test component_update_rejects_wrong_foreign_and_disposed_targets ... ok
+test external_component_update_is_typed_atomic_and_conservatively_invalidated ... ok
+test external_component_update_commits_typed_property_effect_once ... ok
+test component_prepare_or_commit_panic_faults_runtime ... ok
+test lifecycle_invalidation_panic_faults_all_public_mutation_domains ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d4_constrained_measurement.rs (target/debug/deps/d4_constrained_measurement-3a9cff339efa338d)
+
+running 2 tests
+test constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir ... ok
+test xy_layout_passes_fixed_width_hint_when_height_is_automatic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d4_notification_epoch.rs (target/debug/deps/d4_notification_epoch-35af81ff593df6a0)
+
+running 1 test
+test historical_records_keep_event_order_while_queries_read_latest_stable_scene ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/facade_contract.rs (target/debug/deps/facade_contract-38d931c32ae2a69b)
+
+running 3 tests
+test frame_preparation_preserves_compact_non_ready_states ... ok
+test specialist_protocols_are_available_through_named_modules ... ok
+test explicit_domain_imports_support_a_backend_neutral_scene ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/font_decoration_image_contract.rs (target/debug/deps/font_decoration_image_contract-410b2645edb3d569)
+
+running 2 tests
+test original_ico_decodes_without_conversion_and_invalid_inputs_fail_explicitly ... ok
+test underline_metrics_scale_with_the_resolved_face_and_external_engines_share_the_contract ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/geometry_m1_product_existence.rs (target/debug/deps/geometry_m1_product_existence-5ba6f287c25b589a)
+
+running 3 tests
+test m1_geometry_canonical_type_names_are_importable ... ok
+test m1_canonical_values_keep_approx_eq_contract ... ok
+test point_and_vector_have_distinct_arithmetic_semantics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/graph_layout_compound.rs (target/debug/deps/graph_layout_compound-ed7eec27387aa0c0)
+
+running 9 tests
+test zero_span_is_allowed_and_selfloop_admission_remains_explicit ... ok
+test empty_group_respects_minimum_and_reserved_padding ... ok
+test ancestor_edges_use_independent_boundaries_and_keep_original_direction ... ok
+test budget_and_fixed_rank_height_conflicts_are_structured_errors ... ok
+test nested_group_endpoints_convert_source_before_target ... ok
+test compound_cycles_reverse_crossing_edges_without_reversing_containment ... ok
+test group_row_constraints_order_whole_sibling_blocks ... ok
+test nested_fractional_geometry_keeps_exact_padded_boundaries ... ok
+test official_compound_fixtures_cover_both_directions ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+[1m[92m     Running[0m tests/graph_layout_directed.rs (target/debug/deps/graph_layout_directed-88e9086c0885b3ca)
+
+running 11 tests
+test fixed_axis_rejects_row_stretch_and_zero_span_is_admitted ... ok
+test empty_graph_still_provides_checked_layered_capability ... ok
+test fractional_padding_keeps_padded_rows_disjoint ... ok
+test maximum_rank_zero_span_rejects_auxiliary_budget_without_integer_panic ... ok
+test explicit_row_order_survives_crossing_reduction_and_transposition ... ok
+test zero_and_positive_span_self_loops_have_distinct_failures ... ok
+test layered_evidence_cannot_forge_ranks_or_virtual_geometry ... ok
+test east_offsets_keep_source_distance_even_beyond_transposed_side_length ... ok
+test fractional_long_edge_stubs_reach_actual_padded_obstacle_boundary ... ok
+test directed_long_edges_and_feedback_preserve_original_endpoints ... ok
+test official_directed_fixtures_cover_both_directions ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.82s
+
+[1m[92m     Running[0m tests/graph_layout_protocol.rs (target/debug/deps/graph_layout_protocol-41fe64cab3841352)
+
+running 20 tests
+test constraints_and_required_capabilities_are_checked_before_solve ... ok
+test connectivity_groups_and_selfloop_admission_are_declared_per_algorithm ... ok
+test candidate_has_exact_entity_and_edge_coverage ... ok
+test attachment_geometry_original_direction_and_extent_are_hard_constraints ... ok
+test external_nonlayered_solver_needs_no_rank_and_is_deterministic ... ok
+test external_selected_boundary_uses_the_same_geometry_and_registered_proof_gate ... ok
+test draw2d_attachment_offset_can_exceed_the_side_length_after_transposition ... ok
+test fixed_axes_and_nonshrinkable_preferred_demand_are_enforced ... ok
+test input_snapshot_and_instance_generation_are_both_required ... ok
+test missing_or_invalid_result_capability_never_becomes_a_checked_result ... ok
+test nested_groups_allow_ancestors_but_reserve_their_inner_region ... ok
+test new_measurement_prefix_retains_ids_without_reusing_the_old_certificate ... ok
+test node_attachment_must_exit_the_selected_side_and_selfloops_need_a_full_path ... ok
+test nonmembers_and_external_padding_cannot_overlap_reserved_groups ... ok
+test rebuilt_solver_contexts_share_work_and_allocation_limits ... ok
+test single_budget_covers_allocations_admission_and_candidate_checking ... ok
+test structural_admission_rejects_foreign_identity_cycle_and_bad_geometry ... ok
+test typed_identity_ignores_diagnostic_names_and_rejects_duplicate_types ... ok
+test unrelated_obstacle_clearance_and_endpoint_reentry_are_rejected ... ok
+test containment_depth_and_traversal_work_are_bounded_before_solving ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/graph_projection_contract.rs (target/debug/deps/graph_projection_contract-b194dce2e87963ed)
+
+running 9 tests
+test oscillating_external_measurement_feedback_is_rejected_without_publication ... ok
+test external_non_layered_algorithm_uses_the_same_projection_and_repeated_frames_do_not_solve ... ok
+test host_budget_rejects_the_whole_attempt_and_a_later_policy_change_can_retry ... ok
+test directed_projection_publishes_candidate_bounds_and_complete_routes_together ... ok
+test missing_duplicate_and_retired_bindings_are_rejected ... ok
+test east_width_feedback_converges_on_first_submission_and_recovers_from_leaf_failure ... ok
+test incompatible_anchor_binding_cannot_publish_a_partial_graph ... ok
+test graph_measurement_in_a_tracked_viewport_preserves_extent_and_route_identity_when_scrolled ... ok
+test all_official_fixture_directions_publish_through_the_same_flat_adapter ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.18s
+
+[1m[92m     Running[0m tests/image_source_rectangle_contract.rs (target/debug/deps/image_source_rectangle_contract-9472ec8da201d40c)
+
+running 4 tests
+test image_region_rejects_invalid_geometry_without_recording_work ... ok
+test full_image_commands_record_the_physical_source_bounds ... ok
+test image_region_zero_extent_and_zero_alpha_are_noops ... ok
+test image_region_records_source_pixels_destination_and_alpha ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/independent_shape_corners.rs (target/debug/deps/independent_shape_corners-e59b008f08aec769)
+
+running 19 tests
+test contour_cost ... ignored, release CPU construction and stable access cost evidence
+test invalid_radii_and_topologies_return_structured_errors ... ok
+test excessive_polygon_radii_normalize_to_nonoverlapping_tangents ... ok
+test polygon_fillets_cut_all_three_vertices_and_share_paint_and_hit_path ... ok
+test oversized_corners_scale_together_without_changing_request ... ok
+test elliptical_corner_matches_drawn_arc_instead_of_quadratic_approximation ... ok
+test disabled_bottom_produces_three_colors_and_no_bottom_region ... ok
+test polygon_shape_entry_points_use_the_same_rounded_path ... ok
+test rounded_free_ends_stop_at_straight_tangents_and_keep_the_fill_contour ... ok
+test thick_border_and_zero_size_never_create_negative_geometry ... ok
+test external_figure_reuses_public_contour_without_registry_or_backend_changes ... ok
+test runtime_geometry_updates_are_atomic_and_identical_updates_are_noops ... ok
+test top_only_corners_leave_bottom_vertices_and_hit_geometry_intact ... ok
+test rounded_triangle_updates_use_runtime_bounds_and_remove_tip_from_hit ... ok
+test runtime_corner_mode_can_return_to_legacy_even_with_same_dimensions ... ok
+test rectangle_shape_border_records_through_runtime_snapshot ... ok
+test concave_corners_and_reversed_winding_have_same_region ... ok
+test all_sharp_edge_masks_cover_full_enabled_strips_without_overlap ... ok
+test rectangle_border_partitions_cover_ring_once_for_all_corner_sizes ... ok
+
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+[1m[92m     Running[0m tests/long_text_layout_contract.rs (target/debug/deps/long_text_layout_contract-cafa814880f59b7a)
+
+running 7 tests
+test external_backend_retains_runtime_submission_after_source_retirement ... ok
+test external_outline_revision_replaces_ink_atomically_and_failure_retains_old_snapshot ... ok
+test external_engine_reuses_unchanged_paragraphs_and_retains_old_geometry ... ok
+test external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts ... ok
+test engine_without_cache_contract_recomputes_each_paragraph ... ok
+test exact_width_change_reflows_all_paragraphs_and_font_revision_invalidates_cache ... ok
+test instance_caches_are_isolated_and_eviction_preserves_published_snapshots ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+[1m[92m     Running[0m tests/long_text_paint_contract.rs (target/debug/deps/long_text_paint_contract-d05d876abf41ba93)
+
+running 4 tests
+test readonly_clip_tracks_nested_transform_restore_and_singular_fallback ... ok
+test negative_bearing_and_ink_from_distant_lines_are_not_logically_pruned ... ok
+test paragraph_hierarchy_prunes_known_ink_and_keeps_unknown_native_paragraphs ... ok
+test actual_outline_index_culls_only_with_coverage_certificate_and_keeps_stroke_fallback ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+[1m[92m     Running[0m tests/m10_accessibility_contract.rs (target/debug/deps/m10_accessibility_contract-d07c7376861fde4d)
+
+running 4 tests
+test snapshot_promotes_accessible_children_through_decorative_figures ... ok
+test dispose_removes_accessibility_identity_in_the_next_delta ... ok
+test focus_and_default_actions_reuse_runtime_widget_transactions ... ok
+test accessibility_projection_supports_the_maximum_tree_depth ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.72s
+
+[1m[92m     Running[0m tests/m10_label_contract.rs (target/debug/deps/m10_label_contract-a6be715998e3d4f6)
+
+running 13 tests
+test removing_ready_image_clears_all_shared_figure_references ... ok
+test image_figure_tracks_pending_ready_and_failed_resource_states ... ok
+test non_text_tree_skips_style_propagation_work ... ok
+test title_bar_border_uses_resolved_font_metrics_and_glyph_commands ... ok
+test label_uses_runtime_shaping_for_measurement_truncation_and_paint ... ok
+test label_cache_reshapes_only_when_measurement_inputs_change ... ok
+test label_icon_gap_placement_and_typed_mutations_are_transactional ... ok
+test shared_compound_title_bar_border_keeps_metrics_per_owner ... ok
+test first_submission_shapes_label_after_parent_layout ... ok
+test compound_border_resolves_title_bar_snapshots_at_every_nesting_position ... ok
+test text_placement_positions_text_relative_to_icon_in_all_four_directions ... ok
+test font_failure_recovery_and_removal_refresh_label_and_title_snapshots ... ok
+test deep_label_style_refresh_visits_each_tree_node_once ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+[1m[92m     Running[0m tests/m10_reusable_shape_border_contract.rs (target/debug/deps/m10_reusable_shape_border_contract-9ac9003a6164a1c2)
+
+running 16 tests
+test point_list_visual_bounds_follow_line_join_contract ... ok
+test polygon_precise_hit_uses_closed_interior ... ok
+test polyline_precise_hit_uses_segment_distance ... ok
+test border_metrics_and_compound_formula_match_draw2d ... ok
+test ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width ... ok
+test etched_and_bevel_borders_expose_product_metrics_and_commands ... ok
+test compound_border_isolates_outer_state_and_offsets_inner_paint ... ok
+test rounded_rectangle_precise_hit_rejects_clipped_corner ... ok
+test rounded_rectangle_fill_without_outline_uses_full_bounds ... ok
+test rounded_rectangle_fill_and_outline_share_optimized_path ... ok
+test triangle_uses_draw2d_resize_and_centering_geometry ... ok
+test runtime_point_mutations_commit_bounds_points_damage_and_notification_atomically ... ok
+test border_preferred_size_and_effective_opacity_join_figure_protocol ... ok
+test runtime_border_corner_and_direction_mutations_use_typed_transactions ... ok
+test runtime_point_list_stroke_style_renormalizes_geometry_atomically ... ok
+test reusable_shapes_consume_runtime_figure_style_as_color_truth ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m10_text_extension_contract.rs (target/debug/deps/m10_text_extension_contract-ca3b721fa08ea4c7)
+
+running 2 tests
+test external_text_engine_constructs_non_empty_backend_neutral_layout ... ok
+test backend_neutral_layout_can_be_consumed_without_vello_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m10_tooltip_contract.rs (target/debug/deps/m10_tooltip_contract-5f2fa5fb5eea61ef)
+
+running 3 tests
+test inherited_tooltip_uses_the_owning_ancestor_as_stable_source ... ok
+test explicit_disable_cancels_an_inherited_waiting_tooltip ... ok
+test visible_tooltip_replaces_content_and_press_hides_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/m10_widget_contract.rs (target/debug/deps/m10_widget_contract-367a8e3ec1c9a850)
+
+running 10 tests
+test selected_state_is_model_owned_and_programmatic_click_uses_same_transaction ... ok
+test enter_and_space_activate_only_after_matching_key_release ... ok
+test disabled_button_rejects_pointer_keyboard_and_programmatic_actions ... ok
+test toggle_changes_selection_before_emitting_action ... ok
+test keyboard_activation_requires_the_matching_release_key ... ok
+test mouse_release_inside_fires_action_and_owns_focus ... ok
+test drag_out_cancels_action_and_drag_back_rearms_it ... ok
+test button_exposes_composed_label_contract ... ok
+test keyboard_press_cannot_be_completed_by_an_unrelated_mouse_release ... ok
+test action_listener_flushes_at_the_update_transaction_boundary ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m2_product_existence.rs (target/debug/deps/m2_product_existence-802b4b79c00f0bb3)
+
+running 6 tests
+test deferred_builtin_figures_remain_importable_without_entering_the_m2_gate ... ok
+test existing_product_figures_expose_border_api ... ok
+test existing_product_figures_expose_child_clipping_strategy_api ... ok
+test m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles ... ok
+test architecture_level_runtime_types_are_available_through_advanced ... ok
+test m2_three_phase_paint_order_is_observable_from_product_api ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m4_coordinate_contract.rs (target/debug/deps/m4_coordinate_contract-92895e213a39ef97)
+
+running 5 tests
+test m4_point_roundtrips_across_nested_coordinate_roots_with_insets ... ok
+test coordinate_transform_queries_reject_foreign_figures_without_mutating_geometry ... ok
+test m4_rectangle_roundtrip_preserves_extent_across_nested_coordinate_roots ... ok
+test m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain ... ok
+test m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/m5_layout_contract.rs (target/debug/deps/m5_layout_contract-280b651897aebc34)
+
+running 18 tests
+test layout_measurements_are_cached_until_generation_changes ... ok
+test builder_rejects_wrong_constraint_type_without_mutating_layout_state ... ok
+test builder_rejects_negative_layout_geometry_before_any_change_is_committed ... ok
+test border_layout_uses_the_reserved_east_size_for_placement ... ok
+test explicit_zero_size_is_not_treated_as_a_missing_measurement ... ok
+test builder_rejects_incompatible_manager_before_replacing_layout_state ... ok
+test border_layout_uses_the_reserved_south_size_for_placement ... ok
+test grid_layout_honors_column_span_and_excess_space ... ok
+test grid_layout_uses_track_maxima_and_fill_alignment ... ok
+test layout_output_is_validated_before_any_change_is_committed ... ok
+test stack_layout_places_every_child_in_the_client_area ... ok
+test stack_layout_applies_container_insets_once ... ok
+test toolbar_layout_compresses_main_axis_and_stretches_minor_axis ... ok
+test border_layout_center_does_not_reserve_absent_edge_regions ... ok
+test runtime_rejects_non_finite_layout_geometry_before_any_change_is_committed ... ok
+test xy_layout_applies_container_insets_once ... ok
+test non_converging_validation_returns_diagnostic_and_keeps_work_queued ... ok
+test update_manager_completes_a_1024_figure_layout_transaction ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+[1m[92m     Running[0m tests/m6_event_contract.rs (target/debug/deps/m6_event_contract-e57003167950a787)
+
+running 5 tests
+test capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract ... ok
+test interactive_parent_remains_mouse_target_across_non_interactive_children ... ok
+test continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture ... ok
+test event_context_projects_scene_query_and_defers_effect_visibility ... ok
+test retired_gesture_target_does_not_retarget_the_same_session ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/m8_viewport_contract.rs (target/debug/deps/m8_viewport_contract-91942f3453369c69)
+
+running 28 tests
+test range_model_rejects_invalid_input_without_partial_state ... ok
+test range_model_clamps_extent_and_value_atomically ... ok
+test range_model_listener_observes_changes_until_removed ... ok
+test scroll_pane_automatic_policy_reserves_both_scroll_bars ... ok
+test external_scaled_stack_fills_physical_client_area_after_each_zoom ... ok
+test scalable_projects_explicit_unscaled_preferred_size_through_scale ... ok
+test scalable_layered_pane_rejects_invalid_scale_without_state_change ... ok
+test external_figure_scale_capability_is_runtime_mutable_without_downcast ... ok
+test scroll_pane_visibility_policy_controls_layout ... ok
+test pinch_zoom_keeps_content_point_under_the_entry_anchor ... ok
+test touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier ... ok
+test scalable_layered_pane_composes_with_viewport_parent_transform ... ok
+test scroll_pane_resize_recomputes_automatic_visibility_and_range_extent ... ok
+test viewport_border_insets_define_child_transform_and_client_extent ... ok
+test viewport_handle_owns_contents_and_derives_ranges_from_layout ... ok
+test viewport_rejects_a_second_contents_child_atomically ... ok
+test unhandled_wheel_uses_nearest_scroll_pane_fallback ... ok
+test viewport_handle_replaces_contents_without_leaving_two_children ... ok
+test vertical_scroll_bar_step_updates_shared_viewport_model ... ok
+test viewport_handle_scroll_clamps_and_repaints_the_viewport ... ok
+test zoom_manager_uses_configured_levels_for_step_zoom ... ok
+test zoom_manager_owns_zoom_limits_and_default_center_policy ... ok
+test zoom_rejects_non_finite_policy_output_before_mutating_scale_or_viewport ... ok
+test viewport_track_width_uses_available_width_until_content_minimum ... ok
+test vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously ... ok
+test zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent ... ok
+test zoomed_canvas_remains_reachable_at_every_scroll_range_edge ... ok
+test wheel_and_scrollbar_take_over_sampled_origin_and_cancel_the_complete_group ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m9_connection_contract.rs (target/debug/deps/m9_connection_contract-797fbe844102fcc0)
+
+running 18 tests
+test endpoint_locators_skip_duplicate_terminal_points_and_apply_tangent_offsets ... ok
+test endpoint_locator_uses_anchor_normal_only_for_fully_degenerate_route ... ok
+test anchor_semantic_keys_group_equivalent_owner_geometry ... ok
+test chopbox_anchor_maps_owner_geometry_into_requested_space ... ok
+test label_anchor_reads_named_icon_geometry ... ok
+test direct_router_rejects_constraints_without_partial_output ... ok
+test ellipse_and_rounded_rectangle_follow_their_actual_outlines ... ok
+test direct_router_uses_opposite_reference_points ... ok
+test external_route_read_rejects_missing_facts_but_retains_dependency_observation ... ok
+test legacy_scene_read_reports_unsupported_preparation_and_tracks_the_failed_read ... ok
+test external_route_read_tracks_retirement_and_recovers_with_a_new_binding ... ok
+test locators_preserve_topological_middle_and_arc_fraction_semantics ... ok
+test missing_named_geometry_is_a_structured_anchor_error ... ok
+test named_anchor_geometry_key_rejects_empty_values ... ok
+test rectangle_boundary_site_projects_toward_the_reference ... ok
+test route_output_rejects_short_and_non_finite_point_lists ... ok
+test route_rejects_dependency_generation_drift ... ok
+test xy_anchor_maps_from_its_declared_space ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/m9_connection_runtime.rs (target/debug/deps/m9_connection_runtime-3e78403484b5bbea)
+
+running 31 tests
+test incompatible_router_change_is_rejected_atomically ... ok
+test connection_locator_rejects_non_child_targets ... ok
+test connection_cannot_anchor_to_its_own_subtree ... ok
+test inherited_router_defaults_to_draw2d_equivalent_direct_routing ... ok
+test divergent_viewport_topology_is_rejected_and_reparent_recovers ... ok
+test invalid_decoration_template_is_rejected_before_attachment ... ok
+test bendpoint_router_preserves_absolute_and_relative_constraints ... ok
+test invalid_connection_geometry_never_commits_resolved_state ... ok
+test fan_router_separates_bidirectional_connections ... ok
+test first_locator_preflight_failure_recovers_when_an_observed_owner_moves ... ok
+test layout_output_geometry_automatically_invalidates_and_reroutes ... ok
+test matching_viewport_topology_routes_normally ... ok
+test locator_preflight_failure_after_success_refreshes_recovery_dependencies ... ok
+test manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically ... ok
+test manhattan_reservations_are_isolated_by_router_id ... ok
+test fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal ... ok
+test missing_endpoint_is_unresolved_and_binding_it_restores_dirty_state ... ok
+test removing_connection_figure_cleans_runtime_state ... ok
+test reparenting_connection_with_unknown_constraint_is_rejected_atomically ... ok
+test locator_remeasures_child_size_without_endpoint_movement ... ok
+test normal_frame_automatically_resolves_dirty_connection_routes ... ok
+test manhattan_router_emits_only_orthogonal_non_duplicate_segments ... ok
+test locator_measurement_rejection_does_not_publish_child_geometry_and_can_recover ... ok
+test shared_router_and_anchor_cannot_be_removed_while_referenced ... ok
+test resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty ... ok
+test reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain ... ok
+test unresolved_transition_clears_previously_committed_geometry ... ok
+test runtime_orients_endpoint_decorations_and_offsets_labels_in_terminal_frames ... ok
+test shared_manhattan_reserves_lanes_across_different_anchor_pairs ... ok
+test runtime_relocates_bound_connection_children_after_route_commit ... ok
+test independent_routing_supplies_one_order_entry_per_connection ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+[1m[92m     Running[0m tests/p2_animation_behavior_contract.rs (target/debug/deps/p2_animation_behavior_contract-9b741752c08224b9)
+
+running 7 tests
+test behavior_identity_scope_disposal_and_failure_are_bounded ... ok
+test property_state_and_transaction_triggers_match_committed_facts ... ok
+test ordinary_mutation_stays_static_without_an_installed_behavior ... ok
+test retry_and_idle_do_not_replay_consumed_facts ... ok
+test disabled_skips_factories_and_reduced_motion_uses_only_its_fallback ... ok
+test bounds_trigger_coalesces_one_transaction_and_installs_override_before_recording ... ok
+test behavior_factory_panic_faults_runtime_and_clears_presentation ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_animation_contract.rs (target/debug/deps/p2_animation_contract-3652b53fdb5fb044)
+
+running 29 tests
+test external_value_type_uses_the_same_typed_channel_contract ... ok
+test disabled_mode_suppresses_without_work_or_override ... ok
+test foreign_handles_and_overlapping_tracks_are_rejected ... ok
+test cancel_clears_override_and_retarget_starts_from_current_presentation ... ok
+test finite_repeat_and_reverse_preserve_channel_continuity_and_terminal_truth ... ok
+test disposing_a_figure_cancels_bound_presentation_without_source_revival ... ok
+test failed_retarget_keeps_existing_animation_unchanged ... ok
+test child_transform_override_bypasses_only_the_committed_child_clip ... ok
+test figure_opacity_and_transform_are_presentation_only ... ok
+test keyframes_sample_piecewise_values ... ok
+test non_monotonic_time_preserves_animation_state ... ok
+test hidden_figure_applies_pause_or_finish_policy_without_source_mutation ... ok
+test pause_policy_excludes_surface_suspension_from_local_time ... ok
+test procedural_motion_distinguishes_finite_and_continuous_lifetimes ... ok
+test provider_failure_is_rejected_or_terminates_without_stale_override ... ok
+test parallel_sequence_and_stagger_preserve_stable_track_order ... ok
+test reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work ... ok
+test presentation_damage_unions_old_and_new_surface_envelopes ... ok
+test removing_a_channel_cancels_its_owner_and_invalidates_the_handle ... ok
+test replace_and_ignore_resolve_channel_ownership_without_partial_state ... ok
+test spring_and_decay_are_bounded_and_finish_at_committed_values ... ok
+test tween_uses_absolute_monotonic_time_and_clears_override_at_completion ... ok
+test unsupported_presentation_hit_testing_is_rejected_before_channel_creation ... ok
+test provider_panic_faults_runtime_and_clears_presentation ... ok
+test temporary_visual_is_removed_on_natural_completion ... ok
+test temporary_visual_is_non_source_and_removed_with_its_owner ... ok
+test retry_keeps_current_presentation_and_provider_panic_clears_it ... ok
+test active_track_work_scales_exactly_at_1_64_and_1024_tracks ... ok
+test ignore_and_replace_remain_available_at_the_active_animation_budget ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s
+
+[1m[92m     Running[0m tests/p2_animation_geometry_contract.rs (target/debug/deps/p2_animation_geometry_contract-bab9c30fe76aef4a)
+
+running 41 tests
+test capture_closure_is_bounded_even_without_active_animation ... ok
+test capture_rejects_combined_peak_before_materializing_bounded_content ... ok
+test descriptor_refresh_invalidates_cached_geometry_without_advancing_time ... ok
+test drawing_output_overrun_fails_only_its_group_and_static_repair_skips_provider ... ok
+test derived_providers_schedule_typed_dependencies_and_reject_cycles_before_owner_transfer ... ok
+test derived_query_failure_clears_complete_group_and_cached_geometry_never_reruns_provider ... ok
+test bootstrap_root_does_not_clip_presentation_repair_envelopes_or_make_midframe_idle ... ok
+test bounded_self_paint_overrun_fails_its_owner_and_repairs_with_static_content ... ok
+test duplicate_geometry_writers_are_rejected_before_any_owner_transfer ... ok
+test explicit_geometry_endpoint_does_not_replace_committed_final_bounds ... ok
+test captured_content_retains_exact_image_and_charges_payload_until_capture_drop ... ok
+test external_semantics_share_registration_and_queries_without_aliasing_rectangle_values ... ok
+test drawing_stage_reads_derived_geometry_and_records_owned_bounded_lines ... ok
+test external_bounds_paint_and_compound_border_use_frozen_inputs_and_sampled_size ... ok
+test geometry_adapter_panic_crosses_the_runtime_fault_boundary ... ok
+test external_content_snapshot_is_frozen_once_and_revision_cancels_the_group ... ok
+test collapse_visibility_retention_does_not_trigger_pause_or_finish_suspension ... ok
+test legacy_heap_value_reserves_storage_and_sample_overrun_fails_only_its_owner ... ok
+test inline_provider_configuration_is_charged_before_retarget_callbacks ... ok
+test nested_capture_counts_each_node_once_and_cached_reads_add_no_geometry_work ... ok
+test legacy_contents_transform_rejects_new_origin_owner_without_double_pan ... ok
+test geometry_work_downsize_is_atomic_and_dependency_styles_cancel_only_their_group ... ok
+test inflight_capture_and_reset_keep_latest_sample_and_do_not_restore_old_geometry ... ok
+test nested_sampled_bounds_preserve_four_insets_and_scale_rotation_edge_composition ... ok
+test external_ancestor_hide_obeys_group_suspension_and_revokes_local_retention ... ok
+test provider_prepare_rejects_undeclared_queries_even_inside_captured_subtree ... ok
+test owned_capture_retention_rejects_new_capture_and_downsize_until_drop ... ok
+test oversized_drawing_declaration_rejects_retarget_before_callback_or_owner_transfer ... ok
+test query_rejects_undeclared_identity_and_never_materializes_on_pull ... ok
+test repeated_provider_queries_cannot_hide_work_overrun_by_ignoring_errors ... ok
+test rejected_real_bounds_candidate_restores_old_terminal_owner_and_version ... ok
+test origin_takeover_materializes_latest_sample_and_failure_preserves_all_owners ... ok
+test static_modes_suppress_before_freezing_content_or_evaluating_geometry_providers ... ok
+test sampled_geometry_surface_pause_resumes_without_advancing_local_motion ... ok
+test runtime_real_bounds_transaction_retargets_from_unrecorded_sample_and_commits_source_once ... ok
+test submission_retention_survives_completion_clones_and_retry_without_evicting_owner ... ok
+test sampled_zero_client_clip_and_overflow_follow_the_same_ancestor_contract ... ok
+test true_bounds_capture_uses_last_advance_without_recording_or_affine_size_scale ... ok
+test title_bar_recording_keeps_glyphs_colors_and_font_leases_while_width_changes ... ok
+test sampled_label_bounds_keep_prepared_glyphs_and_do_not_shape_again ... ok
+test overlapping_nested_targets_materialize_linear_geometry_work ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[1m[92m     Running[0m tests/p2_animation_sample_reservation_contract.rs (target/debug/deps/p2_animation_sample_reservation_contract-a3dbdba5b766d8bf)
+
+running 4 tests
+test repeated_time_and_pull_queries_do_not_sample_and_scheduled_stays_unanchored ... ok
+test net_retarget_at_capacity_and_independent_staging_rejection_keep_current_time ... ok
+test initial_candidate_failure_preserves_old_owner_values_and_reservation ... ok
+test full_capacity_rejects_new_work_and_downsize_without_evicting_either_order ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_animation_transition_contract.rs (target/debug/deps/p2_animation_transition_contract-917712e2209db67e)
+
+running 15 tests
+test nonzero_to_zero_bounds_transition_is_rejected_without_active_work ... ok
+test runtime_transaction_reports_capture_and_mutation_phases ... ok
+test connection_dash_flow_uses_continuous_procedural_phase ... ok
+test connection_pulse_uses_arc_length_and_hands_off_to_decoration ... ok
+test capture_rejects_empty_duplicate_foreign_and_disposed_targets ... ok
+test runtime_transaction_stabilizes_layout_before_installing_presentation ... ok
+test captured_bounds_transition_keeps_committed_geometry_final ... ok
+test static_bounds_fallback_still_rejects_a_disposed_capture_target ... ok
+test stagger_uses_capture_order_without_mutating_source_bounds ... ok
+test connection_route_and_dash_share_one_composable_presentation_family ... ok
+test static_animation_modes_allow_collapsed_layout_without_building_a_transform ... ok
+test unchanged_and_zero_duration_transitions_are_suppressed ... ok
+test compatible_connection_route_interpolates_without_mutating_final_route ... ok
+test incompatible_connection_route_crossfades_and_retires_old_visual ... ok
+test viewport_transaction_animates_pan_without_changing_committed_origin ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_c02_shortest_path_contract.rs (target/debug/deps/p2_c02_shortest_path_contract-e657836a4654f069)
+
+running 3 tests
+test shortest_path_batch_failure_clears_every_member_and_recovers_atomically ... ok
+test shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility ... ok
+test one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+[1m[92m     Running[0m tests/p2_child_insertion.rs (target/debug/deps/p2_child_insertion-65908091e46c61d6)
+
+running 9 tests
+test initial_bounds_are_rejected_before_topology_publication ... ok
+test index_boundaries_are_checked_before_constraint_validation ... ok
+test constraint_without_manager_is_retained_and_checked_on_manager_installation ... ok
+test admission_and_target_errors_do_not_reach_constraint_validator ... ok
+test rejected_constraint_never_publishes_node_or_reuses_failed_identity ... ok
+test runtime_publishes_one_added_and_one_constraint_event ... ok
+test validator_panic_retires_unpublished_identity_and_faults_runtime ... ok
+test builder_and_runtime_insert_preserve_order_and_external_constraints ... ok
+test insertion_keeps_the_depth_limit ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.05s
+
+[1m[92m     Running[0m tests/p2_coordinate_query_failure.rs (target/debug/deps/p2_coordinate_query_failure-61fc83704c2a3e6a)
+
+running 5 tests
+test external_container_singular_inverse_is_legal_absence ... ok
+test finite_parent_composition_overflow_is_a_geometry_error ... ok
+test external_container_inverse_distinguishes_range_and_input_failures ... ok
+test external_container_representable_extreme_inverse_succeeds ... ok
+test coordinate_queries_revalidate_foreign_and_retired_identity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_deep_layout_presentation_contract.rs (target/debug/deps/p2_deep_layout_presentation_contract-31c8e25f3e93d798)
+
+running 2 tests
+test layout_measurement_orders_outer_constraints_insets_and_container_projection ... ok
+test nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_deferred_scale.rs (target/debug/deps/p2_deferred_scale-a75bf29eaac01607)
+
+running 2 tests
+test external_callback_uses_the_same_scale_contract_as_the_runtime_facade ... ok
+test rejected_deferred_scale_preserves_the_previous_value ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_deferred_style.rs (target/debug/deps/p2_deferred_style-b21d1534b462d546)
+
+running 4 tests
+test ordered_replacements_clear_local_values_and_resume_inheritance ... ok
+test deferred_style_uses_runtime_validation_and_does_not_write_during_callback ... ok
+test foreign_targets_are_reported_without_mutating_the_local_tree ... ok
+test invalid_alpha_is_rejected_before_style_mutation_and_deferred_recovery_succeeds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_dispatch_outcome_contract.rs (target/debug/deps/p2_dispatch_outcome_contract-e36c9defbf13509d)
+
+running 2 tests
+test unhandled_press_is_observable_for_editor_tool_fallback ... ok
+test handled_press_reports_target_and_capture_to_the_caller ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_f01_scalable_polygon_contract.rs (target/debug/deps/p2_f01_scalable_polygon_contract-756d52d33a86d72c)
+
+running 4 tests
+test scalable_polygon_maps_one_template_with_stretch_and_preserved_aspect ... ok
+test scalable_polygon_handles_empty_and_single_axis_templates_without_nan ... ok
+test scalable_polygon_reserves_miter_outset_and_uses_precise_hit ... ok
+test runtime_mutations_and_resize_use_current_template_without_stale_geometry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_figure_capability_contract.rs (target/debug/deps/p2_figure_capability_contract-7ef4f5038110c7e9)
+
+running 10 tests
+test duplicate_descriptor_rejects_admission_before_publication ... ok
+test standard_capabilities_are_discovered_without_concrete_type_branches ... ok
+test presentation_binding_absence_and_parallel_content_conflict_are_structured ... ok
+test conflicting_effects_reject_before_component_or_structure_commit ... ok
+test external_capability_supports_typed_query_and_shared_runtime_commit ... ok
+test late_resource_and_bounds_errors_leave_the_entire_effect_batch_unchanged ... ok
+test external_capability_effect_uses_validated_runtime_structural_commit ... ok
+test capability_identity_and_absence_have_structured_results ... ok
+test target_effect_batch_validates_sequential_moves_and_rejects_late_failure ... ok
+test external_presentation_binding_drives_immutable_content_without_core_dispatch ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_graphics_contract.rs (target/debug/deps/p2_graphics_contract-e23620fd0d26609f)
+
+running 24 tests
+test invalid_dash_and_stroke_values_are_rejected ... ok
+test low_miter_preserves_requested_state_and_uses_bevel_extent ... ok
+test invalid_gradients_reject_degenerate_endpoints_and_unordered_stops ... ok
+test builtin_dash_scales_with_width_but_custom_dash_does_not ... ok
+test linear_gradient_owns_ordered_stops_and_preserves_hard_edges ... ok
+test custom_dash_is_owned_and_odd_patterns_have_an_even_period ... ok
+test paint_context_primitives_share_one_stroke_style ... ok
+test ellipse_checks_both_paints_and_its_stroke ... ok
+test clip_paths_validate_structure_and_own_curves_without_consuming_current_path ... ok
+test device_preflight_replays_transform_restore_for_paints_and_clips ... ok
+test paint_context_rejects_device_overflow_without_partial_commands ... ok
+test mixed_clip_and_fill_rule_restore_after_pop ... ok
+test paint_context_snapshots_complete_strokes_and_restores_them ... ok
+test connection_and_decorations_use_actual_stroke_for_geometry_and_recording ... ok
+test polygon_and_scalable_polygon_record_complete_strokes ... ok
+test paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients ... ok
+test rejected_paint_setter_is_atomic_and_fails_recording ... ok
+test solid_offset_is_preserved_until_a_dash_pattern_is_selected ... ok
+test stroke_outset_uses_actual_miter_and_cap ... ok
+test runtime_dash_changes_repaint_without_moving_geometry ... ok
+test miter_transaction_updates_freeform_extent_with_one_move_notification ... ok
+test runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes ... ok
+test rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_retry ... ok
+test gradient_glyph_stroke_requires_each_capability_and_preserves_full_style ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_grid_measurement_contract.rs (target/debug/deps/p2_grid_measurement_contract-d4e064ce8a7f0ff9)
+
+running 2 tests
+test replacing_a_spanning_hint_invalidates_measurement_and_preserves_fixed_columns ... ok
+test fractional_grid_space_preserves_extent_and_nonnegative_grab_tracks ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_group_route_contract.rs (target/debug/deps/p2_group_route_contract-4a81d83fc7084eb9)
+
+running 2 tests
+test sibling_admission_is_atomic_and_contents_remains_single_root ... ok
+test external_group_outputs_are_atomic_and_recover_after_invalid_identity_sets ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_host_background.rs (target/debug/deps/p2_host_background-a4f16791170f7a35)
+
+running 7 tests
+test unsupported_backend_and_modified_composition_are_rejected_before_submission ... ok
+test incomplete_resource_closure_rejects_without_partial_import ... ok
+test background_only_update_wakes_and_freezes_before_canvas_and_new_update_survives_presented ... ok
+test duplicate_conflict_and_foreign_request_do_not_replace_current_background ... ok
+test pending_failure_removal_and_late_completion_keep_explicit_clear ... ok
+test movement_and_dpi_mismatch_reject_mixed_frame_until_new_candidate ... ok
+test retry_and_reset_preserve_frozen_resource_payloads_and_reject_old_token ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_inherited_direction_contract.rs (target/debug/deps/p2_inherited_direction_contract-9f6701be5e011e23)
+
+running 6 tests
+test nested_override_and_noop_mutation_preserve_resolved_direction ... ok
+test external_layout_reads_direction_through_frozen_query_and_revalidates ... ok
+test mirrored_scroll_pane_places_vertical_bar_on_left_and_restores_on_mutation ... ok
+test narrow_lines_and_inline_boxes_keep_baselines_and_checked_geometry ... ok
+test external_engine_receives_inherited_direction_and_mutation_replaces_snapshot ... ok
+test mirror_moves_fragments_without_reflecting_glyphs_in_twenty_contexts ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m tests/p2_layout_measurement_contract.rs (target/debug/deps/p2_layout_measurement_contract-6d82b2881d20073d)
+
+running 2 tests
+test toolbar_distributes_integer_shrink_without_losing_extent ... ok
+test layout_strategies_select_their_measurement_axis ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_owner_locator_contract.rs (target/debug/deps/p2_owner_locator_contract-c55f2c0b54dfbcc3)
+
+running 6 tests
+test corner_tie_slope_clamp_and_half_pixel_centering_are_explicit ... ok
+test owner_sides_and_v_sign_preserve_measured_bounds_at_both_ends ... ok
+test legacy_adapter_and_invalid_external_bounds_are_checked ... ok
+test ownerless_and_zero_owner_use_segment_and_repeated_terminal_uses_normal ... ok
+test owner_envelope_is_mapped_through_nested_scale_and_rotation ... ok
+test runtime_external_locator_tracks_owner_and_rejects_size_override_atomically ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_preparation_measurement_contract.rs (target/debug/deps/p2_preparation_measurement_contract-a9266139b157c2df)
+
+running 18 tests
+test finite_inset_overflow_is_distinct_and_happens_before_the_callback ... FAILED
+test nested_layout_failure_preserves_the_leaf_and_original_text_cause ... ok
+test default_constraint_measurement_is_explicitly_unsupported_before_a_snapshot_exists ... ok
+test frame_error_source_chain_reaches_the_original_text_error ... ok
+test ignored_consumer_budget_failure_rejects_publication_and_next_session_recovers ... ok
+test nested_measurement_budget_failure_keeps_the_leaf_and_constraints ... ok
+test layout_children_are_remeasured_under_each_explicit_constraint ... ok
+test external_prepared_measurement_honors_each_constraint_without_using_old_metrics ... ok
+test preferred_override_does_not_hide_unsupported_minimum ... ok
+test asymmetric_border_and_container_projection_are_applied_once ... ok
+test override_and_layout_skip_an_unsupported_preparation_measurement ... ok
+test repeated_nested_preferred_queries_use_the_session_cache_and_skip_invalid_minimum ... ok
+test selected_minimum_does_not_validate_overridden_preferred_output ... ok
+test structured_failures_keep_the_subject_constraints_and_original_cause ... ok
+test structured_flow_inline_measurement_preserves_unsupported_leaf_error ... ok
+test structured_flow_measures_unbounded_and_candidate_width_without_mutating_attached_bounds ... ok
+test nested_layout_remeasures_text_flow_in_the_authoritative_session ... ok
+test text_flow_candidate_measurement_uses_wrapping_and_truncation_algorithm ... ok
+
+failures:
+
+---- finite_inset_overflow_is_distinct_and_happens_before_the_callback stdout ----
+
+thread 'finite_inset_overflow_is_distinct_and_happens_before_the_callback' (159632645) panicked at crates/novadraw/tests/p2_preparation_measurement_contract.rs:254:10:
+called `Result::unwrap()` on an `Err` value: InvalidInitialInsets(Overflow { field: "horizontal insets" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    finite_inset_overflow_is_distinct_and_happens_before_the_callback
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+[1m[91merror[0m: test failed, to rerun pass `-p novadraw --test p2_preparation_measurement_contract`

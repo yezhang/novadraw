@@ -1,0 +1,24 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 41.44s
+[1m[92m     Running[0m tests/m10_reusable_shape_border_contract.rs (target/debug/deps/m10_reusable_shape_border_contract-cbf16fb320a74c7b)
+
+running 16 tests
+test etched_and_bevel_borders_expose_product_metrics_and_commands ... ok
+test ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width ... ok
+test point_list_visual_bounds_follow_line_join_contract ... ok
+test polyline_precise_hit_uses_segment_distance ... ok
+test border_metrics_and_compound_formula_match_draw2d ... ok
+test compound_border_isolates_outer_state_and_offsets_inner_paint ... ok
+test polygon_precise_hit_uses_closed_interior ... ok
+test rounded_rectangle_fill_and_outline_share_optimized_path ... ok
+test rounded_rectangle_fill_without_outline_uses_full_bounds ... ok
+test rounded_rectangle_precise_hit_rejects_clipped_corner ... ok
+test triangle_uses_draw2d_resize_and_centering_geometry ... ok
+test runtime_point_list_stroke_style_renormalizes_geometry_atomically ... ok
+test runtime_border_corner_and_direction_mutations_use_typed_transactions ... ok
+test border_preferred_size_and_effective_opacity_join_figure_protocol ... ok
+test runtime_point_mutations_commit_bounds_points_damage_and_notification_atomically ... ok
+test reusable_shapes_consume_runtime_figure_style_as_color_truth ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

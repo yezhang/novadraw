@@ -1,0 +1,20 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 7.68s
+[1m[92m     Running[0m tests/p2_s08_admission_contract.rs (target/debug/deps/p2_s08_admission_contract-4aff9f7c3746a693)
+
+running 12 tests
+test checked_metrics_cannot_be_created_with_invalid_values ... ok
+test detached_border_replacement_uses_checked_candidate_and_one_capture ... ok
+test initial_candidates_are_captured_once_and_legal_boundaries_are_preserved ... ok
+test external_border_changed_after_detached_construction_rejects_whole_subtree ... ok
+test replacement_installs_one_capture_and_rejection_preserves_published_state ... ok
+test nested_external_metrics_are_rechecked_after_successful_construction ... ok
+test deferred_border_rejection_is_observable_without_revision_damage_or_notification ... ok
+test bounds_extent_overflow_is_rejected_before_publication_with_geometry_source ... ok
+test owner_callback_panic_retains_existing_fault_semantics ... ok
+test each_external_inset_and_combination_is_rejected_by_builder_runtime_and_subtree ... ok
+test owner_combination_overflow_rejects_replacement_before_source_commit ... ok
+test shared_owner_snapshots_remain_isolated_when_one_replacement_fails_and_recovers ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -1,0 +1,360 @@
+configuration=default iteration=0 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1491958 p95_ns=1669542 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30875416 p95_ns=32220334 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22949000 p95_ns=24640667 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=27166 p95_ns=27792 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3458 p95_ns=3666 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97500 p95_ns=115250 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=97250 p95_ns=117166 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=161792 p95_ns=203875 allocations=224523 requested_bytes=52713011
+configuration=default iteration=0 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1555166 p95_ns=5234917 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32626500 p95_ns=36072917 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23654708 p95_ns=26587500 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39542 p95_ns=40917 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2917 p95_ns=3250 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=98667 p95_ns=102958 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=96208 p95_ns=133709 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=162666 p95_ns=201291 allocations=224422 requested_bytes=54654736
+configuration=default iteration=1 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1589750 p95_ns=2020042 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31813583 p95_ns=39202916 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23609625 p95_ns=25428584 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=40666 p95_ns=45084 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2959 p95_ns=23500 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=94625 p95_ns=99875 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=94917 p95_ns=108833 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156417 p95_ns=191750 allocations=224422 requested_bytes=54654736
+configuration=default iteration=1 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1485208 p95_ns=1670541 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31953167 p95_ns=34507084 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23786792 p95_ns=26150458 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=24583 p95_ns=27333 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3500 p95_ns=3834 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97834 p95_ns=103417 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=96792 p95_ns=101916 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=159250 p95_ns=179875 allocations=224523 requested_bytes=52713011
+configuration=default iteration=2 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1464041 p95_ns=1634416 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31489708 p95_ns=34376791 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23819291 p95_ns=27496625 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26292 p95_ns=27292 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2625 p95_ns=2708 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=101375 p95_ns=119000 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=101125 p95_ns=149000 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=163333 p95_ns=205042 allocations=224523 requested_bytes=52713011
+configuration=default iteration=2 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1542875 p95_ns=1899625 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33785334 p95_ns=40849667 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23202083 p95_ns=26908042 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=41000 p95_ns=64916 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2792 p95_ns=3125 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=99333 p95_ns=128250 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=99250 p95_ns=150250 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=160875 p95_ns=260500 allocations=224422 requested_bytes=54654736
+configuration=default iteration=3 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1534583 p95_ns=1840917 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33693291 p95_ns=36862916 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23004708 p95_ns=25268417 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=41625 p95_ns=42042 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2875 p95_ns=3000 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=96375 p95_ns=99875 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=96083 p95_ns=99875 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=160167 p95_ns=180458 allocations=224422 requested_bytes=54654736
+configuration=default iteration=3 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1494917 p95_ns=1633083 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32377750 p95_ns=36962000 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24050375 p95_ns=27024875 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=24667 p95_ns=26375 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2750 p95_ns=3375 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=98709 p95_ns=111375 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=97375 p95_ns=101292 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=158875 p95_ns=195542 allocations=224523 requested_bytes=52713011
+configuration=default iteration=4 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1462959 p95_ns=1610167 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30648000 p95_ns=33681250 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23596542 p95_ns=26853667 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=27000 p95_ns=27209 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2584 p95_ns=2875 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=100000 p95_ns=102291 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=101000 p95_ns=115209 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=158375 p95_ns=195417 allocations=224523 requested_bytes=52713011
+configuration=default iteration=4 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1571833 p95_ns=1960958 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33602917 p95_ns=37420083 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23024708 p95_ns=26123083 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=40042 p95_ns=51792 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2875 p95_ns=3500 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=95167 p95_ns=98750 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=97875 p95_ns=110416 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=152833 p95_ns=184875 allocations=224422 requested_bytes=54654736
+configuration=default iteration=5 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1505167 p95_ns=1632375 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32997500 p95_ns=38925958 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24169750 p95_ns=28725667 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=41250 p95_ns=44417 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2875 p95_ns=3417 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=97333 p95_ns=103667 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=96792 p95_ns=149666 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=162000 p95_ns=278125 allocations=224422 requested_bytes=54654736
+configuration=default iteration=5 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1509709 p95_ns=2101583 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=34138333 p95_ns=37913750 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23447250 p95_ns=25625750 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26166 p95_ns=27250 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2667 p95_ns=3667 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=100375 p95_ns=115333 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=100000 p95_ns=107958 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156666 p95_ns=210000 allocations=224523 requested_bytes=52713011
+configuration=default iteration=6 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1484833 p95_ns=1946667 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33343792 p95_ns=37079917 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24311417 p95_ns=26430417 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26166 p95_ns=26291 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2583 p95_ns=3375 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=98583 p95_ns=108542 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=98917 p95_ns=115583 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=160958 p95_ns=203459 allocations=224523 requested_bytes=52713011
+configuration=default iteration=6 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1493333 p95_ns=1664792 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32513625 p95_ns=35611583 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23963000 p95_ns=25711333 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=38208 p95_ns=40125 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3042 p95_ns=3584 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=98666 p95_ns=107750 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=97500 p95_ns=101958 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=154209 p95_ns=189916 allocations=224422 requested_bytes=54654736
+configuration=default iteration=7 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1503916 p95_ns=1684666 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33774166 p95_ns=37824625 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=26053292 p95_ns=65725125 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=38042 p95_ns=38542 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3000 p95_ns=3125 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=98375 p95_ns=101042 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=98959 p95_ns=121875 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=163459 p95_ns=295666 allocations=224422 requested_bytes=54654736
+configuration=default iteration=7 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1491250 p95_ns=1680667 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=45512500 p95_ns=73495500 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=25646792 p95_ns=44801333 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=27084 p95_ns=54333 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3458 p95_ns=14916 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=124542 p95_ns=259792 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=145041 p95_ns=293417 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=224042 p95_ns=493167 allocations=224523 requested_bytes=52713011
+configuration=default iteration=8 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1592750 p95_ns=2577042 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31855958 p95_ns=42778375 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23430334 p95_ns=25364542 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=25458 p95_ns=332083 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2667 p95_ns=3917 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=100666 p95_ns=411083 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=102500 p95_ns=389541 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=162834 p95_ns=253250 allocations=224523 requested_bytes=52713011
+configuration=default iteration=8 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1507291 p95_ns=1753375 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32277250 p95_ns=35620375 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22548416 p95_ns=24703042 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39833 p95_ns=52125 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2875 p95_ns=2958 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=99834 p95_ns=120125 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=94583 p95_ns=113125 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=155958 p95_ns=188125 allocations=224422 requested_bytes=54654736
+configuration=default iteration=9 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1500250 p95_ns=1699416 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32114333 p95_ns=36883791 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23909000 p95_ns=25699417 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=40083 p95_ns=57958 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2958 p95_ns=3042 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=98791 p95_ns=107875 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=95625 p95_ns=101625 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=157000 p95_ns=203833 allocations=224422 requested_bytes=54654736
+configuration=default iteration=9 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1503709 p95_ns=1722250 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32276542 p95_ns=35683792 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23366208 p95_ns=24656708 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26083 p95_ns=26375 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2542 p95_ns=3375 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97708 p95_ns=111708 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=97959 p95_ns=109333 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156958 p95_ns=192709 allocations=224523 requested_bytes=52713011
+configuration=off iteration=0 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1465375 p95_ns=1628334 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30651708 p95_ns=32573459 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24146541 p95_ns=33071709 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=22583 p95_ns=22875 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2625 p95_ns=3334 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=100666 p95_ns=110542 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=101000 p95_ns=119292 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=163209 p95_ns=192417 allocations=224523 requested_bytes=52713011
+configuration=off iteration=0 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1539292 p95_ns=2029417 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32560750 p95_ns=42370084 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23607875 p95_ns=31244125 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=41250 p95_ns=42208 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3000 p95_ns=3125 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=95958 p95_ns=100625 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=97958 p95_ns=109833 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=157834 p95_ns=247708 allocations=224422 requested_bytes=54654736
+configuration=off iteration=1 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1483541 p95_ns=1719959 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=34034958 p95_ns=38034417 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23442334 p95_ns=25489625 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39459 p95_ns=40042 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2916 p95_ns=3000 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=94625 p95_ns=100542 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=94333 p95_ns=98125 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=164416 p95_ns=237667 allocations=224422 requested_bytes=54654736
+configuration=off iteration=1 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1553417 p95_ns=2540125 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31123792 p95_ns=34042917 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23820208 p95_ns=26408709 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=24500 p95_ns=29292 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2792 p95_ns=4250 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=102458 p95_ns=104375 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=100833 p95_ns=102416 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=167500 p95_ns=216042 allocations=224523 requested_bytes=52713011
+configuration=off iteration=2 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1571250 p95_ns=1855500 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31541916 p95_ns=33599083 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23147084 p95_ns=24582500 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=25917 p95_ns=27667 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2583 p95_ns=2667 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=94458 p95_ns=111459 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=94292 p95_ns=98250 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=151542 p95_ns=174250 allocations=224523 requested_bytes=52713011
+configuration=off iteration=2 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1500459 p95_ns=1808625 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30281750 p95_ns=31829542 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22571125 p95_ns=24260834 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=40792 p95_ns=43084 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3041 p95_ns=3666 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=94833 p95_ns=99792 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=96750 p95_ns=106875 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=161500 p95_ns=200834 allocations=224422 requested_bytes=54654736
+configuration=off iteration=3 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1480042 p95_ns=1685625 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30694083 p95_ns=32593959 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23106083 p95_ns=25087500 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39042 p95_ns=39833 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3042 p95_ns=3167 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=100084 p95_ns=152792 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=101792 p95_ns=191416 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=163041 p95_ns=307333 allocations=224422 requested_bytes=54654736
+configuration=off iteration=3 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1503750 p95_ns=1707666 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=36629834 p95_ns=75050834 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=30231250 p95_ns=47695250 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26541 p95_ns=39042 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3333 p95_ns=3500 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=100375 p95_ns=133125 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=102458 p95_ns=147875 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=173417 p95_ns=258500 allocations=224523 requested_bytes=52713011
+configuration=off iteration=4 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1506667 p95_ns=1675750 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=37372750 p95_ns=86525583 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24644458 p95_ns=28330958 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=21833 p95_ns=22750 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2542 p95_ns=2625 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97459 p95_ns=101209 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=97875 p95_ns=117917 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=162708 p95_ns=338458 allocations=224523 requested_bytes=52713011
+configuration=off iteration=4 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1565916 p95_ns=1967792 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=34282667 p95_ns=36520333 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23228958 p95_ns=25836291 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39542 p95_ns=47209 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2917 p95_ns=3041 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=95875 p95_ns=118417 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=94875 p95_ns=109125 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=161833 p95_ns=195584 allocations=224422 requested_bytes=54654736
+configuration=off iteration=5 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1459166 p95_ns=1594750 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30093792 p95_ns=35389250 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22249875 p95_ns=25886125 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39792 p95_ns=41916 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2917 p95_ns=3125 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=95458 p95_ns=110125 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=97792 p95_ns=123250 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=159583 p95_ns=201250 allocations=224422 requested_bytes=54654736
+configuration=off iteration=5 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1463834 p95_ns=1568417 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32217375 p95_ns=34708334 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22476250 p95_ns=24210000 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=24583 p95_ns=24667 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2584 p95_ns=2833 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=98167 p95_ns=109958 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=96625 p95_ns=123917 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=154416 p95_ns=209917 allocations=224523 requested_bytes=52713011
+configuration=off iteration=6 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1491084 p95_ns=1769375 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=33349833 p95_ns=37057667 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23657542 p95_ns=27029875 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=24542 p95_ns=27292 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2542 p95_ns=2666 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=96667 p95_ns=102416 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=97416 p95_ns=102958 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=158583 p95_ns=227083 allocations=224523 requested_bytes=52713011
+configuration=off iteration=6 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1478375 p95_ns=1687083 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31652625 p95_ns=35446875 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23642583 p95_ns=27577250 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39959 p95_ns=40416 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2917 p95_ns=3083 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=100416 p95_ns=137792 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=98417 p95_ns=135625 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=159917 p95_ns=236959 allocations=224422 requested_bytes=54654736
+configuration=off iteration=7 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1535708 p95_ns=1859167 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32103875 p95_ns=55584000 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23458166 p95_ns=25693666 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39167 p95_ns=40125 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2916 p95_ns=3000 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=93417 p95_ns=96417 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=93542 p95_ns=107375 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=154416 p95_ns=186959 allocations=224422 requested_bytes=54654736
+configuration=off iteration=7 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1429458 p95_ns=1622667 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30796375 p95_ns=35456917 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23603458 p95_ns=25300583 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26166 p95_ns=27334 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3334 p95_ns=3541 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=94375 p95_ns=103875 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=94166 p95_ns=129750 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=157708 p95_ns=240709 allocations=224523 requested_bytes=52713011
+configuration=off iteration=8 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1501000 p95_ns=1900583 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=34149625 p95_ns=40760000 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=24091417 p95_ns=26234584 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=26292 p95_ns=39167 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=2708 p95_ns=2792 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97541 p95_ns=135958 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=99625 p95_ns=136917 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156041 p95_ns=239125 allocations=224523 requested_bytes=52713011
+configuration=off iteration=8 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1510541 p95_ns=1849417 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=31407708 p95_ns=36160958 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22939958 p95_ns=25277167 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39500 p95_ns=40125 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3042 p95_ns=3458 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=94875 p95_ns=100333 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=96000 p95_ns=110042 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156250 p95_ns=195541 allocations=224422 requested_bytes=54654736
+configuration=off iteration=9 version=after
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1479417 p95_ns=1649125 allocations=392486 requested_bytes=340169818
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=32950833 p95_ns=35621875 allocations=15057686 requested_bytes=20077832218
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23625166 p95_ns=27901917 allocations=13397852 requested_bytes=17801621882
+border_mode=0 samples=101 updates=120 p50_ns=39334 p95_ns=40292 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=3000 p95_ns=3083 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=97084 p95_ns=119084 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=94625 p95_ns=112208 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=156958 p95_ns=178834 allocations=224422 requested_bytes=54654736
+configuration=off iteration=9 version=before
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1454500 p95_ns=1610417 allocations=373094 requested_bytes=335261723
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30957625 p95_ns=33107833 allocations=15038294 requested_bytes=20072984723
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=23098500 p95_ns=25317459 allocations=13378460 requested_bytes=17796774387
+border_mode=0 samples=101 updates=120 p50_ns=25459 p95_ns=32084 allocations=48480 requested_bytes=4072320
+border_mode=1 samples=101 updates=120 p50_ns=3333 p95_ns=3583 allocations=1111 requested_bytes=127664
+border_mode=2 samples=101 updates=120 p50_ns=97792 p95_ns=112958 allocations=122311 requested_bytes=65357504
+border_mode=3 samples=101 updates=120 p50_ns=96042 p95_ns=106125 allocations=122311 requested_bytes=65357504
+samples=101 updates_per_sample=120 nodes=2 p50_ns=159125 p95_ns=184542 allocations=224523 requested_bytes=52713011

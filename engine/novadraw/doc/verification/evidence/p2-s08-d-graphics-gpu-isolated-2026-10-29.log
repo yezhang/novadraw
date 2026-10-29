@@ -1,0 +1,269 @@
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m   Compiling[0m thiserror v2.0.20
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m indexmap v2.12.1
+[1m[92m   Compiling[0m wgpu-hal v29.0.4
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m wgpu-core v29.0.4
+[1m[92m   Compiling[0m color v0.3.3
+[1m[92m   Compiling[0m wgpu v29.0.4
+[1m[92m   Compiling[0m peniko v0.6.1
+[1m[92m   Compiling[0m futures-core v0.3.34
+[1m[92m   Compiling[0m objc2-app-kit v0.2.2
+[1m[92m   Compiling[0m futures-intrusive v0.5.0
+[1m[92m   Compiling[0m thiserror-impl v2.0.20
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m objc2-metal v0.3.2
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m zerocopy-derive v0.8.30
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m foreign-types-macros v0.2.3
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m objc2-core-graphics v0.3.2
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m   Compiling[0m zerocopy v0.8.30
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m foreign-types v0.5.0
+[1m[92m   Compiling[0m objc2-quartz-core v0.3.2
+[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m uuid v1.18.1
+[1m[92m   Compiling[0m font-types v0.12.4
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m wgpu-types v29.0.4
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m raw-window-metal v1.1.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m core-graphics v0.23.2
+[1m[92m   Compiling[0m tracing-subscriber v0.3.23
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m winit v0.30.13
+[1m[92m   Compiling[0m naga v29.0.4
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m wgpu-naga-bridge v29.0.4
+[1m[92m   Compiling[0m vello_shaders v0.10.0
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m vello_encoding v0.10.0
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m wgpu-core-deps-apple v29.0.4
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m vello v0.10.0
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m   Compiling[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/scenes)
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:95:23
+    [1m[94m|[0m
+[1m[94m 95[0m [1m[94m|[0m           .set_contents(Box::new(RectangleFigure::new_with_color(
+    [1m[94m|[0m [1m[91m _______________________^[0m
+[1m[94m 96[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m 97[0m [1m[94m|[0m [1m[91m|[0m             0.0,
+[1m[94m 98[0m [1m[94m|[0m [1m[91m|[0m             WINDOW_WIDTH,
+[1m[94m 99[0m [1m[94m|[0m [1m[91m|[0m             WINDOW_HEIGHT,
+[1m[94m100[0m [1m[94m|[0m [1m[91m|[0m             SCENE_BACKGROUND,
+[1m[94m101[0m [1m[94m|[0m [1m[91m|[0m         )))
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:106:14
+    [1m[94m|[0m
+[1m[94m106[0m [1m[94m|[0m           .add(Box::new(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m107[0m [1m[94m|[0m [1m[91m|[0m             LabelFigure::new(title).with_bounds(Rectangle::new(40.0, 28.0, 720.0, 42.0)),
+[1m[94m108[0m [1m[94m|[0m [1m[91m|[0m         ))
+    [1m[94m|[0m [1m[91m|_________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:126:14
+    [1m[94m|[0m
+[1m[94m126[0m [1m[94m|[0m           .add(Box::new(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m127[0m [1m[94m|[0m [1m[91m|[0m             LabelFigure::new(text).with_bounds(Rectangle::new(60.0, y, 180.0, 32.0)),
+[1m[94m128[0m [1m[94m|[0m [1m[91m|[0m         ))
+    [1m[94m|[0m [1m[91m|_________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<ButtonFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:145:14
+    [1m[94m|[0m
+[1m[94m145[0m [1m[94m|[0m         .add(Box::new(ButtonFigure::new(text).with_bounds(bounds)))
+    [1m[94m|[0m              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<ButtonFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<ButtonFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<ToggleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:202:14
+    [1m[94m|[0m
+[1m[94m202[0m [1m[94m|[0m           .add(Box::new(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m203[0m [1m[94m|[0m [1m[91m|[0m             ToggleFigure::new("Snap to grid")
+[1m[94m204[0m [1m[94m|[0m [1m[91m|[0m                 .with_bounds(Rectangle::new(270.0, 135.0, 210.0, 48.0)),
+[1m[94m205[0m [1m[94m|[0m [1m[91m|[0m         ))
+    [1m[94m|[0m [1m[91m|_________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<ToggleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<ToggleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0599][0m[1m: no method named `with_selected` found for enum `std::result::Result<T, E>` in the current scope[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:214:18
+    [1m[94m|[0m
+[1m[94m212[0m [1m[94m|[0m               ToggleFigure::new("Show guides")
+    [1m[94m|[0m               [1m[94m--------------------------------[0m
+    [1m[94m|[0m               [1m[94m|[0m
+    [1m[94m|[0m [1m[94m _____________method `with_selected` is available on `ToggleFigure`[0m
+    [1m[94m|[0m [1m[94m|[0m
+[1m[94m213[0m [1m[94m|[0m [1m[94m|[0m                 .with_bounds(Rectangle::new(270.0, 220.0, 210.0, 48.0))
+[1m[94m214[0m [1m[94m|[0m [1m[94m|[0m                 .with_selected(true),
+    [1m[94m|[0m [1m[94m|[0m                 [1m[94m-[0m[1m[91m^^^^^^^^^^^^^[0m [1m[91mmethod not found in `std::result::Result<ToggleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m [1m[94m|_________________|[0m
+    [1m[94m|[0m
+    [1m[94m|[0m
+[1m[92mnote[0m: the method `with_selected` exists on the type `ToggleFigure`
+   [1m[94m--> [0mcrates/novadraw/src/figure/widget.rs:610:5
+    [1m[94m|[0m
+[1m[94m610[0m [1m[94m|[0m     pub fn with_selected(mut self, selected: bool) -> Self {
+    [1m[94m|[0m     [1m[92m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[96mhelp[0m: consider using `Result::expect` to unwrap the `ToggleFigure` value, panicking if the value is a `Result::Err`
+    [1m[94m|[0m
+[1m[94m213[0m [1m[94m| [0m                .with_bounds(Rectangle::new(270.0, 220.0, 210.0, 48.0))[92m.expect("REASON")[0m
+    [1m[94m|[0m                                                                        [92m+++++++++++++++++[0m
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<ToggleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:245:14
+    [1m[94m|[0m
+[1m[94m245[0m [1m[94m|[0m           .add(Box::new(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m246[0m [1m[94m|[0m [1m[91m|[0m             ToggleFigure::new("Persistent toggle")
+[1m[94m247[0m [1m[94m|[0m [1m[91m|[0m                 .with_bounds(Rectangle::new(210.0, 240.0, 230.0, 52.0)),
+[1m[94m248[0m [1m[94m|[0m [1m[91m|[0m         ))
+    [1m[94m|[0m [1m[91m|_________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<ToggleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<ToggleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:278:14
+    [1m[94m|[0m
+[1m[94m278[0m [1m[94m|[0m           .add(Box::new(RectangleFigure::new_with_color(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m279[0m [1m[94m|[0m [1m[91m|[0m             70.0,
+[1m[94m280[0m [1m[94m|[0m [1m[91m|[0m             125.0,
+[1m[94m281[0m [1m[94m|[0m [1m[91m|[0m             300.0,
+[1m[94m282[0m [1m[94m|[0m [1m[91m|[0m             150.0,
+[1m[94m283[0m [1m[94m|[0m [1m[91m|[0m             INHERITED_PANEL_BACKGROUND,
+[1m[94m284[0m [1m[94m|[0m [1m[91m|[0m         )))
+    [1m[94m|[0m [1m[91m|__________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<LabelFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/scenes/src/widget.rs:298:14
+    [1m[94m|[0m
+[1m[94m298[0m [1m[94m|[0m           .add(Box::new(
+    [1m[94m|[0m [1m[91m ______________^[0m
+[1m[94m299[0m [1m[94m|[0m [1m[91m|[0m             LabelFigure::new("Inherited tooltip")
+[1m[94m300[0m [1m[94m|[0m [1m[91m|[0m                 .with_bounds(Rectangle::new(35.0, 48.0, 230.0, 42.0)),
+[1m[94m301[0m [1m[94m|[0m [1m[91m|[0m         ))
+    [1m[94m|[0m [1m[91m|_________^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<LabelFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<LabelFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1mSome errors have detailed explanations: E0277, E0599.[0m
+[1mFor more information about an error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `novadraw-example-scenes` (lib) due to 9 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

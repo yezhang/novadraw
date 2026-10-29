@@ -1,0 +1,91 @@
+[1m[92m    Checking[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Checking[0m native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/native-vello-perf)
+[1m[92m    Checking[0m r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/r8-perf)
+[1m[92m    Checking[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m    Checking[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Checking[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m    Checking[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m    Checking[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/web/web-validation)
+[1m[92m    Checking[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m    Checking[0m winit-canvas-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/winit-canvas-demo)
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/winit-canvas-demo/src/main.rs:59:27
+   [1m[94m|[0m
+[1m[94m59[0m [1m[94m|[0m               .set_contents(Box::new(RectangleFigure::new_with_color(
+   [1m[94m|[0m [1m[91m ___________________________^[0m
+[1m[94m60[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m61[0m [1m[94m|[0m [1m[91m|[0m                 0.0,
+[1m[94m62[0m [1m[94m|[0m [1m[91m|[0m                 rect.width(),
+[1m[94m63[0m [1m[94m|[0m [1m[91m|[0m                 rect.height(),
+[1m[94m64[0m [1m[94m|[0m [1m[91m|[0m                 Color::rgba(0.07, 0.13, 0.20, 1.0),
+[1m[94m65[0m [1m[94m|[0m [1m[91m|[0m             )))?;
+   [1m[94m|[0m [1m[91m|______________^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+             novadraw::advanced::RootFigure
+             novadraw::connection::ConnectionFigure
+             novadraw::connection::ConnectionLayerFigure
+             novadraw::connection::PolygonDecorationFigure
+             novadraw::connection::PolylineDecorationFigure
+             novadraw::container::FreeformLayerFigure
+             novadraw::container::FreeformLayeredPane
+             novadraw::container::LayerFigure
+           and 26 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/winit_canvas_demo-cd861a4c64b00f87.long-type-9630817675651564555.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<RectangleFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/winit-canvas-demo/src/main.rs:68:13
+   [1m[94m|[0m
+[1m[94m68[0m [1m[94m|[0m [1m[91m/[0m             Box::new(RectangleFigure::new_with_color(
+[1m[94m69[0m [1m[94m|[0m [1m[91m|[0m                 START.x,
+[1m[94m70[0m [1m[94m|[0m [1m[91m|[0m                 START.y,
+[1m[94m71[0m [1m[94m|[0m [1m[91m|[0m                 SHAPE_WIDTH,
+[1m[94m72[0m [1m[94m|[0m [1m[91m|[0m                 SHAPE_HEIGHT,
+[1m[94m73[0m [1m[94m|[0m [1m[91m|[0m                 color,
+[1m[94m74[0m [1m[94m|[0m [1m[91m|[0m             )),
+   [1m[94m|[0m [1m[91m|______________^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::RectangleFigure, novadraw::figure::ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+             novadraw::advanced::RootFigure
+             novadraw::connection::ConnectionFigure
+             novadraw::connection::ConnectionLayerFigure
+             novadraw::connection::PolygonDecorationFigure
+             novadraw::connection::PolylineDecorationFigure
+             novadraw::container::FreeformLayerFigure
+             novadraw::container::FreeformLayeredPane
+             novadraw::container::LayerFigure
+           and 26 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<RectangleFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/winit_canvas_demo-cd861a4c64b00f87.long-type-9630817675651564555.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LabelFigure, ShapeGeometryError>: Figure` is not satisfied[0m
+  [1m[94m--> [0mexamples/native/winit-canvas-demo/src/main.rs:78:13
+   [1m[94m|[0m
+[1m[94m78[0m [1m[94m|[0m [1m[91m/[0m             Box::new(
+[1m[94m79[0m [1m[94m|[0m [1m[91m|[0m                 LabelFigure::new(title).with_bounds(Rectangle::new(MARGIN, MARGIN, 300.0, 32.0)),
+[1m[94m80[0m [1m[94m|[0m [1m[91m|[0m             ),
+   [1m[94m|[0m [1m[91m|_____________^[0m [1m[91munsatisfied trait bound[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: the trait `novadraw::figure::Figure` is not implemented for `std::result::Result<novadraw::figure::LabelFigure, novadraw::figure::ShapeGeometryError>`
+   [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+             novadraw::advanced::RootFigure
+             novadraw::connection::ConnectionFigure
+             novadraw::connection::ConnectionLayerFigure
+             novadraw::connection::PolygonDecorationFigure
+             novadraw::connection::PolylineDecorationFigure
+             novadraw::container::FreeformLayerFigure
+             novadraw::container::FreeformLayeredPane
+             novadraw::container::LayerFigure
+           and 26 others
+   [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LabelFigure, ShapeGeometryError>>` to `std::boxed::Box<(dyn novadraw::figure::Figure + 'static)>`
+   [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/winit_canvas_demo-cd861a4c64b00f87.long-type-10948256530265511898.txt'
+   [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `winit-canvas-demo` (bin "winit-canvas-demo") due to 3 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

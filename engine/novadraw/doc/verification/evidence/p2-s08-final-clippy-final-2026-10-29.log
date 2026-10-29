@@ -1,0 +1,23 @@
+[1m[92m    Checking[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[91merror[E0277][0m[1m: the trait bound `Result<LabelFigure, BorderInputError>: Figure` is not satisfied[0m
+   [1m[94m--> [0mexamples/native/draw2d-official-examples/src/examples/zoom_example.rs:356:13
+    [1m[94m|[0m
+[1m[94m356[0m [1m[94m|[0m             Box::new(LabelFigure::new("< Zoom >").with_border(super::scrollbar_label_border())),
+    [1m[94m|[0m             [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw_example_support::Figure` is not implemented for `Result<LabelFigure, BorderInputError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw_example_support::Figure`:
+              examples::connection_and_anchor::DraggableRectangle
+              examples::simple_tree_example::PageNode
+              examples::zoom_example::CompartmentFigure
+              novadraw::advanced::RootFigure
+              novadraw::connection::ConnectionFigure
+              novadraw::connection::ConnectionLayerFigure
+              novadraw::connection::PolygonDecorationFigure
+              novadraw::connection::PolylineDecorationFigure
+            and 29 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<Result<LabelFigure, BorderInputError>>` to `std::boxed::Box<(dyn novadraw_example_support::Figure + 'static)>`
+    [1m[94m= [0m[1mnote[0m: the full name for the type has been written to '/tmp/novadraw-s08-workspace-target-20261029/debug/deps/draw2d_official_examples-38c394425281ace2.long-type-12803348459292707130.txt'
+    [1m[94m= [0m[1mnote[0m: consider using `--verbose` to print the full type name to the console
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `draw2d-official-examples` (lib) due to 1 previous error

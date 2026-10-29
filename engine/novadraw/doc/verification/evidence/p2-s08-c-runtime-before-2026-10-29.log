@@ -1,0 +1,8 @@
+frame_mode=0 samples=101 updates=120 nodes=64 p50_ns=1470542 p95_ns=1574583 allocations=373094 requested_bytes=336093458
+frame_mode=1 samples=101 updates=120 nodes=64 p50_ns=30615625 p95_ns=33609375 allocations=15038294 requested_bytes=20073755858
+frame_mode=2 samples=101 updates=120 nodes=64 p50_ns=22771875 p95_ns=24642458 allocations=13378460 requested_bytes=17797545522
+border_mode=0 samples=101 updates=120 p50_ns=33542 p95_ns=34917 allocations=48480 requested_bytes=4848000
+border_mode=1 samples=101 updates=120 p50_ns=2792 p95_ns=3000 allocations=1111 requested_bytes=135744
+border_mode=2 samples=101 updates=120 p50_ns=97667 p95_ns=115125 allocations=122311 requested_bytes=65365584
+border_mode=3 samples=101 updates=120 p50_ns=97042 p95_ns=99917 allocations=122311 requested_bytes=65365584
+samples=101 updates_per_sample=120 nodes=2 p50_ns=154083 p95_ns=161833 allocations=224422 requested_bytes=54632112

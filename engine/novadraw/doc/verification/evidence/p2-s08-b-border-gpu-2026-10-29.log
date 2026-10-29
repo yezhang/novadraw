@@ -1,0 +1,25 @@
+[1m[92m    Blocking[0m waiting for file lock on build directory
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m wgpu-types v29.0.4
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m vello_encoding v0.10.0
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m naga v29.0.4
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m wgpu-naga-bridge v29.0.4
+[1m[92m   Compiling[0m vello_shaders v0.10.0
+[1m[92m   Compiling[0m wgpu-hal v29.0.4
+[1m[92m   Compiling[0m wgpu-core-deps-apple v29.0.4
+[1m[92m   Compiling[0m wgpu-core v29.0.4
+[1m[92m   Compiling[0m wgpu v29.0.4
+[1m[92m   Compiling[0m vello v0.10.0
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 1m 44s
+[1m[92m     Running[0m tests/independent_shape_pixels.rs (target/debug/deps/independent_shape_pixels-9485420e8d3690e5)
+
+running 1 test
+test corner_color_seams_preserve_alpha_and_disabled_edge_clears_pixels ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.99s
+

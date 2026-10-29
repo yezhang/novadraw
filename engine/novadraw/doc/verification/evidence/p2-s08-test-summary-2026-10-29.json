@@ -1,0 +1,24 @@
+{
+  "ordinary": {
+    "log": "p2-s08-workspace-tests-verified-2026-10-29.log",
+    "sha256": "bc7a477c60fb108dabcb64845d67cc80b61219b6180274780d4c8d7eca74d36f",
+    "summaries": 159,
+    "passed": 1653,
+    "failed": 0,
+    "ignored": 20
+  },
+  "doctests": {
+    "log": "p2-s08-workspace-doctests-verified-2026-10-29.log",
+    "sha256": "4447340e92c4aec08a5d6589a83e8cb07e45871a7c67bc9d6237565f586665f2",
+    "summaries": 14,
+    "passed": 62,
+    "failed": 0,
+    "ignored": 1
+  },
+  "total": {
+    "passed": 1715,
+    "failed": 0,
+    "ignored": 21
+  },
+  "note": "Original workspace run passed all ordinary targets; README doctest fixed and all workspace doctests rerun successfully."
+}

@@ -2,10 +2,19 @@
 
 类型：`architecture-decision`
 
+能力归属：Core（`novadraw`）。
+Editor 与示例的调用迁移属于下游适配，不计为新增 GEF 编辑能力。
+
 状态：已接受；2026-10-29。用户批准按更新后的决策进入 S08-A。
 S08-A 已完成公共消费者、API 边界、非法输入与继承回归，见
 [实施记录](../verification/reviews/p2-s08-a-implementation-2026-10-29.md)；
-后续切片尚未执行，整批 S08 未关闭。
+用户随后批准按建议顺序继续推进，S08-B 的构造、消费者与验收已完成，
+见 [Border 实施记录](../verification/reviews/p2-s08-b-implementation-2026-10-29.md)；
+S08-C 的几何入口和外部指标准入已完成，见
+[实施记录](../verification/reviews/p2-s08-c-implementation-2026-10-29.md)；
+S08-D 的回归、Native GPU、成对产物和成本采样已完成，
+见[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md)。
+S08 整批关闭 R03、TC-03、API-F04 和 API-10。
 
 本轮已补充 Compound 基础／owner 指标边界与历史描边映射，
 见[设计复核](../verification/reviews/adr-056-design-review-2026-10-29.md)。
@@ -74,6 +83,12 @@ crate 或默认 feature。产物与性能验证见专题和[验证矩阵](../ver
 外部回调返回非法几何被统一 admission 拒绝，成功对象与内置对象使用相同
 measurement、paint、damage 和通知路径。具体用例见验证矩阵；
 S08-A 先验证受检样式与第三方 Figure，其他场景由后续切片完成。
+
+S08-B 的独立消费者已覆盖 Border 构造、builder、错误 source 与有效替换。
+含共享 dash 的冻结绘制使用公开 `BoundsDrawing::stroked`，明确计入共享存储，
+普通 Copy 入口保持原限制。第三方 Figure 通过同一 typed capability 注册，
+实际动画提交中的描边保留采样尺寸和 custom dash；
+用例与成本见 [Border 实施记录](../verification/reviews/p2-s08-b-implementation-2026-10-29.md)。
 
 ## 接受条件
 

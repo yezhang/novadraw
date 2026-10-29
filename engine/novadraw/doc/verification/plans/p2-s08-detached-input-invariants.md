@@ -3,7 +3,12 @@
 类型：`verification-plan`
 
 状态：已接受；2026-10-29。S08-A 用例结果见
-[实施记录](../reviews/p2-s08-a-implementation-2026-10-29.md)，其余切片待执行。
+[实施记录](../reviews/p2-s08-a-implementation-2026-10-29.md)。
+
+S08-B 的构造、builder、描边复用与独立消费者结果见
+[Border 实施记录](../reviews/p2-s08-b-implementation-2026-10-29.md)。
+动态指标准入、Detached Figure 和整批关闭已按 S08-C／D 完成，
+结果见[完成记录](../reviews/p2-s08-d-completion-2026-10-29.md)。
 
 契约见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)及
 [输入不变量专题](../../design/architecture/detached-input-invariants.md)。
@@ -25,6 +30,29 @@
 | S08-V10 | Detached Figure 原始 bounds／stroke／corner 构造，translate 溢出和数值 setter | 非法输入构造／更新拒绝；Shape 零宽、负坐标、旧 corner dimensions 单位保持；各同类入口有覆盖清单 |
 | S08-V11 | Compound 直接 child 的基础指标回调计数；构造后外部 child 改变指标 | 构造每种基础指标读取一次；不执行 owner 字体测量；挂载重新受检，不能复用构造时的旧成功 |
 | S08-V12 | 旧 Solid／Dash／Dot／DashDot 迁移 | 保持当前可见描边；DashDot 仍按历史 Dash 映射，不据此关闭完整 dash-dot 对等项 |
+
+## S08-C 同类入口清单
+
+以下清单用于逐类核对构造、detached 更新和公开字段，不以挂载检查代替构造检查。
+原始几何值仍在消费边界受检；受检颜色、方向和身份值保持各自协议。
+
+| 类型／源码 | 需要覆盖的入口 |
+|---|---|
+| Rectangle／Ellipse／RoundedRectangle | new、from_bounds、new_with_color、with_stroke、translate、set_bounds；bounds／stroke 字段；Rounded 的 corner dimensions 构造和两个 setter |
+| Triangle | 两个构造、bounds 字段、prim_translate、Bounded setter；复用已有 StrokeStyle |
+| Polyline／Polygon | 点列构造、add／set_points、width／stroke／cap／join、hit tolerance、Bounded setter；点差、描边外扩和缩放的派生溢出 |
+| ScalablePolygon | 已有受检构造、with_stroke、Bounded setter；template 跨度与映射计算 |
+| RootFigure／GraphProjectionFigure | 原始 bounds 构造；Root 的 Bounded setter |
+| Label／Image／Button／Toggle／Clickable | 接收 bounds 的构造或 with_bounds、Bounded setter；Label 的 icon text gap |
+| TextFlow／FlowPage | 原始 bounds 构造、TextFlow 的 Bounded setter；FlowPage／FlowBlock 的外部 Border 组合入口 |
+| Layer／FreeformLayer／LayeredPane／FreeformLayeredPane | 四个 bounds 构造及 Bounded setter |
+| ScalableLayeredPane／ScalableFreeformLayeredPane／Viewport | bounds 构造与 Bounded setter；内部宿主构造复用同一检查 |
+| ScrollBar／SceneView | with_bounds；ScrollPane 的内部构造和 Bounded setter |
+| 接受 Border 的 Figure／容器 | 构造检查基础指标；挂载、替换和 owner 准备重新捕获并检查当前值 |
+| 外部 Figure／Border | 初始属性捕获、基础指标、递归组合、owner 指标；错误阶段及有效重试 |
+
+测量 DTO、Preparation 输出和普通 Geometry 运算按 S07 与现有消费协议检查，
+不将其公开数值字段机械改成 detached Figure 配置。
 
 ## 发布、外部实现与恢复
 

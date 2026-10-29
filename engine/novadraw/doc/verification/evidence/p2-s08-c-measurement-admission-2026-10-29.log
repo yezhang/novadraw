@@ -1,0 +1,26 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 13.72s
+[1m[92m     Running[0m tests/p2_preparation_measurement_contract.rs (target/debug/deps/p2_preparation_measurement_contract-c158de31eae05139)
+
+running 18 tests
+test finite_inset_overflow_is_rejected_at_admission_before_the_measurement_callback ... ok
+test nested_measurement_budget_failure_keeps_the_leaf_and_constraints ... ok
+test default_constraint_measurement_is_explicitly_unsupported_before_a_snapshot_exists ... ok
+test nested_layout_failure_preserves_the_leaf_and_original_text_cause ... ok
+test asymmetric_border_and_container_projection_are_applied_once ... ok
+test layout_children_are_remeasured_under_each_explicit_constraint ... ok
+test frame_error_source_chain_reaches_the_original_text_error ... ok
+test ignored_consumer_budget_failure_rejects_publication_and_next_session_recovers ... ok
+test override_and_layout_skip_an_unsupported_preparation_measurement ... ok
+test preferred_override_does_not_hide_unsupported_minimum ... ok
+test external_prepared_measurement_honors_each_constraint_without_using_old_metrics ... ok
+test selected_minimum_does_not_validate_overridden_preferred_output ... ok
+test structured_failures_keep_the_subject_constraints_and_original_cause ... ok
+test repeated_nested_preferred_queries_use_the_session_cache_and_skip_invalid_minimum ... ok
+test structured_flow_inline_measurement_preserves_unsupported_leaf_error ... ok
+test structured_flow_measures_unbounded_and_candidate_width_without_mutating_attached_bounds ... ok
+test nested_layout_remeasures_text_flow_in_the_authoritative_session ... ok
+test text_flow_candidate_measurement_uses_wrapping_and_truncation_algorithm ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

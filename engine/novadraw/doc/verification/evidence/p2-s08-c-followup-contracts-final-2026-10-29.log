@@ -1,0 +1,35 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 8.47s
+[1m[92m     Running[0m tests/p2_s08_admission_contract.rs (target/debug/deps/p2_s08_admission_contract-4aff9f7c3746a693)
+
+running 10 tests
+test checked_metrics_cannot_be_created_with_invalid_values ... ok
+test detached_border_replacement_uses_checked_candidate_and_one_capture ... ok
+test initial_candidates_are_captured_once_and_legal_boundaries_are_preserved ... ok
+test nested_external_metrics_are_rechecked_after_successful_construction ... ok
+test bounds_extent_overflow_is_rejected_before_publication_with_geometry_source ... ok
+test replacement_installs_one_capture_and_rejection_preserves_published_state ... ok
+test external_border_changed_after_detached_construction_rejects_whole_subtree ... ok
+test owner_callback_panic_retains_existing_fault_semantics ... ok
+test each_external_inset_and_combination_is_rejected_by_builder_runtime_and_subtree ... ok
+test owner_combination_overflow_rejects_replacement_before_source_commit ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s08_detached_geometry_contract.rs (target/debug/deps/p2_s08_detached_geometry_contract-73dfecd15bf76c00)
+
+running 11 tests
+test rounded_dimensions_and_translation_fail_before_writing_and_keep_diameter_units ... ok
+test bounded_trait_cannot_bypass_checked_update_or_destroy_previous_configuration ... ok
+test point_lists_reject_nan_span_stroke_envelope_and_scaling_overflow_atomically ... ok
+test rounded_triangle_resize_checks_derived_contour_before_replacing_bounds ... ok
+test raw_stroke_rejection_preserves_shape_zero_width_and_original_error_source ... ok
+test viewport_origin_checks_both_coordinates_before_mutating_shared_ranges ... ok
+test rectangle_and_ellipse_keep_custom_dash_and_checked_stroke_at_supplied_bounds ... ok
+test bounds_constructors_reject_raw_and_endpoint_overflow_and_preserve_legal_geometry ... ok
+test resource_figures_check_raw_bounds_before_admission_and_allow_valid_retry ... ok
+test scroll_pane_host_checks_geometry_before_publishing_any_child ... ok
+test scaled_template_checks_span_and_avoids_overflow_from_tiny_valid_source_span ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

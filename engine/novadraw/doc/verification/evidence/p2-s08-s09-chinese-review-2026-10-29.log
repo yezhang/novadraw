@@ -1,0 +1,50 @@
+{
+  "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/adr/adr-058-open-editor-snapping.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/design/editor/open-snapping.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/verification/plans/p2-s09-service-failure.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/verification/plans/editor-open-snapping.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/verification/reviews/s09-and-snapping-design-review-2026-10-29.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/verification/reviews/p2-s08-c-implementation-2026-10-29.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  },
+  "doc/verification/evidence/p2-s08-d-reproduction-2026-10-29.md": {
+    "numbered_headings": [],
+    "contrast_templates": [],
+    "empty_metadiscourse": [],
+    "halfwidth_chinese_punctuation": []
+  }
+}
