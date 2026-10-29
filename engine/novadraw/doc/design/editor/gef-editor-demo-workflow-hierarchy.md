@@ -54,6 +54,17 @@ Editor 的消费样例，不把产品面板、文档外观或工作区偏好反�
 - 左右侧栏可以折叠和恢复，但位置固定。停靠、浮动和工作区布局恢复继续遵循
   [egui Docking 延期方案](egui-docking-deferred-plan.md)。
 
+## 图标体系
+
+- 通用 UI 图标统一使用 Phosphor Regular，通过 `egui-phosphor 0.13` 接入。
+  该版本与项目现有的 egui 0.35 对齐，没有引入第二套 egui。
+- 文件、撤销重做、工具轨、图层控制、层级、分组、缩放、网格和吸附使用
+  Phosphor 语义图标。图标按钮保留 tooltip 和可访问名称。
+- 六个对齐按钮继续使用样例内的几何绘制。它们表达的是编辑器领域语义，
+  通用图标集合没有同等准确的替代项。
+- release 二进制从 17,276,896 字节增加到 17,805,440 字节，增量为
+  528,544 字节，约 3.1%。其中 Phosphor Regular 字体原始大小为 488,636 字节。
+
 ## 状态所有权
 
 | 状态 | owner | 说明 |
@@ -85,8 +96,8 @@ Editor 的消费样例，不把产品面板、文档外观或工作区偏好反�
 - Session 级 Grid / Snap、缩放步进、100% 和 Fit；
 - Z-order、Group / Ungroup、Appearance 与固定侧栏折叠；
 - 文档版本 2，并保留版本 1 的读取兼容；
-- 27 项 demo 单元与契约测试；
-- macOS release bundle 默认窗口和 820×700 窄窗口截图复核。
+- 29 项 demo 单元与契约测试；
+- macOS release bundle 默认窗口和 900×620 最小窗口截图复核。
 
 Clippy 对本次 Editor API 与 demo 代码通过。全依赖严格 `-D warnings` 仍会先命中
 `novadraw` 既有的 `chunks_exact_to_as_chunks` 和 `drain_collect` 告警；

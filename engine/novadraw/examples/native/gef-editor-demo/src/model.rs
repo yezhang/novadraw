@@ -4,7 +4,7 @@ use novadraw::connection::{
     PolygonDecorationFigure,
 };
 use novadraw::container::FreeformLayerFigure;
-use novadraw::figure::{EllipseFigure, Figure, FigureStyle, RectangleFigure};
+use novadraw::figure::{EllipseFigure, Figure, FigureStyle, HitParticipation, RectangleFigure};
 use novadraw::geometry::{Dimension, Point, PointList, Rectangle};
 use novadraw::graphics::{Color, DashPattern, Opacity, StrokeStyle};
 use novadraw_editor::tool::CreationTemplate;
@@ -33,6 +33,12 @@ const OUTLINE_WIDTH: f64 = 2.0;
 pub const DEFAULT_WIDTH: f64 = 120.0;
 pub const DEFAULT_HEIGHT: f64 = 80.0;
 pub const DEFAULT_GRID_SIZE: f64 = 16.0;
+const WORKSPACE_EXTENT: Rectangle = Rectangle {
+    x: -640.0,
+    y: -480.0,
+    width: 1920.0,
+    height: 1440.0,
+};
 const ARROW_LENGTH: f64 = 7.0;
 const ARROW_HALF_WIDTH: f64 = 3.0;
 const HANDLE_SIZE: f64 = 8.0;
@@ -176,6 +182,22 @@ impl ShapeKind {
 pub struct Shape {
     pub bounds: Rectangle,
     pub kind: ShapeKind,
+}
+
+struct CanvasExtentFigure;
+
+impl Figure for CanvasExtentFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        WORKSPACE_EXTENT
+    }
+
+    fn name(&self) -> &'static str {
+        "CanvasExtentFigure"
+    }
+
+    fn hit_participation(&self) -> HitParticipation {
+        HitParticipation::DescendantsOnly
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -951,6 +973,17 @@ impl EditPartBehavior<Diagram> for ShapePart {
         } else {
             shape_figure(model.shapes[&id], model.presentation(id))
         })
+    }
+    fn configure_visual(
+        &mut self,
+        _: &Diagram,
+        id: u64,
+        ctx: &mut VisualBuildContext<'_>,
+    ) -> Result<(), EditPartError> {
+        if id == ROOT {
+            ctx.add_child(ctx.primary(), Box::new(CanvasExtentFigure))?;
+        }
+        Ok(())
     }
     fn create_policies(
         &mut self,

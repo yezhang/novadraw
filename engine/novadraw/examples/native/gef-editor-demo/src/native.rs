@@ -38,6 +38,7 @@ struct EditorApp {
     renderer: VelloTextureRenderer,
     target: CanvasTarget,
     texture_id: TextureId,
+    initial_fit_pending: bool,
 }
 
 impl EditorApp {
@@ -67,6 +68,7 @@ impl EditorApp {
             renderer,
             target,
             texture_id,
+            initial_fit_pending: true,
         })
     }
 
@@ -107,7 +109,15 @@ impl EditorApp {
         );
         match render_result {
             Ok(retry) => {
-                if retry || self.session.domain.has_active_gesture() {
+                let mut repaint = retry || self.session.domain.has_active_gesture();
+                if self.initial_fit_pending {
+                    self.initial_fit_pending = false;
+                    match self.session.fit_visible_shapes() {
+                        Ok(()) => repaint = true,
+                        Err(error) => self.app.canvas = self.session.snapshot(Some(error)),
+                    }
+                }
+                if repaint {
                     context.request_repaint();
                 }
             }
@@ -171,6 +181,9 @@ impl CanvasTarget {
 }
 
 fn configure_style(context: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+    context.set_fonts(fonts);
     context.set_visuals(egui::Visuals::light());
     context.style_mut_of(egui::Theme::Light, |style| {
         style.spacing.item_spacing = egui::vec2(6.0, 4.0);

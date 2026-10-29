@@ -7,6 +7,7 @@ use egui::{
     Rect, Response, RichText, ScrollArea, Sense, Stroke, TextEdit, TextStyle, TextureId, Vec2,
     load::SizedTexture,
 };
+use egui_phosphor::regular as icons;
 use novadraw::event::{Key as EditorKey, KeyEvent, KeyEventKind, KeyModifiers, MouseButton};
 use novadraw::geometry::{Point, Rectangle};
 
@@ -14,12 +15,11 @@ const LEFT_PANEL_WIDTH: f32 = 232.0;
 const RIGHT_PANEL_WIDTH: f32 = 264.0;
 const TOOL_RAIL_WIDTH: f32 = 44.0;
 const COLLAPSED_PANEL_WIDTH: f32 = 28.0;
-const COMMAND_BUTTON_WIDTH: f32 = 64.0;
+const COMMAND_BUTTON_WIDTH: f32 = 36.0;
 const DOCUMENT_CONTROL_HEIGHT: f32 = 26.0;
 const FILE_BUTTON_WIDTH: f32 = 30.0;
 const FILE_BUTTON_HEIGHT: f32 = DOCUMENT_CONTROL_HEIGHT;
 const FILE_ICON_SIZE: f32 = 16.0;
-const FILE_ICON_STROKE: f32 = 1.5;
 const ALIGN_BUTTON_WIDTH: f32 = 28.0;
 const ALIGN_BUTTON_HEIGHT: f32 = 26.0;
 const ALIGN_ICON_SIZE: f32 = 16.0;
@@ -146,40 +146,43 @@ impl EditorUi {
                     .stroke(Stroke::new(1.0, Color32::from_gray(210))),
             )
             .show(root, |ui| {
-                ui.horizontal(|ui| {
-                    ui.strong("Shapes");
-                    if app.canvas.dirty {
-                        ui.label(RichText::new("Modified").color(Color32::from_rgb(166, 83, 18)));
-                    }
-                    ui.separator();
-                    document_path_field(ui, &mut app.path_input);
-                    file_action_group(ui, app);
-                    ui.separator();
-                    file_action_button(
-                        ui,
-                        FileActionIcon::DiscardAndOpen,
-                        "Discard unsaved changes and open document",
-                        app.canvas.dirty && !app.disabled,
-                        app,
-                        UiCommand::DiscardAndOpen,
-                        egui::CornerRadius::same(4),
-                    );
-                    ui.separator();
-                    command_button(
-                        ui,
-                        "Undo",
-                        app.canvas.can_undo && !app.disabled,
-                        app,
-                        UiCommand::Undo,
-                    );
-                    command_button(
-                        ui,
-                        "Redo",
-                        app.canvas.can_redo && !app.disabled,
-                        app,
-                        UiCommand::Redo,
-                    );
-                });
+                ui.allocate_ui_with_layout(
+                    Vec2::new(ui.available_width(), DOCUMENT_CONTROL_HEIGHT),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        document_title(ui, app.canvas.dirty);
+                        ui.separator();
+                        document_path_field(ui, &mut app.path_input);
+                        file_action_group(ui, app);
+                        ui.separator();
+                        file_action_button(
+                            ui,
+                            icons::FOLDER_SIMPLE_MINUS,
+                            "Discard unsaved changes and open document",
+                            app.canvas.dirty && !app.disabled,
+                            app,
+                            UiCommand::DiscardAndOpen,
+                            egui::CornerRadius::same(4),
+                        );
+                        ui.separator();
+                        command_button(
+                            ui,
+                            icons::ARROW_COUNTER_CLOCKWISE,
+                            "Undo",
+                            app.canvas.can_undo && !app.disabled,
+                            app,
+                            UiCommand::Undo,
+                        );
+                        command_button(
+                            ui,
+                            icons::ARROW_CLOCKWISE,
+                            "Redo",
+                            app.canvas.can_redo && !app.disabled,
+                            app,
+                            UiCommand::Redo,
+                        );
+                    },
+                );
             });
     }
 
@@ -214,8 +217,20 @@ impl EditorUi {
                         count => format!("{count} selected"),
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        status_command(ui, "Fit", "Fit visible shapes", app, UiCommand::ZoomFit);
-                        status_command(ui, "+", "Zoom in", app, UiCommand::ZoomIn);
+                        status_command(
+                            ui,
+                            icons::CORNERS_OUT,
+                            "Fit visible shapes",
+                            app,
+                            UiCommand::ZoomFit,
+                        );
+                        status_command(
+                            ui,
+                            icons::MAGNIFYING_GLASS_PLUS,
+                            "Zoom in",
+                            app,
+                            UiCommand::ZoomIn,
+                        );
                         status_command(
                             ui,
                             &format!("{}%", app.canvas.zoom_percent),
@@ -223,25 +238,41 @@ impl EditorUi {
                             app,
                             UiCommand::ZoomReset,
                         );
-                        status_command(ui, "−", "Zoom out", app, UiCommand::ZoomOut);
+                        status_command(
+                            ui,
+                            icons::MAGNIFYING_GLASS_MINUS,
+                            "Zoom out",
+                            app,
+                            UiCommand::ZoomOut,
+                        );
                         ui.separator();
+                        let snap_label = format!("{} Snap", icons::MAGNET);
                         status_toggle(
                             ui,
-                            "Snap",
+                            &snap_label,
                             app.canvas.snap_enabled,
                             app,
                             UiCommand::ToggleSnap,
                         );
+                        let grid_label = format!("{} Grid", icons::GRID_FOUR);
                         status_toggle(
                             ui,
-                            "Grid",
+                            &grid_label,
                             app.canvas.grid_visible,
                             app,
                             UiCommand::ToggleGrid,
                         );
                         ui.separator();
+                        let canvas_lock = format!(
+                            "{} Canvas lock",
+                            if app.disabled {
+                                icons::LOCK
+                            } else {
+                                icons::LOCK_OPEN
+                            }
+                        );
                         if ui
-                            .selectable_label(app.disabled, "Canvas lock")
+                            .selectable_label(app.disabled, canvas_lock)
                             .on_hover_text("Temporarily disable canvas editing")
                             .clicked()
                         {
@@ -266,7 +297,7 @@ impl EditorUi {
                 ui.vertical_centered(|ui| {
                     rail_button(
                         ui,
-                        "S",
+                        icons::CURSOR,
                         "Select",
                         app.tool_mode == ToolMode::Selection,
                         !app.disabled,
@@ -275,7 +306,7 @@ impl EditorUi {
                     );
                     rail_button(
                         ui,
-                        "M",
+                        icons::SELECTION,
                         "Marquee",
                         app.tool_mode == ToolMode::Marquee,
                         !app.disabled,
@@ -285,7 +316,7 @@ impl EditorUi {
                     ui.separator();
                     rail_button(
                         ui,
-                        "R",
+                        icons::RECTANGLE,
                         "Rectangle",
                         app.tool_mode == ToolMode::Rectangle,
                         !app.disabled,
@@ -294,7 +325,7 @@ impl EditorUi {
                     );
                     rail_button(
                         ui,
-                        "O",
+                        icons::CIRCLE,
                         "Ellipse",
                         app.tool_mode == ToolMode::Ellipse,
                         !app.disabled,
@@ -303,7 +334,7 @@ impl EditorUi {
                     );
                     rail_button(
                         ui,
-                        "C",
+                        icons::FLOW_ARROW,
                         "Connection",
                         matches!(
                             app.tool_mode,
@@ -324,7 +355,7 @@ impl EditorUi {
                 .resizable(false)
                 .show(root, |ui| {
                     if ui
-                        .button("›")
+                        .button(RichText::new(icons::CARET_RIGHT).size(16.0))
                         .on_hover_text("Expand left sidebar")
                         .clicked()
                     {
@@ -359,7 +390,7 @@ impl EditorUi {
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui
-                            .button("‹")
+                            .button(RichText::new(icons::CARET_LEFT).size(16.0))
                             .on_hover_text("Collapse left sidebar")
                             .clicked()
                         {
@@ -396,7 +427,10 @@ impl EditorUi {
                     );
                     if !self.outline_filter.is_empty()
                         && ui
-                            .add_sized([24.0, FILTER_FIELD_HEIGHT], egui::Button::new("×"))
+                            .add_sized(
+                                [24.0, FILTER_FIELD_HEIGHT],
+                                egui::Button::new(RichText::new(icons::X).size(15.0)),
+                            )
                             .on_hover_text("Clear filter")
                             .clicked()
                     {
@@ -416,7 +450,7 @@ impl EditorUi {
                     .collect::<Vec<_>>();
                 let connection_count = visible
                     .iter()
-                    .filter(|item| matches!(item.kind, OutlineItemKind::Connection(_)))
+                    .filter(|item| matches!(item.kind, OutlineItemKind::Connection { .. }))
                     .count();
 
                 ScrollArea::vertical()
@@ -447,7 +481,13 @@ impl EditorUi {
                             .id_salt(("layer_group", group.id))
                             .default_open(true)
                             .show(ui, |ui| {
-                                if ui.selectable_label(selected, "Select group").clicked() {
+                                if ui
+                                    .selectable_label(
+                                        selected,
+                                        format!("{} Select group", icons::SQUARES_FOUR),
+                                    )
+                                    .clicked()
+                                {
                                     app.pending.push_back(UiCommand::SelectGroup(group.id));
                                 }
                                 for item in &members {
@@ -458,7 +498,7 @@ impl EditorUi {
                         let ungrouped = visible
                             .iter()
                             .filter(|item| {
-                                !matches!(item.kind, OutlineItemKind::Connection(_))
+                                !matches!(item.kind, OutlineItemKind::Connection { .. })
                                     && item.group.is_none()
                             })
                             .cloned()
@@ -480,7 +520,7 @@ impl EditorUi {
                                 .default_open(true)
                                 .show(ui, |ui| {
                                     for item in visible.iter().filter(|item| {
-                                        matches!(item.kind, OutlineItemKind::Connection(_))
+                                        matches!(item.kind, OutlineItemKind::Connection { .. })
                                     }) {
                                         layer_row(ui, app, item);
                                     }
@@ -496,7 +536,11 @@ impl EditorUi {
                 .exact_size(COLLAPSED_PANEL_WIDTH)
                 .resizable(false)
                 .show(root, |ui| {
-                    if ui.button("‹").on_hover_text("Expand Inspector").clicked() {
+                    if ui
+                        .button(RichText::new(icons::CARET_LEFT).size(16.0))
+                        .on_hover_text("Expand Inspector")
+                        .clicked()
+                    {
                         self.right_collapsed = false;
                     }
                 });
@@ -516,7 +560,11 @@ impl EditorUi {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Inspector").size(PANEL_TITLE_SIZE).strong());
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.button("›").on_hover_text("Collapse Inspector").clicked() {
+                        if ui
+                            .button(RichText::new(icons::CARET_RIGHT).size(16.0))
+                            .on_hover_text("Collapse Inspector")
+                            .clicked()
+                        {
                             self.right_collapsed = true;
                         }
                         ui.label(
@@ -561,7 +609,7 @@ impl EditorUi {
                 ui.horizontal(|ui| {
                     context_icon(
                         ui,
-                        "X",
+                        icons::TRASH,
                         "Delete selection",
                         app.can_delete && !app.disabled,
                         app,
@@ -586,7 +634,7 @@ impl EditorUi {
                     if ui.available_width() >= 150.0 {
                         context_icon(
                             ui,
-                            "<",
+                            icons::SELECTION_BACKGROUND,
                             "Send backward",
                             app.can_send_backward && !app.disabled,
                             app,
@@ -594,7 +642,7 @@ impl EditorUi {
                         );
                         context_icon(
                             ui,
-                            ">",
+                            icons::SELECTION_FOREGROUND,
                             "Bring forward",
                             app.can_bring_forward && !app.disabled,
                             app,
@@ -602,7 +650,7 @@ impl EditorUi {
                         );
                         context_icon(
                             ui,
-                            "G",
+                            icons::SQUARES_FOUR,
                             "Group selection",
                             app.can_group && !app.disabled,
                             app,
@@ -610,38 +658,38 @@ impl EditorUi {
                         );
                         context_icon(
                             ui,
-                            "U",
+                            icons::SELECTION_SLASH,
                             "Ungroup selection",
                             app.can_ungroup && !app.disabled,
                             app,
                             UiCommand::Ungroup,
                         );
                     } else {
-                        ui.menu_button("⋯", |ui| {
+                        ui.menu_button(RichText::new(icons::DOTS_THREE).size(16.0), |ui| {
                             context_command(
                                 ui,
-                                "Send backward",
+                                &format!("{}  Send backward", icons::SELECTION_BACKGROUND),
                                 app.can_send_backward && !app.disabled,
                                 app,
                                 UiCommand::SendBackward,
                             );
                             context_command(
                                 ui,
-                                "Bring forward",
+                                &format!("{}  Bring forward", icons::SELECTION_FOREGROUND),
                                 app.can_bring_forward && !app.disabled,
                                 app,
                                 UiCommand::BringForward,
                             );
                             context_command(
                                 ui,
-                                "Group",
+                                &format!("{}  Group", icons::SQUARES_FOUR),
                                 app.can_group && !app.disabled,
                                 app,
                                 UiCommand::Group,
                             );
                             context_command(
                                 ui,
-                                "Ungroup",
+                                &format!("{}  Ungroup", icons::SELECTION_SLASH),
                                 app.can_ungroup && !app.disabled,
                                 app,
                                 UiCommand::Ungroup,
@@ -654,9 +702,17 @@ impl EditorUi {
                     ) {
                         ui.separator();
                         let (icon, tooltip, style) = if app.tool_mode == ToolMode::SolidConnection {
-                            ("-", "Solid connection; click for dashed", EdgeStyle::Dashed)
+                            (
+                                icons::LINE_SEGMENT,
+                                "Solid connection; click for dashed",
+                                EdgeStyle::Dashed,
+                            )
                         } else {
-                            (":", "Dashed connection; click for solid", EdgeStyle::Solid)
+                            (
+                                icons::LINE_SEGMENTS,
+                                "Dashed connection; click for solid",
+                                EdgeStyle::Solid,
+                            )
                         };
                         context_icon(
                             ui,
@@ -711,46 +767,56 @@ fn outline_empty_state(ui: &mut egui::Ui, unfiltered: bool) {
 fn layer_row(ui: &mut egui::Ui, app: &mut AppState, item: &OutlineItem) {
     let selected = app.selected.contains(&item.id);
     let icon = match item.kind {
-        OutlineItemKind::Rectangle => "R",
-        OutlineItemKind::Ellipse => "O",
-        OutlineItemKind::Connection(EdgeStyle::Solid) => ">",
-        OutlineItemKind::Connection(EdgeStyle::Dashed) => ":",
+        OutlineItemKind::Rectangle => icons::RECTANGLE,
+        OutlineItemKind::Ellipse => icons::CIRCLE,
+        OutlineItemKind::Connection {
+            style,
+            source,
+            target,
+        } => {
+            connection_row(ui, app, item, style, source, target);
+            return;
+        }
     };
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        if !matches!(item.kind, OutlineItemKind::Connection(_)) {
-            if ui
-                .add_enabled(
-                    !app.disabled,
-                    egui::Button::new(if item.visible { "V" } else { "-" })
-                        .min_size(Vec2::new(22.0, OUTLINE_ROW_HEIGHT)),
-                )
-                .on_hover_text(if item.visible {
-                    "Hide layer"
+        if ui
+            .add_enabled(
+                !app.disabled,
+                egui::Button::new(RichText::new(if item.visible {
+                    icons::EYE
                 } else {
-                    "Show layer"
-                })
-                .clicked()
-            {
-                app.pending.push_back(UiCommand::ToggleVisibility(item.id));
-            }
-            if ui
-                .add_enabled(
-                    !app.disabled,
-                    egui::Button::new(if item.locked { "L" } else { "U" })
-                        .min_size(Vec2::new(22.0, OUTLINE_ROW_HEIGHT)),
-                )
-                .on_hover_text(if item.locked {
-                    "Unlock layer"
+                    icons::EYE_SLASH
+                }))
+                .min_size(Vec2::new(22.0, OUTLINE_ROW_HEIGHT)),
+            )
+            .on_hover_text(if item.visible {
+                "Hide layer"
+            } else {
+                "Show layer"
+            })
+            .clicked()
+        {
+            app.pending.push_back(UiCommand::ToggleVisibility(item.id));
+        }
+        if ui
+            .add_enabled(
+                !app.disabled,
+                egui::Button::new(RichText::new(if item.locked {
+                    icons::LOCK
                 } else {
-                    "Lock layer"
-                })
-                .clicked()
-            {
-                app.pending.push_back(UiCommand::ToggleLock(item.id));
-            }
-        } else {
-            ui.add_space(46.0);
+                    icons::LOCK_OPEN
+                }))
+                .min_size(Vec2::new(22.0, OUTLINE_ROW_HEIGHT)),
+            )
+            .on_hover_text(if item.locked {
+                "Unlock layer"
+            } else {
+                "Lock layer"
+            })
+            .clicked()
+        {
+            app.pending.push_back(UiCommand::ToggleLock(item.id));
         }
         let response = ui.add(
             egui::Button::selectable(selected, format!("{icon}  {}", item.title))
@@ -763,6 +829,45 @@ fn layer_row(ui: &mut egui::Ui, app: &mut AppState, item: &OutlineItem) {
     });
 }
 
+fn connection_row(
+    ui: &mut egui::Ui,
+    app: &mut AppState,
+    item: &OutlineItem,
+    style: EdgeStyle,
+    source: u64,
+    target: u64,
+) {
+    let icon = match style {
+        EdgeStyle::Solid => icons::LINE_SEGMENT,
+        EdgeStyle::Dashed => icons::LINE_SEGMENTS,
+    };
+    let selected = app.selected.contains(&item.id);
+    let response = ui
+        .allocate_ui_with_layout(
+            Vec2::new(ui.available_width(), OUTLINE_ROW_HEIGHT),
+            Layout::right_to_left(Align::Center),
+            |ui| {
+                ui.label(
+                    RichText::new(format!("{source}  {}  {target}", icons::ARROW_RIGHT))
+                        .small()
+                        .color(SECONDARY_TEXT),
+                );
+                ui.add(
+                    egui::Button::selectable(selected, format!("{icon}  {}", item.title))
+                        .min_size(Vec2::new(ui.available_width(), OUTLINE_ROW_HEIGHT))
+                        .truncate(),
+                )
+            },
+        )
+        .inner;
+    if response
+        .on_hover_text(format!("{}  {source} -> {target}", item.title))
+        .clicked()
+    {
+        app.pending.push_back(UiCommand::Select(item.id));
+    }
+}
+
 fn object_summary(
     ui: &mut egui::Ui,
     id: u64,
@@ -770,9 +875,15 @@ fn object_summary(
     selected_count: usize,
 ) {
     let (icon, title, color) = match kind {
-        Some(OutlineItemKind::Rectangle) => ("R", "Rectangle", Color32::from_rgb(70, 118, 160)),
-        Some(OutlineItemKind::Ellipse) => ("O", "Ellipse", Color32::from_rgb(195, 138, 34)),
-        _ => ("S", "Shape", SECONDARY_TEXT),
+        Some(OutlineItemKind::Rectangle) => (
+            icons::RECTANGLE,
+            "Rectangle",
+            Color32::from_rgb(70, 118, 160),
+        ),
+        Some(OutlineItemKind::Ellipse) => {
+            (icons::CIRCLE, "Ellipse", Color32::from_rgb(195, 138, 34))
+        }
+        _ => (icons::BOUNDING_BOX, "Shape", SECONDARY_TEXT),
     };
     ui.horizontal(|ui| {
         ui.label(RichText::new(icon).size(20.0).color(color));
@@ -1022,15 +1133,15 @@ fn rail_button(
     app: &mut AppState,
     command: UiCommand,
 ) {
-    if ui
-        .add_enabled(
-            enabled,
-            egui::Button::selectable(selected, RichText::new(icon).size(18.0))
-                .min_size(Vec2::splat(32.0)),
-        )
-        .on_hover_text(tooltip)
-        .clicked()
-    {
+    let response = ui.add_enabled(
+        enabled,
+        egui::Button::selectable(selected, RichText::new(icon).size(18.0))
+            .min_size(Vec2::splat(32.0)),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
+    });
+    if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
 }
@@ -1061,14 +1172,14 @@ fn context_icon(
     app: &mut AppState,
     command: UiCommand,
 ) {
-    if ui
-        .add_enabled(
-            enabled,
-            egui::Button::new(icon).min_size(Vec2::new(28.0, 24.0)),
-        )
-        .on_hover_text(tooltip)
-        .clicked()
-    {
+    let response = ui.add_enabled(
+        enabled,
+        egui::Button::new(RichText::new(icon).size(16.0)).min_size(Vec2::new(28.0, 24.0)),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
+    });
+    if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
 }
@@ -1080,7 +1191,11 @@ fn status_command(
     app: &mut AppState,
     command: UiCommand,
 ) {
-    if ui.button(label).on_hover_text(tooltip).clicked() {
+    let response = ui.button(label);
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
+    });
+    if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
 }
@@ -1158,29 +1273,23 @@ fn paint_grid(painter: &egui::Painter, rect: Rect, session: &Session) {
 
 fn command_button(
     ui: &mut egui::Ui,
-    label: &str,
+    icon: &str,
+    tooltip: &str,
     enabled: bool,
     app: &mut AppState,
     command: UiCommand,
 ) {
-    if ui
-        .add_enabled(
-            enabled,
-            egui::Button::new(label)
-                .min_size(Vec2::new(COMMAND_BUTTON_WIDTH, DOCUMENT_CONTROL_HEIGHT)),
-        )
-        .clicked()
-    {
+    let response = ui.add_enabled(
+        enabled,
+        egui::Button::new(RichText::new(icon).size(FILE_ICON_SIZE))
+            .min_size(Vec2::new(COMMAND_BUTTON_WIDTH, DOCUMENT_CONTROL_HEIGHT)),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
+    });
+    if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
-}
-
-#[derive(Clone, Copy)]
-enum FileActionIcon {
-    Open,
-    Save,
-    SaveAs,
-    DiscardAndOpen,
 }
 
 fn document_path_field(ui: &mut egui::Ui, path: &mut String) -> Response {
@@ -1193,12 +1302,20 @@ fn document_path_field(ui: &mut egui::Ui, path: &mut String) -> Response {
     )
 }
 
+fn document_title(ui: &mut egui::Ui, dirty: bool) -> Response {
+    let response = ui.strong("Shapes");
+    if dirty {
+        ui.label(RichText::new("Modified").color(Color32::from_rgb(166, 83, 18)));
+    }
+    response
+}
+
 fn file_action_group(ui: &mut egui::Ui, app: &mut AppState) -> [Response; 3] {
     let actions = [
-        (FileActionIcon::Open, "Open document", UiCommand::Open),
-        (FileActionIcon::Save, "Save document", UiCommand::Save),
+        (icons::FOLDER_OPEN, "Open document", UiCommand::Open),
+        (icons::FLOPPY_DISK, "Save document", UiCommand::Save),
         (
-            FileActionIcon::SaveAs,
+            icons::FLOPPY_DISK_BACK,
             "Save document as",
             UiCommand::SaveAs,
         ),
@@ -1227,7 +1344,7 @@ fn file_action_group(ui: &mut egui::Ui, app: &mut AppState) -> [Response; 3] {
 
 fn file_action_button(
     ui: &mut egui::Ui,
-    icon: FileActionIcon,
+    icon: &'static str,
     label: &'static str,
     enabled: bool,
     app: &mut AppState,
@@ -1236,19 +1353,13 @@ fn file_action_button(
 ) -> Response {
     let response = ui.add_enabled(
         enabled,
-        egui::Button::new("")
+        egui::Button::new(RichText::new(icon).size(FILE_ICON_SIZE))
             .min_size(Vec2::new(FILE_BUTTON_WIDTH, FILE_BUTTON_HEIGHT))
             .corner_radius(corner_radius),
     );
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), label)
     });
-    let color = if response.enabled() {
-        ui.style().interact(&response).text_color()
-    } else {
-        SECONDARY_TEXT.gamma_multiply(0.6)
-    };
-    paint_file_action_icon(ui.painter(), response.rect, icon, color);
     let response = response.on_hover_text(label);
     if response.clicked() {
         app.pending.push_back(command);
@@ -1315,15 +1426,23 @@ mod file_action_button_tests {
     fn document_path_and_file_buttons_share_height_and_centerline() {
         let context = egui::Context::default();
         let mut app = AppState::default();
+        let mut title = None;
         let mut field = None;
         let mut buttons = None;
         let _ = context.run_ui(egui::RawInput::default(), |ui| {
-            ui.horizontal(|ui| {
-                field = Some(document_path_field(ui, &mut app.path_input));
-                buttons = Some(file_action_group(ui, &mut app));
-            });
+            ui.allocate_ui_with_layout(
+                Vec2::new(600.0, DOCUMENT_CONTROL_HEIGHT),
+                Layout::left_to_right(Align::Center),
+                |ui| {
+                    title = Some(document_title(ui, false));
+                    field = Some(document_path_field(ui, &mut app.path_input));
+                    buttons = Some(file_action_group(ui, &mut app));
+                },
+            );
         });
+        let title = title.unwrap();
         let field = field.unwrap();
+        assert!((title.rect.center().y - field.rect.center().y).abs() < f32::EPSILON);
         for button in buttons.unwrap() {
             assert_eq!(field.rect.height(), button.rect.height());
             assert!((field.rect.center().y - button.rect.center().y).abs() < f32::EPSILON);
@@ -1385,7 +1504,7 @@ mod file_action_button_tests {
         let _ = context.run_ui(egui::RawInput::default(), |ui| {
             let response = file_action_button(
                 ui,
-                FileActionIcon::DiscardAndOpen,
+                icons::FOLDER_SIMPLE_MINUS,
                 "Discard unsaved changes and open document",
                 app.canvas.dirty && !app.disabled,
                 &mut app,
@@ -1400,7 +1519,7 @@ mod file_action_button_tests {
         let _ = context.run_ui(egui::RawInput::default(), |ui| {
             response = Some(file_action_button(
                 ui,
-                FileActionIcon::DiscardAndOpen,
+                icons::FOLDER_SIMPLE_MINUS,
                 "Discard unsaved changes and open document",
                 app.canvas.dirty && !app.disabled,
                 &mut app,
@@ -1426,7 +1545,7 @@ mod file_action_button_tests {
                 |ui| {
                     file_action_button(
                         ui,
-                        FileActionIcon::DiscardAndOpen,
+                        icons::FOLDER_SIMPLE_MINUS,
                         "Discard unsaved changes and open document",
                         app.canvas.dirty && !app.disabled,
                         &mut app,
@@ -1503,115 +1622,6 @@ mod alignment_button_tests {
                 });
             }
         }
-    }
-}
-
-fn paint_file_action_icon(
-    painter: &egui::Painter,
-    rect: Rect,
-    icon: FileActionIcon,
-    color: Color32,
-) {
-    let origin = rect.center() - Vec2::splat(FILE_ICON_SIZE / 2.0);
-    let point = |x: f32, y: f32| {
-        egui::pos2(
-            origin.x + x * FILE_ICON_SIZE / 24.0,
-            origin.y + y * FILE_ICON_SIZE / 24.0,
-        )
-    };
-    let stroke = Stroke::new(FILE_ICON_STROKE, color);
-    match icon {
-        FileActionIcon::Open => {
-            painter.add(egui::Shape::line(
-                vec![
-                    point(2.0, 18.0),
-                    point(2.0, 5.0),
-                    point(4.0, 3.0),
-                    point(8.0, 3.0),
-                    point(10.5, 6.0),
-                    point(18.0, 6.0),
-                    point(20.0, 8.0),
-                    point(20.0, 10.0),
-                ],
-                stroke,
-            ));
-            painter.add(egui::Shape::line(
-                vec![
-                    point(2.0, 18.0),
-                    point(4.0, 20.0),
-                    point(18.5, 20.0),
-                    point(20.5, 18.5),
-                    point(22.0, 12.5),
-                    point(20.0, 10.0),
-                    point(9.25, 10.0),
-                    point(7.5, 11.0),
-                    point(6.0, 14.0),
-                ],
-                stroke,
-            ));
-        }
-        FileActionIcon::Save => paint_save_icon(painter, &point, stroke, false),
-        FileActionIcon::SaveAs => paint_save_icon(painter, &point, stroke, true),
-        FileActionIcon::DiscardAndOpen => {
-            painter.add(egui::Shape::closed_line(
-                vec![
-                    point(2.0, 18.0),
-                    point(2.0, 5.0),
-                    point(4.0, 3.0),
-                    point(8.0, 3.0),
-                    point(10.5, 6.0),
-                    point(20.0, 6.0),
-                    point(22.0, 8.0),
-                    point(22.0, 18.0),
-                    point(20.0, 20.0),
-                    point(4.0, 20.0),
-                ],
-                stroke,
-            ));
-            painter.line_segment([point(9.5, 10.5), point(14.5, 15.5)], stroke);
-            painter.line_segment([point(14.5, 10.5), point(9.5, 15.5)], stroke);
-        }
-    }
-}
-
-fn paint_save_icon(
-    painter: &egui::Painter,
-    point: &impl Fn(f32, f32) -> egui::Pos2,
-    stroke: Stroke,
-    save_as: bool,
-) {
-    painter.add(egui::Shape::closed_line(
-        vec![
-            point(5.0, 3.0),
-            point(15.0, 3.0),
-            point(21.0, 9.0),
-            point(21.0, 19.0),
-            point(19.0, 21.0),
-            point(5.0, 21.0),
-            point(3.0, 19.0),
-            point(3.0, 5.0),
-        ],
-        stroke,
-    ));
-    painter.add(egui::Shape::line(
-        vec![point(7.0, 3.0), point(7.0, 8.0), point(15.0, 8.0)],
-        stroke,
-    ));
-    painter.add(egui::Shape::line(
-        vec![
-            point(7.0, 21.0),
-            point(7.0, 13.0),
-            point(17.0, 13.0),
-            point(17.0, 21.0),
-        ],
-        stroke,
-    ));
-    if save_as {
-        painter.line_segment([point(13.5, 17.0), point(22.5, 17.0)], stroke);
-        painter.add(egui::Shape::line(
-            vec![point(19.5, 14.0), point(22.5, 17.0), point(19.5, 20.0)],
-            stroke,
-        ));
     }
 }
 

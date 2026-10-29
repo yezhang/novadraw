@@ -148,7 +148,11 @@ impl ToolMode {
 pub enum OutlineItemKind {
     Rectangle,
     Ellipse,
-    Connection(EdgeStyle),
+    Connection {
+        style: EdgeStyle,
+        source: u64,
+        target: u64,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -748,15 +752,17 @@ fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
         .chain(model.edges.iter().map(|(id, edge)| OutlineItem {
             id: *id,
             title: format!(
-                "{} #{id}  {} -> {}",
+                "{} #{id}",
                 match edge.style {
                     EdgeStyle::Solid => "Solid",
                     EdgeStyle::Dashed => "Dashed",
-                },
-                edge.source,
-                edge.target
+                }
             ),
-            kind: OutlineItemKind::Connection(edge.style),
+            kind: OutlineItemKind::Connection {
+                style: edge.style,
+                source: edge.source,
+                target: edge.target,
+            },
             visible: model.presentation(edge.source).visible
                 && model.presentation(edge.target).visible,
             locked: false,

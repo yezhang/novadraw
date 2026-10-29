@@ -645,7 +645,11 @@ fn outline_projection_keeps_shape_and_connection_types_explicit() {
     );
     assert_eq!(
         app.outline.last().map(|item| item.kind),
-        Some(OutlineItemKind::Connection(EdgeStyle::Dashed))
+        Some(OutlineItemKind::Connection {
+            style: EdgeStyle::Dashed,
+            source: FIRST,
+            target: 2,
+        })
     );
 }
 
@@ -831,6 +835,48 @@ fn workspace_grid_snap_and_zoom_do_not_change_document_history() {
     assert_eq!(session.viewer.model().to_json().unwrap(), before);
     assert!(!session.domain.has_undo());
     assert!(!session.domain.is_dirty());
+}
+
+#[test]
+fn fit_visible_shapes_centers_content_in_viewport() {
+    let mut session = session_from_model(Diagram::showcase()).unwrap();
+    session
+        .viewer
+        .drive()
+        .resize_logical_viewport(760.0, 720.0)
+        .unwrap();
+    session.viewer.stabilize_for_query().unwrap();
+    session.fit_visible_shapes().unwrap();
+
+    let origin = session.viewer.viewport_origin().unwrap();
+    let scale = session.viewer.viewport_scale().unwrap();
+    let viewport = session.viewer.viewport_bounds_in_surface().unwrap();
+    let extent = session
+        .viewer
+        .model()
+        .shapes
+        .values()
+        .map(|shape| shape.bounds)
+        .reduce(|extent, bounds| extent.union(bounds))
+        .unwrap();
+    let left = (extent.x - origin.x()) * scale;
+    let right = viewport.width - (extent.x + extent.width - origin.x()) * scale;
+    let top = (extent.y - origin.y()) * scale;
+    let bottom = viewport.height - (extent.y + extent.height - origin.y()) * scale;
+
+    const FIT_TOLERANCE: f64 = 1e-9;
+    assert!(
+        (scale - 680.0 / 540.0).abs() < FIT_TOLERANCE,
+        "unexpected fit scale: {scale}"
+    );
+    assert!(
+        (left - right).abs() < FIT_TOLERANCE,
+        "horizontal margins differ: left={left}, right={right}"
+    );
+    assert!(
+        (top - bottom).abs() < FIT_TOLERANCE,
+        "vertical margins differ: top={top}, bottom={bottom}"
+    );
 }
 
 #[test]

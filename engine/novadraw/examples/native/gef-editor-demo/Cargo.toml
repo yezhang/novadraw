@@ -12,6 +12,7 @@ novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello" }
 novadraw-editor = { path = "../../../crates/novadraw-editor" }
 eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
 egui = "0.35"
+egui-phosphor = { version = "0.13", default-features = false, features = ["regular"] }
 egui-wgpu = { version = "0.35", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
