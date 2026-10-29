@@ -91,6 +91,7 @@ impl Color {
     /// Parses a six- or eight-digit hexadecimal color.
     ///
     /// A leading `#` is optional. Eight-digit input uses `RRGGBBAA` order.
+    /// Only ASCII hexadecimal digits are accepted; signs and whitespace are invalid.
     ///
     /// # 示例
     ///
@@ -105,15 +106,21 @@ impl Color {
         if hex.len() != 6 && hex.len() != 8 {
             return Err(ParseColorError::InvalidLength(hex.len()));
         }
-        let component = |range: std::ops::Range<usize>, name| {
-            u8::from_str_radix(&hex[range], 16)
-                .map_err(|_| ParseColorError::InvalidDigit { component: name })
+        let bytes = hex.as_bytes();
+        let component = |offset: usize, name| {
+            let digit = |byte| match byte {
+                b'0'..=b'9' => Ok(byte - b'0'),
+                b'a'..=b'f' => Ok(byte - b'a' + 10),
+                b'A'..=b'F' => Ok(byte - b'A' + 10),
+                _ => Err(ParseColorError::InvalidDigit { component: name }),
+            };
+            Ok((digit(bytes[offset])? << 4) | digit(bytes[offset + 1])?)
         };
-        let r = component(0..2, "red")?;
-        let g = component(2..4, "green")?;
-        let b = component(4..6, "blue")?;
+        let r = component(0, "red")?;
+        let g = component(2, "green")?;
+        let b = component(4, "blue")?;
         let a = if hex.len() == 8 {
-            component(6..8, "alpha")?
+            component(6, "alpha")?
         } else {
             u8::MAX
         };

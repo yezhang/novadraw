@@ -9,6 +9,7 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-29 | [颜色文本解析拒绝非法输入](core-color-text-input-2026-10-29.md) |
 | 2026-10-28 | [Shapes 编辑器剩余功能与 SH-01～SH-10 自动验证](shapes-editor-implementation-2026-10-28.md) |
 | 2026-10-28 | [Xilem / Masonry 上游依赖重新评估](xilem-masonry-upstream-reassessment-2026-10-28.md) |
 | 2026-10-28 | [wasm_rust 遗留交付文件迁移](wasm-rust-file-migration-2026-10-28.md) |

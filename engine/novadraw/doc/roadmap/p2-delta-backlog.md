@@ -69,6 +69,13 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-29 按需继续核对 Core 输入边界，先修复 ADR-020 既有颜色解析契约。
+`Color::from_hex` 与 `FromStr` 对六或八字节 Unicode 输入可能 panic，并错误接受
+带正号的分量；现在按 ASCII 字节解析并保留结构化分量错误。三项外部回归、
+九项颜色单测和 Rust 1.96 严格定向 Clippy 通过，
+见[实施记录](../verification/reviews/core-color-text-input-2026-10-29.md)。
+S08 整批仍为 `not_started`，边框和样式公共边界继续先盘点、后设计。
+
 2026-10-28 继续补充官方 PrintExample 与 ZoomExample 的宿主字体采用。
 样例宿主通过 Fontique 查询系统集合，使用既有字体资源协议向 Runtime 注入实际字节；
 Core 继续保持显式
