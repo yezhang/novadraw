@@ -1,0 +1,336 @@
+{
+  "method": "macOS System Events AX window size changes and keyboard scene selection; screencapture -R captures actual display pixels",
+  "surface_path": "interactive native renderer.submit, not screenshot mode",
+  "os": "macOS 14.7.8 (23H730)",
+  "gpu": "Apple M1 Pro",
+  "display": "built-in Color LCD, 3456x2234, Retina",
+  "screen_scale": 2,
+  "rust": "1.99.1",
+  "git_head": "4f104633fcb7c555d165cc20d2902ab554aa6d4a",
+  "binary_sha256": "123f475580ee4eb6ae532e927b45b3f4581c9bcd267179a9dcb614956e340c34",
+  "source_state": "existing S08 migrations in working tree; exact per-file fingerprints in source-fingerprints.json",
+  "window_origin_logical": [
+    80,
+    60
+  ],
+  "scenes": [
+    {
+      "scene": "flow",
+      "files": [
+        {
+          "file": "flow-baseline.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "5ce6b41b5f485f54c120b79e49659d4841e6a25f777ec1459433bbcbd1c35fd9"
+        },
+        {
+          "file": "flow-medium.png",
+          "pixel_size": [
+            1640,
+            1256
+          ],
+          "sha256": "eb72d801b44740d56e35ba4faf54a358e191c3b0fb3a9e2df30c6b30e7211398"
+        },
+        {
+          "file": "flow-narrow.png",
+          "pixel_size": [
+            1240,
+            856
+          ],
+          "sha256": "a6880092713c5a288ab737e8ae3f86cb4b417b3e18bec681a566e15084d76241"
+        },
+        {
+          "file": "flow-minimum.png",
+          "pixel_size": [
+            840,
+            656
+          ],
+          "sha256": "57cefed05ab4a1deffa66931324fdedf81ef9e161406571dc957a11a72afe832"
+        },
+        {
+          "file": "flow-restored.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "561e5d57222ceceaea69c2956b894d2542f6fec8b870d96fa7f509760ee1b9bb"
+        }
+      ],
+      "canvas_comparison": {
+        "crop_pixel_bounds": [
+          20,
+          80,
+          1810,
+          1570
+        ],
+        "changed_pixels": 0,
+        "compared_pixels": 2667100
+      },
+      "resize_requests": {
+        "settled_outer_sizes": [
+          [
+            1200,
+            828
+          ],
+          [
+            820,
+            628
+          ],
+          [
+            620,
+            428
+          ],
+          [
+            420,
+            328
+          ],
+          [
+            1200,
+            828
+          ]
+        ],
+        "continuous_widths": [
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200,
+          1100,
+          980,
+          860,
+          740,
+          620,
+          500,
+          420,
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200
+        ],
+        "continuous_outer_height": 628,
+        "requested_pause_seconds": 0.08
+      }
+    },
+    {
+      "scene": "grid",
+      "files": [
+        {
+          "file": "grid-baseline.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "c9de0574f2594b054ddae39e1836132d850f217121e7cc4d7406205718901408"
+        },
+        {
+          "file": "grid-medium.png",
+          "pixel_size": [
+            1640,
+            1256
+          ],
+          "sha256": "eeb5667693018fbcba0c58dcda06a48f85009f96f3e31618bfa10df6ed089108"
+        },
+        {
+          "file": "grid-narrow.png",
+          "pixel_size": [
+            1240,
+            856
+          ],
+          "sha256": "f4c5cb64daa11fe24759b4246b287eabc45b823c3bedfcc9d745192093ffd6fa"
+        },
+        {
+          "file": "grid-minimum.png",
+          "pixel_size": [
+            840,
+            656
+          ],
+          "sha256": "e7ba95ec387b5782c21d8fa15c80a1d9cd35dc219660ca00341b43ae7f576ad5"
+        },
+        {
+          "file": "grid-restored.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "fed068ef298121e9c6a4fbb83ca07d86984ce405fb79cca64447acad80bb413d"
+        }
+      ],
+      "canvas_comparison": {
+        "crop_pixel_bounds": [
+          780,
+          134,
+          2340,
+          1600
+        ],
+        "changed_pixels": 0,
+        "compared_pixels": 2286960
+      },
+      "resize_requests": {
+        "settled_outer_sizes": [
+          [
+            1200,
+            828
+          ],
+          [
+            820,
+            628
+          ],
+          [
+            620,
+            428
+          ],
+          [
+            420,
+            328
+          ],
+          [
+            1200,
+            828
+          ]
+        ],
+        "continuous_widths": [
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200,
+          1100,
+          980,
+          860,
+          740,
+          620,
+          500,
+          420,
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200
+        ],
+        "continuous_outer_height": 628,
+        "requested_pause_seconds": 0.08
+      }
+    },
+    {
+      "scene": "toolbar",
+      "files": [
+        {
+          "file": "toolbar-baseline.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "d49439b8dea3c71e0c7c62bb7b5d5dfb26710409f5ab6bc86b65e9ca4b7e19e4"
+        },
+        {
+          "file": "toolbar-medium.png",
+          "pixel_size": [
+            1640,
+            1256
+          ],
+          "sha256": "53162d90e352a8d2c61f86d27c225247517b5f5786181d6dc24df503a5981c90"
+        },
+        {
+          "file": "toolbar-narrow.png",
+          "pixel_size": [
+            1240,
+            856
+          ],
+          "sha256": "f39a2d048ffb148c43d502dc8aa09306990cefae608e4b7f69f72cf5adb54d1f"
+        },
+        {
+          "file": "toolbar-minimum.png",
+          "pixel_size": [
+            840,
+            656
+          ],
+          "sha256": "6d2464a2691ce3d361786a517d3c1b8819f026140bc467d3d1fdbde8d1eeab35"
+        },
+        {
+          "file": "toolbar-restored.png",
+          "pixel_size": [
+            2400,
+            1656
+          ],
+          "sha256": "44a2906c6854fa6ec0abe2c91fd42037b098f29d4e3b1691e78e518d334d58a5"
+        }
+      ],
+      "canvas_comparison": {
+        "crop_pixel_bounds": [
+          20,
+          112,
+          1850,
+          1570
+        ],
+        "changed_pixels": 0,
+        "compared_pixels": 2668140
+      },
+      "resize_requests": {
+        "settled_outer_sizes": [
+          [
+            1200,
+            828
+          ],
+          [
+            820,
+            628
+          ],
+          [
+            620,
+            428
+          ],
+          [
+            420,
+            328
+          ],
+          [
+            1200,
+            828
+          ]
+        ],
+        "continuous_widths": [
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200,
+          1100,
+          980,
+          860,
+          740,
+          620,
+          500,
+          420,
+          500,
+          620,
+          740,
+          860,
+          980,
+          1100,
+          1200
+        ],
+        "continuous_outer_height": 628,
+        "requested_pause_seconds": 0.08
+      }
+    }
+  ],
+  "limitations": [
+    "no manual mouse drag or egui control clicks accepted",
+    "no native event counts, frame timings or presentation latency measured",
+    "no Windows/Linux, browser or system DPI transition acceptance",
+    "Canvas comparisons exclude temporary egui panel and window chrome"
+  ]
+}

@@ -25,3 +25,33 @@ IME 与系统 AT 均按各自验收范围记录；可见画面不等于全部交
 自动输入、DPI 与 GPU 验证见
 [上游迁移记录](../../doc/verification/reviews/masonry-upstream-migration-2026-10-28.md)；
 迁移前的可见画面结论不能自动继承到新依赖。
+
+## gef-logic-macos
+
+入口由 [run.json](run.json) 的 `gef-logic-macos` action 管理，
+复用[GEF macOS bundle 脚本](../../tools/scripts/run_gef_macos.py)的 Logic 参数。
+需要 macOS、Python 3 和 Rust ≥1.96；本次使用系统 Rust 1.99.1。
+该包属于 workspace，未加入默认成员；构建与 bundle 位于忽略的 `target/egui`。
+脚本通过 LaunchServices 打开当前 checkout 的确切 bundle，跟随应用生命周期。
+
+2026-10-29 release 构建、真实路径和窗口画面已核验；
+窗口显示电路、端口/导线和工具面板，运行实例保留。
+最终 14 项功能测试通过，另有 1 项手动成本采样完成，完整平台输入仍待验收。
+启动脚本识别当前 checkout 的已运行实例时只激活窗口；
+要装入新的构建，先保存并关闭现有窗口，再使用 Run 入口。
+详见[Logic 实施记录](../../doc/verification/reviews/gef-logic-first-slice-2026-10-29.md)。
+
+## draw2d-official-macos
+
+入口由 [run.json](run.json) 的 `draw2d-official-macos` action 管理，
+使用[官方样例启动脚本](../../tools/scripts/run_draw2d_macos.py)。
+需要 macOS、Python 3 与满足锁定依赖要求的 Rust 工具链；本次使用 Rust 1.99.1。
+脚本构建根 workspace 的官方样例，将二进制放入独立 bundle，并通过 LaunchServices
+打开确切路径。构建与 bundle 位于忽略的 `target/official-native`。
+
+PageUp／PageDown 切换场景，Escape 关闭窗口。真实窗口验收应使用交互模式；
+`--screenshot` 使用独立截图路径，不能代替实际屏幕呈现。
+启动后的前台状态可能被编辑器抢占，操作前需激活应用并核对窗口标题。
+本机 Flow／Grid／Toolbar 的系统窗口 resize 与恢复屏幕像素已验证，
+鼠标拖拽和控件矩阵未由本次重新验收，详见
+[窗口验收记录](../../doc/verification/reviews/official-layout-native-window-2026-10-29.md)。

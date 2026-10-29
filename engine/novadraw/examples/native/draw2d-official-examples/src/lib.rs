@@ -169,7 +169,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
                 "Official shape spacing/alignment/wrap, host viewport resize, stretch/restore and Native GPU erasure are verified",
-                "Supplemental Label/FlowPage minimum/wrap/restore and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
+                "Supplemental Label/FlowPage and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
             ],
             examples::flow_layout_example,
         ),
@@ -180,7 +180,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Canvas now follows host viewport resize; spanning/grabbing shape shrink/grow/reset geometry is verified",
                 "Real-panel hints/indent/span/grab, selection release, zero-space restore and Native GPU clearing are verified",
-                "Width-dependent text remeasurement, span/indent/height hints and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
+                "Text remeasurement, span/indent/height hints and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
             ],
             examples::grid_layout_example,
         ),
@@ -191,7 +191,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Official shape outlines and stretch/orientation/shrink/reset geometry are verified",
                 "Real-panel alignment, host viewport and zero-space restore, and Native GPU erasure are verified",
-                "Supplemental Label/FlowPage minimum/wrap/restore and actual Native retained child erasure are verified; continuous window resize and cross-platform pixels remain pending",
+                "Supplemental Label/FlowPage and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
             ],
             examples::toolbar_layout_example,
         ),

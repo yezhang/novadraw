@@ -23,6 +23,28 @@
       "open": {
         "type": "terminal"
       }
+    },
+    {
+      "id": "gef-logic-macos",
+      "name": "GEF Logic 编辑器（macOS）",
+      "command": "python3 tools/scripts/run_gef_macos.py --demo logic",
+      "cwd": ".",
+      "background": true,
+      "source": "agent",
+      "open": {
+        "type": "terminal"
+      }
+    },
+    {
+      "id": "draw2d-official-macos",
+      "name": "Draw2D 官方样例（macOS）",
+      "command": "python3 tools/scripts/run_draw2d_macos.py",
+      "cwd": ".",
+      "background": true,
+      "source": "agent",
+      "open": {
+        "type": "terminal"
+      }
     }
   ]
 }

@@ -10,6 +10,7 @@
 | 日期 | 报告 |
 |---|---|
 | 2026-10-29 | [Logic 首个可运行切片](gef-logic-first-slice-2026-10-29.md) |
+| 2026-10-29 | [三种布局的真实窗口 resize 与屏幕恢复](official-layout-native-window-2026-10-29.md) |
 | 2026-10-29 | [S09 与开放吸附设计自审（待用户评审）](s09-and-snapping-design-review-2026-10-29.md) |
 | 2026-10-29 | [S08-D 整批回归、渲染与成本关闭](p2-s08-d-completion-2026-10-29.md) |
 | 2026-10-29 | [S08-C Detached 几何与外部指标准入](p2-s08-c-implementation-2026-10-29.md) |
