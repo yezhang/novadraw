@@ -2,10 +2,14 @@
 
 use super::Affine2D;
 
+/// Numerical failure of a checked affine inverse, distinct from mathematical singularity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InverseFailure {
+pub enum InverseFailure {
+    /// At least one input coefficient is not finite.
     NonFiniteInput,
+    /// The mathematical inverse cannot be represented by finite coefficients.
     InverseUnrepresentable,
+    /// Inverse calculation failed numerically.
     NumericalFailure,
 }
 
@@ -143,7 +147,8 @@ fn ratio(numerator: Scaled, denominator: Scaled) -> Result<f64, InverseFailure> 
 }
 
 impl Affine2D {
-    pub(crate) fn checked_inverse(self) -> Result<Option<Self>, InverseFailure> {
+    /// Returns `None` only for mathematical singularity, distinguishing numerical failures.
+    pub fn checked_inverse(self) -> Result<Option<Self>, InverseFailure> {
         let [a, b, c, d, e, f] = self.coeffs();
         if ![a, b, c, d, e, f].into_iter().all(f64::is_finite) {
             return Err(InverseFailure::NonFiniteInput);

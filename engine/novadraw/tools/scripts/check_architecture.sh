@@ -62,12 +62,12 @@ if rg -n \
 fi
 
 if rg -n 'novadraw::prelude' \
-  "$root/novadraw" \
-  "$root/novadraw-editor" \
-  "$root/novadraw-inspector" \
-  "$root/novadraw-backend-vello" \
-  "$root/novadraw-platform-winit" \
-  "$root/novadraw-platform-web" \
+  "$root/crates/novadraw" \
+  "$root/crates/novadraw-editor" \
+  "$root/crates/novadraw-inspector" \
+  "$root/crates/novadraw-backend-vello" \
+  "$root/crates/novadraw-platform-winit" \
+  "$root/crates/novadraw-platform-web" \
   "$root/examples" \
   "$root/benchmarks" \
   --glob '*.rs'; then

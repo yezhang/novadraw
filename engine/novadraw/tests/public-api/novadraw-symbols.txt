@@ -427,6 +427,7 @@ module.figure trait FigurePreparation
 module.figure trait FigureResourceDependencies
 module.figure trait Shape
 module.geometry constant DEFAULT_EPSILON
+module.geometry enum InverseFailure
 module.geometry mod point
 module.geometry mod point_list
 module.geometry mod precision

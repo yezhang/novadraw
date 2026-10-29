@@ -15,7 +15,7 @@
 #![deny(missing_docs)]
 
 mod checked_inverse;
-pub(crate) use checked_inverse::InverseFailure;
+pub use checked_inverse::InverseFailure;
 
 pub mod point;
 pub mod point_list;
