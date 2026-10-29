@@ -265,8 +265,7 @@ impl FigureTree {
             let style = scene
                 .style(figure)
                 .map_err(|error| fail(Some(content), Kind::Text(Box::new(error))))?;
-            let font = crate::text::FontDescriptor::parse(&style.font)
-                .map_err(|error| fail(Some(content), Kind::Text(Box::new(error))))?;
+            let font = style.font.clone();
             let mut child_context = context.reborrow_with_font(font);
             let measured = preparation
                 .measure_scene(&mut child_context, content, &measured_scene)
@@ -1877,7 +1876,7 @@ mod s07_query_failure_tests {
                 component: 0,
                 provider: 0,
                 text: 0,
-                font: String::new(),
+                font: crate::text::FontDescriptor::default(),
                 bounds: Rectangle::ZERO,
             },
             presentation: crate::figure::FigurePresentation::new(

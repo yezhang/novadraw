@@ -82,7 +82,7 @@ impl Figure for UmlClassFigure {
         FigureStyle {
             foreground: Some(INK),
             background: Some(self.fill),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             cursor: Some(CursorIcon::Move),
             ..FigureStyle::default()
         }
@@ -338,7 +338,7 @@ pub fn build_example() -> UmlExample {
         .expect("attached UML root")
         .set_style(FigureStyle {
             foreground: Some(INK),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -794,7 +794,7 @@ fn add_label(
         .expect("attached label")
         .set_style(FigureStyle {
             foreground: Some(color),
-            font: Some(font.to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse(font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid label style");

@@ -9,6 +9,8 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-29 | [S08-A 受检样式、公共边界与成本验证](p2-s08-a-implementation-2026-10-29.md) |
+| 2026-10-29 | [ADR-056 设计复核与下一批边界](adr-056-design-review-2026-10-29.md) |
 | 2026-10-29 | [ADR-055 契约续验与同步成本复核](adr-055-followup-2026-10-29.md) |
 | 2026-10-29 | [ADR-055 容器编辑实施验证](adr-055-implementation-2026-10-29.md) |
 | 2026-10-29 | [Shapes Inspector 布局分析](shapes-inspector-layout-analysis-2026-10-29.md) |

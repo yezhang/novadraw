@@ -478,7 +478,7 @@ fn target_opacity_composes_with_frozen_source_opacity_without_mutating_snapshot(
         .figure(source_root)
         .unwrap()
         .set_style(novadraw::figure::FigureStyle {
-            alpha: Some(0.8),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.8).unwrap()),
             ..Default::default()
         })
         .unwrap();
@@ -488,7 +488,7 @@ fn target_opacity_composes_with_frozen_source_opacity_without_mutating_snapshot(
         .figure(root)
         .unwrap()
         .set_style(novadraw::figure::FigureStyle {
-            alpha: Some(0.5),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.5).unwrap()),
             ..Default::default()
         })
         .unwrap();

@@ -204,7 +204,7 @@ fn fixture(
     let page = runtime
         .set_contents(Box::new(
             FlowPageFigure::new(Rectangle::new(0.0, 0.0, 150.0, 400.0)).with_style(FigureStyle {
-                font: Some("16px Inter".into()),
+                font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
                 ..FigureStyle::default()
             }),
         ))

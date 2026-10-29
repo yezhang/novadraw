@@ -117,7 +117,9 @@ impl CanvasScene {
             .add(Box::new(StructuredTextFigure::new(TEXT).with_style(
                 FigureStyle {
                     foreground: Some(Color::BLACK),
-                    font: Some("18px Inter Variable".into()),
+                    font: Some(
+                        novadraw::text::FontDescriptor::parse("18px Inter Variable").unwrap(),
+                    ),
                     ..FigureStyle::default()
                 },
             )))

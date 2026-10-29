@@ -1343,7 +1343,7 @@ fn add_caption(
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
             background: Some(GROUP_BACKGROUND),
-            font: Some(CONTROL_FONT.to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse(CONTROL_FONT).unwrap()),
             ..FigureStyle::default()
         })
         .expect("Label style");

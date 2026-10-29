@@ -1020,7 +1020,7 @@ fn build_label_runtime(deep: bool) -> Runtime {
         .set_figure_style(
             root,
             FigureStyle {
-                font: Some("12px Inter".to_owned()),
+                font: Some(novadraw::text::FontDescriptor::parse("12px Inter").unwrap()),
                 ..FigureStyle::default()
             },
         )
@@ -1060,7 +1060,7 @@ fn build_text_flow_runtime(deep: bool) -> Runtime {
         .set_figure_style(
             root,
             FigureStyle {
-                font: Some("12px Inter".to_owned()),
+                font: Some(novadraw::text::FontDescriptor::parse("12px Inter").unwrap()),
                 ..FigureStyle::default()
             },
         )

@@ -157,7 +157,9 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
                 ))
                 .with_style(FigureStyle {
                     foreground: Some(Color::WHITE),
-                    font: Some("16px Inter Variable".to_owned()),
+                    font: Some(
+                        novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap(),
+                    ),
                     ..FigureStyle::default()
                 }),
             ],
@@ -327,7 +329,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
         viewer.runtime().tree().figure_style(text_feedback),
         Ok(&FigureStyle {
             foreground: Some(Color::WHITE),
-            font: Some("16px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
     );

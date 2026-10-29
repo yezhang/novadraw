@@ -2,8 +2,10 @@
 mod antialias;
 #[allow(missing_docs)]
 mod context;
+mod opacity;
 pub use antialias::AntialiasMode;
 pub use context::{Graphics, GraphicsError, PaintContext, TextPaintStatistics};
+pub use opacity::Opacity;
 
 pub use crate::color::{Color, ColorError, ParseColorError};
 pub use crate::render::command::{

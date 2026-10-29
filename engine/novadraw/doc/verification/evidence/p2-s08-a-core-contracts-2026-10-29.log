@@ -1,0 +1,19 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[91merror[E0599][0m[1m: no method named `set_line_width` found for mutable reference `&mut PaintContext<'_>` in the current scope[0m
+   [1m[94m--> [0mcrates/novadraw/tests/p2_scene_capture.rs:493:17
+    [1m[94m|[0m
+[1m[94m493[0m [1m[94m|[0m         context.set_line_width(-1.0)
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+[1m[96mhelp[0m: there is a method `set_stroke_width` with a similar name
+    [1m[94m|[0m
+[1m[94m493[0m [91m- [0m        context.[91mset_line_width[0m(-1.0)
+[1m[94m493[0m [92m+ [0m        context.[92mset_stroke_width[0m(-1.0)
+    [1m[94m|[0m
+
+[1mFor more information about this error, try `rustc --explain E0599`.[0m
+[1m[91merror[0m: could not compile `novadraw` (test "p2_scene_capture") due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

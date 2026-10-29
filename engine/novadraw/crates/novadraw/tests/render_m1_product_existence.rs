@@ -97,7 +97,9 @@ fn m1_graphics_image_clip_and_alpha_entries_emit_commands() {
     {
         let mut context = recorder.paint();
         context.set_fill_paint(Color::rgba(0.0, 1.0, 0.0, 0.8));
-        context.set_opacity(0.5).unwrap();
+        context
+            .set_opacity(novadraw::graphics::Opacity::try_new(0.5).unwrap())
+            .unwrap();
         context
             .clip_rect(Rectangle::new(1.0, 2.0, 30.0, 40.0))
             .unwrap();

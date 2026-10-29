@@ -95,7 +95,7 @@ pub(super) fn font(descriptor: &str) -> FigureStyle {
         .replace("Tahoma", "Inter Variable")
         .replace("Courier", "JetBrains Mono");
     FigureStyle {
-        font: Some(descriptor),
+        font: Some(novadraw::text::FontDescriptor::parse(&descriptor).unwrap()),
         ..FigureStyle::default()
     }
 }

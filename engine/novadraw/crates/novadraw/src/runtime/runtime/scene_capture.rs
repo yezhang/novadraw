@@ -79,9 +79,7 @@ impl Runtime {
             },
         )?;
         validate_capture_rectangle(rectangle)?;
-        let font = crate::text::FontDescriptor::parse(&style.font).map_err(|error| {
-            SceneError::Stabilization(super::FramePreparationError::Text(error))
-        })?;
+        let font = style.font.clone();
         let mut recorder = CommandRecorder::new();
         if !rectangle.is_empty() {
             self.tree

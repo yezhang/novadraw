@@ -1028,7 +1028,7 @@ impl Runtime {
                 .tree
                 .resolved_style(figure)
                 .expect("attached Figure style");
-            let font = FontDescriptor::parse(&style.font)?;
+            let font = style.font.clone();
             let previous = self.tree.border_snapshot(figure).cloned();
             let Some(snapshot) = self
                 .tree
@@ -2459,9 +2459,6 @@ impl Runtime {
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(move |runtime| {
             runtime.validate_attached_figure(id)?;
-            if style.alpha.is_some_and(|alpha| !alpha.is_finite()) {
-                return Err(crate::GraphMutationError::InvalidInitialStyle.into());
-            }
             Ok(runtime.set_figure_style_inner(id, style))
         })
     }

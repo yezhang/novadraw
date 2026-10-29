@@ -315,7 +315,7 @@ fn fixture() -> Fixture {
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
             background: Some(Color::WHITE),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("instruction style");
@@ -367,7 +367,7 @@ fn add_connected_group(
             FigureStyle {
                 foreground: Some(Color::BLACK),
                 background: Some(Color::WHITE),
-                font: Some("13px Inter Variable".to_owned()),
+                font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
                 ..FigureStyle::default()
             },
         )
@@ -446,7 +446,7 @@ fn add_connection_label(
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
             background: Some(Color::rgba(0.95, 0.95, 0.95, 1.0)),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("connection label style");

@@ -112,7 +112,7 @@ fn root(runtime: &mut Runtime, title: &str) -> FigureId {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("26px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("26px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -132,7 +132,7 @@ fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, y: f64) {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(CAPTION_COLOR),
-            font: Some("15px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("15px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -149,7 +149,7 @@ fn add_button(runtime: &mut Runtime, root: FigureId, text: &str, bounds: Rectang
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("16px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -220,7 +220,7 @@ fn toggle_states() -> Runtime {
             .unwrap()
             .set_style(FigureStyle {
                 foreground: Some(TITLE_COLOR),
-                font: Some("16px Inter Variable".to_string()),
+                font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
                 ..FigureStyle::default()
             })
             .expect("valid Runtime mutation");
@@ -252,7 +252,7 @@ fn interactive_widgets() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("16px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -305,7 +305,7 @@ fn tooltip_accessibility() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("18px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("18px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -321,7 +321,7 @@ fn tooltip_accessibility() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("16px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             tooltip: Some(Some("Button role with a default action".to_string())),
             ..FigureStyle::default()
         })
@@ -343,7 +343,7 @@ fn tooltip_accessibility() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(TITLE_COLOR),
-            font: Some("15px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("15px Inter Variable").unwrap()),
             tooltip: Some(Some(
                 "Flips above and clamps inside the surface".to_string(),
             )),

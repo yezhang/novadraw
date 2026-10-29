@@ -1,0 +1,74 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on build directory
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m color v0.3.3
+[1m[92m   Compiling[0m peniko v0.6.1
+[1m[92m   Compiling[0m thiserror-impl v2.0.20
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m objc2-metal v0.3.2
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m zerocopy-derive v0.8.30
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m   Compiling[0m foreign-types-macros v0.2.3
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m thiserror v2.0.20
+[1m[92m   Compiling[0m objc2-core-graphics v0.3.2
+[1m[92m   Compiling[0m foreign-types v0.5.0
+[1m[92m   Compiling[0m zerocopy v0.8.30
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m objc2-quartz-core v0.3.2
+[1m[92m   Compiling[0m core-graphics v0.23.2
+[1m[92m   Compiling[0m tracing-subscriber v0.3.23
+[1m[92m   Compiling[0m raw-window-metal v1.1.0
+[1m[92m   Compiling[0m winit v0.30.13
+[1m[92m   Compiling[0m font-types v0.12.4
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m wgpu-types v29.0.4
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m uuid v1.18.1
+[1m[92m   Compiling[0m naga v29.0.4
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m wgpu-naga-bridge v29.0.4
+[1m[92m   Compiling[0m vello_shaders v0.10.0
+[1m[92m   Compiling[0m wgpu-hal v29.0.4
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m vello_encoding v0.10.0
+[1m[92m   Compiling[0m wgpu-core-deps-apple v29.0.4
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m wgpu-core v29.0.4
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m wgpu v29.0.4
+[1m[92m   Compiling[0m vello v0.10.0
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m   Compiling[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/scenes)
+[1m[92m   Compiling[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m   Compiling[0m ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/ndcanvas-app)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 1m 27s
+[1m[92m     Running[0m `target/debug/graphics-proof --present`
+
+thread 'main' (158719466) panicked at examples/native/ndcanvas-app/src/bin/graphics-proof/pixels.rs:9:5:
+pixel (710,260) at DPI 1: [255, 255, 255, 255], expected [255, 0, 0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

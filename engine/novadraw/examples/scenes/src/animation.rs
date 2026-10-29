@@ -1,5 +1,6 @@
 //! P2-M01 animation orthogonality example.
 
+use novadraw::graphics::Opacity;
 use std::{sync::Arc, time::Duration};
 
 use novadraw::connection::{
@@ -13,9 +14,8 @@ use novadraw::{
         AnimationBehavior, AnimationBehaviorContext, AnimationBehaviorId, AnimationChannel,
         AnimationId, AnimationPlan, AnimationStart, AnimationTrigger, BoundsTransition,
         ConnectionPulse, ConnectionRouteTransition, Decay, Easing, FigurePresentationChannels,
-        InteractionGeometryPolicy, InterruptionPolicy, Keyframe, Keyframes, Motion, Opacity,
-        Procedural, RepeatBehavior, Spring, SuspensionPolicy, TemporaryVisual, Tween,
-        ViewportTransition,
+        InteractionGeometryPolicy, InterruptionPolicy, Keyframe, Keyframes, Motion, Procedural,
+        RepeatBehavior, Spring, SuspensionPolicy, TemporaryVisual, Tween, ViewportTransition,
     },
     figure::EllipseFigure,
     figure::FigureMeasurement,
@@ -228,7 +228,7 @@ pub fn build_example() -> AnimationExample {
         .expect("animation root")
         .set_style(FigureStyle {
             foreground: Some(TEXT),
-            font: Some("14px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("14px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -394,7 +394,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("animation root")
         .set_style(FigureStyle {
             foreground: Some(TEXT),
-            font: Some("14px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("14px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -810,7 +810,7 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
         .expect("animation root")
         .set_style(FigureStyle {
             foreground: Some(TEXT),
-            font: Some("14px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("14px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -994,7 +994,7 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
         .expect("animation root")
         .set_style(FigureStyle {
             foreground: Some(TEXT),
-            font: Some("14px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("14px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -1677,7 +1677,7 @@ fn add_control_toggle(
         .expect("control toggle Figure")
         .set_style(FigureStyle {
             foreground: Some(TEXT),
-            font: Some("13px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("control toggle style");
@@ -1735,7 +1735,7 @@ fn add_label(
         .expect("label Figure")
         .set_style(FigureStyle {
             foreground: Some(color),
-            font: Some(font.to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse(font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("label style");

@@ -94,7 +94,7 @@ fn scene_runtime(title: &str, subtitle: &str) -> (Runtime, FigureId) {
         .expect("attached root")
         .set_style(FigureStyle {
             foreground: Some(INK),
-            font: Some("16px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid root style");
@@ -153,7 +153,7 @@ fn add_label(
         .expect("attached label")
         .set_style(FigureStyle {
             foreground: Some(color),
-            font: Some(font.to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse(font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid label style");

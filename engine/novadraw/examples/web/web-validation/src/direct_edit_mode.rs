@@ -59,7 +59,7 @@ fn label_style() -> FigureStyle {
     FigureStyle {
         foreground: Some(Color::WHITE),
         background: Some(NODE_COLOR),
-        font: Some("28px Inter Variable".to_owned()),
+        font: Some(novadraw::text::FontDescriptor::parse("28px Inter Variable").unwrap()),
         ..FigureStyle::default()
     }
 }
@@ -67,7 +67,7 @@ fn label_style() -> FigureStyle {
 fn direct_text_style() -> FigureStyle {
     FigureStyle {
         foreground: Some(Color::WHITE),
-        font: Some("28px Inter Variable".to_owned()),
+        font: Some(novadraw::text::FontDescriptor::parse("28px Inter Variable").unwrap()),
         ..FigureStyle::default()
     }
 }

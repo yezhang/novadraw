@@ -49,7 +49,7 @@ impl Figure for ExternalPaintFigure {
     ) -> Result<(), GraphicsError> {
         if self.fail.load(Ordering::Relaxed) {
             context.push_state();
-            return context.set_opacity(f64::NAN);
+            return context.set_stroke_width(-1.0);
         }
         paint_panel(context, bounds)
     }
@@ -79,9 +79,9 @@ fn figure_paint_failure_blocks_publication_and_preserves_retry_identity() {
         runtime
             .frames()
             .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
-        FramePreparation::Error(FramePreparationError::Graphics(
-            GraphicsError::InvalidOpacity
-        ))
+        FramePreparation::Error(FramePreparationError::Graphics(GraphicsError::Input(
+            novadraw::graphics::GraphicsInputError::NegativeStrokeWidth
+        )))
     ));
 
     fail.store(false, Ordering::Relaxed);

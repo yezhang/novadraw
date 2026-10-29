@@ -105,7 +105,7 @@ fn root(runtime: &mut Runtime) -> FigureId {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(HEADING),
-            font: Some("16px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -147,7 +147,7 @@ fn add_label(
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(color),
-            font: Some(font.to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse(font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -359,7 +359,7 @@ fn icon_placement_scene() -> Runtime {
             .unwrap()
             .set_style(FigureStyle {
                 foreground: Some(ACCENT),
-                font: Some("18px Inter Variable".to_string()),
+                font: Some(novadraw::text::FontDescriptor::parse("18px Inter Variable").unwrap()),
                 ..FigureStyle::default()
             })
             .expect("valid Runtime mutation");
@@ -388,7 +388,7 @@ fn style_inheritance_scene() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(Color::rgba(0.42, 0.15, 0.62, 1.0)),
-            font: Some("22px Noto Sans SC".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("22px Noto Sans SC").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -411,7 +411,7 @@ fn style_inheritance_scene() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(Color::rgba(0.14, 0.36, 0.18, 1.0)),
-            font: Some("20px JetBrains Mono".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("20px JetBrains Mono").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -448,7 +448,7 @@ fn title_bar_border_scene() -> Runtime {
         .unwrap()
         .set_style(FigureStyle {
             foreground: Some(Color::WHITE),
-            font: Some("20px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("20px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");

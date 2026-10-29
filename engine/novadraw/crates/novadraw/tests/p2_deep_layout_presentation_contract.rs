@@ -230,7 +230,7 @@ fn nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission() {
         .figure(root)
         .unwrap()
         .set_style(FigureStyle {
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .unwrap();
@@ -359,7 +359,7 @@ fn nested_toolbar_labels_use_final_outer_geometry_in_the_first_submission() {
         .figure(first)
         .unwrap()
         .set_style(FigureStyle {
-            font: Some("26px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("26px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .unwrap();

@@ -2,7 +2,8 @@
 
 类型：`verification-plan`
 
-状态：草案，待评审；2026-10-29。以下用例均为待执行。
+状态：已接受；2026-10-29。S08-A 用例结果见
+[实施记录](../reviews/p2-s08-a-implementation-2026-10-29.md)，其余切片待执行。
 
 契约见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)及
 [输入不变量专题](../../design/architecture/detached-input-invariants.md)。
@@ -22,6 +23,8 @@
 | S08-V08 | 默认 Margin／Compound／TitleBar／Etched／Scheme，零边距、不对称边距 | 默认不 panic；Margin 无可见绘制；optional 和空色带语义保持 |
 | S08-V09 | Color 饱和、动画采样、viewport range、小 owner 截空、圆角适配 | 保留原先合法行为；非法输入校验发生在算法适配之前 |
 | S08-V10 | Detached Figure 原始 bounds／stroke／corner 构造，translate 溢出和数值 setter | 非法输入构造／更新拒绝；Shape 零宽、负坐标、旧 corner dimensions 单位保持；各同类入口有覆盖清单 |
+| S08-V11 | Compound 直接 child 的基础指标回调计数；构造后外部 child 改变指标 | 构造每种基础指标读取一次；不执行 owner 字体测量；挂载重新受检，不能复用构造时的旧成功 |
+| S08-V12 | 旧 Solid／Dash／Dot／DashDot 迁移 | 保持当前可见描边；DashDot 仍按历史 Dash 映射，不据此关闭完整 dash-dot 对等项 |
 
 ## 发布、外部实现与恢复
 

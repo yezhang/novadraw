@@ -7,12 +7,13 @@ use support::record_full_submission;
 use novadraw::{
     animation::{
         AnimationBehavior, AnimationBehaviorContext, AnimationError, AnimationFact, AnimationMode,
-        AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Opacity, Tween,
+        AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Tween,
     },
     event::{FigureEvent, FigureListener, ListenerDirective, MonotonicTime, property},
     figure::RectangleFigure,
     geometry::Affine2D,
     geometry::Rectangle,
+    graphics::Opacity,
     render::{BackendCapabilities, RenderDisposition, SurfaceInfo},
     runtime::Runtime,
     tree::FigureTree,

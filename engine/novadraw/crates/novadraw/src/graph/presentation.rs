@@ -196,10 +196,7 @@ impl FigureTree {
             drop(signature_timing);
             budget.check()?;
             let callback_timing = budget.time("prepare-callback");
-            let mut context = crate::text::MeasureContext::new(
-                text,
-                crate::text::FontDescriptor::parse(&style.font)?,
-            );
+            let mut context = crate::text::MeasureContext::new(text, style.font.clone());
             let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
             drop(callback_timing);
             let _validation_timing = budget.time("prepare-candidate-validation");
@@ -536,7 +533,7 @@ impl FigureTree {
         let figures_refreshed = u64::try_from(label_ids.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
         for (id, style) in labels {
-            let font = crate::render::FontDescriptor::parse(&style.font)?;
+            let font = style.font.clone();
             let label = self.blocks[id]
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
@@ -683,11 +680,10 @@ impl FigureTree {
         true
     }
 
-    pub(crate) fn set_figure_style(&mut self, id: FigureId, mut style: FigureStyle) -> bool {
+    pub(crate) fn set_figure_style(&mut self, id: FigureId, style: FigureStyle) -> bool {
         let Some(old_style) = self.blocks.get(id).map(|block| block.style.clone()) else {
             return false;
         };
-        style.alpha = style.alpha.map(|alpha| alpha.clamp(0.0, 1.0));
         if old_style == style {
             return false;
         }

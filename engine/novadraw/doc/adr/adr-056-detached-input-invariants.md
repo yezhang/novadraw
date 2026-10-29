@@ -2,7 +2,14 @@
 
 类型：`architecture-decision`
 
-状态：草案，待评审；2026-10-29。尚未实施。
+状态：已接受；2026-10-29。用户批准按更新后的决策进入 S08-A。
+S08-A 已完成公共消费者、API 边界、非法输入与继承回归，见
+[实施记录](../verification/reviews/p2-s08-a-implementation-2026-10-29.md)；
+后续切片尚未执行，整批 S08 未关闭。
+
+本轮已补充 Compound 基础／owner 指标边界与历史描边映射，
+见[设计复核](../verification/reviews/adr-056-design-review-2026-10-29.md)。
+本次接受以更新后的设计和验证矩阵为准。
 
 ## 背景
 
@@ -15,7 +22,7 @@ FigureStyle 接受原始 alpha 和字体文本，错误可延迟到挂载、测�
 
 ## 决策
 
-采用[输入不变量专题草案](../design/architecture/detached-input-invariants.md)：
+采用[输入不变量专题](../design/architecture/detached-input-invariants.md)：
 
 - 复用 Opacity、StrokeStyle、FontDescriptor 和 Color。Opacity 的唯一公开领域路径
   迁到 `graphics::Opacity`，动画实现继续消费同一个类型；输入错误归 Graphics。
@@ -65,7 +72,8 @@ crate 或默认 feature。产物与性能验证见专题和[验证矩阵](../ver
 实施时由独立 integration crate 创建第三方 Figure 和 Border，使用公开受检值、
 普通 builder 和 typed mutation，不修改 Core。验证非法原始配置被构造拒绝，
 外部回调返回非法几何被统一 admission 拒绝，成功对象与内置对象使用相同
-measurement、paint、damage 和通知路径。具体用例见验证矩阵；本草案未执行它们。
+measurement、paint、damage 和通知路径。具体用例见验证矩阵；
+S08-A 先验证受检样式与第三方 Figure，其他场景由后续切片完成。
 
 ## 接受条件
 

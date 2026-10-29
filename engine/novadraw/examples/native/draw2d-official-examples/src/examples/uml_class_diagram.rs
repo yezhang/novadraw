@@ -314,7 +314,7 @@ fn fixture() -> Fixture {
         .expect("UMLClassDiagram root")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some(default_font),
+            font: Some(novadraw::text::FontDescriptor::parse(&default_font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("UMLClassDiagram host font");
@@ -514,7 +514,7 @@ fn add_class(
         .expect("class header")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some(header_font.to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse(header_font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("class header style");

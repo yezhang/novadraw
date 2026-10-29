@@ -16,7 +16,6 @@ pub enum GraphicsError {
     UnbalancedState,
     RecordingBudgetExceeded { limit: usize, actual: usize },
     ImmutableDrawingUnavailable,
-    InvalidOpacity,
     Image(crate::render::ImageDrawError),
 }
 impl std::fmt::Display for GraphicsError {
@@ -36,7 +35,6 @@ impl std::fmt::Display for GraphicsError {
             Self::ImmutableDrawingUnavailable => {
                 f.write_str("drawing does not provide immutable bounded inputs")
             }
-            Self::InvalidOpacity => f.write_str("opacity must be finite and in [0, 1]"),
             Self::Image(e) => e.fmt(f),
         }
     }
@@ -156,10 +154,7 @@ impl<'a> PaintContext<'a> {
         }
         Ok(())
     }
-    pub fn set_opacity(&mut self, opacity: f64) -> Result<(), GraphicsError> {
-        if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
-            return self.reject(GraphicsError::InvalidOpacity);
-        }
+    pub fn set_opacity(&mut self, opacity: Opacity) -> Result<(), GraphicsError> {
         self.canvas.global_alpha(opacity);
         Ok(())
     }
@@ -603,7 +598,12 @@ impl<'a> Graphics<'a> {
     pub fn set_fill_rule(&mut self, rule: FillRule) {
         self.paint.set_fill_rule(rule);
     }
-    pub fn set_opacity(&mut self, opacity: f64) -> Result<(), GraphicsError> {
+    /// Installs an already checked value; raw scalars cannot enter Graphics state.
+    /// ```compile_fail
+    /// let mut recorder = novadraw::render::CommandRecorder::new();
+    /// recorder.paint().set_opacity(0.5).unwrap();
+    /// ```
+    pub fn set_opacity(&mut self, opacity: Opacity) -> Result<(), GraphicsError> {
         self.paint.set_opacity(opacity)
     }
     pub fn concat_transform(&mut self, matrix: crate::Affine2D) -> Result<(), GraphicsError> {

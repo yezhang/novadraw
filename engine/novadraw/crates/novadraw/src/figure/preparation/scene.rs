@@ -62,7 +62,7 @@ pub struct PreparationScene<'a> {
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
-    parsed_fonts: Rc<RefCell<HashMap<String, crate::text::FontDescriptor>>>,
+    parsed_fonts: Rc<RefCell<HashSet<crate::text::FontDescriptor>>>,
     budget: super::PreparationBudgetHandle,
 }
 
@@ -108,7 +108,7 @@ impl<'a> PreparationScene<'a> {
             measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
             revision_bases: Rc::new(RefCell::new([None, None])),
-            parsed_fonts: Rc::new(RefCell::new(HashMap::new())),
+            parsed_fonts: Rc::new(RefCell::new(HashSet::new())),
             budget,
         })
     }
@@ -445,11 +445,11 @@ impl<'a> PreparationScene<'a> {
         if let Some(font) = fonts.get(&style.font) {
             return Ok(font.clone());
         }
-        let font = crate::text::FontDescriptor::parse(&style.font)?;
+        let font = &style.font;
         self.budget
-            .allocate("parsed preparation font", style.font.len() as u64 + 1)?;
-        fonts.insert(style.font.clone(), font.clone());
-        Ok(font)
+            .allocate("preparation font descriptor", font.family.capacity() as u64)?;
+        fonts.insert(font.clone());
+        Ok(font.clone())
     }
 
     pub fn client_area(&self, id: FigureId) -> Result<Rectangle, TextError> {
@@ -730,7 +730,7 @@ impl<'a> PreparationScene<'a> {
             {
                 value.to_bits().hash(&mut hash);
             }
-            style.alpha.to_bits().hash(&mut hash);
+            style.alpha.get().to_bits().hash(&mut hash);
             std::mem::discriminant(&style.cursor).hash(&mut hash);
             style.tooltip.hash(&mut hash);
             for child in node.children.iter().rev() {
@@ -1040,8 +1040,10 @@ mod tests {
             .into_iter()
             .map(|id| (id, tree.resolved_style(id).unwrap()))
             .collect();
-        styles.get_mut(&root).unwrap().font = "13px Inter".into();
-        styles.get_mut(&child).unwrap().font = "bold 24px Inter".into();
+        styles.get_mut(&root).unwrap().font =
+            crate::text::FontDescriptor::parse("13px Inter").unwrap();
+        styles.get_mut(&child).unwrap().font =
+            crate::text::FontDescriptor::parse("bold 24px Inter").unwrap();
         let scene = PreparationScene::new(&tree, root, &styles).unwrap();
         let font = scene.parsed_font(root).unwrap();
         let after = scene.budget.used();

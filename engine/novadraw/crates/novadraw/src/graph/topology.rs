@@ -785,9 +785,6 @@ impl FigureTree {
         }
         let insets = figure.initial_insets();
         let style = style.unwrap_or_else(|| figure.initial_style());
-        if style.alpha.is_some_and(|alpha| !alpha.is_finite()) {
-            return Err(GraphMutationError::InvalidInitialStyle);
-        }
         let is_focusable = figure.initial_focusable();
         let is_focus_traversable = figure.initial_focus_traversable();
         let capabilities = FigureCapabilitySet::build(figure.as_ref())

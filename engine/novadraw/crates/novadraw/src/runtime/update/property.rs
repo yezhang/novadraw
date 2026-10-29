@@ -284,6 +284,23 @@ diagnostic_text_value!(
     [f64; 3],
 );
 
+impl PropertyValueType for crate::graphics::Opacity {
+    fn into_property_value(self) -> PropertyValue {
+        PropertyValue::Number(self.get())
+    }
+}
+
+impl PropertyValueType for crate::text::FontDescriptor {
+    fn into_property_value(self) -> PropertyValue {
+        use std::fmt::Write;
+        let mut text = String::with_capacity(
+            self.family().len() + crate::render::text::FONT_DESCRIPTOR_PREFIX_CAPACITY,
+        );
+        write!(&mut text, "{self}").expect("writing to a String is infallible");
+        PropertyValue::Text(text)
+    }
+}
+
 impl<T> PropertyValueType for Option<T>
 where
     T: PropertyValueType,
@@ -569,9 +586,11 @@ pub mod standard {
     pub const BACKGROUND: PropertyKey<Option<Color>> =
         PropertyKey::new(super::STYLE_NAMESPACE, "background");
     /// Alpha style.
-    pub const ALPHA: PropertyKey<Option<f64>> = PropertyKey::new(super::STYLE_NAMESPACE, "alpha");
+    pub const ALPHA: PropertyKey<Option<crate::graphics::Opacity>> =
+        PropertyKey::new(super::STYLE_NAMESPACE, "alpha");
     /// Font descriptor style.
-    pub const FONT: PropertyKey<Option<String>> = PropertyKey::new(super::STYLE_NAMESPACE, "font");
+    pub const FONT: PropertyKey<Option<crate::text::FontDescriptor>> =
+        PropertyKey::new(super::STYLE_NAMESPACE, "font");
     /// Inherited container layout direction.
     pub const LAYOUT_DIRECTION: PropertyKey<Option<crate::figure::LayoutDirection>> =
         PropertyKey::new(super::STYLE_NAMESPACE, "layout_direction");

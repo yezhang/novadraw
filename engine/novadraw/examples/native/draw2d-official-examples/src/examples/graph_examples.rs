@@ -319,7 +319,7 @@ fn populate(
             .set_style(FigureStyle {
                 foreground: Some(Color::BLACK),
                 background: Some(NODE_BACKGROUND),
-                font: Some(FONT.to_owned()),
+                font: Some(novadraw::text::FontDescriptor::parse(FONT).unwrap()),
                 ..FigureStyle::default()
             })
             .unwrap();

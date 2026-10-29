@@ -37,7 +37,7 @@ fn scene() -> Runtime {
         .figure(root)
         .unwrap()
         .set_style(novadraw::figure::FigureStyle {
-            font: Some("16px Inter Variable".into()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             background: Some(Color::rgba8(242, 245, 250, 255)),
             ..Default::default()
         })

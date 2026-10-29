@@ -1,0 +1,118 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 26.26s
+[1m[92m     Running[0m tests/p2_animation_contract.rs (target/debug/deps/p2_animation_contract-19be657244fb76a9)
+
+running 29 tests
+test failed_retarget_keeps_existing_animation_unchanged ... ok
+test finite_repeat_and_reverse_preserve_channel_continuity_and_terminal_truth ... ok
+test foreign_handles_and_overlapping_tracks_are_rejected ... ok
+test disabled_mode_suppresses_without_work_or_override ... ok
+test external_value_type_uses_the_same_typed_channel_contract ... ok
+test cancel_clears_override_and_retarget_starts_from_current_presentation ... ok
+test disposing_a_figure_cancels_bound_presentation_without_source_revival ... ok
+test child_transform_override_bypasses_only_the_committed_child_clip ... ok
+test keyframes_sample_piecewise_values ... ok
+test hidden_figure_applies_pause_or_finish_policy_without_source_mutation ... ok
+test non_monotonic_time_preserves_animation_state ... ok
+test figure_opacity_and_transform_are_presentation_only ... ok
+test pause_policy_excludes_surface_suspension_from_local_time ... ok
+test parallel_sequence_and_stagger_preserve_stable_track_order ... ok
+test procedural_motion_distinguishes_finite_and_continuous_lifetimes ... ok
+test provider_failure_is_rejected_or_terminates_without_stale_override ... ok
+test presentation_damage_unions_old_and_new_surface_envelopes ... ok
+test reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work ... ok
+test removing_a_channel_cancels_its_owner_and_invalidates_the_handle ... ok
+test replace_and_ignore_resolve_channel_ownership_without_partial_state ... ok
+test spring_and_decay_are_bounded_and_finish_at_committed_values ... ok
+test provider_panic_faults_runtime_and_clears_presentation ... ok
+test temporary_visual_is_removed_on_natural_completion ... ok
+test tween_uses_absolute_monotonic_time_and_clears_override_at_completion ... ok
+test temporary_visual_is_non_source_and_removed_with_its_owner ... ok
+test unsupported_presentation_hit_testing_is_rejected_before_channel_creation ... ok
+test retry_keeps_current_presentation_and_provider_panic_clears_it ... ok
+test active_track_work_scales_exactly_at_1_64_and_1024_tracks ... ok
+test ignore_and_replace_remain_available_at_the_active_animation_budget ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+
+[1m[92m     Running[0m tests/p2_deferred_style.rs (target/debug/deps/p2_deferred_style-763e2cdab15cc377)
+
+running 4 tests
+test ordered_replacements_clear_local_values_and_resume_inheritance ... ok
+test foreign_targets_are_reported_without_mutating_the_local_tree ... ok
+test deferred_style_uses_runtime_validation_and_does_not_write_during_callback ... ok
+test invalid_alpha_is_rejected_before_style_mutation_and_deferred_recovery_succeeds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_graphics_contract.rs (target/debug/deps/p2_graphics_contract-83929b1232d5ddef)
+
+running 24 tests
+test builtin_dash_scales_with_width_but_custom_dash_does_not ... ok
+test invalid_dash_and_stroke_values_are_rejected ... ok
+test custom_dash_is_owned_and_odd_patterns_have_an_even_period ... ok
+test invalid_gradients_reject_degenerate_endpoints_and_unordered_stops ... ok
+test clip_paths_validate_structure_and_own_curves_without_consuming_current_path ... ok
+test linear_gradient_owns_ordered_stops_and_preserves_hard_edges ... ok
+test device_preflight_replays_transform_restore_for_paints_and_clips ... ok
+test ellipse_checks_both_paints_and_its_stroke ... ok
+test connection_and_decorations_use_actual_stroke_for_geometry_and_recording ... ok
+test low_miter_preserves_requested_state_and_uses_bevel_extent ... ok
+test mixed_clip_and_fill_rule_restore_after_pop ... ok
+test paint_context_primitives_share_one_stroke_style ... ok
+test paint_context_rejects_device_overflow_without_partial_commands ... ok
+test paint_context_snapshots_complete_strokes_and_restores_them ... ok
+test paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients ... ok
+test rejected_paint_setter_is_atomic_and_fails_recording ... ok
+test polygon_and_scalable_polygon_record_complete_strokes ... ok
+test solid_offset_is_preserved_until_a_dash_pattern_is_selected ... ok
+test stroke_outset_uses_actual_miter_and_cap ... ok
+test runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes ... ok
+test runtime_dash_changes_repaint_without_moving_geometry ... ok
+test miter_transaction_updates_freeform_extent_with_one_move_notification ... ok
+test rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_retry ... ok
+test gradient_glyph_stroke_requires_each_capability_and_preserves_full_style ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s08_style_input_contract.rs (target/debug/deps/p2_s08_style_input_contract-a29a0749da7b19ae)
+
+running 5 tests
+test font_tokens_preserve_numeric_weight_signs_and_unicode ... ok
+test opacity_preserves_endpoints_and_classifies_input_errors ... ok
+test unknown_family_can_measure_and_draw_with_the_same_descriptor ... ok
+test public_graphics_installs_checked_opacity_without_saturation ... ok
+test external_styles_inherit_override_clear_and_preserve_same_value_revision ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[1m[92m     Running[0m tests/p2_scene_capture.rs (target/debug/deps/p2_scene_capture-4dad8f1e052eead7)
+
+running 13 tests
+test external_policy_and_failed_subscription_share_checked_path_without_blocking_others ... ok
+test dropping_producer_without_another_frame_delivers_closed ... ok
+test config_only_capture_keeps_source_epoch_and_replaces_pending_candidate ... ok
+test paused_surface_and_source_placement_do_not_clip_capture ... ok
+test capture_freezes_root_local_domain_and_nearest_inherited_alpha ... ok
+test initial_and_terminal_requests_wake_host_outside_mailbox_lock ... ok
+test identities_are_producer_owned_and_not_reused_after_removal ... ok
+test recording_error_isolated_from_other_capture_but_main_frame_still_rejects ... ok
+test capture_does_not_consume_source_inflight_or_resource_pending_prefix ... ok
+test terminal_handoff_survives_disposal_and_is_not_overwritten_by_other_subscribers ... ok
+test surface_frame_phase_notifications_do_not_request_another_source_capture ... ok
+test transform_replacement_cannot_escape_capture_origin_and_zero_rect_is_valid ... ok
+test font_and_image_closure_is_exact_and_old_payload_is_owned ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/tc01_graphics_boundary.rs (target/debug/deps/tc01_graphics_boundary-2bea34ecc310d282)
+
+running 2 tests
+test command_recorder_owns_standalone_paint_without_exposing_internal_canvas ... ok
+test figure_paint_failure_blocks_publication_and_preserves_retry_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

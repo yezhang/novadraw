@@ -678,7 +678,7 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
     );
 
     let translucent_style = FigureStyle {
-        alpha: Some(0.5),
+        alpha: Some(novadraw::graphics::Opacity::try_new(0.5).unwrap()),
         ..runtime.tree().figure_style(bordered).unwrap().clone()
     };
     assert!(

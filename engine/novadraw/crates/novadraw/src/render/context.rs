@@ -1266,14 +1266,10 @@ impl NdCanvas {
         Ok(())
     }
 
-    pub fn global_alpha(&mut self, alpha: f64) {
-        let alpha = alpha.clamp(0.0, 1.0);
+    pub fn global_alpha(&mut self, opacity: crate::graphics::Opacity) {
+        let alpha = opacity.get();
         self.state.global_alpha = alpha;
         self.create_command(RenderCommandKind::SetGlobalAlpha { alpha });
-    }
-
-    pub fn set_alpha(&mut self, alpha: f64) {
-        self.global_alpha(alpha);
     }
 
     #[cfg(test)]
@@ -1471,11 +1467,11 @@ mod tests {
         let mut canvas = NdCanvas::new();
 
         canvas.fill_style(Color::rgba(1.0, 0.0, 0.0, 0.8));
-        canvas.global_alpha(0.5);
+        canvas.global_alpha(crate::graphics::Opacity::try_new(0.5).unwrap());
         canvas.fill_rectangle(0.0, 0.0, 10.0, 10.0);
 
         canvas.push_state();
-        canvas.global_alpha(0.25);
+        canvas.global_alpha(crate::graphics::Opacity::try_new(0.25).unwrap());
         canvas.fill_rectangle(0.0, 0.0, 10.0, 10.0);
         canvas.pop_state();
 
@@ -1526,7 +1522,7 @@ mod tests {
             2.0,
         );
 
-        canvas.global_alpha(0.5);
+        canvas.global_alpha(crate::graphics::Opacity::try_new(0.5).unwrap());
         canvas.draw_image(image, 4.0, 5.0);
         canvas.draw_image_with_size(image, 10.0, 20.0, 30.0, 40.0);
 

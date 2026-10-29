@@ -831,9 +831,9 @@ mod tests {
         ];
         for invalid in [
             FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, -1.0, 5.0))),
-            FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            FeedbackVisual::unscaled(Box::new(RectangleFigure::new(0.0, 0.0, f64::NAN, 5.0)))
                 .with_style(FigureStyle {
-                    alpha: Some(f64::NAN),
+                    alpha: Some(novadraw::graphics::Opacity::OPAQUE),
                     ..Default::default()
                 }),
         ] {

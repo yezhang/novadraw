@@ -36,7 +36,9 @@ pub fn make(name: &str) -> (Runtime, FigureId, String) {
             Box::new(
                 FlowPageFigure::new(Rectangle::new(0.0, 0.0, 600.0, 500.0)).with_style(
                     FigureStyle {
-                        font: Some("13px Inter Variable".into()),
+                        font: Some(
+                            novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap(),
+                        ),
                         ..Default::default()
                     },
                 ),

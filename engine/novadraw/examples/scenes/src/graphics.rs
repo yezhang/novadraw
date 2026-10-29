@@ -74,9 +74,9 @@ impl Figure for GraphicsFigure {
             Point::new(480.0, 0.0),
             &[(0.0, RED), (1.0, BLUE.with_alpha(0.0))],
         ));
-        gc.set_opacity(0.5)?;
+        gc.set_opacity(novadraw::graphics::Opacity::try_new(0.5)?)?;
         gc.fill_rect(Rectangle::new(280.0, 30.0, 200.0, 50.0))?;
-        gc.set_opacity(1.0)?;
+        gc.set_opacity(novadraw::graphics::Opacity::OPAQUE)?;
         gc.set_fill_paint(gradient(
             Point::new(520.0, 0.0),
             Point::new(720.0, 0.0),

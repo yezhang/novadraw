@@ -2,7 +2,7 @@
 
 类型：`proposal`
 
-状态：草案，待评审；2026-10-29。决策入口为
+状态：已接受；2026-10-29，S08-A 已获实施批准。决策入口为
 [ADR-056](../../adr/adr-056-detached-input-invariants.md)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
@@ -11,7 +11,7 @@
 本专题定义 S08 的 Figure、Border 和 Style 输入边界。目标来自
 [审计清单](../../verification/checklists/audit-remediation-execution.md#9-p2-s08detached-figure--border--style-输入不变量)
 及 ADR-020／024 的受检值原则。现行样式、盒模型和组件更新契约继续生效；
-本草案待接受后才修改对应正文。
+S08-A 的现行正文随实现更新，其余切片按各自验收更新。
 
 输入处理按发生顺序分为：
 
@@ -26,9 +26,11 @@
 
 ## 已有值与缺口
 
-以下是定向盘点，先确定目标契约，再核对实现；没有据此扩大到全部数值 API。
+以下记录实施前的定向盘点，先确定目标契约，再核对实现；没有据此扩大到全部数值 API。
+S08-A 的现行接口见下一节，验证结果见
+[实施记录](../../verification/reviews/p2-s08-a-implementation-2026-10-29.md)。
 
-| 领域 | 当前事实 | 本次选择 |
+| 领域 | 实施前事实 | 本次选择 |
 |---|---|---|
 | Color | 私有分量；`try_rgba` 拒绝；`rgba` 显式饱和；文本解析返回错误 | 复用，保留 ADR-020 的饱和语义 |
 | Opacity | `animation::Opacity` 私有标量，有限且位于 `[0,1]`，输入错误为 AnimationError | 复用同一类型，迁到 graphics 领域，输入错误脱离动画服务 |
@@ -55,7 +57,7 @@ Color 修复记录见[既有实施记录](../../verification/reviews/core-color-
 
 ## 样式保存领域值
 
-建议公共形状如下，接受前不作为已实现 API：
+S08-A 的公共形状如下：
 
 ```rust
 pub struct FigureStyle {
@@ -92,7 +94,7 @@ weight 可用 `normal`、`bold` 或 `[1,1000]` 数值；重复或冲突的 style
 ## Border 构造保护真实配置
 
 建议构造和更新保留一套名称。现有 `new` 若接受未受检输入则改为 Result；
-不同时保留会 panic 的 new 和受检 try_new。以下签名是草案：
+不同时保留会 panic 的 new 和受检 try_new。以下为后续切片的目标签名：
 
 | 对象／入口 | 返回与校验 |
 |---|---|
@@ -115,6 +117,10 @@ dash、cap、join。数值配置私有，提供只读 getter；Color 等可独�
 现有 BorderStyle 的迁移使用统一 DashPattern；历史 DashDot 映射须明确记录，
 真实 dash-dot 对等能力另按 parity delta 处理，不能借类型迁移宣称已补齐。
 
+迁移保持当前可见描边：Solid 转 Solid，Dash 转 Dash，Dot 转 Dot；
+历史 DashDot 实际按 Dash 绘制，迁移继续使用 Dash。此映射是兼容决定，
+不表示采用了上游完整 dash-dot 行为。
+
 inset 配置区分“随宽度自动生成”与“调用方显式设置”。直接构造与 builder
 默认都采用四侧等于宽度；更新 stroke 时自动 inset 跟随，显式 inset 保持原值。
 只保存配置意图，自动 inset 从 stroke 派生，避免两份可写宽度状态。
@@ -128,6 +134,13 @@ MarginBorder 默认四侧为零。修改单侧也校验整个候选的横纵合�
 共享 Border 不保存 owner 的字体、bounds 或 Runtime。TitleBar 的配置先保证
 二倍 padding 可表示；与实际文字宽高相加时再次检查。不同 owner 的快照独立，
 失败不安装新快照，也不把旧字体快照标为当前成功结果。
+
+Compound 构造只读取每个直接 child 的基础 inset 和 preferred 指标各一次，
+检查同一组值的非负、有限与组合运算；不创建 owner，不解析标题字体，
+也不保留一个供所有 owner 共用的标题测量快照。外部 child 的内部可变状态可能在
+构造后改变，挂载与替换仍须重新准备当前指标。构造成功只证明当次基础候选合法。
+owner 准备读取各 child 的当次快照或基础指标，检查与发布使用同一组值；
+外部回调不能通过前后两次不同返回值绕过校验。
 
 ## 几何按用途校验
 
@@ -193,7 +206,7 @@ BorderInputError 从 figure 的规范领域路径导出，区分非有限字段�
 这里只分类输入字段和错误，不以 enum 封闭第三方 Border 类型。
 
 GraphMutationError／RuntimeMutationError／测量错误按阶段包装这些原因，
-同时保留对象身份；不将所有失败压为 InvalidInitialStyle 或默认尺寸。
+同时保留对象身份，不将所有失败压成不带原因的样式错误或默认尺寸。
 后端错误继续独立分类。原始配置错误可恢复，恢复方式是提交新有效候选。
 S09 的服务 fault、Inspector poison 和订阅所有权不混入本批。
 
@@ -206,9 +219,9 @@ S09 的服务 fault、Inspector poison 和订阅所有权不混入本批。
 | S08-C | Detached Figure 数值入口、初始 inset、组合／owner metrics、外部候选准入 | 同类入口清单、外部 Figure／Border、溢出反例、失败后旧状态与恢复 |
 | S08-D | 全部下游调用与现行文档迁移 | 渲染／布局／damage、Native GPU、产物与最终门禁 |
 
-每片先验证目标契约，再迁移调用点。没有新增实现证据前，草案不能关闭原审计项。
-接受后更新 figure-style、reusable-shape-border、public-api-contract、文字专题、
-ADR-026 的 Opacity 路径及 parity 失败语义；既有 accepted 文档当前只链接本草案。
+每片先验证目标契约，再迁移调用点。关闭原审计项须具备全部切片的实施证据。
+随实现更新 figure-style、reusable-shape-border、public-api-contract、文字专题、
+ADR-026 的 Opacity 路径及 parity 失败语义。
 产品 schema、serializer 与持久化兼容不进入 Core 验收。
 具体反例和检查范围见[验证矩阵](../../verification/plans/p2-s08-detached-input-invariants.md)。
 
@@ -230,7 +243,7 @@ StrokeStyle 含共享 dash 数据，Clone 应复用共享存储；迁移原 Copy
 
 同配置 Native／Wasm 探针记录原始及压缩产物，分别比较默认与
 `--no-default-features` 消费边界，核对字体等首次资源没有新增。
-不预设未经测量的性能或体积阈值；本草案没有产物数据，不据此宣称成本已通过。
+不预设未经测量的性能或体积阈值，各切片在实施记录中登记成本数据和覆盖范围。
 
 ## Draw2D 语义参考
 

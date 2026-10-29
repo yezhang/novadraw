@@ -277,7 +277,7 @@ impl ChannelBinding {
 
 #[derive(Clone, Default)]
 pub(crate) struct FigurePresentationEffect {
-    pub(crate) opacity: Option<f64>,
+    pub(crate) opacity: Option<Opacity>,
     pub(crate) transform: Option<Affine2D>,
     pub(crate) content: Option<FigurePresentation>,
     pub(crate) geometry: super::GeometryPatch,
@@ -287,7 +287,7 @@ pub(crate) struct FigurePresentationEffect {
 pub(crate) struct TemporaryVisualSnapshot {
     pub(crate) id: TemporaryVisualId,
     pub(crate) presentation: FigurePresentation,
-    pub(crate) opacity: f64,
+    pub(crate) opacity: Opacity,
     pub(crate) transform: Affine2D,
 }
 
@@ -308,7 +308,7 @@ impl PresentationSnapshot {
             canvas.push_state();
             let [a, b, c, d, e, f] = visual.transform.coeffs();
             canvas.transform(a, b, c, d, e, f);
-            canvas.set_alpha(visual.opacity);
+            canvas.global_alpha(visual.opacity);
             let mut context = crate::graphics::PaintContext::for_figure(canvas);
             if let Err(error) = visual.presentation.paint(&mut context) {
                 context.canvas.reject_recording(error);
@@ -1021,7 +1021,6 @@ impl AnimationService {
                         .has_override()
                         .then(|| channel.effective::<Opacity>().ok().copied())
                         .flatten()
-                        .map(Opacity::get)
                 })
             });
             let transform = self.figure_channels.get(&figure).and_then(|channels| {
@@ -1079,12 +1078,11 @@ impl AnimationService {
                 Some(TemporaryVisualSnapshot {
                     id,
                     presentation: visual.presentation.clone(),
-                    opacity: self
+                    opacity: *self
                         .channels
                         .get(opacity_channel)?
                         .effective::<Opacity>()
-                        .ok()?
-                        .get(),
+                        .ok()?,
                     transform: *self
                         .channels
                         .get(transform_channel)?
@@ -1257,7 +1255,6 @@ impl AnimationService {
                 .get(channels.opacity)
                 .and_then(|channel| channel.effective::<Opacity>().ok())
                 .copied()
-                .map(Opacity::get)
             else {
                 continue;
             };
@@ -1278,7 +1275,7 @@ impl AnimationService {
             state.insert(
                 DamageSubject::Figure(figure),
                 DamageSubjectState::Figure {
-                    opacity,
+                    opacity: opacity.get(),
                     transform,
                     content_revision,
                     envelope: tree.presentation_envelope(figure, transform),
@@ -1299,7 +1296,6 @@ impl AnimationService {
                 .get(opacity_channel)
                 .and_then(|channel| channel.effective::<Opacity>().ok())
                 .copied()
-                .map(Opacity::get)
             else {
                 continue;
             };
@@ -1314,7 +1310,7 @@ impl AnimationService {
             state.insert(
                 DamageSubject::Temporary(id),
                 DamageSubjectState::Temporary {
-                    opacity,
+                    opacity: opacity.get(),
                     transform,
                     envelope: transformed_envelope(transform, visual.presentation.visual_bounds()),
                     active: visual.owner.is_some(),
@@ -2929,7 +2925,7 @@ impl AnimationMut<'_> {
         }
         let opacity = self.tree.resolved_style(figure)?.alpha;
         let opacity = self.service.channels.insert(ChannelState::new_bound(
-            Opacity::try_new(opacity)?,
+            opacity,
             ChannelBinding::FigureOpacity(figure),
         ));
         let transform = self.service.channels.insert(ChannelState::new_bound(

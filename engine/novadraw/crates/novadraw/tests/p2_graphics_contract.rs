@@ -225,7 +225,9 @@ fn paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients() {
         let mut context = recorder.paint();
         context.set_fill_paint(paint.clone());
         context.set_stroke_paint(paint.clone());
-        context.set_opacity(0.5).unwrap();
+        context
+            .set_opacity(novadraw::graphics::Opacity::try_new(0.5).unwrap())
+            .unwrap();
         context.push_state();
         context.set_fill_paint(Color::BLACK);
         context

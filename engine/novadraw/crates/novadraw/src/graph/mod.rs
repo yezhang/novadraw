@@ -118,7 +118,6 @@ pub enum GraphMutationError {
     SceneAdmission(crate::scene::SceneAdmissionError),
     FigureNotFound(FigureId),
     InvalidInitialBounds,
-    InvalidInitialStyle,
     CapabilityRegistration(FigureCapabilityRegistrationError),
     ParentNotFound,
     ChildNotFound,
@@ -150,7 +149,6 @@ impl fmt::Display for GraphMutationError {
             Self::InvalidInitialBounds => {
                 write!(f, "Figure initial bounds must be finite and non-negative")
             }
-            Self::InvalidInitialStyle => write!(f, "Figure alpha must be finite"),
             Self::CapabilityRegistration(error) => error.fmt(f),
             Self::ParentNotFound => write!(f, "parent Figure does not exist"),
             Self::ChildNotFound => write!(f, "child Figure does not exist"),
@@ -3794,7 +3792,7 @@ mod tests {
         scene.set_figure_style(
             first,
             FigureStyle {
-                alpha: Some(0.25),
+                alpha: Some(crate::graphics::Opacity::try_new(0.25).unwrap()),
                 ..FigureStyle::default()
             },
         );
@@ -4012,8 +4010,8 @@ mod tests {
             FigureStyle {
                 foreground: Some(foreground),
                 background: None,
-                alpha: Some(0.75),
-                font: Some("18px serif".to_string()),
+                alpha: Some(crate::graphics::Opacity::try_new(0.75).unwrap()),
+                font: Some(crate::text::FontDescriptor::parse("18px serif").unwrap()),
                 cursor: Some(CursorIcon::Pointer),
                 tooltip: None,
                 layout_direction: None,
@@ -4037,8 +4035,8 @@ mod tests {
             Ok(ResolvedStyle {
                 foreground,
                 background,
-                alpha: 0.75,
-                font: "18px serif".to_string(),
+                alpha: crate::graphics::Opacity::try_new(0.75).unwrap(),
+                font: crate::text::FontDescriptor::parse("18px serif").unwrap(),
                 cursor: CursorIcon::Pointer,
                 tooltip: Some("child".to_string()),
                 layout_direction: crate::figure::LayoutDirection::default(),
@@ -4053,7 +4051,7 @@ mod tests {
         scene.set_figure_style(
             parent,
             FigureStyle {
-                alpha: Some(0.5),
+                alpha: Some(crate::graphics::Opacity::try_new(0.5).unwrap()),
                 ..FigureStyle::default()
             },
         );
@@ -4116,7 +4114,7 @@ mod tests {
         scene.set_figure_style(
             parent,
             FigureStyle {
-                alpha: Some(0.25),
+                alpha: Some(crate::graphics::Opacity::try_new(0.25).unwrap()),
                 ..FigureStyle::default()
             },
         );
@@ -4129,7 +4127,7 @@ mod tests {
         scene.set_figure_style(
             child,
             FigureStyle {
-                alpha: Some(1.0),
+                alpha: Some(crate::graphics::Opacity::OPAQUE),
                 ..FigureStyle::default()
             },
         );
@@ -4179,7 +4177,7 @@ mod tests {
             parent,
             FigureStyle {
                 foreground: Some(NovadrawCoreColor::WHITE),
-                font: Some("16px sans-serif".to_string()),
+                font: Some(crate::text::FontDescriptor::parse("16px sans-serif").unwrap()),
                 cursor: Some(CursorIcon::Crosshair),
                 tooltip: Some(Some("container".to_string())),
                 ..FigureStyle::default()

@@ -223,7 +223,9 @@ impl Figure for Sample {
     }
     fn paint(&self, context: &mut PaintContext<'_>, _: Rectangle) -> Result<(), GraphicsError> {
         context.set_antialias(self.style.aa);
-        context.set_opacity(f64::from(self.style.alpha) / 255.0)?;
+        context.set_opacity(novadraw::graphics::Opacity::try_new(
+            f64::from(self.style.alpha) / 255.0,
+        )?)?;
         context.set_stroke_style(self.style.stroke());
         if self.style.enabled {
             context.set_fill_paint(Color::rgba(1.0, 200.0 / 255.0, 0.0, 1.0));

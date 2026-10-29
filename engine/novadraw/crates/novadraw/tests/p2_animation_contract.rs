@@ -8,8 +8,8 @@ use novadraw::{
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         AnimationSuppression, AnimationValue, Decay, Easing, InteractionGeometryPolicy,
-        InterruptionPolicy, Keyframe, Keyframes, Motion, Opacity, Procedural, RepeatBehavior,
-        Spring, SuspensionPolicy, Tween,
+        InterruptionPolicy, Keyframe, Keyframes, Motion, Procedural, RepeatBehavior, Spring,
+        SuspensionPolicy, Tween,
     },
     event::MonotonicTime,
     figure::FigureMeasurement,
@@ -18,7 +18,7 @@ use novadraw::{
     geometry::Affine2D,
     geometry::Dimension,
     geometry::Rectangle,
-    graphics::Color,
+    graphics::{Color, Opacity},
     graphics::{GraphicsError, PaintContext},
     render::{BackendCapabilities, Paint, RenderCommandKind, RenderDisposition, SurfaceInfo},
     runtime::Runtime,
@@ -1134,7 +1134,10 @@ fn figure_opacity_and_transform_are_presentation_only() {
         runtime.tree().figure_bounds(figure),
         Ok(Rectangle::new(20.0, 30.0, 40.0, 20.0))
     );
-    assert_eq!(runtime.tree().resolved_style(figure).unwrap().alpha, 1.0);
+    assert_eq!(
+        runtime.tree().resolved_style(figure).unwrap().alpha,
+        Opacity::OPAQUE
+    );
 
     runtime.animation().advance_time(time(50)).unwrap();
     let frame = record_full_submission(&mut runtime);

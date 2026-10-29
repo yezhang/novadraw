@@ -418,7 +418,7 @@ fn add_text(runtime: &mut Runtime, parent: FigureId, text: &str, y: f64, font: &
         .expect("control label")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some(font.to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse(font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("control label style");

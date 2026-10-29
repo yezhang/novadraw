@@ -94,16 +94,17 @@ Vello 只需让新 RenderBackend 消费相同的 glyph command；两者互不依
 
 ```rust
 pub struct FontDescriptor {
-    pub family: String,
-    pub size: f32,
-    pub weight: FontWeight,
-    pub style: FontStyle,
+    // 私有字段；通过 family()/size()/weight()/style() 查询。
 }
 ```
 
-现有 `FigureStyle.font: Option<String>` 在迁移期作为兼容输入解析为
-`FontDescriptor`。默认 `12px sans-serif` 保持不变。解析失败返回结构化错误，不静默
-退回不同字体。
+`FigureStyle.font` 保存 `Option<text::FontDescriptor>`，默认 descriptor 为
+12px Inter Variable。原始文本在入口调用 `FontDescriptor::parse`，解析失败返回
+TextError；继承、测量和绘制不再重复解析。
+
+文本使用完整的空白分隔 token：可选 style／weight、正有限的 `sizepx`、非空
+family。weight 为 normal、bold 或 `[1,1000]` 的数值，重复或冲突 token 拒绝。
+Unicode family 保持完整；未知 family 仍按字体集合的既有匹配与 fallback 处理。
 
 `FontId` 继续表示应用注册的字体资源。字体描述和资源身份职责不同：
 

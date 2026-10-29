@@ -29,8 +29,8 @@ NodeState.opaque  = 当前节点局部的绘制覆盖承诺，不继承
 
 - foreground：黑色；
 - background：透明；
-- alpha：1.0；
-- font：`12px sans-serif`；
+- alpha：`graphics::Opacity::OPAQUE`；
+- font：`text::FontDescriptor::default()`，12px Inter Variable；
 - cursor：Default；
 - tooltip：None。
 
@@ -84,6 +84,12 @@ NodeState 或让状态泄漏到 sibling。
 - tooltip 局部值使用三态表达继承、显式关闭和本地文本；
 - 字体在本阶段使用稳定描述值，资源解析和异步加载由 ResourceRegistry 承担；
 - style 不包含 selection、hover、pressed 或业务状态。
+
+按 [ADR-056](../../adr/adr-056-detached-input-invariants.md)，alpha 保存
+`Option<graphics::Opacity>`，font 保存 `Option<text::FontDescriptor>`；
+ResolvedStyle 使用相同领域值。原始标量和文本先受检，再组装样式，覆盖和继承
+不再 clamp 或重新解析。字段之间没有组合不变量，仍可独立替换。
+安装有效样式继续返回 RuntimeMutationError，以报告身份、fault 和发布失败。
 
 布局方向独立于段落方向和 AffineTransform，契约见
 [ADR-048](../../adr/adr-048-inherited-layout-direction.md)。

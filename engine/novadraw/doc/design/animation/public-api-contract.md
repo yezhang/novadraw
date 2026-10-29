@@ -135,6 +135,10 @@ Track<V>
 `V` 必须是受检的 backend-neutral 值。Core 首批提供 Color、标量、Point、
 Dimension、Rectangle、Affine2D、opacity 和受控 paint/route 值。
 
+Opacity 的唯一公开导入为 `graphics::Opacity`（[ADR-056](../../adr/adr-056-detached-input-invariants.md)）。
+动画实现该值的 AnimationValue 消费协议，原始值构造返回 GraphicsInputError；
+动画入口包装该错误并保留 source，不另设动画专属透明度类型。
+
 每个 target 在 admission 后解析为：
 
 ```text

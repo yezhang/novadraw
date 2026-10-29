@@ -1,0 +1,14 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m Documenting[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m Documenting[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m Documenting[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 35.10s
+[1m[92m   Generated[0m ]8;;file://JW6LVY3705/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/public-api/doc/novadraw/index.html\/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/public-api/doc/novadraw/index.html]8;;\ and 2 other files
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m Documenting[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m Documenting[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m Documenting[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 17.51s
+[1m[92m   Generated[0m ]8;;file://JW6LVY3705/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/public-api/wasm32-unknown-unknown/doc/novadraw/index.html\/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/public-api/wasm32-unknown-unknown/doc/novadraw/index.html]8;;\ and 2 other files
+PASS architecture boundaries, Kurbo 0.13.1, and Runtime methods 28/28

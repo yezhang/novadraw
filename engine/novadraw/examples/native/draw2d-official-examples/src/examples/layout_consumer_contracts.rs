@@ -29,7 +29,7 @@ fn text_fixture(layout: Box<dyn LayoutManager>, grid: bool) -> (Runtime, FigureI
         .figure(root)
         .unwrap()
         .set_style(FigureStyle {
-            font: Some("16px Inter".into()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
             ..FigureStyle::default()
         })
         .unwrap();

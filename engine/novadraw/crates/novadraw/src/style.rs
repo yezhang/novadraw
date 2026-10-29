@@ -1,6 +1,4 @@
-use crate::Color;
-
-pub const DEFAULT_FONT_DESCRIPTOR: &str = "12px Inter Variable";
+use crate::{Color, graphics::Opacity, text::FontDescriptor};
 
 /// Container layout context, independent of paragraph direction and affine transforms.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -37,8 +35,8 @@ pub struct FigureStyle {
     pub layout_direction: Option<LayoutDirection>,
     pub foreground: Option<Color>,
     pub background: Option<Color>,
-    pub alpha: Option<f64>,
-    pub font: Option<String>,
+    pub alpha: Option<Opacity>,
+    pub font: Option<FontDescriptor>,
     pub cursor: Option<CursorIcon>,
     /// None inherits; Some(None) suppresses; Some(Some(text)) sets local content.
     pub tooltip: Option<Option<String>>,
@@ -50,8 +48,8 @@ pub struct ResolvedStyle {
     pub layout_direction: LayoutDirection,
     pub foreground: Color,
     pub background: Color,
-    pub alpha: f64,
-    pub font: String,
+    pub alpha: Opacity,
+    pub font: FontDescriptor,
     pub cursor: CursorIcon,
     pub tooltip: Option<String>,
 }
@@ -62,8 +60,8 @@ impl Default for ResolvedStyle {
             layout_direction: LayoutDirection::default(),
             foreground: Color::BLACK,
             background: Color::TRANSPARENT,
-            alpha: 1.0,
-            font: DEFAULT_FONT_DESCRIPTOR.to_string(),
+            alpha: Opacity::OPAQUE,
+            font: FontDescriptor::default(),
             cursor: CursorIcon::Default,
             tooltip: None,
         }
@@ -82,7 +80,7 @@ impl ResolvedStyle {
             self.background = background;
         }
         if let Some(alpha) = style.alpha {
-            self.alpha = alpha.clamp(0.0, 1.0);
+            self.alpha = alpha;
         }
         if let Some(font) = &style.font {
             self.font.clone_from(font);

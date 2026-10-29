@@ -1073,7 +1073,7 @@ fn add_control_label(runtime: &mut Runtime, control: FigureId, text: &str, width
         .expect("control label")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("control label style");
@@ -1092,7 +1092,7 @@ fn add_text_value(runtime: &mut Runtime, control: FigureId, text: &str, width: f
         .expect("control value")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some("13px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("13px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("control value style");

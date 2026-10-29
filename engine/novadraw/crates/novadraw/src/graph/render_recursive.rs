@@ -109,7 +109,7 @@ impl<'a> FigureRenderer<'a> {
         let bounds = node.figure_bounds();
         self.gc.set_foreground_color(style.foreground);
         self.gc.set_background_color(style.background);
-        self.gc.set_alpha(style.alpha);
+        self.gc.global_alpha(style.alpha);
         self.gc.set_font(font);
         self.gc.clip_rect(0.0, 0.0, rect.width, rect.height);
         self.gc.translate(-rect.x - bounds.x, -rect.y - bounds.y);
@@ -164,11 +164,11 @@ impl<'a> FigureRenderer<'a> {
             self.gc.set_background_color(background);
         }
         if let Some(alpha) = style.alpha {
-            self.gc.set_alpha(alpha);
+            self.gc.global_alpha(alpha);
         }
         let presentation = self.scene.presentation(figure_id);
         if let Some(alpha) = presentation.as_ref().and_then(|effect| effect.opacity) {
-            self.gc.set_alpha(alpha);
+            self.gc.global_alpha(alpha);
         }
         self.gc.translate(bounds.x, bounds.y);
         let local_transform = self

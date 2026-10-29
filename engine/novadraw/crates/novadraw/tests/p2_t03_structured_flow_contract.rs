@@ -27,7 +27,7 @@ fn fixture(width: f64) -> (Runtime, FigureId) {
     let page = runtime
         .set_contents(Box::new(
             FlowPageFigure::new(Rectangle::new(0.0, 0.0, width, 400.0)).with_style(FigureStyle {
-                font: Some("16px Inter".into()),
+                font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
                 ..FigureStyle::default()
             }),
         ))
@@ -354,7 +354,7 @@ fn source_identity_styles_baselines_and_cross_node_selection_share_snapshot() {
         &mut runtime,
         block,
         InlineFlowFigure::new().with_style(FigureStyle {
-            font: Some("30px Inter".into()),
+            font: Some(novadraw::text::FontDescriptor::parse("30px Inter").unwrap()),
             foreground: Some(Color::RED),
             ..FigureStyle::default()
         }),

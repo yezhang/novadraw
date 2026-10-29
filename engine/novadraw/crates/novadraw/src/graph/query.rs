@@ -374,7 +374,7 @@ impl FigureTree {
         Ok(block
             .figure
             .get_border()
-            .map(|border| border.is_opaque() && style.alpha >= 1.0))
+            .map(|border| border.is_opaque() && style.alpha == crate::graphics::Opacity::OPAQUE))
     }
 
     pub fn figure_style(&self, id: FigureId) -> Result<&FigureStyle, TreeQueryError> {

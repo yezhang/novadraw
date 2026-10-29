@@ -16,6 +16,8 @@ use crate::{Point, Rectangle, ResourceId};
 const DEFAULT_FONT_FAMILY: &str = "Inter Variable";
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const DEFAULT_FONT_WEIGHT: f32 = 400.0;
+// Decimal f32 size, numeric weight, style tokens and separators fit within this bound.
+pub(crate) const FONT_DESCRIPTOR_PREFIX_CAPACITY: usize = 80;
 const FNV_1A_64_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_1A_64_PRIME: u64 = 0x0000_0100_0000_01b3;
 const INTER_FONT: &[u8] = include_bytes!("../../../../assets/fonts/InterVariable.ttf");
@@ -60,7 +62,7 @@ impl BuiltinFont {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum FontStyle {
     #[default]
     Normal,
@@ -68,12 +70,42 @@ pub enum FontStyle {
     Oblique,
 }
 
+/// Validated font request. Text parsing belongs to the application input boundary.
+/// ```compile_fail
+/// let style = novadraw::figure::FigureStyle {
+///     font: Some("12px Inter".to_string()),
+///     ..Default::default()
+/// };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDescriptor {
     pub(crate) family: String,
     pub(crate) size: f32,
     pub(crate) weight: f32,
     pub(crate) style: FontStyle,
+}
+
+impl Eq for FontDescriptor {}
+impl fmt::Display for FontDescriptor {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.style {
+            FontStyle::Normal => {}
+            FontStyle::Italic => out.write_str("italic ")?,
+            FontStyle::Oblique => out.write_str("oblique ")?,
+        }
+        if self.weight != DEFAULT_FONT_WEIGHT {
+            write!(out, "{} ", self.weight)?;
+        }
+        write!(out, "{}px {}", self.size, self.family)
+    }
+}
+impl std::hash::Hash for FontDescriptor {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.family.hash(state);
+        self.size.to_bits().hash(state);
+        self.weight.to_bits().hash(state);
+        self.style.hash(state);
+    }
 }
 
 impl Default for FontDescriptor {
@@ -124,39 +156,53 @@ impl FontDescriptor {
 
     pub fn parse(value: &str) -> Result<Self, TextError> {
         let value = value.trim();
-        let Some(size_start) = value.find(|character: char| character.is_ascii_digit()) else {
-            return Err(TextError::InvalidFontDescriptor(value.to_string()));
-        };
-        let before_size = value[..size_start].trim();
-        let size_and_family = &value[size_start..];
-        let Some(px_end) = size_and_family.find("px") else {
-            return Err(TextError::InvalidFontDescriptor(value.to_string()));
-        };
-        let size = size_and_family[..px_end]
-            .trim()
-            .parse::<f32>()
-            .map_err(|_| TextError::InvalidFontDescriptor(value.to_string()))?;
-        let family = size_and_family[px_end + 2..].trim();
-        if family.is_empty() {
-            return Err(TextError::InvalidFontDescriptor(value.to_string()));
-        }
-
-        let mut descriptor = Self::new(family, size)?;
-        for token in before_size.split_whitespace() {
+        let invalid = || TextError::InvalidFontDescriptor(value.to_string());
+        let mut remaining = value;
+        let mut style = None;
+        let mut weight = None;
+        loop {
+            remaining = remaining.trim_start();
+            if remaining.is_empty() {
+                return Err(invalid());
+            }
+            let end = remaining
+                .find(char::is_whitespace)
+                .unwrap_or(remaining.len());
+            let token = &remaining[..end];
+            remaining = &remaining[end..];
+            if let Some(size) = token.strip_suffix("px") {
+                let descriptor = Self {
+                    family: remaining.trim().to_string(),
+                    size: size.parse::<f32>().map_err(|_| invalid())?,
+                    weight: weight.unwrap_or(DEFAULT_FONT_WEIGHT),
+                    style: style.unwrap_or_default(),
+                };
+                descriptor.validate()?;
+                return Ok(descriptor);
+            }
             match token {
-                "normal" => {}
-                "italic" => descriptor.style = FontStyle::Italic,
-                "oblique" => descriptor.style = FontStyle::Oblique,
-                "bold" => descriptor.weight = 700.0,
+                "italic" | "oblique" => {
+                    if style.is_some() {
+                        return Err(invalid());
+                    }
+                    style = Some(if token == "italic" {
+                        FontStyle::Italic
+                    } else {
+                        FontStyle::Oblique
+                    });
+                }
                 token => {
-                    descriptor.weight = token
-                        .parse::<f32>()
-                        .map_err(|_| TextError::InvalidFontDescriptor(value.to_string()))?;
+                    if weight.is_some() {
+                        return Err(invalid());
+                    }
+                    weight = Some(match token {
+                        "normal" => DEFAULT_FONT_WEIGHT,
+                        "bold" => 700.0,
+                        _ => token.parse::<f32>().map_err(|_| invalid())?,
+                    });
                 }
             }
         }
-        descriptor.validate()?;
-        Ok(descriptor)
     }
 
     fn validate(&self) -> Result<(), TextError> {
@@ -2315,7 +2361,7 @@ mod tests {
             .unwrap();
         let mut canvas = crate::NdCanvas::new();
         canvas.fill_style(Color::rgba(0.2, 0.4, 0.6, 0.8));
-        canvas.global_alpha(0.5);
+        canvas.global_alpha(crate::graphics::Opacity::try_new(0.5).unwrap());
         canvas.fill_text_layout(&layout, 10.0, 20.0);
 
         let commands = canvas.commands();

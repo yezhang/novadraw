@@ -1059,9 +1059,7 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
     let Ok(style) = runtime.tree().resolved_style(snapshot.source) else {
         return Vec::new();
     };
-    let Ok(font) = FontDescriptor::parse(&style.font) else {
-        return Vec::new();
-    };
+    let font = style.font;
     let Ok(layout) = runtime
         .text()
         .layout(&snapshot.text, &font, TextConstraints::UNBOUNDED)
@@ -1088,7 +1086,9 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         paint
             .set_transform(novadraw::geometry::Affine2D::IDENTITY)
             .expect("identity transform is valid");
-        paint.set_opacity(1.0).expect("opaque alpha is valid");
+        paint
+            .set_opacity(novadraw::graphics::Opacity::OPAQUE)
+            .expect("opaque alpha is valid");
         paint.set_fill_paint(TOOLTIP_BORDER);
         paint.fill_rect(bounds).expect("tooltip bounds are valid");
         paint.set_fill_paint(TOOLTIP_BACKGROUND);
@@ -1507,7 +1507,7 @@ mod tests {
                 .figure(root)
                 .unwrap()
                 .set_style(FigureStyle {
-                    font: Some("15px Inter Variable".to_string()),
+                    font: Some(FontDescriptor::parse("15px Inter Variable").unwrap()),
                     tooltip: Some(Some("Native tooltip".to_string())),
                     ..FigureStyle::default()
                 },)

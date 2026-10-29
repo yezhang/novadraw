@@ -104,21 +104,21 @@ fn ordered_replacements_clear_local_values_and_resume_inheritance() {
 }
 
 #[test]
-fn invalid_alpha_rejects_sync_and_deferred_style_without_changing_previous_value() {
-    for alpha in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+fn invalid_alpha_is_rejected_before_style_mutation_and_deferred_recovery_succeeds() {
+    for alpha in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.1, 1.1] {
         let style = FigureStyle {
-            alpha: Some(alpha),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.5).unwrap()),
             ..FigureStyle::default()
         };
         let (mut runtime, target, _) = fixture(vec![style.clone()]);
         let before = runtime.tree().figure_style(target).unwrap().clone();
-        assert!(runtime.figure(target).unwrap().set_style(style).is_err());
+        assert!(novadraw::graphics::Opacity::try_new(alpha).is_err());
         assert_eq!(runtime.tree().figure_style(target).unwrap(), &before);
         runtime
             .input()
             .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);
-        assert_eq!(runtime.tree().figure_style(target).unwrap(), &before);
-        assert_eq!(runtime.take_deferred_mutation_errors().len(), 1);
+        assert_eq!(runtime.tree().figure_style(target).unwrap(), &style);
+        assert!(runtime.take_deferred_mutation_errors().is_empty());
         assert!(!runtime.is_faulted());
     }
 }

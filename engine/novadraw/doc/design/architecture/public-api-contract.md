@@ -131,6 +131,12 @@ Point 表示位置，Vec2 表示位移，Dimension 表示尺寸，Rectangle 表�
 | frame/backend | 保留 Idle/Suspended/AwaitingCompletion/Error 和完整确认/恢复分类 |
 | 扩展 panic | 进入 fault 边界；不声称回滚私有 interior mutation 或外部副作用 |
 
+[ADR-056](../../adr/adr-056-detached-input-invariants.md) 的样式边界使用
+`graphics::Opacity` 与 `text::FontDescriptor`，原始输入在构造时受检。
+`Graphics::set_opacity` 安装同一个 Opacity；动画通道也消费此值，旧
+`animation::Opacity` 路径退出。GraphicsInputError 保留非有限／越界原因，
+动画原始输入入口经 AnimationError 的 source 传播。
+
 查询的目标合同以 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
 为准。P2-S07 的布局测量、五个坐标入口和 Route 身份切片已经迁移 Result；
 Tree 结构、状态、关系、专用可选查询与 workspace 消费者也已迁移。

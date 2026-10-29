@@ -221,7 +221,7 @@ pub(crate) struct PreparationKey {
     pub component: u64,
     pub provider: u64,
     pub text: u64,
-    pub font: String,
+    pub font: crate::text::FontDescriptor,
     pub bounds: Rectangle,
 }
 

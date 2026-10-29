@@ -417,7 +417,7 @@ mod tests {
             .figure(id)
             .unwrap()
             .set_style(novadraw::figure::FigureStyle {
-                font: Some("24px Inter Variable".into()),
+                font: Some(novadraw::text::FontDescriptor::parse("24px Inter Variable").unwrap()),
                 ..Default::default()
             })
             .unwrap();

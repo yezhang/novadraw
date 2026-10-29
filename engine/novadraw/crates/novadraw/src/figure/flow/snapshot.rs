@@ -1419,7 +1419,7 @@ mod measurement_tests {
                         })
                         .unwrap()
                         .with_style(FigureStyle {
-                            font: Some("16px Inter".into()),
+                            font: Some(crate::text::FontDescriptor::parse("16px Inter").unwrap()),
                             ..FigureStyle::default()
                         })
                         .with_fragment_border(MeasuredBorder(calls.clone())),

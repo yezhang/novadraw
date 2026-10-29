@@ -50,7 +50,9 @@ fn image_region_records_source_pixels_destination_and_alpha() {
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
-        context.set_opacity(0.5).unwrap();
+        context
+            .set_opacity(novadraw::graphics::Opacity::try_new(0.5).unwrap())
+            .unwrap();
         assert_eq!(
             context.draw_image_region(
                 ImageRegion::new(image(), Rectangle::new(10.0, 5.0, 20.0, 10.0))
@@ -152,7 +154,9 @@ fn image_region_zero_extent_and_zero_alpha_are_noops() {
         ),
         Ok(())
     );
-    context.set_opacity(0.0).unwrap();
+    context
+        .set_opacity(novadraw::graphics::Opacity::TRANSPARENT)
+        .unwrap();
     let command_count = 1;
     assert_eq!(
         context.draw_image_region(

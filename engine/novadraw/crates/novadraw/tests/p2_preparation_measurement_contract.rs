@@ -331,7 +331,7 @@ fn text_fixture(figure: impl Figure + 'static) -> (Runtime, FigureId, Measuremen
         .figure(root)
         .unwrap()
         .set_style(novadraw::figure::FigureStyle {
-            font: Some("16px Inter".into()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter").unwrap()),
             ..Default::default()
         })
         .unwrap();

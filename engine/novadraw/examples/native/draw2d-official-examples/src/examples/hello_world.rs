@@ -39,7 +39,7 @@ pub fn hello_world() -> Runtime {
         .expect("HelloWorld label")
         .set_style(FigureStyle {
             foreground: Some(Color::BLACK),
-            font: Some("16px Inter Variable".to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse("16px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("HelloWorld label style");

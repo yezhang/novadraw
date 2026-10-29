@@ -16,6 +16,7 @@ pub enum GraphicsInputError {
         index: Option<usize>,
     },
     NegativeStrokeWidth,
+    OpacityOutOfRange,
     InvalidMiterLimit,
     EmptyDashPattern,
     InvalidDashLength {
@@ -56,6 +57,7 @@ impl fmt::Display for GraphicsInputError {
         match self {
             Self::NonFinite { field, index } => write!(f, "{field} at {index:?} must be finite"),
             Self::NegativeStrokeWidth => f.write_str("stroke width must be non-negative"),
+            Self::OpacityOutOfRange => f.write_str("opacity must be in [0, 1]"),
             Self::InvalidMiterLimit => f.write_str("miter limit must be non-negative"),
             Self::EmptyDashPattern => f.write_str("custom dash pattern must not be empty"),
             Self::InvalidDashLength { index } => {

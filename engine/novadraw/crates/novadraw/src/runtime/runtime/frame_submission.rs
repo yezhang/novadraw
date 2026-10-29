@@ -12,8 +12,9 @@ use crate::FigureId;
 use crate::animation::{
     AnimationChannel, AnimationPlan, AnimationStart, AnimationSuppression,
     AnimationTransactionError, AnimationValue, BoundsTransition, ConnectionRouteTransition,
-    FigureTransitionCapture, InteractionGeometryPolicy, Motion, Opacity, Tween, ViewportTransition,
+    FigureTransitionCapture, InteractionGeometryPolicy, Motion, Tween, ViewportTransition,
 };
+use crate::graphics::Opacity;
 use crate::{Affine2D, PointList, Rectangle, ViewportHandle, figure::FigurePresentation};
 
 struct CapturedConnectionRoute {

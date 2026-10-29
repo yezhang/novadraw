@@ -25,8 +25,8 @@ fn fixture() -> (Runtime, FigureId, FigureId, FigureId) {
         .set_style(FigureStyle {
             foreground: Some(Color::RED),
             background: Some(Color::WHITE),
-            alpha: Some(0.5),
-            font: Some("20px Inter Variable".into()),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.5).unwrap()),
+            font: Some(novadraw::text::FontDescriptor::parse("20px Inter Variable").unwrap()),
             ..Default::default()
         })
         .unwrap();
@@ -44,7 +44,7 @@ fn fixture() -> (Runtime, FigureId, FigureId, FigureId) {
         .figure(child)
         .unwrap()
         .set_style(FigureStyle {
-            alpha: Some(0.8),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.8).unwrap()),
             ..Default::default()
         })
         .unwrap();
@@ -81,8 +81,11 @@ fn capture_freezes_root_local_domain_and_nearest_inherited_alpha() {
     assert!(!runtime.scenes().needs_capture(subscription).unwrap());
     assert_eq!(snapshot.source_rectangle(), rect);
     assert_eq!(snapshot.config_revision(), config);
-    assert_eq!(snapshot.resolved_style().alpha, 0.5);
-    assert_eq!(snapshot.resolved_style().font, "20px Inter Variable");
+    assert_eq!(snapshot.resolved_style().alpha.get(), 0.5);
+    assert_eq!(
+        snapshot.resolved_style().font,
+        novadraw::text::FontDescriptor::parse("20px Inter Variable").unwrap()
+    );
     let commands = snapshot.drawing().commands();
     assert!(commands.iter().any(|c| matches!(c.kind, RenderCommandKind::Clip { rect: r } if r == Rectangle::new(0.0, 0.0, 150.0, 70.0))));
     let paints: Vec<_> = commands
@@ -131,14 +134,14 @@ fn config_only_capture_keeps_source_epoch_and_replaces_pending_candidate() {
         .figure(ancestor)
         .unwrap()
         .set_style(FigureStyle {
-            alpha: Some(0.25),
+            alpha: Some(novadraw::graphics::Opacity::try_new(0.25).unwrap()),
             ..Default::default()
         })
         .unwrap();
     assert!(runtime.scenes().needs_capture(subscription).unwrap());
     let third = runtime.scenes().capture(subscription).unwrap();
     assert!(third.stable_source_epoch() > second.stable_source_epoch());
-    assert_eq!(third.resolved_style().alpha, 0.25);
+    assert_eq!(third.resolved_style().alpha.get(), 0.25);
     let Some(SceneEvent::Ready(latest)) = handoff.take().unwrap() else {
         panic!("latest complete candidate");
     };
@@ -489,8 +492,8 @@ impl Figure for RejectPaint {
     fn name(&self) -> &'static str {
         "ExternalRejectPaint"
     }
-    fn paint(&self, _: &mut PaintContext<'_>, _: Rectangle) -> Result<(), GraphicsError> {
-        Err(GraphicsError::InvalidOpacity)
+    fn paint(&self, context: &mut PaintContext<'_>, _: Rectangle) -> Result<(), GraphicsError> {
+        context.set_stroke_width(-1.0)
     }
 }
 
@@ -530,7 +533,9 @@ fn recording_error_isolated_from_other_capture_but_main_frame_still_rejects() {
         .unwrap();
     assert_eq!(
         runtime.scenes().capture(bad),
-        Err(SceneError::Graphics(GraphicsError::InvalidOpacity))
+        Err(SceneError::Graphics(GraphicsError::Input(
+            novadraw::graphics::GraphicsInputError::NegativeStrokeWidth
+        )))
     );
     runtime.scenes().capture(good).unwrap();
     assert!(matches!(

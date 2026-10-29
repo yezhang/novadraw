@@ -1,0 +1,186 @@
+{
+  "native_toolchain": "rustc 1.96.0",
+  "wasm_toolchain": "rustc 1.99.1 (stable)",
+  "profile": "release opt-level=s lto=true codegen-units=1 panic=abort strip=true",
+  "consumer": "tests/consumers/style-input",
+  "native_before": {
+    "raw_bytes": 2095296,
+    "gzip_bytes": 940843,
+    "sha256": "2966ea53069308383e7abb2ebf0bebccea8308f57da120d53cc61fef3293e077"
+  },
+  "native_before_no_default": {
+    "raw_bytes": 2095296,
+    "gzip_bytes": 940668,
+    "sha256": "dd00c23887f926acfc9addd4f1038bf2c14b6da90ef3beeae7ab2a395c25b2e2"
+  },
+  "wasm_before": {
+    "raw_bytes": 2119035,
+    "gzip_bytes": 708136,
+    "sha256": "e1135aa9b6a47f215cf80e03ef7af29512c5f83fb2d7103d6db50d6718f97bf3"
+  },
+  "wasm_after": {
+    "raw_bytes": 2121452,
+    "gzip_bytes": 708464,
+    "sha256": "7459783e1f34fbe43b311449ef743bd86171fe1cd5c3dbcc3276d23d2d175e99"
+  },
+  "native_after": {
+    "raw_bytes": 1959216,
+    "gzip_bytes": 945019,
+    "sha256": "74363dcab4e866d5eb2de0e9969e7e00723f88cd009cc173a51cb8d4b6d08d91"
+  },
+  "wasm_after_no_default": {
+    "raw_bytes": 2121470,
+    "gzip_bytes": 708474,
+    "sha256": "2cb3828f48018d73e9b4e6af711f65308a2a451b340bf3ade97c212317de7ae9"
+  },
+  "native_after_no_default": {
+    "raw_bytes": 1959200,
+    "gzip_bytes": 944613,
+    "sha256": "4efa2db44d2e13a5a96732fd7dea67978cce0757d3c4d5e1c02ad13ccf188e9e"
+  },
+  "consumer_lock_sha256": "d90d42d26bf06544ace08412ccbb1ed01b786d904700312c72a1d298288941a0",
+  "cost_before": {
+    "samples": 101,
+    "updates_per_sample": 120,
+    "nodes": 2,
+    "p50_ns": 155250,
+    "p95_ns": 171834,
+    "allocations": 200283,
+    "requested_bytes": 52373651
+  },
+  "cost_before_no_default": {
+    "samples": 101,
+    "updates_per_sample": 120,
+    "nodes": 2,
+    "p50_ns": 128958,
+    "p95_ns": 141292,
+    "allocations": 200283,
+    "requested_bytes": 52373651
+  },
+  "cost_after": {
+    "samples": 101,
+    "updates_per_sample": 120,
+    "nodes": 2,
+    "p50_ns": 157625,
+    "p95_ns": 309459,
+    "allocations": 224422,
+    "requested_bytes": 54632112
+  },
+  "cost_after_no_default": {
+    "samples": 101,
+    "updates_per_sample": 120,
+    "nodes": 2,
+    "p50_ns": 153959,
+    "p95_ns": 210458,
+    "allocations": 224422,
+    "requested_bytes": 54632112
+  },
+  "cost_after_repeated": {
+    "default": {
+      "runs": [
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 154958,
+          "p95_ns": 204375,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 153834,
+          "p95_ns": 202708,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 154708,
+          "p95_ns": 166166,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 151709,
+          "p95_ns": 188375,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 149375,
+          "p95_ns": 167500,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        }
+      ],
+      "p50_ns_median": 153834,
+      "p95_ns_median": 188375,
+      "p95_ns_min": 166166,
+      "p95_ns_max": 204375
+    },
+    "no_default": {
+      "runs": [
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 150875,
+          "p95_ns": 198167,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 150166,
+          "p95_ns": 169958,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 147542,
+          "p95_ns": 186917,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 149875,
+          "p95_ns": 176416,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        },
+        {
+          "samples": 101,
+          "updates_per_sample": 120,
+          "nodes": 2,
+          "p50_ns": 150250,
+          "p95_ns": 179708,
+          "allocations": 224422,
+          "requested_bytes": 54632112
+        }
+      ],
+      "p50_ns_median": 150166,
+      "p95_ns_median": 179708,
+      "p95_ns_min": 169958,
+      "p95_ns_max": 198167
+    }
+  }
+}

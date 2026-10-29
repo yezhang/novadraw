@@ -327,8 +327,8 @@ fn create_scene_7_inherited_figure_style() -> novadraw::tree::FigureTree {
             FigureStyle {
                 foreground: Some(novadraw::graphics::Color::BLACK),
                 background: Some(novadraw::graphics::Color::rgba(0.25, 0.55, 0.85, 1.0)),
-                alpha: Some(0.7),
-                font: Some("20px sans-serif".to_string()),
+                alpha: Some(novadraw::graphics::Opacity::try_new(0.7).unwrap()),
+                font: Some(novadraw::text::FontDescriptor::parse("20px sans-serif").unwrap()),
                 cursor: Some(CursorIcon::Pointer),
                 tooltip: Some(Some("Inherited parent tooltip".to_string())),
                 layout_direction: None,
@@ -361,7 +361,7 @@ fn create_scene_7_inherited_figure_style() -> novadraw::tree::FigureTree {
             FigureStyle {
                 foreground: Some(novadraw::graphics::Color::WHITE),
                 background: Some(novadraw::graphics::Color::rgba(0.75, 0.2, 0.25, 1.0)),
-                alpha: Some(1.0),
+                alpha: Some(novadraw::graphics::Opacity::OPAQUE),
                 font: None,
                 cursor: Some(CursorIcon::Crosshair),
                 tooltip: Some(None),

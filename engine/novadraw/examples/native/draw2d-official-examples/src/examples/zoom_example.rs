@@ -428,7 +428,7 @@ fn add_class(
         .figure(header)
         .expect("header")
         .set_style(FigureStyle {
-            font: Some(header_font.to_owned()),
+            font: Some(novadraw::text::FontDescriptor::parse(header_font).unwrap()),
             ..FigureStyle::default()
         })
         .expect("header font");

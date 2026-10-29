@@ -33,7 +33,7 @@ pub(crate) struct FrozenGeometryNode {
     pub(crate) drawing_background: crate::Color,
     pub(crate) opaque: bool,
     resources: Vec<(crate::render::ResourceId, Option<crate::ResourceStatus>)>,
-    preparation: Option<(u64, u64, String)>,
+    preparation: Option<(u64, u64, crate::text::FontDescriptor)>,
     content_revision: Option<u64>,
     bounds_revision: Option<u64>,
     pub(crate) ancestor_only: bool,
@@ -122,9 +122,9 @@ impl FrozenGeometrySource {
                 std::mem::size_of::<(crate::render::ResourceId, Option<crate::ResourceStatus>)>(),
             )?;
             for text in [
-                node.style.font.as_ref(),
+                node.style.font.as_ref().map(|font| &font.family),
                 node.style.tooltip.as_ref().and_then(Option::as_ref),
-                node.preparation.as_ref().map(|(_, _, font)| font),
+                node.preparation.as_ref().map(|(_, _, font)| &font.family),
             ]
             .into_iter()
             .flatten()
@@ -224,9 +224,11 @@ impl FrozenGeometrySource {
                     super::AnimationBudgetKind::SnapshotBytes,
                 ))?;
             for text in [
-                node.style.font.as_ref(),
+                node.style.font.as_ref().map(|font| &font.family),
                 node.style.tooltip.as_ref().and_then(Option::as_ref),
-                node.prepared.as_ref().map(|prepared| &prepared.key.font),
+                node.prepared
+                    .as_ref()
+                    .map(|prepared| &prepared.key.font.family),
             ]
             .into_iter()
             .flatten()
@@ -539,7 +541,7 @@ impl FrozenGeometryNode {
     }
 }
 
-fn preparation(node: &crate::graph::FigureNode) -> Option<(u64, u64, String)> {
+fn preparation(node: &crate::graph::FigureNode) -> Option<(u64, u64, crate::text::FontDescriptor)> {
     node.prepared.as_ref().map(|prepared| {
         (
             prepared.key.provider,

@@ -85,7 +85,7 @@ impl CanvasScene {
             .register_builtin_font(BuiltinFont::Inter)?;
         runtime.figure(label)?.set_style(FigureStyle {
             foreground: Some(Color::rgba(0.92, 0.95, 1.0, 1.0)),
-            font: Some("18px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("18px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })?;
         Ok(Self {

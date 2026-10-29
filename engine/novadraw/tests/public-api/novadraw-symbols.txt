@@ -70,7 +70,6 @@ module.animation struct GeometryProviderKey
 module.animation struct Keyframe
 module.animation struct Keyframes
 module.animation struct LayoutBounds
-module.animation struct Opacity
 module.animation struct PresentationBinding
 module.animation struct PresentationGeometry
 module.animation struct PresentationValues
@@ -466,6 +465,7 @@ module.graphics struct GradientStop
 module.graphics struct Graphics
 module.graphics struct ImageRegion
 module.graphics struct LinearGradient
+module.graphics struct Opacity
 module.graphics struct PaintContext
 module.graphics struct Path
 module.graphics struct StrokeStyle

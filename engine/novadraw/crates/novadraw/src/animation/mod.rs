@@ -22,7 +22,9 @@ use std::{
 
 pub use crate::identity::{AnimationBehaviorId, AnimationId, TemporaryVisualId};
 use crate::{
-    Affine2D, CapabilityKey, Figure, FigureId, PointList, Rectangle, figure::FigurePresentation,
+    Affine2D, CapabilityKey, Figure, FigureId, PointList, Rectangle,
+    figure::FigurePresentation,
+    graphics::{GraphicsInputError, Opacity},
     identity::AnimationChannelId,
 };
 pub(crate) use behavior::facts_from_effects;
@@ -337,6 +339,8 @@ pub enum AnimationError {
     InvalidDuration,
     /// A value rejected its typed animation invariant.
     InvalidValue,
+    /// A raw graphics input failed before channel installation.
+    GraphicsInput(GraphicsInputError),
     /// Spring mass, stiffness, damping, tolerance, or maximum duration was invalid.
     InvalidSpring,
     /// Decay rate or maximum duration was invalid.
@@ -486,6 +490,7 @@ impl fmt::Display for AnimationError {
             }
             Self::InvalidDuration => formatter.write_str("animation duration is invalid"),
             Self::InvalidValue => formatter.write_str("animation value is invalid"),
+            Self::GraphicsInput(error) => error.fmt(formatter),
             Self::InvalidSpring => formatter.write_str("spring parameters are invalid"),
             Self::InvalidDecay => formatter.write_str("decay parameters are invalid"),
             Self::InvalidKeyframeOffset { index } => {
@@ -584,6 +589,7 @@ impl std::error::Error for AnimationError {
         match self {
             Self::Coordinate(error) => Some(error),
             Self::Identity(error) => Some(error),
+            Self::GraphicsInput(error) => Some(error),
             _ => None,
         }
     }
@@ -592,6 +598,12 @@ impl std::error::Error for AnimationError {
 impl From<crate::tree::TreeQueryError> for AnimationError {
     fn from(error: crate::tree::TreeQueryError) -> Self {
         Self::Identity(error)
+    }
+}
+
+impl From<GraphicsInputError> for AnimationError {
+    fn from(error: GraphicsInputError) -> Self {
+        Self::GraphicsInput(error)
     }
 }
 
@@ -671,38 +683,14 @@ impl<V> Clone for AnimationChannel<V> {
 
 impl<V> Copy for AnimationChannel<V> {}
 
-/// Validated opacity value used by presentation channels.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Opacity(f64);
-
-impl Opacity {
-    /// Fully transparent opacity.
-    pub const TRANSPARENT: Self = Self(0.0);
-    /// Fully opaque opacity.
-    pub const OPAQUE: Self = Self(1.0);
-
-    /// Creates an opacity in the inclusive range `[0, 1]`.
-    pub fn try_new(value: f64) -> Result<Self, AnimationError> {
-        if value.is_finite() && (0.0..=1.0).contains(&value) {
-            Ok(Self(value))
-        } else {
-            Err(AnimationError::InvalidValue)
-        }
-    }
-
-    /// Returns the scalar opacity.
-    pub const fn get(self) -> f64 {
-        self.0
-    }
-}
-
 impl AnimationValue for Opacity {
     fn is_valid(&self) -> bool {
-        self.0.is_finite() && (0.0..=1.0).contains(&self.0)
+        true
     }
 
     fn interpolate(&self, target: &Self, progress: f64) -> Self {
-        Self((self.0 + (target.0 - self.0) * progress).clamp(0.0, 1.0))
+        Self::try_new((self.get() + (target.get() - self.get()) * progress).clamp(0.0, 1.0))
+            .expect("opacity interpolation requires a representable animation sample")
     }
 }
 

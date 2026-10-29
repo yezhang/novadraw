@@ -6,6 +6,10 @@
 
 已接受。2026-10-06 用户确认继续按本方案推进动画与能力丰富度建设。
 
+2026-10-29 按 [ADR-056](adr-056-detached-input-invariants.md) 将 Opacity 的唯一
+公开路径迁到 `graphics::Opacity`。AnimationValue 继续由动画领域实现，原始值
+构造错误归 GraphicsInputError，动画服务保留其 source。
+
 目标 delta：P2-M01。
 
 ## 背景

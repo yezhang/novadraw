@@ -630,7 +630,7 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
         .figure(root)
         .unwrap()
         .set_style(FigureStyle {
-            font: Some("12px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("12px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");
@@ -638,7 +638,7 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
         .figure(child)
         .unwrap()
         .set_style(FigureStyle {
-            font: Some("30px Inter Variable".to_string()),
+            font: Some(novadraw::text::FontDescriptor::parse("30px Inter Variable").unwrap()),
             ..FigureStyle::default()
         })
         .expect("valid Runtime mutation");

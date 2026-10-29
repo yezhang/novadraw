@@ -83,7 +83,14 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
             .unwrap()
             .set_style(FigureStyle {
                 foreground: Some(Color::BLACK),
-                font: Some(font_descriptor(font, points, request.weight)),
+                font: Some(
+                    novadraw::text::FontDescriptor::parse(&font_descriptor(
+                        font,
+                        points,
+                        request.weight,
+                    ))
+                    .unwrap(),
+                ),
                 ..FigureStyle::default()
             })
             .unwrap();

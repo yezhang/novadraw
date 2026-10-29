@@ -720,7 +720,7 @@ impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
                         {
                             value.to_bits().hash(&mut hasher);
                         }
-                        style.alpha.to_bits().hash(&mut hasher);
+                        style.alpha.get().to_bits().hash(&mut hasher);
                         std::mem::discriminant(&style.cursor).hash(&mut hasher);
                         style.tooltip.hash(&mut hasher);
                     }
