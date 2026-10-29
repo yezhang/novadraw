@@ -1,0 +1,12 @@
+[1m[92m  Installing[0m wasm-bindgen-cli v0.2.129
+[1m[92m     Locking[0m 207 packages to highest compatible versions
+[1m[92m      Adding[0m jiff-static v0.2.35 [1m[33m(available: v0.2.37)[0m
+[1m[92m      Adding[0m shlex v1.3.0 [1m[33m(available: v2.0.1)[0m
+[1m[91merror[0m: failed to compile `wasm-bindgen-cli v0.2.129`, intermediate artifacts can be found at `/var/folders/1d/k2v29k4d48nbx3n43n8wmwkc0000gn/T/cargo-installDNiJx0`.
+To reuse those artifacts with a future compilation, set the environment variable `CARGO_BUILD_BUILD_DIR` to that path.
+
+Caused by:
+  failed to download `walrus v0.27.3`
+
+Caused by:
+  attempting to make an HTTP request, but --offline was specified

@@ -9,6 +9,7 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-29 | [ADR-055 契约续验与同步成本复核](adr-055-followup-2026-10-29.md) |
 | 2026-10-29 | [ADR-055 容器编辑实施验证](adr-055-implementation-2026-10-29.md) |
 | 2026-10-29 | [Shapes Inspector 布局分析](shapes-inspector-layout-analysis-2026-10-29.md) |
 | 2026-10-29 | [S08 输入不变量设计与检查记录](p2-s08-design-record-2026-10-29.md) |

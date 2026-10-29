@@ -909,6 +909,7 @@ where
     ) -> Result<(), ViewerError> {
         self.refresh_part_visuals(part)?;
         let desired = snapshot.children_of(model_id)?.to_vec();
+        let desired_models: HashSet<_> = desired.iter().copied().collect();
         let existing = self
             .parts
             .children(part)
@@ -921,7 +922,7 @@ where
                 .get(child)
                 .and_then(|node| node.model_id())
                 .ok_or(ViewerError::InconsistentState)?;
-            if !desired.contains(&child_model) {
+            if !desired_models.contains(&child_model) {
                 self.remove_subtree(child)?;
             }
         }
@@ -945,7 +946,14 @@ where
             self.runtime
                 .figure(content_pane)?
                 .move_child_to_index(primary, index)?;
-            self.parts.reorder_child(part, child, index)?;
+            if self
+                .parts
+                .children(part)
+                .and_then(|children| children.get(index))
+                != Some(&child)
+            {
+                self.parts.reorder_child(part, child, index)?;
+            }
             self.synchronize_subtree_at(child, child_model, snapshot, depth + 1)?;
         }
         Ok(())

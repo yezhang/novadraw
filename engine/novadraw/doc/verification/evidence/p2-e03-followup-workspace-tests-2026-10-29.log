@@ -1,0 +1,784 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[33mwarning[0m[1m: multiple methods are never used[0m
+    [1m[94m--> [0mcrates/novadraw/src/render/context.rs:374:8
+     [1m[94m|[0m
+[1m[94m  76[0m [1m[94m|[0m impl NdCanvas {
+     [1m[94m|[0m [1m[94m-------------[0m [1m[94mmethods in this implementation[0m
+[1m[94m...[0m
+[1m[94m 374[0m [1m[94m|[0m     fn color_with_global_alpha(&self, color: Color) -> Color {
+     [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 551[0m [1m[94m|[0m     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 736[0m [1m[94m|[0m     pub fn draw_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 751[0m [1m[94m|[0m     pub fn fill_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 772[0m [1m[94m|[0m     pub fn close_path(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 796[0m [1m[94m|[0m     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 820[0m [1m[94m|[0m     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 828[0m [1m[94m|[0m     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 837[0m [1m[94m|[0m     pub fn fill(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^[0m
+[1m[94m...[0m
+[1m[94m 873[0m [1m[94m|[0m     pub fn fill_and_stroke(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 923[0m [1m[94m|[0m     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 937[0m [1m[94m|[0m     pub fn clear_commands(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 958[0m [1m[94m|[0m     pub fn to_submission(&self) -> RenderSubmission {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 963[0m [1m[94m|[0m     pub fn to_submission_for_surface(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 975[0m [1m[94m|[0m     pub fn to_submission_for_frame(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1043[0m [1m[94m|[0m     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1048[0m [1m[94m|[0m     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1054[0m [1m[94m|[0m     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1060[0m [1m[94m|[0m     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1065[0m [1m[94m|[0m     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1075[0m [1m[94m|[0m     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1080[0m [1m[94m|[0m     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1089[0m [1m[94m|[0m     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4404:9
+     [1m[94m|[0m
+[1m[94m4404[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4405[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4406[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4407[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4410[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+     [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4404[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4447:9
+     [1m[94m|[0m
+[1m[94m4447[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4448[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4449[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4450[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4453[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4447[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4498:9
+     [1m[94m|[0m
+[1m[94m4498[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4499[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4500[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4501[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4504[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4498[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4513:9
+     [1m[94m|[0m
+[1m[94m4513[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4514[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4515[0m [1m[94m|[0m [1m[33m|[0m                 replacement.session_id,
+[1m[94m4516[0m [1m[94m|[0m [1m[33m|[0m                 replacement.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4519[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4513[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4544:9
+     [1m[94m|[0m
+[1m[94m4544[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4545[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4546[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4547[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4550[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4544[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4563:9
+     [1m[94m|[0m
+[1m[94m4563[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4564[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4565[0m [1m[94m|[0m [1m[33m|[0m                 partial.session_id,
+[1m[94m4566[0m [1m[94m|[0m [1m[33m|[0m                 partial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4569[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4563[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4594:9
+     [1m[94m|[0m
+[1m[94m4594[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4595[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4596[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4597[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4600[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4594[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4653:9
+     [1m[94m|[0m
+[1m[94m4653[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4654[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4655[0m [1m[94m|[0m [1m[33m|[0m                 retry.session_id,
+[1m[94m4656[0m [1m[94m|[0m [1m[33m|[0m                 retry.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4659[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4653[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4682:9
+     [1m[94m|[0m
+[1m[94m4682[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4683[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4684[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4685[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4688[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4682[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4701:9
+     [1m[94m|[0m
+[1m[94m4701[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4702[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4703[0m [1m[94m|[0m [1m[33m|[0m                 first_update.session_id,
+[1m[94m4704[0m [1m[94m|[0m [1m[33m|[0m                 first_update.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4707[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4701[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4738:9
+     [1m[94m|[0m
+[1m[94m4738[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4739[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4740[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4741[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4744[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4738[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4953:9
+     [1m[94m|[0m
+[1m[94m4953[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4954[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4955[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4956[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4959[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4953[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5093:9
+     [1m[94m|[0m
+[1m[94m5093[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5094[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5095[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m5096[0m [1m[94m|[0m [1m[33m|[0m                 submission.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5099[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5093[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m   Compiling[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/scenes)
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m   Compiling[0m r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/r8-perf)
+[1m[33mwarning[0m: `novadraw` (lib test) generated 14 warnings
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m   Compiling[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/web/web-validation)
+[1m[92m   Compiling[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[33mwarning[0m[1m: unused import: `ShapePresentation`[0m
+ [1m[94m--> [0mexamples/native/gef-editor-demo/src/ui.rs:3:45
+  [1m[94m|[0m
+[1m[94m3[0m [1m[94m|[0m     model::{EdgeStyle, MIN_SIZE, ShapeKind, ShapePresentation},
+  [1m[94m|[0m                                             [1m[33m^^^^^^^^^^^^^^^^^[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[1m[92m   Compiling[0m winit-canvas-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/winit-canvas-demo)
+[1m[33mwarning[0m[1m: constant `PANEL_SECTION_GAP` is never used[0m
+  [1m[94m--> [0mexamples/native/gef-editor-demo/src/ui.rs:27:7
+   [1m[94m|[0m
+[1m[94m27[0m [1m[94m|[0m const PANEL_SECTION_GAP: f32 = 12.0;
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[92m   Compiling[0m native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/native-vello-perf)
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m   Compiling[0m transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/transform-app)
+[1m[92m   Compiling[0m text-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/text-app)
+[1m[92m   Compiling[0m update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/update-app)
+[1m[92m   Compiling[0m ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/ndcanvas-app)
+[1m[92m   Compiling[0m node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/node-editor-demo)
+[1m[92m   Compiling[0m widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/widgets-app)
+[1m[92m   Compiling[0m border-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/border-app)
+[1m[92m   Compiling[0m uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/uml-demo)
+[1m[33mwarning[0m: `gef-editor-demo` (lib) generated 2 warnings (run `cargo fix --lib -p gef-editor-demo` to apply 1 suggestion)
+[1m[33mwarning[0m: `gef-editor-demo` (lib test) generated 2 warnings (2 duplicates)
+[1m[92m   Compiling[0m shape-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/shape-app)
+[1m[92m   Compiling[0m scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/scroll-pane-demo)
+[1m[92m   Compiling[0m style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/style-app)
+[1m[92m   Compiling[0m event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/event-app)
+[1m[92m   Compiling[0m clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/clip-app)
+[1m[92m   Compiling[0m connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/connections-demo)
+[1m[92m   Compiling[0m animation-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/animation-app)
+[1m[92m   Compiling[0m layout-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/layout-app)
+[1m[92m   Compiling[0m viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/viewport-app)
+[1m[92m   Compiling[0m composite-shapes-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/composite-shapes-app)
+[1m[92m   Compiling[0m advanced-figures-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/advanced-figures-app)
+[1m[33mwarning[0m[1m: function `record_full_submission` is never used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/support/mod.rs:31:8
+   [1m[94m|[0m
+[1m[94m31[0m [1m[94m|[0m pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:708:5
+    [1m[94m|[0m
+[1m[94m708[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m709[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m710[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m711[0m [1m[94m|[0m [1m[33m|[0m             initial.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m715[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m708[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:738:5
+    [1m[94m|[0m
+[1m[94m738[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m739[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m740[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m741[0m [1m[94m|[0m [1m[33m|[0m             failed.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m745[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m738[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:777:5
+    [1m[94m|[0m
+[1m[94m777[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m778[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m779[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m780[0m [1m[94m|[0m [1m[33m|[0m             recovered.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m784[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m777[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/m10_label_contract.rs:799:5
+    [1m[94m|[0m
+[1m[94m799[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m800[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m801[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m802[0m [1m[94m|[0m [1m[33m|[0m             removed.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m806[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m799[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning
+[1m[33mwarning[0m: `novadraw` (test "m10_label_contract") generated 5 warnings (1 duplicate)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/m10_accessibility_contract.rs:59:9
+   [1m[94m|[0m
+[1m[94m59[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m60[0m [1m[94m|[0m [1m[33m|[0m             .frames()
+[1m[94m61[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m62[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m...[0m  [1m[33m|[0m
+[1m[94m66[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+   [1m[94m|[0m [1m[33m|_______________________________________^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+   [1m[94m|[0m
+[1m[94m59[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+   [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "m10_accessibility_contract") generated 1 warning
+[1m[33mwarning[0m: `novadraw` (test "m10_widget_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m5_layout_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "p2_query_failure_semantics") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m4_coordinate_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "p2_c02_shortest_path_contract") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "d3_runtime_listener") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "p2_tree_query_identity") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/d4_notification_epoch.rs:90:5
+   [1m[94m|[0m
+[1m[94m90[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m91[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m92[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m93[0m [1m[94m|[0m [1m[33m|[0m             baseline.session_id,
+[1m[94m...[0m  [1m[33m|[0m
+[1m[94m97[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+   [1m[94m|[0m [1m[33m|___________________________________^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+   [1m[94m|[0m
+[1m[94m90[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+   [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw/tests/d4_notification_epoch.rs:171:5
+    [1m[94m|[0m
+[1m[94m171[0m [1m[94m|[0m [1m[33m/[0m     runtime
+[1m[94m172[0m [1m[94m|[0m [1m[33m|[0m         .frames()
+[1m[94m173[0m [1m[94m|[0m [1m[33m|[0m         .complete_submission(
+[1m[94m174[0m [1m[94m|[0m [1m[33m|[0m             submission.session_id,
+[1m[94m...[0m   [1m[33m|[0m
+[1m[94m178[0m [1m[94m|[0m [1m[33m|[0m         .expect("frame completion");
+    [1m[94m|[0m [1m[33m|___________________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m171[0m [1m[94m| [0m    [92mlet _ = [0mruntime
+    [1m[94m|[0m     [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (test "d4_notification_epoch") generated 2 warnings
+[1m[33mwarning[0m: `novadraw` (test "p2_child_insertion") generated 1 warning (1 duplicate)
+[1m[33mwarning[0m: `novadraw` (test "m8_viewport_contract") generated 1 warning (1 duplicate)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 2m 01s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/advanced_figures_app-4a39f9dfa347e3e4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/animation_app-5ad14a2cb7be1401)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/border_app-8fbc1846e61ffa3a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/clip_app-dcf154ca4ee5e70c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/composite_shapes_app-7e215b87d60a17fe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/connections_demo-65f35ef4a088dc7a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/draw2d_official_examples-dbafc8be41d482bf)
+
+running 106 tests
+test examples::bidi_block::tests::bidi_direction_mutation_partial_matches_full_pixels ... ignored, requires a native GPU; run through text.layout-direction
+test examples::ellipse_hitting::tests::figure_tree_and_sizes_match_the_official_example ... ok
+test examples::ellipse_hitting::tests::pointer_entry_and_exit_match_the_mouse_motion_listener ... ok
+test examples::flow_layout_example::tests::horizontal_checkbox_replaces_the_layout_with_vertical_flow ... ok
+test examples::flow_layout_example::tests::figure_composition_matches_the_official_shape_sequence_and_control_types ... ok
+test examples::flow_layout_example::tests::unequal_official_spacing_controls_apply_between_items_and_wrapped_rows ... ok
+test examples::flow_layout_example::tests::window_resize_reflows_official_shapes_and_restores_natural_sizes ... ok
+test examples::flow_layout_example::tests::official_alignment_matrix_uses_each_wrapped_line_and_integer_center_offsets ... ok
+test examples::connection_and_anchor::tests::figure_composition_matches_both_official_panels ... ok
+test examples::connection_and_anchor::tests::dragging_in_offset_panel_preserves_parent_local_bounds ... ok
+test examples::connection_and_anchor::tests::dragging_an_endpoint_moves_the_figure_and_reroutes_the_connection ... ok
+test examples::grid_layout_example::tests::add_and_clear_buttons_mutate_the_official_shape_collection ... ok
+test examples::grid_layout_example::tests::group_titles_have_opaque_region_backgrounds ... ok
+test examples::grid_layout_example::tests::clear_releases_grid_data_and_preserves_the_official_creation_cycle ... ok
+test examples::grid_layout_example::tests::fixture_matches_the_official_shape_and_control_structure ... ok
+test examples::grid_layout_example::tests::num_columns_accepts_digits_and_commits_the_layout_on_enter ... ok
+test examples::grid_layout_example::tests::selecting_a_shape_populates_and_enables_the_grid_data_editor ... ok
+test examples::grid_layout_example::tests::rejected_add_does_not_publish_grid_data_for_an_unmounted_shape ... ok
+test examples::grid_layout_example::tests::viewport_resize_reflows_spanning_grabbing_shapes_and_restores_geometry ... ok
+test examples::flow_layout_example::tests::native_panel_direction_and_stretch_restore_natural_geometry ... ok
+test examples::hello_world::tests::figure_tree_matches_the_official_example ... ok
+test examples::grid_layout_example::tests::width_hint_focus_out_and_invalid_return_match_java_callback_evidence ... ok
+test examples::grid_layout_example::tests::text_and_combo_controls_update_the_selected_grid_constraint ... ok
+test examples::layout_consumer_contracts::official_layout_factories_resize_and_erase_without_stale_gpu_pixels ... ignored, requires native GPU; compares actual official layout resize and child erasure
+test examples::hello_world::tests::label_fills_the_canvas_after_shrink_grow_and_restore ... ok
+test examples::layout_consumer_contracts::grid_span_indent_and_explicit_height_hint_keep_their_measurement_contract ... ok
+test examples::obstruction::tests::obstacles_pending_pair_move_and_delete_use_real_dispatch ... ok
+test examples::grid_layout_example::tests::egui_numeric_edit_commits_columns_without_canvas_key_dispatch ... ok
+test examples::obstruction::tests::pending_drag_is_used_when_completing_pair_and_rejected_admission_preserves_it ... ok
+test examples::obstruction::tests::pointer_exit_and_release_end_drag_without_leaking_a_gesture ... ok
+test examples::path_example::tests::official_path_draws_two_text_passes_and_preserves_closed_geometry ... ok
+test examples::path_example::tests::underline_resize_and_replace_matches_full_pixels ... ignored, requires native GPU; run through text.underlines
+test examples::obstruction::tests::multiple_pairs_share_domain_and_obstacle_topology_recomputes_the_whole_group ... ok
+test examples::path_example::tests::scrollbar_uses_path_formula_and_keeps_center_in_logical_coordinates ... ok
+test examples::printing::tests::gpu_connection_pixels_stay_between_rectangle_anchors ... ignored, requires native GPU; validates Print connection pixels across flow wrapping
+test examples::scroll_pane_example::tests::drag_formulas_preserve_all_eight_directions_and_official_minima ... ok
+test examples::bidi_block::tests::both_trees_keep_direction_and_share_scroll_and_resize ... ok
+test examples::scroll_pane_example::tests::frame_cursor_follows_edges_corners_and_pointer_exit ... ok
+test examples::scroll_pane_example::tests::official_overlap_and_label_composition_are_preserved ... ok
+test examples::layout_consumer_contracts::layout_text_minimum_wrap_and_width_restore_use_real_prepared_consumers ... ok
+test examples::shape_styles::tests::cocoa_zero_dash_profile_preserves_input_and_uses_upstream_arrays ... ok
+test examples::grid_layout_example::tests::native_panel_grid_data_and_clear_follow_real_selection_lifecycle ... ok
+test examples::shape_styles::tests::low_miter_pixels_equal_bevel_for_open_closed_reversed_paths ... ignored, requires native GPU; run through render.low-miter
+test examples::scroll_pane_example::tests::title_drag_moves_only_the_top_frame_and_keeps_paint_order ... ok
+test examples::scroll_pane_example::tests::resizing_revalidates_fixed_contents_and_automatic_scrollbars ... ok
+test examples::shape_styles::tests::disabled_shape_draws_both_shades_and_restores_the_offset_before_dark ... ok
+test examples::shape_styles::tests::shape_styles_native_matrix_pixels_and_scene_replacement ... ignored, requires a native GPU; run through render.antialias
+test examples::simple_tree_example::tests::official_page_and_branch_composition ... ok
+test examples::simple_tree_example::tests::normal_children_share_a_row_and_hanging_child_is_indented ... ok
+test examples::simple_tree_example::tests::page_gradient_follows_selection_and_restores_normal_palette ... ok
+test examples::shape_styles::tests::official_shape_geometry_uses_integer_outlines_and_separate_fill ... ok
+test examples::simple_tree_example::tests::transposition_preserves_the_same_tree_geometry ... ok
+test examples::text_examples::tests::narrowing_the_canvas_reflows_text_and_keeps_real_children ... ok
+test examples::text_interaction::tests::caret_hover_affinity_source_edges_and_stale_snapshots_are_checked ... ok
+test examples::text_interaction::tests::caret_hover_covers_combining_cluster_without_invalid_endpoint ... ok
+test examples::text_interaction::tests::mouse_move_uses_admitted_fragment_and_preserves_source_geometry ... ok
+test examples::text_interaction::tests::multiline_label_focus_and_keyboard_scroll_use_the_core_viewport ... ok
+test examples::shape_styles::tests::shape_styles_all_axes_and_shapes_use_public_graphics_without_clamping ... ok
+test examples::thumbnail::tests::one_source_drag_updates_both_views_and_resize_does_not_recapture ... ok
+test examples::toolbar_layout_example::tests::horizontal_checkbox_switches_the_toolbar_orientation ... ok
+test examples::toolbar_layout_example::tests::native_panel_alignment_and_stretch_commit_geometry_without_mock_controls ... ok
+test examples::toolbar_layout_example::tests::official_shape_sequence_and_control_types_are_preserved ... ok
+test examples::toolbar_layout_example::tests::stretch_orientation_shrink_and_reset_preserve_official_preferred_sizes ... ok
+test examples::graph_examples::tests::native_graph_submissions_include_every_glyph_font_resource ... ok
+test examples::tree_animation::tests::disposing_dependency_cancels_tree_and_releases_active_reservations ... ok
+test examples::tree_animation::tests::disabled_tree_matches_static_source_geometry ... ok
+test examples::graph_examples::tests::host_combo_clicks_rebuild_fixture_and_direction ... ok
+test examples::tree_animation::tests::native_press_release_pairs_toggle_tree_with_animation_on_and_off ... ok
+test examples::tree_animation::tests::first_expand_preserves_nested_hidden_branch_and_repeated_reversal_anchor ... ok
+test examples::tree_animation::tests::tree_collapse_preserves_first_frame_and_converges_all_descendant_centers ... ok
+test examples::text_examples::tests::inline_figure_metrics_are_stable_across_font_registry_instances ... ok
+test examples::tree_animation::tests::tree_reverse_uses_latest_unrecorded_sample_and_scroll_cancels_whole_group ... ok
+test examples::tree_example::tests::full_official_tree_has_nineteen_nodes_and_five_root_branches ... ok
+test examples::tree_example::tests::more_children_mounts_full_official_branch_and_inherits_parent_style ... ok
+test examples::tree_example::tests::selecting_another_page_restores_gradient_and_inherited_text ... ok
+test examples::tree_example::tests::selection_style_collapse_and_delete_follow_official_actions ... ok
+test examples::tree_layout::tests::compression_uses_contours_and_retains_the_official_gap ... ok
+test examples::tree_layout::tests::contour_contact_and_distant_sibling_history_match_tree_layout ... ok
+test examples::tree_layout::tests::mixed_hanging_and_normal_branches_share_root_row_heights ... ok
+test examples::text_examples::tests::six_text_scenes_stabilize_and_publish_flow_snapshots ... ok
+test examples::tree_example::tests::spacing_scales_use_official_five_pixel_keyboard_increment_and_update_caption ... ok
+test examples::uml_class_diagram::tests::dogear_border_has_independent_five_unit_fold_and_inset_outline ... ok
+test examples::tree_example::tests::shared_connector_providers_replay_static_normal_hanging_and_nested_endpoints ... ok
+test examples::tree_example::tests::floating_panel_routes_canvas_selection_and_native_double_clicks ... ok
+test examples::text_interaction::tests::typing_changes_only_first_source_and_reflows_the_document ... ok
+test examples::printing::tests::canvas_outputs_fonts_icon_and_rerouted_connection_after_resize ... ok
+test examples::uml_class_diagram::tests::official_figure_composition_is_preserved ... ok
+test examples::uml_class_diagram::tests::association_has_decoration_and_both_locator_labels ... ok
+test examples::uml_class_diagram::tests::endpoint_label_uses_owner_side_with_official_u_and_v_distances ... ok
+test examples::uml_class_diagram::tests::host_ui_font_is_inherited_by_members_and_overridden_by_bold_header ... ok
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ignored, requires native GPU; validates Zoom scrollbar button pixels
+test examples::uml_class_diagram::tests::connection_label_text_remeasures_without_moving_classes ... ok
+test examples::printing::tests::connection_follows_anchors_across_flow_wrap_thresholds ... ok
+test tests::catalog_is_the_exact_official_main_denominator ... ok
+test examples::uml_class_diagram::tests::sticky_note_height_is_measured_from_its_width ... ok
+test inherit_background::tests::both_canvases_shape_the_same_text_and_scroll_without_changing_host_input ... ok
+test tests::scene_titles_include_stable_index_and_chinese_parity_status ... ok
+test tests::hosted_panels_preserve_canvas_without_mock_widgets ... ok
+test examples::zoom_example::tests::official_two_class_fixture_and_scroll_range_are_preserved ... ok
+test examples::zoom_example::tests::arrow_page_and_drag_apply_the_official_zoom_formula ... ok
+test examples::zoom_example::tests::repeated_zoom_keeps_the_bar_height_and_unscaled_content_visible ... ok
+test examples::zoom_example::tests::zoom_and_dpi_replace_shared_icons_only_when_density_changes ... ok
+test examples::zoom_example::tests::native_thumb_drag_survives_panel_frames_and_clock_ticks ... ok
+test tests::every_runnable_entry_is_owned_by_this_crate ... ok
+test examples::long_text_gpu::long_text_outline_full_partial_gpu_pixels ... ok
+test examples::graph_examples::tests::every_official_graph_switch_replaces_bindings_and_publishes_labels_and_routes ... ok
+
+test result: ok. 99 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 48.02s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/draw2d_official_examples-eec14e8d75a2ae39)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/inherit-background.rs (target/debug/deps/inherit_background-c49d4087d854132d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/layout-consumer-proof.rs (target/debug/deps/layout_consumer_proof-28b98297b85f9bd7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/textflow-perf.rs (target/debug/deps/textflow_perf-f2c3e83b3f7e20ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/textflow-scroll-gpu.rs (target/debug/deps/textflow_scroll_gpu-52df9b9010647ab1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/bin/tree-animation-proof.rs (target/debug/deps/tree_animation_proof-8b9d04af1dd3ef63)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/layout_submission.rs (target/debug/deps/layout_submission-faf5aaecd2d537f9)
+
+running 4 tests
+test native_gpu_layout_changes_erase_old_pixels_and_restore_the_same_image ... ignored, requires a native GPU adapter
+test native_gpu_zoom_uses_replaced_svg_pixels_and_restores_original_layout ... ignored, requires a native GPU adapter
+test canvas_minimum_extent_is_finite_and_resize_restores_all_child_geometry ... ok
+test layout_changes_damage_both_old_and_new_shape_positions ... ok
+
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+[1m[92m     Running[0m tests/shared_glyph_backing.rs (target/debug/deps/shared_glyph_backing-9417511910e95637)
+
+running 1 test
+test original_large_frame_clones_retain_identical_backing_and_old_resize_leases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+[1m[92m     Running[0m tests/source_contracts.rs (target/debug/deps/source_contracts-22649c692699a13b)
+
+running 2 tests
+test completion_scopes_cover_all_entries_and_preserve_canvas_dependencies ... ok
+test inventory_covers_every_official_canvas_entry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/main.rs (target/debug/deps/event_app-5fe50edc34ec95dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/gef_editor_demo-a59a4704aff0f3fd)
+
+running 23 tests
+test model::tests::target_arrow_matches_the_official_shapes_default_span ... ok
+test native::style_tests::hover_uses_fill_while_focus_and_open_use_borders ... ok
+test tests::document_parser_rejects_invalid_references_and_geometry ... ok
+test tests::connection_creation_rejects_self_and_duplicate_and_preserves_style ... ok
+test tests::create_delete_and_undo_share_the_editor_command_chain ... ok
+test tests::invalid_geometry_draft_does_not_enter_command_history ... ok
+test tests::move_feedback_carries_selection_outline_and_handles_until_commit ... FAILED
+test tests::alignment_filters_connections_and_respects_disabled_and_primary_selection ... ok
+test tests::projected_resize_handle_commits_one_bounds_command_and_tracks_geometry ... FAILED
+test tests::outline_projection_keeps_shape_and_connection_types_explicit ... ok
+test tests::tool_mode_tracks_typed_tools_and_one_shot_completion ... ok
+test tests::session_render_tracks_dpi_without_replacing_viewer_or_history ... ok
+test tests::default_showcase_projects_shapes_connections_and_routed_geometry ... ok
+test ui::file_action_button_tests::discard_and_open_requires_dirty_enabled_document ... ok
+test tests::egui_canvas_uses_local_coordinates_and_one_history_entry ... FAILED
+test ui::file_action_button_tests::grouped_file_buttons_dispatch_commands_and_share_edges ... ok
+test tests::focused_canvas_shortcuts_undo_without_rebuilding_session ... ok
+test tests::egui_focus_loss_cancels_active_drag_without_committing ... ok
+test tests::egui_template_drop_creates_at_canvas_local_position ... FAILED
+test ui::alignment_button_tests::grouped_buttons_dispatch_each_alignment_and_disable_without_selection ... ok
+test tests::failed_save_as_does_not_move_savepoint_or_replace_path ... ok
+test tests::geometry_savepoint_and_open_roundtrip_preserve_document_state ... ok
+test tests::six_alignments_use_primary_shape_and_one_undo_entry ... ok
+
+failures:
+
+---- tests::move_feedback_carries_selection_outline_and_handles_until_commit stdout ----
+
+thread 'tests::move_feedback_carries_selection_outline_and_handles_until_commit' (158506035) panicked at examples/native/gef-editor-demo/src/tests.rs:355:5:
+assertion `left == right` failed
+  left: Rectangle { x: 108.0, y: 102.0, width: 120.0, height: 80.0 }
+ right: Rectangle { x: 110.0, y: 100.0, width: 120.0, height: 80.0 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::projected_resize_handle_commits_one_bounds_command_and_tracks_geometry stdout ----
+
+thread 'tests::projected_resize_handle_commits_one_bounds_command_and_tracks_geometry' (158506046) panicked at examples/native/gef-editor-demo/src/tests.rs:422:5:
+assertion `left == right` failed
+  left: Rectangle { x: 60.0, y: 70.0, width: 148.0, height: 106.0 }
+ right: Rectangle { x: 60.0, y: 70.0, width: 150.0, height: 100.0 }
+
+---- tests::egui_canvas_uses_local_coordinates_and_one_history_entry stdout ----
+
+thread 'tests::egui_canvas_uses_local_coordinates_and_one_history_entry' (158506025) panicked at examples/native/gef-editor-demo/src/tests.rs:314:5:
+assertion `left == right` failed
+  left: Rectangle { x: 108.0, y: 102.0, width: 120.0, height: 80.0 }
+ right: Rectangle { x: 110.0, y: 100.0, width: 120.0, height: 80.0 }
+
+---- tests::egui_template_drop_creates_at_canvas_local_position stdout ----
+
+thread 'tests::egui_template_drop_creates_at_canvas_local_position' (158506027) panicked at examples/native/gef-editor-demo/src/tests.rs:504:5:
+assertion `left == right` failed
+  left: Rectangle { x: 464.0, y: 320.0, width: 120.0, height: 80.0 }
+ right: Rectangle { x: 460.0, y: 320.0, width: 120.0, height: 80.0 }
+
+
+failures:
+    tests::egui_canvas_uses_local_coordinates_and_one_history_entry
+    tests::egui_template_drop_creates_at_canvas_local_position
+    tests::move_feedback_carries_selection_outline_and_handles_until_commit
+    tests::projected_resize_handle_commits_one_bounds_command_and_tracks_geometry
+
+test result: FAILED. 19 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+[1m[91merror[0m: test failed, to rerun pass `-p gef-editor-demo --lib`

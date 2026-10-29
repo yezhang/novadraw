@@ -2151,7 +2151,7 @@ impl Runtime {
         index: usize,
     ) -> Result<bool, RuntimeMutationError> {
         self.validate_child_order_mutation(parent, child, index)?;
-        if self.tree.child_z_index(parent, child) == Ok(Some(index)) {
+        if self.tree.child_at_index(parent, index) == Ok(Some(child)) {
             return Ok(false);
         }
         if !self.tree.move_child_to_index(parent, child, index) {
@@ -2305,18 +2305,19 @@ impl Runtime {
         if self.tree.is_layered_pane(parent) {
             return Err(RuntimeMutationError::LayeredParent(parent));
         }
-        let children = self
-            .tree
-            .child_order(parent)
-            .expect("attached Figure must have a child list");
-        if !children.contains(&child) {
+        if self.tree.parent_id(child) != Ok(Some(parent)) {
             return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
         }
-        if index >= children.len() {
+        let child_count = self
+            .tree
+            .node(parent)
+            .expect("attached Figure must have a node")
+            .children_count();
+        if index >= child_count {
             return Err(RuntimeMutationError::InvalidChildIndex {
                 parent,
                 index,
-                child_count: children.len(),
+                child_count,
             });
         }
         Ok(())
@@ -5505,6 +5506,54 @@ mod adr014_tests {
         assert_eq!(
             runtime.resources.remove(image.resource_id()).unwrap(),
             vec![child]
+        );
+    }
+
+    #[test]
+    fn child_reorder_checks_identity_relation_and_index_before_noop() {
+        let (mut runtime, root) = scene();
+        let first = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .unwrap();
+        let second = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(10.0, 0.0, 5.0, 5.0)))
+            .unwrap();
+        runtime.record_full_frame();
+        let frozen = runtime.updates.frozen_surface_regions.clone();
+        let dirty = runtime.updates.dirty_regions.clone();
+        assert_eq!(runtime.move_child_to_index(root, first, 0), Ok(false));
+        assert_eq!(runtime.updates.frozen_surface_regions, frozen);
+        assert_eq!(runtime.updates.dirty_regions, dirty);
+        assert_eq!(
+            runtime.move_child_to_index(first, second, 0),
+            Err(RuntimeMutationError::InvalidParentRelation {
+                parent: first,
+                child: second
+            })
+        );
+        assert_eq!(
+            runtime.move_child_to_index(root, first, 2),
+            Err(RuntimeMutationError::InvalidChildIndex {
+                parent: root,
+                index: 2,
+                child_count: 2
+            })
+        );
+        let (_, foreign) = scene();
+        assert_eq!(
+            runtime.move_child_to_index(root, foreign, 0),
+            Err(RuntimeMutationError::ForeignRuntime(foreign))
+        );
+        assert_eq!(runtime.tree.child_order(root), Ok(vec![first, second]));
+        assert_eq!(runtime.updates.frozen_surface_regions, frozen);
+        assert_eq!(runtime.updates.dirty_regions, dirty);
+        assert_eq!(runtime.move_child_to_index(root, first, 1), Ok(true));
+        assert_eq!(runtime.tree.child_order(root), Ok(vec![second, first]));
+        assert_eq!(runtime.move_child_to_index(root, first, 1), Ok(false));
+        runtime.dispose_subtree(first).unwrap();
+        assert_eq!(
+            runtime.move_child_to_index(root, first, 0),
+            Err(RuntimeMutationError::UnknownOrDisposedFigure(first))
         );
     }
 

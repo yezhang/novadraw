@@ -1,0 +1,38 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on build directory
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Checking[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Checking[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m    Checking[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/scenes)
+[1m[92m    Checking[0m r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/r8-perf)
+[1m[92m    Checking[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Checking[0m native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/native-vello-perf)
+[1m[92m    Checking[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m    Checking[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m    Checking[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m    Checking[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m    Checking[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/web/web-validation)
+[1m[91merror[0m[1m: unused import: `ShapePresentation`[0m
+ [1m[94m--> [0mexamples/native/gef-editor-demo/src/ui.rs:3:45
+  [1m[94m|[0m
+[1m[94m3[0m [1m[94m|[0m     model::{EdgeStyle, MIN_SIZE, ShapeKind, ShapePresentation},
+  [1m[94m|[0m                                             [1m[91m^^^^^^^^^^^^^^^^^[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `-D unused-imports` implied by `-D warnings`
+  [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(unused_imports)]`
+
+[1m[92m    Checking[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m    Checking[0m winit-canvas-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/winit-canvas-demo)
+[1m[91merror[0m[1m: constant `PANEL_SECTION_GAP` is never used[0m
+  [1m[94m--> [0mexamples/native/gef-editor-demo/src/ui.rs:27:7
+   [1m[94m|[0m
+[1m[94m27[0m [1m[94m|[0m const PANEL_SECTION_GAP: f32 = 12.0;
+   [1m[94m|[0m       [1m[91m^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `-D dead-code` implied by `-D warnings`
+   [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+[1m[91merror[0m: could not compile `gef-editor-demo` (lib) due to 2 previous errors
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...

@@ -16,6 +16,8 @@ selection/focus、feedback owner、history/dirty 和 fault。
 本轮按[首次评审](../reviews/adr-055-draft-review-2026-10-29.md)补齐断言。
 修订 2 再补[修订 1 复核](../reviews/adr-055-revision-1-review-2026-10-29.md)
 的 R1-01～03，保留其余已解决合同的验证范围。
+本轮续验映射见[契约与成本复核](../reviews/adr-055-followup-2026-10-29.md)；
+提前退休反馈的清理准入拒绝不替代 Core revision 耗尽的端到端场景。
 这些场景是退出条件。实际覆盖与尚缺证据见
 [实施验证记录](../reviews/adr-055-implementation-2026-10-29.md)，不得由单项正例推断全矩阵完成。
 

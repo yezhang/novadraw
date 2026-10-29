@@ -1,0 +1,37 @@
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 15.06s
+[1m[92m     Running[0m tests/p2_e03_container_editing_contract.rs (target/release/deps/p2_e03_container_editing_contract-e1ac96e75b17c054)
+
+running 1 test
+test container_scaling_samples_include_multiple_parents_and_large_source_subtrees ... container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=begin samples=32 p50_ns=8333 p95_ns=17917 alloc_p50=36 alloc_p95=36 bytes_p50=15084 bytes_p95=15084
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=source_exclusion_hit samples=32 p50_ns=3875 p95_ns=6750 alloc_p50=9 alloc_p95=9 bytes_p50=3136 bytes_p95=3136
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=candidate samples=32 p50_ns=10500 p95_ns=19292 alloc_p50=21 alloc_p95=21 bytes_p50=5704 bytes_p95=5704
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=policy samples=32 p50_ns=26417 p95_ns=49125 alloc_p50=200 alloc_p95=200 bytes_p50=24152 bytes_p95=24152
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=feedback samples=32 p50_ns=89625 p95_ns=142125 alloc_p50=195 alloc_p95=197 bytes_p50=74096 bytes_p95=295280
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=full_commit samples=32 p50_ns=247250 p95_ns=392125 alloc_p50=858 alloc_p95=860 bytes_p50=303240 bytes_p95=2072712
+container_scaling scenario=parents16 nodes=40 parents=16 descendants=0 stage=revision_sync samples=32 p50_ns=28875 p95_ns=48584 alloc_p50=131 alloc_p95=131 bytes_p50=23604 bytes_p95=23604
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=begin samples=32 p50_ns=30500 p95_ns=41958 alloc_p50=92 alloc_p95=92 bytes_p50=62428 bytes_p95=62428
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=source_exclusion_hit samples=32 p50_ns=6708 p95_ns=10250 alloc_p50=11 alloc_p95=11 bytes_p50=10144 bytes_p95=10144
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=candidate samples=32 p50_ns=39083 p95_ns=66667 alloc_p50=69 alloc_p95=69 bytes_p50=22696 bytes_p95=22696
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=policy samples=32 p50_ns=99708 p95_ns=174042 alloc_p50=734 alloc_p95=734 bytes_p50=88696 bytes_p95=88696
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=feedback samples=32 p50_ns=611083 p95_ns=728792 alloc_p50=727 alloc_p95=730 bytes_p50=298272 bytes_p95=1183008
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=full_commit samples=32 p50_ns=1119750 p95_ns=1556250 alloc_p50=2946 alloc_p95=2948 bytes_p50=1426696 bytes_p95=8504584
+container_scaling scenario=parents64 nodes=136 parents=64 descendants=0 stage=revision_sync samples=32 p50_ns=93500 p95_ns=102708 alloc_p50=381 alloc_p95=381 bytes_p50=165732 bytes_p95=165732
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=begin samples=32 p50_ns=1333 p95_ns=1542 alloc_p50=10 alloc_p95=10 bytes_p50=1288 bytes_p95=1288
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=source_exclusion_hit samples=32 p50_ns=2625 p95_ns=3334 alloc_p50=7 alloc_p95=7 bytes_p50=1384 bytes_p95=1384
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=candidate samples=32 p50_ns=2208 p95_ns=2500 alloc_p50=6 alloc_p95=6 bytes_p50=444 bytes_p95=444
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=policy samples=32 p50_ns=3208 p95_ns=3833 alloc_p50=27 alloc_p95=27 bytes_p50=4512 bytes_p95=4512
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=feedback samples=32 p50_ns=6417 p95_ns=7875 alloc_p50=26 alloc_p95=27 bytes_p50=5420 bytes_p95=7468
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=full_commit samples=32 p50_ns=240250 p95_ns=278667 alloc_p50=724 alloc_p95=726 bytes_p50=416608 bytes_p95=858976
+container_scaling scenario=subtree32 nodes=42 parents=1 descendants=32 stage=revision_sync samples=32 p50_ns=28167 p95_ns=32584 alloc_p50=93 alloc_p95=93 bytes_p50=40612 bytes_p95=40612
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=begin samples=32 p50_ns=2042 p95_ns=16708 alloc_p50=10 alloc_p95=10 bytes_p50=1288 bytes_p95=1288
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=source_exclusion_hit samples=32 p50_ns=3208 p95_ns=20250 alloc_p50=7 alloc_p95=7 bytes_p50=1384 bytes_p95=1384
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=candidate samples=32 p50_ns=2791 p95_ns=13917 alloc_p50=6 alloc_p95=6 bytes_p50=444 bytes_p95=444
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=policy samples=32 p50_ns=3875 p95_ns=13250 alloc_p50=27 alloc_p95=27 bytes_p50=4512 bytes_p95=4512
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=feedback samples=32 p50_ns=92375 p95_ns=227291 alloc_p50=26 alloc_p95=27 bytes_p50=5420 bytes_p95=6444
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=full_commit samples=32 p50_ns=22549167 p95_ns=26913041 alloc_p50=31049 alloc_p95=31052 bytes_p50=123695992 bytes_p95=142448512
+container_scaling scenario=subtree2048 nodes=2058 parents=1 descendants=2048 stage=revision_sync samples=32 p50_ns=7760042 p95_ns=8986750 alloc_p50=2139 alloc_p95=2139 bytes_p50=101606836 bytes_p95=101606836
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 1.84s
+

@@ -218,6 +218,14 @@ impl FigureTree {
         Ok(self.node(parent_id)?.children.clone())
     }
 
+    pub(crate) fn child_at_index(
+        &self,
+        parent_id: FigureId,
+        index: usize,
+    ) -> Result<Option<FigureId>, TreeQueryError> {
+        Ok(self.node(parent_id)?.children.get(index).copied())
+    }
+
     /// Returns the direct parent of a Figure.
     pub fn parent_id(&self, figure_id: FigureId) -> Result<Option<FigureId>, TreeQueryError> {
         Ok(self.node(figure_id)?.parent)

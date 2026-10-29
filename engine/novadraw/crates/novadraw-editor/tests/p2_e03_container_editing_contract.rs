@@ -1,5 +1,9 @@
 mod support;
 
+#[cfg(test)]
+#[path = "support/container_allocations.rs"]
+mod container_allocations;
+
 use novadraw::{
     event::{KeyModifiers, MouseButton},
     figure::{ChildTransform, Figure, FigureContainer, RectangleFigure},
@@ -770,6 +774,7 @@ fn editor() -> (GraphicalViewer<Model, Factory>, EditorDomain<Model>) {
 }
 
 /// Matched release consumer: initialize one Viewer, optionally execute container creation.
+#[cfg(not(test))]
 pub fn delivery_cost_probe<const CONTAINER: bool>() -> usize {
     let mut viewer = GraphicalViewer::new(
         Model::new(),
@@ -1162,6 +1167,47 @@ fn multi_original_parents_query_each_removal_and_programmatic_noop_adds_no_histo
 }
 
 #[test]
+fn retired_acquired_feedback_rejects_cleanup_before_build_for_both_tools() {
+    for creating in [false, true] {
+        let (mut viewer, mut domain) = editor();
+        let before = viewer.model().nodes.clone();
+        let revision = viewer.model().revision;
+        let start = if creating {
+            domain
+                .set_active_tool(&mut viewer, ContainerCreationTool::new(Template(20)))
+                .unwrap();
+            Point::new(400.0, 120.0)
+        } else {
+            select(&mut viewer, &[FIRST]);
+            Point::new(80.0, 80.0)
+        };
+        let pointer = Point::new(440.0, 160.0);
+        domain
+            .pointer_pressed(&mut viewer, start, MouseButton::Left, Default::default())
+            .unwrap();
+        domain.pointer_moved(&mut viewer, pointer).unwrap();
+        let layer = viewer.root_layers().feedback();
+        let acquired = viewer.runtime().tree().child_order(layer).unwrap();
+        let feedback = acquired
+            .into_iter()
+            .find(|figure| viewer.visual_owner(*figure).is_some())
+            .expect("the real tool acquired feedback");
+        viewer.remove_overlay_visual(feedback).unwrap();
+        let error = domain
+            .pointer_released(&mut viewer, pointer, MouseButton::Left)
+            .unwrap_err();
+        assert!(error.to_string().contains("Figure is not owned Overlay"));
+        assert_eq!(viewer.model().trace.borrow().build_count, 0);
+        assert_eq!(domain.command_stack().undo_len(), 0);
+        assert_eq!(viewer.model().nodes, before);
+        assert_eq!(viewer.model().revision, revision);
+        // Admission refused before disposal; the unfinished tool retains its gesture.
+        assert!(domain.has_active_gesture());
+        assert!(!viewer.is_faulted());
+    }
+}
+
+#[test]
 fn feedback_cleanup_panic_prevents_building_and_faults_viewer_for_both_tools() {
     for creating in [false, true] {
         let (mut viewer, mut domain) = editor();
@@ -1385,6 +1431,206 @@ fn stationary_pointer_after_zoom_recomputes_shared_anchor_and_fixed_creation_ori
             })),
         )
         .unwrap();
+}
+
+#[test]
+#[ignore = "release-mode performance evidence; run explicitly"]
+fn container_scaling_samples_include_multiple_parents_and_large_source_subtrees() {
+    use container_allocations::measure;
+    const SAMPLES: usize = 32;
+    for (label, parent_count, descendants) in [
+        ("parents16", 16, 0),
+        ("parents64", 64, 0),
+        ("subtree32", 1, 32),
+        ("subtree2048", 1, 2048),
+    ] {
+        let mut model = Model::new();
+        let mut sources = Vec::new();
+        for index in 0..parent_count {
+            let parent = 1000 + index;
+            let source = 2000 + index;
+            model.nodes.get_mut(&LEFT).unwrap().children.push(parent);
+            model.nodes.insert(
+                parent,
+                Node {
+                    bounds: Rectangle::new(0.0, 0.0, 230.0, 300.0),
+                    children: vec![source],
+                },
+            );
+            model.nodes.insert(
+                source,
+                Node {
+                    bounds: Rectangle::new(20.0, 20.0, 40.0, 30.0),
+                    children: vec![],
+                },
+            );
+            sources.push(source);
+        }
+        for index in 0..descendants {
+            let id = 3000 + index;
+            model.nodes.get_mut(&sources[0]).unwrap().children.push(id);
+            model.nodes.insert(
+                id,
+                Node {
+                    bounds: Rectangle::new(0.0, 0.0, 1.0, 1.0),
+                    children: vec![],
+                },
+            );
+        }
+        let nodes = model.nodes.len();
+        let mut viewer =
+            GraphicalViewer::new(model, Factory, Rectangle::new(0.0, 0.0, 800.0, 600.0)).unwrap();
+        support::prepare_next_submission(&mut viewer);
+        let parts = sources
+            .iter()
+            .map(|id| viewer.part_for_model(*id).unwrap())
+            .collect::<Vec<_>>();
+        let target = viewer.part_for_model(RIGHT).unwrap();
+        let source_parent = viewer.parts().parent(parts[0]).unwrap();
+        let start = viewer
+            .child_content_to_surface(source_parent)
+            .unwrap()
+            .transform_point(Point::new(30.0, 30.0));
+        let source_hit = start;
+        let mut domain = EditorDomain::new();
+        domain
+            .set_active_tool(
+                &mut viewer,
+                Probe(Box::new(move |ctx| {
+                    let revision = novadraw_editor::InteractionRevision::initial();
+                    let mut observations: [Vec<(u128, usize, usize)>; 5] =
+                        std::array::from_fn(|_| Vec::with_capacity(SAMPLES));
+                    let child_reads = ctx.model().child_reads.get();
+                    for _ in 0..SAMPLES {
+                        let (batch, observation) = measure(|| {
+                            ctx.begin_container_move::<Protocol>(&parts, None, start, revision)
+                                .unwrap()
+                        });
+                        observations[0].push(observation);
+                        let (hit, observation) =
+                            measure(|| ctx.container_target_at(source_hit, &parts).unwrap());
+                        assert!(!parts.contains(&hit));
+                        observations[1].push(observation);
+                        let (candidate, observation) = measure(|| {
+                            ctx.container_move_candidate(
+                                &batch,
+                                target,
+                                Point::new(400.0, 120.0),
+                                revision,
+                            )
+                            .unwrap()
+                        });
+                        observations[2].push(observation);
+                        ctx.model().trace.borrow_mut().permissions.clear();
+                        let (checked, observation) = measure(|| {
+                            ctx.resolve_container_move::<Protocol>(&candidate)
+                                .unwrap()
+                                .unwrap()
+                        });
+                        assert_eq!(
+                            ctx.model().trace.borrow().permissions.len(),
+                            parent_count as usize
+                        );
+                        observations[3].push(observation);
+                        let (_, observation) = measure(|| {
+                            let feedback = ctx.show_container_move_feedback(&checked).unwrap();
+                            ctx.remove_overlay_visuals(&feedback).unwrap();
+                        });
+                        observations[4].push(observation);
+                    }
+                    assert_eq!(ctx.model().child_reads.get(), child_reads);
+                    for (stage, samples) in [
+                        "begin",
+                        "source_exclusion_hit",
+                        "candidate",
+                        "policy",
+                        "feedback",
+                    ]
+                    .into_iter()
+                    .zip(observations)
+                    {
+                        print_scaling(label, nodes, parent_count, descendants, stage, samples);
+                    }
+                    Ok(())
+                })),
+            )
+            .unwrap();
+        let mut commits = Vec::with_capacity(SAMPLES);
+        let mut syncs = Vec::with_capacity(SAMPLES);
+        for _ in 0..SAMPLES {
+            let parts = sources
+                .iter()
+                .map(|id| viewer.part_for_model(*id).unwrap())
+                .collect();
+            domain
+                .set_active_tool(
+                    &mut viewer,
+                    ContainerMoveTool::<Model, Protocol>::from_sources(
+                        parts,
+                        None,
+                        start,
+                        novadraw_editor::InteractionRevision::initial(),
+                    ),
+                )
+                .unwrap();
+            let (_, observation) = measure(|| {
+                domain
+                    .pointer_released(&mut viewer, Point::new(400.0, 120.0), MouseButton::Left)
+                    .unwrap()
+            });
+            commits.push(observation);
+            domain.undo(&mut viewer).unwrap();
+            let reads = viewer.model().child_reads.get();
+            let (_, observation) = measure(|| viewer.synchronize_model(Model::publish).unwrap());
+            assert_eq!(viewer.model().child_reads.get() - reads, nodes);
+            syncs.push(observation);
+        }
+        print_scaling(
+            label,
+            nodes,
+            parent_count,
+            descendants,
+            "full_commit",
+            commits,
+        );
+        print_scaling(
+            label,
+            nodes,
+            parent_count,
+            descendants,
+            "revision_sync",
+            syncs,
+        );
+    }
+}
+
+#[cfg(test)]
+fn print_scaling(
+    label: &str,
+    nodes: usize,
+    parents: u32,
+    descendants: u32,
+    stage: &str,
+    samples: Vec<(u128, usize, usize)>,
+) {
+    let mut time = samples.iter().map(|value| value.0).collect::<Vec<_>>();
+    let mut calls = samples.iter().map(|value| value.1).collect::<Vec<_>>();
+    let mut bytes = samples.iter().map(|value| value.2).collect::<Vec<_>>();
+    time.sort_unstable();
+    calls.sort_unstable();
+    bytes.sort_unstable();
+    let mid = samples.len() / 2;
+    let tail = samples.len() * 95 / 100;
+    println!(
+        "container_scaling scenario={label} nodes={nodes} parents={parents} descendants={descendants} stage={stage} samples={} p50_ns={} p95_ns={} alloc_p50={} alloc_p95={} bytes_p50={} bytes_p95={}",
+        samples.len(),
+        time[mid],
+        time[tail],
+        calls[mid],
+        calls[tail],
+        bytes[mid],
+        bytes[tail]
+    );
 }
 
 #[test]
@@ -1904,6 +2150,80 @@ fn stationary_multi_selection_survives_dual_axis_autoexpose_scroll_and_resize() 
     assert_eq!(second.y - first.y, 10.0);
     assert_eq!(domain.command_stack().undo_len(), 1);
     assert_eq!(viewer.model().trace.borrow().build_count, 1);
+}
+
+#[test]
+fn stationary_creation_recomputes_after_dual_axis_autoexpose_scroll_zoom_and_resize() {
+    let mut viewer = GraphicalViewer::new(
+        Model::new(),
+        Factory,
+        Rectangle::new(0.0, 0.0, 300.0, 200.0),
+    )
+    .unwrap();
+    support::prepare_next_submission(&mut viewer);
+    let mut domain = EditorDomain::new();
+    domain
+        .set_active_tool(&mut viewer, ContainerCreationTool::new(Template(20)))
+        .unwrap();
+    let start = Point::new(80.0, 80.0);
+    let contents = viewer.contents();
+    let start_in_contents = viewer
+        .surface_to_child_content(contents)
+        .unwrap()
+        .unwrap()
+        .transform_point(start);
+    domain
+        .pointer_pressed(&mut viewer, start, MouseButton::Left, Default::default())
+        .unwrap();
+    let pointer = Point::new(294.0, 194.0);
+    domain.pointer_moved(&mut viewer, pointer).unwrap();
+    let origin = viewer.viewport_origin().unwrap();
+    assert!(
+        domain
+            .autoexpose_tick(&mut viewer, std::time::Duration::from_millis(16))
+            .unwrap()
+            .scrolled()
+    );
+    let exposed = viewer.viewport_origin().unwrap();
+    assert!(exposed.x() > origin.x() && exposed.y() > origin.y());
+    domain
+        .set_viewport_origin(&mut viewer, Point::new(40.0, 30.0))
+        .unwrap();
+    viewer.set_viewport_scale_at(1.5, None).unwrap();
+    viewer
+        .drive()
+        .resize_logical_viewport(320.0, 220.0)
+        .unwrap();
+    domain.refresh_after_viewport_change(&mut viewer).unwrap();
+    assert!(domain.has_active_gesture());
+    let target = viewer.container_target_at(pointer, &[]).unwrap();
+    let target_model = viewer.parts().get(target).unwrap().model_id().unwrap();
+    let start_surface = viewer
+        .child_content_to_surface(contents)
+        .unwrap()
+        .transform_point(start_in_contents);
+    let inverse = viewer.surface_to_child_content(target).unwrap().unwrap();
+    let a = inverse.transform_point(start_surface);
+    let b = inverse.transform_point(pointer);
+    let expected = Rectangle::new(
+        a.x().min(b.x()),
+        a.y().min(b.y()),
+        (b.x() - a.x()).abs(),
+        (b.y() - a.y()).abs(),
+    );
+    assert_ne!(start_surface, start);
+    domain
+        .pointer_released(&mut viewer, pointer, MouseButton::Left)
+        .unwrap();
+    assert_eq!(viewer.model().nodes[&20].bounds, expected);
+    assert!(viewer.model().nodes[&target_model].children.contains(&20));
+    assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+    assert!(viewer.model().trace.borrow().permissions.is_empty());
+    domain.undo(&mut viewer).unwrap();
+    assert!(!viewer.model().nodes.contains_key(&20));
+    domain.redo(&mut viewer).unwrap();
+    assert_eq!(viewer.model().nodes[&20].bounds, expected);
 }
 
 #[test]

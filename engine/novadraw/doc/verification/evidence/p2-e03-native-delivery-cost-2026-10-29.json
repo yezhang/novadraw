@@ -1,0 +1,26 @@
+[
+  {
+    "capability": "off",
+    "bytes": 3149728,
+    "gzip9_bytes": 1487184,
+    "sha256": "42fb32297173e94ccf97ae2487fd73848d1b763ce9e86aa2973a345db4da02dd",
+    "process_p50_ns": 33811750,
+    "process_p95_ns": 77537167,
+    "samples": 32,
+    "outputs": [
+      "8"
+    ]
+  },
+  {
+    "capability": "on",
+    "bytes": 3431088,
+    "gzip9_bytes": 1641579,
+    "sha256": "e9cab428432e14bbea2ab012892ef8caa8780939965f4a017b76c8f48fb95ffd",
+    "process_p50_ns": 37512042,
+    "process_p95_ns": 59913750,
+    "samples": 32,
+    "outputs": [
+      "11"
+    ]
+  }
+]

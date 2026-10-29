@@ -1,10 +1,13 @@
 # ADR-055 容器编辑实施验证
 
-类型：`verification-report`
+类型：`implementation-verification`
 
 日期：2026-10-29。依据用户批准的 [ADR-055 修订 2](../../adr/adr-055-container-editing-protocol.md)。
 公共协议、移动与创建/drop 已接入；无窗口契约和独立消费者通过。
 Native/Web 实际输入验收尚未执行，P2-E03 保留 `in_progress`。
+
+本轮续验已补创建视口变化与已取得反馈的清理拒绝，修复同步重复分配；
+最新证据和剩余范围见[续验复核](adr-055-followup-2026-10-29.md)。
 
 ## 实现边界
 
@@ -46,19 +49,20 @@ execute/undo/redo 以稳定 ModelId 保存并恢复完整 selection、primary �
 | CE-06/07 | actual_content_panes、xy_geometry；Core checked_inverse 单测 | inset、不同 content pane、非均匀缩放、同旋转、反射、轴交换、skew/溢出/极小可逆尺度/零尺寸 |
 | CE-09 | ordered_insertion、multi_original_parents | Before/After/空目标/操作顺序/source reference 拒绝、无变化无历史 |
 | CE-11 | parent_creation、nested_click_and_drop、creation_rejection | 父域点击/拖动/drop、默认尺寸、显式偏移、创建取消/拒绝无对象与历史 |
-| CE-13/14 | cancellation_tool_switch、external_revision、release_recomputes、stationary_pointer、held_candidate、stationary_multi_selection | 删除/换工具/显式宿主取消、policy invalidation、release 最新位置、zoom 下固定创建起点、双轴 auto-expose/scroll/resize 下多选共享平移 |
-| CE-15 | feedback_cleanup_panic、failed_model_execute、successful_model_and_history；S06 公共 overlay failure 单测 | 两种 Tool 的 lifecycle 清理 panic 阻止构造；模型拒绝无历史；投影失败保留成功 history；共享 dispatcher 拒绝保留清理进度 |
+| CE-13/14 | cancellation_tool_switch、external_revision、release_recomputes、stationary_pointer、held_candidate、stationary_multi_selection、stationary_creation | 删除/换工具/显式宿主取消、policy invalidation、release 最新位置、固定创建起点；移动与创建在静止指针下通过视口变化续验 |
+| CE-15 | retired_acquired_feedback、feedback_cleanup_panic、failed_model_execute、successful_model_and_history；S06 overlay/Core 单测 | 两种 Tool 已取得反馈的提前退休拒绝与 lifecycle panic 阻止构造；模型拒绝无历史；投影失败保留成功 history；真实 Core prepare 拒绝仅有 Core 私有单测 |
 | CE-17 | editor.contracts、extensions | 既有 Editor 与公开扩展回归；最终 workspace 门禁另记 |
 | CE-18 | release 成本夹具、同配置产物消费者 | 小/宽/深树阶段样本、完整提交与同步、有序扫描、实际产物体积 |
 
 CE-15 的 prepare 拒绝采用既有 `viewer::failure::tests::s06_cleanup_driver_keeps_real_refusal_and_continues_independent_roots`
 与 overlay preflight 测试证明共享服务行为。前者是 synthetic-root dispatcher 拒绝，
-不是容器反馈正常取得资源后的真实 prepare 拒绝；未新增针对每种容器 Tool 的私有故障注入。
+不是容器反馈正常取得资源后的真实 Core prepare 拒绝。续验增加了提前退休反馈的
+真实 Tool 清理准入拒绝；Core revision 耗尽端到端场景仍缺证据。
 外部 header 字段只读，compile-fail 检查身份/有序子批字段篡改以及完整凭证构造，
 不使用缺字段的空 initializer 证明私有边界。运行时测试拒绝来自旧候选的声明，
 不把不可公开构造的逐字段伪造计为已执行反例。
-静止指针下双轴 auto-expose、scroll、resize 已有无窗口移动测试；
-创建与真实 DPI/capture 的全部组合仍待平台续验。
+静止指针下双轴 auto-expose、scroll、resize 已有无窗口移动与创建测试，
+创建还组合 zoom；真实 DPI/capture 的全部组合仍待平台续验。
 
 ## 性能
 
@@ -78,7 +82,8 @@ CE-15 的 prepare 拒绝采用既有 `viewer::failure::tests::s06_cleanup_driver
 源排除传入视觉根，由 Core 剪枝，不展开所有后代。
 反馈阶段包含创建、附着、清理；完整提交包含计划重算、命令构造/执行、投影和稳定化，
 不包含此前 Tool activation。应用夹具命令复制完整模型，其成本也包含在提交内。
-分配次数、bytes、handler 内部扫描尚未采集，初始化阶段也未拆分计时。
+首批未采集分配；续验另记多父与大源子树的分配次数和 bytes，
+handler 内部扫描与初始化阶段仍未拆分计时。
 
 ## 最终产物
 
@@ -128,7 +133,8 @@ Brotli 增量 87,186 bytes。JavaScript 两版字节与 SHA-256 相同。
 
 ## 验证与剩余范围
 
-容器契约 27 项通过，性能项单独显式执行；独立消费者 31 项通过，性能项默认忽略。
+首批容器契约 27 项、独立消费者 31 项通过；续验分别为 29 项和 33 项，
+两项性能测试默认忽略，新增 scaling 单独显式执行通过。
 editor.contracts 与 extensions 已通过。workspace fmt/check 与严格 Clippy 通过；
 最终源码补充后，容器 lib/test 严格 Clippy 与全部容器契约再次通过。
 Native/Web 公开架构门禁通过，Runtime 方法数 28/28，Kurbo 单版本 0.13.1；
@@ -138,6 +144,10 @@ Core 公开符号快照只增加 `geometry::InverseFailure`。
 `repository_documentation_is_valid`；docs 同样被既有长文本报告引用的缺失产物阻塞：
 `target/verification/long-text/scroll-resize-shared-20261028/hot-comparison.json`。
 未改写该历史引用或补造证据，原错误见 [docs 日志](../evidence/p2-e03-docs-2026-10-29.log)。
+以上是首次门禁的快照。续验已将缺失链接改为明确的历史缺失记录，
+修正两处文档类型；docs 门禁恢复通过，原始产物仍未找回。
+本轮最终 workspace 测试退出码为 0，1653 项通过、21 项忽略；
+最终 fmt、严格 Clippy 与 diff check 通过，详见续验复核。
 workspace doctest 全部通过，其中 11 项容器反例验证私有字段和凭证构造边界。
 最终 workspace 严格 Clippy、fmt 与 diff check 通过。
 Web 打包结果另记于产物部分。Native/Web 用户输入、跨显示器、

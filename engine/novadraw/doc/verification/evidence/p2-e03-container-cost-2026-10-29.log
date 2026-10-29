@@ -1,0 +1,39 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 22.39s
+[1m[92m     Running[0m tests/p2_e03_container_editing_contract.rs (target/release/deps/p2_e03_container_editing_contract-e1ac96e75b17c054)
+
+running 1 test
+container_cost scenario=small nodes=18 k=2 depth=2 stage=sync p50_ns=41 p95_ns=42
+container_cost scenario=small nodes=18 k=2 depth=2 stage=hit p50_ns=2500 p95_ns=3125
+container_cost scenario=small nodes=18 k=2 depth=2 stage=geometry p50_ns=2875 p95_ns=3458
+container_cost scenario=small nodes=18 k=2 depth=2 stage=policy p50_ns=4125 p95_ns=5125
+container_cost scenario=small nodes=18 k=2 depth=2 stage=feedback p50_ns=10292 p95_ns=13625
+container_cost scenario=small nodes=18 k=2 depth=2 stage=full_commit p50_ns=62500 p95_ns=162167
+container_cost scenario=small nodes=18 k=2 depth=2 stage=revision_sync p50_ns=12875 p95_ns=15625
+container_cost scenario=small nodes=18 k=2 depth=2 stage=ordered p50_ns=583 p95_ns=875
+container_cost scenario=small samples=64 sync_child_reads_min=18 sync_child_reads_max=18
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=sync p50_ns=83 p95_ns=708
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=hit p50_ns=5750 p95_ns=14500
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=geometry p50_ns=20541 p95_ns=30625
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=policy p50_ns=31125 p95_ns=46500
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=feedback p50_ns=726583 p95_ns=918958
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=full_commit p50_ns=1314583 p95_ns=2750250
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=revision_sync p50_ns=680167 p95_ns=2140417
+container_cost scenario=wide nodes=522 k=32 depth=2 stage=ordered p50_ns=12375 p95_ns=20333
+container_cost scenario=wide samples=64 sync_child_reads_min=522 sync_child_reads_max=522
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=sync p50_ns=0 p95_ns=42
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=hit p50_ns=2583 p95_ns=3417
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=geometry p50_ns=14167 p95_ns=16750
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=policy p50_ns=18417 p95_ns=20750
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=feedback p50_ns=80125 p95_ns=84458
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=full_commit p50_ns=489792 p95_ns=1032542
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=revision_sync p50_ns=270125 p95_ns=531750
+container_cost scenario=deep nodes=144 k=2 depth=128 stage=ordered p50_ns=833 p95_ns=2000
+container_cost scenario=deep samples=64 sync_child_reads_min=144 sync_child_reads_max=144
+test container_cost_samples_include_sync_hit_geometry_policy_feedback_and_commit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.50s
+
