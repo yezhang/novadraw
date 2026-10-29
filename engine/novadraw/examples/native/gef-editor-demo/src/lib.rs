@@ -7,7 +7,9 @@ mod tests;
 pub mod ui;
 pub use alignment::Alignment;
 use model::{
-    Diagram, EdgeStyle, FIRST, MIN_SIZE, MoveShape, ShapeFactory, ShapeKind, ShapeTemplate,
+    Diagram, EdgeStyle, FIRST, MIN_SIZE, MoveShape, RenameShape, ReorderShapes, ReplaceGroups,
+    ShapeFactory, ShapeGroup, ShapeKind, ShapePresentation, ShapeTemplate, UpdateShapePresentation,
+    WorkspaceSettings,
 };
 use novadraw::connection::ShortestPathConnectionRouter;
 use novadraw::geometry::{Point, Rectangle};
@@ -39,9 +41,21 @@ pub fn session() -> Session {
 }
 
 fn session_from_model(model: Diagram) -> Result<Session, String> {
+    session_from_model_with_workspace(model, WorkspaceSettings::default())
+}
+
+fn session_from_model_with_workspace(
+    model: Diagram,
+    workspace: WorkspaceSettings,
+) -> Result<Session, String> {
     let mut session = Session::new(
-        GraphicalViewer::new(model, ShapeFactory, Rectangle::new(0.0, 0.0, 640.0, 480.0))
-            .map_err(|e| e.to_string())?,
+        GraphicalViewer::new(
+            model,
+            ShapeFactory::new(workspace.clone()),
+            Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        )
+        .map_err(|e| e.to_string())?,
+        workspace,
     );
     update_router(&mut session)?;
     Ok(session)
@@ -53,6 +67,7 @@ fn obstacles(session: &Session) -> Vec<FigureId> {
         .model()
         .order
         .iter()
+        .filter(|id| session.viewer.model().presentation(**id).visible)
         .filter_map(|id| {
             session
                 .viewer
@@ -70,7 +85,7 @@ fn update_router(session: &mut Session) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub enum UiCommand {
     Undo,
     Redo,
@@ -83,7 +98,22 @@ pub enum UiCommand {
     Connect(EdgeStyle),
     Drop(ShapeKind, Point),
     Select(u64),
+    SelectGroup(u64),
     ApplyProperties,
+    Rename(String),
+    SetAppearance(ShapePresentation),
+    ToggleVisibility(u64),
+    ToggleLock(u64),
+    BringForward,
+    SendBackward,
+    Group,
+    Ungroup,
+    ToggleGrid,
+    ToggleSnap,
+    ZoomOut,
+    ZoomReset,
+    ZoomIn,
+    ZoomFit,
     Save,
     SaveAs,
     Open,
@@ -126,6 +156,16 @@ pub struct OutlineItem {
     pub id: u64,
     pub title: String,
     pub kind: OutlineItemKind,
+    pub visible: bool,
+    pub locked: bool,
+    pub group: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GroupItem {
+    pub id: u64,
+    pub title: String,
+    pub members: Vec<u64>,
 }
 
 pub struct AppState {
@@ -133,14 +173,26 @@ pub struct AppState {
     pub canvas: CanvasAction,
     pub disabled: bool,
     pub can_align: bool,
+    pub can_delete: bool,
+    pub can_group: bool,
+    pub can_ungroup: bool,
+    pub can_bring_forward: bool,
+    pub can_send_backward: bool,
     pub tool_mode: ToolMode,
     pub outline: Vec<OutlineItem>,
+    pub groups: Vec<GroupItem>,
     pub selected: Vec<u64>,
     pub properties: [f64; 4],
+    pub name_draft: String,
+    pub presentation_draft: Option<ShapePresentation>,
+    pub geometry_dirty: bool,
+    pub appearance_dirty: bool,
     pub path_input: String,
     pub current_path: Option<PathBuf>,
     pub canvas_bounds: Rectangle,
     pub(crate) property_subject: Option<(u64, Rectangle)>,
+    name_subject: Option<(u64, String)>,
+    presentation_subject: Option<(u64, ShapePresentation)>,
     route_obstacles: Vec<FigureId>,
     pub message: Option<String>,
 }
@@ -151,14 +203,26 @@ impl Default for AppState {
             canvas: CanvasAction::default(),
             disabled: false,
             can_align: false,
+            can_delete: false,
+            can_group: false,
+            can_ungroup: false,
+            can_bring_forward: false,
+            can_send_backward: false,
             tool_mode: ToolMode::default(),
             outline: Vec::new(),
+            groups: Vec::new(),
             selected: Vec::new(),
             properties: Default::default(),
+            name_draft: String::new(),
+            presentation_draft: None,
+            geometry_dirty: false,
+            appearance_dirty: false,
             path_input: "shapes.json".into(),
             current_path: None,
             canvas_bounds: Rectangle::new(0.0, 0.0, 0.0, 0.0),
             property_subject: None,
+            name_subject: None,
+            presentation_subject: None,
             route_obstacles: Vec::new(),
             message: None,
         }
@@ -222,7 +286,7 @@ fn apply_command(
             app.tool_mode = ToolMode::Marquee;
             Ok(())
         }
-        UiCommand::Rectangle | UiCommand::Ellipse => {
+        command @ (UiCommand::Rectangle | UiCommand::Ellipse) => {
             let kind = if matches!(command, UiCommand::Rectangle) {
                 ShapeKind::Rectangle
             } else {
@@ -287,8 +351,46 @@ fn apply_command(
             app.tool_mode = ToolMode::Selection;
             Ok(())
         }
+        UiCommand::SelectGroup(id) => {
+            session
+                .domain
+                .cancel_tool(&mut session.viewer)
+                .map_err(|e| e.to_string())?;
+            let members = session
+                .viewer
+                .model()
+                .groups
+                .get(&id)
+                .ok_or("group no longer exists")?
+                .members
+                .clone();
+            let parts = members
+                .iter()
+                .filter_map(|member| session.viewer.part_for_model(*member))
+                .collect::<Vec<_>>();
+            session
+                .viewer
+                .set_selection(&parts)
+                .map_err(|e| e.to_string())?;
+            app.tool_mode = ToolMode::Selection;
+            Ok(())
+        }
         UiCommand::Delete => {
-            let parts = session.viewer.selection().items().to_vec();
+            let parts = session
+                .viewer
+                .selection()
+                .items()
+                .iter()
+                .copied()
+                .filter(|part| {
+                    session
+                        .viewer
+                        .parts()
+                        .get(*part)
+                        .and_then(|part| part.model_id())
+                        .is_none_or(|id| !session.viewer.model().is_locked(id))
+                })
+                .collect::<Vec<_>>();
             if parts.is_empty() {
                 return Ok(());
             }
@@ -341,7 +443,155 @@ fn apply_command(
                 )
                 .map_err(|e| e.to_string())
         }
-        UiCommand::Save | UiCommand::SaveAs => {
+        UiCommand::Rename(after) => {
+            let (id, _) = app.property_subject.ok_or("select a shape to rename")?;
+            let before = session.viewer.model().name(id);
+            if before == after.trim() {
+                return Ok(());
+            }
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(RenameShape { id, before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::SetAppearance(after) => {
+            let (id, _) = app.property_subject.ok_or("select a shape to style")?;
+            let before = session.viewer.model().presentation(id);
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(UpdateShapePresentation { id, before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::ToggleVisibility(id) => {
+            let before = session.viewer.model().presentation(id);
+            let after = ShapePresentation {
+                visible: !before.visible,
+                ..before
+            };
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(UpdateShapePresentation { id, before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::ToggleLock(id) => {
+            let before = session.viewer.model().presentation(id);
+            let after = ShapePresentation {
+                locked: !before.locked,
+                ..before
+            };
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(UpdateShapePresentation { id, before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        command @ (UiCommand::BringForward | UiCommand::SendBackward) => {
+            let id = app
+                .selected
+                .last()
+                .copied()
+                .ok_or("select a shape to reorder")?;
+            if session.viewer.model().is_locked(id) {
+                return Ok(());
+            }
+            let before = session.viewer.model().order.clone();
+            let Some(index) = before.iter().position(|candidate| *candidate == id) else {
+                return Ok(());
+            };
+            let target = if matches!(command, UiCommand::BringForward) {
+                index.checked_add(1).filter(|next| *next < before.len())
+            } else {
+                index.checked_sub(1)
+            };
+            let Some(target) = target else {
+                return Ok(());
+            };
+            let mut after = before.clone();
+            after.swap(index, target);
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(ReorderShapes { before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::Group => {
+            let members = app
+                .selected
+                .iter()
+                .copied()
+                .filter(|id| session.viewer.model().shapes.contains_key(id))
+                .collect::<Vec<_>>();
+            if members.len() < 2 {
+                return Ok(());
+            }
+            let before = session.viewer.model().groups.clone();
+            let mut after = before.clone();
+            after.retain(|_, group| {
+                group.members.retain(|id| !members.contains(id));
+                !group.members.is_empty()
+            });
+            let id = session.viewer.model().next_identity();
+            after.insert(
+                id,
+                ShapeGroup {
+                    name: format!("Group #{id}"),
+                    members,
+                },
+            );
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(ReplaceGroups { before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::Ungroup => {
+            let before = session.viewer.model().groups.clone();
+            let mut after = before.clone();
+            after.retain(|_, group| {
+                !group
+                    .members
+                    .iter()
+                    .any(|member| app.selected.contains(member))
+            });
+            if before == after {
+                return Ok(());
+            }
+            session
+                .domain
+                .execute_command(
+                    &mut session.viewer,
+                    Box::new(ReplaceGroups { before, after }),
+                )
+                .map_err(|e| e.to_string())
+        }
+        UiCommand::ToggleGrid => {
+            session.set_grid_visible(!session.workspace.get().show_grid);
+            Ok(())
+        }
+        UiCommand::ToggleSnap => {
+            session.set_snap_enabled(!session.workspace.get().snap_to_grid);
+            Ok(())
+        }
+        UiCommand::ZoomOut => session.zoom_by_step(-1),
+        UiCommand::ZoomReset => session.set_zoom(1.0),
+        UiCommand::ZoomIn => session.zoom_by_step(1),
+        UiCommand::ZoomFit => session.fit_visible_shapes(),
+        command @ (UiCommand::Save | UiCommand::SaveAs) => {
             let path = if matches!(command, UiCommand::Save) {
                 app.current_path
                     .clone()
@@ -360,18 +610,20 @@ fn apply_command(
             app.message = Some("Saved".into());
             Ok(())
         }
-        UiCommand::Open | UiCommand::DiscardAndOpen => {
+        command @ (UiCommand::Open | UiCommand::DiscardAndOpen) => {
             if session.domain.is_dirty() && matches!(command, UiCommand::Open) {
                 return Err("Unsaved changes: save first, or use Discard & open".into());
             }
             let path = PathBuf::from(&app.path_input);
             let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             let model = Diagram::from_json(&json)?;
-            let replacement = session_from_model(model)?;
+            let replacement = session_from_model_with_workspace(model, session.workspace.clone())?;
             session.cancel()?;
             *session = replacement;
             app.route_obstacles.clear();
             app.property_subject = None;
+            app.name_subject = None;
+            app.presentation_subject = None;
             app.tool_mode = ToolMode::Selection;
             app.current_path = Some(path);
             app.message = Some("Opened".into());
@@ -436,6 +688,42 @@ fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
         .filter_map(|id| session.viewer.parts().get(*id).and_then(|p| p.model_id()))
         .collect();
     let model = session.viewer.model();
+    let selected_shapes = app
+        .selected
+        .iter()
+        .copied()
+        .filter(|id| model.shapes.contains_key(id))
+        .collect::<Vec<_>>();
+    app.can_delete = app
+        .selected
+        .iter()
+        .any(|id| model.shapes.get(id).is_none_or(|_| !model.is_locked(*id)));
+    app.can_group =
+        selected_shapes.len() >= 2 && selected_shapes.iter().all(|id| !model.is_locked(*id));
+    app.can_ungroup = model.groups.values().any(|group| {
+        group
+            .members
+            .iter()
+            .any(|member| selected_shapes.contains(member))
+    });
+    let primary_index = selected_shapes
+        .last()
+        .and_then(|id| model.order.iter().position(|candidate| candidate == id));
+    let primary_unlocked = selected_shapes
+        .last()
+        .is_some_and(|id| !model.is_locked(*id));
+    app.can_bring_forward =
+        primary_unlocked && primary_index.is_some_and(|index| index + 1 < model.order.len());
+    app.can_send_backward = primary_unlocked && primary_index.is_some_and(|index| index > 0);
+    app.groups = model
+        .groups
+        .iter()
+        .map(|(id, group)| GroupItem {
+            id: *id,
+            title: group.name.clone(),
+            members: group.members.clone(),
+        })
+        .collect();
     app.outline = model
         .order
         .iter()
@@ -444,22 +732,23 @@ fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
                 ShapeKind::Rectangle => OutlineItemKind::Rectangle,
                 ShapeKind::Ellipse => OutlineItemKind::Ellipse,
             };
+            let presentation = model.presentation(*id);
             OutlineItem {
                 id: *id,
-                title: format!(
-                    "{} #{id}",
-                    match model.shapes[id].kind {
-                        ShapeKind::Rectangle => "Rectangle",
-                        ShapeKind::Ellipse => "Ellipse",
-                    }
-                ),
+                title: model.name(*id),
                 kind,
+                visible: presentation.visible,
+                locked: presentation.locked,
+                group: model
+                    .groups
+                    .iter()
+                    .find_map(|(group_id, group)| group.members.contains(id).then_some(*group_id)),
             }
         })
         .chain(model.edges.iter().map(|(id, edge)| OutlineItem {
             id: *id,
             title: format!(
-                "{} #{id}  {} → {}",
+                "{} #{id}  {} -> {}",
                 match edge.style {
                     EdgeStyle::Solid => "Solid",
                     EdgeStyle::Dashed => "Dashed",
@@ -468,6 +757,10 @@ fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
                 edge.target
             ),
             kind: OutlineItemKind::Connection(edge.style),
+            visible: model.presentation(edge.source).visible
+                && model.presentation(edge.target).visible,
+            locked: false,
+            group: None,
         }))
         .collect();
     let subject = app
@@ -478,5 +771,17 @@ fn project(app: &mut AppState, session: &Session, bounds: Rectangle) {
         app.property_subject = subject;
         app.properties =
             subject.map_or_else(Default::default, |(_, b)| [b.x, b.y, b.width, b.height]);
+        app.geometry_dirty = false;
+    }
+    let name_subject = subject.map(|(id, _)| (id, model.name(id)));
+    if app.name_subject != name_subject {
+        app.name_subject.clone_from(&name_subject);
+        app.name_draft = name_subject.map_or_else(String::new, |(_, name)| name);
+    }
+    let presentation_subject = subject.map(|(id, _)| (id, model.presentation(id)));
+    if app.presentation_subject != presentation_subject {
+        app.presentation_subject = presentation_subject;
+        app.presentation_draft = presentation_subject.map(|(_, presentation)| presentation);
+        app.appearance_dirty = false;
     }
 }

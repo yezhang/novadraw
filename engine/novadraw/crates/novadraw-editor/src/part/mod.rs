@@ -1089,6 +1089,16 @@ impl<'a> VisualUpdateContext<'a> {
         Ok(self.runtime.figure(self.primary)?.set_opaque(opaque)?)
     }
 
+    /// Updates whether the primary Figure participates in paint and hit testing.
+    pub fn set_primary_visible(&mut self, visible: bool) -> Result<bool, EditPartError> {
+        Ok(self.runtime.figure(self.primary)?.set_visible(visible)?)
+    }
+
+    /// Updates whether the primary Figure participates in input dispatch.
+    pub fn set_primary_enabled(&mut self, enabled: bool) -> Result<bool, EditPartError> {
+        Ok(self.runtime.figure(self.primary)?.set_enabled(enabled)?)
+    }
+
     /// Updates text when the primary Figure exposes Label capability.
     pub fn set_primary_label_text(
         &mut self,

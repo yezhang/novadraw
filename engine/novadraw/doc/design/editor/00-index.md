@@ -31,6 +31,8 @@ Viewport 协作。
   Masonry 自定义 Canvas、可选 Xilem 外层与实施切片。
 - [Masonry 编辑画布与 Xilem View 接入](masonry-xilem-canvas-integration.md)：
   固定上游依赖、session 所有权、Widget 输入/绘制与 View rebuild。
+- [GEF Shapes 样例工作流层级](gef-editor-demo-workflow-hierarchy.md)：固定三栏内的
+  文档栏、工具轨、上下文栏、Layers / Assets、Inspector 和状态栏；P0–P2 行为与所有权。
 
 延期的应用外壳候选（不进入当前执行队列）：
 

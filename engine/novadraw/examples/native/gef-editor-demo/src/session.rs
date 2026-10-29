@@ -1,4 +1,6 @@
-use crate::model::{Diagram, ShapeFactory, resize_handle_sites, selection_handle};
+use crate::model::{
+    Diagram, ShapeFactory, WorkspaceSettings, resize_handle_sites, selection_handle,
+};
 use novadraw::render::{RenderBackend, SurfaceInfo};
 use novadraw::runtime::{FramePreparation, SubmissionAcknowledgement};
 use novadraw::{
@@ -14,6 +16,7 @@ enum HandleProjection {
         part: EditPartId,
         bounds: Rectangle,
         primary: bool,
+        interactive: bool,
     },
     Connection {
         part: EditPartId,
@@ -30,6 +33,7 @@ pub struct Session {
     surface: Option<SurfaceInfo>,
     handles: Vec<FigureId>,
     handle_projection: Vec<HandleProjection>,
+    pub(crate) workspace: WorkspaceSettings,
 }
 
 /// Stable application projection; no model or host-framework types escape here.
@@ -41,20 +45,28 @@ pub struct CanvasAction {
     pub dirty: bool,
     pub model_revision: u64,
     pub active_tool: &'static str,
+    pub grid_visible: bool,
+    pub snap_enabled: bool,
+    pub zoom_percent: u16,
 }
 
 impl Session {
-    pub fn new(viewer: GraphicalViewer<Diagram, ShapeFactory>) -> Self {
+    pub fn new(
+        viewer: GraphicalViewer<Diagram, ShapeFactory>,
+        workspace: WorkspaceSettings,
+    ) -> Self {
         Self {
             viewer,
             domain: EditorDomain::new(),
             surface: None,
             handles: Vec::new(),
             handle_projection: Vec::new(),
+            workspace,
         }
     }
 
     pub fn snapshot(&self, error: Option<String>) -> CanvasAction {
+        let settings = self.workspace.get();
         CanvasAction {
             can_undo: self.domain.has_undo(),
             can_redo: self.domain.has_redo(),
@@ -62,6 +74,11 @@ impl Session {
             dirty: self.domain.is_dirty(),
             model_revision: self.viewer.applied_revision().value(),
             active_tool: self.domain.active_tool_key().name(),
+            grid_visible: settings.show_grid,
+            snap_enabled: settings.snap_to_grid,
+            zoom_percent: self.viewer.viewport_scale().map_or(100, |scale| {
+                (scale * 100.0).round().clamp(1.0, 1000.0) as u16
+            }),
         }
     }
 
@@ -88,7 +105,8 @@ impl Session {
                     part,
                     bounds,
                     primary,
-                } => self.add_shape_handles(part, bounds, primary)?,
+                    interactive,
+                } => self.add_shape_handles(part, bounds, primary && interactive)?,
                 HandleProjection::Connection {
                     part,
                     source,
@@ -134,11 +152,21 @@ impl Session {
                         primary: Some(*part) == primary,
                     })
                 } else {
+                    let model_id = self
+                        .viewer
+                        .parts()
+                        .get(*part)
+                        .and_then(|part| part.model_id())?;
+                    let presentation = self.viewer.model().presentation(model_id);
+                    if !presentation.visible {
+                        return None;
+                    }
                     self.viewer.part_bounds_in_surface(*part).map(|bounds| {
                         HandleProjection::Shape {
                             part: *part,
                             bounds,
                             primary: Some(*part) == primary,
+                            interactive: !presentation.locked,
                         }
                     })
                 }
@@ -195,6 +223,96 @@ impl Session {
             self.handles.push(figure);
         }
         Ok(())
+    }
+
+    pub fn set_grid_visible(&mut self, visible: bool) {
+        self.workspace
+            .update(|settings| settings.show_grid = visible);
+        self.viewer.drive().request_full_redraw();
+    }
+
+    pub fn set_snap_enabled(&self, enabled: bool) {
+        self.workspace
+            .update(|settings| settings.snap_to_grid = enabled);
+    }
+
+    pub fn set_zoom(&mut self, scale: f64) -> Result<(), String> {
+        let viewport = self
+            .viewer
+            .viewport_bounds_in_surface()
+            .map_err(|error| error.to_string())?;
+        self.domain
+            .set_viewport_scale_at(
+                &mut self.viewer,
+                scale,
+                Some(Point::new(
+                    viewport.x + viewport.width / 2.0,
+                    viewport.y + viewport.height / 2.0,
+                )),
+            )
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn zoom_by_step(&mut self, direction: i32) -> Result<(), String> {
+        let current = self
+            .viewer
+            .viewport_scale()
+            .map_err(|error| error.to_string())?;
+        let levels = self.viewer.zoom_manager().zoom_levels();
+        let next = if direction < 0 {
+            levels
+                .iter()
+                .rev()
+                .copied()
+                .find(|level| *level < current - f64::EPSILON)
+        } else {
+            levels
+                .iter()
+                .copied()
+                .find(|level| *level > current + f64::EPSILON)
+        }
+        .unwrap_or(current);
+        self.set_zoom(next)
+    }
+
+    pub fn fit_visible_shapes(&mut self) -> Result<(), String> {
+        const FIT_PADDING: f64 = 40.0;
+        let model = self.viewer.model();
+        let mut visible = model.order.iter().filter_map(|id| {
+            model
+                .presentation(*id)
+                .visible
+                .then_some(model.shapes[id].bounds)
+        });
+        let Some(mut extent) = visible.next() else {
+            return Ok(());
+        };
+        for bounds in visible {
+            extent = extent.union(bounds);
+        }
+        let viewport = self
+            .viewer
+            .viewport_bounds_in_surface()
+            .map_err(|error| error.to_string())?;
+        let available_width = (viewport.width - FIT_PADDING * 2.0).max(1.0);
+        let available_height = (viewport.height - FIT_PADDING * 2.0).max(1.0);
+        let scale = (available_width / extent.width)
+            .min(available_height / extent.height)
+            .clamp(0.1, 4.0);
+        self.domain
+            .set_viewport_scale_at(&mut self.viewer, scale, None)
+            .map_err(|error| error.to_string())?;
+        self.domain
+            .set_viewport_origin(
+                &mut self.viewer,
+                Point::new(
+                    extent.x + extent.width / 2.0 - viewport.width / (2.0 * scale),
+                    extent.y + extent.height / 2.0 - viewport.height / (2.0 * scale),
+                ),
+            )
+            .map(|_| ())
+            .map_err(|error| error.to_string())
     }
 
     /// Publishes one frame through an application-owned backend.

@@ -12,7 +12,10 @@ use novadraw::render::{
 };
 
 fn session() -> Session {
-    session_from_model(Diagram::minimal()).expect("valid minimal diagram")
+    let session = session_from_model(Diagram::minimal()).expect("valid minimal diagram");
+    // Coordinate contracts exercise free movement, independently of workspace snapping.
+    session.set_snap_enabled(false);
+    session
 }
 
 fn click(session: &mut Session, point: Point) {
@@ -731,6 +734,121 @@ fn session_render_tracks_dpi_without_replacing_viewer_or_history() {
     assert_eq!(session.viewer.namespace(), namespace);
     assert!(!session.domain.has_undo());
     assert_eq!(session.viewer.model().shapes[&FIRST].bounds, INITIAL_BOUNDS);
+}
+
+#[test]
+fn layer_visibility_and_lock_are_undoable_and_gate_canvas_editing() {
+    let mut session = session();
+    let mut app = AppState::default();
+    command(&mut session, &mut app, UiCommand::Select(FIRST));
+
+    command(&mut session, &mut app, UiCommand::ToggleVisibility(FIRST));
+    assert!(!session.viewer.model().presentation(FIRST).visible);
+    assert!(matches!(
+        session.viewer.target_at(90.0, 100.0),
+        novadraw_editor::ViewerTarget::Contents(_)
+    ));
+    command(&mut session, &mut app, UiCommand::Undo);
+    assert!(session.viewer.model().presentation(FIRST).visible);
+
+    command(&mut session, &mut app, UiCommand::ToggleLock(FIRST));
+    assert!(session.viewer.model().presentation(FIRST).locked);
+    session.viewer.clear_selection();
+    sync(&mut app, &mut session).unwrap();
+    command(&mut session, &mut app, UiCommand::Select(FIRST));
+    assert_eq!(app.selected, [FIRST]);
+    command(&mut session, &mut app, UiCommand::Delete);
+    assert!(session.viewer.model().shapes.contains_key(&FIRST));
+    command(&mut session, &mut app, UiCommand::Undo);
+    assert!(!session.viewer.model().presentation(FIRST).locked);
+}
+
+#[test]
+fn groups_order_names_and_appearance_roundtrip_through_history_and_json() {
+    let mut session = session();
+    let mut app = AppState::default();
+    let first = session.viewer.part_for_model(FIRST).unwrap();
+    let second = session.viewer.part_for_model(2).unwrap();
+    session.viewer.set_selection(&[first, second]).unwrap();
+    sync(&mut app, &mut session).unwrap();
+
+    command(&mut session, &mut app, UiCommand::Group);
+    let group_id = *session.viewer.model().groups.keys().next().unwrap();
+    assert_eq!(session.viewer.model().groups[&group_id].members, [FIRST, 2]);
+    command(&mut session, &mut app, UiCommand::Undo);
+    assert!(session.viewer.model().groups.is_empty());
+    command(&mut session, &mut app, UiCommand::Redo);
+
+    session.viewer.set_selection(&[second, first]).unwrap();
+    sync(&mut app, &mut session).unwrap();
+    command(&mut session, &mut app, UiCommand::BringForward);
+    assert_eq!(session.viewer.model().order, [2, FIRST]);
+    command(&mut session, &mut app, UiCommand::Undo);
+    assert_eq!(session.viewer.model().order, [FIRST, 2]);
+    command(&mut session, &mut app, UiCommand::Redo);
+
+    command(
+        &mut session,
+        &mut app,
+        UiCommand::Rename("Primary node".into()),
+    );
+    let mut presentation = session.viewer.model().presentation(FIRST);
+    presentation.fill = [87, 166, 120, 255];
+    presentation.stroke = [176, 40, 40, 255];
+    presentation.opacity = 65;
+    command(
+        &mut session,
+        &mut app,
+        UiCommand::SetAppearance(presentation),
+    );
+
+    let json = session.viewer.model().to_json().unwrap();
+    let reopened = Diagram::from_json(&json).unwrap();
+    assert_eq!(reopened.order, [2, FIRST]);
+    assert_eq!(reopened.name(FIRST), "Primary node");
+    assert_eq!(reopened.presentation(FIRST), presentation);
+    assert_eq!(reopened.groups[&group_id].members, [FIRST, 2]);
+}
+
+#[test]
+fn workspace_grid_snap_and_zoom_do_not_change_document_history() {
+    let mut session = session();
+    let mut app = AppState::default();
+    let before = session.viewer.model().to_json().unwrap();
+    assert!(!session.domain.is_dirty());
+
+    for command in [
+        UiCommand::ToggleGrid,
+        UiCommand::ToggleSnap,
+        UiCommand::ZoomIn,
+        UiCommand::ZoomOut,
+        UiCommand::ZoomReset,
+        UiCommand::ZoomFit,
+    ] {
+        crate::tests::command(&mut session, &mut app, command);
+    }
+
+    assert_eq!(session.viewer.model().to_json().unwrap(), before);
+    assert!(!session.domain.has_undo());
+    assert!(!session.domain.is_dirty());
+}
+
+#[test]
+fn creation_uses_session_grid_snap_without_persisting_the_setting() {
+    let mut session = session_from_model(Diagram::minimal()).unwrap();
+    let mut app = AppState::default();
+    command(
+        &mut session,
+        &mut app,
+        UiCommand::Drop(ShapeKind::Rectangle, Point::new(453.0, 307.0)),
+    );
+    assert_eq!(
+        session.viewer.model().shapes[&3].bounds,
+        Rectangle::new(448.0, 304.0, 120.0, 80.0)
+    );
+    let document = session.viewer.model().to_json().unwrap();
+    assert!(!document.contains("snap_to_grid"));
+    assert!(!document.contains("show_grid"));
 }
 
 #[test]

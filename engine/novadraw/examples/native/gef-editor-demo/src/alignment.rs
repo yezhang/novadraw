@@ -67,7 +67,7 @@ pub(crate) fn can_align(session: &Session) -> bool {
             .parts()
             .get(part)
             .and_then(|part| part.model_id())
-            .is_some_and(|id| model.shapes.contains_key(&id))
+            .is_some_and(|id| model.shapes.contains_key(&id) && !model.is_locked(id))
     };
     !session.domain.has_active_gesture()
         && selection.primary().is_some_and(is_shape)
@@ -101,13 +101,18 @@ pub(crate) fn align(session: &mut Session, alignment: Alignment) -> Result<(), S
         .iter()
         .copied()
         .filter(|part| {
-            session
+            let Some(id) = session
                 .viewer
                 .parts()
                 .get(*part)
                 .and_then(|part| part.model_id())
-                .and_then(|id| session.viewer.model().shapes.get(&id))
-                .is_some_and(|shape| alignment.bounds(shape.bounds, reference) != shape.bounds)
+            else {
+                return false;
+            };
+            let model = session.viewer.model();
+            model.shapes.get(&id).is_some_and(|shape| {
+                !model.is_locked(id) && alignment.bounds(shape.bounds, reference) != shape.bounds
+            })
         })
         .collect::<Vec<_>>();
     if targets.is_empty() {
