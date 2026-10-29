@@ -8,6 +8,7 @@
 
 | 文档 | 范围 | 状态 |
 |---|---|---|
+| [editor-container-editing.md](editor-container-editing.md) | 容器 targeting、父域坐标、换父/有序插入、嵌套创建与外部策略 | 修订 2 已批准；无窗口已验证，平台待验收 |
 | [draw2d-official-examples-remaining-contracts.md](draw2d-official-examples-remaining-contracts.md) | 全部 25 个官方入口、共享缺口与 Core/扩展/平台责任矩阵 | 修订 3，已获准实施 |
 | [draw2d-official-examples-core-plan.md](draw2d-official-examples-core-plan.md) | Core K00–K09、算法/控件扩展、宿主 H01–H04 的顺序与退出条件 | 已获准按顺序实施 |
 | [p2-text-direct-edit.md](p2-text-direct-edit.md) | P2-T02 TextFlow interaction geometry 与 P2-E02 direct edit/IME | `complete` |

@@ -11,6 +11,26 @@ pub trait RequestPayload: 'static {}
 
 impl<T: 'static> RequestPayload for T {}
 
+/// Cardinality checked before and after an extension reducer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContributionLimit {
+    /// Preserve the protocol's unrestricted contribution aggregation.
+    All,
+    /// Reject multiple acceptances before an extension can reduce them.
+    AtMostOne,
+}
+
+impl ContributionLimit {
+    pub(crate) fn validate(self, count: usize) -> Result<(), PolicyError> {
+        if self == Self::AtMostOne && count > 1 {
+            return Err(PolicyError::operation(
+                "multiple policies accepted the host request",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Typed identity and diagnostic label of one request protocol.
 pub struct RequestKey<R: ?Sized> {
     name: &'static str,

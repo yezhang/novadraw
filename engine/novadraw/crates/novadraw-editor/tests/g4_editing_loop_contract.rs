@@ -1040,6 +1040,39 @@ fn unknown_command_state_faults_stack_and_viewer_without_projection() {
 }
 
 #[test]
+fn checked_host_aggregation_preserves_sources_and_bypasses_target_routing() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
+    let mut viewer = routing_viewer(Rc::clone(&state));
+    let first = viewer.part_for_model(FIRST).unwrap();
+    let second = viewer.part_for_model(SECOND).unwrap();
+    state.borrow_mut().target = Some(second);
+    let request = DeleteRequest::new(vec![second], InteractionRevision::initial());
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
+    viewer
+        .aggregate_at::<DeleteParts>(
+            first,
+            &metadata,
+            &request,
+            novadraw_editor::ContributionLimit::AtMostOne,
+        )
+        .unwrap();
+    assert_eq!(state.borrow().command_hosts, vec![FIRST]);
+
+    let duplicate = RequestMetadata::new(request.revision(), vec![second, second]);
+    assert!(
+        viewer
+            .aggregate_at::<DeleteParts>(
+                first,
+                &duplicate,
+                &request,
+                novadraw_editor::ContributionLimit::All,
+            )
+            .is_err()
+    );
+    assert_eq!(state.borrow().command_hosts, vec![FIRST]);
+}
+
+#[test]
 fn policy_target_routes_command_and_feedback_to_the_resolved_part_once() {
     let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
     let mut viewer = routing_viewer(Rc::clone(&state));

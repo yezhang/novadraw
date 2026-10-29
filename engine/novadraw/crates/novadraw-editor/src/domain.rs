@@ -260,6 +260,43 @@ impl<A: ModelAdapter + 'static> EditorDomain<A> {
         self.execute::<T::Request, F>(viewer, &metadata, &payload)
     }
 
+    /// Drops a parent-domain template with an explicit grab offset in target-parent units.
+    pub fn drop_into_container<T, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        template: &T,
+        location: Point,
+        grab_offset: Point,
+        modifiers: crate::RequestModifiers,
+    ) -> Result<(), EditorDomainError>
+    where
+        T: crate::container::ContainerCreationTemplate<A>,
+        F: EditPartFactory<A>,
+    {
+        viewer.cancel_direct_text_edit()?;
+        self.cancel_active_tools(viewer)?;
+        viewer.stabilize_for_query()?;
+        let revision = self.next_interaction_revision()?;
+        let command = {
+            let mut context = ToolContext::new(viewer);
+            let checked = context.resolve_container_drop(
+                template,
+                location,
+                grab_offset,
+                modifiers,
+                revision,
+            )?;
+            if let Some(checked) = checked {
+                context.submit_container_creation(checked)?;
+            }
+            context.take_command()
+        };
+        if let Some(command) = command {
+            self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))?;
+        }
+        Ok(())
+    }
+
     /// Checks whether the top command currently permits undo.
     pub fn check_undo(&mut self) -> Result<bool, EditorDomainError> {
         Ok(self.command_stack.check_undo()?)
@@ -384,7 +421,15 @@ where
             Ok::<_, ToolError>((value, context.take_command()))
         }));
         match result {
-            Ok(result) => Ok(result?),
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(error)) => {
+                if !self.active_tool.has_active_gesture() {
+                    self.pointer = None;
+                    self.autoexpose_requested = false;
+                    viewer.pointer_exited();
+                }
+                Err(error.into())
+            }
             Err(payload) => {
                 viewer.fault_extension();
                 resume_unwind(payload)
@@ -938,6 +983,7 @@ where
             tool.cancel(context)?;
             tool.deactivate(context)
         })?;
+        viewer.pointer_exited();
         self.active_tool = Box::new(SelectionTool::new());
         self.call_active_tool(viewer, |tool, context| tool.activate(context))?;
         Ok(())
@@ -972,6 +1018,7 @@ where
         F: EditPartFactory<A>,
     {
         self.call_active_tool(viewer, |tool, context| tool.deactivate(context))?;
+        viewer.pointer_exited();
         let activation = catch_unwind(AssertUnwindSafe(|| {
             let mut context = ToolContext::new(viewer);
             replacement.activate(&mut context)
@@ -1075,6 +1122,11 @@ where
         self.call_active_tool(viewer, |tool, context| {
             tool.refresh(context, location, revision)
         })?;
+        if !self.has_active_gesture() {
+            self.pointer = None;
+            self.autoexpose_requested = false;
+            viewer.pointer_exited();
+        }
         Ok(())
     }
 

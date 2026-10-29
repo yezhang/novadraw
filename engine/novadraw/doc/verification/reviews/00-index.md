@@ -9,7 +9,9 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-29 | [ADR-055 容器编辑实施验证](adr-055-implementation-2026-10-29.md) |
 | 2026-10-29 | [Shapes Inspector 布局分析](shapes-inspector-layout-analysis-2026-10-29.md) |
+| 2026-10-29 | [ADR-055 容器编辑草案首轮评审](adr-055-draft-review-2026-10-29.md) |
 | 2026-10-29 | [颜色文本解析拒绝非法输入](core-color-text-input-2026-10-29.md) |
 | 2026-10-28 | [Shapes 编辑器剩余功能与 SH-01～SH-10 自动验证](shapes-editor-implementation-2026-10-28.md) |
 | 2026-10-28 | [Xilem / Masonry 上游依赖重新评估](xilem-masonry-upstream-reassessment-2026-10-28.md) |
@@ -142,6 +144,9 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-29 | [ADR-055 修订 2 设计复核通过](adr-055-revision-2-review-2026-10-29.md) |
+| 2026-10-29 | [ADR-055 修订 1 复核（暂不通过）](adr-055-revision-1-review-2026-10-29.md) |
+| 2026-10-29 | [ADR-055 容器编辑与父坐标草案评审（待修订复核）](adr-055-draft-review-2026-10-29.md) |
 | 2026-10-28 | [Masonry 无 vendor 上游迁移](masonry-upstream-migration-2026-10-28.md) |
 | 2026-09-13 | [GEF / Editor 启动就绪](gef-readiness-analysis-2026-09-13.md) |
 | 2026-09-13 | [G1 Model 与 Command](g1-model-command-completion-2026-09-13.md) |

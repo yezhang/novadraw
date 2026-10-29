@@ -97,6 +97,12 @@ pub struct RequestMetadata {
 因此不再需要 Core 对 `EditorRequest` 做 `label()`、`revision()` 或
 `source_parts()` 的 variant match。
 
+ADR-055 补充 `GraphicalViewer::aggregate_at<R>` 与 `ToolContext::aggregate_at<R>`：
+在显式 host 上聚合，不运行普通 dispatch 的 target callback，真实 source 保留在
+metadata 中。host 与全部 source 均须通过活动身份检查。
+`ContributionLimit::AtMostOne` 在 reducer 前后检查数量；`All` 保留原聚合行为。
+所有 request family 共用这一入口，容器协议不享有特殊分派路径。
+
 ### 3. EditPolicy 在安装时注册 typed handler
 
 `EditPolicy<A>` 只保留统一生命周期：

@@ -1,0 +1,28 @@
+[
+  {
+    "capability": "off",
+    "container_policies_registered": false,
+    "bytes": 3116608,
+    "gzip9_bytes": 1477147,
+    "sha256": "db3e8f80b74668f2d50b40e6ed378d655306a568fbe8a1ecbe98b50c3de07f6f",
+    "process_p50_ns": 36678917,
+    "process_p95_ns": 54926209,
+    "samples": 32,
+    "outputs": [
+      "8"
+    ]
+  },
+  {
+    "capability": "on",
+    "container_policies_registered": true,
+    "bytes": 3431088,
+    "gzip9_bytes": 1642256,
+    "sha256": "95d8fc09319516cc48b3f257e118d5d2aae18bf4d5ab9cb28bf3190f3466f84d",
+    "process_p50_ns": 35374042,
+    "process_p95_ns": 61124875,
+    "samples": 32,
+    "outputs": [
+      "11"
+    ]
+  }
+]

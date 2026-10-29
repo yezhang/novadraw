@@ -405,6 +405,15 @@ Viewer fault 阻止新帧准备；Runtime 健康时仍可结清已有 submission
 
 ## 13. 验证入口
 
+[ADR-055](../../adr/adr-055-container-editing-protocol.md)补充容器编辑：
+`container` 领域拥有固定批次、当前父域候选、统一资格与受检计划。
+Viewer 提供实际 content pane 映射及排除源视觉子树的 Core 命中；
+ToolContext 提供公开 begin/candidate/resolve/show/submit 服务，
+移动与创建 Tool 复用这些服务。布局策略通过关联 Payload/Request/Plan 接入，
+模型命令仍经 ViewerEditSession 提交，换父与 undo/redo 按稳定 ModelId 恢复完整
+selection/primary/focus。来源 revision 或 policy generation 变化取消手势；
+视口变化重新投影，提交前再次校验；清理失败阻止构造命令。
+
 - Headless：模型投影、生命周期、registry、selection、command history；
 - Contract：targeting、policy contribution、feedback cleanup、input arbitration；
 - Native/Web：create/move/delete/reconnect、zoom/scroll、keyboard；

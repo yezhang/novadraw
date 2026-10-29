@@ -694,6 +694,7 @@ pub trait ConnectionReconnection<A: ModelAdapter> {
 pub(crate) struct PolicyStore<A: ModelAdapter> {
     entries: HashMap<EditPartId, BTreeMap<ErasedPolicyKey, PolicyEntry<A>>>,
     namespace: EditorNamespace,
+    generations: HashMap<EditPartId, crate::container::PolicyGeneration>,
 }
 
 impl<A: ModelAdapter> PolicyStore<A> {
@@ -701,7 +702,22 @@ impl<A: ModelAdapter> PolicyStore<A> {
         Self {
             entries: HashMap::new(),
             namespace,
+            generations: HashMap::new(),
         }
+    }
+
+    pub(crate) fn generation(&self, part: EditPartId) -> crate::container::PolicyGeneration {
+        self.generations
+            .get(&part)
+            .copied()
+            .unwrap_or(crate::container::PolicyGeneration(uuid::Uuid::nil()))
+    }
+
+    pub(crate) fn invalidate(&mut self, part: EditPartId) {
+        self.generations.insert(
+            part,
+            crate::container::PolicyGeneration(uuid::Uuid::new_v4()),
+        );
     }
 
     pub(crate) fn install_batch(
@@ -730,6 +746,7 @@ impl<A: ModelAdapter> PolicyStore<A> {
         for installation in installations {
             entries.insert(installation.key, installation.entry);
         }
+        self.invalidate(part);
         Ok(())
     }
 
@@ -750,7 +767,9 @@ impl<A: ModelAdapter> PolicyStore<A> {
         if part.namespace() != self.namespace {
             return None;
         }
-        self.entries.remove(&part)
+        let removed = self.entries.remove(&part);
+        self.generations.remove(&part);
+        removed
     }
 
     pub(crate) fn resolve_target<R>(

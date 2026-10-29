@@ -1,0 +1,148 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m   Compiling[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/gef-editor-demo)
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/web/web-validation)
+[1m[92m   Compiling[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 2m 33s
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+[1m[92m   Doc-tests[0m draw2d_official_examples
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m gef_editor_demo
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m   Doc-tests[0m novadraw
+
+running 4 tests
+test crates/novadraw/src/graph/mod.rs - graph::FigureTree (line 946) ... ok
+test crates/novadraw/src/../README.md - (line 7) ... ok
+test crates/novadraw/src/../README.md - (line 172) ... ok
+test crates/novadraw/src/color.rs - color::Color::from_hex (line 98) ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 28 tests
+test crates/novadraw/src/../README.md - (line 105) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 115) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 111) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 133) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 127) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 123) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 119) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 101) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 138) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 143) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 148) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 159) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 41) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 153) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 61) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 49) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 45) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 53) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 57) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 65) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 69) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 81) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 73) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 89) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 85) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 93) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 97) - compile fail ... ok
+test crates/novadraw/src/../README.md - (line 77) - compile fail ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.36s
+
+all doctests ran in 33.43s; merged doctests compilation took 26.31s
+[1m[92m   Doc-tests[0m novadraw_backend_vello
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m novadraw_editor
+
+running 13 tests
+test crates/novadraw-editor/src/container/creation.rs - container::creation::CreationCandidate (line 57) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::MoveSource (line 21) - compile fail ... ok
+test crates/novadraw-editor/src/container/creation.rs - container::creation::CheckedCreationPlan (line 177) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::MovePlanHeader (line 317) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::MoveBatch (line 61) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::CheckedMovePlan (line 406) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::MoveCandidate (line 118) - compile fail ... ok
+test crates/novadraw-editor/src/container/creation.rs - container::creation::CreationPlanHeader (line 127) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::PermissionQuery (line 217) - compile fail ... ok
+test crates/novadraw-editor/src/container/creation.rs - container::creation::CreationStart (line 21) - compile fail ... ok
+test crates/novadraw-editor/src/container/types.rs - container::types::PermissionReceipt (line 297) - compile fail ... ok
+test crates/novadraw-editor/src/viewer/mod.rs - viewer::GraphicalViewer (line 1146) - compile fail ... ok
+test crates/novadraw-editor/src/viewer/mod.rs - viewer::GraphicalViewer (line 1158) - compile fail ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.60s
+
+[1m[92m   Doc-tests[0m novadraw_example_scenes
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m novadraw_example_support
+
+running 2 tests
+test examples/support/src/lib.rs - (line 7) ... ignored
+test examples/support/src/app.rs - app::run_demo_app (line 1298) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 16.65s; merged doctests compilation took 15.73s
+[1m[92m   Doc-tests[0m novadraw_inspector
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m novadraw_platform_masonry
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m novadraw_platform_web
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m novadraw_platform_winit
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m web_validation
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m   Doc-tests[0m winit_canvas
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

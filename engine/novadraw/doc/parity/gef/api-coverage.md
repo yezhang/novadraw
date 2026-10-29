@@ -114,6 +114,25 @@ Shapes 的 Native harness 验证实际模板 capture、message/rebuild 和 GPU �
 应用 JSON schema、Outline 控件和模板 Palette 不改变 document/tree.viewer/palette
 family 的既定引擎边界。
 
+### 容器编辑增量
+
+2026-10-29 用户批准实施 P2-E03。
+[ADR-055 修订 2](../../adr/adr-055-container-editing-protocol.md)补充 GEF
+Layout/Container Policy 的换父、有序插入与父坐标语义，
+验证范围见[矩阵修订 2](../../verification/plans/editor-container-editing.md)。
+首次评审的 CE-DR01～09 已采纳，补充通用 host 聚合、第三方受检计划、
+混合父批次、完整选择/focus 恢复、独立创建协议及数值/时序/成本合同；
+修订 2 再补唯一锚点/批次平移、统一资格 request 与固定活动协议的跨布局消费，
+对应[修订 1 复核](../../verification/reviews/adr-055-revision-1-review-2026-10-29.md)
+的 R1-01～03。公开容器协议、移动 Tool、父域创建/drop 与共享受检服务已接入；
+无窗口契约及独立消费者已验证，Native/Web 实际输入仍待验收。
+
+受影响 family：`interaction.change_bounds`、`interaction.create`、
+`viewer.targeting`、`part.tree`、`policy.protocol`、`feedback.protocol`、
+`command.protocol`、`viewer.selection`。本轮补充 headless 容器拖动、换父、
+有序插入与嵌套创建证据；已有 verified family 继续表示既定基线，
+不由 headless 成功推断平台 capture、DPI 或系统 DnD 等价。
+
 ## 推进规则
 
 1. 每个 G milestone 必须列出受影响 Family ID。

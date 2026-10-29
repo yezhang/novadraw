@@ -532,7 +532,25 @@ Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 W
 | egui Shapes 宿主 | `in_progress` | eframe/egui 0.35 负责工具栏、Palette、Outline、属性表和 WGPU 纹理合成；应用本地 Session 持有 Viewer/EditorDomain。20 项样例测试通过，包含六方向对齐的主选择参照、复合命令撤销/重做、重复操作无历史、连接过滤及按钮派发；原有局部坐标、焦点取消、模板投放、快捷键、typed tool mode、连接、Outline、持久化、DPI、默认拓扑、箭头比例、Resize 和拖动反馈回归保持通过。严格 Clippy 与 release 构建通过，真实窗口已确认非空且布局正常；完整原生交互、跨显示器 DPI、窗口外 capture、IME 与系统 AT 仍待验收 |
 | Shapes 工具与完整样例 | `in_progress` | [ADR-054](../adr/adr-054-template-creation-and-marquee.md)；[SH-01～SH-10 实施证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)：创建/框选/模板拖放、两种连接线型、端点重连、障碍路由、多选编辑与删除关系恢复、Outline/Geometry、文件与保存点、滚动/平移/快捷键均已实现并完成自动验证；默认启动文档使用 6 节点/6 连接展示两种 Figure、Anchor、线型、箭头、ConnectionPart 与多障碍路由，节点采用三列两行等尺寸网格，默认 route 均为两点直线，最小测试夹具与展示内容分离；egui 宿主显示已核验，完整原生交互仍待核验 |
 
+### Editor 核心能力补充（2026-10-29 用户授权）
+
+用户要求先提交最近修改，再开始补充 `novadraw-editor` 核心能力。
+最近 Shapes 与共享框选修改已提交；本轮先进入容器编辑 Design。
+总体范围见[补充方案](../design/editor/core-capability-increment.md)。
+
+| Delta | 范围 | 状态 | 退出依据 |
+|---|---|---|---|
+| P2-E03 | 容器编辑、父域坐标、换父、有序插入与嵌套创建 | `in_progress` | [ADR-055 修订 2](../adr/adr-055-container-editing-protocol.md)已获批准；公开 aggregate_at、受检批次/候选/资格、共享移动与父域创建/drop 服务、固定 P 的 XY→Ordered 和不同关联协议消费者、完整选择/focus 与 history 恢复已接入；容器契约 27 项、独立消费者 31 项、容器编译反例 11 项、editor.contracts、extensions、最终 Clippy 与 release 成本采样通过，见[实施记录](../verification/reviews/adr-055-implementation-2026-10-29.md)；workspace 测试唯一失败为既有长文本证据缺失的 docs 检查；Native/Web 实际 capture/DPI/取消与矩阵剩余场景待续验，未关闭 E03 |
+
+建议后续顺序为吸附、键盘导航、多视图协调、框选策略与可选编辑支持。
+这些候选尚未冻结接口，不因总体方向授权而记为已实施。
+本轮按用户批准进入 E03 Execute；坐标与事务取舍采用 ADR-055 修订 2。
+既有 S08/S09、LT 和平台待验收状态保持，各批仍遵守单链 Execute。
+
 ### 当前推进顺序（2026-10-14 校准）
+
+2026-10-29 补充：按本节用户授权优先完成 P2-E03 Design 与评审，
+再进入首批实现；以下既有审计与平台采证队列保留。
 
 1. **审计整改主链**：P2-S06/S07 已完成，下一批 P2-S08 Design → P2-S09；两批尚未启动。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。

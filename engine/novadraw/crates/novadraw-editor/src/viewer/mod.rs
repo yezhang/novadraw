@@ -1,5 +1,6 @@
 //! Viewer contents, registries, and model-to-Figure projection.
 
+mod container;
 mod failure;
 mod projection;
 pub use failure::{ProjectionCleanup, ProjectionCleanupFailure};
@@ -51,15 +52,15 @@ use crate::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint,
     ConnectionFeedbackRoute, ConnectionPartFactoryContext, ConnectionPartId,
     ConnectionReconnection, ConnectionRouterKey, ConnectionRouterSelection,
-    ConnectionRoutingDescriptor, CreateConnection, CreateConnectionRequest, DirectTextEditError,
-    DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState, DirectTextFeedback,
-    EditPartError, EditPartFactory, EditPartId, EditingContribution, EditorNamespace, FeedbackId,
-    FeedbackVisual, HandleAction, HandleActionProtocol, HandleId, ModelAdapter, ModelConnection,
-    ModelRevision, PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost,
-    ReconnectConnection, ReconnectConnectionRequest, RequestMetadata, RequestProtocol,
-    RequestResolution, SelectionAction, SelectionDelta, SelectionModel, StartDirectTextEdit,
-    TextEditMode, TextInputEffect, TextInputPurpose, TextInputSnapshot, VisualBuildContext,
-    VisualOwner, VisualUpdateContext,
+    ConnectionRoutingDescriptor, ContributionLimit, CreateConnection, CreateConnectionRequest,
+    DirectTextEditError, DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState,
+    DirectTextFeedback, EditPartError, EditPartFactory, EditPartId, EditingContribution,
+    EditorNamespace, FeedbackId, FeedbackVisual, HandleAction, HandleActionProtocol, HandleId,
+    ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartKind, PartTree,
+    PartTreeError, PolicyError, PolicyHost, ReconnectConnection, ReconnectConnectionRequest,
+    RequestMetadata, RequestProtocol, RequestResolution, SelectionAction, SelectionDelta,
+    SelectionModel, StartDirectTextEdit, TextEditMode, TextInputEffect, TextInputPurpose,
+    TextInputSnapshot, VisualBuildContext, VisualOwner, VisualUpdateContext,
     direct_edit::{
         ActiveDirectTextEdit, PreparedDirectTextEdit, position_from_offset, position_to_offset,
     },
@@ -116,6 +117,45 @@ where
     A: ModelAdapter + 'static,
     F: EditPartFactory<A>,
 {
+    fn model(&self) -> &A {
+        &self.model
+    }
+    fn part_tree(&self) -> &PartTree<A::ModelId> {
+        &self.parts
+    }
+    fn synchronize_model(&mut self) -> Result<bool, ViewerError> {
+        self.synchronize()
+    }
+    fn policy_generation(&self, host: EditPartId) -> crate::container::PolicyGeneration {
+        self.policies.generation(host)
+    }
+    fn child_content_to_surface(
+        &self,
+        part: EditPartId,
+    ) -> Result<novadraw::geometry::Affine2D, ViewerError> {
+        self.child_content_to_surface(part)
+    }
+    fn container_target_at(
+        &self,
+        location: Point,
+        excluded: &[EditPartId],
+    ) -> Result<EditPartId, crate::container::ContainerEditError> {
+        self.container_target_at(location, excluded)
+    }
+
+    fn aggregate_request_erased(
+        &mut self,
+        host: EditPartId,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        limit: ContributionLimit,
+    ) -> Result<ErasedRequestContributions, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.aggregate_request_erased_inner(host, key, metadata, payload, limit)
+        })
+    }
+
     fn dispatch_request_erased(
         &mut self,
         key: ErasedRequestKey,
@@ -1164,6 +1204,8 @@ where
 {
     viewer: &'a mut GraphicalViewer<A, F>,
     closed: bool,
+    selected_models: Vec<A::ModelId>,
+    focused_model: Option<A::ModelId>,
 }
 
 impl<A, F> ViewerEditSession<'_, A, F>
@@ -1177,7 +1219,26 @@ where
 
     pub(crate) fn commit(mut self) -> Result<bool, ViewerError> {
         self.closed = true;
-        self.viewer.synchronize()
+        let changed = self.viewer.synchronize()?;
+        let selection = self
+            .selected_models
+            .iter()
+            .filter_map(|model| self.viewer.part_for_model(*model))
+            .filter(|part| self.viewer.validate_selectable(*part).is_ok())
+            .collect::<Vec<_>>();
+        let focus = self
+            .focused_model
+            .and_then(|model| self.viewer.part_for_model(model))
+            .filter(|part| self.viewer.validate_selectable(*part).is_ok());
+        let restored = self
+            .viewer
+            .set_selection(&selection)
+            .and_then(|()| self.viewer.set_focus(focus).map(|_| ()));
+        if let Err(error) = restored {
+            self.viewer.mark_faulted();
+            return Err(error);
+        }
+        Ok(changed)
     }
 
     pub(crate) fn reject(mut self) -> Result<(), ViewerError> {
@@ -1438,9 +1499,21 @@ where
         &mut self,
     ) -> Result<ViewerEditSession<'_, A, F>, ViewerError> {
         self.synchronize()?;
+        let selected_models = self
+            .selection
+            .items()
+            .iter()
+            .filter_map(|part| self.parts.get(*part).and_then(|node| node.model_id()))
+            .collect();
+        let focused_model = self
+            .selection
+            .focus()
+            .and_then(|part| self.parts.get(part).and_then(|node| node.model_id()));
         Ok(ViewerEditSession {
             viewer: self,
             closed: false,
+            selected_models,
+            focused_model,
         })
     }
 
@@ -3422,6 +3495,69 @@ where
             }
         }
         Ok(targets)
+    }
+
+    /// Aggregates on one checked host without invoking source-to-target routing.
+    pub fn aggregate_at<R>(
+        &mut self,
+        host: EditPartId,
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+        limit: ContributionLimit,
+    ) -> Result<RequestResolution<R::Contribution>, ViewerError>
+    where
+        A: 'static,
+        R: RequestProtocol<A>,
+    {
+        self.with_extension_fault_boundary(|viewer| {
+            let contributions = viewer
+                .aggregate_request_erased_inner(
+                    host,
+                    ErasedRequestKey::of(R::key()),
+                    metadata,
+                    payload,
+                    limit,
+                )?
+                .into_iter()
+                .map(|(_, value)| {
+                    value
+                        .downcast::<R::Contribution>()
+                        .map(|value| *value)
+                        .map_err(|_| {
+                            PolicyError::operation("request contribution descriptor mismatch")
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let resolution = R::reduce(contributions)?;
+            limit.validate(resolution.len())?;
+            Ok(resolution)
+        })
+    }
+
+    fn aggregate_request_erased_inner(
+        &mut self,
+        host: EditPartId,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        limit: ContributionLimit,
+    ) -> Result<ErasedRequestContributions, ViewerError> {
+        self.validate_selectable(host)?;
+        let mut seen = HashSet::new();
+        for &source in metadata.source_parts() {
+            self.validate_selectable(source)?;
+            if !seen.insert(source) {
+                return Err(
+                    PolicyError::operation("request contains a duplicate source part").into(),
+                );
+            }
+        }
+        let policy_host = self.policy_host(host)?;
+        let values =
+            self.policies
+                .contributions_erased(policy_host, key, metadata, payload, &self.model)?;
+        limit.validate(values.len())?;
+        Ok(values.into_iter().map(|value| (host, value)).collect())
     }
 
     /// Dispatches one typed request through the installed policy registry.

@@ -14,14 +14,14 @@ use novadraw::tree::FigureId;
 use crate::{
     BendpointOperation, BendpointRequest, ChangeBounds, ChangeBoundsRequest, Command,
     CompoundCommand, ConnectionCreation, ConnectionEndpoint, ConnectionPartId,
-    ConnectionReconnection, CreateConnectionRequest, CreationType, EditBendpoint, EditPartId,
-    EditingContribution, FeedbackVisual, InteractionRevision, ModelAdapter,
-    ReconnectConnectionRequest, RequestMetadata, RequestModifiers, RequestProtocol,
+    ConnectionReconnection, ContributionLimit, CreateConnectionRequest, CreationType,
+    EditBendpoint, EditPartId, EditingContribution, FeedbackVisual, InteractionRevision,
+    ModelAdapter, ReconnectConnectionRequest, RequestMetadata, RequestModifiers, RequestProtocol,
     RequestResolution, ResizeAction, ResizeDirection, ViewerError, ViewerInputOutcome,
     ViewerTarget, request::ErasedRequestKey,
 };
 
-const DRAG_START_DISTANCE: f64 = 2.0;
+pub(crate) const DRAG_START_DISTANCE: f64 = 2.0;
 
 /// Erased identity retained by an active Tool.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -131,6 +131,27 @@ pub enum ToolDirective {
 pub(crate) type ErasedRequestContributions = Vec<(EditPartId, Box<dyn Any>)>;
 
 pub(crate) trait ToolHost<A: ModelAdapter> {
+    fn model(&self) -> &A;
+    fn part_tree(&self) -> &crate::PartTree<A::ModelId>;
+    fn synchronize_model(&mut self) -> Result<bool, ViewerError>;
+    fn policy_generation(&self, host: EditPartId) -> crate::container::PolicyGeneration;
+    fn child_content_to_surface(
+        &self,
+        part: EditPartId,
+    ) -> Result<novadraw::geometry::Affine2D, ViewerError>;
+    fn container_target_at(
+        &self,
+        location: Point,
+        excluded: &[EditPartId],
+    ) -> Result<EditPartId, crate::container::ContainerEditError>;
+    fn aggregate_request_erased(
+        &mut self,
+        host: EditPartId,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        limit: ContributionLimit,
+    ) -> Result<ErasedRequestContributions, ViewerError>;
     fn dispatch_request_erased(
         &mut self,
         key: ErasedRequestKey,
@@ -216,6 +237,54 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
         }
     }
 
+    /// Returns application-owned read access, never a mutable model escape.
+    pub fn model(&self) -> &A {
+        self.host.model()
+    }
+
+    /// Returns live Part topology for open tools.
+    pub fn part_tree(&self) -> &crate::PartTree<A::ModelId> {
+        self.host.part_tree()
+    }
+
+    /// Applies pending model notifications before creating or validating a gesture snapshot.
+    pub fn synchronize_model(&mut self) -> Result<bool, ToolError> {
+        Ok(self.host.synchronize_model()?)
+    }
+
+    /// Returns the controlled configuration version of one live policy host.
+    pub fn policy_generation(&self, host: EditPartId) -> crate::container::PolicyGeneration {
+        self.host.policy_generation(host)
+    }
+
+    /// Returns a checked child-content to logical-surface map.
+    pub fn child_content_to_surface(
+        &self,
+        part: EditPartId,
+    ) -> Result<novadraw::geometry::Affine2D, ToolError> {
+        Ok(self.host.child_content_to_surface(part)?)
+    }
+
+    /// Returns a checked logical-surface to child-content map; singularity alone is `None`.
+    pub fn surface_to_child_content(
+        &self,
+        part: EditPartId,
+    ) -> Result<Option<novadraw::geometry::Affine2D>, ToolError> {
+        self.host
+            .child_content_to_surface(part)?
+            .checked_inverse()
+            .map_err(|error| crate::container::ContainerEditError::Inverse(error).into())
+    }
+
+    /// Hits containment visuals while excluding source subtrees and non-container layers.
+    pub fn container_target_at(
+        &self,
+        location: Point,
+        excluded: &[EditPartId],
+    ) -> Result<EditPartId, ToolError> {
+        Ok(self.host.container_target_at(location, excluded)?)
+    }
+
     /// Dispatches one typed request through installed policies.
     pub fn dispatch<R>(
         &mut self,
@@ -237,6 +306,41 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(R::reduce(contributions).map_err(ViewerError::from)?)
+    }
+
+    /// Aggregates on one checked host without invoking source-to-target routing.
+    pub fn aggregate_at<R>(
+        &mut self,
+        host: EditPartId,
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+        limit: ContributionLimit,
+    ) -> Result<RequestResolution<R::Contribution>, ToolError>
+    where
+        R: RequestProtocol<A>,
+    {
+        let contributions = self
+            .host
+            .aggregate_request_erased(
+                host,
+                ErasedRequestKey::of(R::key()),
+                metadata,
+                payload,
+                limit,
+            )?
+            .into_iter()
+            .map(|(_, value)| {
+                value
+                    .downcast::<R::Contribution>()
+                    .map(|value| *value)
+                    .map_err(|_| ToolError::protocol("request contribution descriptor mismatch"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let resolution = R::reduce(contributions).map_err(ViewerError::from)?;
+        limit
+            .validate(resolution.len())
+            .map_err(ViewerError::from)?;
+        Ok(resolution)
     }
 
     /// Resolves command contributions for one typed request.
@@ -459,7 +563,8 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
         Ok(self.host.reconnection_command(plan, request)?)
     }
 
-    fn add_autoexpose_range_reserve(
+    /// Extends transient feedback range to the pointer for viewport auto-expose.
+    pub fn add_autoexpose_range_reserve(
         &mut self,
         location: Point,
         feedback: &mut Vec<FigureId>,
@@ -587,6 +692,8 @@ struct DragGesture {
 pub enum ToolError {
     /// Viewer targeting, policy feedback, or overlay cleanup failed.
     Viewer(ViewerError),
+    /// Checked containment geometry, batch, or permission failure.
+    Container(crate::container::ContainerEditError),
     /// Tool protocol or lifecycle state was inconsistent.
     Protocol(String),
 }
@@ -595,6 +702,7 @@ impl fmt::Display for ToolError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Viewer(error) => error.fmt(formatter),
+            Self::Container(error) => error.fmt(formatter),
             Self::Protocol(message) => message.fmt(formatter),
         }
     }
@@ -604,6 +712,7 @@ impl Error for ToolError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Viewer(error) => Some(error),
+            Self::Container(error) => Some(error),
             Self::Protocol(_) => None,
         }
     }
@@ -612,6 +721,12 @@ impl Error for ToolError {
 impl From<ViewerError> for ToolError {
     fn from(value: ViewerError) -> Self {
         Self::Viewer(value)
+    }
+}
+
+impl From<crate::container::ContainerEditError> for ToolError {
+    fn from(error: crate::container::ContainerEditError) -> Self {
+        Self::Container(error)
     }
 }
 

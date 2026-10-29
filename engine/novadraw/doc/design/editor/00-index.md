@@ -18,6 +18,9 @@ Viewport 协作。
 
 机制分析（解释现行契约，不替代规范）：
 
+- [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
+  公开容器移动、父域创建/drop、统一资格、XY/Ordered 消费和受检事务；
+  [实施验证](../../verification/reviews/adr-055-implementation-2026-10-29.md)列出平台剩余范围。
 - [ADR-054：类型化模板创建与框选](../../adr/adr-054-template-creation-and-marquee.md)：
   创建工具与模板拖放共享的开放请求、框选查询、应用保存点和连接装饰所有权。
 - [revision 的作用与边界](revision-semantics.md)：模型发布、Viewer 同步进度、交互版本与撤销历史。
@@ -28,6 +31,14 @@ Viewport 协作。
   Masonry 自定义 Canvas、可选 Xilem 外层与实施切片。
 - [Masonry 编辑画布与 Xilem View 接入](masonry-xilem-canvas-integration.md)：
   固定上游依赖、session 所有权、Widget 输入/绘制与 View rebuild。
+
+核心能力补充（分批评审与实施）：
+
+- [Editor 核心能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
+  多视图和可选编辑策略的分批范围。
+- [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
+  首批开放计划、父域映射、换父事务与身份恢复；
+  [验证矩阵](../../verification/plans/editor-container-editing.md)。
 
 已接受的失败隔离契约：
 

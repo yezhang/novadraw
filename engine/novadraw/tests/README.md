@@ -42,6 +42,20 @@ cargo xtask verify <suite-id>
 
 单个 Cargo test、应用启动、性能观测和平台构建不再包装成 suite。
 
+ADR-055 容器协议使用公开 API 契约夹具及独立 workspace 消费者：
+
+```bash
+cargo test -p novadraw-editor --test p2_e03_container_editing_contract
+cargo test --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --locked --offline
+cargo test -p novadraw-editor --release --test p2_e03_container_editing_contract container_cost_samples_include_sync_hit_geometry_policy_feedback_and_commit -- --ignored --exact --nocapture
+cargo build --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --release --bin editor-container-delivery-cost --locked --offline
+cargo build --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --release --bin editor-container-delivery-cost --features container-cost --locked --offline
+```
+
+产物比较需分别指定独立 `--target-dir`，保持编译器、target 与 release 配置相同。
+`container-cost` 只控制测量消费者是否调用容器能力，不是 Editor feature。
+覆盖边界和结果见[容器编辑实施记录](../doc/verification/reviews/adr-055-implementation-2026-10-29.md)。
+
 长文本完整采样使用直接命令，smoke 不代替统计验收：
 
 ```bash

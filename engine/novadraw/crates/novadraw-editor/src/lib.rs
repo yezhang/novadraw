@@ -11,6 +11,7 @@
 
 mod autoexpose;
 pub mod command;
+pub mod container;
 mod direct_edit;
 mod domain;
 pub mod model;
@@ -59,8 +60,8 @@ pub use policy::{
 };
 pub use request::{
     BendpointOperation, BendpointRequest, ChangeBounds, ChangeBoundsKind, ChangeBoundsRequest,
-    ConnectionEndpoint, CreateChild, CreateConnection, CreateConnectionRequest, CreateRequest,
-    CreationType, CreationTypeError, DeleteParts, DeleteRequest, EditBendpoint,
+    ConnectionEndpoint, ContributionLimit, CreateChild, CreateConnection, CreateConnectionRequest,
+    CreateRequest, CreationType, CreationTypeError, DeleteParts, DeleteRequest, EditBendpoint,
     InteractionRevision, InteractionRevisionError, ReconnectConnection, ReconnectConnectionRequest,
     RequestKey, RequestMetadata, RequestModifiers, RequestPayload, RequestProtocol,
     RequestResolution, ResizeDirection, StartDirectTextEdit,

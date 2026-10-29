@@ -1,3 +1,9 @@
+// Compile the container contract fixture as a separate consumer crate as well.
+// All implementation imports go through the published domains and ToolContext.
+#[cfg(test)]
+#[path = "../../../../crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs"]
+mod external_container_contracts;
+
 #[cfg(test)]
 mod tests {
     use std::{
