@@ -67,7 +67,9 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [053](adr-053-embedded-vello-scene-target.md) | 嵌入式 Vello Scene 输出目标 | 按用户批准方向实施 | 2026-10-28 |
 | [054](adr-054-template-creation-and-marquee.md) | 类型化模板创建与框选 | 按已批准样例方向实施 | 2026-10-28 |
 | [055](adr-055-container-editing-protocol.md) | 容器编辑与父坐标协议 | 已接受，修订 2 | 2026-10-29 |
-| [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 草案，待评审 | 2026-10-29 |
+| [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 已接受 | 2026-10-29 |
+| [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 草案，待评审 | 2026-10-29 |
+| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 草案，待评审 | 2026-10-29 |
 
 ## 现行与历史隔离
 

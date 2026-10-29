@@ -2,6 +2,11 @@
 
 类型：`verification-plan`
 
+能力归属：Editor（`novadraw-editor`），验收目标为 GEF 容器编辑行为。
+Core revision 耗尽属于基础依赖故障，验证其进入 Tool 后的事务与清理行为；
+Native／Web capture、DPI 与取消属于平台／宿主输入链路验收。
+业务模型与 Command 由应用消费者提供，各层证据分别记录。
+
 日期：2026-10-29。修订 2 已获批准，无窗口实施与回归已执行；
 Native/Web 实际输入、跨显示器及窗口外 capture 仍待验收。
 目标契约：[ADR-055](../../adr/adr-055-container-editing-protocol.md)。

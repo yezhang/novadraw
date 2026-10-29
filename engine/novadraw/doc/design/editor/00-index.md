@@ -39,9 +39,12 @@ Viewport 协作。
 - [egui Docking 延期方案](egui-docking-deferred-plan.md)：固定三栏继续生效；
   记录重新评审的触发条件、候选版本、状态所有权和验收门禁。
 
-核心能力补充（分批评审与实施）：
+Editor／GEF 框架能力补充（分批评审与实施）：
 
-- [Editor 核心能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
+- [ADR-058：Editor 开放吸附协议](../../adr/adr-058-open-editor-snapping.md)：
+  草案，待评审；[专题](open-snapping.md)定义 typed 策略、统一 surface 修正、
+  版本失效与反馈／提交，退出条件见[矩阵](../../verification/plans/editor-open-snapping.md)。
+- [Editor／GEF 框架能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
   多视图和可选编辑策略的分批范围。
 - [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
   首批开放计划、父域映射、换父事务与身份恢复；

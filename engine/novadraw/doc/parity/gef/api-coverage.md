@@ -40,7 +40,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta 与删除 reconcile | verified | G3 |
 | `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | verified | G3 |
 | `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | verified | G3 |
-| `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | verified | G4 |
+| `request.protocol` | `Request` 及 typed subclasses | ADR-034 的 typed identity、RequestProtocol 与注册机制；内置和外部请求共用开放协议，不使用 Any map 作为主协议 | verified | G4/P2-S04 |
 | `policy.protocol` | `EditPolicy`、role | 候选 policy 解析首个 target；校验 target 后在目标 Part 聚合 command/feedback，并保留原 source | verified | G4 |
 | `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | verified | G4 |
 | `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | verified | G4 |
@@ -49,7 +49,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `interaction.selection` | SelectionTool / marquee | click、modifier、多选、拖拽与节点完全包含框选；取消不改变选择 | verified | G3/G4/P2 |
 | `interaction.create` | CreationTool / CreateRequest | 开放模板关联 RequestProtocol；点击/拖动和 typed drop 共用 policy/Command；取消清理 | verified | G4/P2 |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
-| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/P2 |
+| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 基线已闭合；ADR-055 换父、有序插入已实现并通过无窗口契约，剩余故障组合与 Native/Web 输入验收待完成 | partial | G4/P2-E03 |
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
 | `connection.create` | CreateConnectionRequest / NodeEditPart request anchor | source-locked start/end 两阶段 Tool；endpoint behavior Anchor preview、反馈、模型 Command 与 undo/redo | verified | G5 |
 | `connection.reconnect` | ReconnectRequest / ConnectionEndpointEditPolicy | endpoint handle、稳定 Anchor descriptor preview、source/target 重连、合法性和 undo | verified | G5 |

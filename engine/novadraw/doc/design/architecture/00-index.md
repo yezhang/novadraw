@@ -21,7 +21,7 @@
 | 文档 | 职责 |
 |---|---|
 | [figure-style.md](figure-style.md) | Figure 样式继承与覆盖 |
-| [detached-input-invariants.md](detached-input-invariants.md) | S08 草案，待评审：Border 构造、受检样式、外部准入与派生溢出 |
+| [detached-input-invariants.md](detached-input-invariants.md) | ADR-056 已接受：Border 构造、受检样式、外部准入与派生溢出 |
 | [figure-lifecycle.md](figure-lifecycle.md) | Figure 生命周期与 Runtime 身份 |
 | [tree-search-and-focus.md](tree-search-and-focus.md) | 树查询、命中与焦点遍历 |
 | [derived-state-convergence.md](derived-state-convergence.md) | 派生状态收敛事务 |
@@ -29,6 +29,7 @@
 | [graph-projection-preparation.md](graph-projection-preparation.md) | 已实施修订 2：ADR-043 adapter 的候选快照、约束测量与必需路由发布增量，GP01–GP04 已处理，最终验证通过 |
 | [resource-lifecycle.md](resource-lifecycle.md) | 资源因果与 Backend Session |
 | [figure-inspector.md](figure-inspector.md) | 稳定场景与提交后事件诊断 |
+| [ADR-057 草案](../../adr/adr-057-service-failure-and-inspector-lifecycle.md) | S09 待评审：服务结果、Inspector 本地故障、订阅所有权与扩展 source |
 | [component-update.md](component-update.md) | 第三方组件 typed update 规范 |
 
 ## Figure 能力

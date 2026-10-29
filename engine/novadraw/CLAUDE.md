@@ -172,8 +172,9 @@ test(winit-canvas): 覆盖跨画布捕获与焦点切换
 ### Milestone 与路线图
 
 2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
-GA-1/GA-4 为基础，S01–S07 的既定切片已完成；下一批为 S08 Design → S09，
-随后评审外部图布局。当前执行队列只在
+GA-1/GA-4 为基础，S01–S08 的既定切片已完成；S08-A／B／C／D 已完成，
+输入不变量审计项已关闭；S09 与 Editor 开放吸附已形成 ADR-057／058 草案，
+待评审后实施。当前执行队列只在
 [P2 backlog](doc/roadmap/p2-delta-backlog.md)维护。
 WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
 保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
@@ -223,6 +224,24 @@ ADR-033/035/038 细化。P2-R02 image source rectangle 已完成。
 完整审计入口：`doc/verification/reviews/adr-audit-2026-09-10.md`。
 
 ## 架构设计原则
+
+### 规划与方案必须明确能力归属
+
+后续规划、ADR、方案、验证矩阵和完成记录必须在开头声明能力归属：
+Core（`novadraw`）、Editor（`novadraw-editor`），或其他明确的包／宿主。
+“引擎能力”“框架核心能力”等名称不能代替归属说明。
+
+- Core 承担 Figure、布局、绘制、命中、坐标、资源与 Runtime 基础协议。
+- Editor 承担模型编辑、Command／历史、EditPart／Viewer、Tool／Request／Policy、
+  选择、容器编辑、吸附及编辑导航；对应 GEF 框架能力。
+- Inspector、渲染后端、平台适配和应用能力按各自 owner 列出，不归并进 Core 或 Editor。
+- 跨层方案必须逐项列明能力、API／状态 owner、依赖、实际改动和验收。
+  Editor 使用现有 Core API，属于 Editor 能力对 Core 的依赖；
+  若需新增 Core 能力，须列为独立 Core delta，分别评审和记录完成状态。
+- roadmap 表按能力归属区分队列；用户指定 Editor／GEF 范围时，只推进该范围，
+  不自动转入 Core、Inspector 或其他队列。
+- 验收分别统计 Core 基础契约、Editor 编辑行为、平台输入与应用消费者；
+  Core 整改或 Shapes 的应用功能不能计为新增 GEF 框架能力。
 
 ### 官方示例实施范围
 

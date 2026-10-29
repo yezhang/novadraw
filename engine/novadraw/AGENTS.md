@@ -83,8 +83,9 @@
 ### 当前执行门禁
 
 - 2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
-  GA-1/GA-4 为基础，已完成 S01–S07 的既定切片；下一批为 S08 Design → S09，
-  随后评审外部图布局。当前执行队列只在 `doc/roadmap/p2-delta-backlog.md` 维护。
+  GA-1/GA-4 为基础，已完成 S01–S08 的既定切片；S08-A／B／C／D 已完成，
+  输入不变量审计项已关闭；S09 与 Editor 开放吸附已形成 ADR-057／058 草案，
+  待评审后实施。当前执行队列只在 `doc/roadmap/p2-delta-backlog.md` 维护。
   WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
   保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
   `doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` 为准。
@@ -116,6 +117,11 @@
 
 ### 架构分析边界
 
+- 规划、ADR、方案及验证文档必须在开头明确 Core／Editor／其他 owner；
+  跨层方案逐项区分能力、API／状态归属、依赖、改动与验收。
+  Editor 使用 Core 基础协议不改变能力归属；新增 Core 能力单列 delta。
+  用户指定 Editor／GEF 范围时，只推进该范围；Core 整改与应用功能不计为
+  新增 GEF 能力。完整规则见 `CLAUDE.md` 的“规划与方案必须明确能力归属”。
 - 官方示例迭代只建设 Canvas / LightweightSystem 内的 Draw2D 能力。Java 源码仅供
   只读参考，不编写、修改、编译或运行 Java 验证代码；不建设 SWT 原生控件的
   Novadraw 替代体系。示例临时控制面板允许用于过渡/验证，不作为 Core 演进目标。

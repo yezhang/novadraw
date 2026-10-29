@@ -2,12 +2,18 @@
 
 类型：`architecture-decision`
 
+能力归属：Editor（`novadraw-editor`），对应 GEF 容器编辑协议。
+Editor 持有操作集合、目标容器解析、父域映射编排与编辑事务协议；
+Core 的命中、坐标与 Runtime 提交作为基础依赖，
+应用 Command 持有业务模型的换父和顺序变更。
+Core 基础故障由 Editor 端到端测试验证其传播，不计为新增 Core 能力。
+
 ## 状态
 
 已接受，修订 2，2026-10-29。设计复核通过后，用户明确授权
 “评审通过，按 ADR-055 执行”，进入接口落定与实施验证。
 依据见[修订 2 复核](../verification/reviews/adr-055-revision-2-review-2026-10-29.md)。
-总体范围见 [核心能力补充方案](../design/editor/core-capability-increment.md)。
+总体范围见 [Editor／GEF 框架能力补充方案](../design/editor/core-capability-increment.md)。
 本决策不替代已接受的 ADR-032/034/037/054。
 
 本轮采纳[首轮评审](../verification/reviews/adr-055-draft-review-2026-10-29.md)的
