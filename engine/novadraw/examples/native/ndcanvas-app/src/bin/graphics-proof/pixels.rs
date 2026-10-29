@@ -28,7 +28,8 @@ pub fn verify(path: &Path, dpi: u32) {
     near(&image, dpi, 380, 230, [0, 255, 0]);
     near(&image, dpi, 380, 260, [255, 255, 255]);
     near(&image, dpi, 350, 110, [255, 255, 255]);
-    near(&image, dpi, 710, 260, [255, 0, 0]);
+    near(&image, dpi, 490, 225, [255, 0, 0]);
+    near(&image, dpi, 710, 260, [255, 255, 255]);
     near(&image, dpi, 740, 300, [0, 255, 0]);
     near(&image, dpi, 620, 160, [198, 0, 57]);
     near(&image, dpi, 43, 300, [0, 0, 0]);

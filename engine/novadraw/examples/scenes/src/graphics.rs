@@ -119,6 +119,8 @@ impl Figure for GraphicsFigure {
         gc.fill_rect(Rectangle::new(0.0, 0.0, 800.0, 600.0))?;
         gc.restore_state()?;
         gc.set_fill_paint(RED);
+        // Restore removes the empty clip but keeps the surrounding path clip.
+        gc.fill_rect(Rectangle::new(480.0, 215.0, 20.0, 20.0))?;
         gc.fill_rect(Rectangle::new(700.0, 250.0, 20.0, 20.0))?;
         gc.pop_state()?;
         gc.set_fill_paint(GREEN);
