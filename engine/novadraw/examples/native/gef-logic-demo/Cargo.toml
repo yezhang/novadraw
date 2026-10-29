@@ -1,0 +1,16 @@
+[package]
+name = "gef-logic-demo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version = "1.96"
+
+[dependencies]
+novadraw = { path = "../../../crates/novadraw" }
+novadraw-editor = { path = "../../../crates/novadraw-editor" }
+novadraw-backend-vello = { path = "../../../crates/novadraw-backend-vello" }
+eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
+egui = "0.35"
+egui-wgpu = { version = "0.35", default-features = false }
+serde.workspace = true
+serde_json.workspace = true

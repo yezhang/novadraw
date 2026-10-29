@@ -33,6 +33,8 @@ Viewport 协作。
   固定上游依赖、session 所有权、Widget 输入/绘制与 View rebuild。
 - [GEF Shapes 样例工作流层级](gef-editor-demo-workflow-hierarchy.md)：固定三栏内的
   文档栏、工具轨、上下文栏、Layers / Assets、Inspector 和状态栏；P0–P2 行为与所有权。
+- [Logic 首个可运行切片](gef-logic-first-slice.md)：无环组合电路、typed 端口、
+  信号派生与独立 egui/Vello 消费者；不关闭完整 Logic 对等验收。
 
 延期的应用外壳候选（不进入当前执行队列）：
 
