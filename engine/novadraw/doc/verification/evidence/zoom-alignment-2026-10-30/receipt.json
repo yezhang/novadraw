@@ -1,0 +1,66 @@
+{
+  "original_alpha128_bounds_density16": [
+    [
+      1,
+      0,
+      14,
+      13.0625
+    ],
+    [
+      6,
+      6,
+      11,
+      11
+    ],
+    [
+      4,
+      5,
+      12.0625,
+      13.0625
+    ]
+  ],
+  "svg_viewbox_origins": [
+    [
+      -0.5,
+      -1.46875
+    ],
+    [
+      0.5,
+      0.5
+    ],
+    [
+      0.03125,
+      1.03125
+    ]
+  ],
+  "row_insets": {
+    "top": 2,
+    "left": 4,
+    "bottom": 2,
+    "right": 4
+  },
+  "screenshots": [
+    {
+      "file": "before-default.png",
+      "sha256": "dc72d6ccb2d9bf3716fede0200b63fbd40f31aa63b2e30787dce5eb8271280e5"
+    },
+    {
+      "file": "before-maximum.png",
+      "sha256": "546195d1553ee757b36f7b7c195b599e90dd9d5bff889cb48dd5b292cba9ed61"
+    },
+    {
+      "file": "after-default.png",
+      "sha256": "91da7ee5c81d11f65ef104bbcc66f3e1a0cd33e21dbb8a4a83110a72df625b26"
+    },
+    {
+      "file": "after-maximum.png",
+      "sha256": "d4952db7c8bf80b01c373938146b02238a0a6206971a4a8c294728ae2410e45b"
+    }
+  ],
+  "native_pid_after": 32366,
+  "limitations": [
+    "before images taken in prior session; system input-method overlay present before and absent after",
+    "no same-config full artifact size measurement",
+    "cross-platform font and raster parity remains pending"
+  ]
+}

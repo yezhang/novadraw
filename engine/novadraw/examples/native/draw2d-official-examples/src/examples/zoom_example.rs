@@ -1,6 +1,10 @@
 //! Port of zoom/ZoomExample.java, UMLClassFigure.java and CompartmentFigure.java.
 use std::sync::Arc;
 
+#[path = "zoom_typographic_row.rs"]
+mod typographic_row;
+use typographic_row::{Anchor, ICON_INK, Row};
+
 use novadraw::{
     container::{
         DefaultRangeModel, RangeModel, ScalableLayeredPaneFigure, ScrollBarConfig, ScrollBarFigure,
@@ -8,8 +12,8 @@ use novadraw::{
     },
     event::EventContext,
     figure::{
-        Alignment, Border, CONTAINER, ContainerCapability, Figure, FigureCapabilityBuilder,
-        FigureCapabilityRegistrationError, FigureContainer, FigureStyle, LabelFigure,
+        Border, CONTAINER, ContainerCapability, Figure, FigureCapabilityBuilder,
+        FigureCapabilityRegistrationError, FigureContainer, FigureStyle, ImageFigure, LabelFigure,
         RectangleFigure,
         border::{EtchedBorder, LineBorder},
     },
@@ -25,9 +29,8 @@ use novadraw_example_support::panel::{Panel, PanelScene};
 
 #[cfg(test)]
 use super::system_fonts::RegisteredHostFont;
-use super::{
-    runtime_with_fonts,
-    system_fonts::{BOLD_FONT_WEIGHT, SystemFontRequest, font_descriptor, register_system_fonts},
+use super::system_fonts::{
+    BOLD_FONT_WEIGHT, SystemFontRequest, font_descriptor, register_system_fonts,
 };
 
 const WINDOW_SIZE: f64 = 800.0;
@@ -251,7 +254,19 @@ pub(super) fn panel_scene() -> PanelScene {
 }
 
 fn fixture() -> Fixture {
-    let mut runtime = runtime_with_fonts();
+    let mut runtime = Runtime::with_text_layout_engine(
+        novadraw::tree::FigureTree::new(),
+        Box::new(novadraw::text::outline::OutlineTextEngine::new(
+            Box::new(novadraw::text::shaping::ParleyTextEngine::new()),
+            Box::new(novadraw::text::outline::SkrifaOutlineProvider),
+        )),
+    );
+    for font in novadraw::text::BuiltinFont::ALL {
+        runtime
+            .resources()
+            .register_builtin_font(font)
+            .expect("builtin font");
+    }
     let class_font = register_system_fonts(&mut runtime, &[CLASS_FONT_REQUEST])
         .pop()
         .expect("Zoom class font");
@@ -425,8 +440,17 @@ fn add_class(
     let header = runtime
         .figure(class)
         .expect("class")
-        .add(Box::new(LabelFigure::new(spec.name).with_icon(images[0])))
+        .add(Box::new(Row::new(
+            spec.name,
+            ICON_INK[0],
+            Anchor::CapitalCenter,
+        )))
         .expect("header");
+    runtime
+        .figure(header)
+        .expect("header")
+        .add(Box::new(ImageFigure::new(images[0])))
+        .expect("class icon");
     runtime
         .figure(header)
         .expect("header")
@@ -435,7 +459,10 @@ fn add_class(
             ..FigureStyle::default()
         })
         .expect("header font");
-    for (rows, image) in [(spec.attributes, images[1]), (spec.methods, images[2])] {
+    for (rows, image, ink) in [
+        (spec.attributes, images[1], ICON_INK[1]),
+        (spec.methods, images[2], ICON_INK[2]),
+    ] {
         let compartment = runtime
             .figure(class)
             .expect("class")
@@ -452,13 +479,16 @@ fn add_class(
             ))
             .expect("compartment ToolbarLayout");
         for row in rows {
-            let mut label = LabelFigure::new(row).with_icon(image);
-            label.set_label_alignment(Alignment::Start);
-            runtime
+            let row_id = runtime
                 .figure(compartment)
                 .expect("compartment")
-                .add(Box::new(label))
-                .expect("member Label");
+                .add(Box::new(Row::new(row, ink, Anchor::Baseline)))
+                .expect("member row");
+            runtime
+                .figure(row_id)
+                .expect("member row")
+                .add(Box::new(ImageFigure::new(image)))
+                .expect("member icon");
         }
     }
     class
@@ -474,6 +504,174 @@ mod tests {
     use super::*;
     use novadraw::event::MouseButton;
     use novadraw::runtime::ResourceStatus;
+
+    #[test]
+    #[ignore = "manual typography preparation cost sample; no timing threshold"]
+    fn typographic_preparation_cost_sample() {
+        let mut fixture = fixture();
+        let cold = std::time::Instant::now();
+        fixture.runtime.frames().stabilize_for_query().unwrap();
+        println!(
+            "cold stabilization_ms={:.3}",
+            cold.elapsed().as_secs_f64() * 1000.0
+        );
+        let mut samples = Vec::new();
+        for step in 0..60 {
+            for class in fixture.classes {
+                fixture
+                    .runtime
+                    .figure(class)
+                    .unwrap()
+                    .set_style(FigureStyle {
+                        font: Some(
+                            FontDescriptor::new(
+                                novadraw::text::BuiltinFont::Inter.family(),
+                                12.0 + (step % 3) as f32,
+                            )
+                            .unwrap(),
+                        ),
+                        ..FigureStyle::default()
+                    })
+                    .unwrap();
+            }
+            let start = std::time::Instant::now();
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            samples.push(start.elapsed().as_secs_f64() * 1000.0);
+        }
+        samples.sort_by(f64::total_cmp);
+        println!(
+            "font-change stabilization n={} median_ms={:.3} p95_ms={:.3} max_ms={:.3}",
+            samples.len(),
+            samples[30],
+            samples[56],
+            samples[59]
+        );
+    }
+
+    #[test]
+    fn published_rows_keep_text_and_images_inside_after_font_changes() {
+        let mut fixture = fixture();
+        for font_size in [12.0, 16.0, 20.0] {
+            for class in fixture.classes {
+                fixture
+                    .runtime
+                    .figure(class)
+                    .unwrap()
+                    .set_style(FigureStyle {
+                        font: Some(
+                            FontDescriptor::new(
+                                novadraw::text::BuiltinFont::Inter.family(),
+                                font_size,
+                            )
+                            .unwrap(),
+                        ),
+                        ..FigureStyle::default()
+                    })
+                    .unwrap();
+            }
+            fixture.runtime.frames().stabilize_for_query().unwrap();
+            for class in fixture.classes {
+                let parts = fixture.runtime.tree().child_order(class).unwrap();
+                let mut rows = vec![(parts[0], 0)];
+                for (index, compartment) in parts[1..].iter().enumerate() {
+                    rows.extend(
+                        fixture
+                            .runtime
+                            .tree()
+                            .child_order(*compartment)
+                            .unwrap()
+                            .into_iter()
+                            .map(|row| (row, index + 1)),
+                    );
+                }
+                assert_eq!(rows.len(), 5);
+                for (row, icon_index) in rows {
+                    let bounds = fixture.runtime.tree().figure_bounds(row).unwrap();
+                    let presentation = fixture
+                        .runtime
+                        .tree()
+                        .prepared_presentation(row)
+                        .unwrap()
+                        .unwrap();
+                    let geometry = presentation.data::<typographic_row::Geometry>().unwrap();
+                    // Includes actual Border metrics, rather than content-only measurement.
+                    assert!(bounds.width + 1e-8 >= geometry.size.width + 8.0);
+                    assert!(bounds.height + 1e-8 >= geometry.size.height + 4.0);
+                    let image = fixture.runtime.tree().child_order(row).unwrap()[0];
+                    let icon = fixture.runtime.tree().figure_bounds(image).unwrap();
+                    assert_eq!(icon, geometry.icon);
+                    assert!(icon.y >= 0.0);
+                    assert!(icon.y + icon.height <= bounds.height - 4.0 + 1e-8);
+                    let ink = ICON_INK[icon_index];
+                    let actual = fixture
+                        .runtime
+                        .tree()
+                        .local_to_surface_transform(image)
+                        .unwrap()
+                        .transform_point(Point::new(
+                            0.0,
+                            ink.y
+                                + if icon_index == 0 {
+                                    ink.height / 2.0
+                                } else {
+                                    ink.height
+                                },
+                        ));
+                    let expected = fixture
+                        .runtime
+                        .tree()
+                        .local_to_surface_transform(row)
+                        .unwrap()
+                        .transform_point(Point::new(
+                            0.0,
+                            if icon_index == 0 {
+                                geometry.capital_center
+                            } else {
+                                geometry.baseline
+                            },
+                        ));
+                    assert!((actual.y() - expected.y()).abs() < 1e-8);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn svg_ink_metadata_matches_original_assets_at_multiple_densities() {
+        let f = fixture();
+        for density in [4, 8, 16] {
+            for (index, source) in f.icons.sources.iter().enumerate() {
+                let image = source
+                    .rasterize(SvgRasterOptions::try_new(density, ICON_PIXEL_BUDGET).unwrap())
+                    .unwrap();
+                let mut bounds = [image.width, image.height, 0, 0];
+                for (pixel, rgba) in image.pixels.chunks_exact(4).enumerate() {
+                    if rgba[3] < 128 {
+                        continue;
+                    }
+                    let x = pixel as u32 % image.width;
+                    let y = pixel as u32 / image.width;
+                    bounds[0] = bounds[0].min(x);
+                    bounds[1] = bounds[1].min(y);
+                    bounds[2] = bounds[2].max(x + 1);
+                    bounds[3] = bounds[3].max(y + 1);
+                }
+                assert!(bounds[2] > bounds[0] && bounds[3] > bounds[1]);
+                let ink = ICON_INK[index];
+                for (actual, expected) in
+                    bounds
+                        .into_iter()
+                        .zip([ink.x, ink.y, ink.x + ink.width, ink.y + ink.height])
+                {
+                    // Thresholded raster edges may differ by one device pixel.
+                    assert!(
+                        (f64::from(actual) - expected * f64::from(density)).abs() <= 1.0,
+                        "icon {index} at density {density}: {bounds:?}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     #[ignore = "requires native GPU; validates Zoom scrollbar button pixels"]

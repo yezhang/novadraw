@@ -1,0 +1,34 @@
+{
+  "native_pid": 76505,
+  "method": "actual native window screenshots, cliclick input; cropped comparison excludes temporary panel where possible",
+  "screenshots": [
+    {
+      "file": "before-default.png",
+      "sha256": "91da7ee5c81d11f65ef104bbcc66f3e1a0cd33e21dbb8a4a83110a72df625b26"
+    },
+    {
+      "file": "before-maximum.png",
+      "sha256": "d4952db7c8bf80b01c373938146b02238a0a6206971a4a8c294728ae2410e45b"
+    },
+    {
+      "file": "after-default.png",
+      "sha256": "b0c50e19498aa489d2087b33e62e48e316e5991d85b7055ae7fa22da811c3b59"
+    },
+    {
+      "file": "after-maximum.png",
+      "sha256": "630c10caf65a19b6e8e71a57a4ba36bd8a4b90b2f3b01f90ec6ed2f624267ac2"
+    }
+  ],
+  "release_sample": {
+    "cold_stabilization_ms": 4.545,
+    "font_change_samples": 60,
+    "median_ms": 3.724,
+    "p95_ms": 4.115,
+    "maximum_ms": 4.538
+  },
+  "limitations": [
+    "native screenshots use debug binary; timing uses release test binary",
+    "manual comparison, no whole-window pixel equality claim",
+    "cross-platform, actual display DPI transitions and same-config artifact size delta not measured"
+  ]
+}

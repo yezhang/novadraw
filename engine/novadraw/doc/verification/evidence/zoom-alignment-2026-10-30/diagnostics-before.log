@@ -1,0 +1,16 @@
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 17.90s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 1 test
+ICON 0 bounds [1.0, 0.0, 14.0, 13.0625]
+ICON 1 bounds [6.0, 6.0, 11.0, 11.0]
+ICON 2 bounds [4.0, 5.0, 12.0625, 13.0625]
+TEXT Table height 18.398438 baseline 14 ink None lines [TextLineMetrics { ascent: 14.484375, descent: 3.390625, leading: 0.5234375, baseline: 14.0, advance: 40.601563 }]
+TEXT Column height 18.398438 baseline 14 ink None lines [TextLineMetrics { ascent: 14.484375, descent: 3.390625, leading: 0.5234375, baseline: 14.0, advance: 59.546875 }]
+TEXT columns: Column[] height 14.519531 baseline 11 ink None lines [TextLineMetrics { ascent: 11.625, descent: 2.8945313, leading: 0.0, baseline: 11.0, advance: 107.13867 }]
+TEXT getRows(): Row[] height 14.519531 baseline 11 ink None lines [TextLineMetrics { ascent: 11.625, descent: 2.8945313, leading: 0.0, baseline: 11.0, advance: 97.646484 }]
+test examples::zoom_example::tests::alignment_diagnostics ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 106 filtered out; finished in 0.55s
+

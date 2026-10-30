@@ -1,0 +1,28 @@
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 11.67s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 10 tests
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ignored, requires native GPU; validates Zoom scrollbar button pixels
+test examples::zoom_example::tests::typographic_preparation_cost_sample ... ignored, manual typography preparation cost sample; no timing threshold
+test examples::zoom_example::typographic_row::tests::visible_anchors_follow_font_metrics_and_keep_full_image_inside_row ... ok
+test examples::zoom_example::tests::official_two_class_fixture_and_scroll_range_are_preserved ... ok
+test examples::zoom_example::tests::arrow_page_and_drag_apply_the_official_zoom_formula ... ok
+test examples::zoom_example::tests::svg_ink_metadata_matches_original_assets_at_multiple_densities ... ok
+test examples::zoom_example::tests::published_rows_keep_text_and_images_inside_after_font_changes ... ok
+test examples::zoom_example::tests::native_thumb_drag_survives_panel_frames_and_clock_ticks ... ok
+test examples::zoom_example::tests::zoom_and_dpi_replace_shared_icons_only_when_density_changes ... ok
+test examples::zoom_example::tests::repeated_zoom_keeps_the_bar_height_and_unscaled_content_visible ... ok
+
+test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 100 filtered out; finished in 1.12s
+
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 1.63s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 1 test
+cold stabilization_ms=48.139
+font-change stabilization n=60 median_ms=40.516 p95_ms=41.401 max_ms=44.510
+test examples::zoom_example::tests::typographic_preparation_cost_sample ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 109 filtered out; finished in 2.94s
+

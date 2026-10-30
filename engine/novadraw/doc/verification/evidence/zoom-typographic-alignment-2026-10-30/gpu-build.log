@@ -1,0 +1,13 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 1.98s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 1 test
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 109 filtered out; finished in 8.43s
+
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 16.36s

@@ -1,0 +1,17 @@
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 7.83s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 7 tests
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ignored, requires native GPU; validates Zoom scrollbar button pixels
+test examples::zoom_example::tests::official_two_class_fixture_and_scroll_range_are_preserved ... ok
+test examples::zoom_example::tests::arrow_page_and_drag_apply_the_official_zoom_formula ... ok
+test examples::zoom_example::tests::repeated_zoom_keeps_the_bar_height_and_unscaled_content_visible ... ok
+test examples::zoom_example::tests::zoom_and_dpi_replace_shared_icons_only_when_density_changes ... ok
+test examples::zoom_example::tests::native_thumb_drag_survives_panel_frames_and_clock_ticks ... ok
+test examples::zoom_example::tests::svg_visible_centers_match_at_multiple_zoom_densities ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 100 filtered out; finished in 0.80s
+
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 6.09s

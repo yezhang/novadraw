@@ -1,0 +1,8 @@
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 2.48s
+[1m[92m     Running[0m unittests src/lib.rs (target/official-native/debug/deps/draw2d_official_examples-43adc3949712f621)
+
+running 1 test
+test examples::zoom_example::tests::scrollbar_buttons_remain_uncovered_at_zoom_limits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 106 filtered out; finished in 4.21s
+

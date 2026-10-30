@@ -1,0 +1,9 @@
+Click at 900,700
+Move to 400,100
+Wait 500 milliseconds
+Drag press down at 400,100
+Drag move to 700,100
+Drag move to 1000,100
+Drag release at 1240,100
+Wait 2000 milliseconds
+Move to 1100,700
