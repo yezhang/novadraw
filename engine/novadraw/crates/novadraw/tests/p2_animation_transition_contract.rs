@@ -328,7 +328,7 @@ fn static_animation_modes_allow_collapsed_layout_without_building_a_transform() 
                 RectangleFigure::new(0.0, 0.0, 100.0, 50.0).expect("valid figure bounds"),
             ))
             .unwrap();
-        runtime.animation().timeline().set_mode(mode);
+        runtime.animation().timeline().set_mode(mode).unwrap();
         let (_, start) = runtime
             .animation()
             .transition_bounds(
@@ -365,7 +365,8 @@ fn static_bounds_fallback_still_rejects_a_disposed_capture_target() {
     runtime
         .animation()
         .timeline()
-        .set_mode(AnimationMode::Disabled);
+        .set_mode(AnimationMode::Disabled)
+        .unwrap();
     runtime.dispose_subtree(figure).unwrap();
     assert!(matches!(
         runtime.animation().timeline().transition_bounds(capture, BoundsTransition::new(Duration::from_millis(210))),

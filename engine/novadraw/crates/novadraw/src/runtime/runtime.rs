@@ -140,6 +140,7 @@ impl std::error::Error for FramePreparationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Text(error) => Some(error),
+            Self::Animation(error) => Some(error),
             _ => None,
         }
     }

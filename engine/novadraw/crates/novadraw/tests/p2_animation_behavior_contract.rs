@@ -345,7 +345,8 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
     runtime
         .animation()
         .timeline()
-        .set_mode(AnimationMode::Disabled);
+        .set_mode(AnimationMode::Disabled)
+        .unwrap();
     runtime.figure(figure).unwrap().set_enabled(false).unwrap();
     record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);
@@ -354,7 +355,8 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
     runtime
         .animation()
         .timeline()
-        .set_mode(AnimationMode::ReducedMotion);
+        .set_mode(AnimationMode::ReducedMotion)
+        .unwrap();
     runtime.figure(figure).unwrap().set_enabled(true).unwrap();
     record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);

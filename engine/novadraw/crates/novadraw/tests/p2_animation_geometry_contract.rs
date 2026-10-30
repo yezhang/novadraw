@@ -433,7 +433,7 @@ fn static_modes_suppress_before_freezing_content_or_evaluating_geometry_provider
             .timeline()
             .bind_geometry(root, GeometryBinding::layout_bounds())
             .unwrap();
-        runtime.animation().timeline().set_mode(mode);
+        runtime.animation().timeline().set_mode(mode).unwrap();
         let plan = AnimationPlan::track(
             channel,
             Motion::Tween(

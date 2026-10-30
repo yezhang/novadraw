@@ -555,7 +555,12 @@ pub(crate) fn verify_native(window: Arc<winit::window::Window>) {
                 let mut static_tree = super::tree_example::canvas_fixture(false);
                 static_tree.model.lock().unwrap().horizontal = horizontal;
                 static_tree.model.lock().unwrap().use_animation = name != "static";
-                static_tree.runtime.animation().timeline().set_mode(mode);
+                static_tree
+                    .runtime
+                    .animation()
+                    .timeline()
+                    .set_mode(mode)
+                    .unwrap();
                 static_tree.runtime.frames().stabilize_for_query().unwrap();
                 toggle(&mut static_tree.runtime, &static_tree.model, 1).unwrap();
                 let mut static_renderer = VelloRenderer::new(window.clone(), surface).unwrap();
@@ -932,7 +937,12 @@ mod tests {
             let mut static_tree = super::super::tree_example::canvas_fixture(false);
             static_tree.runtime.frames().stabilize_for_query().unwrap();
             animated.model.lock().unwrap().use_animation = true;
-            animated.runtime.animation().timeline().set_mode(mode);
+            animated
+                .runtime
+                .animation()
+                .timeline()
+                .set_mode(mode)
+                .unwrap();
             toggle(&mut animated.runtime, &animated.model, 1).unwrap();
             toggle(&mut static_tree.runtime, &static_tree.model, 1).unwrap();
             for index in 0..19 {

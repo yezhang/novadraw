@@ -38,7 +38,7 @@ impl Runtime {
         self.guarded(|runtime| {
             runtime.apply_pending_mutations_for_frame();
             runtime.try_stabilize()?;
-            runtime.process_animation_behaviors();
+            runtime.process_animation_behaviors()?;
             Ok(())
         })
     }
@@ -436,7 +436,7 @@ impl Runtime {
     fn stabilize_animation_transaction(&mut self) -> Result<(), FramePreparationError> {
         self.apply_pending_mutations_for_frame();
         self.try_stabilize()?;
-        self.process_animation_behaviors();
+        self.process_animation_behaviors()?;
         Ok(())
     }
 
@@ -737,7 +737,12 @@ impl Runtime {
         }
     }
 
-    fn process_animation_behaviors(&mut self) {
+    fn process_animation_behaviors(&mut self) -> Result<bool, FramePreparationError> {
+        if self.faulted {
+            return Err(FramePreparationError::Animation(
+                crate::animation::AnimationError::RuntimeFaulted,
+            ));
+        }
         let effects = self.updates.take_animation_effects(&mut self.tree);
         self.animations
             .access_mut(
@@ -747,7 +752,8 @@ impl Runtime {
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
-            .process_behaviors(&effects, self.stable_epoch);
+            .process_behaviors(&effects, self.stable_epoch)
+            .map_err(FramePreparationError::Animation)
     }
 
     /// Produces one complete renderer submission at a stable transaction boundary.
@@ -780,7 +786,8 @@ impl Runtime {
             self.full_redraw_pending = true;
         }
         if !surface.is_renderable() {
-            self.animations
+            if let Err(error) = self
+                .animations
                 .access_mut(
                     &self.tree,
                     &self.resources,
@@ -788,11 +795,15 @@ impl Runtime {
                     &mut self.full_redraw_pending,
                     &mut self.faulted,
                 )
-                .set_surface_suspended(true);
+                .set_surface_suspended(true)
+            {
+                return FramePreparation::Error(FramePreparationError::Animation(error));
+            }
             self.full_redraw_pending = true;
             return FramePreparation::Suspended;
         }
-        self.animations
+        if let Err(error) = self
+            .animations
             .access_mut(
                 &self.tree,
                 &self.resources,
@@ -800,7 +811,10 @@ impl Runtime {
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
-            .set_surface_suspended(false);
+            .set_surface_suspended(false)
+        {
+            return FramePreparation::Error(FramePreparationError::Animation(error));
+        }
         if let Err(error) = self.validate_background_frame(surface) {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::HostBackground(error));
@@ -817,7 +831,9 @@ impl Runtime {
         if let Err(error) = self.try_stabilize() {
             return FramePreparation::Error(error);
         }
-        self.process_animation_behaviors();
+        if let Err(error) = self.process_animation_behaviors() {
+            return FramePreparation::Error(error);
+        }
         self.animations
             .access_mut(
                 &self.tree,
@@ -1085,7 +1101,7 @@ impl Runtime {
         if self.try_stabilize().is_err() {
             return None;
         }
-        self.process_animation_behaviors();
+        self.process_animation_behaviors().ok()?;
         self.animations
             .access_mut(
                 &self.tree,
@@ -1142,7 +1158,8 @@ impl Runtime {
         self.apply_pending_mutations_for_frame();
         self.try_stabilize()
             .expect("full-frame recording requires stable derived state");
-        self.process_animation_behaviors();
+        self.process_animation_behaviors()
+            .expect("full-frame recording requires a healthy animation service");
         self.animations
             .access_mut(
                 &self.tree,
@@ -1170,5 +1187,42 @@ impl Runtime {
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
         self.animations.record_geometry(presentation.as_ref());
         frame
+    }
+}
+
+#[cfg(test)]
+mod s09_tests {
+    use super::*;
+    use crate::animation::AnimationError;
+    use std::error::Error;
+
+    #[test]
+    fn s09_internal_frame_paths_propagate_animation_fault_before_shortcuts() {
+        let mut runtime = Runtime::empty();
+        runtime.faulted = true;
+        assert_eq!(
+            runtime.process_animation_behaviors(),
+            Err(FramePreparationError::Animation(
+                AnimationError::RuntimeFaulted
+            ))
+        );
+        for size in [0, 100] {
+            let surface = SurfaceInfo {
+                logical_width: f64::from(size),
+                logical_height: f64::from(size),
+                pixel_width: size,
+                pixel_height: size,
+                scale_factor: 1.0,
+            };
+            let FramePreparation::Error(error) =
+                runtime.prepare_submission_inner(surface, BackendCapabilities::RETAINED_PARTIAL)
+            else {
+                panic!("animation fault must not become Idle or Suspended");
+            };
+            assert_eq!(
+                error.source().unwrap().downcast_ref::<AnimationError>(),
+                Some(&AnimationError::RuntimeFaulted)
+            );
+        }
     }
 }

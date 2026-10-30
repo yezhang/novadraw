@@ -100,6 +100,7 @@ fn disabled_mode_suppresses_without_work_or_override() {
             .animation()
             .timeline()
             .set_mode(AnimationMode::Disabled)
+            .unwrap()
     );
 
     let plan = AnimationPlan::track(
@@ -142,6 +143,7 @@ fn reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work() {
             .animation()
             .timeline()
             .set_mode(AnimationMode::ReducedMotion)
+            .unwrap()
     );
     let plan = AnimationPlan::track(
         channel,
@@ -159,6 +161,7 @@ fn reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work() {
             .animation()
             .timeline()
             .set_mode(AnimationMode::Enabled)
+            .unwrap()
     );
     let plan = AnimationPlan::track(
         channel,
@@ -181,6 +184,7 @@ fn reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work() {
             .animation()
             .timeline()
             .set_mode(AnimationMode::Disabled)
+            .unwrap()
     );
     assert!(
         !runtime

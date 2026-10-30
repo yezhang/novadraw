@@ -698,7 +698,8 @@ fn verify_continuous_effects_and_reduced_motion() -> Result<VerificationMetrics,
         .runtime
         .animation()
         .timeline()
-        .set_mode(AnimationMode::ReducedMotion);
+        .set_mode(AnimationMode::ReducedMotion)
+        .map_err(|error| error.to_string())?;
     if example
         .runtime
         .animation()

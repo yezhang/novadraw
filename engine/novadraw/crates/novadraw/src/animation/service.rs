@@ -1407,11 +1407,11 @@ impl AnimationService {
     }
 
     pub(crate) fn set_surface_suspended(&mut self, suspended: bool) -> bool {
+        let changed = self.surface_suspended != suspended;
         self.surface_suspended = suspended;
         let ids: Vec<_> = self.active.iter().map(|(id, _)| id).collect();
-        let mut changed = false;
         for id in ids {
-            changed |= self.set_suspension_reason(id, Some(suspended), None);
+            self.set_suspension_reason(id, Some(suspended), None);
         }
         changed
     }
@@ -2692,23 +2692,31 @@ impl AnimationMut<'_> {
         changed
     }
 
-    pub(crate) fn set_surface_suspended(&mut self, suspended: bool) -> bool {
+    pub(crate) fn set_surface_suspended(
+        &mut self,
+        suspended: bool,
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        if self.service.surface_suspended == suspended {
+            return Ok(false);
+        }
         if self.service.active.len() == 0 {
-            return self.service.set_surface_suspended(suspended);
+            return Ok(self.service.set_surface_suspended(suspended));
         }
         let before = self.service.damage_state(self.tree);
         let changed = self.service.set_surface_suspended(suspended);
         self.reconcile_damage(before);
-        changed
+        Ok(changed)
     }
 
     pub(crate) fn process_behaviors(
         &mut self,
         effects: &[NotificationEffect],
         stable_epoch: u64,
-    ) -> bool {
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
         if effects.is_empty() {
-            return false;
+            return Ok(false);
         }
         let before = self.service.damage_state(self.tree);
         let scene = StableSceneQuery::new(stable_epoch, self.tree);
@@ -2717,7 +2725,7 @@ impl AnimationMut<'_> {
             service.process_behaviors(effects, stable_epoch, scene, tree)
         });
         self.reconcile_damage(before);
-        changed
+        Ok(changed)
     }
 
     /// Returns the Runtime-wide mode.
@@ -2760,13 +2768,25 @@ impl AnimationMut<'_> {
     }
 
     /// Changes the Runtime-wide mode and clears active presentation when disabling motion.
-    pub fn set_mode(&mut self, mode: AnimationMode) -> bool {
-        if *self.faulted || self.service.mode == mode {
-            return false;
+    ///
+    /// Returns whether the configuration changed. A faulted Runtime rejects even a
+    /// request for the current mode; `Ok(false)` only describes a healthy no-op.
+    ///
+    /// Callers must handle the domain result before interpreting the change flag.
+    ///
+    /// ```compile_fail
+    /// use novadraw::{animation::AnimationMode, runtime::Runtime};
+    /// let mut runtime = Runtime::empty();
+    /// let changed: bool = runtime.animation().timeline().set_mode(AnimationMode::Disabled);
+    /// ```
+    pub fn set_mode(&mut self, mode: AnimationMode) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        if self.service.mode == mode {
+            return Ok(false);
         }
         if self.service.active.len() == 0 {
             self.service.mode = mode;
-            return true;
+            return Ok(true);
         }
         let before = self.service.damage_state(self.tree);
         self.service.mode = mode;
@@ -2777,7 +2797,7 @@ impl AnimationMut<'_> {
             }
         }
         self.reconcile_damage(before);
-        true
+        Ok(true)
     }
 
     /// Installs a committed-fact behavior. It observes only future stable transactions.
@@ -3989,5 +4009,184 @@ impl DamageSubjectState {
                 ..
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod s09_tests {
+    use super::super::{AnimationBehaviorContext, AnimationTrigger};
+    use super::*;
+    use crate::{event::FigureEvent, figure::RectangleFigure, runtime::ResourceRegistry};
+
+    struct Fixture {
+        service: AnimationService,
+        tree: FigureTree,
+        resources: ResourceRegistry,
+        updates: UpdateManager,
+        full_redraw: bool,
+        faulted: bool,
+    }
+
+    impl Fixture {
+        fn new() -> Self {
+            let tree = FigureTree::new();
+            Self {
+                service: AnimationService::new(tree.namespace()),
+                resources: ResourceRegistry::with_namespace(tree.namespace().as_uuid()),
+                tree,
+                updates: UpdateManager::new(),
+                full_redraw: false,
+                faulted: false,
+            }
+        }
+
+        fn animation(&mut self) -> AnimationMut<'_> {
+            self.service.access_mut(
+                &self.tree,
+                &self.resources,
+                &mut self.updates,
+                &mut self.full_redraw,
+                &mut self.faulted,
+            )
+        }
+    }
+
+    #[test]
+    fn s09_fault_precedes_empty_effects_and_same_configuration() {
+        let mut fixture = Fixture::new();
+        fixture.faulted = true;
+        assert_eq!(
+            fixture.animation().set_mode(AnimationMode::Enabled),
+            Err(AnimationError::RuntimeFaulted)
+        );
+        for suspended in [false, true] {
+            assert_eq!(
+                fixture.animation().set_surface_suspended(suspended),
+                Err(AnimationError::RuntimeFaulted)
+            );
+        }
+        assert_eq!(
+            fixture.animation().process_behaviors(&[], 0),
+            Err(AnimationError::RuntimeFaulted)
+        );
+        assert!(!fixture.service.surface_suspended);
+        assert_eq!(fixture.service.mode, AnimationMode::Enabled);
+        assert_eq!(fixture.service.active_revision, 0);
+        assert!(!fixture.updates.is_update_queued());
+        assert!(!fixture.full_redraw);
+    }
+
+    #[test]
+    fn s09_configuration_change_without_tracks_does_not_damage_presentation() {
+        let mut fixture = Fixture::new();
+        assert_eq!(fixture.animation().set_surface_suspended(false), Ok(false));
+        assert_eq!(fixture.animation().set_surface_suspended(true), Ok(true));
+        assert_eq!(fixture.animation().set_surface_suspended(true), Ok(false));
+        assert_eq!(fixture.animation().set_surface_suspended(false), Ok(true));
+        assert_eq!(fixture.animation().process_behaviors(&[], 0), Ok(false));
+        assert_eq!(fixture.service.active_revision, 0);
+        assert!(!fixture.updates.is_update_queued());
+        assert!(!fixture.full_redraw);
+    }
+
+    #[test]
+    fn s09_suspension_pause_and_finish_separate_configuration_from_damage() {
+        for policy in [SuspensionPolicy::Pause, SuspensionPolicy::Finish] {
+            let mut fixture = Fixture::new();
+            let figure = fixture
+                .tree
+                .builder()
+                .set_contents(Box::new(
+                    RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+                ))
+                .unwrap();
+            fixture
+                .animation()
+                .advance_time(MonotonicTime::ZERO)
+                .unwrap();
+            let channel = fixture
+                .animation()
+                .bind_figure(figure, InteractionGeometryPolicy::Committed)
+                .unwrap()
+                .opacity();
+            let plan = AnimationPlan::track(
+                channel,
+                Motion::Tween(
+                    Tween::between(
+                        Opacity::TRANSPARENT,
+                        Opacity::OPAQUE,
+                        Duration::from_millis(100),
+                    )
+                    .unwrap(),
+                ),
+            )
+            .unwrap()
+            .with_suspension(policy);
+            let AnimationStart::Running(id) = fixture.animation().start(plan).unwrap() else {
+                panic!("healthy animation must start");
+            };
+            fixture.updates = UpdateManager::new();
+            fixture.full_redraw = false;
+            assert_eq!(fixture.animation().set_surface_suspended(true), Ok(true));
+            assert_eq!(fixture.animation().set_surface_suspended(true), Ok(false));
+            if policy == SuspensionPolicy::Finish {
+                assert_eq!(
+                    fixture.animation().state(id).unwrap(),
+                    AnimationState::Completed
+                );
+                assert!(fixture.updates.is_update_queued());
+            } else {
+                assert!(!fixture.updates.is_update_queued());
+                fixture
+                    .animation()
+                    .advance_time(MonotonicTime::from_micros(50_000))
+                    .unwrap();
+                assert_eq!(
+                    fixture.animation().value(channel).unwrap(),
+                    Opacity::TRANSPARENT
+                );
+                assert_eq!(fixture.animation().set_surface_suspended(false), Ok(true));
+                fixture
+                    .animation()
+                    .advance_time(MonotonicTime::from_micros(100_000))
+                    .unwrap();
+                assert_eq!(fixture.animation().value(channel).unwrap().get(), 0.5);
+            }
+        }
+    }
+
+    #[test]
+    fn s09_behavior_rejection_is_success_without_presentation_change() {
+        let mut fixture = Fixture::new();
+        let figure = fixture
+            .tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap(),
+            ))
+            .unwrap();
+        let id = fixture
+            .animation()
+            .install_behavior(AnimationBehavior::new(
+                AnimationTrigger::FigureBoundsChanged,
+                |_: AnimationBehaviorContext<'_>| Err(AnimationError::InvalidValue),
+            ))
+            .unwrap();
+        let effects = [NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
+            figure_id: figure,
+            old_bounds: Rectangle::new(0.0, 0.0, 10.0, 10.0),
+            new_bounds: Rectangle::new(20.0, 0.0, 10.0, 10.0),
+        })];
+        assert_eq!(
+            fixture.animation().process_behaviors(&effects, 1),
+            Ok(false)
+        );
+        let failures = fixture.animation().take_behavior_failures();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].behavior(), id);
+        assert_eq!(failures[0].error(), &AnimationError::InvalidValue);
+        assert!(!fixture.faulted);
+        assert_eq!(fixture.service.active_revision, 0);
+        assert!(!fixture.updates.is_update_queued());
     }
 }
