@@ -244,6 +244,32 @@ Core（`novadraw`）、Editor（`novadraw-editor`），或其他明确的包／�
 - 验收分别统计 Core 基础契约、Editor 编辑行为、平台输入与应用消费者；
   Core 整改或 Shapes 的应用功能不能计为新增 GEF 框架能力。
 
+### Editor 缺失 Core 依赖时停止新增
+
+判断 Editor 是否必须依赖某项 Core 能力，依据是 GEF 框架对 Draw2D
+对等能力的实际依赖。先确认上游契约，再核对 Novadraw Core 是否具备等价行为；
+不按 Java 类名、Rust 接口形状或现有实现方式要求逐项照搬。
+
+每项依赖判断必须记录以下证据链：
+
+1. GEF 的编辑行为、源码提交及 class／method。
+2. 该行为直接或间接依赖的 Draw2D API／行为契约，以及缺失时无法保证的结果。
+3. 对应的 Draw2D parity family、Novadraw Core 公开契约和现有验证证据。
+4. 已具备的等价机制，或尚缺的最小 Core 能力与可验证反例。
+
+仅参考 `org.eclipse.gef` 与 `org.eclipse.draw2d`；Zest、产品示例的业务需求、
+平台环境缺失和测试注入困难不能单独证明 Core 能力缺失。
+证据不足时标为待确认，不以猜测建设新 Core 能力或绕过未确认的基础契约。
+
+证据确认必要 Core 契约缺失时，立即停止增加 Editor 能力：
+在 P2 backlog 记录阻塞关系，先交付明确归属为 Core 的增补建议方案。
+建议必须说明上游依赖依据、最小增量、状态／API owner、失败语义、
+外部消费者、性能与体积成本、Core 验收及 Editor 恢复条件。
+不得在 Editor 或应用层复制该缺失的 Draw2D 基础机制以绕过依赖。
+
+Core 建议完成不等于批准 Core 实施。依赖补齐并通过对应验收后，
+才按已有授权与路线图恢复 Editor 推进；Core 完成与 GEF 能力完成分别记录。
+
 ### 官方示例实施范围
 
 只建设官方示例 Canvas / LightweightSystem 内的 Draw2D 能力。Java 源码仅作

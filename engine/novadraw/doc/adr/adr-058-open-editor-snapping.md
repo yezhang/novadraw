@@ -17,6 +17,13 @@
 | 平台／宿主 | 原生输入、DPI、capture 与取消事件 | 验证真实输入进入 Editor 的链路 |
 | 应用 | Grid／Guide 资源、业务资格、Command 与 attachment 持久化 | 消费者责任；应用功能不计为框架新增能力 |
 
+实施前必须核对本页引用的 GEF 方法实际依赖哪些 Draw2D 坐标、几何、
+命中与反馈契约，并逐项关联 Core 的等价 API 和验证证据。
+“消费既有 API”是本草案的边界要求，不代表已完成所有依赖核验。
+若确认必要 Core 契约缺失，停止增加 Editor 吸附能力，先交付 Core 增补建议；
+Core 依赖验收通过后才能恢复。本门禁见
+[项目规则](../../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
+
 ## 目标与决策
 
 为移动、换父、嵌套创建／drop 和 resize 提供可组合 Grid、Geometry、Guide 策略。

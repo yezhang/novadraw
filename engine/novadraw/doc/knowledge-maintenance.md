@@ -11,6 +11,9 @@
 Core／Editor 的职责及跨层方案要求以
 [项目规则](../CLAUDE.md#规划与方案必须明确能力归属)为准；
 归属与依赖分开表达，完成状态按所属能力分别记录。
+Editor 的 Core 缺口建议须关联 GEF → Draw2D → Novadraw Core 的依赖证据，
+并记录停止新增与恢复条件；规则见
+[Core 依赖门禁](../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
 
 概览负责边界和阅读路线；专题负责完整行为；ADR 负责为什么选择；parity 负责采用
 外部语义；roadmap 负责执行状态；review 负责某次快照的发现和结果。

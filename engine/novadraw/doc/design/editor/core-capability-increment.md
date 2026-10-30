@@ -19,9 +19,26 @@ Core 提供现有 Figure、命中、坐标、布局、Runtime 和绘制基础协
 平台／宿主负责原生输入、DPI、capture 与快捷键映射。
 
 使用 Core API 是依赖关系，不将这些基础能力重新计为 GEF 迁移成果。
-若发现必须新增或修订 Core 契约，单列 Core delta 与验收，不扩张本 Editor 批次。
+若确认必须新增或修订 Core 契约，按下述依赖门禁停止 Editor 新增，
+先交付独立 Core 增补建议，不扩张本 Editor 批次。
 S08 输入不变量属于 Core 整改；S09 是跨包服务整改，均与本文的 Editor 交付分开。
 当前 Editor 主线为 E03 剩余验收、E04 开放吸附设计及其后续 GEF 能力。
+
+## Core 依赖门禁
+
+每个 Editor 增量先从 GEF 对 Draw2D 的实际依赖确认基础契约，
+再对照 Novadraw Core 的等价能力。依赖记录必须给出源码提交和方法、
+依赖的 Draw2D 行为、缺失时受影响的编辑结果，以及 Core 现有证据或最小缺口。
+上游类名不同不构成缺口，已有等价机制可以满足依赖。
+
+确认必要契约缺失后，停止增加 Editor 能力，在 backlog 记录阻塞关系，
+先给出 Core 增补建议。建议分别定义 Core 的 owner、API、失败、
+扩展与成本验收，以及恢复 Editor 的条件；建议本身不授权 Core 实施。
+不在 Editor 或应用层复制缺失的基础机制。
+完整规则见[项目依赖门禁](../../../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
+
+E03 的私有 revision 注入与跨显示器采证问题属于验证条件。
+仅凭这些问题，不能推出 GEF 所依赖的 Draw2D 对等能力在 Core 中缺失。
 
 ## 目标与基线
 

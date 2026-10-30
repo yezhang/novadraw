@@ -12,6 +12,13 @@ S08 属于 Core 输入整改；S09 按 Core／Editor／Inspector 分项；
 E03 容器编辑与 E04 开放吸附属于 Editor。用户指定 Editor 范围时，
 按 Editor 队列推进，不自动转入其他队列。
 
+Editor 的必要 Core 依赖以 GEF 对 Draw2D 对等契约的实际依赖为依据。
+确认 Core 缺失后停止增加 Editor 能力，登记阻塞关系，
+先交付 Core 增补建议；对应 Core 契约验收通过后才恢复。
+依赖证据、建议内容和恢复条件见
+[项目门禁](../../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
+本规则不把尚未完成的测试或平台采证直接归类为 Core 能力缺失。
+
 ## 已完成批次
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |

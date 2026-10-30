@@ -11,6 +11,11 @@
 [ADR-058](../../adr/adr-058-open-editor-snapping.md)评审，尚未实施。
 设计依据为需求、ADR-055 和只读 GEF 源码，未扫描 Novadraw Rust 现状。
 
+Core 依赖按 GEF 对 Draw2D 对等契约的实际调用与行为核验，
+具体门禁见 [ADR-058](../../adr/adr-058-open-editor-snapping.md#分层归属)。
+必要契约缺失时停止 Editor 新增，先形成 Core 建议；
+不得在策略或宿主中另建缺失的基础机制绕过依赖。
+
 ## 所有权与协议
 
 Viewer 持有 typed 策略注册表；每个手势持有独立 SnapSession。

@@ -124,6 +124,11 @@
   Editor 使用 Core 基础协议不改变能力归属；新增 Core 能力单列 delta。
   用户指定 Editor／GEF 范围时，只推进该范围；Core 整改与应用功能不计为
   新增 GEF 能力。完整规则见 `CLAUDE.md` 的“规划与方案必须明确能力归属”。
+- Editor 是否缺失必要 Core 依赖，必须以 GEF 对 Draw2D 对等契约的实际依赖为依据，
+  记录 GEF 行为／源码 → Draw2D 契约 → Core 等价能力与缺口的证据链。
+  确认缺失后停止增加 Editor 能力，先给出独立 Core 增补建议与恢复条件；
+  不在 Editor／应用层复制基础机制绕过依赖，不把测试注入或平台采证缺口
+  当作 Core 能力缺失。完整规则见 `CLAUDE.md` 的“Editor 缺失 Core 依赖时停止新增”。
 - 官方示例迭代只建设 Canvas / LightweightSystem 内的 Draw2D 能力。Java 源码仅供
   只读参考，不编写、修改、编译或运行 Java 验证代码；不建设 SWT 原生控件的
   Novadraw 替代体系。示例临时控制面板允许用于过渡/验证，不作为 Core 演进目标。
