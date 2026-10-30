@@ -1,5 +1,6 @@
 use crate::{
-    model::{Circuit, Id, Kind},
+    model::{Circuit, Id, Kind, Routing},
+    presets::Preset,
     session::{Mode, Session},
 };
 use egui::{Color32, Event, PointerButton, Response, TextureId};
@@ -17,6 +18,9 @@ pub struct Ui {
     pub path: String,
     captured: bool,
     pan: Option<(Point, Point)>,
+    preset: Preset,
+    pending_preset: Option<Preset>,
+    canvas_size: [f64; 2],
 }
 impl Default for Ui {
     fn default() -> Self {
@@ -25,10 +29,39 @@ impl Default for Ui {
             path: "logic.json".into(),
             captured: false,
             pan: None,
+            preset: Preset::default(),
+            pending_preset: None,
+            canvas_size: [880.0, 600.0],
         }
     }
 }
 impl Ui {
+    fn load_preset(&mut self, session: &mut Session, preset: Preset) -> Result<(), String> {
+        let mut next = Session::new(preset.circuit())?;
+        let (width, height) =
+            next.viewer
+                .model()
+                .document
+                .nodes
+                .values()
+                .fold((0.0_f64, 0.0_f64), |(w, h), n| {
+                    let b = n.bounds();
+                    (w.max(b.x + b.width + 40.0), h.max(b.y + b.height + 40.0))
+                });
+        let scale = (self.canvas_size[0] / width)
+            .min(self.canvas_size[1] / height)
+            .clamp(0.1, 1.0);
+        next.domain
+            .set_viewport_scale_at(&mut next.viewer, scale, Some(Point::ZERO))
+            .map_err(|e| e.to_string())?;
+        next.sync()?;
+        *session = next;
+        self.preset = preset;
+        self.pending_preset = None;
+        self.captured = false;
+        self.pan = None;
+        Ok(())
+    }
     fn apply(&mut self, result: Result<(), String>) {
         if let Err(error) = result {
             self.error = Some(error);
@@ -43,7 +76,24 @@ impl Ui {
         egui::Panel::top("document").show(root, |ui| {
             ui.horizontal_centered(|ui| {
                 ui.label(egui::RichText::new("Logic").strong().size(18.0));
-                ui.label(egui::RichText::new("Half-adder").color(Color32::GRAY));
+                egui::ComboBox::from_id_salt("logic-preset")
+                    .selected_text(self.preset.name())
+                    .show_ui(ui, |ui| {
+                        for preset in Preset::ALL {
+                            if ui
+                                .selectable_label(self.preset == preset, preset.name())
+                                .clicked()
+                            {
+                                if session.domain.is_dirty() {
+                                    self.pending_preset = Some(preset);
+                                } else {
+                                    let result = self.load_preset(session, preset);
+                                    self.apply(result);
+                                }
+                            }
+                        }
+                    });
+                ui.label(egui::RichText::new("expanded").small().color(Color32::GRAY));
                 ui.separator();
                 if ui
                     .add_enabled(
@@ -101,6 +151,23 @@ impl Ui {
                 }
             });
         });
+        if let Some(preset) = self.pending_preset {
+            egui::Window::new("Load preset?")
+                .collapsible(false)
+                .resizable(false)
+                .show(root.ctx(), |ui| {
+                    ui.label("The current circuit has unsaved changes.");
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.pending_preset = None;
+                        }
+                        if ui.button("Discard and load").clicked() {
+                            let result = self.load_preset(session, preset);
+                            self.apply(result);
+                        }
+                    });
+                });
+        }
         egui::Panel::bottom("status").show(root, |ui| {
             ui.horizontal(|ui| {
                 if let Some(error) = &self.error {
@@ -144,142 +211,198 @@ impl Ui {
             .exact_size(SIDEBAR_WIDTH)
             .resizable(false)
             .show(root, |ui| {
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new("TOOLS").small().color(Color32::GRAY));
-                for (name, mode) in [("Select / move", Mode::Select), ("Wire", Mode::Connect)] {
-                    if ui
-                        .add_sized(
-                            [ui.available_width(), 30.0],
-                            egui::Button::new(name).selected(session.mode == mode),
-                        )
-                        .clicked()
-                    {
-                        self.apply(session.set_mode(mode));
-                    }
-                }
-                ui.add_space(16.0);
-                ui.label(
-                    egui::RichText::new("COMPONENTS")
-                        .small()
-                        .color(Color32::GRAY),
-                );
-                egui::Grid::new("components")
-                    .num_columns(2)
-                    .spacing([6.0, 6.0])
-                    .show(ui, |ui| {
-                        for (i, kind) in Kind::ALL.into_iter().enumerate() {
-                            if ui
-                                .add_sized(
-                                    [88.0, 34.0],
-                                    egui::Button::new(kind.name())
-                                        .selected(session.mode == Mode::Create(kind)),
-                                )
-                                .clicked()
-                            {
-                                self.apply(session.set_mode(Mode::Create(kind)));
-                            }
-                            if i % 2 == 1 {
-                                ui.end_row();
-                            }
-                        }
-                    });
-                ui.add_space(20.0);
-                ui.label(
-                    egui::RichText::new("INPUT VALUES")
-                        .small()
-                        .color(Color32::GRAY),
-                );
-                let inputs = session
-                    .viewer
-                    .model()
-                    .document
-                    .nodes
-                    .iter()
-                    .filter(|(id, node)| {
-                        node.kind == Kind::Led && !session.viewer.model().driven(**id)
-                    })
-                    .map(|(id, node)| (*id, node.name.clone(), node.value))
-                    .collect::<Vec<_>>();
-                for (id, name, value) in inputs {
-                    ui.label(egui::RichText::new(name).strong());
-                    ui.horizontal(|ui| {
-                        let mut next = value;
-                        for bit in (0..4).rev() {
-                            let on = value & (1 << bit) != 0;
-                            if ui
-                                .add_sized(
-                                    [33.0, 28.0],
-                                    egui::Button::new(if on { "1" } else { "0" }).selected(on),
-                                )
-                                .on_hover_text(format!("Toggle bit {bit}"))
-                                .clicked()
-                            {
-                                next ^= 1 << bit;
-                            }
-                        }
-                        ui.label(value.to_string());
-                        if next != value {
-                            self.apply(session.set_input(id, next));
-                        }
-                    });
-                    ui.add_space(6.0);
-                }
-                ui.add_space(14.0);
-                ui.label(
-                    egui::RichText::new("LIVE SIGNALS")
-                        .small()
-                        .color(Color32::GRAY),
-                );
-                let outputs = session
-                    .viewer
-                    .model()
-                    .document
-                    .nodes
-                    .iter()
-                    .filter(|(id, node)| {
-                        node.kind == Kind::Led && session.viewer.model().driven(**id)
-                    })
-                    .map(|(id, node)| (node.name.clone(), session.viewer.model().signals[id]))
-                    .collect::<Vec<_>>();
-                for (name, value) in outputs {
-                    ui.horizontal(|ui| {
-                        ui.label(name);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.colored_label(
-                                if value != 0 { SIGNAL } else { Color32::GRAY },
-                                format!("{value:04b} · {value}"),
-                            );
-                        });
-                    });
-                }
-                ui.add_space(20.0);
-                ui.label(egui::RichText::new("CIRCUIT").small().color(Color32::GRAY));
-                let nodes = session
-                    .viewer
-                    .model()
-                    .document
-                    .order
-                    .iter()
-                    .map(|id| (*id, session.viewer.model().document.nodes[id].name.clone()))
-                    .collect::<Vec<_>>();
-                for (id, name) in nodes {
-                    if let Some(part) = session.viewer.part_for_model(Id::Node(id))
-                        && ui
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.label(egui::RichText::new("ROUTING").small().color(Color32::GRAY));
+                    for routing in Routing::ALL {
+                        if ui
                             .selectable_label(
-                                session.viewer.selection().items().contains(&part),
-                                name,
+                                session.viewer.model().document.routing == routing,
+                                routing.name(),
                             )
                             .clicked()
-                    {
-                        self.apply(
+                        {
+                            self.apply(session.set_routing(routing));
+                        }
+                    }
+                    if session.viewer.model().document.routing == Routing::Manual {
+                        ui.label(
+                            egui::RichText::new("Drag wire handles to add / move bends")
+                                .small()
+                                .color(Color32::GRAY),
+                        );
+                        let selected = session.viewer.selection().items().iter().find_map(|p| {
                             session
                                 .viewer
-                                .replace_selection(part)
-                                .map(|_| ())
-                                .map_err(|e| e.to_string()),
-                        );
+                                .parts()
+                                .get(*p)
+                                .and_then(|p| p.model_id())
+                                .and_then(|id| {
+                                    if let Id::Wire(id) = id {
+                                        Some(id)
+                                    } else {
+                                        None
+                                    }
+                                })
+                        });
+                        if let Some(id) = selected {
+                            let count = session
+                                .viewer
+                                .model()
+                                .document
+                                .bendpoints
+                                .get(&id)
+                                .map_or(0, Vec::len);
+                            for index in 0..count {
+                                if ui
+                                    .small_button(format!("Delete bend {}", index + 1))
+                                    .clicked()
+                                {
+                                    self.apply(session.delete_bendpoint(index));
+                                    break;
+                                }
+                            }
+                        }
                     }
-                }
+                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new("TOOLS").small().color(Color32::GRAY));
+                    for (name, mode) in [("Select / move", Mode::Select), ("Wire", Mode::Connect)] {
+                        if ui
+                            .add_sized(
+                                [ui.available_width(), 30.0],
+                                egui::Button::new(name).selected(session.mode == mode),
+                            )
+                            .clicked()
+                        {
+                            self.apply(session.set_mode(mode));
+                        }
+                    }
+                    ui.add_space(16.0);
+                    ui.label(
+                        egui::RichText::new("COMPONENTS")
+                            .small()
+                            .color(Color32::GRAY),
+                    );
+                    egui::Grid::new("components")
+                        .num_columns(2)
+                        .spacing([6.0, 6.0])
+                        .show(ui, |ui| {
+                            for (i, kind) in Kind::ALL.into_iter().enumerate() {
+                                if ui
+                                    .add_sized(
+                                        [88.0, 34.0],
+                                        egui::Button::new(kind.name())
+                                            .selected(session.mode == Mode::Create(kind)),
+                                    )
+                                    .clicked()
+                                {
+                                    self.apply(session.set_mode(Mode::Create(kind)));
+                                }
+                                if i % 2 == 1 {
+                                    ui.end_row();
+                                }
+                            }
+                        });
+                    ui.add_space(20.0);
+                    ui.label(
+                        egui::RichText::new("INPUT VALUES")
+                            .small()
+                            .color(Color32::GRAY),
+                    );
+                    let inputs = session
+                        .viewer
+                        .model()
+                        .document
+                        .nodes
+                        .iter()
+                        .filter(|(id, node)| {
+                            node.kind == Kind::Led && !session.viewer.model().driven(**id)
+                        })
+                        .map(|(id, node)| (*id, node.name.clone(), node.value))
+                        .collect::<Vec<_>>();
+                    for (id, name, value) in inputs {
+                        ui.label(egui::RichText::new(name).strong());
+                        ui.horizontal(|ui| {
+                            let mut next = value;
+                            for bit in (0..4).rev() {
+                                let on = value & (1 << bit) != 0;
+                                if ui
+                                    .add_sized(
+                                        [33.0, 28.0],
+                                        egui::Button::new(if on { "1" } else { "0" }).selected(on),
+                                    )
+                                    .on_hover_text(format!("Toggle bit {bit}"))
+                                    .clicked()
+                                {
+                                    next ^= 1 << bit;
+                                }
+                            }
+                            ui.label(value.to_string());
+                            if next != value {
+                                self.apply(session.set_input(id, next));
+                            }
+                        });
+                        ui.add_space(6.0);
+                    }
+                    ui.add_space(14.0);
+                    ui.label(
+                        egui::RichText::new("LIVE SIGNALS")
+                            .small()
+                            .color(Color32::GRAY),
+                    );
+                    let outputs = session
+                        .viewer
+                        .model()
+                        .document
+                        .nodes
+                        .iter()
+                        .filter(|(id, node)| {
+                            node.kind == Kind::Led && session.viewer.model().driven(**id)
+                        })
+                        .map(|(id, node)| (node.name.clone(), session.viewer.model().signals[id]))
+                        .collect::<Vec<_>>();
+                    for (name, value) in outputs {
+                        ui.horizontal(|ui| {
+                            ui.label(name);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui.colored_label(
+                                        if value != 0 { SIGNAL } else { Color32::GRAY },
+                                        format!("{value:04b} · {value}"),
+                                    );
+                                },
+                            );
+                        });
+                    }
+                    ui.add_space(20.0);
+                    ui.label(egui::RichText::new("CIRCUIT").small().color(Color32::GRAY));
+                    let nodes = session
+                        .viewer
+                        .model()
+                        .document
+                        .order
+                        .iter()
+                        .map(|id| (*id, session.viewer.model().document.nodes[id].name.clone()))
+                        .collect::<Vec<_>>();
+                    for (id, name) in nodes {
+                        if let Some(part) = session.viewer.part_for_model(Id::Node(id))
+                            && ui
+                                .selectable_label(
+                                    session.viewer.selection().items().contains(&part),
+                                    name,
+                                )
+                                .clicked()
+                        {
+                            self.apply(
+                                session
+                                    .viewer
+                                    .replace_selection(part)
+                                    .map(|_| ())
+                                    .map_err(|e| e.to_string()),
+                            );
+                        }
+                    }
+                });
             });
         let mut size = [1.0, 1.0];
         egui::CentralPanel::default()
@@ -297,6 +420,7 @@ impl Ui {
                 self.apply_input(&response, session);
             });
         self.apply(session.sync());
+        self.canvas_size = size;
         size
     }
     fn apply_input(&mut self, response: &Response, session: &mut Session) {

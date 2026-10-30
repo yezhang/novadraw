@@ -473,6 +473,8 @@ fn propagation_costs() {
             nodes,
             order: (1..=count).collect(),
             wires,
+            routing: Routing::default(),
+            bendpoints: BTreeMap::new(),
         })
         .unwrap();
         let mut samples = Vec::new();
@@ -492,5 +494,387 @@ fn propagation_costs() {
             samples[SAMPLE_COUNT / 2],
             samples[SAMPLE_COUNT * 95 / 100]
         );
+    }
+}
+
+#[test]
+fn official_expanded_full_adder_and_four_bit_truth_tables() {
+    use crate::presets::Preset;
+    let mut full = Preset::FullAdder.circuit();
+    let carry_in = *full
+        .document
+        .nodes
+        .iter()
+        .find(|(_, n)| n.name == "Carry in")
+        .unwrap()
+        .0;
+    for a in 0..=1 {
+        for b in 0..=1 {
+            for cin in 0..=1 {
+                full.document.nodes.get_mut(&1).unwrap().value = a;
+                full.document.nodes.get_mut(&2).unwrap().value = b;
+                full.document.nodes.get_mut(&carry_in).unwrap().value = cin;
+                full.evaluate().unwrap();
+                assert_eq!(full.signals[&3], a + b + cin);
+            }
+        }
+    }
+    let mut large = Preset::FourBitAdder.circuit();
+    assert_eq!(
+        large
+            .document
+            .nodes
+            .values()
+            .filter(|n| n.kind == Kind::Xor)
+            .count(),
+        7
+    );
+    assert_eq!(
+        large
+            .document
+            .nodes
+            .values()
+            .filter(|n| n.kind == Kind::And)
+            .count(),
+        7
+    );
+    assert_eq!(
+        large
+            .document
+            .nodes
+            .values()
+            .filter(|n| n.kind == Kind::Or)
+            .count(),
+        3
+    );
+    assert_eq!(large.signals[&3], 10); // Official createLargeModel starts with 3 + 7.
+    for a in 0..=15 {
+        for b in 0..=15 {
+            large.document.nodes.get_mut(&1).unwrap().value = a;
+            large.document.nodes.get_mut(&2).unwrap().value = b;
+            large.evaluate().unwrap();
+            assert_eq!(large.signals[&3], (a + b) & LED_MASK);
+        }
+    }
+    let restored = Circuit::from_json(&large.to_json().unwrap()).unwrap();
+    assert_eq!(restored.document, large.document);
+}
+
+#[test]
+fn all_presets_have_committed_routes_in_all_router_modes() {
+    for preset in crate::presets::Preset::ALL {
+        let mut s = Session::new(preset.circuit()).unwrap();
+        for routing in Routing::ALL {
+            s.set_routing(routing).unwrap();
+            let wires = s
+                .viewer
+                .model()
+                .document
+                .wires
+                .keys()
+                .copied()
+                .collect::<Vec<_>>();
+            for id in wires {
+                let wire = s.viewer.connection_part_for_model(Id::Wire(id)).unwrap();
+                assert!(
+                    s.viewer.connection_route_points_in_surface(wire).is_some(),
+                    "{preset:?} {routing:?} wire {id}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn relative_bendpoint_tool_create_move_delete_zoom_and_undo() {
+    use novadraw_editor::overlay::{BendpointCreateAction, BendpointMoveAction};
+    for scale in [0.5, 1.5] {
+        let mut s = Session::new(Circuit::half_adder()).unwrap();
+        s.set_routing(Routing::Manual).unwrap();
+        s.domain
+            .set_viewport_scale_at(&mut s.viewer, scale, Some(Point::ZERO))
+            .unwrap();
+        let wire = s.viewer.connection_part_for_model(Id::Wire(7)).unwrap();
+        s.viewer.replace_selection(wire.edit_part()).unwrap();
+        s.sync().unwrap();
+        let site = s
+            .viewer
+            .connection_bendpoint_handle_sites(wire)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.action().get::<BendpointCreateAction>().is_some())
+            .unwrap();
+        let start = site.location();
+        let end = Point::new(start.x(), start.y() + 64.0 * scale);
+        s.domain
+            .pointer_pressed(
+                &mut s.viewer,
+                start,
+                MouseButton::Left,
+                KeyModifiers::default(),
+            )
+            .unwrap();
+        s.domain.pointer_moved(&mut s.viewer, end).unwrap();
+        assert!(!s.viewer.model().document.bendpoints.contains_key(&7));
+        s.domain
+            .pointer_released(&mut s.viewer, end, MouseButton::Left)
+            .unwrap();
+        s.sync().unwrap();
+        assert_eq!(s.viewer.model().document.bendpoints[&7].len(), 1);
+        let created = crate::parts::resolved_bendpoints(s.viewer.model(), 7)[0];
+        let site = s
+            .viewer
+            .connection_bendpoint_handle_sites(wire)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.action().get::<BendpointMoveAction>().is_some())
+            .unwrap();
+        let start = site.location();
+        let end = Point::new(start.x() + 32.0 * scale, start.y() + 24.0 * scale);
+        s.domain
+            .pointer_pressed(
+                &mut s.viewer,
+                start,
+                MouseButton::Left,
+                KeyModifiers::default(),
+            )
+            .unwrap();
+        s.domain.pointer_moved(&mut s.viewer, end).unwrap();
+        s.domain
+            .pointer_released(&mut s.viewer, end, MouseButton::Left)
+            .unwrap();
+        s.sync().unwrap();
+        assert_eq!(
+            crate::parts::resolved_bendpoints(s.viewer.model(), 7)[0],
+            Point::new(created.x() + 32.0, created.y() + 24.0)
+        );
+        s.delete_bendpoint(0).unwrap();
+        assert!(!s.viewer.model().document.bendpoints.contains_key(&7));
+        s.domain.undo(&mut s.viewer).unwrap();
+        s.domain.undo(&mut s.viewer).unwrap();
+        assert_eq!(
+            crate::parts::resolved_bendpoints(s.viewer.model(), 7)[0],
+            created
+        );
+        s.domain.undo(&mut s.viewer).unwrap();
+        assert!(!s.viewer.model().document.bendpoints.contains_key(&7));
+    }
+}
+
+#[test]
+fn relative_offsets_follow_endpoint_motion_and_survive_router_switch() {
+    let mut s = Session::new(Circuit::half_adder()).unwrap();
+    s.set_routing(Routing::Manual).unwrap();
+    let wire = s.viewer.model().document.wires[&7];
+    let source = crate::parts::port_point(s.viewer.model(), wire.source);
+    let target = crate::parts::port_point(s.viewer.model(), wire.target);
+    let p = Point::new(280.0, 200.0);
+    let points = vec![RelativePoint {
+        source: [p.x() - source.x(), p.y() - source.y()],
+        target: [p.x() - target.x(), p.y() - target.y()],
+    }];
+    s.domain
+        .execute_command(
+            &mut s.viewer,
+            Box::new(ChangeBendpoints {
+                id: 7,
+                before: vec![],
+                after: points.clone(),
+            }),
+        )
+        .unwrap();
+    let node = s.viewer.model().document.nodes[&1].clone();
+    s.domain
+        .execute_command(
+            &mut s.viewer,
+            Box::new(ChangeNode {
+                id: 1,
+                before: Some(node.clone()),
+                after: Node {
+                    x: node.x + 32.0,
+                    y: node.y + 24.0,
+                    ..node
+                },
+            }),
+        )
+        .unwrap();
+    s.sync().unwrap();
+    assert_eq!(
+        crate::parts::resolved_bendpoints(s.viewer.model(), 7)[0],
+        Point::new(296.0, 212.0)
+    );
+    s.set_routing(Routing::Shortest).unwrap();
+    assert_eq!(s.viewer.model().document.bendpoints[&7], points);
+    let mut invalid = ChangeBendpoints {
+        id: 7,
+        before: points.clone(),
+        after: vec![],
+    };
+    assert!(!invalid.can_execute(s.viewer.model()));
+    assert!(
+        invalid
+            .execute(&mut Circuit::from_json(&s.viewer.model().to_json().unwrap()).unwrap())
+            .is_err()
+    );
+    s.domain.undo(&mut s.viewer).unwrap();
+    s.sync().unwrap();
+    assert_eq!(s.viewer.model().document.routing, Routing::Manual);
+    let restored = Circuit::from_json(&s.viewer.model().to_json().unwrap()).unwrap();
+    assert_eq!(restored.document.bendpoints[&7], points);
+    let part = s
+        .viewer
+        .connection_part_for_model(Id::Wire(7))
+        .unwrap()
+        .edit_part();
+    s.viewer.replace_selection(part).unwrap();
+    s.delete().unwrap();
+    assert!(!s.viewer.model().document.bendpoints.contains_key(&7));
+    s.domain.undo(&mut s.viewer).unwrap();
+    assert_eq!(s.viewer.model().document.bendpoints[&7], points);
+}
+
+#[test]
+fn switching_router_cancels_inflight_bendpoint_and_removes_handles() {
+    use novadraw_editor::overlay::BendpointCreateAction;
+    let mut s = Session::new(Circuit::half_adder()).unwrap();
+    s.set_routing(Routing::Manual).unwrap();
+    let wire = s.viewer.connection_part_for_model(Id::Wire(7)).unwrap();
+    s.viewer.replace_selection(wire.edit_part()).unwrap();
+    s.sync().unwrap();
+    let site = s.viewer.connection_bendpoint_handle_sites(wire).unwrap()[0].clone();
+    assert!(site.action().get::<BendpointCreateAction>().is_some());
+    s.domain
+        .pointer_pressed(
+            &mut s.viewer,
+            site.location(),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    s.domain
+        .pointer_moved(&mut s.viewer, Point::new(280.0, 200.0))
+        .unwrap();
+    s.set_routing(Routing::Manhattan).unwrap();
+    assert!(!s.domain.has_active_gesture());
+    assert!(s.viewer.model().document.bendpoints.is_empty());
+    s.domain
+        .pointer_released(&mut s.viewer, Point::new(280.0, 200.0), MouseButton::Left)
+        .unwrap();
+    assert!(s.viewer.model().document.bendpoints.is_empty());
+}
+
+#[test]
+fn visibility_route_avoids_intermediate_node_and_tracks_obstacle_motion() {
+    use novadraw::geometry::Rectangle;
+    let mut c = Circuit::half_adder();
+    c.document.wires.clear();
+    c.document.wires.insert(
+        7,
+        Wire {
+            source: Port::output(1, 0),
+            target: Port::input(5, 0),
+        },
+    );
+    let obstacle = c.document.nodes.get_mut(&3).unwrap();
+    obstacle.x = 352.0;
+    obstacle.y = 40.0;
+    let mut s = Session::new(c).unwrap();
+    s.set_routing(Routing::Shortest).unwrap();
+    let wire = s.viewer.connection_part_for_model(Id::Wire(7)).unwrap();
+    let path = s.viewer.connection_route_points_in_surface(wire).unwrap();
+    let bounds = s.viewer.model().document.nodes[&3].bounds();
+    let outside = |p: Point, b: Rectangle| {
+        !(p.x() > b.x && p.x() < b.x + b.width && p.y() > b.y && p.y() < b.y + b.height)
+    };
+    for segment in path.windows(2) {
+        for step in 1..100 {
+            let p = segment[0] + (segment[1] - segment[0]) * (f64::from(step) / 100.0);
+            assert!(
+                outside(p, bounds),
+                "route crossed intermediate node at {p:?}"
+            );
+        }
+    }
+    let node = s.viewer.model().document.nodes[&3].clone();
+    s.domain
+        .execute_command(
+            &mut s.viewer,
+            Box::new(ChangeNode {
+                id: 3,
+                before: Some(node.clone()),
+                after: Node { y: 180.0, ..node },
+            }),
+        )
+        .unwrap();
+    s.sync().unwrap();
+    assert_ne!(
+        s.viewer.connection_route_points_in_surface(wire).unwrap(),
+        path
+    );
+}
+
+#[test]
+fn constant_sources_and_invalid_bendpoint_documents() {
+    let mut c = Circuit::half_adder();
+    c.document.nodes.get_mut(&1).unwrap().kind = Kind::Live;
+    c.document.nodes.get_mut(&2).unwrap().kind = Kind::Ground;
+    c.evaluate().unwrap();
+    assert_eq!(c.signals[&5], 1);
+    assert_eq!(c.signals[&6], 0);
+    assert!(!c.valid_port(Port::input(1, 0)));
+    let mut bad = c.document.clone();
+    bad.bendpoints.insert(999, vec![]);
+    assert!(Circuit::from_document(bad).is_err());
+    let mut bad = c.document;
+    bad.bendpoints.insert(
+        7,
+        vec![RelativePoint {
+            source: [f64::NAN, 0.0],
+            target: [0.0, 0.0],
+        }],
+    );
+    assert!(Circuit::from_document(bad).is_err());
+}
+
+#[test]
+#[ignore = "manual preset routing cost measurement"]
+fn preset_routing_costs() {
+    use std::time::Instant;
+    const SAMPLES: usize = 51;
+    for preset in crate::presets::Preset::ALL {
+        let mut s = Session::new(preset.circuit()).unwrap();
+        for routing in Routing::ALL {
+            s.set_routing(routing).unwrap();
+            let mut samples = Vec::new();
+            for iteration in 0..SAMPLES {
+                let value = (iteration % 2) as u8;
+                let start = Instant::now();
+                s.set_input(1, value).unwrap();
+                let node = s.viewer.model().document.nodes[&1].clone();
+                s.domain
+                    .execute_command(
+                        &mut s.viewer,
+                        Box::new(ChangeNode {
+                            id: 1,
+                            before: Some(node.clone()),
+                            after: Node {
+                                x: node.x + if iteration % 2 == 0 { 1.0 } else { -1.0 },
+                                ..node
+                            },
+                        }),
+                    )
+                    .unwrap();
+                s.sync().unwrap();
+                samples.push(start.elapsed().as_secs_f64() * 1000.0);
+            }
+            samples.sort_by(f64::total_cmp);
+            println!(
+                "preset={preset:?} router={routing:?} nodes={} wires={} samples={SAMPLES} p50_ms={:.4} p95_ms={:.4}",
+                s.viewer.model().document.nodes.len(),
+                s.viewer.model().document.wires.len(),
+                samples[SAMPLES / 2],
+                samples[SAMPLES * 95 / 100]
+            );
+        }
     }
 }

@@ -2,14 +2,18 @@ use crate::{
     model::*,
     parts::{Factory, NodeTemplate, selection_color},
 };
-use novadraw::connection::ManhattanConnectionRouter;
+use novadraw::connection::{
+    BendpointConnectionRouter, ManhattanConnectionRouter, VisibilityGraphConnectionRouter,
+};
 use novadraw::figure::RectangleFigure;
 use novadraw::geometry::{Point, Rectangle};
 use novadraw::graphics::Color;
 use novadraw::render::{RenderBackend, SurfaceInfo};
 use novadraw::runtime::{FramePreparation, SubmissionAcknowledgement};
 use novadraw::tree::FigureId;
-use novadraw_editor::overlay::ConnectionEndpointAction;
+use novadraw_editor::overlay::{
+    BendpointCreateAction, BendpointMoveAction, ConnectionEndpointAction,
+};
 use novadraw_editor::tool::CreationTool;
 use novadraw_editor::*;
 
@@ -27,6 +31,7 @@ pub struct Session {
     surface: Option<SurfaceInfo>,
     overlays: Vec<FigureId>,
     overlay_revision: Option<(u64, Vec<EditPartId>, f64, Point)>,
+    router_projection: Option<(Routing, Vec<FigureId>)>,
 }
 impl Session {
     pub fn new(circuit: Circuit) -> Result<Self, String> {
@@ -44,6 +49,7 @@ impl Session {
             surface: None,
             overlays: Vec::new(),
             overlay_revision: None,
+            router_projection: None,
         };
         result
             .viewer
@@ -72,6 +78,42 @@ impl Session {
         }
         self.mode = mode;
         Ok(())
+    }
+    pub fn set_routing(&mut self, after: Routing) -> Result<(), String> {
+        let before = self.viewer.model().document.routing;
+        if before == after {
+            return Ok(());
+        }
+        self.cancel()?;
+        self.domain
+            .execute_command(&mut self.viewer, Box::new(ChangeRouting { before, after }))
+            .map_err(|e| e.to_string())?;
+        self.sync()
+    }
+    pub fn delete_bendpoint(&mut self, index: usize) -> Result<(), String> {
+        let connection = self
+            .viewer
+            .selection()
+            .items()
+            .iter()
+            .find_map(|part| self.viewer.as_connection_part(*part))
+            .ok_or("Select a wire")?;
+        let revision = self
+            .domain
+            .next_interaction_revision()
+            .map_err(|e| e.to_string())?;
+        let request = BendpointRequest::new(
+            connection,
+            BendpointOperation::Delete { index },
+            Point::ZERO,
+            RequestModifiers::default(),
+            revision,
+        );
+        let metadata = RequestMetadata::new(revision, vec![connection.edit_part()]);
+        self.domain
+            .execute::<EditBendpoint, _>(&mut self.viewer, &metadata, &request)
+            .map_err(|e| e.to_string())?;
+        self.sync()
     }
     pub fn set_input(&mut self, id: u64, value: u8) -> Result<(), String> {
         let before = self
@@ -144,6 +186,45 @@ impl Session {
         Ok(())
     }
     pub fn sync(&mut self) -> Result<(), String> {
+        let routing = self.viewer.model().document.routing;
+        let obstacles = self
+            .viewer
+            .model()
+            .document
+            .order
+            .iter()
+            .filter_map(|id| {
+                self.viewer
+                    .part_for_model(Id::Node(*id))
+                    .and_then(|part| self.viewer.parts().get(part))
+                    .map(|part| part.primary_figure())
+            })
+            .collect::<Vec<_>>();
+        let router_projection = (
+            routing,
+            if routing == Routing::Shortest {
+                obstacles
+            } else {
+                Vec::new()
+            },
+        );
+        if self.router_projection.as_ref() != Some(&router_projection) {
+            if self.domain.has_active_gesture() {
+                self.cancel()?;
+            }
+            let router: Box<dyn novadraw::connection::ConnectionRouter> = match routing {
+                Routing::Manual => Box::new(BendpointConnectionRouter),
+                Routing::Manhattan => Box::new(ManhattanConnectionRouter),
+                Routing::Shortest => Box::new(VisibilityGraphConnectionRouter::new(
+                    router_projection.1.clone(),
+                )),
+            };
+            self.viewer
+                .replace_connection_layer_router(router)
+                .map_err(|e| e.to_string())?;
+            self.router_projection = Some(router_projection);
+            self.overlay_revision = None;
+        }
         self.viewer
             .stabilize_for_query()
             .map_err(|e| e.to_string())?;
@@ -171,6 +252,47 @@ impl Session {
         }
         for part in &projection.1 {
             if let Some(connection) = self.viewer.as_connection_part(*part) {
+                if routing == Routing::Manual {
+                    for site in self
+                        .viewer
+                        .connection_bendpoint_handle_sites(connection)
+                        .map_err(|e| e.to_string())?
+                    {
+                        const BEND_SIZE: f64 = 7.0;
+                        let point = site.location();
+                        let figure = RectangleFigure::new_with_color(
+                            point.x() - BEND_SIZE / 2.0,
+                            point.y() - BEND_SIZE / 2.0,
+                            BEND_SIZE,
+                            BEND_SIZE,
+                            Color::WHITE,
+                        )
+                        .map_err(|e| e.to_string())?
+                        .with_stroke(selection_color(), 1.0)
+                        .map_err(|e| e.to_string())?;
+                        let id =
+                            if let Some(index) = site.action().get::<BendpointCreateAction>() {
+                                self.viewer
+                                    .add_handle_visual_with_action::<BendpointCreateAction>(
+                                        *part,
+                                        *index,
+                                        Box::new(figure),
+                                    )
+                            } else if let Some(index) = site.action().get::<BendpointMoveAction>() {
+                                self.viewer
+                                    .add_handle_visual_with_action::<BendpointMoveAction>(
+                                        *part,
+                                        *index,
+                                        Box::new(figure),
+                                    )
+                            } else {
+                                continue;
+                            }
+                            .map_err(|e| e.to_string())?
+                            .1;
+                        self.overlays.push(id);
+                    }
+                }
                 if let Some((source, target)) = self
                     .viewer
                     .connection_route_endpoints_in_surface(connection)

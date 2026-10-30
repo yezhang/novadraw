@@ -1,7 +1,7 @@
 use crate::model::*;
 use novadraw::connection::{
-    AnchorError, AnchorSemanticKey, AnchorSite, ConnectionAnchor, ConnectionFigure,
-    ConnectionFigureBehavior, CoordinateSpace, RouteSceneQuery,
+    AnchorError, AnchorSemanticKey, AnchorSite, Bendpoint, BendpointConstraint, ConnectionAnchor,
+    ConnectionFigure, ConnectionFigureBehavior, CoordinateSpace, RouteSceneQuery,
 };
 use novadraw::container::FreeformLayerFigure;
 use novadraw::figure::{Figure, FigureStyle, LabelFigure, RectangleFigure, border::LineBorder};
@@ -44,6 +44,29 @@ pub fn port_bounds(circuit: &Circuit, port: Port) -> Rectangle {
         PIN_TOP + f64::from(port.index) * PIN_STEP
     };
     Rectangle::new(x, y, PIN_SIZE, PIN_SIZE)
+}
+
+pub fn port_point(circuit: &Circuit, port: Port) -> Point {
+    let b = port_bounds(circuit, port);
+    let node = &circuit.document.nodes[&port.node];
+    Point::new(node.x + b.x + b.width / 2.0, node.y + b.y + b.height / 2.0)
+}
+pub fn resolved_bendpoints(m: &Circuit, id: u64) -> Vec<Point> {
+    let wire = m.document.wires[&id];
+    let source = port_point(m, wire.source);
+    let target = port_point(m, wire.target);
+    m.document
+        .bendpoints
+        .get(&id)
+        .into_iter()
+        .flatten()
+        .map(|p| {
+            Point::new(
+                (source.x() + p.source[0] + target.x() + p.target[0]) / 2.0,
+                (source.y() + p.source[1] + target.y() + p.target[1]) / 2.0,
+            )
+        })
+        .collect()
 }
 
 struct PinAnchor(FigureId, Direction);
@@ -101,7 +124,23 @@ fn pin_anchor(
 }
 
 pub struct Factory;
+pub fn manual_router_key() -> ConnectionRouterKey {
+    ConnectionRouterKey::new("logic-manual").expect("valid router key")
+}
 impl EditPartFactory<Circuit> for Factory {
+    fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
+        const FAN_SEPARATION: f64 = 10.0;
+        Ok(vec![ConnectionRouterRegistration::new(
+            manual_router_key(),
+            Box::new(
+                novadraw::connection::FanRouter::new(
+                    Box::new(novadraw::connection::BendpointConnectionRouter),
+                    FAN_SEPARATION,
+                )
+                .map_err(|e| EditPartError::operation(e.to_string()))?,
+            ),
+        )])
+    }
     fn create(
         &mut self,
         _: PartFactoryContext<Id>,
@@ -504,7 +543,46 @@ impl EditPartBehavior<Circuit> for WirePart {
         Ok(vec![
             PolicyInstallation::new(ConnectionReconnectSlot::key(), WirePolicy)
                 .map_err(|e| EditPartError::operation(e.to_string()))?,
+            PolicyInstallation::new(
+                PolicyKey::<WireBendpointSlot>::new("logic-bendpoint"),
+                WireBendpointPolicy,
+            )
+            .map_err(|e| EditPartError::operation(e.to_string()))?,
         ])
+    }
+    fn connection_routing(
+        &mut self,
+        m: &Circuit,
+        id: Id,
+    ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
+        let Id::Wire(id) = id else {
+            return Ok(ConnectionRoutingDescriptor::inherited());
+        };
+        if m.document.routing != Routing::Manual {
+            return Ok(ConnectionRoutingDescriptor::inherited());
+        }
+        let points = m
+            .document
+            .bendpoints
+            .get(&id)
+            .into_iter()
+            .flatten()
+            .map(|p| Bendpoint::Relative {
+                source_offset: Vec2::new(p.source[0], p.source[1]),
+                target_offset: Vec2::new(p.target[0], p.target[1]),
+                weight: 0.5,
+            })
+            .collect::<Vec<_>>();
+        Ok(ConnectionRoutingDescriptor::registered(
+            manual_router_key(),
+            Some(Box::new(BendpointConstraint::new(points))),
+        ))
+    }
+    fn connection_bendpoints(&mut self, m: &Circuit, id: Id) -> Result<Vec<Point>, EditPartError> {
+        Ok(match id {
+            Id::Wire(id) if m.document.routing == Routing::Manual => resolved_bendpoints(m, id),
+            _ => Vec::new(),
+        })
     }
     fn refresh_visuals(
         &mut self,
@@ -525,6 +603,63 @@ impl EditPartBehavior<Circuit> for WirePart {
             }),
         )?;
         Ok(())
+    }
+}
+struct WireBendpointSlot;
+impl PolicySlot for WireBendpointSlot {
+    const NAME: &'static str = "logic-bendpoint";
+}
+struct WireBendpointPolicy;
+impl EditPolicy<Circuit> for WireBendpointPolicy {
+    fn register_handlers(b: &mut PolicyHandlerBuilder<'_, Circuit, Self>) {
+        b.handle::<EditBendpoint>(Self::edit);
+    }
+}
+impl WireBendpointPolicy {
+    fn edit(
+        &mut self,
+        host: PolicyHost<Id>,
+        _: &RequestMetadata,
+        req: &BendpointRequest,
+        m: &Circuit,
+    ) -> Result<Option<EditingContribution<Circuit>>, PolicyError> {
+        let Id::Wire(id) = host.model() else {
+            return Ok(None);
+        };
+        if m.document.routing != Routing::Manual {
+            return Ok(None);
+        }
+        let before = m.document.bendpoints.get(&id).cloned().unwrap_or_default();
+        let mut after = before.clone();
+        let wire = m.document.wires[&id];
+        let source = port_point(m, wire.source);
+        let target = port_point(m, wire.target);
+        let p = req.location();
+        let relative = RelativePoint {
+            source: [p.x() - source.x(), p.y() - source.y()],
+            target: [p.x() - target.x(), p.y() - target.y()],
+        };
+        match req.operation() {
+            BendpointOperation::Create { index } if index <= after.len() => {
+                after.insert(index, relative)
+            }
+            BendpointOperation::Move { index } if index < after.len() => after[index] = relative,
+            BendpointOperation::Delete { index } if index < after.len() => {
+                after.remove(index);
+            }
+            _ => return Err(PolicyError::operation("Invalid bendpoint index")),
+        }
+        let feedback = FeedbackVisual::scaled(Box::new(
+            novadraw::figure::PolylineFigure::new(source.x(), source.y(), p.x(), p.y())
+                .map_err(|e| PolicyError::operation(e.to_string()))?
+                .with_color(selection_color())
+                .with_width(LINE_WIDTH)
+                .map_err(|e| PolicyError::operation(e.to_string()))?,
+        ));
+        Ok(Some(EditingContribution::new(
+            Some(Box::new(ChangeBendpoints { id, before, after })),
+            vec![feedback],
+        )))
     }
 }
 struct WirePolicy;

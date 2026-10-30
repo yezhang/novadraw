@@ -67,19 +67,34 @@ pub enum Kind {
     And,
     Or,
     Xor,
+    Live,
+    Ground,
 }
 impl Kind {
-    pub const ALL: [Self; 4] = [Self::Led, Self::And, Self::Or, Self::Xor];
+    pub const ALL: [Self; 6] = [
+        Self::Led,
+        Self::And,
+        Self::Or,
+        Self::Xor,
+        Self::Live,
+        Self::Ground,
+    ];
     pub const fn name(self) -> &'static str {
         match self {
             Self::Led => "LED",
             Self::And => "AND",
             Self::Or => "OR",
             Self::Xor => "XOR",
+            Self::Live => "Live",
+            Self::Ground => "Ground",
         }
     }
     pub const fn inputs(self) -> u8 {
-        if matches!(self, Self::Led) { 4 } else { 2 }
+        match self {
+            Self::Led => 4,
+            Self::Live | Self::Ground => 0,
+            _ => 2,
+        }
     }
     pub const fn outputs(self) -> u8 {
         if matches!(self, Self::Led) { 4 } else { 1 }
@@ -121,6 +136,38 @@ pub struct Wire {
     pub target: Port,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Routing {
+    Manual,
+    #[default]
+    Manhattan,
+    Shortest,
+}
+impl Routing {
+    pub const ALL: [Self; 3] = [Self::Manual, Self::Manhattan, Self::Shortest];
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Manual => "Manual",
+            Self::Manhattan => "Manhattan",
+            Self::Shortest => "Shortest path",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RelativePoint {
+    pub source: [f64; 2],
+    pub target: [f64; 2],
+}
+impl RelativePoint {
+    pub fn valid(&self) -> bool {
+        self.source
+            .into_iter()
+            .chain(self.target)
+            .all(|v| v.is_finite() && v.abs() <= MAX_POSITION)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Document {
@@ -128,6 +175,10 @@ pub struct Document {
     pub nodes: BTreeMap<u64, Node>,
     pub order: Vec<u64>,
     pub wires: BTreeMap<u64, Wire>,
+    #[serde(default)]
+    pub routing: Routing,
+    #[serde(default)]
+    pub bendpoints: BTreeMap<u64, Vec<RelativePoint>>,
 }
 
 pub struct Circuit {
@@ -187,6 +238,8 @@ impl Circuit {
             nodes,
             order: (1..=6).collect(),
             wires,
+            routing: Routing::default(),
+            bendpoints: BTreeMap::new(),
         })
         .expect("valid half-adder")
     }
@@ -227,6 +280,13 @@ impl Circuit {
             next_id,
         };
         let mut occupied = BTreeSet::new();
+        if circuit.document.bendpoints.iter().any(|(id, points)| {
+            !circuit.document.wires.contains_key(id)
+                || points.len() > MAX_DOCUMENT_ITEMS
+                || points.iter().any(|point| !point.valid())
+        }) {
+            return Err("Invalid wire bendpoints".into());
+        }
         for wire in circuit.document.wires.values() {
             if wire.source.direction != Direction::Output
                 || wire.target.direction != Direction::Input
@@ -347,6 +407,8 @@ impl Circuit {
                 Kind::And => u8::from(a && b),
                 Kind::Or => u8::from(a || b),
                 Kind::Xor => u8::from(a ^ b),
+                Kind::Live => 1,
+                Kind::Ground => 0,
             };
             signals.insert(id, value);
             if let Some(wires) = outgoing.get(&id) {
@@ -370,7 +432,7 @@ impl Circuit {
         self.signals = signals;
         Ok(visits)
     }
-    fn publish(&mut self, id: Id) {
+    pub(crate) fn publish(&mut self, id: Id) {
         self.revision = self.revision.next().expect("demo revision exhausted");
         self.events.push(ModelEvent::new(self.revision, id, ()));
     }
@@ -534,6 +596,7 @@ pub struct DeleteItem {
     pub id: Id,
     node: Option<(u64, Node, usize)>,
     wires: BTreeMap<u64, Wire>,
+    bendpoints: BTreeMap<u64, Vec<RelativePoint>>,
 }
 impl DeleteItem {
     pub fn new(id: Id) -> Self {
@@ -541,6 +604,7 @@ impl DeleteItem {
             id,
             node: None,
             wires: BTreeMap::new(),
+            bendpoints: BTreeMap::new(),
         }
     }
 }
@@ -551,6 +615,7 @@ impl Command<Circuit> for DeleteItem {
     fn execute(&mut self, model: &mut Circuit) -> Result<(), CommandError> {
         self.wires.clear();
         self.node = None;
+        self.bendpoints.clear();
         match self.id {
             Id::Node(id) => {
                 if let Some(node) = model.document.nodes.remove(&id) {
@@ -582,6 +647,11 @@ impl Command<Circuit> for DeleteItem {
             }
             _ => return Err(CommandError::operation("Select a node or wire to delete")),
         }
+        for id in self.wires.keys() {
+            if let Some(points) = model.document.bendpoints.remove(id) {
+                self.bendpoints.insert(*id, points);
+            }
+        }
         model.changed(Id::Root)
     }
     fn undo(&mut self, model: &mut Circuit) -> Result<(), CommandError> {
@@ -590,6 +660,78 @@ impl Command<Circuit> for DeleteItem {
             model.document.order.insert(*index, *id);
         }
         model.document.wires.extend(self.wires.clone());
+        model.document.bendpoints.extend(self.bendpoints.clone());
         model.changed(Id::Root)
+    }
+}
+
+pub struct ChangeRouting {
+    pub before: Routing,
+    pub after: Routing,
+}
+impl Command<Circuit> for ChangeRouting {
+    fn label(&self) -> &str {
+        "Change connection router"
+    }
+    fn can_execute(&self, m: &Circuit) -> bool {
+        m.document.routing == self.before && self.before != self.after
+    }
+    fn execute(&mut self, m: &mut Circuit) -> Result<(), CommandError> {
+        if !self.can_execute(m) {
+            return Err(CommandError::operation("Router change rejected"));
+        }
+        m.document.routing = self.after;
+        m.publish(Id::Root);
+        Ok(())
+    }
+    fn undo(&mut self, m: &mut Circuit) -> Result<(), CommandError> {
+        m.document.routing = self.before;
+        m.publish(Id::Root);
+        Ok(())
+    }
+}
+
+pub struct ChangeBendpoints {
+    pub id: u64,
+    pub before: Vec<RelativePoint>,
+    pub after: Vec<RelativePoint>,
+}
+impl ChangeBendpoints {
+    fn put(m: &mut Circuit, id: u64, points: &[RelativePoint]) {
+        if points.is_empty() {
+            m.document.bendpoints.remove(&id);
+        } else {
+            m.document.bendpoints.insert(id, points.to_vec());
+        }
+        m.publish(Id::Wire(id));
+    }
+}
+impl Command<Circuit> for ChangeBendpoints {
+    fn label(&self) -> &str {
+        "Edit relative bendpoint"
+    }
+    fn can_execute(&self, m: &Circuit) -> bool {
+        m.document.routing == Routing::Manual
+            && m.document.wires.contains_key(&self.id)
+            && m.document
+                .bendpoints
+                .get(&self.id)
+                .cloned()
+                .unwrap_or_default()
+                == self.before
+            && self.before != self.after
+            && self.after.len() <= MAX_DOCUMENT_ITEMS
+            && self.after.iter().all(RelativePoint::valid)
+    }
+    fn execute(&mut self, m: &mut Circuit) -> Result<(), CommandError> {
+        if !self.can_execute(m) {
+            return Err(CommandError::operation("Bendpoint edit rejected"));
+        }
+        Self::put(m, self.id, &self.after);
+        Ok(())
+    }
+    fn undo(&mut self, m: &mut Circuit) -> Result<(), CommandError> {
+        Self::put(m, self.id, &self.before);
+        Ok(())
     }
 }
