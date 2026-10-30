@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Editor E03 input verification</title>
+<style>
+body { font: 14px system-ui; margin: 20px; }
+button { margin: 4px; padding: 8px; }
+svg { display: block; width: 800px; height: 600px; border: 1px solid #777; touch-action: none; }
+pre { white-space: pre-wrap; }
+</style>
+<button id="move">Reset move</button><button id="create">Reset create</button>
+<button id="undo">Undo</button><button id="redo">Redo</button>
+<svg id="surface" tabindex="0" viewBox="0 0 800 600"></svg>
+<pre id="status">Loading</pre>
+<script type="module">
+import init, { WebProbe } from './pkg/editor_container_input.js';
+await init();
+const surface = document.querySelector('#surface');
+const status = document.querySelector('#status');
+let probe = new WebProbe(false);
+let log = [];
+function render(kind, trusted = null) {
+  const state = JSON.parse(probe.snapshot());
+  const event = {kind, trusted, dpr: devicePixelRatio, state};
+  log.push(event);
+  window.e03 = {state, log};
+  surface.innerHTML = state.visuals.filter(v => v.model !== 1).map(v =>
+    `<rect role="button" aria-label="Model ${v.model}" tabindex="0" x="${v.bounds[0]}" y="${v.bounds[1]}" width="${v.bounds[2]}" height="${v.bounds[3]}" fill="transparent" stroke="${[2,3,6].includes(v.model) ? '#888' : '#2868bb'}" stroke-width="2"/>
+     <text x="${v.bounds[0]+3}" y="${v.bounds[1]+14}" fill="#222">${v.model}</text>`).join('');
+  status.textContent = JSON.stringify(event, null, 2);
+}
+function input(kind, x=0, y=0, trusted=null) {
+  try { probe.input(kind, x, y); render(kind, trusted); }
+  catch(error) { log.push({kind, error:String(error)}); status.textContent=String(error); }
+}
+for (const [id, creating] of [['move', false], ['create', true]]) {
+  document.querySelector('#'+id).onclick=()=>{
+    probe.free(); probe=new WebProbe(creating); log=[]; render('reset');
+  };
+}
+for(const id of ['undo','redo']) document.querySelector('#'+id).onclick=()=>input(id);
+surface.addEventListener('pointerdown', e => {
+  surface.focus(); surface.setPointerCapture(e.pointerId);
+  const rect=surface.getBoundingClientRect();
+  input('press',e.clientX-rect.left,e.clientY-rect.top,e.isTrusted);
+});
+surface.addEventListener('pointermove',e=>{
+  if(!surface.hasPointerCapture(e.pointerId)) return;
+  const rect=surface.getBoundingClientRect();
+  input('move',e.clientX-rect.left,e.clientY-rect.top,e.isTrusted);
+});
+surface.addEventListener('pointerup',e=>{
+  const rect=surface.getBoundingClientRect();
+  input('release',e.clientX-rect.left,e.clientY-rect.top,e.isTrusted);
+  surface.releasePointerCapture(e.pointerId);
+});
+surface.addEventListener('pointercancel',e=>input('cancel',0,0,e.isTrusted));
+surface.addEventListener('lostpointercapture',()=>{
+  if(window.e03.state.active) input('cancel');
+});
+surface.addEventListener('keydown',e=>{
+  if(e.key==='Escape') input('cancel',0,0,e.isTrusted);
+  if(e.key==='z') input('zoom',1.25,0,e.isTrusted);
+  if(e.key==='s') input('scroll',20,15,e.isTrusted);
+});
+window.addEventListener('blur',()=>{if(window.e03.state.active) input('cancel');});
+window.e03Input=input;
+render('ready');
+</script>

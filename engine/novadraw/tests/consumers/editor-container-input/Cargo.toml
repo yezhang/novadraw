@@ -1,0 +1,30 @@
+[package]
+name = "editor-container-input"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "editor-container-input-native"
+path = "src/native.rs"
+required-features = ["native"]
+
+[features]
+default = ["container-cost"]
+container-cost = []
+native = ["dep:eframe"]
+web = ["dep:wasm-bindgen"]
+
+[dependencies]
+novadraw = { path = "../../../crates/novadraw" }
+novadraw-editor = { path = "../../../crates/novadraw-editor" }
+novadraw-platform-web = { path = "../../../crates/novadraw-platform-web" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+eframe = { version = "0.35", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"], optional = true }
+wasm-bindgen = { version = "0.2.127", optional = true }

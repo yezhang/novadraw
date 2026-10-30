@@ -1,0 +1,39 @@
+[1m[92m   Compiling[0m editor-container-input v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/editor-container-input)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 8.18s
+[1m[92m     Running[0m unittests src/lib.rs (/tmp/novadraw-e03-input-target-20261030/debug/deps/editor_container_input-d0246fd0c273dfac)
+
+running 31 tests
+test fixture::container_cost_samples_include_sync_hit_geometry_policy_feedback_and_commit ... ignored, release-mode performance evidence; run explicitly
+test fixture::container_scaling_samples_include_multiple_parents_and_large_source_subtrees ... ignored, release-mode performance evidence; run explicitly
+test fixture::held_candidate_cannot_submit_after_viewport_geometry_changes ... ok
+test fixture::failed_model_execute_preserves_model_revision_and_history ... ok
+test fixture::ancestor_dedup_preserves_descendant_primary_and_uses_covering_anchor ... ok
+test fixture::checked_services_reject_empty_duplicate_foreign_retired_and_cycle_inputs_as_whole_batches ... ok
+test fixture::creation_rejection_and_external_change_leave_no_model_or_history ... ok
+test fixture::cross_parent_move_is_atomic_and_rebuilds_selected_model_identities ... ok
+test fixture::ordered_insertion_uses_operation_order_and_rejects_source_references ... ok
+test fixture::actual_content_panes_insets_and_heterogeneous_maps_share_one_surface_displacement ... ok
+test fixture::external_revision_or_relevant_policy_invalidation_cancels_the_whole_gesture ... ok
+test fixture::feedback_cleanup_panic_prevents_building_and_faults_viewer_for_both_tools ... ok
+test fixture::mixed_local_and_incoming_sources_query_precise_parent_subbatches ... ok
+test fixture::nested_click_and_drop_keep_default_size_in_scaled_parent_units ... ok
+test fixture::multi_original_parents_query_each_removal_and_programmatic_noop_adds_no_history ... ok
+test fixture::rejected_parent_permission_prevents_feedback_and_command_building ... ok
+test fixture::source_subtree_and_feedback_are_excluded_from_container_hits ... ok
+test fixture::release_recomputes_the_latest_pointer_and_builds_once ... ok
+test fixture::mixed_connection_selection_and_descendant_primary_survive_reparent_and_current_history_snapshots ... ok
+test fixture::stale_header_cannot_reuse_previous_candidate_permission ... ok
+test fixture::retired_acquired_feedback_rejects_cleanup_before_build_for_both_tools ... ok
+test fixture::parent_creation_click_drag_and_drop_share_template_and_atomic_history ... ok
+test fixture::xy_geometry_rejects_skew_and_overflow_but_accepts_reflection_and_zero_size ... ok
+test fixture::raw_and_reduced_duplicate_plans_fail_before_feedback_or_permissions ... ok
+test fixture::stationary_pointer_after_zoom_recomputes_shared_anchor_and_fixed_creation_origin ... ok
+test fixture::successful_model_and_history_survive_failed_reparent_projection ... ok
+test fixture::stationary_creation_recomputes_after_dual_axis_autoexpose_scroll_zoom_and_resize ... ok
+test fixture::same_tool_accepts_xy_to_ordered_and_an_independent_request_payload_plan ... ok
+test fixture::cancellation_tool_switch_and_external_deletion_never_submit_an_old_gesture ... ok
+test fixture::unsupported_inner_family_probes_parent_but_explicit_refusal_stops ... ok
+test fixture::stationary_multi_selection_survives_dual_axis_autoexpose_scroll_and_resize ... ok
+
+test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

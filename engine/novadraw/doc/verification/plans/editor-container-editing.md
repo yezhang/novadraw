@@ -9,6 +9,10 @@ Native／Web capture、DPI 与取消属于平台／宿主输入链路验收。
 
 日期：2026-10-29。修订 2 已获批准，无窗口实施与回归已执行；
 Native/Web 实际输入、跨显示器及窗口外 capture 仍待验收。
+2026-10-30 已补隔离源码副本中的真实 revision 耗尽 Tool 链路、
+Web DPR 1／2 输入与 Native Retina 的部分输入组合，
+见[补验记录](../reviews/editor-container-followup-2026-10-30.md)。
+macOS 两种 Tool 的窗口外释放已通过；跨显示器、系统 DnD 与完整组合仍保留未完成。
 目标契约：[ADR-055](../../adr/adr-055-container-editing-protocol.md)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 

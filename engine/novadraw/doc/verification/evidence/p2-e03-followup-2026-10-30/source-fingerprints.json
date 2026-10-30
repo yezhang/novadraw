@@ -1,0 +1,18 @@
+{
+  "crates/novadraw/src/connection/runtime.rs": {
+    "bytes": 86045,
+    "sha256": "3a7679b529197edb93632933f545decdcb05082600a5d415300d67ac57de9402"
+  },
+  "crates/novadraw/src/runtime/runtime.rs": {
+    "bytes": 223417,
+    "sha256": "19f52800e23565671d644197041e31a4329d9e849713f5d2553e8d4f20c5e757"
+  },
+  "crates/novadraw-editor/src/viewer/mod.rs": {
+    "bytes": 145106,
+    "sha256": "17aecb7cbf429d63bc9f37e72d3f8f82510c3cfd76992220c8ca326895d8151d"
+  },
+  "crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs": {
+    "bytes": 86398,
+    "sha256": "51bebfedc464c3d3c6477057869d5f0dd9cd09d2c8e1aec832e0c26cdf955923"
+  }
+}

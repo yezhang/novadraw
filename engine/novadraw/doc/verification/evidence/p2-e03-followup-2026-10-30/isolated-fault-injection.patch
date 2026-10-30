@@ -1,0 +1,131 @@
+--- a/crates/novadraw/src/connection/runtime.rs
++++ b/crates/novadraw/src/connection/runtime.rs
+@@ -543,7 +543,7 @@
+         self.set_dirty_revision_for_test(connection, u64::MAX);
+     }
+ 
+-    #[cfg(test)]
++    #[cfg(any(test, e03_fault_fixture))]
+     pub(crate) fn set_dirty_revision_for_test(&mut self, connection: ConnectionId, revision: u64) {
+         self.states.get_mut(&connection).unwrap().dirty_revision = revision;
+     }
+--- a/crates/novadraw/src/runtime/runtime.rs
++++ b/crates/novadraw/src/runtime/runtime.rs
+@@ -600,6 +600,12 @@
+ }
+ 
+ impl Runtime {
++    #[cfg(e03_fault_fixture)]
++    pub fn e03_fixture_set_connection_revision(&mut self, figure: FigureId, revision: u64) {
++        self.connections
++            .set_dirty_revision_for_test(crate::connection::ConnectionId::from_figure(figure), revision);
++    }
++
+     /// Constructs a Runtime, panicking if the tree declares unavailable resources.
+     /// Use [`Self::try_new`] to handle admission errors.
+     pub fn new(tree: FigureTree) -> Self {
+--- a/crates/novadraw-editor/src/viewer/mod.rs
++++ b/crates/novadraw-editor/src/viewer/mod.rs
+@@ -1532,6 +1532,12 @@
+         &self.runtime
+     }
+ 
++    #[cfg(e03_fault_fixture)]
++    /// Injects only the private counter in this isolated verification copy.
++    pub fn e03_fixture_set_connection_revision(&mut self, figure: FigureId, revision: u64) {
++        self.runtime.e03_fixture_set_connection_revision(figure, revision);
++    }
++
+     /// Returns the Runtime state for one projected Connection.
+     pub fn connection_state(
+         &mut self,
+--- a/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs
++++ b/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs
+@@ -515,6 +515,12 @@
+         let bounds = ConstraintGeometry::xy(candidate.bounds())?
+             .mapped(candidate.target_to_surface())?
+             .xy_bounds(GeometryTolerance::EXACT)?;
++        #[cfg(e03_fault_fixture)]
++        return Ok(vec![
++            feedback_visual(bounds, self.trace.clone()),
++            feedback_visual(bounds, self.trace.clone()),
++        ]);
++        #[cfg(not(e03_fault_fixture))]
+         Ok(vec![feedback_visual(bounds, self.trace.clone())])
+     }
+     fn build_command(
+@@ -2442,3 +2448,74 @@
+     );
+     assert!(Affine2D::from_scale(1e-320, 1.0).checked_inverse().is_err());
+ }
++
++#[cfg(e03_fault_fixture)]
++#[test]
++fn e03_real_revision_exhaustion_blocks_both_tools_before_command_build() {
++    for creating in [false, true] {
++      for retire_budget in [0, 1] {
++        const EDGE: u32 = 30;
++        let mut model = Model::new();
++        model.connections.push(novadraw_editor::ModelConnection::new(EDGE, FIRST, LOCAL));
++        let mut viewer = GraphicalViewer::new(
++            model, Factory, Rectangle::new(0.0, 0.0, 800.0, 600.0),
++        ).unwrap();
++        support::prepare_next_submission(&mut viewer);
++        let mut domain = EditorDomain::new();
++        let start = if creating {
++            domain.set_active_tool(&mut viewer, ContainerCreationTool::new(Template(20))).unwrap();
++            Point::new(400.0, 120.0)
++        } else {
++            select(&mut viewer, &[FIRST, SECOND]);
++            domain.set_active_tool(&mut viewer, ContainerMoveTool::<Model, Protocol>::new()).unwrap();
++            Point::new(80.0, 80.0)
++        };
++        let pointer = Point::new(440.0, 160.0);
++        domain.pointer_pressed(&mut viewer, start, MouseButton::Left, Default::default()).unwrap();
++        domain.pointer_moved(&mut viewer, pointer).unwrap();
++        let feedback: Vec<_> = viewer.runtime().tree()
++            .child_order(viewer.root_layers().feedback()).unwrap()
++            .into_iter().filter(|id| viewer.visual_owner(*id).is_some()).collect();
++        assert_eq!(feedback.len(), 2);
++        let connection = viewer.connection_part_for_model(EDGE).unwrap();
++        let figure = viewer.parts().get(connection.edit_part()).unwrap().primary_figure();
++        let connection_id = novadraw::connection::ConnectionId::from_figure(figure);
++        let before_model = viewer.model().nodes.clone();
++        let before_revision = viewer.model().revision;
++        let before_selection = viewer.selection().items().to_vec();
++        let before_focus = viewer.selection().focus();
++        viewer.e03_fixture_set_connection_revision(figure, u64::MAX - retire_budget);
++        let before_connection = viewer.connection_state(connection_id).unwrap();
++        let result = domain.pointer_released(&mut viewer, pointer, MouseButton::Left);
++        assert!(result.is_err(), "exhaustion must reject real Tool cleanup");
++        assert_eq!(viewer.model().nodes, before_model);
++        assert_eq!(viewer.model().revision, before_revision);
++        assert_eq!(viewer.selection().items(), before_selection);
++        assert_eq!(viewer.selection().focus(), before_focus);
++        assert_eq!(viewer.model().trace.borrow().build_count, 0);
++        assert_eq!(domain.command_stack().undo_len(), 0);
++        assert!(!domain.command_stack().is_dirty());
++        assert!(domain.has_active_gesture());
++        assert!(viewer.is_faulted());
++        assert!(!viewer.runtime().is_faulted());
++        if retire_budget == 0 {
++            assert_eq!(viewer.connection_state(connection_id).unwrap(), before_connection);
++        }
++        let report = viewer.last_projection_cleanup().expect("failure progress retained");
++        assert_eq!(report.retired_figures, feedback[..retire_budget as usize]);
++        assert_eq!(report.live_figures, feedback[retire_budget as usize..]);
++        assert!(!report.runtime_faulted);
++        for (index, id) in feedback.iter().enumerate() {
++            if index < retire_budget as usize {
++                assert!(viewer.runtime().tree().is_attached(*id).is_err());
++                assert!(viewer.visual_owner(*id).is_none());
++            } else {
++                assert_eq!(viewer.runtime().tree().is_attached(*id), Ok(true));
++                assert!(viewer.visual_owner(*id).is_some());
++            }
++        }
++        println!("E03 exhaustion tool={} feedback={} command_builds=0 history=0 retired_prefix={} live_suffix={} viewer_faulted=true runtime_faulted=false error={:?}",
++            if creating { "create" } else { "move" }, feedback.len(), retire_budget, 2-retire_budget, result.unwrap_err());
++      }
++    }
++}

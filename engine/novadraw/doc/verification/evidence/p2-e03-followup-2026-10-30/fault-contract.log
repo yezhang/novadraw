@@ -1,0 +1,16 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[33mwarning[0m: profile package spec `gef-editor-demo` in profile `release` did not match any packages
+[1m[33mwarning[0m: profile package spec `gef-logic-demo` in profile `release` did not match any packages
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/tmp/novadraw-e03-fault-20261030/crates/novadraw-editor)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 10.29s
+[1m[92m     Running[0m tests/p2_e03_container_editing_contract.rs (/tmp/novadraw-e03-fault-target-20261030/debug/deps/p2_e03_container_editing_contract-b8c99e68b585c406)
+
+running 1 test
+E03 exhaustion tool=move feedback=2 command_builds=0 history=0 retired_prefix=0 live_suffix=2 viewer_faulted=true runtime_faulted=false error=Tool(Viewer(Runtime(Rejected)))
+E03 exhaustion tool=move feedback=2 command_builds=0 history=0 retired_prefix=1 live_suffix=1 viewer_faulted=true runtime_faulted=false error=Tool(Viewer(Runtime(Rejected)))
+E03 exhaustion tool=create feedback=2 command_builds=0 history=0 retired_prefix=0 live_suffix=2 viewer_faulted=true runtime_faulted=false error=Tool(Viewer(Runtime(Rejected)))
+E03 exhaustion tool=create feedback=2 command_builds=0 history=0 retired_prefix=1 live_suffix=1 viewer_faulted=true runtime_faulted=false error=Tool(Viewer(Runtime(Rejected)))
+test e03_real_revision_exhaustion_blocks_both_tools_before_command_build ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.02s
+

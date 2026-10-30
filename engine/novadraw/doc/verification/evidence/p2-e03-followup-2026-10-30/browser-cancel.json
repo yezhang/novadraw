@@ -1,0 +1,2140 @@
+[
+  {
+    "creating": false,
+    "before": {
+      "mode": "move",
+      "active": true,
+      "faulted": false,
+      "revision": 1,
+      "history": 0,
+      "builds": 0,
+      "feedback": 1,
+      "scale": 1,
+      "visuals": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            70,
+            70,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            150,
+            80,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            70,
+            200,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            80,
+            210,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            500,
+            250,
+            40,
+            30
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            20,
+            20,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            100,
+            30,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            20,
+            150,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            10,
+            10,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            150,
+            200,
+            40,
+            30
+          ]
+        }
+      ]
+    },
+    "state": {
+      "mode": "move",
+      "active": false,
+      "faulted": false,
+      "revision": 1,
+      "history": 0,
+      "builds": 0,
+      "feedback": 0,
+      "scale": 1,
+      "visuals": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            70,
+            70,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            150,
+            80,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            70,
+            200,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            80,
+            210,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            500,
+            250,
+            40,
+            30
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            20,
+            20,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            100,
+            30,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            20,
+            150,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            10,
+            10,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            150,
+            200,
+            40,
+            30
+          ]
+        }
+      ]
+    },
+    "log": [
+      {
+        "kind": "reset",
+        "trusted": null,
+        "dpr": 2,
+        "state": {
+          "mode": "move",
+          "active": false,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "press",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "move",
+          "active": true,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "move",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "move",
+          "active": true,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 1,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "cancel",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "move",
+          "active": false,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "creating": true,
+    "before": {
+      "mode": "create",
+      "active": true,
+      "faulted": false,
+      "revision": 1,
+      "history": 0,
+      "builds": 0,
+      "feedback": 1,
+      "scale": 1,
+      "visuals": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            70,
+            70,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            150,
+            80,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            70,
+            200,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            80,
+            210,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            500,
+            250,
+            40,
+            30
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            20,
+            20,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            100,
+            30,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            20,
+            150,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            10,
+            10,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            150,
+            200,
+            40,
+            30
+          ]
+        }
+      ]
+    },
+    "state": {
+      "mode": "create",
+      "active": false,
+      "faulted": false,
+      "revision": 1,
+      "history": 0,
+      "builds": 0,
+      "feedback": 0,
+      "scale": 1,
+      "visuals": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            70,
+            70,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            150,
+            80,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            70,
+            200,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            80,
+            210,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            500,
+            250,
+            40,
+            30
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "model": 1,
+          "parent": null,
+          "bounds": [
+            0,
+            0,
+            800,
+            600
+          ]
+        },
+        {
+          "model": 2,
+          "parent": 1,
+          "bounds": [
+            50,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 3,
+          "parent": 1,
+          "bounds": [
+            350,
+            50,
+            230,
+            300
+          ]
+        },
+        {
+          "model": 4,
+          "parent": 2,
+          "bounds": [
+            20,
+            20,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 5,
+          "parent": 2,
+          "bounds": [
+            100,
+            30,
+            40,
+            30
+          ]
+        },
+        {
+          "model": 6,
+          "parent": 2,
+          "bounds": [
+            20,
+            150,
+            150,
+            100
+          ]
+        },
+        {
+          "model": 7,
+          "parent": 6,
+          "bounds": [
+            10,
+            10,
+            30,
+            20
+          ]
+        },
+        {
+          "model": 8,
+          "parent": 3,
+          "bounds": [
+            150,
+            200,
+            40,
+            30
+          ]
+        }
+      ]
+    },
+    "log": [
+      {
+        "kind": "reset",
+        "trusted": null,
+        "dpr": 2,
+        "state": {
+          "mode": "create",
+          "active": false,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "press",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "create",
+          "active": true,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "move",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "create",
+          "active": true,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 1,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "cancel",
+        "trusted": true,
+        "dpr": 2,
+        "state": {
+          "mode": "create",
+          "active": false,
+          "faulted": false,
+          "revision": 1,
+          "history": 0,
+          "builds": 0,
+          "feedback": 0,
+          "scale": 1,
+          "visuals": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                70,
+                70,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                150,
+                80,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                70,
+                200,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                80,
+                210,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                500,
+                250,
+                40,
+                30
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "model": 1,
+              "parent": null,
+              "bounds": [
+                0,
+                0,
+                800,
+                600
+              ]
+            },
+            {
+              "model": 2,
+              "parent": 1,
+              "bounds": [
+                50,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 3,
+              "parent": 1,
+              "bounds": [
+                350,
+                50,
+                230,
+                300
+              ]
+            },
+            {
+              "model": 4,
+              "parent": 2,
+              "bounds": [
+                20,
+                20,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 5,
+              "parent": 2,
+              "bounds": [
+                100,
+                30,
+                40,
+                30
+              ]
+            },
+            {
+              "model": 6,
+              "parent": 2,
+              "bounds": [
+                20,
+                150,
+                150,
+                100
+              ]
+            },
+            {
+              "model": 7,
+              "parent": 6,
+              "bounds": [
+                10,
+                10,
+                30,
+                20
+              ]
+            },
+            {
+              "model": 8,
+              "parent": 3,
+              "bounds": [
+                150,
+                200,
+                40,
+                30
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
