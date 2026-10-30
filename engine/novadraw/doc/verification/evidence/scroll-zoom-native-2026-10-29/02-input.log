@@ -1,0 +1,7 @@
+Move to 498,406
+Wait 300 milliseconds
+Drag press down at 498,406
+Drag move to 548,456
+Drag release at 598,506
+Wait 600 milliseconds
+Move to 900,700

@@ -20,7 +20,9 @@ macOS 可通过 Run action `draw2d-official-macos` 启动独立原生 bundle；
 入口为[启动脚本](../../../tools/scripts/run_draw2d_macos.py)。
 2026-10-29 Flow／Grid／Toolbar 的系统窗口连续 resize、稳定显示与恢复像素
 已验收，记录见[真实窗口验收](../../../doc/verification/reviews/official-layout-native-window-2026-10-29.md)。
-物理鼠标控件操作和跨平台像素仍保留，三项状态继续为 `in_progress`。
+后续[鼠标窗口验收](../../../doc/verification/reviews/official-layout-native-mouse-2026-10-29.md)
+补齐代表性控件操作和窗口角拖拽。跨平台／系统 DPI 和上游像素证据仍保留，
+三项状态继续为 `in_progress`。
 
 `src/lib.rs` 保存当前实现状态，未移植条目不绑定替代场景。
 历史 complete 只保留当时证据范围，其他状态在 Canvas 功能验收后更新；

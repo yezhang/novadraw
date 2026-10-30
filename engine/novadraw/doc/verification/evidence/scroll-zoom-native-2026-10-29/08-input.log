@@ -1,0 +1,23 @@
+Move to 1180,100
+Wait 200 milliseconds
+Drag press down at 1180,100
+Drag move to 700,100
+Drag release at 100,100
+Wait 1500 milliseconds
+Move to 1100,700
+Click at 1272,100
+Click at 1272,100
+Click at 1272,100
+Click at 1272,100
+Wait 1500 milliseconds
+Move to 1100,700
+Move to 400,100
+Wait 200 milliseconds
+Drag press down at 400,100
+Drag move to 600,180
+Drag move to 850,220
+Drag release at 850,220
+Wait 1500 milliseconds
+Move to 1100,700
+Move to 1250,500
+Wait 800 milliseconds

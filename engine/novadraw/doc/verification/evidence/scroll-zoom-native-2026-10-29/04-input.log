@@ -1,0 +1,27 @@
+Move to 400,276
+Wait 200 milliseconds
+Drag press down at 400,276
+Drag move to 600,276
+Drag release at 800,276
+Wait 500 milliseconds
+Move to 473,195
+Wait 200 milliseconds
+Drag press down at 473,195
+Drag move to 473,290
+Drag release at 473,390
+Wait 500 milliseconds
+Move to 1000,700
+Move to 473,390
+Wait 200 milliseconds
+Drag press down at 473,390
+Drag move to 473,290
+Drag release at 473,183
+Wait 500 milliseconds
+Move to 1000,700
+Click at 473,419
+Wait 250 milliseconds
+Click at 473,419
+Wait 250 milliseconds
+Click at 473,419
+Wait 500 milliseconds
+Move to 1000,700

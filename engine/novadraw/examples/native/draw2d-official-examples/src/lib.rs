@@ -169,7 +169,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/layouts/FlowLayoutExample.java",
             &[
                 "Official shape spacing/alignment/wrap, host viewport resize, stretch/restore and Native GPU erasure are verified",
-                "Supplemental Label/FlowPage and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
+                "Supplemental Label/FlowPage, retained erasure, macOS window resize and representative mouse controls are verified; cross-platform pixels remain pending; Flow control-cycle screen RGB differs by at most 1",
             ],
             examples::flow_layout_example,
         ),
@@ -180,7 +180,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Canvas now follows host viewport resize; spanning/grabbing shape shrink/grow/reset geometry is verified",
                 "Real-panel hints/indent/span/grab, selection release, zero-space restore and Native GPU clearing are verified",
-                "Text remeasurement, span/indent/height hints and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
+                "Text remeasurement, span/indent/height hints and retained erasure are verified; macOS window drag, mouse Add/Clear/selection/span/grab/Fill and restored pixels are verified; cross-platform pixels remain pending",
             ],
             examples::grid_layout_example,
         ),
@@ -191,7 +191,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "Official shape outlines and stretch/orientation/shrink/reset geometry are verified",
                 "Real-panel alignment, host viewport and zero-space restore, and Native GPU erasure are verified",
-                "Supplemental Label/FlowPage and retained child erasure are verified; macOS system-window resize and restored screen pixels are verified; physical mouse operations and cross-platform pixels remain pending",
+                "Supplemental Label/FlowPage and retained erasure are verified; macOS window drag, mouse orientation/alignment/stretch/spacing and restored pixels are verified; cross-platform pixels remain pending",
             ],
             examples::toolbar_layout_example,
         ),
@@ -217,7 +217,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             "org/eclipse/draw2d/examples/scrollpane/ScrollPaneExample.java",
             &[
                 "InternalFrame drag/resize, GroupBoxBorder, ExampleUtil composition and dynamic resize cursor transitions are ported",
-                "Core ScrollBar five-child composition is implemented by ADR-041; full theme and Canvas visual comparison remain pending",
+                "Core ScrollBar composition and macOS title drag, corner resize, vertical thumb/arrows and auto-hide are verified; wheel, eight-direction cursors, full theme and upstream pixels remain pending",
             ],
             examples::scroll_pane_example,
         ),
@@ -311,7 +311,7 @@ pub fn catalog() -> Vec<OfficialExample> {
             &[
                 "ScrollBar composition/range/repeat and SchemeBorder are implemented",
                 "retained SVG zoom/DPI raster density, shared-resource revision and Native GPU restore are verified; the host adopts available Arial bold at the upstream point size",
-                "cross-display system DPI, other-platform font adoption and full visual parity remain pending",
+                "macOS thumb endpoints, arrow restore, capture across the panel and window resize are verified; cross-display DPI, other-platform fonts and full visual parity remain pending",
             ],
             examples::zoom_example,
         ),

@@ -1,0 +1,210 @@
+{
+  "method": "cliclick 5.1 normal macOS mouse input and screencapture display pixels, existing native process 6351",
+  "prior_environment_receipt": "../layout-native-window-2026-10-29/receipt.json",
+  "screenshots": [
+    {
+      "file": "scroll-reset.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "76dabbb651d849dfb80bd45ccf56a73d6d621081d4efac9b2d217a83d3f7ddc5"
+    },
+    {
+      "file": "scroll-separate.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "7fea76d1d0742961ab74f6eae341055fb49c1a8984b1a6778a245d30938b43df"
+    },
+    {
+      "file": "scroll-fixed-expanded.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "999c1d473e10e48e364a1a99d956664b88094a865dd4795f4d0981e1fbeea98f"
+    },
+    {
+      "file": "scroll-flow-expanded.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "ed0e0cef0744c6bc8bb2808099568ee9b5b180d3322900003cf4cc5a6fcdb6a5"
+    },
+    {
+      "file": "scroll-thumb-bottom.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "0ecd0d91b3b6521bbf9b8f70c2d38cdfb9f38ae715e90d6610a695674b902711"
+    },
+    {
+      "file": "scroll-thumb-top.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "e08b90c66b6298fa9cee0171b6a8984d827efea093cf51b0dce1801525087dc9"
+    },
+    {
+      "file": "scroll-arrow-down.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "cc17189e08f50d0605e76ecf7dcd5edea0d7e0652c86151049aae27a71b83ef9"
+    },
+    {
+      "file": "scroll-flow-fit.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "96041a8618d865e4830aa5f977281ef00c03d2528c75469769f204f76abaca44"
+    },
+    {
+      "file": "scroll-flow-restored.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "639f25b0409e8495c06f955641e5f47f468f43a74d3173a03f851ea92756bd9c"
+    },
+    {
+      "file": "zoom-stable-baseline.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "dc72d6ccb2d9bf3716fede0200b63fbd40f31aa63b2e30787dce5eb8271280e5"
+    },
+    {
+      "file": "zoom-minimum.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "8dcab88b6fbe12eeec93f653a3bdfa022e745b730836558085d2bffb85af85a0"
+    },
+    {
+      "file": "zoom-maximum.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "546195d1553ee757b36f7b7c195b599e90dd9d5bff889cb48dd5b292cba9ed61"
+    },
+    {
+      "file": "zoom-minimum-restored.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "8dcab88b6fbe12eeec93f653a3bdfa022e745b730836558085d2bffb85af85a0"
+    },
+    {
+      "file": "zoom-arrows-restored.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "dc72d6ccb2d9bf3716fede0200b63fbd40f31aa63b2e30787dce5eb8271280e5"
+    },
+    {
+      "file": "zoom-capture-over-panel.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "e36f78213ece7fa60efd61554bdabb359f083fda80d83a3230e3adacacc9df77"
+    },
+    {
+      "file": "zoom-release-stable.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "e36f78213ece7fa60efd61554bdabb359f083fda80d83a3230e3adacacc9df77"
+    },
+    {
+      "file": "zoom-window-narrow.png",
+      "pixels": [
+        1640,
+        1256
+      ],
+      "sha256": "61431df9c9e6286794f9d0f1e05eab49fcad084d61f6e4887f69dfa992f28533"
+    },
+    {
+      "file": "zoom-window-restored.png",
+      "pixels": [
+        2400,
+        1656
+      ],
+      "sha256": "43925c5787d5c1d44099027632604ca4350e537d2d2746ba302c398733fb9acd"
+    }
+  ],
+  "zoom_comparisons": {
+    "minimum/minimum-restored": {
+      "crop": [
+        0,
+        60,
+        1200,
+        1500
+      ],
+      "changed_pixels": 0,
+      "max_channel_difference": 0
+    },
+    "stable-baseline/arrows-restored": {
+      "crop": [
+        0,
+        60,
+        1200,
+        1500
+      ],
+      "changed_pixels": 0,
+      "max_channel_difference": 0
+    },
+    "capture-over-panel/release-stable": {
+      "crop": [
+        0,
+        60,
+        1200,
+        1500
+      ],
+      "changed_pixels": 0,
+      "max_channel_difference": 0
+    },
+    "release-stable/window-restored": {
+      "crop": [
+        0,
+        60,
+        1200,
+        1500
+      ],
+      "changed_pixels": 248314,
+      "max_channel_difference": 248,
+      "limitation": "temporary egui panel moved after resize and overlaps this comparison crop"
+    },
+    "resize-left-unobscured": {
+      "crop": [
+        0,
+        110,
+        900,
+        1500
+      ],
+      "changed_pixels": 0,
+      "max_channel_difference": 0
+    }
+  },
+  "comparison_limitations": "left Canvas crop excludes temporary panel, includes unchanged external input-method floating icon; does not compare unobscured entire window",
+  "limitations": [
+    "external Sogou input-method floating icon occludes small region; no whole image equivalence claim",
+    "no wheel input, eight-direction exhaustive resize, cursor image, frame timings, system DPI transitions or upstream raster oracle",
+    "Zoom scene initial capture during transition excluded; settled baseline captured later",
+    "Scroll screenshots confirm corner resize and scrollbar hide/reappear visually; no exact Runtime measurements"
+  ]
+}

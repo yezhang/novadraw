@@ -1,0 +1,21 @@
+Double-click at 192,356
+Type: “120”
+Press + release return key
+Double-click at 194,377
+Type: “80”
+Press + release return key
+Double-click at 230,439
+Type: “20”
+Press + release return key
+Double-click at 221,459
+Type: “2”
+Press + release return key
+Double-click at 205,480
+Type: “2”
+Press + release return key
+Click at 114,502
+Click at 114,523
+Wait 500 milliseconds
+Move to 600,700
+Click at 160,397
+Wait 300 milliseconds

@@ -1,0 +1,9 @@
+Click at 174,287
+Wait 600 milliseconds
+Move to 600,700
+Click at 122,287
+Wait 500 milliseconds
+Move to 600,700
+flow changed pixels: 18860 bounds (4, 0, 1259, 96)
+toolbar changed pixels: 0 bounds None
+grid changed pixels: 0 bounds None

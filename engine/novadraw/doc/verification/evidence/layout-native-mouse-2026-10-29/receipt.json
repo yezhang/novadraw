@@ -1,0 +1,344 @@
+{
+  "method": "cliclick 5.1 CG mouse and keyboard events to actual existing native window; screenshots from screencapture -R",
+  "tool_package_sha256": "3c0d008172484bc0a36ea4582ff2e462396620bd2d180a02427585aec66f48e5",
+  "tool_installation": "standalone official Homebrew arm64_sonoma bottle extracted in temporary directory, no system installation",
+  "process_id": 6351,
+  "window_origin": [
+    80,
+    60
+  ],
+  "scenes": {
+    "toolbar": [
+      "direction",
+      "center",
+      "end",
+      "stretch-vertical",
+      "stretch-horizontal",
+      "spacing",
+      "restored",
+      "resize"
+    ],
+    "flow": [
+      "baseline",
+      "direction",
+      "alignment",
+      "stretch",
+      "spacing-horizontal",
+      "controls-restored",
+      "resize",
+      "restored"
+    ],
+    "grid": [
+      "baseline",
+      "add-columns",
+      "selected",
+      "span-grab-hints",
+      "fill",
+      "resize",
+      "restored",
+      "clear-confirmed",
+      "add-after-clear"
+    ]
+  },
+  "screenshots": [
+    {
+      "file": "toolbar-direction.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "64fdd7522135fffebd4d1fb30d4046d423b854b46d7e0f5ee6ac37b0ce688d96"
+    },
+    {
+      "file": "toolbar-center.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c26dba189429cb06ce698cd0d34587dd89808377b5b97c9176fd03d3f4b236ae"
+    },
+    {
+      "file": "toolbar-end.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "0c2465961767c9c71f4a110bd716d0a0018e180d8e100dc19958e00ee31ef7bf"
+    },
+    {
+      "file": "toolbar-stretch-vertical.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c49ba23ef20a7d110f3a49c23ea70f66d2f30e2a64b8c3acf4622454176de0a7"
+    },
+    {
+      "file": "toolbar-stretch-horizontal.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "22bbc92a8963e8294f674c9159a06d7fa08a0529a26fab8465d9bd665d8d23ac"
+    },
+    {
+      "file": "toolbar-spacing.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "ade4bf0ce5b9cd37de47df5a4f73f3903e7702e213da96049d234714d88d889c"
+    },
+    {
+      "file": "toolbar-restored.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "1bdaaa5a62cc4927a9668bbf6f2c9155fabe385154196918466b18a036fdc68a"
+    },
+    {
+      "file": "toolbar-resize.png",
+      "pixel_size": [
+        1640,
+        1256
+      ],
+      "sha256": "4442eeea5331c7497aad8da25d21114ec268c32ea4feb168550466fd3bdc7987"
+    },
+    {
+      "file": "flow-baseline.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "d61917dca4aaf7d08eb758be216c9f828648c318e46b328bfa9bbcdec3fb392b"
+    },
+    {
+      "file": "flow-direction.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "297dcc6c7d39fc917c67df562535dd376d9fbfaac0ace339a84864cd11e03596"
+    },
+    {
+      "file": "flow-alignment.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c2c5fe57f8404ad948d5477cd50ea13a5ebabd5b5efe348c6ed1f78a7bd7e0b8"
+    },
+    {
+      "file": "flow-stretch.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "41056935c91a01b275a999402306f462c65059ca1dea76dd629855fe829c0819"
+    },
+    {
+      "file": "flow-spacing-horizontal.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "1e54f565266b9d50aaf35c388c819f6174768cd689665663b2d19886fa956708"
+    },
+    {
+      "file": "flow-controls-restored.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "24dc13ed7a3b01ef2fc828c499b455a59830f875c9cbcf612251a2e5b6c43d65"
+    },
+    {
+      "file": "flow-resize.png",
+      "pixel_size": [
+        1240,
+        856
+      ],
+      "sha256": "a4885d9b97a186149f69b939225cd612ce95f0953b4977aac9c2e880baff002d"
+    },
+    {
+      "file": "flow-restored.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c8a1020854c2902803339ae196ac4836d331184f44620f076dafe4bad27e4705"
+    },
+    {
+      "file": "grid-baseline.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "ffd8198552b9b48cc4cd7932334719743cfcd4891e77c0fa9713361c0b310f2d"
+    },
+    {
+      "file": "grid-add-columns.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "02daccb0b686864285c82641c0e30eac1a361e464d5f878a814a1f21529b9b1c"
+    },
+    {
+      "file": "grid-selected.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c0d0768089b79e2ac2aa6bebb123e7c70fc4b2cda2c185b4d90ed359db233a80"
+    },
+    {
+      "file": "grid-span-grab-hints.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "c5ee67b87ec338f79ec38833687a5dbfad10ef856405e12a2fe1789a4ed67474"
+    },
+    {
+      "file": "grid-fill.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "11cc202880e1141af8234cac4e144132400273b126395964296200551116f0b2"
+    },
+    {
+      "file": "grid-resize.png",
+      "pixel_size": [
+        1640,
+        1256
+      ],
+      "sha256": "1d837d535a461eef52e872fd6a4e0246b4728a26e2e110a63845f6a77ff9ad9b"
+    },
+    {
+      "file": "grid-restored.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "7c73f0b1d66d6419f49ad553a14a5f1ce29237e78916d18f5495239d7e5931e1"
+    },
+    {
+      "file": "grid-clear-confirmed.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "42fabf8c5b0ef6d9039f5eccddd899d8ace69d29427b96a4ca12394131e8450c"
+    },
+    {
+      "file": "grid-add-after-clear.png",
+      "pixel_size": [
+        2400,
+        1656
+      ],
+      "sha256": "73467f8b950b8b061a69837042e7b5f0d47ee132128821eb9fe613d6322fde38"
+    }
+  ],
+  "comparisons": {
+    "flow-drag": {
+      "before": "flow-controls-restored.png",
+      "after": "flow-restored.png",
+      "crop": [
+        20,
+        80,
+        1810,
+        1570
+      ],
+      "changed_pixels": 0,
+      "maximum_channel_difference": 0
+    },
+    "grid-drag": {
+      "before": "grid-fill.png",
+      "after": "grid-restored.png",
+      "crop": [
+        780,
+        134,
+        2340,
+        1600
+      ],
+      "changed_pixels": 0,
+      "maximum_channel_difference": 0
+    },
+    "toolbar-default": {
+      "before": "../layout-native-window-2026-10-29/toolbar-baseline.png",
+      "after": "toolbar-restored.png",
+      "crop": [
+        20,
+        112,
+        1850,
+        1570
+      ],
+      "changed_pixels": 0,
+      "maximum_channel_difference": 0
+    },
+    "flow-control-cycle": {
+      "before": "flow-baseline.png",
+      "after": "flow-controls-restored.png",
+      "crop": [
+        20,
+        80,
+        1810,
+        1570
+      ],
+      "changed_pixels": 18860,
+      "maximum_channel_difference": 1
+    }
+  },
+  "drag": {
+    "toolbar": [
+      [
+        1200,
+        828
+      ],
+      [
+        820,
+        628
+      ],
+      [
+        1200,
+        828
+      ]
+    ],
+    "flow": [
+      [
+        1200,
+        828
+      ],
+      [
+        620,
+        428
+      ],
+      [
+        1200,
+        828
+      ]
+    ],
+    "grid": [
+      [
+        1200,
+        828
+      ],
+      [
+        820,
+        628
+      ],
+      [
+        1200,
+        828
+      ]
+    ]
+  },
+  "limitations": [
+    "synthetic macOS mouse input, not human-operated mouse",
+    "no frame timing, cross-platform, DPI transition or upstream raster oracle",
+    "Flow control-cycle screen RGB differs by at most 1; no renderer-buffer evidence establishes cause"
+  ]
+}

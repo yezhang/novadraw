@@ -1,0 +1,26 @@
+Click at 1034,181
+Click at 1126,304
+Click at 1106,415
+Wait 500 milliseconds
+Move to 900,800
+Click at 1034,202
+Click at 1034,241
+Click at 1034,352
+Click at 1054,304
+Click at 1054,415
+Wait 600 milliseconds
+Move to 900,800
+Drag press down at 1277,885
+Drag move to 1132,785
+Drag move to 987,685
+Drag move to 842,585
+Drag release at 697,485
+Wait 600 milliseconds
+Draw2D Official Examples - [07/25 · 进行中] FlowLayoutExample, 80, 60, 620, 428
+Drag press down at 697,485
+Drag move to 842,585
+Drag move to 987,685
+Drag move to 1132,785
+Drag release at 1277,885
+Wait 600 milliseconds
+Move to 900,800

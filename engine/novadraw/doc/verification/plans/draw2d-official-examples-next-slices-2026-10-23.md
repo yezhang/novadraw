@@ -16,19 +16,25 @@
 
 | 入口 | 剩余工作 | 能力批次 |
 |---|---|---|
-| FlowLayoutExample | 既有消费者与 retained-partial 擦除通过；本机系统窗口连续 resize、稳定屏幕恢复通过；物理鼠标拖拽、控件矩阵与跨平台像素仍待验收 | K02/H04 |
-| GridLayoutExample | 既有 span/grab/hints/indent、文字重测与 retained-partial 擦除通过；本机系统窗口连续 resize、稳定屏幕恢复通过；物理鼠标操作与跨平台像素仍待验收 | K01/K02/H04 |
-| ToolbarLayoutExample | 既有文字 minimum、方向/stretch/恢复与 retained-partial 擦除通过；本机系统窗口连续 resize、稳定屏幕恢复通过；物理鼠标操作与跨平台像素仍待验收 | K02/H04 |
+| FlowLayoutExample | 本机系统 resize、代表性方向／对齐／stretch／spacing 鼠标操作与角拖拽通过；控件循环屏幕 RGB 最大通道差值 1 保留；跨平台像素待验收 | K02/H04 |
+| GridLayoutExample | 既有约束／文字重测与 retained 擦除通过；本机 Add/Clear、选择、span/grab/Fill、hints/indent、窗口角拖拽与恢复通过；跨平台像素待验收 | K01/K02/H04 |
+| ToolbarLayoutExample | 既有文字／retained 擦除通过；本机方向／对齐／stretch／spacing 鼠标操作、角拖拽与恢复通过；跨平台像素待验收 | K02/H04 |
 | PrintExample | Canvas 组合、原始 ICO 与通用输出已验证；宿主已采用可用系统字族并按 point 映射逻辑像素，macOS 使用 Helvetica/Times New Roman，Perpetua 缺失时明确回退；其他平台字体与像素仍待验收 | K09/H01/H04 |
-| ScrollPaneExample | 五部件 ScrollBar 已由 ADR-041 实现，不再作为缺失 Core 能力；现有拖拽、resize、自动显隐与 cursor 回归继续保留，尚需完整主题与 Canvas 视觉验收 | K02/K04/H04 |
-| ZoomExample | 保留 SVG 源、缩放/DPI 密度选择、资源 revision 替换及 Native GPU 像素恢复已验证；宿主已采用可用 Arial bold 12 point；跨显示器系统 DPI、其他平台字体与完整视觉对等仍待验收 | K08/H01/H02/H04 |
+| ScrollPaneExample | 本机标题拖动、右下角 resize、竖向 thumb／箭头与自动显隐通过；滚轮、八向 cursor、完整主题和上游像素仍待验收 | K02/K04/H04 |
+| ZoomExample | 本机缩放端点、箭头恢复、跨面板捕获及窗口局部恢复通过；SVG／字体既有证据保留；跨显示器 DPI、其他平台字体与完整视觉对等待验收 | K08/H01/H02/H04 |
 | ShapeStylesExample | 逐操作 AA、低 miter 与 Cocoa 零宽 profile 已实现并通过 GPU 矩阵；上游原生栅格、系统颜色和跨平台像素仍待验收，通用设备 hairline 是独立可选增量 | K08/H02/H04 |
 | BidiBlockExample | 继承镜像、段落方向、相对/绝对对齐、caret/selection 和共享纵向 range 已实现；上游栅格与跨平台呈现仍待验收 | K05/K07/H04 |
 
 2026-10-29 三种布局的本机系统窗口 resize 与屏幕恢复结果见
 [真实窗口记录](../reviews/official-layout-native-window-2026-10-29.md)。
 每项保存五张实际屏幕截图，恢复 Canvas 与基线均为零像素差异；
-没有逐帧延迟、物理鼠标控件操作或跨平台证据，目录计数保持 17／8。
+随后完成[鼠标窗口验收](../reviews/official-layout-native-mouse-2026-10-29.md)，
+新增 25 张截图及代表性控件／角拖拽证据。
+没有逐帧延迟、跨平台或系统 DPI 切换证据，目录计数保持 17／8。
+
+ScrollPane 与 Zoom 同日续验结果见
+[窗口记录](../reviews/scroll-zoom-native-window-2026-10-29.md)；
+原图保留输入法遮挡，Zoom 浮动面板位移导致的整体差异不计为局部恢复失败。
 
 ## 本批继续推进已有契约
 

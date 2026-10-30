@@ -53,5 +53,7 @@ PageUp／PageDown 切换场景，Escape 关闭窗口。真实窗口验收应使�
 `--screenshot` 使用独立截图路径，不能代替实际屏幕呈现。
 启动后的前台状态可能被编辑器抢占，操作前需激活应用并核对窗口标题。
 本机 Flow／Grid／Toolbar 的系统窗口 resize 与恢复屏幕像素已验证，
-鼠标拖拽和控件矩阵未由本次重新验收，详见
-[窗口验收记录](../../doc/verification/reviews/official-layout-native-window-2026-10-29.md)。
+详见[窗口验收记录](../../doc/verification/reviews/official-layout-native-window-2026-10-29.md)。
+后续[鼠标验收](../../doc/verification/reviews/official-layout-native-mouse-2026-10-29.md)
+使用正常系统鼠标事件补齐代表性控件和窗口角拖拽，工具只用于采证，
+不是应用启动依赖。跨平台、系统 DPI 和完整参数组合未验收。

@@ -1,0 +1,6 @@
+467:fn zoom_for(value: f64) -> f64 {
+468-    // Java computes in float; preserve its rounding before passing the neutral API an f64.
+469-    f64::from((value as f32 + 10.0) * 0.02_f32)
+470-}
+471-
+PASS 459 Markdown files and current xtask references

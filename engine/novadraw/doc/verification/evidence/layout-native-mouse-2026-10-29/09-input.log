@@ -1,0 +1,35 @@
+Click at 129,485
+Click at 160,418
+Wait 200 milliseconds
+Click at 129,506
+Double-click at 211,223
+Type: “15”
+Press + release return key
+Double-click at 215,244
+Type: “10”
+Press + release return key
+Double-click at 240,265
+Type: “12”
+Press + release return key
+Double-click at 224,286
+Type: “8”
+Press + release return key
+Wait 500 milliseconds
+Move to 600,700
+Drag press down at 1277,885
+Drag move to 1177,835
+Drag move to 1077,785
+Drag move to 977,735
+Drag release at 897,685
+Wait 600 milliseconds
+Draw2D Official Examples - [08/25 · 进行中] GridLayoutExample, 80, 60, 820, 628
+Drag press down at 897,685
+Drag move to 997,735
+Drag move to 1097,785
+Drag move to 1197,835
+Drag release at 1277,885
+Wait 600 milliseconds
+Move to 600,700
+Click at 174,307
+Wait 600 milliseconds
+Move to 600,700

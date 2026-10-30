@@ -1,0 +1,12 @@
+Move to 900,700
+Press + release page-down key
+Wait 400 milliseconds
+Press + release page-up key
+Wait 800 milliseconds
+Move to 200,116
+Wait 300 milliseconds
+Drag press down at 200,116
+Drag move to 300,196
+Drag release at 400,276
+Wait 700 milliseconds
+Move to 900,700

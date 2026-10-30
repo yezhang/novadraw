@@ -1,0 +1,15 @@
+Move to 400,100
+Wait 200 milliseconds
+Drag press down at 400,100
+Drag move to 250,100
+Drag release at 100,100
+Wait 1500 milliseconds
+Move to 1100,700
+Move to 145,100
+Wait 200 milliseconds
+Drag press down at 145,100
+Drag move to 550,100
+Drag move to 950,100
+Drag release at 1240,100
+Wait 1500 milliseconds
+Move to 1100,700

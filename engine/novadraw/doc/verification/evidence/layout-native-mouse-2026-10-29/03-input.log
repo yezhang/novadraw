@@ -1,0 +1,15 @@
+Click at 1132,286
+Wait 400 milliseconds
+Move to 900,800
+Click at 1043,286
+Click at 1044,202
+Click at 1044,223
+Wait 600 milliseconds
+Move to 900,800
+Drag press down at 1277,885
+Drag move to 1177,835
+Drag move to 1077,785
+Drag move to 977,735
+Drag release at 897,685
+Wait 700 milliseconds
+Draw2D Official Examples - [09/25 · 进行中] ToolbarLayoutExample, 80, 60, 820, 628
