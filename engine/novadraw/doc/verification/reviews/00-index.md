@@ -5,10 +5,21 @@
 本目录保存已完成审计和阶段验证的结论。报告是对应快照的历史证据，不覆盖当前
 `design/`、ADR、parity ledger 或 roadmap。
 
+## 文档表达与写作
+
+| 日期 | 报告 |
+|---|---|
+| 2026-10-30 | [Logic 预设、相对折点与路由切换](gef-logic-routing-2026-10-30.md) |
+| 2026-10-30 | [Zoom 类图图标对齐修正](zoom-icon-alignment-2026-10-30.md) |
+| 2026-10-29 | [方案与评审文档表达审查及中文写作技能建议](document-writing-audit-2026-10-29.md) |
+
 ## Core 架构与迁移
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-30 | [Zoom 图标按文字指标对齐](zoom-typographic-alignment-2026-10-30.md) |
+| 2026-10-29 | [布局样例的鼠标窗口验收](official-layout-native-mouse-2026-10-29.md) |
+| 2026-10-29 | [ScrollPane 与 Zoom 窗口验收](scroll-zoom-native-window-2026-10-29.md) |
 | 2026-10-29 | [Logic 首个可运行切片](gef-logic-first-slice-2026-10-29.md) |
 | 2026-10-29 | [三种布局的真实窗口 resize 与屏幕恢复](official-layout-native-window-2026-10-29.md) |
 | 2026-10-29 | [S09 与开放吸附设计自审（待用户评审）](s09-and-snapping-design-review-2026-10-29.md) |
@@ -151,6 +162,9 @@
 | 2026-09-30 | [Web EditContext 集成验证](web-edit-context-capability-2026-09-30.md) |
 
 ## Editor
+
+- [E03 容器编辑故障与平台输入补验](editor-container-followup-2026-10-30.md)：
+  隔离计数器注入、Web DPR 1／2 与 Native 输入；完整 E03 验收仍未关闭。
 
 | 日期 | 报告 |
 |---|---|

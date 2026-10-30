@@ -75,12 +75,28 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## API / 架构 Review 2026-10-09 批次
 
+2026-10-30 首轮 Zoom 图标留白校正后，用户确认改为成员图标底部贴 baseline、
+类图标中心贴参考字母 H 的可见中心。已恢复 SVG，通过外部 preparation 行组合
+与既有轮廓准备服务实施；八项定向测试和独立 GPU 回归通过，
+默认／最大缩放窗口已检查。Release 换字号稳定化 P95 为 4.115 ms；
+范围与限制见[文字指标对齐](../verification/reviews/zoom-typographic-alignment-2026-10-30.md)。
+严格 Clippy 的既有新 lint 阻断保留；默认 Label 语义保持，Zoom 继续 `in_progress`。
+
 2026-10-29 按用户要求优先核验 Flow／Grid／Toolbar 的真实窗口。
 本机 macOS 的系统窗口连续 resize、稳定显示和恢复检查通过，
 每项保存五张屏幕截图，恢复 Canvas 与基线均为零像素差异。
 见[验收记录](../verification/reviews/official-layout-native-window-2026-10-29.md)。
-物理鼠标 resize／控件操作、逐帧延迟、跨平台和系统 DPI 切换仍待验收；
+随后通过正常鼠标事件完成代表性控件和窗口角拖拽，保存 25 张截图及输入日志，
+见[鼠标窗口验收](../verification/reviews/official-layout-native-mouse-2026-10-29.md)。
+Flow／Grid 的拖拽恢复比较为零；Flow 控件循环的屏幕 RGB 最大单通道差值为 1，
+原因未归属。逐帧延迟、跨平台、系统 DPI 切换和上游像素证据仍保留；
 三项继续 `in_progress`，目录计数保持 17 complete／8 in_progress。
+
+同日续验 ScrollPane 的标题移动、角 resize、竖向 thumb／箭头与自动显隐，
+以及 Zoom 的缩放端点、箭头恢复、跨面板捕获和窗口恢复。
+见[窗口记录](../verification/reviews/scroll-zoom-native-window-2026-10-29.md)。
+Zoom 局部恢复比较通过，浮动面板位移和输入法遮挡保留限制；
+滚轮、八向 cursor、跨平台与 DPI 仍未验收，两项继续 `in_progress`。
 
 2026-10-29 按需继续核对 Core 输入边界，先修复 ADR-020 既有颜色解析契约。
 `Color::from_hex` 与 `FromStr` 对六或八字节 Unicode 输入可能 panic，并错误接受
@@ -558,6 +574,12 @@ Logic 应用消费者于 2026-10-29 进入首个可运行切片，状态为 `in_
 按功能、成本与平台证据分别记录。该消费者不新增框架执行批次，也不关闭
 LG-01～15 的整组对等验收。
 
+2026-10-30 补齐官方半加器、全加器、四位加法器的展开门级预设、Live/Ground、
+Manual/Manhattan/可见性最短路径、相对折点与路由切换历史。
+[本轮证据](../verification/reviews/gef-logic-routing-2026-10-30.md)记录真值表、
+缩放下 Tool 编辑、取消、撤销、持久化和障碍避让。Circuit 嵌套层级与边界端口、
+完整平台输入仍保留未验收状态。
+
 ### Editor／GEF 框架能力补充（2026-10-29 用户授权）
 
 能力归属：Editor（`novadraw-editor`）。Core 命中、坐标与 Runtime 是基础依赖，
@@ -569,7 +591,7 @@ LG-01～15 的整组对等验收。
 
 | Delta | 范围 | 状态 | 退出依据 |
 |---|---|---|---|
-| P2-E03 | 容器编辑、父域坐标、换父、有序插入与嵌套创建 | `in_progress` | [ADR-055 修订 2](../adr/adr-055-container-editing-protocol.md)已获批准；公开协议、移动与父域创建/drop、跨布局与第三方消费者、完整选择/focus 与 history 已接入，见[实施记录](../verification/reviews/adr-055-implementation-2026-10-29.md)；续验容器契约 29 项、独立消费者 33 项通过，补创建视口变化及已取得反馈的清理准入拒绝，采集多父／大子树分配并修复无变化重排的重复扫描，见[续验复核](../verification/reviews/adr-055-followup-2026-10-29.md)；最终 workspace fmt／Clippy／test 与 docs 通过；Core revision 耗尽的 Tool 端到端场景与 Native/Web capture/DPI/取消待续验，未关闭 E03 |
+| P2-E03 | 容器编辑、父域坐标、换父、有序插入与嵌套创建 | `in_progress` | [ADR-055 修订 2](../adr/adr-055-container-editing-protocol.md)已获批准；公开协议、移动与父域创建/drop、跨布局与第三方消费者、完整选择/focus 与 history 已接入，见[实施记录](../verification/reviews/adr-055-implementation-2026-10-29.md)；续验容器契约 29 项、独立消费者 33 项通过，补创建视口变化及已取得反馈的清理准入拒绝，采集多父／大子树分配并修复无变化重排的重复扫描，见[续验复核](../verification/reviews/adr-055-followup-2026-10-29.md)；最终 workspace fmt／Clippy／test 与 docs 通过；2026-10-30 在隔离源码副本补真实 revision 耗尽的移动／创建 Tool 链路，并通过 Web DPR 1／2 的 capture、取消、静止指针 zoom／scroll 及 Native Retina 部分输入，见[补验记录](../verification/reviews/editor-container-followup-2026-10-30.md)；macOS 两种 Tool 窗口外释放已通过；跨显示器 DPI、系统 DnD、完整平台组合与成本拆分保留，未关闭 E03 |
 
 P2-E04 开放吸附已形成 [ADR-058 草案](../adr/adr-058-open-editor-snapping.md)、
 [专题](../design/editor/open-snapping.md)与[验证矩阵](../verification/plans/editor-open-snapping.md)，
