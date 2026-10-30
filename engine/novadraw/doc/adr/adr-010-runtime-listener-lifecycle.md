@@ -10,6 +10,12 @@
 Runtime/Figure scope 已实现注册时声明与 dispose 清理，历史事件上下文和完整 fault
 契约尚待实现验证。
 
+2026-10-30 已接受的 [ADR-057 修订 3](adr-057-service-failure-and-inspector-lifecycle.md#adr-010-的局部替代关系)
+局部替代第 1 节注册／注销返回值和下文 listener ID 分配耗尽条款，
+并允许 fault 后无 callback 注销。以下保留原决策供追溯；
+新合同的实现与验收归 S09-B，当前尚未完成。
+原文快照见[替代指引添加前的文本](../verification/evidence/p2-s09-design-2026-10-30/adr-010-before-revision-2-guide.txt)。
+
 ## 背景
 
 Novadraw 的 `UpdateManager` 已分别存储并分发 Update、Figure、Coordinate、

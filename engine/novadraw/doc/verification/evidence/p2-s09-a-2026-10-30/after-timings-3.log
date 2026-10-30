@@ -1,0 +1,2 @@
+change=false samples=201 updates=10000 p50_ns=35333 p95_ns=36500 allocations=0
+change=true samples=201 updates=10000 p50_ns=38000 p95_ns=39125 allocations=0

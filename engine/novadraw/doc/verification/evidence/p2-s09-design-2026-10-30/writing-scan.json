@@ -1,0 +1,14 @@
+{
+  "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+    "dash": [],
+    "meta": []
+  },
+  "doc/verification/plans/p2-s09-service-failure.md": {
+    "dash": [],
+    "meta": []
+  },
+  "doc/verification/reviews/p2-s09-design-inventory-2026-10-30.md": {
+    "dash": [],
+    "meta": []
+  }
+}

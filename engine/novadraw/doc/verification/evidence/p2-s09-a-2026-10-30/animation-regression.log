@@ -1,0 +1,138 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 1m 04s
+[1m[92m     Running[0m tests/p2_animation_behavior_contract.rs (target/debug/deps/p2_animation_behavior_contract-31e887b359b68aff)
+
+running 7 tests
+test behavior_identity_scope_disposal_and_failure_are_bounded ... ok
+test bounds_trigger_coalesces_one_transaction_and_installs_override_before_recording ... ok
+test behavior_factory_panic_faults_runtime_and_clears_presentation ... ok
+test retry_and_idle_do_not_replay_consumed_facts ... ok
+test property_state_and_transaction_triggers_match_committed_facts ... ok
+test disabled_skips_factories_and_reduced_motion_uses_only_its_fallback ... ok
+test ordinary_mutation_stays_static_without_an_installed_behavior ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_animation_contract.rs (target/debug/deps/p2_animation_contract-ca3e758c70fb016b)
+
+running 29 tests
+test external_value_type_uses_the_same_typed_channel_contract ... ok
+test disabled_mode_suppresses_without_work_or_override ... ok
+test child_transform_override_bypasses_only_the_committed_child_clip ... ok
+test disposing_a_figure_cancels_bound_presentation_without_source_revival ... ok
+test cancel_clears_override_and_retarget_starts_from_current_presentation ... ok
+test failed_retarget_keeps_existing_animation_unchanged ... ok
+test finite_repeat_and_reverse_preserve_channel_continuity_and_terminal_truth ... ok
+test foreign_handles_and_overlapping_tracks_are_rejected ... ok
+test figure_opacity_and_transform_are_presentation_only ... ok
+test hidden_figure_applies_pause_or_finish_policy_without_source_mutation ... ok
+test keyframes_sample_piecewise_values ... ok
+test non_monotonic_time_preserves_animation_state ... ok
+test parallel_sequence_and_stagger_preserve_stable_track_order ... ok
+test pause_policy_excludes_surface_suspension_from_local_time ... ok
+test procedural_motion_distinguishes_finite_and_continuous_lifetimes ... ok
+test provider_failure_is_rejected_or_terminates_without_stale_override ... ok
+test provider_panic_faults_runtime_and_clears_presentation ... ok
+test reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work ... ok
+test presentation_damage_unions_old_and_new_surface_envelopes ... ok
+test removing_a_channel_cancels_its_owner_and_invalidates_the_handle ... ok
+test replace_and_ignore_resolve_channel_ownership_without_partial_state ... ok
+test spring_and_decay_are_bounded_and_finish_at_committed_values ... ok
+test temporary_visual_is_non_source_and_removed_with_its_owner ... ok
+test temporary_visual_is_removed_on_natural_completion ... ok
+test tween_uses_absolute_monotonic_time_and_clears_override_at_completion ... ok
+test retry_keeps_current_presentation_and_provider_panic_clears_it ... ok
+test unsupported_presentation_hit_testing_is_rejected_before_channel_creation ... ok
+test active_track_work_scales_exactly_at_1_64_and_1024_tracks ... ok
+test ignore_and_replace_remain_available_at_the_active_animation_budget ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.87s
+
+[1m[92m     Running[0m tests/p2_animation_geometry_contract.rs (target/debug/deps/p2_animation_geometry_contract-8976fb4183125ef7)
+
+running 41 tests
+test captured_content_retains_exact_image_and_charges_payload_until_capture_drop ... ok
+test derived_providers_schedule_typed_dependencies_and_reject_cycles_before_owner_transfer ... ok
+test descriptor_refresh_invalidates_cached_geometry_without_advancing_time ... ok
+test drawing_output_overrun_fails_only_its_group_and_static_repair_skips_provider ... ok
+test capture_closure_is_bounded_even_without_active_animation ... ok
+test bounded_self_paint_overrun_fails_its_owner_and_repairs_with_static_content ... ok
+test duplicate_geometry_writers_are_rejected_before_any_owner_transfer ... ok
+test drawing_stage_reads_derived_geometry_and_records_owned_bounded_lines ... ok
+test explicit_geometry_endpoint_does_not_replace_committed_final_bounds ... ok
+test external_bounds_paint_and_compound_border_use_frozen_inputs_and_sampled_size ... ok
+test derived_query_failure_clears_complete_group_and_cached_geometry_never_reruns_provider ... ok
+test capture_rejects_combined_peak_before_materializing_bounded_content ... ok
+test external_ancestor_hide_obeys_group_suspension_and_revokes_local_retention ... ok
+test external_content_snapshot_is_frozen_once_and_revision_cancels_the_group ... ok
+test collapse_visibility_retention_does_not_trigger_pause_or_finish_suspension ... ok
+test external_semantics_share_registration_and_queries_without_aliasing_rectangle_values ... ok
+test inline_provider_configuration_is_charged_before_retarget_callbacks ... ok
+test legacy_heap_value_reserves_storage_and_sample_overrun_fails_only_its_owner ... ok
+test bootstrap_root_does_not_clip_presentation_repair_envelopes_or_make_midframe_idle ... ok
+test legacy_contents_transform_rejects_new_origin_owner_without_double_pan ... ok
+test nested_capture_counts_each_node_once_and_cached_reads_add_no_geometry_work ... ok
+test nested_sampled_bounds_preserve_four_insets_and_scale_rotation_edge_composition ... ok
+test inflight_capture_and_reset_keep_latest_sample_and_do_not_restore_old_geometry ... ok
+test geometry_adapter_panic_crosses_the_runtime_fault_boundary ... ok
+test geometry_work_downsize_is_atomic_and_dependency_styles_cancel_only_their_group ... ok
+test oversized_drawing_declaration_rejects_retarget_before_callback_or_owner_transfer ... ok
+test owned_capture_retention_rejects_new_capture_and_downsize_until_drop ... ok
+test origin_takeover_materializes_latest_sample_and_failure_preserves_all_owners ... ok
+test provider_prepare_rejects_undeclared_queries_even_inside_captured_subtree ... ok
+test query_rejects_undeclared_identity_and_never_materializes_on_pull ... ok
+test rejected_real_bounds_candidate_restores_old_terminal_owner_and_version ... ok
+test repeated_provider_queries_cannot_hide_work_overrun_by_ignoring_errors ... ok
+test sampled_geometry_surface_pause_resumes_without_advancing_local_motion ... ok
+test runtime_real_bounds_transaction_retargets_from_unrecorded_sample_and_commits_source_once ... ok
+test static_modes_suppress_before_freezing_content_or_evaluating_geometry_providers ... ok
+test submission_retention_survives_completion_clones_and_retry_without_evicting_owner ... ok
+test true_bounds_capture_uses_last_advance_without_recording_or_affine_size_scale ... ok
+test sampled_zero_client_clip_and_overflow_follow_the_same_ancestor_contract ... ok
+test overlapping_nested_targets_materialize_linear_geometry_work ... ok
+test title_bar_recording_keeps_glyphs_colors_and_font_leases_while_width_changes ... ok
+test sampled_label_bounds_keep_prepared_glyphs_and_do_not_shape_again ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m tests/p2_animation_sample_reservation_contract.rs (target/debug/deps/p2_animation_sample_reservation_contract-ff39fc8c73a6ddde)
+
+running 4 tests
+test initial_candidate_failure_preserves_old_owner_values_and_reservation ... ok
+test net_retarget_at_capacity_and_independent_staging_rejection_keep_current_time ... ok
+test repeated_time_and_pull_queries_do_not_sample_and_scheduled_stays_unanchored ... ok
+test full_capacity_rejects_new_work_and_downsize_without_evicting_either_order ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/p2_animation_transition_contract.rs (target/debug/deps/p2_animation_transition_contract-d2fc4f8b5c42859f)
+
+running 15 tests
+test nonzero_to_zero_bounds_transition_is_rejected_without_active_work ... ok
+test compatible_connection_route_interpolates_without_mutating_final_route ... ok
+test incompatible_connection_route_crossfades_and_retires_old_visual ... ok
+test captured_bounds_transition_keeps_committed_geometry_final ... ok
+test capture_rejects_empty_duplicate_foreign_and_disposed_targets ... ok
+test connection_dash_flow_uses_continuous_procedural_phase ... ok
+test runtime_transaction_reports_capture_and_mutation_phases ... ok
+test connection_route_and_dash_share_one_composable_presentation_family ... ok
+test connection_pulse_uses_arc_length_and_hands_off_to_decoration ... ok
+test runtime_transaction_stabilizes_layout_before_installing_presentation ... ok
+test stagger_uses_capture_order_without_mutating_source_bounds ... ok
+test static_animation_modes_allow_collapsed_layout_without_building_a_transform ... ok
+test static_bounds_fallback_still_rejects_a_disposed_capture_target ... ok
+test unchanged_and_zero_duration_transitions_are_suppressed ... ok
+test viewport_transaction_animates_pan_without_changing_committed_origin ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_s09_animation_failure.rs (target/debug/deps/p2_s09_animation_failure-47715dd2816ea884)
+
+running 4 tests
+test frame_animation_error_preserves_domain_source ... ok
+test healthy_same_mode_has_no_revision_or_frame_work ... ok
+test factory_panic_faults_owner_and_same_mode_still_returns_error ... ok
+test mixed_behavior_success_and_rejection_preserve_prefix_and_consume_facts_once ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

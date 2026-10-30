@@ -1,0 +1,140 @@
+{
+  "app": "animation-app",
+  "generated_at_unix_seconds": 1793348355,
+  "passed": true,
+  "cases": [
+    {
+      "name": "target-motion-composition",
+      "passed": true,
+      "metrics": {
+        "staggered_translation_x": "-23.00,-38.87,-58.88",
+        "target_count": "3"
+      },
+      "error": null
+    },
+    {
+      "name": "motion-substitution",
+      "passed": true,
+      "metrics": {
+        "translation_y": "17.00,-12.55,0.55"
+      },
+      "error": null
+    },
+    {
+      "name": "source-presentation-separation",
+      "passed": true,
+      "metrics": {
+        "committed_width": "92.0",
+        "committed_x": "302.0"
+      },
+      "error": null
+    },
+    {
+      "name": "temporary-lifecycle-and-cancel",
+      "passed": true,
+      "metrics": {
+        "cancelled_track_count": "6",
+        "temporary_peak_opacity": "1.00"
+      },
+      "error": null
+    },
+    {
+      "name": "trigger-and-layout-transaction",
+      "passed": true,
+      "metrics": {
+        "behavior_count": "1",
+        "layout_final_size": "146x92"
+      },
+      "error": null
+    },
+    {
+      "name": "viewport-and-route-transition",
+      "passed": true,
+      "metrics": {
+        "compatible_route": "completed",
+        "route_points": "4",
+        "temporary_visuals_after": "0",
+        "viewport_origin_x": "118"
+      },
+      "error": null
+    },
+    {
+      "name": "continuous-effects-and-reduced-motion",
+      "passed": true,
+      "metrics": {
+        "active_after_reduced_motion": "0",
+        "dash_phase": "-2.00"
+      },
+      "error": null
+    },
+    {
+      "name": "dashed-arrow-flow",
+      "passed": true,
+      "metrics": {
+        "arrow_bounds": "272.0,-10.0 36.0x32.0 parent=122.0,205.0",
+        "arrow_path": "8.0,8.0 20.0x16.0",
+        "arrow_rgba": "0.96,0.68,0.08,1.00",
+        "dash_offset": "0.00->-2.00",
+        "target_gap": "8.00"
+      },
+      "error": null
+    },
+    {
+      "name": "complete-motion-family",
+      "passed": true,
+      "metrics": {
+        "sampler_translation_x": "-42.16,-13.78,-1.83,-7.67,-37.20"
+      },
+      "error": null
+    },
+    {
+      "name": "composition-grammar",
+      "passed": true,
+      "metrics": {
+        "delay_y": "28.00->22.12",
+        "sequence_y": "0.00,18.35,28.00",
+        "stagger_y": "11.06,20.92,26.64"
+      },
+      "error": null
+    },
+    {
+      "name": "channels-and-loop-policies",
+      "passed": true,
+      "metrics": {
+        "choreography_opacity": "0.90",
+        "loop_translation_x": "-36.40,-15.60,26.25"
+      },
+      "error": null
+    },
+    {
+      "name": "behavior-interruption-policies",
+      "passed": true,
+      "metrics": {
+        "ignore_translation_x": "63.07->75.26",
+        "owners": "existing=AnimationId { namespace: RuntimeNamespace(0b60cda8-bf5b-4643-9528-ea0bc93290f4), local: 5v1 },replacement=AnimationId { namespace: RuntimeNamespace(0b60cda8-bf5b-4643-9528-ea0bc93290f4), local: 4v3 }",
+        "replace_translation_x": "-63.07->-42.05"
+      },
+      "error": null
+    },
+    {
+      "name": "interaction-geometry-policy",
+      "passed": true,
+      "metrics": {
+        "committed_guide_target": "Some(FigureId { namespace: RuntimeNamespace(8a009ca0-806a-4054-94dd-bea9755e502f), local: 13v1 })",
+        "presentation_offset_x": "-170.0",
+        "visual_sample_target": "None"
+      },
+      "error": null
+    },
+    {
+      "name": "suspension-policies",
+      "passed": true,
+      "metrics": {
+        "finish_translation_x": "-78.12->0.00",
+        "hidden_states": "Paused,Completed",
+        "pause_translation_x": "-78.12->-78.12->-70.11"
+      },
+      "error": null
+    }
+  ]
+}

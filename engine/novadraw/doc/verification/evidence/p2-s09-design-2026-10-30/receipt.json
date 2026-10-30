@@ -1,0 +1,28 @@
+{
+  "head": "9825957efb1859ffca504e03eafd79ff19a226bd",
+  "sources": {
+    "crates/novadraw/src/animation/service.rs": "f1e4d3733b50c19101a454291c03cb398acbaf749858e8636dd7716972363341",
+    "crates/novadraw/src/runtime/runtime/frame_submission.rs": "4eff8faa8240f360acdf17014f0b14dcaa143d06fe9e4b393b29391ccd8b6485",
+    "crates/novadraw/src/runtime/runtime/service_facades.rs": "ca0b83b2d45af720127c99705bbe7565f6367696ae9d39b6efa4448441c4cb6b",
+    "crates/novadraw/src/runtime/runtime.rs": "19f52800e23565671d644197041e31a4329d9e849713f5d2553e8d4f20c5e757",
+    "crates/novadraw/src/runtime/update/deferred.rs": "9c8b700b5902c9b62ac263fe3a55bd921b5fd6c758e02f7bccf0a9e972c2c04e",
+    "crates/novadraw/src/connection/runtime.rs": "3a7679b529197edb93632933f545decdcb05082600a5d415300d67ac57de9402",
+    "crates/novadraw/src/runtime/runtime/connection_service.rs": "753337678c6e2c5688c3b297ef27c6ea4a6cb50fcab5be849060374ce2caf114",
+    "crates/novadraw/src/identity.rs": "270f690493f14b93ea224789b325d75094b7a83105ea619247f749ecdff218ba",
+    "crates/novadraw-inspector/src/lib.rs": "0be40c909d2ee725f52e25232fb24cfd70d0dad7ff3c14925d0c5fdb6204e0d8",
+    "crates/novadraw-editor/src/command/mod.rs": "51d4c2ab57b23f17ea1ef30048c54a68c534f014a91c61645e967a27bcc57583",
+    "crates/novadraw-editor/src/policy/mod.rs": "d6b71486f49c3316299e32ba361ab7817890c9cd55f8b680de6bbfa724d54533",
+    "crates/novadraw-editor/src/domain.rs": "f2993197d904239c03f816a2aa5967b19cfbe9ce880f5b406073b72aeff0638c",
+    "crates/novadraw-editor/src/viewer/failure.rs": "8bb02cd0779074b8a40c16beb235417b9e72edf0023ded7a45704c48a1a807f7"
+  },
+  "existing_tests": {
+    "p2_animation_behavior_contract": 7,
+    "figure_inspector_contract": 2
+  },
+  "implementation_started": false,
+  "review": "static self-review, no independent reviewer",
+  "limits": [
+    "no new fault/poison/detach behavior verification",
+    "no public API change, performance or artifact-size measurement in this review"
+  ]
+}

@@ -45,14 +45,14 @@
 | 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `complete` | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
 | 6 | P2-S07 查询身份与失败语义 | P1 | `complete` | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md)，ADR-038 已实现 |
 | 7 | P2-S08 Detached 输入不变量 | P0 | `complete` | R03、TC-03、API-F04、API-10 | [ADR-056](../../adr/adr-056-detached-input-invariants.md)已实施；A／B／C／D 完成，见[关闭记录](../reviews/p2-s08-d-completion-2026-10-29.md) |
-| 8 | P2-S09 服务失败与 Inspector | P1 | `design-draft` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | [ADR-057 草案](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，待评审，未实施 |
+| 8 | P2-S09 服务失败与 Inspector | P1 | `in_progress` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 2026-10-30 用户接受 [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A](../reviews/p2-s09-a-implementation-2026-10-30.md)已完成，下一片为 Observations／Inspector；整批来源项尚未关闭 |
 
 执行顺序默认按表推进。只有依赖、用户优先级或新的 P0 正确性证据发生变化时才调整；
 调整必须先更新 Backlog。
 
 本表为 Backlog 的执行映射；G01/M01/GA-2/GA-3 的 `in_progress` 表示仍待交付证据，
 不表示它们与本表同时 Execute。S06 已于 2026-10-15 按矩阵修订 2 完成，
-S07／S08 已完成；S09 已形成设计草案，未进入 Execute。
+S07／S08 已完成；S09 修订 3 已接受，S09-A 已完成，下一片为 S09-B。
 本轮校准记录见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)。
 
 ## 3. P2-S02：显式领域导入与 Root 收口
@@ -242,9 +242,9 @@ S07／S08 已完成；S09 已形成设计草案，未进入 Execute。
 
 来源：R07、TC-10、API-F08、API-F10，以及 API-F09 未覆盖的 connection register alias。
 
-- [x] [ADR-057 草案](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)收口本批服务的 fault、mutation、check 与 idempotence 语义；尚未接受，
+- [x] [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)收口本批服务的 fault、mutation、check 与 idempotence 语义；2026-10-30 已接受，
   身份/查询规范引用 S07，不重复改造所有 getter。
-- [ ] AnimationMut 的 fault 与 `Ok(false)` 幂等未变化分离。
+- [x] AnimationMut 的 fault 与 `Ok(false)` 幂等未变化分离；S09-A 已完成私有入口、帧传播与消费者验收。
 - [ ] Inspector 锁 poison 返回结构化 fault，不再返回空集合或静默跳过。
 - [ ] Inspector attach 明确订阅所有者、注销与 observer fault 的可观测路径；
   优先复用 Observations token，仅在无法满足生命周期时增加 guard。

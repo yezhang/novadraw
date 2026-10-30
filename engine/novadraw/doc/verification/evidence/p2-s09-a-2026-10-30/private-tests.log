@@ -1,0 +1,316 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[33mwarning[0m[1m: multiple methods are never used[0m
+    [1m[94m--> [0mcrates/novadraw/src/render/context.rs:374:8
+     [1m[94m|[0m
+[1m[94m  76[0m [1m[94m|[0m impl NdCanvas {
+     [1m[94m|[0m [1m[94m-------------[0m [1m[94mmethods in this implementation[0m
+[1m[94m...[0m
+[1m[94m 374[0m [1m[94m|[0m     fn color_with_global_alpha(&self, color: Color) -> Color {
+     [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 551[0m [1m[94m|[0m     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 736[0m [1m[94m|[0m     pub fn draw_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 751[0m [1m[94m|[0m     pub fn fill_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 772[0m [1m[94m|[0m     pub fn close_path(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 796[0m [1m[94m|[0m     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 820[0m [1m[94m|[0m     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 828[0m [1m[94m|[0m     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 837[0m [1m[94m|[0m     pub fn fill(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^[0m
+[1m[94m...[0m
+[1m[94m 873[0m [1m[94m|[0m     pub fn fill_and_stroke(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 923[0m [1m[94m|[0m     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 937[0m [1m[94m|[0m     pub fn clear_commands(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 958[0m [1m[94m|[0m     pub fn to_submission(&self) -> RenderSubmission {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 963[0m [1m[94m|[0m     pub fn to_submission_for_surface(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 975[0m [1m[94m|[0m     pub fn to_submission_for_frame(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1043[0m [1m[94m|[0m     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1048[0m [1m[94m|[0m     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1054[0m [1m[94m|[0m     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1060[0m [1m[94m|[0m     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1065[0m [1m[94m|[0m     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1075[0m [1m[94m|[0m     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1080[0m [1m[94m|[0m     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1089[0m [1m[94m|[0m     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4457:9
+     [1m[94m|[0m
+[1m[94m4457[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4458[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4459[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4460[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4463[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+     [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4457[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4507:9
+     [1m[94m|[0m
+[1m[94m4507[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4508[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4509[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4510[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4513[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4507[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4560:9
+     [1m[94m|[0m
+[1m[94m4560[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4561[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4562[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4563[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4566[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4560[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4577:9
+     [1m[94m|[0m
+[1m[94m4577[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4578[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4579[0m [1m[94m|[0m [1m[33m|[0m                 replacement.session_id,
+[1m[94m4580[0m [1m[94m|[0m [1m[33m|[0m                 replacement.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4583[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4577[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4615:9
+     [1m[94m|[0m
+[1m[94m4615[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4616[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4617[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4618[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4621[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4615[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4634:9
+     [1m[94m|[0m
+[1m[94m4634[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4635[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4636[0m [1m[94m|[0m [1m[33m|[0m                 partial.session_id,
+[1m[94m4637[0m [1m[94m|[0m [1m[33m|[0m                 partial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4640[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4634[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4667:9
+     [1m[94m|[0m
+[1m[94m4667[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4668[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4669[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4670[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4673[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4667[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4728:9
+     [1m[94m|[0m
+[1m[94m4728[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4729[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4730[0m [1m[94m|[0m [1m[33m|[0m                 retry.session_id,
+[1m[94m4731[0m [1m[94m|[0m [1m[33m|[0m                 retry.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4734[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4728[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4759:9
+     [1m[94m|[0m
+[1m[94m4759[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4760[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4761[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4762[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4765[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4759[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4778:9
+     [1m[94m|[0m
+[1m[94m4778[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4779[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4780[0m [1m[94m|[0m [1m[33m|[0m                 first_update.session_id,
+[1m[94m4781[0m [1m[94m|[0m [1m[33m|[0m                 first_update.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4784[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4778[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4817:9
+     [1m[94m|[0m
+[1m[94m4817[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4818[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4819[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4820[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4823[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4817[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5040:9
+     [1m[94m|[0m
+[1m[94m5040[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5041[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5042[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m5043[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5046[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5040[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5184:9
+     [1m[94m|[0m
+[1m[94m5184[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5185[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5186[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m5187[0m [1m[94m|[0m [1m[33m|[0m                 submission.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5190[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5184[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw` (lib test) generated 14 warnings
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 33.41s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw-15ce81094849c35f)
+
+running 5 tests
+test animation::service::s09_tests::s09_configuration_change_without_tracks_does_not_damage_presentation ... ok
+test animation::service::s09_tests::s09_fault_precedes_empty_effects_and_same_configuration ... ok
+test runtime::runtime::frame_submission::s09_tests::s09_internal_frame_paths_propagate_animation_fault_before_shortcuts ... ok
+test animation::service::s09_tests::s09_behavior_rejection_is_success_without_presentation_change ... ok
+test animation::service::s09_tests::s09_suspension_pause_and_finish_separate_configuration_from_damage ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 429 filtered out; finished in 0.01s
+

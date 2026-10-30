@@ -182,6 +182,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 | P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
 | P2-M01 | `animation.timeline`, `animation.presentation`, `frame.preparation`, `damage.repaint` | `in_progress` | ADR-026 已接受；M01-A/B complete，当前推进 M01-C 领域消费者 |
+| P2-S09 | `animation.timeline`, `animation.presentation`, `frame.preparation`（首片） | `in_progress` | ADR-057 已接受；S09-A 的领域 Result、fault／同值分离、帧 source、消费者、成本与最终门禁已完成，见[证据](../../verification/reviews/p2-s09-a-implementation-2026-10-30.md)；其他切片待实施，不关闭 M01 平台剩余验收 |
 | P2-L01 | `layout.graph`, `layout.manager`, `connection.anchor`, `connection.router`, `frame.preparation` | `complete` | ADR-043 与 preparation 增量已实施；默认/外部算法、52 个官方组合、真实菜单与 Native 验收、最终门禁见[证据](../../verification/evidence/adr043/implementation.md) |
 
 P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持

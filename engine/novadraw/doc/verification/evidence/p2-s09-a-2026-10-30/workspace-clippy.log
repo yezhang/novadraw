@@ -1,0 +1,33 @@
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Checking[0m winit-canvas v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/winit-canvas)
+[1m[92m    Checking[0m xtask v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tools/xtask)
+[1m[92m    Checking[0m vello-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/native/vello-app)
+[1m[91merror[0m[1m: using `chunks_exact_mut` with a constant chunk size[0m
+   [1m[94m--> [0mcrates/novadraw/src/render/svg.rs:122:29
+    [1m[94m|[0m
+[1m[94m122[0m [1m[94m|[0m         for pixel in pixels.chunks_exact_mut(4) {
+    [1m[94m|[0m                             [1m[91m^^^^^^^^^^^^^^^^^^^[0m [1m[91mhelp: consider using `as_chunks_mut` instead: `as_chunks_mut::<4>().0`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+    [1m[94m= [0m[1mnote[0m: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+[1m[91merror[0m[1m: draining all elements of a collection into a new collection of the same type[0m
+   [1m[94m--> [0mcrates/novadraw/src/runtime/update/deferred.rs:580:9
+    [1m[94m|[0m
+[1m[94m580[0m [1m[94m|[0m         self.invalid_figures.drain(..).collect()
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mhelp: use `mem::take` to avoid creating a new allocation: `std::mem::take(&mut self.invalid_figures)`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#drain_collect
+    [1m[94m= [0m[1mnote[0m: `-D clippy::drain-collect` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::drain_collect)]`
+
+[1m[91merror[0m[1m: draining all elements of a collection into a new collection of the same type[0m
+   [1m[94m--> [0mcrates/novadraw/src/runtime/update/listener.rs:308:9
+    [1m[94m|[0m
+[1m[94m308[0m [1m[94m|[0m         self.effects.drain(..).collect()
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mhelp: use `mem::take` to avoid creating a new allocation: `std::mem::take(&mut self.effects)`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#drain_collect
+
+[1m[91merror[0m: could not compile `novadraw` (lib) due to 3 previous errors

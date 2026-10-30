@@ -1,0 +1,5 @@
+cargo build --manifest-path /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/Cargo.toml --release --lib --offline --no-default-features --target-dir /tmp/s09a-cost/target --features consume-inspector
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m   Compiling[0m novadraw-service-failure-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 37.04s

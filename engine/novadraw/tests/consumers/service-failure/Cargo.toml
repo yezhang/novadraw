@@ -1,0 +1,31 @@
+[package]
+name = "novadraw-service-failure-consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "animation-failure-cost"
+path = "src/main.rs"
+required-features = ["consume-animation"]
+
+[features]
+default = ["consume-animation"]
+consume-animation = []
+consume-inspector = ["dep:novadraw-inspector"]
+
+[dependencies]
+novadraw = { path = "../../../crates/novadraw", default-features = false }
+novadraw-inspector = { path = "../../../crates/novadraw-inspector", optional = true }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

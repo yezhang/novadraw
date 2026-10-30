@@ -173,8 +173,9 @@ test(winit-canvas): 覆盖跨画布捕获与焦点切换
 
 2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
 GA-1/GA-4 为基础，S01–S08 的既定切片已完成；S08-A／B／C／D 已完成，
-输入不变量审计项已关闭；S09 与 Editor 开放吸附已形成 ADR-057／058 草案，
-待评审后实施。当前执行队列只在
+输入不变量审计项已关闭；ADR-057 修订 3 已于 2026-10-30 接受，S09-A Core
+Animation 已完成，下一片为 S09-B Observations／Inspector；Editor 开放吸附
+ADR-058 仍待评审。当前执行队列只在
 [P2 backlog](doc/roadmap/p2-delta-backlog.md)维护。
 WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
 保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以

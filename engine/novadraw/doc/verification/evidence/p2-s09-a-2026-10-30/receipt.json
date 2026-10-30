@@ -1,0 +1,119 @@
+{
+  "baseline_commit": "9825957efb1859ffca504e03eafd79ff19a226bd",
+  "platform": "macOS-14.7.8-arm64-arm-64bit-Mach-O",
+  "cost_rustc": "1.99.1",
+  "native_gate_rustc": "1.96.0",
+  "source_sha256": {
+    "crates/novadraw/src/animation/service.rs": "7bb35c148547ae308c46e4177440c1e5ee0e0eac4ac4e4080ed37923a7dafa1e",
+    "crates/novadraw/src/runtime/runtime.rs": "54c441a76aa5c6da415cbee9f90c596dc38a208fc917c865f9c3a150c9f496c9",
+    "crates/novadraw/src/runtime/runtime/frame_submission.rs": "3f4078949c15ca9acb20f73d3b3e4326093b81985a81c5c5564af93adb1079ba",
+    "crates/novadraw/tests/p2_s09_animation_failure.rs": "0ae8bd8bd2b2746f475d259c28e800c483a51fc4c87e6cd2abe2d6a8e7e80011",
+    "tests/consumers/service-failure/Cargo.toml": "fbad607498ee5779a413698376aff4767db4a3645a4d064ee817028c6f42e329",
+    "tests/consumers/service-failure/Cargo.lock": "3ced551d175d104786414ff5f914c46247cc165ebca48c18a93921dc635b9106",
+    "tests/consumers/service-failure/src/lib.rs": "b6a1c7d39229906cbad9e30aee5dc807b3ab1907238a465eb3a0bb1966d31015",
+    "tests/consumers/service-failure/src/main.rs": "c3dff7579ad16f647d46ed8ee8a9880824bb4b18f2e3fb0f4c3002f9880d0bec"
+  },
+  "cost_scope": "No active tracks; Runtime construction and mode reset excluded; 5 alternating sessions, 20 warmup batches, 201 measured batches, 10000 calls per batch",
+  "timings": {
+    "before-false": {
+      "session_p50_ns": [
+        49834,
+        36250,
+        34083,
+        35208,
+        34166
+      ],
+      "session_p95_ns": [
+        55791,
+        37917,
+        34209,
+        36625,
+        36292
+      ],
+      "median_session_p50_ns": 35208,
+      "median_session_p95_ns": 36625,
+      "allocations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "before-true": {
+      "session_p50_ns": [
+        44958,
+        35125,
+        34084,
+        35208,
+        34166
+      ],
+      "session_p95_ns": [
+        45167,
+        36291,
+        36708,
+        36833,
+        36333
+      ],
+      "median_session_p50_ns": 35125,
+      "median_session_p95_ns": 36708,
+      "allocations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "after-false": {
+      "session_p50_ns": [
+        51667,
+        39375,
+        35375,
+        35333,
+        35334
+      ],
+      "session_p95_ns": [
+        57750,
+        42625,
+        37958,
+        36500,
+        38083
+      ],
+      "median_session_p50_ns": 35375,
+      "median_session_p95_ns": 38083,
+      "allocations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "after-true": {
+      "session_p50_ns": [
+        50083,
+        40417,
+        36958,
+        38000,
+        36958
+      ],
+      "session_p95_ns": [
+        55542,
+        42334,
+        38334,
+        39125,
+        38708
+      ],
+      "median_session_p50_ns": 38000,
+      "median_session_p95_ns": 39125,
+      "allocations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

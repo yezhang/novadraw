@@ -1,0 +1,61 @@
+[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m kurbo v0.13.1
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m svgtypes v0.16.1
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m font-types v0.12.4
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m uuid v1.18.1
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m pxfm v0.1.27
+[1m[92m   Compiling[0m moxcms v0.8.1
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 39.26s
+[1m[92m     Running[0m tests/p2_animation_behavior_contract.rs (target/official-native/debug/deps/p2_animation_behavior_contract-31e887b359b68aff)
+
+running 7 tests
+test retry_and_idle_do_not_replay_consumed_facts ... ok
+test ordinary_mutation_stays_static_without_an_installed_behavior ... ok
+test property_state_and_transaction_triggers_match_committed_facts ... ok
+test behavior_identity_scope_disposal_and_failure_are_bounded ... ok
+test disabled_skips_factories_and_reduced_motion_uses_only_its_fallback ... ok
+test bounds_trigger_coalesces_one_transaction_and_installs_override_before_recording ... ok
+test behavior_factory_panic_faults_runtime_and_clears_presentation ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 3.14s
+[1m[92m     Running[0m tests/figure_inspector_contract.rs (target/official-native/debug/deps/figure_inspector_contract-3d5282b097114d50)
+
+running 2 tests
+test captures_parent_first_tree_and_committed_effect_order ... ok
+test rejects_unstable_capture_and_bounds_its_event_history ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

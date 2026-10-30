@@ -1,0 +1,33 @@
+{
+  "audit_sha256": "502b9655229153b7bce439f49cb53cb2d7d6a7bbca4d9f40c71083dd56cf4d22",
+  "reviewed_adr_sha256": "baef90fdad9516d0d8f03c15f056e37f0d80d9f5128f3db0ea09e296cae225db",
+  "opinion_ids": [
+    "S09-R1-01",
+    "S09-R1-02",
+    "S09-R1-03",
+    "S09-R1-04",
+    "S09-R1-05",
+    "S09-R1-06",
+    "S09-R1-07"
+  ],
+  "current_docs": {
+    "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": "4cb372c8e67c736937de5845cc11aff8e4a5721dcdd220521d978439af6a132f",
+    "doc/verification/plans/p2-s09-service-failure.md": "fb3377a86f8814918d3af8563c61fff718d280d27fd579d1246239c93b69d35b",
+    "doc/verification/reviews/adr-057-revision-2-response-2026-10-30.md": "71536f2ddf712e63b2bf477f709b8c26c95489eef30a4311eae6a32d3a6d87ed"
+  },
+  "writing_candidates": {
+    "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+      "meta": [],
+      "dash": []
+    },
+    "doc/verification/plans/p2-s09-service-failure.md": {
+      "meta": [],
+      "dash": []
+    },
+    "doc/verification/reviews/adr-057-revision-2-response-2026-10-30.md": {
+      "meta": [],
+      "dash": []
+    }
+  },
+  "implementation_started": false
+}

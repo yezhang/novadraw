@@ -1,0 +1,10 @@
+{
+  "adr-057-revision-2.txt": {
+    "source": "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md",
+    "sha256": "4cb372c8e67c736937de5845cc11aff8e4a5721dcdd220521d978439af6a132f"
+  },
+  "s09-matrix-revision-2.txt": {
+    "source": "doc/verification/plans/p2-s09-service-failure.md",
+    "sha256": "fb3377a86f8814918d3af8563c61fff718d280d27fd579d1246239c93b69d35b"
+  }
+}

@@ -17,6 +17,13 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-10-30 | [S09-A Animation 服务结果与成本验证](p2-s09-a-implementation-2026-10-30.md) |
+| 2026-10-30 | [ADR-057 修订 3 设计复核通过](adr-057-revision-3-review-2026-10-30.md) |
+| 2026-10-30 | [ADR-057 修订 3 复核回应](adr-057-revision-3-response-2026-10-30.md) |
+| 2026-10-30 | [ADR-057 修订 2 复核（待补清）](adr-057-revision-2-review-2026-10-30.md) |
+| 2026-10-30 | [ADR-057 修订 2 审阅回应](adr-057-revision-2-response-2026-10-30.md) |
+| 2026-10-30 | [ADR-057 修订 1 审阅意见](adr-057-revision-1-review-2026-10-30.md) |
+| 2026-10-30 | [S09 现状盘点与设计复核](p2-s09-design-inventory-2026-10-30.md) |
 | 2026-10-30 | [Zoom 图标按文字指标对齐](zoom-typographic-alignment-2026-10-30.md) |
 | 2026-10-29 | [布局样例的鼠标窗口验收](official-layout-native-mouse-2026-10-29.md) |
 | 2026-10-29 | [ScrollPane 与 Zoom 窗口验收](scroll-zoom-native-window-2026-10-29.md) |

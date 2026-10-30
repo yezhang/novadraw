@@ -42,6 +42,19 @@ cargo xtask verify <suite-id>
 
 单个 Cargo test、应用启动、性能观测和平台构建不再包装成 suite。
 
+ADR-057 首片使用 Animation 定向回归与独立消费者：
+
+```bash
+cargo test -p novadraw --lib s09_
+cargo test -p novadraw --test p2_s09_animation_failure --test p2_animation_contract --test p2_animation_behavior_contract --test p2_animation_geometry_contract --test p2_animation_transition_contract --test p2_animation_sample_reservation_contract
+cargo test --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --offline
+cargo run --manifest-path tests/consumers/service-failure/Cargo.toml --release --bin animation-failure-cost --locked --offline
+```
+
+消费者的可达体积变体和采样范围见 [service-failure](consumers/service-failure/README.md)。
+结果按 [S09-A 实施记录](../doc/verification/reviews/p2-s09-a-implementation-2026-10-30.md)
+统计，S09-B Inspector／Observations 尚未完成。
+
 ADR-055 容器协议使用公开 API 契约夹具及独立 workspace 消费者：
 
 ```bash

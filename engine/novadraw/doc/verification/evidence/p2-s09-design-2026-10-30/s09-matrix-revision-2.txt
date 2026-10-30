@@ -1,0 +1,68 @@
+# S09 服务失败验证矩阵
+
+类型：`verification-plan`
+
+状态：草案，待评审；2026-10-29。目标见
+[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+本页定义未来退出条件，没有已通过结果。
+
+当前为修订 2（2026-10-30），按[审阅意见](../reviews/adr-057-revision-1-review-2026-10-30.md)
+补齐所有 poison 发现入口、健康锁竞争、恢复衔接、token 重试及分配耗尽后健康状态。
+[现状盘点](../reviews/p2-s09-design-inventory-2026-10-30.md)的基线保留。
+已运行的九项旧测试只建立基线，不勾选本矩阵的新行为。
+
+| ID | 场景 | 必须观察 |
+|---|---|---|
+| SF-01 | Animation mode／suspension 同值、异值与已 faulted 同值 | 未变化、变化、fault 分离；fault 检查先于同值短路 |
+| SF-02 | behavior processing 普通无变化、拒绝、混合成功与 panic | 成功 bool 仅描述 presentation；普通拒绝进入有界失败队列，保留成功前缀与已消费事实；panic 遵循 owner fault |
+| SF-03 | 读取／清空先发现 poison，之后没有新 record | 发布首 fault；操作必填、record 来源为空；Clone 看到同一 fault；返回操作错误，后续发现不覆盖首值 |
+| SF-04 | observer 健康锁竞争、入队 poison 与已 fault callback | 健康竞争等待短临界区但不丢弃／fault；入队 poison 发布可用来源；已 fault 不访问事件锁、self-remove；其他 observer 完成当前 effect |
+| SF-05 | 普通外部 observer panic | Runtime fault 保持；不能降级为 Inspector 本地错误 |
+| SF-06 | Runtime／Figure scope attach、dispose／self-remove 后首次 detach、重复 detach | token 不 Clone／Copy；实际移除为 true，已自动移除为 false；scope 拒绝无登记 |
+| SF-07 | foreign detach 后向正确 owner 重试、Runtime fault 后清理 | detach 借用并保留 token；foreign 结构化错误，正确 owner 可重试；清理不驱动 callback／稳定化 |
+| SF-08 | 满缓冲、fault 实例 attach 拒绝、健康实例恢复 | 先淘汰最旧再入队；共享 fault attach 无 ID／登记；记录缺口，不补造或重放丢失历史 |
+| SF-09 | faulted Runtime 拒绝注册；健康或重建后的 owner 接受对象 | 一个规范 fallible 入口；fault 下无登记／伪 ID；更换对象不能恢复原 faulted owner |
+| SF-10 | 自定义 Command／Policy Error 的多层包装 | 原始 source 可追溯／downcast；分类与显示文字独立 |
+| SF-11 | 文本／非文本 panic payload | 文本保持；其他只保存分类；不调用用户格式化器 |
+| SF-12 | 失败前已提交前缀与未提交候选 | 沿用既有原子性层级，不承诺任意扩展副作用回滚 |
+| SF-13 | 独立消费者与 Native／Wasm API | 内置与外部共用协议，旧 panic alias compile-fail |
+| SF-14 | 同值动画、健康锁竞争、首 fault 发布与事件入队成本 | P50／P95、等待时间、分配、复制、满／未满缓冲；不以 poison 分支证明正常入队无等待 |
+| SF-15 | 同配置 release 与可选能力关闭 | Native／Wasm 原始／压缩字节、依赖与首次资源 |
+| SF-16 | 空 effects、无活动轨道和已有 fault 的私有 Animation 入口 | 健康检查先于空输入短路；suspension 配置变化与 presentation damage 分开 |
+| SF-17 | listener 简写／scoped 准入、计数器耗尽及后续操作 | 注册拒绝只影响本次；Runtime 保持健康，计数／已有 listener／owner 表不变；既有订阅可继续观察／注销；不回收 sequence |
+| SF-18 | 多个 attach、Clone、各 Runtime 的首 fault 与恢复边界 | Clone 共用首 fault，不覆盖首次值；token 独立注销且错误不消耗；逐 Runtime 保存 namespace／epoch／sequence／scope，不建跨 Runtime 全局顺序 |
+| SF-19 | owned Error source 与旧 Eq／PartialEq 消费者 | 分类、位置、显式字段与 downcast 验证；不按字符串或指针伪造原因相等 |
+| SF-20 | 暂停恢复、旧 journal、attach／snapshot／checkpoint 失败 | 先清旧登记，再结清旧 journal，取 checkpoint，attach 后捕获快照并复核同一边界；任何失败清理已建新 token；边界变化拒绝，接受后新变化进入新订阅 |
+
+SF-20 至少包含：空 journal／有待分发 record、在途提交、未稳定／fault query、
+注册耗尽或 scope 失败、快照失败、两次 checkpoint 不一致、多 scope 部分成功、
+清理错误以及多 Runtime 部分失败。注入暂停步骤间变化验证拒绝；
+恢复驱动后的变化验证实际记录。旧 record 不能作为新基线之后的事件，
+scope 过滤导致 sequence 跳号不解释为丢失或重放需求。
+`checkpoint()` 是无副作用查询：有待发布 journal、在途提交或未稳定时拒绝，
+不能通过调用该查询偷偷 flush。空 stream 的最后 sequence 为 None。
+
+首片 S09-A：
+
+- SF-01、SF-02、SF-16 与直接帧调用方错误传播；
+- SF-12 的成功前缀、已消费事实与 panic 基线回归；
+- SF-13 的 Animation 外部调用、Native／Wasm API 和 set_mode 调用方迁移；
+- SF-14／15 中 Animation 可达路径的成本记录。
+
+Observations／Inspector 的 SF-03～08、SF-17／18／20 随第二片实施，
+Connections 的 SF-09 随第三片实施，Editor 的 SF-10／11／19 随第四片实施。
+分片通过不等于 S09 整批关闭。
+
+每片对照 ADR-057 的 `api_semantics` 表回填既有 family；
+Inspector poison／锁竞争是本地合同，宿主恢复是编排合同，
+不计作新增 Draw2D 对等能力。listener 合同替代只在 ADR-057 接受后生效。
+
+Execute 前先审阅现状，逐项列出受影响入口与错误类型。
+不靠历史审计行号声称完成盘点，也不为 poison／revision 耗尽增加公共测试 hook。
+私有故障注入、公开生命周期、外部消费者与 compile-fail 分开统计。
+
+内环使用受影响 crate 的 lib 或单 integration target；最终运行 workspace
+fmt、严格 Clippy、test、API／依赖边界及 docs。现有 check／has 契约做回归，
+不把已完成能力重新定义为新增交付。
+完成记录按实际覆盖关闭 R07、TC-10、API-F08、API-F10，
+仅回填 API-F09 残余 register alias。

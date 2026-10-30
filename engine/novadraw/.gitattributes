@@ -1,3 +1,5 @@
 assets/fonts/*.ttf filter=lfs diff=lfs merge=lfs -text
 doc/verification/evidence/*.log -whitespace
 doc/verification/evidence/*.patch -whitespace
+doc/verification/evidence/p2-s09-a-2026-10-30/*.log -whitespace
+doc/verification/evidence/p2-s09-design-2026-10-30/*.log -whitespace

@@ -1,0 +1,29 @@
+{
+  "opinion_ids": [
+    "S09-R2-01",
+    "S09-R2-02",
+    "S09-R2-03"
+  ],
+  "audit_sha256": "f278a91d259d69a12ca216c842d653b82f0a20ebf0b0964a2dae580908f9923b",
+  "current_docs": {
+    "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": "29a0f0084683fa999fa1a279953cef86219fe43884003c43941727c3db09d5b6",
+    "doc/verification/plans/p2-s09-service-failure.md": "344f60962550fb573f135e1cfa0ed19471bf92a1a4cc3bdd14a28945b74346e0",
+    "doc/verification/reviews/adr-057-revision-3-response-2026-10-30.md": "abcd86518b82dd546abba133464f43410318a7e487a3cfd3d3cca5a33a0dc6ac"
+  },
+  "writing_candidates": {
+    "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+      "meta": [],
+      "dash": []
+    },
+    "doc/verification/plans/p2-s09-service-failure.md": {
+      "meta": [],
+      "dash": []
+    },
+    "doc/verification/reviews/adr-057-revision-3-response-2026-10-30.md": {
+      "meta": [],
+      "dash": []
+    }
+  },
+  "rust_modified_by_revision": false,
+  "new_behavior_tests_run": false
+}
