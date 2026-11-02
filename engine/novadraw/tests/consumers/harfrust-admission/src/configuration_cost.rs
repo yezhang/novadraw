@@ -81,7 +81,6 @@ fn main() {
                         sample - WARMUP,
                     );
                 }
-                drop(result);
             }
         }
     }
