@@ -276,10 +276,12 @@ fn connection_decoration_scene() -> Runtime {
     );
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .expect("healthy scene registration");
     let direct_router = runtime.connections().direct_router();
     let connection = runtime
         .connections()
@@ -374,15 +376,18 @@ fn shortest_path_scene() -> Runtime {
             "B",
         ),
     ];
-    let router = runtime.connections().register_router(Box::new(
-        ShortestPathConnectionRouter::new([obstacle])
-            .with_clearance(16.0)
-            .expect("valid clearance")
-            .with_bend_penalty(12.0)
-            .expect("valid bend penalty")
-            .with_minimum_stub(18.0)
-            .expect("valid endpoint stub"),
-    )).expect("healthy scene registration");
+    let router = runtime
+        .connections()
+        .register_router(Box::new(
+            ShortestPathConnectionRouter::new([obstacle])
+                .with_clearance(16.0)
+                .expect("valid clearance")
+                .with_bend_penalty(12.0)
+                .expect("valid bend penalty")
+                .with_minimum_stub(18.0)
+                .expect("valid endpoint stub"),
+        ))
+        .expect("healthy scene registration");
     let mut connections = Vec::with_capacity(pairs.len());
     for (source_bounds, target_bounds, color, label) in pairs {
         let source = add_node(
@@ -410,10 +415,12 @@ fn shortest_path_scene() -> Runtime {
             .expect("valid connection");
         let source_anchor = runtime
             .connections()
-            .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
+            .register_anchor(Box::new(ChopboxAnchor::new(source)))
+            .expect("healthy scene registration");
         let target_anchor = runtime
             .connections()
-            .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
+            .register_anchor(Box::new(ChopboxAnchor::new(target)))
+            .expect("healthy scene registration");
         let connection = runtime
             .connections()
             .register_state(

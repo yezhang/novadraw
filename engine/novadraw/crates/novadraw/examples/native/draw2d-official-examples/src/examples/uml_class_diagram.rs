@@ -353,10 +353,12 @@ fn fixture() -> Fixture {
         .expect("association");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(second_class))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(second_class)))
+        .expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(first_class))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(first_class)))
+        .expect("healthy scene registration");
     let router = runtime.connections().direct_router();
     let association = runtime
         .connections()

@@ -177,10 +177,12 @@ fn build_print_example() -> (Runtime, [RegisteredHostFont; 3]) {
         .unwrap();
     let source = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .expect("healthy scene registration");
     let target = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .expect("healthy scene registration");
     let router = runtime.connections().direct_router();
     runtime
         .connections()

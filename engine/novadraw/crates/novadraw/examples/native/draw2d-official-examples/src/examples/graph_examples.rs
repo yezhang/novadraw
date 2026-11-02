@@ -387,15 +387,22 @@ fn populate(
         Arc::new(GraphProjectionBinding::new(owner, &request, entities, edges, context).unwrap());
     let router = runtime
         .connections()
-        .register_router(Box::new(GraphProjectionRouter::new(binding.clone()))).expect("healthy scene registration");
+        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())))
+        .expect("healthy scene registration");
     let mut anchors = Vec::new();
     for &(edge, connection) in binding.edges() {
-        let source = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
-        )).expect("healthy scene registration");
-        let target = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
-        )).expect("healthy scene registration");
+        let source = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
+            ))
+            .expect("healthy scene registration");
+        let target = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
+            ))
+            .expect("healthy scene registration");
         anchors.extend([source, target]);
         runtime
             .connections()

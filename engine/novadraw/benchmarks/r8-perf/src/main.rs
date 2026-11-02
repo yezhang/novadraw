@@ -1128,14 +1128,19 @@ fn build_connection_runtime(count: usize, grouped: bool) -> ConnectionWorkload {
         .expect("target Figure");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .expect("healthy scene registration");
     let router = if grouped {
-        runtime.connections().register_router(Box::new(
-            FanRouter::new(Box::new(DirectRouter), 16.0).expect("valid fan separation"),
-        )).expect("healthy scene registration")
+        runtime
+            .connections()
+            .register_router(Box::new(
+                FanRouter::new(Box::new(DirectRouter), 16.0).expect("valid fan separation"),
+            ))
+            .expect("healthy scene registration")
     } else {
         runtime.connections().direct_router()
     };

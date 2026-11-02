@@ -5346,12 +5346,18 @@ mod adr014_tests {
     fn foreign_registry_handles_do_not_remove_local_entries() {
         let (mut first, first_root) = scene();
         let (mut second, second_root) = scene();
-        let foreign_anchor =
-            first.register_connection_anchor(Box::new(ChopboxAnchor::new(first_root))).unwrap();
-        let local_anchor =
-            second.register_connection_anchor(Box::new(ChopboxAnchor::new(second_root))).unwrap();
-        let foreign_router = first.register_connection_router(Box::new(DirectRouter)).unwrap();
-        let local_router = second.register_connection_router(Box::new(DirectRouter)).unwrap();
+        let foreign_anchor = first
+            .register_connection_anchor(Box::new(ChopboxAnchor::new(first_root)))
+            .unwrap();
+        let local_anchor = second
+            .register_connection_anchor(Box::new(ChopboxAnchor::new(second_root)))
+            .unwrap();
+        let foreign_router = first
+            .register_connection_router(Box::new(DirectRouter))
+            .unwrap();
+        let local_router = second
+            .register_connection_router(Box::new(DirectRouter))
+            .unwrap();
         assert!(second.remove_connection_anchor(foreign_anchor).is_err());
         assert!(second.remove_connection_router(foreign_router).is_err());
         assert!(second.remove_connection_anchor(local_anchor).is_ok());
@@ -5513,7 +5519,9 @@ mod adr014_tests {
         let global = runtime
             .add_update_listener(Box::new(()))
             .expect("healthy listener registration");
-        let router = runtime.register_connection_router(Box::new(DirectRouter)).unwrap();
+        let router = runtime
+            .register_connection_router(Box::new(DirectRouter))
+            .unwrap();
         let image = runtime.register_image().expect("image registration");
         runtime
             .add_resource_dependency(image.resource_id(), owner)
@@ -6246,7 +6254,9 @@ mod adr014_tests {
         let listener = runtime
             .add_update_listener(Box::new(()))
             .expect("healthy listener registration");
-        let router = runtime.register_connection_router(Box::new(DirectRouter)).unwrap();
+        let router = runtime
+            .register_connection_router(Box::new(DirectRouter))
+            .unwrap();
         let session = runtime.backend_session_id();
 
         let mut moved = runtime;

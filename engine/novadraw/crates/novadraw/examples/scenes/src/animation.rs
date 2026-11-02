@@ -674,10 +674,12 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("target arrow decoration");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .expect("healthy scene registration");
     let direct_router = runtime.connections().direct_router();
     let connection = runtime
         .connections()
@@ -698,10 +700,12 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
 
     let arrow_source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(arrow_source))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(arrow_source)))
+        .expect("healthy scene registration");
     let arrow_target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(arrow_target))).expect("healthy scene registration");
+        .register_anchor(Box::new(ChopboxAnchor::new(arrow_target)))
+        .expect("healthy scene registration");
     let direct_router = runtime.connections().direct_router();
     let arrow_connection = runtime
         .connections()
@@ -738,7 +742,8 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .expect("route channel");
     let router = runtime
         .connections()
-        .register_router(Box::new(BendpointConnectionRouter)).expect("healthy scene registration");
+        .register_router(Box::new(BendpointConnectionRouter))
+        .expect("healthy scene registration");
     let (_, route_start) = runtime
         .animation()
         .transition_connection_routes(

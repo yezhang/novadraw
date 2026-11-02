@@ -502,9 +502,12 @@ pub fn obstruction() -> Runtime {
 fn fixture() -> (Runtime, Shared) {
     let mut runtime = runtime_with_fonts();
     let state = Arc::new(Mutex::new(State::default()));
-    let router = runtime.connections().register_router(Box::new(SceneRouter {
-        state: state.clone(),
-    })).expect("healthy scene registration");
+    let router = runtime
+        .connections()
+        .register_router(Box::new(SceneRouter {
+            state: state.clone(),
+        }))
+        .expect("healthy scene registration");
     let root = runtime
         .set_contents(Box::new(Canvas {
             state: state.clone(),
@@ -658,7 +661,8 @@ mod tests {
         let mut foreign = Runtime::empty();
         let router = foreign
             .connections()
-            .register_router(Box::new(novadraw::connection::DirectRouter)).expect("healthy scene registration");
+            .register_router(Box::new(novadraw::connection::DirectRouter))
+            .expect("healthy scene registration");
         let root = runtime.tree().parent_id(pending).unwrap().unwrap();
         let mut subtree = FigureSubtree::new(Box::new(ConnectionFigure::new()));
         subtree

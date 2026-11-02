@@ -1,8 +1,9 @@
 use novadraw::{
     connection::{
-AnchorError, AnchorId, AnchorSite, ConnectionAnchor, ConnectionFigure, ConnectionRouter,
-        ConnectionRuntimeError, ConnectionResolution, CoordinateSpace, DirectRouter, RouteError, RouteOutput, RouteRequest,
-        RouteSceneQuery, RouterBinding, RouterId, XYAnchor,
+        AnchorError, AnchorId, AnchorSite, ConnectionAnchor, ConnectionFigure,
+        ConnectionResolution, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace,
+        DirectRouter, RouteError, RouteOutput, RouteRequest, RouteSceneQuery, RouterBinding,
+        RouterId, XYAnchor,
     },
     event::{ListenerDirective, NotificationRecord, ObservationListener},
     figure::RectangleFigure,
@@ -113,18 +114,49 @@ fn builtin_and_external_registration_share_admission_without_strategy_callbacks(
 fn external_strategies_run_only_when_registered_connection_is_prepared() {
     let mut runtime = Runtime::empty();
     let calls = Rc::new(Cell::new(0));
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap())).unwrap();
-    let figure = runtime.figure(root).unwrap().add(Box::new(ConnectionFigure::new())).unwrap();
+    let root = runtime
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+        ))
+        .unwrap();
+    let figure = runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(ConnectionFigure::new()))
+        .unwrap();
     let source = anchor(&mut runtime, Box::new(ExternalAnchor(calls.clone()))).unwrap();
-    let target = anchor(&mut runtime, Box::new(XYAnchor::new(Point::new(50.0, 50.0), CoordinateSpace::ChildContent(root)))).unwrap();
+    let target = anchor(
+        &mut runtime,
+        Box::new(XYAnchor::new(
+            Point::new(50.0, 50.0),
+            CoordinateSpace::ChildContent(root),
+        )),
+    )
+    .unwrap();
     let custom = router(&mut runtime, Box::new(ExternalRouter(calls.clone()))).unwrap();
     assert_eq!(calls.get(), 0);
-    let connection = runtime.connections().register_state(figure, Some(source), Some(target), RouterBinding::Explicit { router: custom }, None).unwrap();
+    let connection = runtime
+        .connections()
+        .register_state(
+            figure,
+            Some(source),
+            Some(target),
+            RouterBinding::Explicit { router: custom },
+            None,
+        )
+        .unwrap();
     runtime.frames().stabilize_for_query().unwrap();
     assert!(calls.get() > 0);
-    assert!(matches!(runtime.connections().state(connection).unwrap().resolution, ConnectionResolution::Resolved { .. }));
-    assert!(matches!(runtime.connections().remove_anchor(source), Err(ConnectionRuntimeError::AnchorInUse(id)) if id == source));
-    assert!(matches!(runtime.connections().remove_router(custom), Err(ConnectionRuntimeError::RouterInUse(id)) if id == custom));
+    assert!(matches!(
+        runtime.connections().state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    assert!(
+        matches!(runtime.connections().remove_anchor(source), Err(ConnectionRuntimeError::AnchorInUse(id)) if id == source)
+    );
+    assert!(
+        matches!(runtime.connections().remove_router(custom), Err(ConnectionRuntimeError::RouterInUse(id)) if id == custom)
+    );
     runtime.connections().remove_state(connection).unwrap();
     drop(runtime.connections().remove_anchor(source).unwrap());
     drop(runtime.connections().remove_router(custom).unwrap());
