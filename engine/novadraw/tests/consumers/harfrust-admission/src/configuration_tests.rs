@@ -129,16 +129,17 @@ fn empty_aat_headers_configure_and_sticky_rejection_stops_later_work() {
         let data = ShaperData::new(&font);
         assert!(data.shaper(&font).try_build_admitted(|_, _| Ok::<_, Reject>(())).unwrap().is_some());
         let mut failed = false;
-        let mut charged = 0;
+        let charged = std::cell::Cell::new(0);
         let mut admit = |_, cost: harfrust::ColdOperationCost| {
             if failed { return Err(Reject(1)) }
             if cost.work > 4 { failed = true; return Err(Reject(0)) }
-            charged += cost.work;
+            charged.set(charged.get() + cost.work);
             Ok(())
         };
         assert!(data.shaper(&font).try_build_admitted(&mut admit).is_err());
+        let before_retry = charged.get();
         assert!(data.shaper(&font).try_build_admitted(&mut admit).is_err());
         assert!(failed);
-        assert!(charged <= 12);
+        assert_eq!(charged.get(), before_retry);
     }
 }
