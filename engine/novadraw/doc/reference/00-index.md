@@ -10,6 +10,8 @@
 - [`xi-editor/`](xi-editor/00-index.md)：Rope Science 与文本编辑器内部机制参考
 - [Lapce 与 Xi 文本机制](lapce-text-engine.md)：固定源码版本的 delta、视觉行缓存、
   可见绘制与安全增量边界
+- [文本排版与绘制性能技术](text-layout-performance-2026-11-02.md)：LibreOffice、
+  Qt、VS Code、Xi 和 Zed 的缓存、增量换行、可见行与字形栅格技术及适用边界
 - [SWT GC macOS](swt/gc-macos.md)：平台绘图实现
 - [Zed 响应式机制](zed/reactive-design.md)：通知与订阅生命周期
 - [Imaging 绘图中间表示](imaging-render-ir.md)：流式绘制、场景录制、多后端生态，
