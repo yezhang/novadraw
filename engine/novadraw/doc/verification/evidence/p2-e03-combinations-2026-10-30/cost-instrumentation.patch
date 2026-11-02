@@ -1,0 +1,198 @@
+--- a/crates/novadraw-editor/src/lib.rs
++++ b/crates/novadraw-editor/src/lib.rs
+@@ -78,3 +78,6 @@
+     GraphicalViewer, ProjectionCleanup, ProjectionCleanupFailure, RootLayers, SelectionMode,
+     ViewerDrive, ViewerError, ViewerInputOutcome, ViewerTarget,
+ };
++
++/// Isolated verification instrumentation.
++pub mod e03_phase_cost;
+--- /dev/null
++++ b/crates/novadraw-editor/src/e03_phase_cost.rs
+@@ -0,0 +1,37 @@
++
++use std::cell::Cell;
++use std::time::Instant;
++thread_local! {
++    static ENABLED: Cell<bool> = const { Cell::new(false) };
++    static TIMES: Cell<[u128; 8]> = const { Cell::new([0; 8]) };
++}
++/// One measured phase, enabled only during a sample.
++pub struct Span { phase: usize, began: Option<Instant> }
++impl Span {
++    /// Starts an enabled phase timer without allocating.
++    pub fn new(phase: usize) -> Self {
++        Self { phase, began: ENABLED.with(|enabled| enabled.get().then(Instant::now)) }
++    }
++}
++impl Drop for Span {
++    fn drop(&mut self) {
++        if let Some(began) = self.began {
++            let elapsed = began.elapsed().as_nanos();
++            TIMES.with(|times| {
++                let mut values = times.get();
++                values[self.phase] += elapsed;
++                times.set(values);
++            });
++        }
++    }
++}
++/// Clears and enables this thread's phase counters.
++pub fn reset() {
++    TIMES.with(|times| times.set([0; 8]));
++    ENABLED.with(|enabled| enabled.set(true));
++}
++/// Disables recording and returns this thread's counters.
++pub fn take() -> [u128; 8] {
++    ENABLED.with(|enabled| enabled.set(false));
++    TIMES.with(Cell::get)
++}
+--- a/crates/novadraw-editor/src/viewer/projection.rs
++++ b/crates/novadraw-editor/src/viewer/projection.rs
+@@ -36,6 +36,7 @@
+             return self.fail_revision(self.model.revision());
+         }
+ 
++        let snapshot_started = crate::e03_phase_cost::Span::new(3);
+         let snapshot = match ModelSnapshot::capture(&self.model) {
+             Ok(snapshot) if snapshot.root != self.model_root => {
+                 return self.fail(ViewerError::RootChanged);
+@@ -46,12 +47,15 @@
+             Ok(snapshot) => snapshot,
+             Err(error) => return self.fail(error),
+         };
++        drop(snapshot_started);
++        let projection_started = crate::e03_phase_cost::Span::new(4);
+         let result = self.parts_to_retire(&snapshot).and_then(|retiring| {
+             self.prepare_connections_for_containment_change(&snapshot, &retiring)
+                 .and_then(|()| self.remove_reparented_subtrees(&snapshot))
+                 .and_then(|()| self.synchronize_subtree(self.contents(), snapshot.root, &snapshot))
+                 .and_then(|()| self.synchronize_connections(&snapshot))
+         });
++        drop(projection_started);
+         match result {
+             Ok(()) => {
+                 self.synchronize_direct_text_input_area()?;
+--- a/crates/novadraw-editor/src/viewer/mod.rs
++++ b/crates/novadraw-editor/src/viewer/mod.rs
+@@ -1585,6 +1585,7 @@
+ 
+     /// Converges pending layout and derived state without exposing Runtime mutation.
+     pub fn stabilize_for_query(&mut self) -> Result<(), ViewerError> {
++        let _cost = crate::e03_phase_cost::Span::new(7);
+         self.ensure_ready()?;
+         Ok(self.runtime.frames().stabilize_for_query()?)
+     }
+@@ -2388,6 +2389,7 @@
+ 
+     /// Removes a complete overlay batch after validating ownership up front.
+     pub fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
++        let _cost = crate::e03_phase_cost::Span::new(6);
+         self.ensure_ready()?;
+         let mut seen = HashSet::new();
+         for (index, figure) in figures.iter().copied().enumerate() {
+@@ -2461,6 +2463,7 @@
+         &mut self,
+         contributions: Vec<(Option<EditPartId>, FeedbackVisual)>,
+     ) -> Result<Vec<FigureId>, ViewerError> {
++        let _cost = crate::e03_phase_cost::Span::new(5);
+         self.ensure_ready()?;
+         let mut inputs = Vec::with_capacity(contributions.len());
+         for (owner, feedback) in contributions {
+--- a/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs
++++ b/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs
+@@ -219,12 +219,15 @@
+         self,
+         model: &Model,
+     ) -> Result<Option<Box<dyn Command<Model>>>, ContainerEditError> {
++        let _build = novadraw_editor::e03_phase_cost::Span::new(1);
+         self.trace.borrow_mut().build_count += 1;
+         if model.revision != self.header.revision() {
+             return Err(ContainerEditError::Invalidated);
+         }
++        let model_clone_started = novadraw_editor::e03_phase_cost::Span::new(0);
+         let before = model.nodes.clone();
+         let mut after = before.clone();
++        drop(model_clone_started);
+         let sources = self
+             .header
+             .sources()
+@@ -267,6 +270,7 @@
+         "Atomic external container move"
+     }
+     fn execute(&mut self, model: &mut Model) -> Result<(), CommandError> {
++        let _execute = novadraw_editor::e03_phase_cost::Span::new(2);
+         if model.trace.borrow().execute_fail {
+             return Err(CommandError::operation(
+                 "external container execute refusal",
+@@ -277,7 +281,10 @@
+                 "model changed before container commit",
+             ));
+         }
+-        model.nodes = self.after.clone();
++        {
++            let _clone = novadraw_editor::e03_phase_cost::Span::new(0);
++            model.nodes = self.after.clone();
++        }
+         model.publish();
+         Ok(())
+     }
+@@ -293,7 +300,10 @@
+         if model.nodes != self.before {
+             return Err(CommandError::operation("redo baseline changed"));
+         }
+-        model.nodes = self.after.clone();
++        {
++            let _clone = novadraw_editor::e03_phase_cost::Span::new(0);
++            model.nodes = self.after.clone();
++        }
+         model.publish();
+         Ok(())
+     }
+@@ -528,8 +538,10 @@
+                 "creation identity conflict".into(),
+             ));
+         }
++        let model_clone_started = novadraw_editor::e03_phase_cost::Span::new(0);
+         let before = model.nodes.clone();
+         let mut after = before.clone();
++        drop(model_clone_started);
+         after
+             .get_mut(&candidate.target_model())
+             .unwrap()
+@@ -1557,7 +1569,7 @@
+             .unwrap();
+         let mut commits = Vec::with_capacity(SAMPLES);
+         let mut syncs = Vec::with_capacity(SAMPLES);
+-        for _ in 0..SAMPLES {
++        for sample in 0..SAMPLES {
+             let parts = sources
+                 .iter()
+                 .map(|id| viewer.part_for_model(*id).unwrap())
+@@ -1573,11 +1585,26 @@
+                     ),
+                 )
+                 .unwrap();
++            novadraw_editor::e03_phase_cost::reset();
++            let preview_started = std::time::Instant::now();
++            domain.pointer_moved(&mut viewer, Point::new(400.0, 120.0)).unwrap();
++            let preview_ns = preview_started.elapsed().as_nanos();
++            let preview_phases = novadraw_editor::e03_phase_cost::take();
++            println!("e03_preview scenario={label} sample={sample} total_ns={preview_ns} values={preview_phases:?}");
++            novadraw_editor::e03_phase_cost::reset();
+             let (_, observation) = measure(|| {
+                 domain
+                     .pointer_released(&mut viewer, Point::new(400.0, 120.0), MouseButton::Left)
+                     .unwrap()
+             });
++            let release_phases = novadraw_editor::e03_phase_cost::take();
++            println!("e03_phases scenario={label} sample={sample} nodes={nodes} release_ns={} values={release_phases:?}", observation.0);
++            novadraw_editor::e03_phase_cost::reset();
++            let stable_started = std::time::Instant::now();
++            viewer.stabilize_for_query().unwrap();
++            let stable_ns = stable_started.elapsed().as_nanos();
++            let stable_phases = novadraw_editor::e03_phase_cost::take();
++            println!("e03_stable scenario={label} sample={sample} total_ns={stable_ns} values={stable_phases:?}");
+             commits.push(observation);
+             domain.undo(&mut viewer).unwrap();
+             let reads = viewer.model().child_reads.get();

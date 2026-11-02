@@ -1,0 +1,6 @@
+{
+  "crates/novadraw-editor/src/lib.rs": "2a33e2b4cf838a2bae941de2e6553a018f946a6f0b9cc41fd1b1318ecf35f4a2",
+  "crates/novadraw-editor/src/viewer/projection.rs": "8abcd159e637123703f4681fcc62c4712f7234159ecc6db738082726635f6b6b",
+  "crates/novadraw-editor/src/viewer/mod.rs": "17aecb7cbf429d63bc9f37e72d3f8f82510c3cfd76992220c8ca326895d8151d",
+  "crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs": "51bebfedc464c3d3c6477057869d5f0dd9cd09d2c8e1aec832e0c26cdf955923"
+}

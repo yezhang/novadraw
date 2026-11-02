@@ -3,3 +3,7 @@ doc/verification/evidence/*.log -whitespace
 doc/verification/evidence/*.patch -whitespace
 doc/verification/evidence/p2-s09-a-2026-10-30/*.log -whitespace
 doc/verification/evidence/p2-s09-design-2026-10-30/*.log -whitespace
+# Preserve the exact bytes of captured logs and unified-diff context lines.
+doc/verification/evidence/p2-e03-combinations-2026-10-30/consumer-tests.log whitespace=-blank-at-eof
+doc/verification/evidence/p2-e03-combinations-2026-10-30/cost-cost.log whitespace=-blank-at-eof
+doc/verification/evidence/p2-e03-combinations-2026-10-30/cost-instrumentation.patch whitespace=-blank-at-eol

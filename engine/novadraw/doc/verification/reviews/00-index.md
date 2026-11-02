@@ -170,6 +170,8 @@
 
 ## Editor
 
+- [E03 容器编辑组合输入与成本拆分续验](editor-container-combinations-2026-11-02.md)：
+  Web 46 个检查点和阶段成本通过；Native 系统 DnD 与跨显示器仍未验收。
 - [E03 容器编辑故障与平台输入补验](editor-container-followup-2026-10-30.md)：
   隔离计数器注入、Web DPR 1／2 与 Native 输入；完整 E03 验收仍未关闭。
 

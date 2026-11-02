@@ -600,6 +600,14 @@ Manual/Manhattan/可见性最短路径、相对折点与路由切换历史。
 |---|---|---|---|
 | P2-E03 | 容器编辑、父域坐标、换父、有序插入与嵌套创建 | `in_progress` | [ADR-055 修订 2](../adr/adr-055-container-editing-protocol.md)已获批准；公开协议、移动与父域创建/drop、跨布局与第三方消费者、完整选择/focus 与 history 已接入，见[实施记录](../verification/reviews/adr-055-implementation-2026-10-29.md)；续验容器契约 29 项、独立消费者 33 项通过，补创建视口变化及已取得反馈的清理准入拒绝，采集多父／大子树分配并修复无变化重排的重复扫描，见[续验复核](../verification/reviews/adr-055-followup-2026-10-29.md)；最终 workspace fmt／Clippy／test 与 docs 通过；2026-10-30 在隔离源码副本补真实 revision 耗尽的移动／创建 Tool 链路，并通过 Web DPR 1／2 的 capture、取消、静止指针 zoom／scroll 及 Native Retina 部分输入，见[补验记录](../verification/reviews/editor-container-followup-2026-10-30.md)；macOS 两种 Tool 窗口外释放已通过；跨显示器 DPI、系统 DnD、完整平台组合与成本拆分保留，未关闭 E03 |
 
+E03 本轮[组合续验](../verification/reviews/editor-container-combinations-2026-11-02.md)
+新增 Web DPR 1／2 的 46 个检查点，覆盖多选有序插入与历史、
+两种 Tool 的 revision／policy 失效和切换、静止指针 resize，以及 HTML 模板 drop。
+独立输入消费者 32 项通过；四组成本各采样 32 次，
+补齐模型复制、snapshot、投影更新、反馈与稳定化的阶段耗时。
+跨显示器 DPI、Native 系统文件 DnD、完整 Native 组合与内部工作量计数仍未完成；
+E03 保持 `in_progress`，本轮未启动 E04。
+
 P2-E04 开放吸附已形成 [ADR-058 草案](../adr/adr-058-open-editor-snapping.md)、
 [专题](../design/editor/open-snapping.md)与[验证矩阵](../verification/plans/editor-open-snapping.md)，
 状态为 `design-draft`，待评审，尚未实施。Grid／Geometry／Guide 与第三方策略共用

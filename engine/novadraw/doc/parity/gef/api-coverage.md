@@ -49,7 +49,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `interaction.selection` | SelectionTool / marquee | click、modifier、多选、拖拽与节点完全包含框选；取消不改变选择 | verified | G3/G4/P2 |
 | `interaction.create` | CreationTool / CreateRequest | 开放模板关联 RequestProtocol；点击/拖动和 typed drop 共用 policy/Command；取消清理 | verified | G4/P2 |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
-| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 基线已闭合；ADR-055 换父、有序插入已实现并通过无窗口契约，剩余故障组合与 Native/Web 输入验收待完成 | partial | G4/P2-E03 |
+| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 基线已闭合；ADR-055 换父、有序插入已实现，已补真实耗尽链路和 Web DPR 1／2 组合输入；Native 完整组合、跨显示器和剩余成本计数未关闭 | partial | G4/P2-E03 |
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
 | `connection.create` | CreateConnectionRequest / NodeEditPart request anchor | source-locked start/end 两阶段 Tool；endpoint behavior Anchor preview、反馈、模型 Command 与 undo/redo | verified | G5 |
 | `connection.reconnect` | ReconnectRequest / ConnectionEndpointEditPolicy | endpoint handle、稳定 Anchor descriptor preview、source/target 重连、合法性和 undo | verified | G5 |
@@ -134,6 +134,11 @@ Layout/Container Policy 的换父、有序插入与父坐标语义，
 不由 headless 成功推断平台 capture、DPI 或系统 DnD 等价。
 
 ## 推进规则
+
+E03 组合输入与阶段成本的新证据见
+[组合续验](../../verification/reviews/editor-container-combinations-2026-11-02.md)。
+本轮 Web 正例不提升整组 `interaction.change_bounds` 为 verified，
+HTML 模板 drop 不替代 Native 系统文件 DnD。
 
 1. 每个 G milestone 必须列出受影响 Family ID。
 2. `specified -> partial` 需要公共 API 与至少一个自动契约测试。

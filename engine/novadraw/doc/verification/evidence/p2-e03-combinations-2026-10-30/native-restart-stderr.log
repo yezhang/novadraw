@@ -1,0 +1,1 @@
+2026-10-30 18:02:29.883 editor-container-input-native[96257:162179691] WARNING: Secure coding is automatically enabled for restorable state! However, not on all supported macOS versions of this application. Opt-in to secure coding explicitly by implementing NSApplicationDelegate.applicationSupportsSecureRestorableState:.

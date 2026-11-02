@@ -13,6 +13,11 @@ Native/Web 实际输入、跨显示器及窗口外 capture 仍待验收。
 Web DPR 1／2 输入与 Native Retina 的部分输入组合，
 见[补验记录](../reviews/editor-container-followup-2026-10-30.md)。
 macOS 两种 Tool 的窗口外释放已通过；跨显示器、系统 DnD 与完整组合仍保留未完成。
+组合续验新增 Web DPR 1／2 共 46 个检查点，覆盖多选有序插入、
+revision／policy 失效、Tool 切换、静止指针 resize 与真实 HTML 模板 drop；
+模型复制、snapshot、投影、反馈与稳定化已分别计时。
+结果与未关闭范围见[组合续验](../reviews/editor-container-combinations-2026-11-02.md)。
+HTML drop 不替代 Native 系统文件 DnD，阶段耗时不替代全部内部工作量计数。
 目标契约：[ADR-055](../../adr/adr-055-container-editing-protocol.md)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
@@ -49,7 +54,7 @@ selection/focus、feedback owner、history/dirty 和 fault。
 | CE-15 | 会话同步发现新 revision；模型失败、投影失败；反馈 prepare 拒绝/lifecycle panic | 清理失败阻止 build/execute；保留原因与进度；成功命令 revision 不触发外部取消，成功 history 不回滚 |
 | CE-16 | 两个不同 Request/Payload/Plan 消费者；同 Viewer XY→Ordered 共同活动 P；只注册另一 family 的容器 | 分别证明泛型开放与同手势跨布局；真实注册 CheckContainerPermission，公共 Tool 查询 host/kind/精确子批并签发回执；不兼容 family 为未支持；不得直接构造回执或另写 Tool 代替 |
 | CE-17 | 原平面 SelectionTool、CreationTool、模板与连接回归 | G1–G5、直接文本编辑、Shapes 原有行为不变 |
-| CE-18 | 多选、多 policy slot、宽有序容器、深树、大源子树、连续输入 | 分记候选、角点映射、handler、child 扫描、排除展开、反馈及同步；记录缓存失效、p50/p95、feature 和能力关闭后的同配置产物 |
+| CE-18 | 多选、多 policy slot、宽有序容器、深树、大源子树、连续输入 | 分记候选、角点映射、handler、child 扫描、排除展开、反馈及同步；记录缓存失效、p50/p95 与 feature；产物体积只在用户明确要求时比较 |
 
 第三方消费还需覆盖独立 `ContainerCreationTemplate` 的关联 Payload/Plan，
 通过同一创建 Tool/drop，不能用业务代码直接改模型证明 CE-11/16。

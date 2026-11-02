@@ -1,0 +1,250 @@
+{
+  "parents16": {
+    "samples": 32,
+    "nodes": 40,
+    "timings_ns": {
+      "release_ns": {
+        "p50": 285167,
+        "p95": 353708
+      },
+      "model_clone": {
+        "p50": 3291,
+        "p95": 4374
+      },
+      "command_build": {
+        "p50": 3291,
+        "p95": 5083
+      },
+      "command_execute": {
+        "p50": 1959,
+        "p95": 2542
+      },
+      "snapshot_capture": {
+        "p50": 5500,
+        "p95": 6541
+      },
+      "projection_update": {
+        "p50": 131125,
+        "p95": 153792
+      },
+      "feedback_attach": {
+        "p50": 0,
+        "p95": 0
+      },
+      "feedback_cleanup": {
+        "p50": 55917,
+        "p95": 69291
+      },
+      "stabilization": {
+        "p50": 27583,
+        "p95": 48584
+      },
+      "preview_ns": {
+        "p50": 111542,
+        "p95": 165875
+      },
+      "preview_feedback_attach": {
+        "p50": 26417,
+        "p95": 37000
+      },
+      "preview_feedback_cleanup": {
+        "p50": 42,
+        "p95": 291
+      },
+      "preview_stabilization": {
+        "p50": 23916,
+        "p95": 39417
+      },
+      "post_release_stabilization": {
+        "p50": 5417,
+        "p95": 7584
+      }
+    }
+  },
+  "parents64": {
+    "samples": 32,
+    "nodes": 136,
+    "timings_ns": {
+      "release_ns": {
+        "p50": 1491292,
+        "p95": 1855833
+      },
+      "model_clone": {
+        "p50": 9917,
+        "p95": 13084
+      },
+      "command_build": {
+        "p50": 10042,
+        "p95": 14208
+      },
+      "command_execute": {
+        "p50": 6208,
+        "p95": 11333
+      },
+      "snapshot_capture": {
+        "p50": 17834,
+        "p95": 22292
+      },
+      "projection_update": {
+        "p50": 676375,
+        "p95": 848042
+      },
+      "feedback_attach": {
+        "p50": 0,
+        "p95": 0
+      },
+      "feedback_cleanup": {
+        "p50": 489333,
+        "p95": 623083
+      },
+      "stabilization": {
+        "p50": 74166,
+        "p95": 138251
+      },
+      "preview_ns": {
+        "p50": 377084,
+        "p95": 615917
+      },
+      "preview_feedback_attach": {
+        "p50": 112500,
+        "p95": 140625
+      },
+      "preview_feedback_cleanup": {
+        "p50": 83,
+        "p95": 583
+      },
+      "preview_stabilization": {
+        "p50": 69041,
+        "p95": 127417
+      },
+      "post_release_stabilization": {
+        "p50": 11875,
+        "p95": 15666
+      }
+    }
+  },
+  "subtree32": {
+    "samples": 32,
+    "nodes": 42,
+    "timings_ns": {
+      "release_ns": {
+        "p50": 222792,
+        "p95": 309084
+      },
+      "model_clone": {
+        "p50": 1375,
+        "p95": 1750
+      },
+      "command_build": {
+        "p50": 1459,
+        "p95": 1875
+      },
+      "command_execute": {
+        "p50": 1167,
+        "p95": 1542
+      },
+      "snapshot_capture": {
+        "p50": 5250,
+        "p95": 5709
+      },
+      "projection_update": {
+        "p50": 171375,
+        "p95": 224333
+      },
+      "feedback_attach": {
+        "p50": 0,
+        "p95": 0
+      },
+      "feedback_cleanup": {
+        "p50": 4709,
+        "p95": 4917
+      },
+      "stabilization": {
+        "p50": 23459,
+        "p95": 56667
+      },
+      "preview_ns": {
+        "p50": 39875,
+        "p95": 41458
+      },
+      "preview_feedback_attach": {
+        "p50": 2667,
+        "p95": 2958
+      },
+      "preview_feedback_cleanup": {
+        "p50": 42,
+        "p95": 42
+      },
+      "preview_stabilization": {
+        "p50": 18459,
+        "p95": 19250
+      },
+      "post_release_stabilization": {
+        "p50": 5333,
+        "p95": 6250
+      }
+    }
+  },
+  "subtree2048": {
+    "samples": 32,
+    "nodes": 2058,
+    "timings_ns": {
+      "release_ns": {
+        "p50": 14594333,
+        "p95": 15387708
+      },
+      "model_clone": {
+        "p50": 68250,
+        "p95": 101125
+      },
+      "command_build": {
+        "p50": 59875,
+        "p95": 89875
+      },
+      "command_execute": {
+        "p50": 51750,
+        "p95": 71292
+      },
+      "snapshot_capture": {
+        "p50": 254000,
+        "p95": 309333
+      },
+      "projection_update": {
+        "p50": 12957958,
+        "p95": 13856083
+      },
+      "feedback_attach": {
+        "p50": 0,
+        "p95": 0
+      },
+      "feedback_cleanup": {
+        "p50": 132375,
+        "p95": 302375
+      },
+      "stabilization": {
+        "p50": 895458,
+        "p95": 1201459
+      },
+      "preview_ns": {
+        "p50": 1003750,
+        "p95": 1256417
+      },
+      "preview_feedback_attach": {
+        "p50": 10375,
+        "p95": 18958
+      },
+      "preview_feedback_cleanup": {
+        "p50": 250,
+        "p95": 500
+      },
+      "preview_stabilization": {
+        "p50": 776125,
+        "p95": 1122042
+      },
+      "post_release_stabilization": {
+        "p50": 141083,
+        "p95": 269334
+      }
+    }
+  }
+}
