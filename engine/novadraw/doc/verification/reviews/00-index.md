@@ -17,7 +17,10 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-11-02 | [精确文字缓存查找优化与匹配 CPU 对照](text-cache-optimization-2026-11-02.md) |
+| 2026-11-02 | [当前 Core Rust 能力状态复核](core-capability-status-2026-11-02.md) |
 | 2026-11-02 | [S09-C Connections 注册准入与单入口迁移](p2-s09-c-implementation-2026-11-02.md) |
+| 2026-11-02 | [S09-D Editor 扩展错误与 panic 诊断（最终门禁待补验）](p2-s09-d-implementation-2026-11-02.md) |
 | 2026-10-30 | [S09-B Observations／Inspector 生命周期](p2-s09-b-implementation-2026-10-30.md) |
 | 2026-10-30 | [S09-A Animation 服务结果与成本验证](p2-s09-a-implementation-2026-10-30.md) |
 | 2026-10-30 | [ADR-057 修订 3 设计复核通过](adr-057-revision-3-review-2026-10-30.md) |

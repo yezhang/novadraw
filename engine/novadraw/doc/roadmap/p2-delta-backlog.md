@@ -546,7 +546,7 @@ HTML/PDF 与差异空白检查通过。T-1 至 T-4 全部关闭；上文各增�
 | 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |
 | 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
 | 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `complete` | ADR-020/024、TC-03 | A／B／C／D 全部完成；1,715 项回归通过，Native GPU、外部消费者、API 与成对产物／成本通过，R03／TC-03／API-F04／API-10 关闭，见[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md) |
-| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `in_progress` | P2-S03、TC-10 | 2026-10-30 用户接受 [ADR-057 修订 3](../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A Core Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)与 [S09-B Core Observations／Inspector](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)实现、消费者、成本与自动门禁已完成；2026-11-02 [S09-C Connections 注册](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)实现、消费者与自动门禁完成；Inspector 成本覆盖容量 64／4096，不代表引擎最大容量验收；下一片 S09-D Editor 扩展错误与 panic 诊断，整批审计项尚未关闭 |
+| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `in_progress` | P2-S03、TC-10 | 2026-10-30 用户接受 [ADR-057 修订 3](../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A Core Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)与 [S09-B Core Observations／Inspector](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)实现、消费者、成本与自动门禁已完成；2026-11-02 [S09-C Connections 注册](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)实现、消费者与自动门禁完成；[S09-D Editor 扩展诊断](../verification/reviews/p2-s09-d-implementation-2026-11-02.md)已实现，8 项公开夹具和 24 项消费者测试、定向严格 Clippy 通过，最终门禁与成本因磁盘空间不足待补验；Inspector 成本覆盖容量 64／4096，不代表引擎最大容量验收；整批审计项尚未关闭 |
 
 本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受单链 Execute
 约束；P2-S02 → P2-S03 → P2-S04 → P2-S05 已完成。P2-S05 的
@@ -624,7 +624,7 @@ typed 注册、候选仲裁、surface 修正和反馈／提交；Shapes 网格�
 Editor／GEF 当前顺序为 E03 剩余验收 → E04 开放吸附评审与实施 →
 键盘导航、多视图协调和框选策略；下列跨包审计顺序不替代该 Editor 范围。
 
-1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A／B／C 已完成，下一片为 S09-D，契约见 ADR-057。每批先核对当前
+1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A／B／C 已完成；S09-D 已实现并通过定向验证，下一步补成本与最终门禁，契约见 ADR-057。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
 2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
    消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。
@@ -1295,6 +1295,23 @@ scroll/resize p95 为 6.316/32.952 ms，变化较小且 resize 部分会话反�
 workspace fmt/check/Clippy、1575 项测试、公开 API Native/Web 与专项门禁通过；
 最后的范围值相等语义另通过定向测试。目标与剩余准入不改变，
 详情见[首批实施记录](../verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md)。
+
+2026-11-02 按当前 Rust 能力完成[状态复核](../verification/reviews/core-capability-status-2026-11-02.md)，
+高级 Graphics、Animation、structured flow、ScrollBar、共享场景均有实现，
+平台与整体性能状态分别保留。用户要求随后推进文字优化，本轮在 ADR-051
+内完成[精确缓存查找优化](../verification/reviews/text-cache-optimization-2026-11-02.md)：
+长度只预筛选候选，完整 request／引擎身份／revision 继续证明命中；
+固定槽位保留 FIFO 与旧快照。58 项定向测试、Rust 1.96 严格 Core Clippy 和
+Wasm Core 编译通过。每版三个会话、每会话 32 个正式 CPU 样本的查找累计
+P95 中位数降低约 58%～85%，整体追加／scroll／resize 变化不足 1%，
+IR 录制没有改善；该小片完成不关闭 LT-00～03、16 ms／4 ms 或平台验收。
+下一片仍需用完整阶段分母选择重复贡献／稳定化或宽度／原生覆盖分支。
+
+2026-11-02 用户要求先记录性能路线再继续推进，已在
+[文本顶尖性能路线](../design/architecture/text-performance-strategy.md)明确技术组合、
+owner、失败边界、测量口径与顺序。本轮下一片进入宽度变化的阶段核对与隔离实验，
+不提前启用未评审的分阶段引擎 API、原生覆盖裁剪或 worker。
+可行性记录完成后再依据完整成本冻结具体合同，LT 整体与平台状态保持。
 
 | 切片 | 状态 | 当前证据 |
 |---|---|---|
