@@ -20,7 +20,7 @@ debug 前两次首次布局约 11.6–11.8 秒。测量不含窗口/GPU 呈现�
 
 **现有样例规模与语义**
 
-Large 保留四十个 block：二十个正文 block 和二十个居中字号 block。每个正文 block 包含一条短句和四份长句；每个字号 block 包含二十个文字来源。加上首段可追加的目标，合计五百零一个文字来源。不同 Figure 来源身份、嵌套 inline、字号、baseline、tooltip 和首来源追加必须保留。[样例构造](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs#L236-L278)
+Large 保留四十个 block：二十个正文 block 和二十个居中字号 block。每个正文 block 包含一条短句和四份长句；每个字号 block 包含二十个文字来源。加上首段可追加的目标，合计五百零一个文字来源。不同 Figure 来源身份、嵌套 inline、字号、baseline、tooltip 和首来源追加必须保留。[样例构造](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs#L236-L278)
 
 Java 官方示例明确用于测试文档变化后的布局性能，允许向首个 TextFlow 追加字母和空格。因此优化要同时评估启动、首次稳定布局、滚动、追加文字和 resize。[官方源文件](file:///Users/bytedance/Documents/code/GitHub/gef-classic/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/text/TextFlowLargeExample.java)
 
@@ -39,7 +39,7 @@ Java 官方示例明确用于测试文档变化后的布局性能，允许向首
 
 证据入口：
 
-- [字体初始化](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs#L29-L69)
+- [字体初始化](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs#L29-L69)
 - [字体注册和 styled shaping](../../../crates/novadraw/src/render/text.rs#L1453-L1545)
 - [字体集合重建](../../../crates/novadraw/src/render/text.rs#L1765-L1810)
 - [测量与整页缓存](../../../crates/novadraw/src/figure/flow/snapshot.rs#L24-L126)

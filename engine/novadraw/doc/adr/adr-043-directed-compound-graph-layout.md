@@ -378,7 +378,7 @@ Figure/Connection adapter、动态测量反馈或两个官方图场景。
 局部交叉优化、横向辅助图求解和完整路径恢复；工作区不修改不可变请求。
 横向辅助图仍使用相同的受预算 rank 求解器，优化 attachment 之间的加权距离。
 
-GraphTests 的 16 个源码输入在 `examples/scenes/src/graph_fixtures.rs` 重建，
+GraphTests 的 16 个源码输入在 `crates/novadraw/examples/scenes/src/graph_fixtures.rs` 重建，
 SOUTH/EAST 的 32 个组合及重复输出一致性通过。fixture 使用源码声明的边顺序：
 上游 `shuffleConnections` 的 signed integer 乘法可能溢出并生成负下标；
 随机打乱只影响插入顺序，不改变本次重建的拓扑、尺寸、offset、span 或 weight。
@@ -414,7 +414,7 @@ rank 求解，跨层边建立 virtual nodes，空子图 rank 建立 bridge。同
 通过注册验证器。标准分层验证器检查 head/tail 选择、rank 区间与 feedback provenance；
 外部非分层算法使用相同入口和失败通道，不需要伪造 rank。
 
-`examples/scenes/src/compound_fixtures.rs` 重建 CompoundGraphTests 的 10 个输入，
+`crates/novadraw/examples/scenes/src/compound_fixtures.rs` 重建 CompoundGraphTests 的 10 个输入，
 保留源码尺寸、包含关系、边声明顺序及默认 width=1、padding=10；
 SOUTH/EAST 的 20 个组合通过，重复输出一致。独立测试覆盖空 group minimum、
 祖先/成员与嵌套 group 双向端点、跨 group 循环、group row constraint、zero span、

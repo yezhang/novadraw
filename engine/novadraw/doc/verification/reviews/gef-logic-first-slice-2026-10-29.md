@@ -8,7 +8,7 @@
 
 ## 实现范围
 
-独立包 `examples/native/gef-logic-demo/` 使用六节点半加器，包含 LED、AND、OR、
+独立包 `crates/novadraw-editor/examples/native/gef-logic-demo/` 使用六节点半加器，包含 LED、AND、OR、
 XOR，typed 输入/输出端口、Manhattan 正交路由和高低电平显示。
 节点创建、移动、删除、输入设置和导线创建/重连进入 EditorDomain；
 删除与撤销恢复文档身份、顺序和相邻导线。信号属于模型派生值，

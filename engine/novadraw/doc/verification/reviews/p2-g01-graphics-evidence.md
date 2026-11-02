@@ -14,7 +14,7 @@ Core 的 Paint、StrokeStyle、ClipPath 与多能力预检已贯通 Runtime、Ve
 Canvas2D fallback；Canvas2D 对新增能力显式拒绝。内置 PointList/Connection
 使用真实 stroke envelope；未修改递归渲染主循环、shaping 或字体 fallback。
 
-外部消费者位于 `examples/scenes/src/graphics.rs`，仅使用公开 API，
+外部消费者位于 `crates/novadraw/examples/scenes/src/graphics.rs`，仅使用公开 API，
 Native 和 Web 通过同一 `ndcanvas/graphics-extension` 场景构建。
 反馈使用专用 LayerFigure 的普通 Figure 添加、移动和删除，没有 XOR 合成。
 

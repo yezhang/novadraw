@@ -38,7 +38,7 @@ P1 表示影响本方案实施的设计缺口或适配风险，不表示当前�
 **证据。** Draw2D `TreeBranch.collapse()` 先计算折叠布局，再调用
 `animationReset(getNodeBounds())`，捕获后交换两端；`NormalLayout.layout()` 的静态
 折叠分支只将 contents 设为零尺寸。Novadraw 的
-[BranchLayout](../../../examples/native/draw2d-official-examples/src/examples/tree_layout.rs#L423-L425)
+[BranchLayout](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/tree_layout.rs#L423-L425)
 提交 title、contents bounds 和 contents visibility，也没有定义后代收拢终点。
 
 **建议。** 区分 committed final geometry 与 presentation terminal geometry。显式
@@ -171,11 +171,11 @@ owner 冲突、retarget 失败、取消和完成后的最终 origin；不写回�
 
 **发现。** T-2/T-3 尚未把现有消费者的适配范围写完整。
 
-**证据。** [BranchLayout](../../../examples/native/draw2d-official-examples/src/examples/tree_layout.rs#L423-L471)
+**证据。** [BranchLayout](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/tree_layout.rs#L423-L471)
 在 layout 中直接写共享 Lines，折叠时写入空线条。
-[TreeBranchFigure](../../../examples/native/draw2d-official-examples/src/examples/simple_tree_example.rs#L244-L269)
+[TreeBranchFigure](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/simple_tree_example.rs#L244-L269)
 只注册 Container capability，paint 读取 Lines。
-[19 节点 fixture](../../../examples/native/draw2d-official-examples/src/examples/tree_example.rs#L176-L237)
+[19 节点 fixture](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/tree_example.rs#L176-L237)
 直接挂到白色 host Figure，没有建立 Tree 专用 Viewport。现有面板尚无 Use Animation
 入口，源码注释也将其保留为独立表现/viewport 契约。
 

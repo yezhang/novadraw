@@ -138,7 +138,7 @@ Parley，也让 Command 的兼容性受第三方类型变化影响。
 - `doc/reference/draw2d/figure/text-label.md`
 - `doc/design/architecture/text-layout.md`
 - `/Users/bytedance/Documents/code/GitHub/xilem/masonry_core/src/core/text.rs`
-- `/Users/bytedance/Documents/code/GitHub/vello/examples/scenes/src/simple_text.rs`
+- `/Users/bytedance/Documents/code/GitHub/vello/crates/novadraw/examples/scenes/src/simple_text.rs`
 
 ## 日期
 

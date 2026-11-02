@@ -35,7 +35,7 @@ Runtime 的 prepare/complete_submission 仍负责提交与资源游标确认。
 
 ## 可运行示例
 
-`examples/native/winit-canvas-demo` 只创建一个窗口：
+`examples/integration/winit-canvas-demo` 只创建一个窗口：
 左 Canvas 直接用 Vello 绘制，右 Canvas 使用 Novadraw Runtime。
 两个矩形分别处理局部坐标拖拽。Tab 切换 Canvas 焦点，方向键移动 Canvas，
 R 恢复区域布局；窗口 resize 后重新分配区域和纹理。
@@ -129,7 +129,7 @@ macOS 原生自检已通过跨区 capture、DPI 局部拖拽、未变化纹理�
 
 ## 双 Canvas 样例统一使用 Novadraw
 
-`examples/native/winit-canvas-demo` 的两个区域现在都由 Novadraw 绘制，
+`examples/integration/winit-canvas-demo` 的两个区域现在都由 Novadraw 绘制，
 分别拥有 FigureTree、Runtime、字体资源与 VelloTextureRenderer。
 移除左侧直接编写 Vello Scene 的路径。矩形位置从各自 FigureTree 查询，
 拖拽通过 Runtime Figure mutation 修改，宿主仅保存指针偏移。
@@ -139,7 +139,7 @@ Native 自检覆盖独立 backend session、局部输入隔离、未变化纹理
 Canvas 移动、矩形旧像素清除，以及两侧的矩形颜色与 glyph 提交。
 当前运行截图为 `target/verification/winit-canvas/native-after.png`。
 样例接线见
-[双 Canvas Novadraw 样例](../../examples/native/winit-canvas-demo/README.md)。
+[双 Canvas Novadraw 样例](../../examples/integration/winit-canvas-demo/README.md)。
 
 ## Novadraw 双 Canvas 的 resize 呈现接入
 

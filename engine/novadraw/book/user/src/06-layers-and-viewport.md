@@ -300,8 +300,8 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 - 需要 Editor：优先使用 `GraphicalViewer` 已建立的标准根图层，不要自行复制拓扑。
 
 完整构建示例见
-[`examples/scenes/src/scroll_pane.rs`](../../../examples/scenes/src/scroll_pane.rs) 和
-[`examples/scenes/src/freeform.rs`](../../../examples/scenes/src/freeform.rs)。
+[`crates/novadraw/examples/scenes/src/scroll_pane.rs`](../../../crates/novadraw/examples/scenes/src/scroll_pane.rs) 和
+[`crates/novadraw/examples/scenes/src/freeform.rs`](../../../crates/novadraw/examples/scenes/src/freeform.rs)。
 
 ## 6.12 失败模式
 

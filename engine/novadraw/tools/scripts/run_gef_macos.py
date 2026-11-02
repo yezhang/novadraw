@@ -45,7 +45,7 @@ def main() -> None:
     subprocess.run(
         [
             "cargo", "build", "--release", "--locked",
-            "--manifest-path", str(project / "examples/native" / package / "Cargo.toml"),
+            "--manifest-path", str(project / "crates/novadraw-editor/examples/native" / package / "Cargo.toml"),
             "--bin", package,
         ],
         cwd=project,

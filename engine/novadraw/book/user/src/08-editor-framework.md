@@ -598,8 +598,8 @@ Web 的隐藏输入控件关闭自身 caret 显示，避免 canvas 光标与 DOM
 - [`GraphicalViewer::advance_time`](../../../crates/novadraw-editor/src/viewer/mod.rs#L880-L927)
 - [`GraphicalViewer::reset_direct_text_blink`](../../../crates/novadraw-editor/src/viewer/mod.rs#L2240-L2250)
 - [`FigureTree::set_visible_with_update`](../../../crates/novadraw/src/graph/mod.rs#L4177-L4205)
-- [`Native deadline 调度`](../../../examples/native/node-editor-demo/src/main.rs#L2017-L2070)
-- [`Web deadline 调度`](../../../examples/web/web-validation/src/direct_edit_mode.rs#L602-L644)
+- [`Native deadline 调度`](../../../crates/novadraw-editor/examples/native/node-editor-demo/src/main.rs#L2017-L2070)
+- [`Web deadline 调度`](../../../examples/integration/web-validation/src/direct_edit_mode.rs#L602-L644)
 
 ### 接受、取消与失败恢复
 
@@ -674,7 +674,7 @@ let domain = EditorDomain::new();
 | `app` | Viewer、EditorDomain、文本输入宿主和后端组合 |
 
 可运行示例：
-[`examples/native/node-editor-demo`](../../../examples/native/node-editor-demo)。该示例包含完整能力，
+[`crates/novadraw-editor/examples/native/node-editor-demo`](../../../crates/novadraw-editor/examples/native/node-editor-demo)。该示例包含完整能力，
 实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
 
 ## 8.16 失败模式

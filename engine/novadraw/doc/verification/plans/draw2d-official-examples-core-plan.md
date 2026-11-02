@@ -100,7 +100,7 @@ styled 引擎、原子 preparation、开放贡献 registry、结构化 flow 快�
 六个 Native 截图已检查；示例测试覆盖来源更新、光标命中、焦点键盘滚动、
 共享范围与窄窗口真实 Figure 混排。下一步按依赖推进 K06、K07/K08；
 K00/H04 随每批维护。
-每个入口有 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
+每个入口有 [Canvas 收口清单](../../../crates/novadraw/examples/native/draw2d-official-examples/completion-contracts.tsv)，
 只登记 Canvas 内的结构、行为和失败/资源需求。
 
 2026-10-22 Path 从 blocked 转为 in_progress：ScrollBar 与缩放使用已有 Core

@@ -87,7 +87,7 @@ Runtime 发布 Host 效果后，应用在读取重绘 token 和调度时间前�
 `winit-canvas` 继续不依赖 Novadraw；platform adapter 继续不依赖 Vello/WGPU。
 
 跨 crate 消费者为
-[双 Canvas Native 示例](../../examples/native/winit-canvas-demo/src/main.rs)：
+[双 Canvas Native 示例](../../examples/integration/winit-canvas-demo/src/main.rs)：
 两个画布分别使用 WinitCanvasHost 的 SurfaceInfo 驱动独立的
 Novadraw Runtime 和离屏 backend，通过同一 Coordinator 路由和确认重绘。
 

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET="${CARGO_TARGET_DIR:-$ROOT/target}"
 WASM_BINDGEN="${WASM_BINDGEN:-$ROOT/target/wasm-tools/bin/wasm-bindgen}"
-WEB_APP="$ROOT/examples/web/web-validation"
+WEB_APP="$ROOT/examples/integration/web-validation"
 DIST="$WEB_APP/dist"
 
 NOVADRAW_GIT_REVISION="${NOVADRAW_GIT_REVISION:-$(git -C "$ROOT" rev-parse HEAD)}"

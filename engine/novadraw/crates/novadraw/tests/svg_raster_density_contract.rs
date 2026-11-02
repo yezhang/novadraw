@@ -82,7 +82,7 @@ fn legacy_scale_remains_metadata_and_keeps_error_precedence() {
 fn svg_only_resolves_embedded_images_even_when_an_external_file_exists() {
     let external = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../examples/native/draw2d-official-examples/assets/zoom/class_obj.svg"
+        "/examples/native/draw2d-official-examples/assets/zoom/class_obj.svg"
     );
     assert!(std::path::Path::new(external).is_file());
     let svg = format!(

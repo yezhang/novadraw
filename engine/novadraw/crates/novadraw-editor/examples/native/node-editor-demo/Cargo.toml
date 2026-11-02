@@ -1,0 +1,16 @@
+[package]
+name = "node-editor-demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw = { path = "../../../../novadraw" }
+novadraw-backend-vello = { path = "../../../../novadraw-backend-vello", features = ["native"] }
+novadraw-editor = { path = "../../.." }
+novadraw-platform-winit = { path = "../../../../novadraw-platform-winit", features = ["editor"] }
+novadraw-example-support = { path = "../../../../../examples/support" }
+pollster.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+winit.workspace = true

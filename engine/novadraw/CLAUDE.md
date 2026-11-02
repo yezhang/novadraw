@@ -22,9 +22,11 @@ crates/novadraw-platform-web/    - Web 平台适配
 crates/novadraw-editor/          - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
 crates/novadraw-inspector/       - 只读诊断与观测
 crates/winit-canvas/             - 独立 winit Canvas UI 组件，不依赖 Novadraw/Vello
-examples/native/                - winit/macOS/桌面示例
-examples/web/                   - Wasm/浏览器示例
-examples/scenes/                - Native/Web 共用的无平台示例场景
+crates/novadraw/examples/native/ - Core 桌面示例，保留独立 Cargo package
+crates/novadraw/examples/scenes/ - Core Native/Web 共用的无平台场景
+crates/novadraw-editor/examples/ - Editor 示例，保留独立 Cargo package
+examples/integration/           - Core/Editor/平台等跨层集成示例
+examples/backend/               - 渲染后端示例
 examples/support/               - 示例共享宿主与工具
 benchmarks/                     - 无窗口性能基线
 tests/                          - 跨包消费者、oracle 资料与公开 API 快照
@@ -36,6 +38,9 @@ target/                         - 构建产物、日志、截图与本地采样�
 ```
 
 完整目录归属见 [README.md](README.md)。库包名与 Cargo 命令不因目录迁移改变。
+样例按主要展示的能力归属到对应 crate，平台作为第二层分类；跨层集成和共享宿主
+工具留在根 `examples/`。完整应用保留独立 workspace package，不将 GUI 依赖
+加入 Core／Editor 的 `dev-dependencies`；全仓库入口见 [样例导航](examples/README.md)。
 原始证据和独立报告整体迁移时核对 SHA-256，内部历史路径不作改写。
 
 `winit-canvas` 使用 winit 类型与可选 WGPU，不属于 backend-neutral Core。

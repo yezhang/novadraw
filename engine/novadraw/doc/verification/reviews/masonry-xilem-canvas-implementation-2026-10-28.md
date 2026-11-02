@@ -16,7 +16,7 @@
 - EditorCanvas：content-box 坐标输入、capture、取消、layout clip、动画回调驱动；
 - CanvasView：Send+Sync 描述及 build/sync/action 回调，rebuild 不重建会话。
 
-[`gef-editor-demo`](../../../examples/native/gef-editor-demo/README.md)的业务模型、
+[`gef-editor-demo`](../../../crates/novadraw-editor/examples/native/gef-editor-demo/README.md)的业务模型、
 Figure projection、typed ChangeBounds/CreateChild/DeleteParts policy 与 Command
 留在样例。Xilem toolbar 只入队动作，sync 消费一次；main 是 composition root。
 矩形/椭圆、选择/拖动、创建/删除、undo/redo 的底层机制均走公开 Editor API。
@@ -35,7 +35,7 @@ paint 只合成缓存 Scene。输入、layout、rebuild、DPI 更新及 Retry �
 ## 消费验证
 
 六项测试通过，入口为
-[`src/tests.rs`](../../../examples/native/gef-editor-demo/src/tests.rs)。
+[`src/tests.rs`](../../../crates/novadraw-editor/examples/native/gef-editor-demo/src/tests.rs)。
 [原始日志与截图](../evidence/masonry-xilem-2026-10-28/)包含成功与失败证据。
 
 | 范围 | 结果 |
@@ -57,8 +57,8 @@ GPU harness 使用真实 WGPU 纹理及 Vello，沿用上游 `use_cpu=true` 的�
 检查入口：
 
 ```sh
-cargo test --manifest-path examples/native/gef-editor-demo/Cargo.toml --lib -- --test-threads=1
-cargo clippy --manifest-path examples/native/gef-editor-demo/Cargo.toml --lib --bin gef-editor-demo --bin ui-shell-baseline -- -D warnings
+cargo test --manifest-path crates/novadraw-editor/examples/native/gef-editor-demo/Cargo.toml --lib -- --test-threads=1
+cargo clippy --manifest-path crates/novadraw-editor/examples/native/gef-editor-demo/Cargo.toml --lib --bin gef-editor-demo --bin ui-shell-baseline -- -D warnings
 cargo clippy --manifest-path crates/novadraw-platform-masonry/Cargo.toml --lib -- -D warnings
 ```
 
@@ -93,7 +93,7 @@ baseline 只保留 Xilem window/label，editor 增加 Core/Editor/Scene 与样�
 采样入口：
 
 ```sh
-cargo test --release --manifest-path examples/native/gef-editor-demo/Cargo.toml --lib input_and_scene_cost_sample -- --ignored --nocapture
+cargo test --release --manifest-path crates/novadraw-editor/examples/native/gef-editor-demo/Cargo.toml --lib input_and_scene_cost_sample -- --ignored --nocapture
 ```
 
 没有 RSS/GPU memory、Web 产物或冷启动分布证据。

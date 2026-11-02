@@ -24,6 +24,14 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def official_examples(source):
+    current = source / "crates/novadraw/examples/native/draw2d-official-examples"
+    if current.is_dir():
+        return current
+    # Materialized baselines may retain the layout from before the migration.
+    return source / "examples/native/draw2d-official-examples"
+
+
 def freeze_materialized(destination, binary, source):
     """The archive, rather than an evolving working tree, is this binary's source authority."""
     destination.mkdir(parents=True, exist_ok=False)
@@ -36,7 +44,8 @@ def freeze_materialized(destination, binary, source):
             if path.name not in ("target", ".git"):
                 archive.add(path, arcname=path.name)
     fonts = list((source / "assets/fonts").glob("*.ttf"))
-    fonts += list((source / "examples/native/draw2d-official-examples/assets").glob("*.ttf"))
+    example = official_examples(source)
+    fonts += list((example / "assets").glob("*.ttf"))
     manifest = {
         "version": 2,
         "source_authority": "complete materialized source.tar.gz, including Cargo.lock",
@@ -45,10 +54,10 @@ def freeze_materialized(destination, binary, source):
         "configuration_sha256": digest(source / "Cargo.toml"),
         "binary_sha256": digest(frozen_binary),
         "binary_bytes": frozen_binary.stat().st_size,
-        "driver_sha256": digest(source / "examples/native/draw2d-official-examples/src/bin/textflow-perf.rs"),
-        "workloads_sha256": digest(source / "examples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs"),
+        "driver_sha256": digest(example / "src/bin/textflow-perf.rs"),
+        "workloads_sha256": digest(example / "src/bin/textflow-perf/workloads.rs"),
         "sampler_sha256": digest(Path(__file__)),
-        "fixture_source_sha256": digest(source / "examples/native/draw2d-official-examples/src/examples/text_examples.rs"),
+        "fixture_source_sha256": digest(example / "src/examples/text_examples.rs"),
         "fonts": {str(p.relative_to(source)): digest(p) for p in fonts},
         "rustc": run("rustc", "-vV"), "cargo": run("cargo", "-V"),
         "machine": platform.machine(), "os": platform.platform(),
@@ -85,7 +94,7 @@ def freeze(destination, binary, workload="original"):
     shutil.copy2(binary, frozen_binary)
     shutil.copy2(ROOT / "Cargo.lock", destination / "Cargo.lock")
     fonts = list((ROOT / "assets/fonts").glob("*.ttf"))
-    fonts += list((ROOT / "examples/native/draw2d-official-examples/assets").glob("*.ttf"))
+    fonts += list((ROOT / "crates/novadraw/examples/native/draw2d-official-examples/assets").glob("*.ttf"))
     manifest = {
         "version": 1,
         "commit": run("git", "rev-parse", "HEAD"),
@@ -103,7 +112,7 @@ def freeze(destination, binary, workload="original"):
         "power": run("pmset", "-g", "batt"),
         "fonts": {str(p.relative_to(ROOT)): digest(p) for p in fonts},
         "font_order_source": ["crates/novadraw/src/render/text.rs",
-                              "examples/native/draw2d-official-examples/src/examples/text_examples.rs"],
+                              "crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs"],
         "build": {
             "command": "cargo build --release -p draw2d-official-examples --bin textflow-perf",
             "profile": "release",
@@ -115,7 +124,7 @@ def freeze(destination, binary, workload="original"):
                             if k in os.environ},
         },
         "fixture": "original TextFlowLargeExample public factory; fixed first-source append Z",
-        "fixture_source_sha256": digest(ROOT / "examples/native/draw2d-official-examples/src/examples/text_examples.rs"),
+        "fixture_source_sha256": digest(ROOT / "crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs"),
         "layout": {"initial_canvas": [600, 500], "effective_width": 586,
                    "font": "13px Arial", "paragraphs": 40, "bytes": 51232,
                    "lines": 561, "runs": 1022, "fragments": 4168},
@@ -130,7 +139,7 @@ def freeze(destination, binary, workload="original"):
         manifest["fixture"] = f"independent {workload} workload; fixed first-source append Z"
         manifest["layout"] = None
         manifest["fixture_source_sha256"] = digest(
-            ROOT / "examples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs")
+            ROOT / "crates/novadraw/examples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs")
     (destination / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return frozen_binary
 

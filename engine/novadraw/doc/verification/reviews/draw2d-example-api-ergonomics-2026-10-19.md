@@ -107,8 +107,8 @@ TreeBranch 的官方构造同时创建 contents Layer 和 title；More Children 
 事件中只修改 background。Rust 移植的 HoverEllipse 自行实现 paint、椭圆精确命中、
 INPUT 注册和事件处理；拖动矩形也自行实现绘制。见
 [官方 EllipseHitting](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/hittest/EllipseHitting.java)、
-[Rust HoverEllipse](../../../examples/native/draw2d-official-examples/src/examples/ellipse_hitting.rs#L24-L111)、
-[DraggableRectangle](../../../examples/native/draw2d-official-examples/src/examples/connection_and_anchor.rs#L86-L185)。
+[Rust HoverEllipse](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/ellipse_hitting.rs#L24-L111)、
+[DraggableRectangle](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/connection_and_anchor.rs#L86-L185)。
 
 这证明当前消费者发生了重复实现；它还不能证明所有可能的外部 wrapper 都无法实现。
 但公开 observations 主要提供更新、属性和 action 监听，未提供与 Java

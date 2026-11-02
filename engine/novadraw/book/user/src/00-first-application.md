@@ -26,8 +26,8 @@ cargo run -p node-editor-demo
 
 这些应用分成两层：
 
-- `examples/scenes`：只构造可复用场景；
-- `examples/native/*`：只负责窗口入口和场景选择；
+- `crates/novadraw/examples/scenes`：只构造可复用场景；
+- `crates/novadraw/examples/native/*`：只负责 Core 样例的窗口入口和场景选择；
 - `examples/support`：仓库内部的 Winit/Vello 演示宿主。
 
 产品应用可以采用这套分层，但不应把 `novadraw-example-support` 当作稳定产品框架。应用自己的
@@ -166,8 +166,8 @@ fn build_scene() -> Result<AppScene, Box<dyn Error>> {
 3. 树交给 `Runtime` 后，运行期修改不再经过 Builder。
 
 完整可运行场景见
-[`examples/scenes/src/update.rs`](../../../examples/scenes/src/update.rs) 和
-[`examples/scenes/src/layout.rs`](../../../examples/scenes/src/layout.rs)。
+[`crates/novadraw/examples/scenes/src/update.rs`](../../../crates/novadraw/examples/scenes/src/update.rs) 和
+[`crates/novadraw/examples/scenes/src/layout.rs`](../../../crates/novadraw/examples/scenes/src/layout.rs)。
 
 ## 5. 在运行期修改图形
 
@@ -296,7 +296,7 @@ let domain = EditorDomain::new();
 修改模型，查看器再把模型变化同步到图形场景。
 
 完整实现路线见[第 8 章](08-editor-framework.md)，可运行示例见
-[`examples/native/node-editor-demo`](../../../examples/native/node-editor-demo)。
+[`crates/novadraw-editor/examples/native/node-editor-demo`](../../../crates/novadraw-editor/examples/native/node-editor-demo)。
 
 ## 9. 推荐的应用目录
 

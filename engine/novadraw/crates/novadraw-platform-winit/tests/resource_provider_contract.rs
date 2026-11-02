@@ -8,7 +8,7 @@ use novadraw_platform_winit::FileResourceProvider;
 #[test]
 fn file_provider_keeps_io_decode_and_runtime_completion_separate() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/scenes/assets/image-demo.svg");
+        .join("../novadraw/examples/scenes/assets/image-demo.svg");
     let provider = FileResourceProvider::new();
     let bytes = provider.load(&fixture).expect("fixture file");
     let image_data = ImageData::decode(&bytes, 1.0).expect("fixture decode");

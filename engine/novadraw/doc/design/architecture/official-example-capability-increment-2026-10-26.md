@@ -186,7 +186,7 @@ Draw2D 固定提交 `4463d9d0ce13c19d10fbe769d29f28b7345a8cba`：
 `Ellipse.getOptimizedBounds`、`RoundedRectangle.fillShape`/`outlineShape`、
 `Triangle.validate`、`LightweightSystem.RootFigure.isMirrored`、
 `BlockFlow.validate`、`BlockFlowLayout.addBelowPreviousLine`。
-完整路径见 [官方来源清单](../../../examples/native/draw2d-official-examples/source-contracts.tsv)。
+完整路径见 [官方来源清单](../../../crates/novadraw/examples/native/draw2d-official-examples/source-contracts.tsv)。
 
 SWT 固定提交 `cc2762f9f02888b3b9122e534ddeabacd34b4604`：
 `bundles/org.eclipse.swt/Eclipse SWT/{cocoa,gtk,win32}/org/eclipse/swt/graphics/GC.java`。

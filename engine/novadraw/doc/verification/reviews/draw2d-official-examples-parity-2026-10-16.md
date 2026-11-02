@@ -23,13 +23,13 @@ Draw2D 基础类为准。[官方源码](https://github.com/eclipse-gef/gef-class
 | `not_implemented` | 1 | 尚未完成移植，不等同于 Core 缺能力 |
 | `blocked` | 13 | 已确认具体算法、API 或平台契约缺口 |
 
-代码状态入口：[catalog](../../../examples/native/draw2d-official-examples/src/lib.rs)。
+代码状态入口：[catalog](../../../crates/novadraw/examples/native/draw2d-official-examples/src/lib.rs)。
 所有 `in_progress` 条目会列出差额；无实现的条目不绑定替代 factory。
 
 ## 逐项对照
 
 下表路径均相对于官方 `org/eclipse/draw2d/examples/`。Rust 路径相对于
-`examples/native/draw2d-official-examples/src/examples/`。
+`crates/novadraw/examples/native/draw2d-official-examples/src/examples/`。
 
 | 官方名称与路径 | 状态 | 已实现或待移植的官方契约 | 具体差额或能力缺口 |
 |---|---|---|---|

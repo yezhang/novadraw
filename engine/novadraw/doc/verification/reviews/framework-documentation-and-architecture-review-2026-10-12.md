@@ -10,7 +10,7 @@
 
 目标是使用 Rust 与 WebGPU 建立行为对等 Draw2D、并具有更强组合能力和扩展能力的二维图形框架。对等对象是树、几何、布局、绘制、输入、更新、连接和扩展契约，不是 Java 类数量、方法拼写或 SWT 对象结构。Editor 是可选上层，不能成为使用绘图 Core 的前提。
 
-本次以本地 HEAD `89833d3` 和读取时的文档工作树为基线。此前未提交的 S02–S04 已进入近期提交；读取末尾工作区另有 `examples/scenes/src/uml.rs` 修改，不属于本次审查。文档清点得到 242 份 Markdown，其中 `doc/archive/` 外 230 份：42 份 design、36 份 ADR/索引、9 份 roadmap、4 份 parity、102 份 verification、4 份 migration、26 份 reference、6 份 strategy，以及总索引。
+本次以本地 HEAD `89833d3` 和读取时的文档工作树为基线。此前未提交的 S02–S04 已进入近期提交；读取末尾工作区另有 `crates/novadraw/examples/scenes/src/uml.rs` 修改，不属于本次审查。文档清点得到 242 份 Markdown，其中 `doc/archive/` 外 230 份：42 份 design、36 份 ADR/索引、9 份 roadmap、4 份 parity、102 份 verification、4 份 migration、26 份 reference、6 份 strategy，以及总索引。
 
 审查方法是全目录清点、关键术语与替代关系检索、核心规范和候选计划定向全文阅读，并对照本地 GEF Classic 的 `Figure.java` 与 `IClippingStrategy.java`。按项目理想架构分析约束，本次未扫描 Novadraw Rust 实现；实现完成事实引用既有完成记录，未重新运行行为、像素或性能测试。未逐篇复核全部历史验证报告、产品策略和迁移教程，其内容正确性不在本次结论范围内。
 

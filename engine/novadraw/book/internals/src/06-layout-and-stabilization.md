@@ -300,7 +300,7 @@ Runtime 稳定化，再读取光标和选区几何，避免把新 offset 与旧�
 验证见 [`graph_projection_contract.rs`](../../../crates/novadraw/tests/graph_projection_contract.rs)，
 覆盖 52 个官方输入方向组合、外部非分层算法、动态 EAST 测量、振荡、失败恢复
 和 tracked viewport 测量/滚动。真实 Label、边框、箭头与宿主菜单切换见
-[`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
+[`graph_examples.rs`](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
 
 ### 图算法的统一注册
 

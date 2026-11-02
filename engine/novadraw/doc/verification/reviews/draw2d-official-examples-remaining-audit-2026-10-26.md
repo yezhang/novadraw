@@ -12,8 +12,8 @@
 当前 catalog 登记 17 个 `complete`、7 个 `in_progress`、1 个 `blocked`，
 24 个入口有运行工厂，没有 `not_implemented` 条目。
 登记完成指已记录的 Canvas 范围，不代表全部平台、系统字体和窗口呈现均已验收。
-来源：[当前目录](../../../examples/native/draw2d-official-examples/src/lib.rs)、
-[Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)、
+来源：[当前目录](../../../crates/novadraw/examples/native/draw2d-official-examples/src/lib.rs)、
+[Canvas 收口清单](../../../crates/novadraw/examples/native/draw2d-official-examples/completion-contracts.tsv)、
 [剩余工作](../plans/draw2d-official-examples-next-slices-2026-10-23.md)。
 
 当前未收口的 8 个入口见下一节。其余 17 个为：
@@ -50,7 +50,7 @@ K07 六个批准切片与 K08 SVG 密度切片也已完成。
 来源：[布局消费者核验](k02-layout-consumers-evidence-2026-10-23.md)。
 
 Print 的字体替代可直接在
-[printing.rs](../../../examples/native/draw2d-official-examples/src/examples/printing.rs)
+[printing.rs](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/printing.rs)
 看到。Zoom 的 SVG 与输入证据分别见
 [密度更新核验](k08-svg-density-evidence-2026-10-23.md)、
 [输入归属修复](zoom-input-arbitration-2026-10-26.md)。
@@ -107,7 +107,7 @@ Native／WebGPU 支持及最终产物增量；当前没有这些成本的实测�
 跨字体段、跨行的通用装饰排版器尚未提供。这属于已经记录的 K08 后续增量，
 不能把它重新算成 Path 尚未移植，也没有证据表明它阻塞当前全部 8 个入口。
 来源：[边框与输出增量](../../design/architecture/official-example-border-output-increment.md)、
-[Path 实现](../../../examples/native/draw2d-official-examples/src/examples/path_example.rs)、
+[Path 实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/path_example.rs)、
 [剩余计划](../plans/draw2d-official-examples-next-slices-2026-10-23.md)。
 
 若继续扩展，需由 Text／Graphics 统一处理每段字体指标、baseline、逻辑范围、
@@ -119,7 +119,7 @@ bidi／换行分段和装饰 ink bounds；布局、命中与 damage 应读取同
 UML 便笺的填充已经采用 6 单位折角，但当前用同一个多边形描边，
 并继续用 6 单位绘制内折线。上游 DogEar 则先将 paint rectangle 的宽高减 1，
 使用 5 单位折角单独绘制边框。该差异可从源码直接确认，尚未进行本轮像素测量。
-来源：[当前 StickyNote](../../../examples/native/draw2d-official-examples/src/examples/uml_class_diagram.rs)、
+来源：[当前 StickyNote](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/uml_class_diagram.rs)、
 [上游 StickyNote／DogEar](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/uml/StickyNote.java)。
 
 这项应使用已有普通 Border／Graphics 能力修正，并验证 Insets、窄宽文字和旧新
@@ -132,7 +132,7 @@ Print 的三个字体、UML 的系统默认字族、Zoom 请求的 Arial 需要�
 font bytes／face，并验证实际解析字体与指标；只更改 family 字符串不足以证明对等。
 来源：[字体引擎](../../../crates/novadraw/src/render/text.rs)、
 [字体资源入口](../../../crates/novadraw/src/runtime/runtime/service_facades.rs)、
-[样例字体初始化](../../../examples/native/draw2d-official-examples/src/examples/mod.rs)。
+[样例字体初始化](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/mod.rs)。
 
 主题、跨显示器 DPI 与窗口呈现也应分别由 Figure 组件、platform／backend 和验证
 承担。字体按需加载的体积、首次加载与资源寿命需要评估，不能将全部系统字体内置。

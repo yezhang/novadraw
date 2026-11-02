@@ -1,0 +1,19 @@
+[package]
+name = "gef-editor-demo"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+rust-version = "1.96"
+default-run = "gef-editor-demo"
+publish = false
+
+[dependencies]
+novadraw = { path = "../../../../novadraw" }
+novadraw-backend-vello = { path = "../../../../novadraw-backend-vello" }
+novadraw-editor = { path = "../../.." }
+eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
+egui = "0.35"
+egui-phosphor = { version = "0.13", default-features = false, features = ["regular"] }
+egui-wgpu = { version = "0.35", default-features = false }
+serde.workspace = true
+serde_json.workspace = true

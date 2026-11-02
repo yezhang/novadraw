@@ -8,13 +8,13 @@
 
 ## 宿主背景和 Canvas 内容分别拥有
 
-独立二进制 [`inherit-background`](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+独立二进制 [`inherit-background`](../../../crates/novadraw/examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
 在一个 winit Window 中拥有两个 Canvas、两个 Runtime 和两个 Vello 纹理消费者。
 左侧 root 不透明并绘制橙色，右侧 root 透明，两侧显示同一段官方文字。
 文字使用内置 Inter；SWT Group、Shell 和原生滚动条外观不属于本次对等范围。
 滚轮通过 Core Viewport 滚动，窗口内 Canvas 的坐标和输入由平台 Canvas 桥接处理。
 
-宿主注册 [`ParentGradient`](../../../examples/native/draw2d-official-examples/src/inherit_background.rs)，
+宿主注册 [`ParentGradient`](../../../crates/novadraw/examples/native/draw2d-official-examples/src/inherit_background.rs)，
 通过公开 typed provider registry 录制白色、浅绿色、白色的纵向背景。
 渐变中点为宿主 y=400，终点为 y=800，与官方输入一致。
 每个 Runtime 分别取得 request 并受检接收候选；帧准备将背景与 Canvas 一起冻结。

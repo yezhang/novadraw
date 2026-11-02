@@ -8,7 +8,7 @@
 
 ## 1. 目标与范围
 
-本验证通过 `examples/native/uml-demo` 的订单域类图检查框架能否在不修改 Core 分支的
+本验证通过 `crates/novadraw/examples/native/uml-demo` 的订单域类图检查框架能否在不修改 Core 分支的
 前提下组合复杂业务图形。参考对象限定为 Draw2D 自带样例：
 
 - `org.eclipse.draw2d.examples.uml.UMLClassDiagram`

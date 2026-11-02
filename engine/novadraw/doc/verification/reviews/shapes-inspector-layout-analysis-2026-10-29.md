@@ -18,11 +18,11 @@
 
 ## 代码入口
 
-- [ui.rs](../../../examples/native/gef-editor-demo/src/ui.rs)：`show_inspector`、
+- [ui.rs](../../../crates/novadraw-editor/examples/native/gef-editor-demo/src/ui.rs)：`show_inspector`、
   `object_summary`、`section_title`、`geometry_editor`、`property_grid`。
-- [native.rs](../../../examples/native/gef-editor-demo/src/native.rs)：
+- [native.rs](../../../crates/novadraw-editor/examples/native/gef-editor-demo/src/native.rs)：
   `configure_style` 提供全局控件间距、按钮内边距和选择配色。
-- [lib.rs](../../../examples/native/gef-editor-demo/src/lib.rs)：`project`、
+- [lib.rs](../../../crates/novadraw-editor/examples/native/gef-editor-demo/src/lib.rs)：`project`、
   `property_subject`、`UiCommand::ApplyProperties` 维护属性投影和编辑命令。
 
 行号可能随其他工作变化，接手时按函数名定位并重新读取代码。

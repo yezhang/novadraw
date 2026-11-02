@@ -2,7 +2,7 @@ use novadraw::render::{ImageData, ImageDecodeError};
 use novadraw::runtime::Runtime;
 use novadraw::runtime::{ImageCompletionError, ResourceError, ResourceStatus};
 
-const SVG: &[u8] = include_bytes!("../../../examples/scenes/assets/image-demo.svg");
+const SVG: &[u8] = include_bytes!("../examples/scenes/assets/image-demo.svg");
 
 #[test]
 fn replacement_request_rejects_stale_completion_without_mutating_resource() {

@@ -146,7 +146,7 @@ runtime
 场景见[第 6 章](06-layers-and-viewport.md)。
 
 完整布局示例集中在
-[`examples/scenes/src/layout.rs`](../../../examples/scenes/src/layout.rs)。阅读时优先看场景构造
+[`crates/novadraw/examples/scenes/src/layout.rs`](../../../crates/novadraw/examples/scenes/src/layout.rs)。阅读时优先看场景构造
 函数，不需要从 native 应用的窗口代码开始。
 
 ## 4.5 测量先于排列
@@ -420,7 +420,7 @@ Runtime 会准备图结果、写入候选位置、计算整组路径，再提交
 不改变图拓扑和图布局坐标。
 
 完整消费者见
-[`graph_examples.rs`](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
+[`graph_examples.rs`](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/graph_examples.rs)。
 运行后，Graph 菜单选择官方 fixture，Graph Direction 选择 SOUTH/EAST；
 超出视口的内容通过宿主面板的 Horizontal/Vertical 控制查看。
 
@@ -494,7 +494,7 @@ destination.scenes().install_view(binding, snapshot)?;
 `installed_view` 返回可保留的 `InstalledScene`，其中 drawing 已改写为目标资源 ID。
 旧、新来源 revision 使用不同 ID，可同时存活。保留该结果也保留 CPU 资源 lease；
 reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
-官方 Thumbnail 的 [Native 消费者](../../../examples/native/draw2d-official-examples/src/examples/thumbnail.rs)
+官方 Thumbnail 的 [Native 消费者](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/thumbnail.rs)
 展示了宿主如何拥有 source 和 destination：主视图转交值输入，源提交后捕获，
 再将同一完整结果安装到主视图和 overview。overview resize 不触发源捕获。
 生命周期和图像证据见 [K07-4 记录](../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)；
@@ -517,7 +517,7 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 内容滚动不改变 `host_to_canvas`，移动 Canvas 则需要新的位置版本。
 后端必须声明 `HostBackground` capability；不支持的后端在准备时明确拒绝。
 公开调用反例见 [`p2_host_background`](../../../crates/novadraw/tests/p2_host_background.rs)。
-官方 [InheritBackground 宿主](../../../examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+官方 [InheritBackground 宿主](../../../crates/novadraw/examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
 拥有两个 Canvas Runtime，注册同一个背景提供者，再分别完成各自 request。
 运行 `cargo xtask verify example.inherit-background` 可检查滚动、移动、背景移除和重建。
 

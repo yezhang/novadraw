@@ -87,7 +87,7 @@ cargo xtask verify web.build
 预期退出码为 0，并生成：
 
 ```text
-examples/web/web-validation/dist/
+examples/integration/web-validation/dist/
 ├── index.html
 ├── styles.css
 └── pkg/

@@ -1,7 +1,7 @@
 use novadraw::geometry::{Dimension, Insets};
 use novadraw::layout::graph::*;
 
-#[path = "../../../examples/scenes/src/compound_fixtures.rs"]
+#[path = "../examples/scenes/src/compound_fixtures.rs"]
 mod fixtures;
 
 fn context() -> GraphSolveContext {

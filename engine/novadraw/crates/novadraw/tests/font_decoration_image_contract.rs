@@ -53,8 +53,7 @@ fn underline_metrics_scale_with_the_resolved_face_and_external_engines_share_the
 
 #[test]
 fn original_ico_decodes_without_conversion_and_invalid_inputs_fail_explicitly() {
-    let bytes =
-        include_bytes!("../../../examples/native/draw2d-official-examples/assets/brazil.ico");
+    let bytes = include_bytes!("../examples/native/draw2d-official-examples/assets/brazil.ico");
     let image = ImageData::decode(bytes, 1.0).unwrap();
     assert!(image.width > 0 && image.height > 0);
     assert_eq!(

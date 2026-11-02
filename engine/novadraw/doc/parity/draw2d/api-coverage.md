@@ -320,7 +320,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
-Novadraw 验证入口：`crates/novadraw/tests/m4_coordinate_contract.rs`、`examples/native/transform-app`。
+Novadraw 验证入口：`crates/novadraw/tests/m4_coordinate_contract.rs`、`crates/novadraw/examples/native/transform-app`。
 
 ### M5 Layout / Validation / UpdateManager
 

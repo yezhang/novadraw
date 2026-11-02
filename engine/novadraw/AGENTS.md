@@ -49,6 +49,9 @@
 
 - 目录归属与构建入口：`README.md`；库源码统一位于 `crates/`，
   跨包测试位于 `tests/`，脚本位于 `tools/scripts/`。
+- 样例按能力归属维护：Core 在 `crates/novadraw/examples/`，Editor 在
+  `crates/novadraw-editor/examples/`；跨层集成、后端样例与共享宿主工具在根
+  `examples/`。完整应用保留独立 Cargo package，导航见 `examples/README.md`。
 - 历史证据：`doc/verification/evidence/`；独立字体比较报告及原始 GPU demos：
   `doc/reference/fonts/reports/`。内部历史路径与原始字节保持不变。
 - 项目文档总入口：`doc/00-index.md`

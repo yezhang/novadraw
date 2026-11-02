@@ -63,8 +63,8 @@ child presentation 的片段查找成本按 placement 数 P 和 fragment 数 F �
 这些属于可证明的重复工作；各项占 420 ms 的比例仍需分别计时。
 
 证据：
-[工厂与字体](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)、
-[交互根与值级快照复制](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)、
+[工厂与字体](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs)、
+[交互根与值级快照复制](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_interaction.rs)、
 [FlowLayoutService 与全文绘制](../../../crates/novadraw/src/figure/flow/snapshot.rs)、
 [styled 布局](../../../crates/novadraw/src/text/styled.rs)、
 [布局复制及 cluster 映射](../../../crates/novadraw/src/render/text.rs)、

@@ -17,7 +17,7 @@ ObstructionExample 的初值就是 5 个绿色障碍矩形和坐标文字，没�
 将该入口从 `complete` 改为 `in_progress`。修订后目录为 16 个 `complete`、
 8 个 `in_progress`、1 个 `blocked`，24 个入口有运行工厂；默认共享窗口提供
 23 个入口，InheritBackground 使用独立双 Canvas 宿主。
-来源：[目录和完成计数](../../../examples/native/draw2d-official-examples/src/lib.rs)。
+来源：[目录和完成计数](../../../crates/novadraw/examples/native/draw2d-official-examples/src/lib.rs)。
 
 这个计数只表示登记状态。Caret 的选择绘制与边界、HelloWorld 的窗口尺寸适配、
 字体替代以及真实窗口视觉证据仍需分别核验，不能将 16 个完成标记解释为
@@ -40,7 +40,7 @@ SWT.RIGHT_TO_LEFT 引起的 Canvas 镜像会改变内部 Draw2D 行为，仍在�
 
 下表按窗口固定序号排列。“已覆盖”指源码调用链和现有断言能够支持的范围；
 “待核验”没有被本次检查证明完成。官方入口路径可由
-[来源清单](../../../examples/native/draw2d-official-examples/source-contracts.tsv)
+[来源清单](../../../crates/novadraw/examples/native/draw2d-official-examples/source-contracts.tsv)
 逐项定位，完整源码目录见文末。每行链接指向对应 Rust 实现，文件内测试可追溯
 该行的已覆盖行为。
 
@@ -48,31 +48,31 @@ SWT.RIGHT_TO_LEFT 引起的 Canvas 镜像会改变内部 Draw2D 行为，仍在�
 
 | 序号与入口 | 官方预期画面及操作 | 当前覆盖 | 差异或剩余证据 |
 |---|---|---|---|
-| 01 HelloWorld | 一个 Hello World Label；Canvas 随窗口变化显示文字 | [实现](../../../examples/native/draw2d-official-examples/src/examples/hello_world.rs)保留 Label 与 200×100 初值，结构测试通过 | 目录 complete。额外白色包装 root 内的 Label 固定为 200×100，没有布局管理器；现有测试仅检查初值，需补 resize 后的尺寸、对齐和绘制核验。默认系统字体被 Inter 替代 |
-| 02 ObstructionExample | 初始 5 个绿色矩形及 x/y/w/h 文字；空白左拖建障碍、两次右键建端点/路线；拖动重新寻路；右键删障碍、中键删端点 | [实现](../../../examples/native/draw2d-official-examples/src/examples/obstruction.rs)有真实输入、组求解、障碍生命周期、待配对端点和成对删除；4 个交互测试覆盖这些路径 | 目录 complete。初始无连接正确；成对删除修正官方 parent mismatch，属于已记录差异。showSegs 在官方和当前均只翻转状态，不能要求它额外显示未被官方绘制的网格 |
-| 03 ConnectionAndAnchorExample | 两个 GroupBox、4 个彩色矩形、2 条箭头连接；Midpoint、两个 Endpoint 标签和说明；拖动节点时锚点与标签跟随 | [实现](../../../examples/native/draw2d-official-examples/src/examples/connection_and_anchor.rs)覆盖组成、owner-aware locator、标签测量与偏移面板内拖动重路由 | 目录 complete。已有代表性 Native 图像；字体和系统颜色使用便携替代，不能据此宣称所有系统主题逐像素等价 |
-| 04 CompoundGraphDemo | 10 个图输入、SOUTH/EAST 两方向；蓝色子图边框先于节点/边绘制；图模型可嵌套，Figure 视觉平铺 | [实现](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)经 GraphProjection 求解全部输入；真实面板切换、替换与释放、跨组边有测试 | 目录 complete。20 个组合属于既有算法验收；Tahoma 被 Inter 替代。代表性图像不能证明所有组合的窗口呈现均已逐帧验收 |
-| 05 DirectedGraphDemo | 16 个图输入、SOUTH/EAST 两方向；灰底节点标签、入度为零节点粗边、灰色箭头边和虚拟节点折点 | [实现](../../../examples/native/draw2d-official-examples/src/examples/graph_examples.rs)覆盖全部输入、方向切换、标签资源和连接发布 | 目录 complete。32 个组合属于既有算法验收；没有额外节点拖拽要求。实际字体与平台呈现仍按证据范围报告 |
-| 06 EllipseHitting | 4 个不同宽高的椭圆按 Flow 排列；鼠标进入椭圆变黄，离开变白；外接矩形的角落不算命中 | [实现](../../../examples/native/draw2d-official-examples/src/examples/ellipse_hitting.rs)覆盖官方尺寸公式、精确椭圆命中和 enter/exit 更新 | 目录 complete。结构与交互已有断言；连续窗口 resize 和旧新颜色的实际后端像素不能由命中断言代替 |
-| 07 FlowLayoutExample | 11 个官方尺寸和颜色的 Shape；横纵方向、换行、主次轴对齐、两组独立 spacing、stretch 与恢复 | [实现](../../../examples/native/draw2d-official-examples/src/examples/flow_layout_example.rs)和真实面板覆盖矩阵、整数居中、不等 spacing、缩放窗口与自然尺寸恢复 | 目录 in_progress。连续真实窗口 resize、文字 minimum 消费者和 retained-partial 擦除仍未闭合 |
-| 08 GridLayoutExample | 初始 2 个 Shape；Add 按 9 项序列循环、Clear；点选粗描边并编辑 columns、margin、spacing、span、grab、hint、indent、alignment | [实现](../../../examples/native/draw2d-official-examples/src/examples/grid_layout_example.rs)覆盖实际面板、选择释放、9 项序列、布局约束、非法输入和零空间恢复 | 目录 in_progress。不能用测试中的旧 mock 控件证明当前面板；已有独立真实面板测试。文字约束、连续窗口 resize 和 retained-partial 像素仍待验 |
-| 09 ToolbarLayoutExample | 5 个 Shape 单行/单列排列；方向、minor alignment、spacing、stretch、收缩与恢复；方向切换仅在 stretch 时 reset | [实现](../../../examples/native/draw2d-official-examples/src/examples/toolbar_layout_example.rs)覆盖自然尺寸、方向/stretch/恢复和真实面板驱动 | 目录 in_progress。文字 minimum、连续窗口 resize 和 retained-partial 擦除仍待验 |
-| 10 PathExample | 红色闭合四点路径旋转 45°、线宽 3；旋转 zoom 文字、下划线与选字；滑块公式 `(value+50)*0.02f` | [实现](../../../examples/native/draw2d-official-examples/src/examples/path_example.rs)覆盖闭合/旋转、fill/outline 各一次文字绘制、selection clip、字体指标下划线、SchemeBorder 和真实按钮缩放 | 目录 complete。README 的旧 in_progress 描述已纠正。跨字体段通用装饰仍未提供，但不属于这个单字体静态入口的缺失功能 |
-| 11 PrintExample | 三个字体标签、矩形/椭圆/圆角矩形、Draw2D Button、2 个连接节点、连接和 brazil.ico；图文可输出 | [实现](../../../examples/native/draw2d-official-examples/src/examples/printing.rs)有 11 个 children、真实 ICO、字体/图像命令与 resize 重路由 | 目录 in_progress。Helvetica、Times New Roman、Perpetua 都被 Inter 替代；字号还需统一 pt 到逻辑 px 的映射。实际打印对话框/作业不属于本范围 |
-| 12 ScrollPaneExample | 两个同位置重叠的 InternalFrame；一个 Toolbar/Flow 与 George 图像内容，一个固定 100×100；拖标题、八向 resize、自动滚动条及 cursor | [实现](../../../examples/native/draw2d-official-examples/src/examples/scroll_pane_example.rs)覆盖两个 frame、标题/边框、真实 ScrollPane、图像、拖动和 resize | 目录 in_progress。主题与完整视觉验收待完成。初始前面的 frame 遮住后面的 frame 符合上游相同初始 bounds，移动前面的 frame 后再检查后者 |
-| 13 InheritBackgroundExample | 两个 Canvas 同样文字；左侧橙色自绘背景，右侧透明并继承宿主白/绿/白渐变；滚动时背景相位正确 | [专用宿主](../../../examples/native/draw2d-official-examples/src/inherit_background.rs)与两个 Runtime 实现背景输入、滚动、移动、DPI、移除和重建 | 目录 complete。必须从专用二进制验收；默认共享场景的单 Runtime 不能证明双 Canvas 背景继承 |
+| 01 HelloWorld | 一个 Hello World Label；Canvas 随窗口变化显示文字 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/hello_world.rs)保留 Label 与 200×100 初值，结构测试通过 | 目录 complete。额外白色包装 root 内的 Label 固定为 200×100，没有布局管理器；现有测试仅检查初值，需补 resize 后的尺寸、对齐和绘制核验。默认系统字体被 Inter 替代 |
+| 02 ObstructionExample | 初始 5 个绿色矩形及 x/y/w/h 文字；空白左拖建障碍、两次右键建端点/路线；拖动重新寻路；右键删障碍、中键删端点 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/obstruction.rs)有真实输入、组求解、障碍生命周期、待配对端点和成对删除；4 个交互测试覆盖这些路径 | 目录 complete。初始无连接正确；成对删除修正官方 parent mismatch，属于已记录差异。showSegs 在官方和当前均只翻转状态，不能要求它额外显示未被官方绘制的网格 |
+| 03 ConnectionAndAnchorExample | 两个 GroupBox、4 个彩色矩形、2 条箭头连接；Midpoint、两个 Endpoint 标签和说明；拖动节点时锚点与标签跟随 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/connection_and_anchor.rs)覆盖组成、owner-aware locator、标签测量与偏移面板内拖动重路由 | 目录 complete。已有代表性 Native 图像；字体和系统颜色使用便携替代，不能据此宣称所有系统主题逐像素等价 |
+| 04 CompoundGraphDemo | 10 个图输入、SOUTH/EAST 两方向；蓝色子图边框先于节点/边绘制；图模型可嵌套，Figure 视觉平铺 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/graph_examples.rs)经 GraphProjection 求解全部输入；真实面板切换、替换与释放、跨组边有测试 | 目录 complete。20 个组合属于既有算法验收；Tahoma 被 Inter 替代。代表性图像不能证明所有组合的窗口呈现均已逐帧验收 |
+| 05 DirectedGraphDemo | 16 个图输入、SOUTH/EAST 两方向；灰底节点标签、入度为零节点粗边、灰色箭头边和虚拟节点折点 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/graph_examples.rs)覆盖全部输入、方向切换、标签资源和连接发布 | 目录 complete。32 个组合属于既有算法验收；没有额外节点拖拽要求。实际字体与平台呈现仍按证据范围报告 |
+| 06 EllipseHitting | 4 个不同宽高的椭圆按 Flow 排列；鼠标进入椭圆变黄，离开变白；外接矩形的角落不算命中 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/ellipse_hitting.rs)覆盖官方尺寸公式、精确椭圆命中和 enter/exit 更新 | 目录 complete。结构与交互已有断言；连续窗口 resize 和旧新颜色的实际后端像素不能由命中断言代替 |
+| 07 FlowLayoutExample | 11 个官方尺寸和颜色的 Shape；横纵方向、换行、主次轴对齐、两组独立 spacing、stretch 与恢复 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/flow_layout_example.rs)和真实面板覆盖矩阵、整数居中、不等 spacing、缩放窗口与自然尺寸恢复 | 目录 in_progress。连续真实窗口 resize、文字 minimum 消费者和 retained-partial 擦除仍未闭合 |
+| 08 GridLayoutExample | 初始 2 个 Shape；Add 按 9 项序列循环、Clear；点选粗描边并编辑 columns、margin、spacing、span、grab、hint、indent、alignment | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/grid_layout_example.rs)覆盖实际面板、选择释放、9 项序列、布局约束、非法输入和零空间恢复 | 目录 in_progress。不能用测试中的旧 mock 控件证明当前面板；已有独立真实面板测试。文字约束、连续窗口 resize 和 retained-partial 像素仍待验 |
+| 09 ToolbarLayoutExample | 5 个 Shape 单行/单列排列；方向、minor alignment、spacing、stretch、收缩与恢复；方向切换仅在 stretch 时 reset | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/toolbar_layout_example.rs)覆盖自然尺寸、方向/stretch/恢复和真实面板驱动 | 目录 in_progress。文字 minimum、连续窗口 resize 和 retained-partial 擦除仍待验 |
+| 10 PathExample | 红色闭合四点路径旋转 45°、线宽 3；旋转 zoom 文字、下划线与选字；滑块公式 `(value+50)*0.02f` | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/path_example.rs)覆盖闭合/旋转、fill/outline 各一次文字绘制、selection clip、字体指标下划线、SchemeBorder 和真实按钮缩放 | 目录 complete。README 的旧 in_progress 描述已纠正。跨字体段通用装饰仍未提供，但不属于这个单字体静态入口的缺失功能 |
+| 11 PrintExample | 三个字体标签、矩形/椭圆/圆角矩形、Draw2D Button、2 个连接节点、连接和 brazil.ico；图文可输出 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/printing.rs)有 11 个 children、真实 ICO、字体/图像命令与 resize 重路由 | 目录 in_progress。Helvetica、Times New Roman、Perpetua 都被 Inter 替代；字号还需统一 pt 到逻辑 px 的映射。实际打印对话框/作业不属于本范围 |
+| 12 ScrollPaneExample | 两个同位置重叠的 InternalFrame；一个 Toolbar/Flow 与 George 图像内容，一个固定 100×100；拖标题、八向 resize、自动滚动条及 cursor | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/scroll_pane_example.rs)覆盖两个 frame、标题/边框、真实 ScrollPane、图像、拖动和 resize | 目录 in_progress。主题与完整视觉验收待完成。初始前面的 frame 遮住后面的 frame 符合上游相同初始 bounds，移动前面的 frame 后再检查后者 |
+| 13 InheritBackgroundExample | 两个 Canvas 同样文字；左侧橙色自绘背景，右侧透明并继承宿主白/绿/白渐变；滚动时背景相位正确 | [专用宿主](../../../crates/novadraw/examples/native/draw2d-official-examples/src/inherit_background.rs)与两个 Runtime 实现背景输入、滚动、移动、DPI、移除和重建 | 目录 complete。必须从专用二进制验收；默认共享场景的单 Runtime 不能证明双 Canvas 背景继承 |
 | 14 ShapeStylesExample | 5 种 Shape；8 个样式轴任取 X/Y 构成矩阵；每单元先施加 X 再 Y；含 AA、零宽、低 miter、dash offset、alpha 和 disabled | 当前无工厂，矩阵消费者未实现 | 目录 blocked。普通 stroke/alpha API 和独立 AA 实验不能替代此入口；AA OFF、hairline、miter 0/0.5 仍缺完整生产契约与后端证据 |
-| 15 BidiBlockExample | 两侧各 10 个段落；分别比较默认 Canvas 与 RTL 镜像 Canvas；段落 LTR/RTL 和相对/绝对对齐共存；共享纵向 range | [实现](../../../examples/native/draw2d-official-examples/src/examples/bidi_block.rs)有独立内容、十段方向/对齐与共享 range | 本轮改为 in_progress。右侧与左侧创建过程相同，没有 Canvas 镜像；现有测试未检查两侧镜像差异 |
-| 16 CaretExample | 多语种文字、蓝底、10 单位边框和 begin/end FlowBorder；移动鼠标更新 offset/trailing、光标位置及选择 | [实现](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)有 FlowSnapshot 命中、selection/caret 几何、准备结果和实际绘制；[边框](../../../examples/native/draw2d-official-examples/src/examples/text_test_border.rs)有字体测量 | 目录 complete 仅有功能范围证据。Tahoma 被 Inter 替代；当前透明蓝选区与上游 XOR 绘制不同；选择边界、行尾、组合文字和 affinity 尚无完整对照断言，见下文 |
-| 17 MultiLineLabelExample | 只读可换行文字；需要时显示滚动条；可聚焦、键盘滚动、焦点框及 accessibility | [实现](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)组合 ScrollPane 和 FlowPage；[交互](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)支持焦点、方向键和可访问名称 | 目录 complete。下方 SWT Text 比较区已按范围排除；现有测试只明确验证纵向键盘滚动，横向溢出、字体变化和镜像方向键需要补验 |
-| 18 TextFlowExample | 6 个段落：标题、普通换行、只按 newline 断行代码、嵌套蓝色粗斜体 InlineFlow、10 字号 baseline、右对齐 | [实现](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)保留真实结构和各段样式；flow 快照能够稳定发布 | 目录 complete。Helvetica/Courier 替代为 Inter/JetBrains Mono；综合稳定性测试没有逐一断言六段的字体样式、baseline、换行与每段像素 |
-| 19 TextFlowLargeExample | 20 组普通 block 加 20 个居中字号 block；400 个字号片段与嵌套句子；首 target 在首 block，字母/空格追加，数字忽略，纵向滚动条 Always，tooltip | [结构](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)和[交互](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)覆盖 40 段、首来源追加、其他段不变与滚动条配置 | 目录 complete。target 最终归属直接构造，未在示例中重演上游先 add 再 reparent 的中间步骤；tooltip 属性存在不等于宿主显示已验。未在本次做输入耗时/增量成本基准 |
-| 20 TextSurroundingFigureExample | 文字围绕两个真实 FlowAdapter；第一组 Toolbar 含圆角矩形/三角形/椭圆；第二组 Stack 内 RTL 文字；窄宽重排 | [实现](../../../examples/native/draw2d-official-examples/src/examples/text_surrounding.rs)保留两个 adapter 和真实子树；测试验证窄宽高度增长及稳定测量 | 目录 complete。没有将图形替换成图片；完整 baseline、clip、子图命中与 partial damage 像素仍需独立验收。圆角参数已按 Core 的 corner dimensions 语义核对，未凭参数名误判为双倍半径 |
-| 21 ThumbnailExample | 主图绿色/蓝色矩形可拖；overview 实时同步并保持纵横比；关闭 overview 释放订阅 | [实现](../../../examples/native/draw2d-official-examples/src/examples/thumbnail.rs)的实际 panel 持有活源 Runtime；两处同步、resize 不重新捕获和取消订阅有断言/既有 Native 图像 | 目录 complete。官方两个 Shell 被同窗主视图/overview 承载，属于已接受宿主变体；单 Runtime 工厂不能独自证明 live overview |
-| 22 SimpleTreeExample | Graph Root、2 个 child 和 1 个孙节点；Normal/Hanging 混合、LEFT 对齐、PageNode 折页/渐变、透明层先于标题 | [实现](../../../examples/native/draw2d-official-examples/src/examples/simple_tree_example.rs)覆盖 4 分支、真实布局、层次顺序、hanging 缩进及横纵转置 | 目录 complete。没有官方面板或动画开关要求；不能因名称为 Tree 就额外要求完整编辑器操作 |
-| 23 TreeExample | 19 分支；点选、双击展开/折叠、增减子节点、方向/压缩/间距/样式/对齐；默认关闭的可选动画 | [实现](../../../examples/native/draw2d-official-examples/src/examples/tree_example.rs)与[动画](../../../examples/native/draw2d-official-examples/src/examples/tree_animation.rs)覆盖实际浮动面板、双击、同源连线、反向、输入接管、隐藏/释放 | 目录 complete。已有 animation.tree 的 GPU Partial/Full 对照；这不关闭跨平台和真实 surface present 的发布验收 |
-| 24 UMLClassDiagram | 两个三段类、聚合菱形连接、end1 与 connection 标签；90 单位宽便笺自适应高度和 DogEar 边框 | [实现](../../../examples/native/draw2d-official-examples/src/examples/uml_class_diagram.rs)覆盖图标、组成、owner-side locator、标签文字重新测量及便笺窄宽测量 | 目录 in_progress。已知 DogEar 外框宽高减一与 5/6 单位折角不一致；字体、图标与窄宽视觉验收待完成 |
-| 25 ZoomExample | Table/Column 两个三段类及 SVG 图标；真实 `< Zoom >` 滑块，初值 40、extent 25，公式 `(value+10)*0.02f` | [实现](../../../examples/native/draw2d-official-examples/src/examples/zoom_example.rs)覆盖 range、arrow/page/drag、最小/最大/恢复、资源密度更新与实际面板输入仲裁 | 目录 in_progress。跨显示器 DPI、Arial 实际字体及完整窗口视觉验收仍未完成。源码的 createThumbnail helper 未被 main 调用，不应计为漏做功能 |
+| 15 BidiBlockExample | 两侧各 10 个段落；分别比较默认 Canvas 与 RTL 镜像 Canvas；段落 LTR/RTL 和相对/绝对对齐共存；共享纵向 range | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/bidi_block.rs)有独立内容、十段方向/对齐与共享 range | 本轮改为 in_progress。右侧与左侧创建过程相同，没有 Canvas 镜像；现有测试未检查两侧镜像差异 |
+| 16 CaretExample | 多语种文字、蓝底、10 单位边框和 begin/end FlowBorder；移动鼠标更新 offset/trailing、光标位置及选择 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_interaction.rs)有 FlowSnapshot 命中、selection/caret 几何、准备结果和实际绘制；[边框](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_test_border.rs)有字体测量 | 目录 complete 仅有功能范围证据。Tahoma 被 Inter 替代；当前透明蓝选区与上游 XOR 绘制不同；选择边界、行尾、组合文字和 affinity 尚无完整对照断言，见下文 |
+| 17 MultiLineLabelExample | 只读可换行文字；需要时显示滚动条；可聚焦、键盘滚动、焦点框及 accessibility | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs)组合 ScrollPane 和 FlowPage；[交互](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_interaction.rs)支持焦点、方向键和可访问名称 | 目录 complete。下方 SWT Text 比较区已按范围排除；现有测试只明确验证纵向键盘滚动，横向溢出、字体变化和镜像方向键需要补验 |
+| 18 TextFlowExample | 6 个段落：标题、普通换行、只按 newline 断行代码、嵌套蓝色粗斜体 InlineFlow、10 字号 baseline、右对齐 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs)保留真实结构和各段样式；flow 快照能够稳定发布 | 目录 complete。Helvetica/Courier 替代为 Inter/JetBrains Mono；综合稳定性测试没有逐一断言六段的字体样式、baseline、换行与每段像素 |
+| 19 TextFlowLargeExample | 20 组普通 block 加 20 个居中字号 block；400 个字号片段与嵌套句子；首 target 在首 block，字母/空格追加，数字忽略，纵向滚动条 Always，tooltip | [结构](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs)和[交互](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_interaction.rs)覆盖 40 段、首来源追加、其他段不变与滚动条配置 | 目录 complete。target 最终归属直接构造，未在示例中重演上游先 add 再 reparent 的中间步骤；tooltip 属性存在不等于宿主显示已验。未在本次做输入耗时/增量成本基准 |
+| 20 TextSurroundingFigureExample | 文字围绕两个真实 FlowAdapter；第一组 Toolbar 含圆角矩形/三角形/椭圆；第二组 Stack 内 RTL 文字；窄宽重排 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_surrounding.rs)保留两个 adapter 和真实子树；测试验证窄宽高度增长及稳定测量 | 目录 complete。没有将图形替换成图片；完整 baseline、clip、子图命中与 partial damage 像素仍需独立验收。圆角参数已按 Core 的 corner dimensions 语义核对，未凭参数名误判为双倍半径 |
+| 21 ThumbnailExample | 主图绿色/蓝色矩形可拖；overview 实时同步并保持纵横比；关闭 overview 释放订阅 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/thumbnail.rs)的实际 panel 持有活源 Runtime；两处同步、resize 不重新捕获和取消订阅有断言/既有 Native 图像 | 目录 complete。官方两个 Shell 被同窗主视图/overview 承载，属于已接受宿主变体；单 Runtime 工厂不能独自证明 live overview |
+| 22 SimpleTreeExample | Graph Root、2 个 child 和 1 个孙节点；Normal/Hanging 混合、LEFT 对齐、PageNode 折页/渐变、透明层先于标题 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/simple_tree_example.rs)覆盖 4 分支、真实布局、层次顺序、hanging 缩进及横纵转置 | 目录 complete。没有官方面板或动画开关要求；不能因名称为 Tree 就额外要求完整编辑器操作 |
+| 23 TreeExample | 19 分支；点选、双击展开/折叠、增减子节点、方向/压缩/间距/样式/对齐；默认关闭的可选动画 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/tree_example.rs)与[动画](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/tree_animation.rs)覆盖实际浮动面板、双击、同源连线、反向、输入接管、隐藏/释放 | 目录 complete。已有 animation.tree 的 GPU Partial/Full 对照；这不关闭跨平台和真实 surface present 的发布验收 |
+| 24 UMLClassDiagram | 两个三段类、聚合菱形连接、end1 与 connection 标签；90 单位宽便笺自适应高度和 DogEar 边框 | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/uml_class_diagram.rs)覆盖图标、组成、owner-side locator、标签文字重新测量及便笺窄宽测量 | 目录 in_progress。已知 DogEar 外框宽高减一与 5/6 单位折角不一致；字体、图标与窄宽视觉验收待完成 |
+| 25 ZoomExample | Table/Column 两个三段类及 SVG 图标；真实 `< Zoom >` 滑块，初值 40、extent 25，公式 `(value+10)*0.02f` | [实现](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/zoom_example.rs)覆盖 range、arrow/page/drag、最小/最大/恢复、资源密度更新与实际面板输入仲裁 | 目录 in_progress。跨显示器 DPI、Arial 实际字体及完整窗口视觉验收仍未完成。源码的 createThumbnail helper 未被 main 调用，不应计为漏做功能 |
 
 ## Bidi 的遗漏有源码证据
 
@@ -119,7 +119,7 @@ caret 高度大于零、输入后源几何不变及无延迟错误，没有断�
 
 来源：[官方 CaretExample](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/text/CaretExample.java)、
 [TextFlow 的实际选择绘制](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d/src/org/eclipse/draw2d/text/TextFlow.java)、
-[当前交互与绘制](../../../examples/native/draw2d-official-examples/src/examples/text_interaction.rs)。
+[当前交互与绘制](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_interaction.rs)。
 
 ## 字体和视觉差异要跨入口核验
 
@@ -142,8 +142,8 @@ Print 还将官方 16/24/48 的 SWT Font 高度直接写成 16/24/48px。其他�
 证据。三个布局已有 full-frame GPU 和 CPU damage 记录，不能将它们换算成
 retained-partial 全部通过。
 
-来源：[当前字体映射](../../../examples/native/draw2d-official-examples/src/examples/text_examples.rs)、
-[Print 字体初始化](../../../examples/native/draw2d-official-examples/src/examples/printing.rs)、
+来源：[当前字体映射](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/text_examples.rs)、
+[Print 字体初始化](../../../crates/novadraw/examples/native/draw2d-official-examples/src/examples/printing.rs)、
 [官方 AbstractExample 字体](https://github.com/eclipse-gef/gef-classic/blob/4463d9d0ce13c19d10fbe769d29f28b7345a8cba/org.eclipse.draw2d.examples/src/org/eclipse/draw2d/examples/AbstractExample.java)、
 [布局消费者证据](k02-layout-consumers-evidence-2026-10-23.md)。
 

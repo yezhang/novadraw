@@ -11,7 +11,7 @@
 
 2026-10-28 当前 catalog 为 17 complete、8 in_progress，25 个入口均可运行。
 下表将待验证的消费者行为和确实缺失的 Core 能力分开记录。
-完成判据取自 [Canvas 收口清单](../../../examples/native/draw2d-official-examples/completion-contracts.tsv)，
+完成判据取自 [Canvas 收口清单](../../../crates/novadraw/examples/native/draw2d-official-examples/completion-contracts.tsv)，
 不以可运行、测试数或一幅截图代替完整验收。
 
 | 入口 | 剩余工作 | 能力批次 |

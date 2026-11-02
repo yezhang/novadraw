@@ -8,7 +8,7 @@ Figure、命中、坐标和绘制复用 Core。该切片验证消费者接入，
 不将电路业务逻辑计为新增 Core 或 Editor 能力。
 
 本切片落实 [GEF 样例方案](gef-official-examples-parity-proposal.md) 的 Logic 模型、
-端口和编辑链路子集。入口为 `examples/native/gef-logic-demo/`，不改 Shapes UI，
+端口和编辑链路子集。入口为 `crates/novadraw-editor/examples/native/gef-logic-demo/`，不改 Shapes UI，
 也不引入 Core 电路求解器。
 
 ## 行为契约

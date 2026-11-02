@@ -1,6 +1,6 @@
 # Build outputs
 target/
-examples/web/web-validation/dist/
+examples/integration/web-validation/dist/
 **/*.profraw
 doc/verification/evidence/**/*_probe
 

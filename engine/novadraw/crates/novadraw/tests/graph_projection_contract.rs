@@ -20,9 +20,9 @@ use std::sync::{
 };
 
 const BUDGET: GraphBudget = GraphBudget::new(1_000_000, 100_000);
-#[path = "../../../examples/scenes/src/compound_fixtures.rs"]
+#[path = "../examples/scenes/src/compound_fixtures.rs"]
 mod compound_fixtures;
-#[path = "../../../examples/scenes/src/graph_fixtures.rs"]
+#[path = "../examples/scenes/src/graph_fixtures.rs"]
 mod directed_fixtures;
 struct Empty;
 impl FigureDrawing for Empty {

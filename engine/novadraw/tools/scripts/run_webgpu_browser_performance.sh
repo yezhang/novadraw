@@ -98,7 +98,7 @@ osascript -e 'tell application "Google Chrome" to activate' >/dev/null
 
 DRIVER_ARGS=(
   "--cdp-url=http://127.0.0.1:$CDP_PORT"
-  "--dist=$ROOT/examples/web/web-validation/dist"
+  "--dist=$ROOT/examples/integration/web-validation/dist"
   "--report=$REPORT"
   "--expected-revision=$EXPECTED_REVISION"
   "--expected-chrome-major=$EXPECTED_CHROME_MAJOR"
