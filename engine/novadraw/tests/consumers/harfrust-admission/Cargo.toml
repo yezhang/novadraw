@@ -43,3 +43,7 @@ path = "src/aat_cost.rs"
 [[bin]]
 name = "plan-cost"
 path = "src/plan_cost.rs"
+
+[[bin]]
+name = "configuration-cost"
+path = "src/configuration_cost.rs"
