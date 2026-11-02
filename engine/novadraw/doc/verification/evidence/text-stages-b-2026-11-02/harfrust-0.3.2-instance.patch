@@ -1,0 +1,474 @@
+--- a/src/hb/face.rs
++++ b/src/hb/face.rs
+@@ -13,6 +13,12 @@
+ use crate::hb::buffer::hb_buffer_t;
+ use crate::hb::tables::TableOffsets;
+ use crate::{script, Feature, GlyphBuffer, NormalizedCoord, ShapePlan, UnicodeBuffer, Variation};
++
++#[path = "instance_admission.rs"]
++pub(crate) mod admission;
++pub use admission::{
++    InstanceOperation, InstanceOperationCost, InstanceOperationError, InstanceStorageError,
++};
+ 
+ /// Data required for shaping with a single font.
+ pub struct ShaperData {
+@@ -126,13 +132,10 @@
+ 
+     /// Resets the instance for the given font and normalized coordinates.
+     pub fn set_coords(&mut self, font: &FontRef, coords: impl IntoIterator<Item = F2Dot14>) {
+-        self.coords.clear();
+-        if let Ok(fvar) = font.fvar() {
+-            let count = fvar.axis_count() as usize;
+-            self.coords.reserve(count);
+-            self.coords.extend(coords.into_iter().take(count));
+-            self.check_default();
+-            self.set_feature_variations(font);
++        self.coords.clear();
++        match self.set_coords_with(font, coords, &mut admission::OrdinaryInstance) {
++            Ok(()) => {}
++            Err(never) => match never {},
+         }
+     }
+ 
+@@ -156,23 +159,16 @@
+     }
+ 
+     fn set_feature_variations(&mut self, font: &FontRef) {
+-        self.feature_variations = [None; 2];
+-        if self.coords.is_empty() {
+-            return;
+-        }
+-        self.feature_variations[0] = font
+-            .gsub()
+-            .ok()
+-            .and_then(|t| LayoutTable::Gsub(t).feature_variation_index(&self.coords));
+-        self.feature_variations[1] = font
+-            .gpos()
+-            .ok()
+-            .and_then(|t| LayoutTable::Gpos(t).feature_variation_index(&self.coords));
++        match self.set_feature_variations_with(font, &mut admission::OrdinaryInstance) {
++            Ok(()) => {}
++            Err(never) => match never {},
++        }
+     }
+ 
+     fn check_default(&mut self) {
+-        if self.coords.iter().all(|coord| *coord == F2Dot14::ZERO) {
+-            self.coords.clear();
++        match self.check_default_with(&mut admission::OrdinaryInstance) {
++            Ok(()) => {}
++            Err(never) => match never {},
+         }
+     }
+ }
+--- a/src/hb/ot/mod.rs
++++ b/src/hb/ot/mod.rs
+@@ -14,7 +14,7 @@
+         gpos::{AnchorTable, DeviceOrVariationIndex, Gpos},
+         gsub::{ClassDef, FeatureList, FeatureVariations, Gsub, ScriptList},
+         layout::{Feature, LangSys, Script},
+-        varc::{Condition, CoverageTable},
++        varc::CoverageTable,
+         variations::{DeltaSetIndex, ItemVariationStore},
+     },
+     types::{BigEndian, F2Dot14, GlyphId, Offset32},
+@@ -310,7 +310,7 @@
+         }
+     }
+ 
+-    fn feature_variations(&self) -> Option<FeatureVariations<'a>> {
++    pub(super) fn feature_variations(&self) -> Option<FeatureVariations<'a>> {
+         match self {
+             Self::Gsub(gsub) => gsub.feature_variations(),
+             Self::Gpos(gpos) => gpos.feature_variations(),
+@@ -354,46 +354,6 @@
+             .get(index)
+             .ok()
+             .map(|feature| feature.tag)
+-    }
+-
+-    pub(crate) fn feature_variation_index(&self, coords: &[F2Dot14]) -> Option<u32> {
+-        let feature_variations = self.feature_variations()?;
+-        for (index, rec) in feature_variations
+-            .feature_variation_records()
+-            .iter()
+-            .enumerate()
+-        {
+-            // If the ConditionSet offset is 0, this is treated as the
+-            // universal condition: all contexts are matched.
+-            if rec.condition_set_offset().is_null() {
+-                return Some(index as u32);
+-            }
+-            let Some(Ok(condition_set)) = rec.condition_set(feature_variations.offset_data())
+-            else {
+-                continue;
+-            };
+-            // Otherwise, all conditions must be satisfied.
+-            if condition_set
+-                .conditions()
+-                .iter()
+-                // .. except we ignore errors
+-                .filter_map(Result::ok)
+-                .all(|cond| match cond {
+-                    Condition::Format1AxisRange(format1) => {
+-                        let coord = coords
+-                            .get(format1.axis_index() as usize)
+-                            .copied()
+-                            .unwrap_or_default();
+-                        coord >= format1.filter_range_min_value()
+-                            && coord <= format1.filter_range_max_value()
+-                    }
+-                    _ => false,
+-                })
+-            {
+-                return Some(index as u32);
+-            }
+-        }
+-        None
+     }
+ 
+     pub(crate) fn feature_substitution(
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -25,6 +25,9 @@
+ pub use hb::buffer::{BufferOperation, BufferOperationCost, BufferOperationError, BufferStorageField};
+ pub use hb::common::{script, Direction, Feature, Language, Script, Variation};
+ pub use hb::face::{hb_font_t as Shaper, ShaperBuilder, ShaperData, ShaperInstance};
++pub use hb::face::{
++    InstanceOperation, InstanceOperationCost, InstanceOperationError, InstanceStorageError,
++};
+ pub use hb::ot_shape_plan::{hb_ot_shape_plan_t as ShapePlan, ShapePlanKey};
+ 
+ /// Type alias for a normalized variation coordinate.
+--- /dev/null
++++ b/src/hb/instance_admission.rs
+@@ -0,0 +1,328 @@
++// Copyright 2026 the Novadraw Contributors
++// SPDX-License-Identifier: MIT
++
++//! Admission for normalized coordinates and feature-variation selection only.
++
++use super::ShaperInstance;
++use crate::hb::ot::LayoutTable;
++use crate::{FontRef, NormalizedCoord};
++use core::{convert::Infallible, fmt};
++use read_fonts::{tables::varc::Condition, TableProvider};
++use smallvec::CollectionAllocErr;
++
++/// A normalized-instance operation about to execute.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum InstanceOperation {
++    /// Read the table directory header for lookup planning.
++    Planning,
++    /// Search the font directory, including a potentially unsorted directory.
++    Directory,
++    /// Read fixed table headers or resolve feature-variation headers.
++    TableRead,
++    /// Reserve coordinate storage, including inline-to-heap spill.
++    Storage,
++    /// Read and append coordinates, including their eventual cleanup visits.
++    Coordinates,
++    /// Scan coordinates to detect the default instance.
++    DefaultCheck,
++    /// Read a feature-variation record.
++    VariationRecord,
++    /// Resolve a condition set and its offset-array header.
++    ConditionSet,
++    /// Resolve and parse one condition, without recursively evaluating trees.
++    Condition,
++    /// Test a range condition against the normalized coordinates.
++    Predicate,
++}
++
++/// Logical costs for the instance operation.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct InstanceOperationCost {
++    /// Input bytes or collection element visits, including repeated accesses.
++    pub work: usize,
++    /// Whole new heap capacity slots; inline storage is not a new allocation.
++    pub allocation: usize,
++}
++
++/// The original SmallVec allocation failure, retained without string conversion.
++///
++/// SmallVec 1.16's `CollectionAllocErr` does not implement `Error`; this wrapper
++/// makes it available through the standard error chain.
++#[derive(Debug)]
++pub struct InstanceStorageError(pub CollectionAllocErr);
++
++impl fmt::Display for InstanceStorageError {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        self.0.fmt(f)
++    }
++}
++
++impl core::error::Error for InstanceStorageError {}
++
++/// Failure before returning a complete normalized instance.
++#[derive(Debug)]
++pub enum InstanceOperationError<E> {
++    /// Caller rejection with the original error.
++    Admission(E),
++    /// Coordinate storage could not be reserved.
++    Storage(InstanceStorageError),
++}
++
++impl<E: fmt::Display> fmt::Display for InstanceOperationError<E> {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        match self {
++            Self::Admission(error) => write!(f, "instance operation rejected: {error}"),
++            Self::Storage(error) => write!(f, "instance storage failed: {error}"),
++        }
++    }
++}
++
++impl<E: core::error::Error + 'static> core::error::Error for InstanceOperationError<E> {
++    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
++        match self {
++            Self::Admission(error) => Some(error),
++            Self::Storage(error) => Some(error),
++        }
++    }
++}
++
++pub(crate) trait InstanceAdmission {
++    type Error;
++
++    fn charge(
++        &mut self,
++        operation: InstanceOperation,
++        work: usize,
++        allocation: usize,
++    ) -> Result<(), Self::Error>;
++
++    fn reserve(&mut self, instance: &mut ShaperInstance, count: usize) -> Result<(), Self::Error>;
++}
++
++pub(crate) struct OrdinaryInstance;
++
++impl InstanceAdmission for OrdinaryInstance {
++    type Error = Infallible;
++
++    #[inline]
++    fn charge(&mut self, _: InstanceOperation, _: usize, _: usize) -> Result<(), Infallible> {
++        Ok(())
++    }
++
++    fn reserve(&mut self, instance: &mut ShaperInstance, count: usize) -> Result<(), Infallible> {
++        instance.coords.reserve(count);
++        Ok(())
++    }
++}
++
++struct AdmittedInstance<F>(F);
++
++impl<E, F> InstanceAdmission for AdmittedInstance<F>
++where
++    F: FnMut(InstanceOperation, InstanceOperationCost) -> Result<(), E>,
++{
++    type Error = InstanceOperationError<E>;
++
++    fn charge(
++        &mut self,
++        operation: InstanceOperation,
++        work: usize,
++        allocation: usize,
++    ) -> Result<(), Self::Error> {
++        (self.0)(operation, InstanceOperationCost { work, allocation })
++            .map_err(InstanceOperationError::Admission)
++    }
++
++    fn reserve(&mut self, instance: &mut ShaperInstance, count: usize) -> Result<(), Self::Error> {
++        // The candidate is empty. No old coordinates migrate at this point.
++        self.charge(InstanceOperation::Planning, 1, 0)?;
++        if count > instance.coords.capacity() {
++            self.charge(InstanceOperation::Storage, 0, count)?;
++            instance
++                .coords
++                .try_reserve_exact(count)
++                .map_err(|error| InstanceOperationError::Storage(InstanceStorageError(error)))?;
++        }
++        Ok(())
++    }
++}
++
++/// Charge directory search before calling a TableProvider method.
++pub(crate) fn directory<P: InstanceAdmission>(
++    font: &FontRef,
++    policy: &mut P,
++) -> Result<(), P::Error> {
++    policy.charge(InstanceOperation::Planning, 1, 0)?;
++    let records = font.table_directory().table_records();
++    // read-fonts uses linear search for unsorted directories. Sorted search
++    // has at most n+1 comparisons (including its final equality comparison).
++    // The selected record's offset and length are two additional field reads.
++    policy.charge(InstanceOperation::Directory, records.len() + 3, 0)
++}
++
++impl ShaperInstance {
++    /// Constructs a normalized instance with operation admission.
++    ///
++    /// Coordinates are in axis order. Like `from_coords`, this consumes at most
++    /// the fvar axis count and does not pad a short input. It covers directory
++    /// searches, coordinate spill/copy, default detection and GSUB/GPOS feature
++    /// variation selection. It does not cover user-space normalization, shaper
++    /// data, shape plans or shaping.
++    ///
++    /// Rejection drops the unpublished candidate; no instance is returned.
++    /// The input slice and all previously completed instances remain available.
++    /// Caller costs are not refunded. No ordinary fallback is executed.
++    pub fn try_from_coords_admitted<E>(
++        font: &FontRef,
++        coords: &[NormalizedCoord],
++        admit: impl FnMut(InstanceOperation, InstanceOperationCost) -> Result<(), E>,
++    ) -> Result<Self, InstanceOperationError<E>> {
++        let mut instance = Self::default();
++        instance.set_coords_with(font, coords.iter().copied(), &mut AdmittedInstance(admit))?;
++        Ok(instance)
++    }
++
++    pub(crate) fn set_coords_with<P: InstanceAdmission>(
++        &mut self,
++        font: &FontRef,
++        coords: impl IntoIterator<Item = NormalizedCoord>,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        // Ordinary reset clears before this kernel; the admitted constructor
++        // starts with an empty candidate. No cleanup is performed before its
++        // first admission callback.
++        directory(font, policy)?;
++        // Fvar::read only advances seven fixed header fields (16 bytes);
++        // axis_count() subsequently reads a u16. No axis/instance array scan.
++        const FVAR_HEADER_AND_COUNT: usize = 16 + size_of::<u16>();
++        policy.charge(InstanceOperation::TableRead, FVAR_HEADER_AND_COUNT, 0)?;
++        if let Ok(fvar) = font.fvar() {
++            let count = fvar.axis_count() as usize;
++            policy.reserve(self, count)?;
++            // Each of at most count coordinates is read and written once.
++            // Reserve one cleanup visit per element before publishing it:
++            // SmallVec::clear calls truncate's loop, while Drop visits its
++            // initialized slice. Default clear and later drop cannot both
++            // visit the same initialized element. This also covers rejection
++            // after copying, without attempting admission during unwinding.
++            // count is u16, so this multiplication cannot overflow usize.
++            policy.charge(InstanceOperation::Coordinates, count * 3, 0)?;
++            self.coords.extend(coords.into_iter().take(count));
++            self.check_default_with(policy)?;
++            self.set_feature_variations_with(font, policy)?;
++        }
++        Ok(())
++    }
++
++    pub(crate) fn check_default_with<P: InstanceAdmission>(
++        &mut self,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        policy.charge(InstanceOperation::Planning, 1, 0)?;
++        policy.charge(InstanceOperation::DefaultCheck, self.coords.len(), 0)?;
++        if self
++            .coords
++            .iter()
++            .all(|coord| *coord == NormalizedCoord::ZERO)
++        {
++            self.coords.clear();
++        }
++        Ok(())
++    }
++
++    pub(crate) fn set_feature_variations_with<P: InstanceAdmission>(
++        &mut self,
++        font: &FontRef,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        self.feature_variations = [None; 2];
++        policy.charge(InstanceOperation::Planning, 1, 0)?;
++        if self.coords.is_empty() {
++            return Ok(());
++        }
++        // Gsub/Gpos::read have identical fixed headers, at most 14 bytes.
++        const LAYOUT_HEADER: usize = 14;
++        directory(font, policy)?;
++        policy.charge(InstanceOperation::TableRead, LAYOUT_HEADER, 0)?;
++        if let Ok(table) = font.gsub() {
++            self.feature_variations[0] =
++                LayoutTable::Gsub(table).feature_variation_index_with(&self.coords, policy)?;
++        }
++        directory(font, policy)?;
++        policy.charge(InstanceOperation::TableRead, LAYOUT_HEADER, 0)?;
++        if let Ok(table) = font.gpos() {
++            self.feature_variations[1] =
++                LayoutTable::Gpos(table).feature_variation_index_with(&self.coords, policy)?;
++        }
++        Ok(())
++    }
++}
++
++impl LayoutTable<'_> {
++    pub(crate) fn feature_variation_index_with<P: InstanceAdmission>(
++        &self,
++        coords: &[NormalizedCoord],
++        policy: &mut P,
++    ) -> Result<Option<u32>, P::Error> {
++        // feature_variations reads an Offset32; FeatureVariations::read reads
++        // one u32 count and advances over records without scanning them.
++        const VARIATION_HEADER_READS: usize = size_of::<u32>() * 2;
++        policy.charge(InstanceOperation::TableRead, VARIATION_HEADER_READS, 0)?;
++        let Some(variations) = self.feature_variations() else {
++            return Ok(None);
++        };
++        policy.charge(InstanceOperation::TableRead, 1, 0)?;
++        let records = variations.feature_variation_records();
++        for record_index in 0..records.len() {
++            // One record visit and two reads of condition_set_offset: the
++            // null test and the offset resolution performed by condition_set.
++            const RECORD_READS: usize = 1 + size_of::<u32>() * 2;
++            policy.charge(InstanceOperation::VariationRecord, RECORD_READS, 0)?;
++            let record = &records[record_index];
++            if record.condition_set_offset().is_null() {
++                return Ok(Some(record_index as u32));
++            }
++            // ConditionSet::read reads u16 count, then advances offset bytes.
++            // conditions() creates a borrowed offset-array wrapper.
++            const SET_READS: usize = size_of::<u16>() + 1;
++            policy.charge(InstanceOperation::ConditionSet, SET_READS, 0)?;
++            let Some(Ok(set)) = record.condition_set(variations.offset_data()) else {
++                continue;
++            };
++            let conditions = set.conditions();
++            let mut matches = true;
++            for index in 0..conditions.len() {
++                // Offset32 read; Condition::read reads u16 format. Formats
++                // 3/4 read one u8 count, all others only advance fixed fields.
++                // No nested condition is resolved by these generated readers.
++                const CONDITION_READS: usize = size_of::<u32>() + size_of::<u16>() + 1;
++                policy.charge(InstanceOperation::Condition, CONDITION_READS, 0)?;
++                let Ok(condition) = conditions.get(index) else {
++                    // Match upstream filter_map(Result::ok), including the
++                    // vacuously true result for an entirely malformed set.
++                    continue;
++                };
++                if let Condition::Format1AxisRange(range) = condition {
++                    // axis, min, max are u16/F2Dot14 reads, plus one coord.
++                    const PREDICATE_READS: usize = size_of::<u16>() * 3 + 1;
++                    policy.charge(InstanceOperation::Predicate, PREDICATE_READS, 0)?;
++                    let coord = coords
++                        .get(range.axis_index() as usize)
++                        .copied()
++                        .unwrap_or_default();
++                    matches = coord >= range.filter_range_min_value()
++                        && coord <= range.filter_range_max_value();
++                } else {
++                    matches = false;
++                }
++                if !matches {
++                    break;
++                }
++            }
++            if matches {
++                return Ok(Some(record_index as u32));
++            }
++        }
++        Ok(None)
++    }
++}

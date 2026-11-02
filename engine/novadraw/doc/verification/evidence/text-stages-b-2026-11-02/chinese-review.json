@@ -1,0 +1,34 @@
+{
+  "review_type": "Agent 自审，未进行独立读者评审",
+  "skills": ["haohao-shuohua", "technical-writing-clarity"],
+  "files": [
+    "doc/verification/reviews/text-stages-b-storage-patch-2026-11-02.md",
+    "doc/verification/evidence/text-stages-b-2026-11-02/README.md",
+    "tests/consumers/parley-storage/README.md",
+    "doc/verification/performance/text-optimization-validation.md",
+    "dependencies/README.md"
+  ],
+  "fact_review": {
+    "存储接口与操作前准入分开说明": true,
+    "快照的共享字体和泛型 brush 排除项保留": true,
+    "5 项私有与每配置 3 项消费者测试结果核对": true,
+    "160 组只读对照未声称为 Core 完整等价": true,
+    "Wasm 只记录构建，未声称运行测试": true,
+    "严格 Clippy 的双方 7 条上游失败保持": true,
+    "未完成 B、C、D 与默认启用明确保留": true,
+    "依赖补丁批准条件引用接受的 ADR 原文": true,
+    "后续批准与生产接入状态单独更新，历史候选验证范围保留": true,
+    "5 次 release smoke 不宣称统计提速或整体达标": true
+  },
+  "logic_review": {
+    "先说明成果与限制，再给出来源和接口依据": true,
+    "操作计费缺口逐项连接源码事实和恢复条件": true,
+    "测试 harness 与生产补丁的改动范围明确区分": true,
+    "生产接入范围与后续门禁具体可审阅": true
+  },
+  "language_review": {
+    "成稿交付前再次按两份技能检查事实、逻辑与措辞": true,
+    "代码、路径、标识符和原文引用保持": true,
+    "未编造独立评审、性能改善或完成状态": true
+  }
+}

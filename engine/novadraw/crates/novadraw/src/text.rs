@@ -8,6 +8,14 @@ pub use crate::render::text::{
 };
 
 pub mod shaping {
+    pub use super::staged::{
+        ErasedTextAnalysisKey, StagedTextLayoutEngine, TextAnalysisAdmissionCost,
+        TextAnalysisBacking, TextAnalysisBackingIdentity, TextAnalysisCacheLimits, TextAnalysisKey,
+        TextAnalysisLease, TextAnalysisPayload, TextAnalysisRegistry, TextAnalysisRegistryIdentity,
+        TextAnalysisRequest, TextAnalysisStorage, TextAnalysisUsage, TextStageBinding,
+        TextStageBindingChange, TextStageContext, TextStageCostPlan, TextStageError,
+        TextStageExtensionError, TextStageFailure, TextStageFailureKind,
+    };
     pub use crate::render::text::{
         GlyphBuffer, GlyphRange, GlyphRun, ParleyTextEngine, PositionedGlyph, TextInteractionMap,
         TextInteractionProvider, TextLayoutCacheIdentity, TextLayoutEngine, TextLayoutKey,
@@ -18,6 +26,7 @@ pub mod shaping {
 mod line_padding;
 pub(crate) mod mirror;
 pub mod outline;
+mod staged;
 mod styled;
 pub use styled::{
     ParagraphAlignment, ParagraphDirection, StyledGlyphRun, StyledTextLayout, StyledTextRequest,

@@ -1,0 +1,778 @@
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/bidi.rs:5:
+ 
+ use alloc::vec::Vec;
+ 
+-use BidiClass::*;
+ use swash::text::{BidiClass, BracketType, Codepoint as _};
++use BidiClass::*;
+ 
+ /// Type alias for a bidirectional level.
+ pub(crate) type BidiLevel = u8;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/bidi.rs:599:
+                     leading
+                 } else {
+                     // N2
+-                    if level & 1 != 0 { R } else { L }
++                    if level & 1 != 0 {
++                        R
++                    } else {
++                        L
++                    }
+                 };
+                 for j in offset..limit {
+                     types[j] = resolved;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/bidi.rs:639:
+ 
+ /// Returns a default bidi type for a level.
+ pub(crate) fn type_from_level(level: BidiLevel) -> BidiClass {
+-    if level & 1 == 0 { L } else { R }
++    if level & 1 == 0 {
++        L
++    } else {
++        R
++    }
+ }
+ 
+ /// Computes an ordering for a sequence of bidi runs based on levels.
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/builder.rs:3:
+ 
+ //! Context for layout.
+ 
+-use super::FontContext;
+ use super::context::LayoutContext;
+ use super::style::{Brush, StyleProperty, TextStyle, WhiteSpaceCollapse};
++use super::FontContext;
+ 
+ use super::layout::Layout;
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/context.rs:8:
+ 
+ use self::tree::TreeStyleBuilder;
+ 
+-use super::FontContext;
+ use super::bidi;
+ use super::builder::RangedBuilder;
+-use super::resolve::{RangedStyle, RangedStyleBuilder, ResolveContext, ResolvedStyle, tree};
++use super::resolve::{tree, RangedStyle, RangedStyleBuilder, ResolveContext, ResolvedStyle};
+ use super::style::{Brush, TextStyle};
++use super::FontContext;
+ 
+ use swash::text::cluster::CharInfo;
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/editing/cursor.rs:1:
+ // Copyright 2025 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::BoundingBox;
+ #[cfg(feature = "accesskit")]
+ use crate::layout::LayoutAccessibility;
+ use crate::layout::{Affinity, BreakReason, Cluster, ClusterSide, Layout, Line};
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/editing/cursor.rs:8:
+ use crate::style::Brush;
++use crate::BoundingBox;
+ #[cfg(feature = "accesskit")]
+ use accesskit::TextPosition;
+ #[cfg(feature = "accesskit")]
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/editing/selection.rs:1:
+ // Copyright 2025 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::BoundingBox;
+ use crate::editing::Cursor;
+ #[cfg(feature = "accesskit")]
+ use crate::layout::LayoutAccessibility;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/editing/selection.rs:8:
+ use crate::layout::{Affinity, BreakReason, Cluster, Layout, LineItem};
+ use crate::style::Brush;
++use crate::BoundingBox;
+ 
+ use alloc::vec::Vec;
+ use core::ops::Range;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/accessibility.rs:6:
+ use accesskit::{Node, NodeId, Role, TextDirection, TreeUpdate};
+ use hashbrown::{HashMap, HashSet};
+ 
+-use crate::Layout;
+ use crate::style::Brush;
++use crate::Layout;
+ 
+ #[derive(Clone, Default)]
+ pub struct LayoutAccessibility {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/alignment.rs:2:
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+ use super::{
+-    BreakReason,
+     data::{ClusterData, LineItemData},
++    BreakReason,
+ };
+ use crate::data::LayoutData;
+ use crate::style::Brush;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/cluster.rs:1:
+ // Copyright 2021 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::layout::Style;
+ use crate::layout::data::BreakReason;
+ use crate::layout::data::ClusterData;
+ use crate::layout::glyph::Glyph;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/cluster.rs:8:
+ use crate::layout::layout::Layout;
+ use crate::layout::line::{Line, LineItem};
+ use crate::layout::run::Run;
++use crate::layout::Style;
+ use crate::style::Brush;
+ use core::ops::Range;
+ use swash::text::cluster::Whitespace;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/layout.rs:1:
+ // Copyright 2025 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::InlineBox;
+ use crate::layout::alignment::align;
+ use crate::layout::alignment::unjustify;
+ use crate::layout::data::LayoutData;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/layout.rs:8:
+ use crate::style::Brush;
++use crate::InlineBox;
+ use core::cmp::Ordering;
+ 
+ use crate::layout::{
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/layout.rs:12:
+-    ContentWidths, Style, alignment::Alignment, alignment::AlignmentOptions, line::Line,
+-    line_break::BreakLines,
++    alignment::Alignment, alignment::AlignmentOptions, line::Line, line_break::BreakLines,
++    ContentWidths, Style,
+ };
+ 
+ /// Text layout.
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/line.rs:1:
+ // Copyright 2021 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::InlineBox;
+-use crate::layout::Style;
+ use crate::layout::data::BreakReason;
+ use crate::layout::data::{LayoutItemKind, LineData};
+ use crate::layout::glyph::Glyph;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/line.rs:9:
+ use crate::layout::layout::Layout;
+ use crate::layout::run::Run;
++use crate::layout::Style;
+ use crate::style::Brush;
++use crate::InlineBox;
+ use core::ops::Range;
+ 
+ /// Line in a text layout.
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/run.rs:1:
+ // Copyright 2021 the Parley Authors
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+-use crate::FontData;
+ use crate::layout::cluster::{Cluster, ClusterPath};
+ use crate::layout::data::{LineItemData, RunData};
+ use crate::layout::layout::Layout;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/layout/run.rs:8:
+ use crate::style::Brush;
++use crate::FontData;
+ use core::ops::Range;
+ use fontique::Synthesis;
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/resolve/mod.rs:17:
+ use crate::font::FontContext;
+ use crate::style::TextStyle;
+ use crate::util::nearly_eq;
+-use crate::{LineHeight, OverflowWrap, TextWrapMode, WordBreakStrength, layout};
++use crate::{layout, LineHeight, OverflowWrap, TextWrapMode, WordBreakStrength};
+ use core::borrow::Borrow;
+ use core::ops::Range;
+ use fontique::FamilyId;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/shape/mod.rs:15:
+ use crate::inline_box::InlineBox;
+ use crate::lru_cache::LruCache;
+ use crate::util::nearly_eq;
+-use crate::{FontData, swash_convert};
++use crate::{swash_convert, FontData};
+ 
+ use fontique::{self, Query, QueryFamily, QueryFont};
+ use swash::text::cluster::{CharCluster, CharInfo, Token};
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/test_basic.rs:4:
+ use std::borrow::Cow;
+ 
+ use peniko::{
+-    color::{AlphaColor, Srgb, palette},
++    color::{palette, AlphaColor, Srgb},
+     kurbo::Size,
+ };
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/test_basic.rs:11:
+ use crate::{
+-    Alignment, AlignmentOptions, ContentWidths, FontFamily, FontSettings, FontStack, InlineBox,
+-    Layout, LineHeight, StyleProperty, TextStyle, WhiteSpaceCollapse, test_name,
++    test_name, Alignment, AlignmentOptions, ContentWidths, FontFamily, FontSettings, FontStack,
++    InlineBox, Layout, LineHeight, StyleProperty, TextStyle, WhiteSpaceCollapse,
+ };
+ 
+-use super::utils::{ColorBrush, FONT_STACK, TestEnv, asserts::assert_eq_layout_data_alignments};
++use super::utils::{asserts::assert_eq_layout_data_alignments, ColorBrush, TestEnv, FONT_STACK};
+ 
+ #[test]
+ fn plain_multiline_text() {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/test_builders.rs:9:
+ use peniko::color::palette;
+ use swash::text::WordBreakStrength;
+ 
+-use super::utils::{ColorBrush, FONT_STACK, asserts::assert_eq_layout_data, create_font_context};
++use super::utils::{asserts::assert_eq_layout_data, create_font_context, ColorBrush, FONT_STACK};
+ use crate::{
+     FontContext, FontSettings, FontStack, Layout, LayoutContext, LineHeight, OverflowWrap,
+     RangedBuilder, StyleProperty, TextStyle, TextWrapMode, TreeBuilder,
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/test_lines.rs:7:
+ 
+ use super::utils::{ColorBrush, TestEnv};
+ use crate::{
+-    Affinity, BoundingBox, Brush, Cursor, InlineBox, Layout, LineHeight, Selection, StyleProperty,
+-    test_name,
++    test_name, Affinity, BoundingBox, Brush, Cursor, InlineBox, Layout, LineHeight, Selection,
++    StyleProperty,
+ };
+ 
+ const TEXT: &str = "Some text here. Let's make\n\
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/test_wrap.rs:4:
+ use peniko::color::palette::css;
+ 
+ use crate::{
+-    Alignment, AlignmentOptions, OverflowWrap, StyleProperty, TextWrapMode, WordBreakStrength,
+-    test_name,
++    test_name, Alignment, AlignmentOptions, OverflowWrap, StyleProperty, TextWrapMode,
++    WordBreakStrength,
+ };
+ 
+ use super::utils::{ColorBrush, TestEnv};
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/asserts.rs:3:
+ 
+ //! Various helper functions to assert truths during testing.
+ 
+-use crate::{Brush, data::LayoutData};
++use crate::{data::LayoutData, Brush};
+ 
+ /// Assert that the two provided `LayoutData` are equal.
+ pub(crate) fn assert_eq_layout_data<B: Brush>(a: &LayoutData<B>, b: &LayoutData<B>, case: &str) {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/cursor_test.rs:3:
+ 
+ use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
+ 
+-use crate::tests::utils::renderer::{ColorBrush, RenderingConfig, render_layout};
++use crate::tests::utils::renderer::{render_layout, ColorBrush, RenderingConfig};
+ use crate::{Affinity, Cursor, FontContext, Layout, LayoutContext};
+ 
+ // Note: This module is only compiled when running tests, which requires std,
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/env.rs:2:
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+ use crate::tests::utils::renderer::{
+-    ColorBrush, RenderingConfig, render_layout, render_layout_with_clusters,
++    render_layout, render_layout_with_clusters, ColorBrush, RenderingConfig,
+ };
+ use crate::{
+     BoundingBox, FontContext, FontFamily, FontStack, Layout, LayoutContext, LineHeight,
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/env.rs:226:
+             self.check_counter += 1;
+             name
+         } else {
+-            assert!(
+-                test_case_name
+-                    .chars()
+-                    .all(|c| c == '_' || char::is_alphanumeric(c))
+-            );
++            assert!(test_case_name
++                .chars()
++                .all(|c| c == '_' || char::is_alphanumeric(c)));
+             format!("{}-{}.png", self.test_name, test_case_name)
+         }
+     }
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/env.rs:333:
+         #[cfg(not(target_os = "android"))]
+         #[track_caller]
+         fn save_image(image: &Pixmap, path: &PathBuf, max_size: Option<usize>) {
+-            use oxipng::{Options, optimize_from_memory};
++            use oxipng::{optimize_from_memory, Options};
+ 
+             let image_data = image.encode_png().unwrap();
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/mod.rs:7:
+ mod renderer;
+ 
+ pub(crate) use cursor_test::CursorTest;
+-pub(crate) use env::{FONT_STACK, TestEnv, create_font_context};
++pub(crate) use env::{create_font_context, TestEnv, FONT_STACK};
+ pub(crate) use renderer::ColorBrush;
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/renderer.rs:12:
+ use crate::{GlyphRun, Layout, PositionedLayoutItem};
+ use peniko::kurbo;
+ use skrifa::{
+-    GlyphId, MetadataProvider, OutlineGlyph,
+     instance::{LocationRef, NormalizedCoord, Size},
+     outline::{DrawSettings, OutlinePen},
+     raw::FontRef as ReadFontsRef,
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0/src/tests/utils/renderer.rs:19:
++    GlyphId, MetadataProvider, OutlineGlyph,
+ };
+ use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, PixmapMut, Rect, Transform};
+ 
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:399:
+             .map(|bounds| ConstraintGeometry::xy(bounds)?.xy_bounds(GeometryTolerance::EXACT))
+             .transpose()?;
+         self.validate_creation_candidate(candidate)?;
+-        Ok(Some(CheckedCreationPlan { plan, header, actual_bounds }))
++        Ok(Some(CheckedCreationPlan {
++            plan,
++            header,
++            actual_bounds,
++        }))
+     }
+ 
+     pub(crate) fn validate_creation_candidate(
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:595:
+     }
+     fn cancel(&mut self, ctx: &mut ToolContext<'_, A>) -> Result<(), ToolError> {
+         self.clear_transient_feedback(ctx)?;
+-        if let Some(session) = self.gesture.as_mut().and_then(|gesture| gesture.snapping.as_mut()) {
++        if let Some(session) = self
++            .gesture
++            .as_mut()
++            .and_then(|gesture| gesture.snapping.as_mut())
++        {
+             session.cancel();
+         }
+         self.gesture = None;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:627:
+                 dragging: false,
+                 visited: vec![],
+                 feedback: vec![],
+-                snapping: self.snapping.map(|_| ctx.begin_snap_session()).transpose()?,
++                snapping: self
++                    .snapping
++                    .map(|_| ctx.begin_snap_session())
++                    .transpose()?,
+             });
+         }
+         Ok((ToolDirective::Continue, outcome))
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:673:
+             return Err(error);
+         }
+         match result {
+-            Ok(Some(ToolCreationPlan::Plain(checked))) => ctx.submit_container_creation(*checked)?,
++            Ok(Some(ToolCreationPlan::Plain(checked))) => {
++                ctx.submit_container_creation(*checked)?
++            }
+             Ok(Some(ToolCreationPlan::Snapped(checked))) => ctx.submit_snapped_container_creation(
+-                gesture.snapping.as_mut().ok_or_else(|| ToolError::protocol("missing snap session"))?,
++                gesture
++                    .snapping
++                    .as_mut()
++                    .ok_or_else(|| ToolError::protocol("missing snap session"))?,
+                 *checked,
+             )?,
+             Ok(None) => {}
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:703:
+         let Some(gesture) = &mut self.gesture else {
+             return Ok(());
+         };
+-        let result = Self::plan(&self.template, ctx, gesture, location, revision, self.snapping);
++        let result = Self::plan(
++            &self.template,
++            ctx,
++            gesture,
++            location,
++            revision,
++            self.snapping,
++        );
+         let result = match result {
+             Ok(Some(checked)) => (|| {
+                 gesture.feedback = match checked {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/container/creation.rs:710:
+-                    ToolCreationPlan::Plain(checked) => ctx.show_container_creation_feedback(&checked)?,
+-                    ToolCreationPlan::Snapped(checked) => ctx.show_snapped_container_creation_feedback(
+-                        gesture.snapping.as_mut().ok_or_else(|| ToolError::protocol("missing snap session"))?,
+-                        &checked,
+-                    )?,
++                    ToolCreationPlan::Plain(checked) => {
++                        ctx.show_container_creation_feedback(&checked)?
++                    }
++                    ToolCreationPlan::Snapped(checked) => ctx
++                        .show_snapped_container_creation_feedback(
++                            gesture
++                                .snapping
++                                .as_mut()
++                                .ok_or_else(|| ToolError::protocol("missing snap session"))?,
++                            &checked,
++                        )?,
+                 };
+                 ctx.add_autoexpose_range_reserve(location, &mut gesture.feedback)?;
+                 Ok(())
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:1:
+ use super::*;
+ use crate::{
+-    ContributionLimit, EditPartFactory, GraphicalViewer, ModelAdapter, RequestKey,
+-    RequestMetadata, RequestProtocol, ToolContext, ToolError,
++    ContributionLimit, EditPartFactory, GraphicalViewer, ModelAdapter, RequestKey, RequestMetadata,
++    RequestProtocol, ToolContext, ToolError,
+     container::{
+         CheckedCreationPlan, ContainerCreationTemplate, CreationCandidate, CreationPlan,
+         CreationPlanHeader,
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:77:
+     let width = points[1].x() - points[0].x();
+     let height = points[3].y() - points[0].y();
+     if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
+-        return Err(SnapError::Rejected("creation correction crosses fixed origin"));
++        return Err(SnapError::Rejected(
++            "creation correction crosses fixed origin",
++        ));
+     }
+     Ok(Rectangle::new(points[0].x(), points[0].y(), width, height))
+ }
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:100:
+             {
+                 return Err(SnapError::Invalidated);
+             }
+-            let target_map = geometry::finite_map(self.child_content_to_surface(candidate.target())?)?;
++            let target_map =
++                geometry::finite_map(self.child_content_to_surface(candidate.target())?)?;
+             if target_map != candidate.target_to_surface() {
+                 return Err(SnapError::Invalidated);
+             }
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:146:
+                 source_maps: vec![],
+                 target_map,
+                 pointer: geometry::finite_point(target_map.transform_point(candidate.pointer()))?,
+-                dofs: vec![DofKey::of::<CreationHorizontal>(), DofKey::of::<CreationVertical>()],
++                dofs: vec![
++                    DofKey::of::<CreationHorizontal>(),
++                    DofKey::of::<CreationVertical>(),
++                ],
+                 controls,
+                 anchor_controls: if candidate.fixed_origin.is_some() {
+                     let index = match candidate.moving_low {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:184:
+     let actual = checked.actual_bounds().ok_or(SnapError::Rejected(
+         "snapping requires actual creation bounds",
+     ))?;
+-    let inverse = input.target_to_surface().inverse().ok_or(SnapError::Invalid(
+-        "singular creation target",
+-    ))?;
+-    let original = input.controls().iter()
++    let inverse = input
++        .target_to_surface()
++        .inverse()
++        .ok_or(SnapError::Invalid("singular creation target"))?;
++    let original = input
++        .controls()
++        .iter()
+         .map(|control| geometry::finite_point(inverse.transform_point(control.origin())))
+         .collect::<Result<Vec<_>, _>>()?;
+     let actual_corners = corners(actual);
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:194:
+-    let moving = (if candidate.moving_low.0 { 0 } else { 1 },
+-                  if candidate.moving_low.1 { 0 } else { 3 });
++    let moving = (
++        if candidate.moving_low.0 { 0 } else { 1 },
++        if candidate.moving_low.1 { 0 } else { 3 },
++    );
+     let values = vec![
+         actual_corners[moving.0].x() - original[moving.0].x(),
+         actual_corners[moving.1].y() - original[moving.1].y(),
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:199:
+     ];
+     let expected = input.geometry(values.clone())?;
+-    let points = actual_corners.into_iter()
++    let points = actual_corners
++        .into_iter()
+         .map(|point| geometry::finite_point(input.target_to_surface().transform_point(point)))
+         .collect::<Result<Vec<_>, _>>()?;
+     for (&point, &expected) in points.iter().zip(expected.points()) {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:207:
+             return Err(SnapError::Invalid("creation residual overflow"));
+         }
+         if distance > input.settings().tolerance() {
+-            return Err(SnapError::Rejected("actual creation changes fixed template geometry"));
++            return Err(SnapError::Rejected(
++                "actual creation changes fixed template geometry",
++            ));
+         }
+     }
+     Ok(SnapGeometry { values, points })
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:228:
+         let mut target = self.container_target_at(pointer, &[])?;
+         for _ in 0..crate::container::MAX_CONTAINMENT_DEPTH {
+             let candidate = self.container_drop_candidate(
+-                target, pointer, template.default_size(), grab_offset, modifiers, revision,
++                target,
++                pointer,
++                template.default_size(),
++                grab_offset,
++                modifiers,
++                revision,
+             )?;
+-            if let Some(plan) = self.resolve_snapped_container_creation(
+-                session, template, &candidate, settings,
+-            )? {
++            if let Some(plan) =
++                self.resolve_snapped_container_creation(session, template, &candidate, settings)?
++            {
+                 return Ok(Some(plan));
+             }
+             let Some(parent) = self.part_tree().parent(target) else {
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:258:
+         let result = (|| {
+             self.validate_creation_candidate(candidate)?;
+             let metadata = RequestMetadata::new(candidate.interaction_revision(), vec![]);
+-            let mut contributions = self.aggregate_at::<CreationLayoutConstraints>(
+-                candidate.target(), &metadata, candidate, ContributionLimit::AtMostOne,
+-            )?.into_contributions();
++            let mut contributions = self
++                .aggregate_at::<CreationLayoutConstraints>(
++                    candidate.target(),
++                    &metadata,
++                    candidate,
++                    ContributionLimit::AtMostOne,
++                )?
++                .into_contributions();
+             let layouts = contributions.pop().unwrap_or_default();
+             if layouts.len() > settings.budget().sources.get() {
+                 return Err(SnapError::Budget("layout constraint budget exceeded").into());
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:274:
+             };
+             let actual = actual_geometry(&checked, &solution)?;
+             let geometry = self.validate_snapping_plan_geometry(session, &solution, actual)?;
+-            let plan = SnappedCreationPlan { checked, solution, geometry };
++            let plan = SnappedCreationPlan {
++                checked,
++                solution,
++                geometry,
++            };
+             self.recheck_snapped_creation(session, &plan)?;
+             Ok(Some(plan))
+         })();
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:291:
+     ) -> Result<(), ToolError> {
+         let result = (|| {
+             self.validate_creation_candidate(plan.checked.header().candidate())?;
+-            if plan.checked.plan.header() != &CreationPlanHeader::from_candidate(plan.checked.header().candidate())
++            if plan.checked.plan.header()
++                != &CreationPlanHeader::from_candidate(plan.checked.header().candidate())
+                 || plan.checked.plan.actual_bounds()? != plan.checked.actual_bounds()
+             {
+                 return Err(SnapError::Invalidated.into());
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:316:
+             self.recheck_snapped_creation(session, plan)?;
+             let declarations = plan.feedback().cloned().collect::<Vec<_>>();
+             let mut visuals = self.render_snap_feedback(
+-                &declarations, plan.geometry(), plan.solution.input().settings().budget().feedback.get(),
++                &declarations,
++                plan.geometry(),
++                plan.solution.input().settings().budget().feedback.get(),
+             )?;
+             visuals.append(&mut plan.checked.plan.feedback()?);
+             self.recheck_snapped_creation(session, plan)?;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/creation.rs:338:
+             self.recheck_snapped_creation(session, &plan)?;
+             if let Some(command) = plan.checked.plan.build_command(self.model())? {
+                 self.submit_command(crate::container::guard_command(
+-                    command, plan.checked.header.candidate().revision(),
++                    command,
++                    plan.checked.header.candidate().revision(),
+                 ))?;
+             }
+             Ok(())
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/mod.rs:3:
+ //! Extensions contribute declarations; only the Editor can issue checked input and receipts.
+ //! Solving does not authorize a model command or replace the container's release validation.
+ 
+-mod feedback;
+ mod creation;
++mod feedback;
+ mod geometry;
+ mod grid;
+ mod lines;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/mod.rs:15:
+ #[cfg(test)]
+ mod tests;
+ 
+-pub use feedback::*;
+ pub use creation::*;
++pub use feedback::*;
+ pub use geometry::*;
+ pub use grid::*;
+ pub use lines::*;
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/snap/movement.rs:219:
+         plan: SnappedMovePlan<A, P>,
+     ) -> Result<(), ToolError> {
+         let result = (|| {
+-        self.recheck_snapped_move(session, &plan)?;
+-        // Final fact validation above is the last owner callback before command construction.
+-        // Do not introduce another synchronization/qualification pass between these two gates.
+-        if let Some(command) = plan.checked.plan.build_command(self.model())? {
+-            self.submit_command(crate::container::guard_command(
+-                command,
+-                plan.checked.header.revision(),
+-            ))?;
+-        }
+-        Ok(())
++            self.recheck_snapped_move(session, &plan)?;
++            // Final fact validation above is the last owner callback before command construction.
++            // Do not introduce another synchronization/qualification pass between these two gates.
++            if let Some(command) = plan.checked.plan.build_command(self.model())? {
++                self.submit_command(crate::container::guard_command(
++                    command,
++                    plan.checked.header.revision(),
++                ))?;
++            }
++            Ok(())
+         })();
+         session.cancel();
+         result
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/src/tool/mod.rs:292:
+         settings: crate::snap::SnapSettings,
+         layouts: Vec<crate::snap::RuleCall>,
+     ) -> Result<crate::snap::SnapInput, ToolError> {
+-        Ok(self.host.snap_creation_input(candidate, settings, layouts)?)
++        Ok(self
++            .host
++            .snap_creation_input(candidate, settings, layouts)?)
+     }
+ 
+     /// Solves once; commands and actual-plan validation remain separate checked gates.
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs:867:
+ fn creation_snap_settings() -> novadraw_editor::snap::SnapSettings {
+     use novadraw_editor::snap::*;
+     let limit = std::num::NonZeroUsize::new(128).unwrap();
+-    SnapSettings::new(8.0, 1.0e-9, SnapBudget {
+-        sources: limit, features: limit, candidates: limit, feedback: limit,
+-    }).unwrap()
++    SnapSettings::new(
++        8.0,
++        1.0e-9,
++        SnapBudget {
++            sources: limit,
++            features: limit,
++            candidates: limit,
++            feedback: limit,
++        },
++    )
++    .unwrap()
+ }
+ 
+ #[test]
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs:876:
+ fn snapped_creation_preserves_template_or_fixed_origin_and_one_history() {
+     for (start, end, expected) in [
+-        (Point::new(452.0, 120.0), Point::new(452.0, 120.0),
+-         Rectangle::new(100.0, 70.0, 30.0, 20.0)),
+-        (Point::new(400.0, 120.0), Point::new(448.0, 160.0),
+-         Rectangle::new(50.0, 70.0, 50.0, 40.0)),
+-        (Point::new(500.0, 170.0), Point::new(452.0, 120.0),
+-         Rectangle::new(100.0, 70.0, 50.0, 50.0)),
++        (
++            Point::new(452.0, 120.0),
++            Point::new(452.0, 120.0),
++            Rectangle::new(100.0, 70.0, 30.0, 20.0),
++        ),
++        (
++            Point::new(400.0, 120.0),
++            Point::new(448.0, 160.0),
++            Rectangle::new(50.0, 70.0, 50.0, 40.0),
++        ),
++        (
++            Point::new(500.0, 170.0),
++            Point::new(452.0, 120.0),
++            Rectangle::new(100.0, 70.0, 50.0, 50.0),
++        ),
+     ] {
+         let (mut viewer, mut domain) = snapped_editor();
+-        domain.set_active_tool(&mut viewer,
+-            ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+-        ).unwrap();
++        domain
++            .set_active_tool(
++                &mut viewer,
++                ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
++            )
++            .unwrap();
+         drag(&mut viewer, &mut domain, start, end);
+         assert_eq!(viewer.model().nodes[&20].bounds, expected);
+         assert!(viewer.model().trace.borrow().permissions.is_empty());
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs:901:
+ #[test]
+ fn snapped_creation_release_uses_latest_endpoint_without_preview_fallback() {
+     let (mut viewer, mut domain) = snapped_editor();
+-    domain.set_active_tool(&mut viewer,
+-        ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+-    ).unwrap();
+-    domain.pointer_pressed(&mut viewer, Point::new(400.0, 120.0), MouseButton::Left,
+-        Default::default()).unwrap();
+-    domain.pointer_moved(&mut viewer, Point::new(448.0, 160.0)).unwrap();
++    domain
++        .set_active_tool(
++            &mut viewer,
++            ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
++        )
++        .unwrap();
++    domain
++        .pointer_pressed(
++            &mut viewer,
++            Point::new(400.0, 120.0),
++            MouseButton::Left,
++            Default::default(),
++        )
++        .unwrap();
++    domain
++        .pointer_moved(&mut viewer, Point::new(448.0, 160.0))
++        .unwrap();
+     assert_eq!(viewer.model().trace.borrow().build_count, 0);
+-    domain.pointer_released(&mut viewer, Point::new(552.0, 180.0), MouseButton::Left).unwrap();
+-    assert_eq!(viewer.model().nodes[&20].bounds, Rectangle::new(50.0, 70.0, 150.0, 60.0));
++    domain
++        .pointer_released(&mut viewer, Point::new(552.0, 180.0), MouseButton::Left)
++        .unwrap();
++    assert_eq!(
++        viewer.model().nodes[&20].bounds,
++        Rectangle::new(50.0, 70.0, 150.0, 60.0)
++    );
+     assert_eq!(viewer.model().trace.borrow().build_count, 1);
+     assert_eq!(domain.command_stack().undo_len(), 1);
+ }
+Diff in /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs:924:
+             trace.snap_omit_geometry = omitted;
+             trace.snap_plan_shift = (!omitted).then_some(3.0);
+         }
+-        domain.set_active_tool(&mut viewer,
+-            ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+-        ).unwrap();
+-        domain.pointer_pressed(&mut viewer, Point::new(452.0, 120.0), MouseButton::Left,
+-            Default::default()).unwrap();
+-        assert!(domain.pointer_released(&mut viewer, Point::new(452.0, 120.0),
+-            MouseButton::Left).is_err());
++        domain
++            .set_active_tool(
++                &mut viewer,
++                ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
++            )
++            .unwrap();
++        domain
++            .pointer_pressed(
++                &mut viewer,
++                Point::new(452.0, 120.0),
++                MouseButton::Left,
++                Default::default(),
++            )
++            .unwrap();
++        assert!(
++            domain
++                .pointer_released(&mut viewer, Point::new(452.0, 120.0), MouseButton::Left)
++                .is_err()
++        );
+         assert_eq!(viewer.model().nodes, before);
+         assert_eq!(viewer.model().trace.borrow().build_count, 0);
+         assert_eq!(viewer.model().trace.borrow().feedback_count, 0);

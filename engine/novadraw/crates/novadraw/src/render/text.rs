@@ -1134,6 +1134,7 @@ impl TextLayout {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextError {
+    Stage(Box<crate::text::shaping::TextStageFailure>),
     RuntimeFaulted,
     BorderInput(Box<crate::figure::border::BorderInputError>),
     BorderChild {
@@ -1168,6 +1169,7 @@ pub enum TextError {
 impl fmt::Display for TextError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Stage(error) => error.fmt(formatter),
             Self::RuntimeFaulted => formatter.write_str("Runtime is faulted"),
             Self::BorderInput(error) => error.fmt(formatter),
             Self::BorderChild { role, source } => write!(formatter, "{role} border: {source}"),
@@ -1221,6 +1223,7 @@ impl fmt::Display for TextError {
 impl Error for TextError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Stage(error) => Some(error.as_ref()),
             Self::BorderInput(error) => Some(error.as_ref()),
             Self::BorderChild { source, .. } | Self::BorderOwner { source, .. } => {
                 Some(source.as_ref())
@@ -1528,6 +1531,11 @@ pub trait TextLayoutEngine {
     /// Every change affecting output, resources, or provider geometry must change `revision`.
     /// Absence keeps the full computation path; external and built-in engines share this hook.
     fn cache_identity(&self) -> Option<TextLayoutCacheIdentity> {
+        None
+    }
+
+    /// Optional staged reuse. External and built-in engines share the same protocol.
+    fn staged_layout(&mut self) -> Option<&mut dyn crate::text::shaping::StagedTextLayoutEngine> {
         None
     }
 

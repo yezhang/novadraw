@@ -1,0 +1,765 @@
+--- a/src/hb/cold_admission.rs
++++ b/src/hb/cold_admission.rs
+@@ -41,6 +41,10 @@
+     Lookup,
+     /// Visit a ligature-set or ligature record.
+     Ligature,
++    /// Visit shape-plan feature or stage elements.
++    Feature,
++    /// Compare or move elements during admitted sorting.
++    Sort,
+ }
+ 
+ /// Logical costs of a cold shaper operation.
+--- a/src/hb/ot_map.rs
++++ b/src/hb/ot_map.rs
+@@ -7,6 +7,7 @@
+ use super::ot_layout::TableIndex;
+ use super::ot_shape_plan::hb_ot_shape_plan_t;
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, tag, Language, Script};
++use super::face::cold_admission::{ColdAdmission, ColdOperation};
+ 
+ // TODO: Remove once MSRV is 1.80+
+ use core::mem::{size_of, size_of_val};
+@@ -72,6 +73,10 @@
+ pub type pause_func_t = fn(&hb_ot_shape_plan_t, &hb_font_t, &mut hb_buffer_t) -> bool;
+ 
+ impl hb_ot_map_t {
++    pub(crate) fn charge_query<P: ColdAdmission>(&self, policy: &mut P) -> Result<(), P::Error> {
++        policy.charge(ColdOperation::Planning, 1, 0)?;
++        policy.charge(ColdOperation::Feature, self.features.len() + 1, 0)
++    }
+     pub const MAX_BITS: u32 = 8;
+     pub const MAX_VALUE: u32 = (1 << Self::MAX_BITS) - 1;
+ 
+@@ -207,14 +212,25 @@
+ const GLOBAL_BIT_MASK: hb_mask_t = 1 << GLOBAL_BIT_SHIFT;
+ 
+ impl<'a> hb_ot_map_builder_t<'a> {
+-    pub fn new(
+-        face: &'a hb_font_t<'a>,
+-        script: Option<Script>,
+-        language: Option<&Language>,
+-    ) -> Self {
++    pub(crate) fn new_with<P: ColdAdmission>(
++        face: &'a hb_font_t<'a>,
++        script: Option<Script>,
++        language: Option<&Language>,
++        policy: &mut P,
++    ) -> Result<Option<Self>, P::Error> {
++        policy.charge(ColdOperation::Planning, 3, 0)?;
++        if P::ADMITTED && (language.is_some()
++            || face.ot_tables.gsub.is_some() || face.ot_tables.gpos.is_some()) {
++            return Ok(None);
++        }
+         // Fetch script/language indices for GSUB/GPOS.  We need these later to skip
+         // features not available in either table and not waste precious bits for them.
+-        let (script_tags, lang_tags) = tag::tags_from_script_and_language(script, language);
++        // No tags can be consumed when there are no layout tables.
++        let tags = if !P::ADMITTED {
++            Some(tag::tags_from_script_and_language(script, language))
++        } else {
++            None
++        };
+ 
+         let mut found_script = [false; 2];
+         let mut script_index = [None; 2];
+@@ -222,18 +238,19 @@
+         let mut lang_index = [None; 2];
+ 
+         for (table_index, table) in face.layout_tables() {
+-            if let Some((found, idx, tag)) = table.select_script(&script_tags) {
++            let (script_tags, lang_tags) = tags.as_ref().unwrap();
++            if let Some((found, idx, tag)) = table.select_script(script_tags) {
+                 chosen_script[table_index] = Some(tag);
+                 found_script[table_index] = found;
+                 script_index[table_index] = Some(idx);
+ 
+-                if let Some(idx) = table.select_script_language(idx, &lang_tags) {
++                if let Some(idx) = table.select_script_language(idx, lang_tags) {
+                     lang_index[table_index] = Some(idx);
+                 }
+             }
+         }
+ 
+-        Self {
++        Ok(Some(Self {
+             face,
+             found_script,
+             script_index,
+@@ -243,7 +260,7 @@
+             feature_infos: Vec::new(),
+             stages: [Vec::new(), Vec::new()],
+             is_simple: false,
+-        }
++        }))
+     }
+ 
+     #[inline]
+@@ -281,6 +298,19 @@
+             });
+         }
+     }
++
++    pub(crate) fn add_feature_with<P: ColdAdmission>(
++        &mut self, tag: hb_tag_t, flags: hb_ot_map_feature_flags_t, value: u32,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        policy.charge(ColdOperation::Planning, 1, 0)?;
++        if !tag.is_null() {
++            reserve_next(&mut self.feature_infos, policy)?;
++            policy.charge(ColdOperation::Initialize, 2, 0)?;
++            self.add_feature(tag, flags, value);
++        }
++        Ok(())
++    }
+ 
+     #[inline]
+     pub fn enable_feature(&mut self, tag: hb_tag_t, flags: hb_ot_map_feature_flags_t, value: u32) {
+@@ -310,8 +340,20 @@
+ 
+         self.current_stage[table_index] += 1;
+     }
+-
+-    pub fn compile(&mut self) -> hb_ot_map_t {
++
++    pub(crate) fn add_pause_with<P: ColdAdmission>(
++        &mut self, table_index: TableIndex, pause: Option<pause_func_t>, policy: &mut P,
++    ) -> Result<(), P::Error> {
++        reserve_next(&mut self.stages[table_index], policy)?;
++        policy.charge(ColdOperation::Initialize, 2, 0)?;
++        match table_index {
++            TableIndex::GSUB => self.add_gsub_pause(pause),
++            TableIndex::GPOS => self.add_gpos_pause(pause),
++        }
++        Ok(())
++    }
++
++    pub(crate) fn compile_with<P: ColdAdmission>(&mut self, policy: &mut P) -> Result<hb_ot_map_t, P::Error> {
+         // We default to applying required feature in stage 0.  If the required
+         // feature has a tag that is known to the shaper, we apply required feature
+         // in the stage for that tag.
+@@ -328,15 +370,15 @@
+             }
+         }
+ 
+-        let (features, required_stage, global_mask) = self.collect_feature_maps(required_tag);
+-
+-        self.add_gsub_pause(None);
+-        self.add_gpos_pause(None);
++        let (features, required_stage, global_mask) = self.collect_feature_maps_with(required_tag, policy)?;
++
++        self.add_pause_with(TableIndex::GSUB, None, policy)?;
++        self.add_pause_with(TableIndex::GPOS, None, policy)?;
+ 
+         let (lookups, stages) =
+-            self.collect_lookup_stages(&features, required_index, required_stage);
+-
+-        hb_ot_map_t {
++            self.collect_lookup_stages_with(&features, required_index, required_stage, policy)?;
++
++        Ok(hb_ot_map_t {
+             found_script: self.found_script,
+             chosen_script: self.chosen_script,
+             global_mask,
+@@ -344,22 +386,24 @@
+             lookups,
+             stages,
+             feature_variations: self.face.ot_tables.feature_variations,
+-        }
+-    }
+-
+-    fn collect_feature_maps(
++        })
++    }
++
++    fn collect_feature_maps_with<P: ColdAdmission>(
+         &mut self,
+         required_tag: [Option<hb_tag_t>; 2],
+-    ) -> (Vec<feature_map_t>, [usize; 2], hb_mask_t) {
++        policy: &mut P,
++    ) -> Result<(Vec<feature_map_t>, [usize; 2], hb_mask_t), P::Error> {
+         let mut map_features = Vec::new();
+         let mut required_stage = [0; 2];
+         let mut global_mask = GLOBAL_BIT_MASK;
+         let mut next_bit = glyph_flag::DEFINED.count_ones() + 1;
+ 
+         // Sort features and merge duplicates.
+-        self.dedup_feature_infos();
++        self.dedup_feature_infos_with(policy)?;
+ 
+         for info in &self.feature_infos {
++            policy.charge(ColdOperation::Feature, 1, 0)?;
+             let bits_needed = if info.flags & F_GLOBAL != 0 && info.max_value == 1 {
+                 // Uses the global bit.
+                 0
+@@ -417,7 +461,9 @@
+                 (shift, mask)
+             };
+ 
+-            map_features.push(feature_map_t {
++            reserve_next(&mut map_features, policy)?;
++            policy.charge(ColdOperation::Initialize, 2, 0)?;
++            map_features.push(feature_map_t {
+                 tag: info.tag,
+                 index: feature_index,
+                 stage: info.stage,
+@@ -432,24 +478,26 @@
+         }
+ 
+         if self.is_simple {
+-            map_features.sort();
+-        }
+-
+-        (map_features, required_stage, global_mask)
+-    }
+-
+-    fn dedup_feature_infos(&mut self) {
++            sort_with(&mut map_features, policy)?;
++        }
++
++        Ok((map_features, required_stage, global_mask))
++    }
++
++    fn dedup_feature_infos_with<P: ColdAdmission>(&mut self, policy: &mut P) -> Result<(), P::Error> {
+         let feature_infos = &mut self.feature_infos;
+         if feature_infos.is_empty() {
+-            return;
++            return Ok(());
+         }
+ 
+         if !self.is_simple {
+-            feature_infos.sort();
++            sort_with(feature_infos, policy)?;
+         }
+ 
+         let mut j = 0;
+         for i in 1..feature_infos.len() {
++            // Read i and j, update j, and account for eventual truncation.
++            policy.charge(ColdOperation::Feature, 4, 0)?;
+             if feature_infos[i].tag != feature_infos[j].tag {
+                 j += 1;
+                 feature_infos[j] = feature_infos[i];
+@@ -476,14 +524,16 @@
+         }
+ 
+         feature_infos.truncate(j + 1);
+-    }
+-
+-    fn collect_lookup_stages(
++        Ok(())
++    }
++
++    fn collect_lookup_stages_with<P: ColdAdmission>(
+         &self,
+         map_features: &[feature_map_t],
+         required_feature_index: [Option<u16>; 2],
+         required_feature_stage: [usize; 2],
+-    ) -> ([Vec<lookup_map_t>; 2], [Vec<StageMap>; 2]) {
++        policy: &mut P,
++    ) -> Result<([Vec<lookup_map_t>; 2], [Vec<StageMap>; 2]), P::Error> {
+         let mut map_lookups = [Vec::new(), Vec::new()];
+         let mut map_stages = [Vec::new(), Vec::new()];
+ 
+@@ -495,6 +545,7 @@
+             let variation_index = self.face.ot_tables.feature_variations[table_index as usize];
+ 
+             for stage in 0..self.current_stage[table_index] {
++                policy.charge(ColdOperation::Feature, 1, 0)?;
+                 if let Some(feature_index) = required_feature_index[table_index] {
+                     if required_feature_stage[table_index] == stage {
+                         self.add_lookups(
+@@ -512,6 +563,7 @@
+                 }
+ 
+                 for feature in map_features {
++                    policy.charge(ColdOperation::Feature, 1, 0)?;
+                     if let Some(feature_index) = feature.index[table_index] {
+                         if feature.stage[table_index] == stage {
+                             self.add_lookups(
+@@ -534,7 +586,7 @@
+                 let len = lookups.len();
+ 
+                 if last_lookup + 1 < len {
+-                    lookups[last_lookup..].sort();
++                    sort_with(&mut lookups[last_lookup..], policy)?;
+ 
+                     let mut j = last_lookup;
+                     for i in j + 1..len {
+@@ -554,7 +606,10 @@
+                 last_lookup = lookups.len();
+ 
+                 if let Some(info) = self.stages[table_index].get(stage_index) {
++                    policy.charge(ColdOperation::Feature, 1, 0)?;
+                     if info.index == stage {
++                        reserve_next(&mut map_stages[table_index], policy)?;
++                        policy.charge(ColdOperation::Initialize, 2, 0)?;
+                         map_stages[table_index].push(StageMap {
+                             last_lookup,
+                             pause_func: info.pause_func,
+@@ -566,7 +621,7 @@
+             }
+         }
+ 
+-        (map_lookups, map_stages)
++        Ok((map_lookups, map_stages))
+     }
+ 
+     fn add_lookups(
+@@ -608,3 +663,91 @@
+         Some(())
+     }
+ }
++
++/// Geometric growth keeps a long user-feature list from repeatedly moving
++/// its full prefix. The policy charges the whole requested new capacity.
++fn reserve_next<T, P: ColdAdmission>(values: &mut Vec<T>, policy: &mut P) -> Result<(), P::Error> {
++    let extra = if P::ADMITTED && values.len() == values.capacity() {
++        values.capacity().max(1)
++    } else {
++        1
++    };
++    policy.reserve(values, extra)
++}
++
++/// An allocation-free admitted heap sort. Each comparison and swap is
++/// prepaid; ordinary callers retain the upstream sorting implementation.
++/// Plan records have value ordering (feature sequence is part of that order),
++/// so equal records have no observable identity that needs stable sorting.
++fn sort_with<T: Ord, P: ColdAdmission>(values: &mut [T], policy: &mut P) -> Result<(), P::Error> {
++    if !P::ADMITTED {
++        values.sort();
++        return Ok(());
++    }
++    fn sift<T: Ord, P: ColdAdmission>(
++        values: &mut [T], mut root: usize, end: usize, policy: &mut P,
++    ) -> Result<(), P::Error> {
++        // root < end/2 proves 2*root+1 < end without overflow.
++        while root < end / 2 {
++            let mut child = 2 * root + 1;
++            if child + 1 < end {
++                policy.charge(ColdOperation::Sort, 2, 0)?;
++                if values[child] < values[child + 1] {
++                    child += 1;
++                }
++            }
++            policy.charge(ColdOperation::Sort, 2, 0)?;
++            if values[root] >= values[child] {
++                break;
++            }
++            policy.charge(ColdOperation::Sort, 2, 0)?;
++            values.swap(root, child);
++            root = child;
++        }
++        Ok(())
++    }
++    for root in (0..values.len() / 2).rev() {
++        sift(values, root, values.len(), policy)?;
++    }
++    for end in (1..values.len()).rev() {
++        policy.charge(ColdOperation::Sort, 2, 0)?;
++        values.swap(0, end);
++        sift(values, 0, end, policy)?;
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod admission_tests {
++    use super::*;
++    use crate::hb::face::cold_admission::{AdmittedCold, ColdOperationError};
++    use core::convert::Infallible;
++
++    #[test]
++    fn heap_sort_matches_value_order_and_stops_at_each_rejection() {
++        for len in 0..=256 {
++            let input: Vec<_> = (0..len).map(|i| (i * 31 + len * 7) % 23).collect();
++            let mut expected = input.clone();
++            expected.sort();
++            let mut actual = input;
++            sort_with(&mut actual, &mut AdmittedCold(|_, _| Ok::<_, Infallible>(()))).unwrap();
++            assert_eq!(actual, expected);
++        }
++        let input = [5, 3, 8, 0, 5, 1, 2, 2, 9];
++        let mut complete = alloc::vec::Vec::new();
++        sort_with(&mut input.clone(), &mut AdmittedCold(|op, cost| {
++            complete.push((op, cost));
++            Ok::<_, usize>(())
++        })).unwrap();
++        for reject in 0..complete.len() {
++            let mut prefix = alloc::vec::Vec::new();
++            let error = sort_with(&mut input.clone(), &mut AdmittedCold(|op, cost| {
++                let index = prefix.len();
++                prefix.push((op, cost));
++                if index == reject { Err(index) } else { Ok(()) }
++            })).unwrap_err();
++            assert!(matches!(error, ColdOperationError::Admission(i) if i == reject));
++            assert_eq!(prefix, complete[..=reject]);
++        }
++    }
++}
+--- a/src/hb/ot_shape.rs
++++ b/src/hb/ot_shape.rs
+@@ -22,6 +22,7 @@
+ use crate::{Direction, Feature, Language, Script};
+ use core::ptr;
+ use read_fonts::TableProvider;
++use super::face::cold_admission::{self, ColdAdmission, ColdOperation, OrdinaryCold};
+ 
+ pub struct hb_ot_shape_planner_t<'a> {
+     pub face: &'a hb_font_t<'a>,
+@@ -43,9 +44,23 @@
+         script: Option<Script>,
+         language: Option<&Language>,
+     ) -> Self {
+-        let ot_map = hb_ot_map_builder_t::new(face, script, language);
++        match Self::new_with(face, direction, script, language, &mut OrdinaryCold) {
++            Ok(Some(value)) => value,
++            Ok(None) => unreachable!(),
++            Err(error) => match error {},
++        }
++    }
++
++    pub(crate) fn new_with<P: ColdAdmission>(
++        face: &'a hb_font_t<'a>, direction: Direction, script: Option<Script>,
++        language: Option<&Language>, policy: &mut P,
++    ) -> Result<Option<Self>, P::Error> {
++        let Some(ot_map) = hb_ot_map_builder_t::new_with(face, script, language, policy)? else {
++            return Ok(None);
++        };
+         let aat_map = AatMapBuilder::default();
+ 
++        policy.charge(ColdOperation::Planning, 1, 0)?;
+         let mut shaper = match script {
+             Some(script) => hb_ot_shape_complex_categorize(
+                 script,
+@@ -67,7 +82,14 @@
+             shaper = &DUMBER_SHAPER;
+         }
+ 
+-        hb_ot_shape_planner_t {
++        policy.charge(ColdOperation::Planning, 6, 0)?;
++        if P::ADMITTED && (apply_morx || face.aat_tables.kern.is_some()
++            || face.aat_tables.kerx.is_some() || shaper.collect_features.is_some()
++            || shaper.override_features.is_some() || shaper.create_data.is_some()) {
++            return Ok(None);
++        }
++
++        Ok(Some(hb_ot_shape_planner_t {
+             face,
+             direction,
+             script,
+@@ -78,10 +100,24 @@
+             script_zero_marks,
+             script_fallback_mark_positioning,
+             shaper,
+-        }
++        }))
+     }
+ 
+     pub fn collect_features(&mut self, user_features: &[Feature]) {
++        match self.collect_features_with(user_features, &mut OrdinaryCold) {
++            Ok(()) => {},
++            Err(error) => match error {},
++        }
++    }
++
++    pub(crate) fn collect_features_with<P: ColdAdmission>(
++        &mut self, user_features: &[Feature], policy: &mut P,
++    ) -> Result<(), P::Error> {
++        macro_rules! add {
++            ($tag:expr, $flags:expr, $value:expr) => {
++                self.ot_map.add_feature_with($tag, $flags, $value, policy)?
++            };
++        }
+         static COMMON_FEATURES: &[(hb_tag_t, hb_ot_map_feature_flags_t)] = &[
+             (hb_tag_t::new(b"abvm"), F_GLOBAL),
+             (hb_tag_t::new(b"blwm"), F_GLOBAL),
+@@ -106,54 +142,56 @@
+ 
+         self.ot_map.is_simple = true;
+ 
+-        self.ot_map.enable_feature(hb_tag_t::new(b"rvrn"), empty, 1);
+-        self.ot_map.add_gsub_pause(None);
++        add!(hb_tag_t::new(b"rvrn"), empty | F_GLOBAL, 1);
++        self.ot_map.add_pause_with(TableIndex::GSUB, None, policy)?;
+ 
+         match self.direction {
+             Direction::LeftToRight => {
+-                self.ot_map.enable_feature(hb_tag_t::new(b"ltra"), empty, 1);
+-                self.ot_map.enable_feature(hb_tag_t::new(b"ltrm"), empty, 1);
++                add!(hb_tag_t::new(b"ltra"), empty | F_GLOBAL, 1);
++                add!(hb_tag_t::new(b"ltrm"), empty | F_GLOBAL, 1);
+             }
+             Direction::RightToLeft => {
+-                self.ot_map.enable_feature(hb_tag_t::new(b"rtla"), empty, 1);
+-                self.ot_map.add_feature(hb_tag_t::new(b"rtlm"), empty, 1);
++                add!(hb_tag_t::new(b"rtla"), empty | F_GLOBAL, 1);
++                add!(hb_tag_t::new(b"rtlm"), empty, 1);
+             }
+             _ => {}
+         }
+ 
+         // Automatic fractions.
+-        self.ot_map.add_feature(hb_tag_t::new(b"frac"), empty, 1);
+-        self.ot_map.add_feature(hb_tag_t::new(b"numr"), empty, 1);
+-        self.ot_map.add_feature(hb_tag_t::new(b"dnom"), empty, 1);
++        add!(hb_tag_t::new(b"frac"), empty, 1);
++        add!(hb_tag_t::new(b"numr"), empty, 1);
++        add!(hb_tag_t::new(b"dnom"), empty, 1);
+ 
+         // Random!
+-        self.ot_map
+-            .enable_feature(hb_tag_t::new(b"rand"), F_RANDOM, hb_ot_map_t::MAX_VALUE);
++        add!(hb_tag_t::new(b"rand"), F_RANDOM | F_GLOBAL, hb_ot_map_t::MAX_VALUE);
+ 
+         // Tracking.  We enable dummy feature here just to allow disabling
+         // AAT 'trak' table using features.
+         // https://github.com/harfbuzz/harfbuzz/issues/1303
+-        self.ot_map
+-            .enable_feature(hb_tag_t::new(b"trak"), F_HAS_FALLBACK, 1);
+-
+-        self.ot_map.enable_feature(hb_tag_t::new(b"Harf"), empty, 1); // Considered required.
+-        self.ot_map.enable_feature(hb_tag_t::new(b"HARF"), empty, 1); // Considered discretionary.
++        add!(hb_tag_t::new(b"trak"), F_HAS_FALLBACK | F_GLOBAL, 1);
++
++        add!(hb_tag_t::new(b"Harf"), empty | F_GLOBAL, 1); // Considered required.
++        add!(hb_tag_t::new(b"HARF"), empty | F_GLOBAL, 1); // Considered discretionary.
+ 
+         if let Some(func) = self.shaper.collect_features {
+             self.ot_map.is_simple = false;
+             func(self);
+         }
+ 
+-        self.ot_map.enable_feature(hb_tag_t::new(b"Buzz"), empty, 1); // Considered required.
+-        self.ot_map.enable_feature(hb_tag_t::new(b"BUZZ"), empty, 1); // Considered discretionary.
+-
+-        for &(tag, flags) in COMMON_FEATURES {
+-            self.ot_map.add_feature(tag, flags, 1);
++        add!(hb_tag_t::new(b"Buzz"), empty | F_GLOBAL, 1); // Considered required.
++        add!(hb_tag_t::new(b"BUZZ"), empty | F_GLOBAL, 1); // Considered discretionary.
++
++        for entry in COMMON_FEATURES {
++            policy.charge(ColdOperation::Feature, 1, 0)?;
++            let &(tag, flags) = entry;
++            add!(tag, flags, 1);
+         }
+ 
+         if self.direction.is_horizontal() {
+-            for &(tag, flags) in HORIZONTAL_FEATURES {
+-                self.ot_map.add_feature(tag, flags, 1);
++            for entry in HORIZONTAL_FEATURES {
++                policy.charge(ColdOperation::Feature, 1, 0)?;
++                let &(tag, flags) = entry;
++                add!(tag, flags, 1);
+             }
+         } else {
+             // We only apply `vert` feature. See:
+@@ -164,8 +202,7 @@
+             // matter which script/langsys it is listed (or not) under.
+             // See various bugs referenced from:
+             // https://github.com/harfbuzz/harfbuzz/issues/63
+-            self.ot_map
+-                .enable_feature(hb_tag_t::new(b"vert"), F_GLOBAL_SEARCH, 1);
++            add!(hb_tag_t::new(b"vert"), F_GLOBAL_SEARCH | F_GLOBAL, 1);
+         }
+ 
+         if !user_features.is_empty() {
+@@ -173,29 +210,47 @@
+         }
+ 
+         for feature in user_features {
++            policy.charge(ColdOperation::Feature, 1, 0)?;
+             let flags = if feature.is_global() { F_GLOBAL } else { empty };
+-            self.ot_map.add_feature(feature.tag, flags, feature.value);
++            add!(feature.tag, flags, feature.value);
+         }
+ 
+         if let Some(func) = self.shaper.override_features {
+             func(self);
+         }
+-    }
+-
+-    pub fn compile(mut self, features: &[Feature]) -> hb_ot_shape_plan_t {
+-        let ot_map = self.ot_map.compile();
++        Ok(())
++    }
++
++    pub fn compile(self, features: &[Feature]) -> hb_ot_shape_plan_t {
++        match self.compile_with(features, &mut OrdinaryCold) {
++            Ok(value) => value,
++            Err(error) => match error {},
++        }
++    }
++
++    pub(crate) fn compile_with<P: ColdAdmission>(
++        mut self, features: &[Feature], policy: &mut P,
++    ) -> Result<hb_ot_shape_plan_t, P::Error> {
++        let ot_map = self.ot_map.compile_with(policy)?;
+         let mut aat_map = AatMap::default();
+         if self.apply_morx {
+             self.aat_map.compile(self.face, &mut aat_map);
+         }
+ 
+-        let frac_mask = ot_map.get_1_mask(hb_tag_t::new(b"frac"));
+-        let numr_mask = ot_map.get_1_mask(hb_tag_t::new(b"numr"));
+-        let dnom_mask = ot_map.get_1_mask(hb_tag_t::new(b"dnom"));
++        // Feature binary searches below are charged separately before each.
++        macro_rules! query {
++            ($method:ident, $($arg:expr),+) => {{
++                ot_map.charge_query(policy)?;
++                ot_map.$method($($arg),+)
++            }};
++        }
++        let frac_mask = query!(get_1_mask, hb_tag_t::new(b"frac"));
++        let numr_mask = query!(get_1_mask, hb_tag_t::new(b"numr"));
++        let dnom_mask = query!(get_1_mask, hb_tag_t::new(b"dnom"));
+         let has_frac = frac_mask != 0 || (numr_mask != 0 && dnom_mask != 0);
+ 
+-        let rtlm_mask = ot_map.get_1_mask(hb_tag_t::new(b"rtlm"));
+-        let has_vert = ot_map.get_1_mask(hb_tag_t::new(b"vert")) != 0;
++        let rtlm_mask = query!(get_1_mask, hb_tag_t::new(b"rtlm"));
++        let has_vert = query!(get_1_mask, hb_tag_t::new(b"vert")) != 0;
+ 
+         let horizontal = self.direction.is_horizontal();
+         let kern_tag = if horizontal {
+@@ -203,12 +258,10 @@
+         } else {
+             hb_tag_t::new(b"vkrn")
+         };
+-        let kern_mask = ot_map.get_mask(kern_tag).0;
++        let kern_mask = query!(get_mask, kern_tag).0;
+         let requested_kerning = kern_mask != 0;
+ 
+-        let has_gpos_kern = ot_map
+-            .get_feature_index(TableIndex::GPOS, kern_tag)
+-            .is_some();
++        let has_gpos_kern = query!(get_feature_index, TableIndex::GPOS, kern_tag).is_some();
+         let disable_gpos = self.shaper.gpos_tag.is_some()
+             && self.shaper.gpos_tag != ot_map.chosen_script(TableIndex::GPOS);
+ 
+@@ -248,7 +301,7 @@
+             && !apply_kerx
+             && (!apply_kern || !hb_ot_layout_has_machine_kerning(self.face));
+ 
+-        let has_gpos_mark = ot_map.get_1_mask(hb_tag_t::new(b"mark")) != 0;
++        let has_gpos_mark = query!(get_1_mask, hb_tag_t::new(b"mark")) != 0;
+ 
+         let mut adjust_mark_positioning_when_zeroing = !apply_gpos
+             && !apply_kerx
+@@ -266,6 +319,11 @@
+ 
+         // According to Ned, trak is applied by default for "modern fonts", as detected by presence of STAT table.
+         // https://github.com/googlefonts/fontations/issues/1492
++        if P::ADMITTED {
++            cold_admission::directory(&self.face.font, policy)?;
++            // Presence was declined before feature construction; only the
++            // absent-table lookup executes here.
++        }
+         let apply_trak = self.face.font.trak().is_ok()
+             && self
+                 .face
+@@ -275,7 +333,8 @@
+                 .iter()
+                 .any(|table| table.tag() == "STAT");
+ 
+-        let mut plan = hb_ot_shape_plan_t {
++        let user_features = ot_shape_plan::features_with(features, policy)?;
++        let mut plan = hb_ot_shape_plan_t {
+             direction: self.direction,
+             script: self.script,
+             language: self.language,
+@@ -302,14 +361,14 @@
+             apply_kerx,
+             apply_morx,
+             apply_trak,
+-            user_features: features.into(),
++            user_features,
+         };
+ 
+         if let Some(func) = self.shaper.create_data {
+             plan.data = Some(func(&plan));
+         }
+ 
+-        plan
++        Ok(plan)
+     }
+ }
+ 
+--- a/src/hb/ot_shape_plan.rs
++++ b/src/hb/ot_shape_plan.rs
+@@ -5,6 +5,9 @@
+ use crate::hb::common::HB_FEATURE_GLOBAL_END;
+ use crate::hb::common::HB_FEATURE_GLOBAL_START;
+ use crate::ShaperInstance;
++use super::face::cold_admission::{self, AdmittedCold, ColdAdmission, ColdOperation, ColdOperationCost, ColdOperationError};
++use alloc::vec::Vec;
++use read_fonts::types::Tag;
+ 
+ use super::aat::map::*;
+ use super::ot_map::*;
+@@ -48,6 +51,35 @@
+ }
+ 
+ impl hb_ot_shape_plan_t {
++    /// Builds a plan with operation admission before scanning or growing storage.
++    ///
++    /// Currently supports plans with no GSUB/GPOS tables, no language, no
++    /// tracking table, and no AAT or script-specific plan callbacks.
++    /// Unknown paths and invalid directions return `Ok(None)` before those
++    /// operations execute. This does not admit shaping or shaper configuration.
++    pub fn try_new_admitted<E>(
++        face: &hb_font_t, direction: Direction, script: Option<Script>,
++        language: Option<&Language>, user_features: &[Feature],
++        admit: impl FnMut(ColdOperation, ColdOperationCost) -> Result<(), E>,
++    ) -> Result<Option<Self>, ColdOperationError<E>> {
++        let policy = &mut AdmittedCold(admit);
++        policy.charge(ColdOperation::Planning, 1, 0)?;
++        if direction == Direction::Invalid {
++            return Ok(None);
++        }
++        let Some(mut planner) = hb_ot_shape_planner_t::new_with(
++            face, direction, script, language, policy,
++        )? else {
++            return Ok(None);
++        };
++        // trak parsing is not yet proved; do not invoke its FontRead reader.
++        cold_admission::directory(&face.font, policy)?;
++        if face.font.table_data(Tag::new(b"trak")).is_some() {
++            return Ok(None);
++        }
++        planner.collect_features_with(user_features, policy)?;
++        planner.compile_with(user_features, policy).map(Some)
++    }
+     /// Returns a plan that can be used for shaping any buffer with the
+     /// provided properties.
+     pub fn new(
+@@ -86,6 +118,28 @@
+         self.language.as_ref()
+     }
+ }
++
++pub(crate) fn features_with<P: ColdAdmission>(
++    features: &[Feature], policy: &mut P,
++) -> Result<SmallVec<[Feature; 4]>, P::Error> {
++    if !P::ADMITTED {
++        return Ok(features.into());
++    }
++    policy.charge(ColdOperation::Planning, 1, 0)?;
++    if features.len() <= 4 {
++        // Inline copy and SmallVec's eventual element-drop visits.
++        policy.charge(ColdOperation::Initialize, features.len(), 0)?;
++        policy.charge(ColdOperation::Initialize, features.len(), 0)?;
++        return Ok(features.into());
++    }
++    let mut values = Vec::new();
++    policy.reserve(&mut values, features.len())?;
++    policy.charge(ColdOperation::Initialize, features.len(), 0)?;
++    policy.charge(ColdOperation::Initialize, features.len(), 0)?;
++    values.extend_from_slice(features);
++    // For capacity > inline size, SmallVec transfers the Vec allocation.
++    Ok(SmallVec::from_vec(values))
++}
+ 
+ /// A key used for selecting a shape plan.
+ pub struct ShapePlanKey<'a> {

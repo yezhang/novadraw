@@ -1,0 +1,112 @@
+[1m[92m     Locking[0m 38 packages to latest compatible versions
+[1m[92m      Adding[0m accesskit v0.21.1 [1m[33m(available: v0.24.1)[0m
+[1m[92m      Adding[0m adler2 v2.0.1
+[1m[92m      Adding[0m arrayref v0.3.9
+[1m[92m      Adding[0m arrayvec v0.7.8
+[1m[92m      Adding[0m autocfg v1.5.1
+[1m[92m      Adding[0m bitflags v1.3.2
+[1m[92m      Adding[0m bitvec v1.1.1
+[1m[92m      Adding[0m cc v1.10.0
+[1m[92m      Adding[0m color v0.3.3
+[1m[92m      Adding[0m crc32fast v1.5.4
+[1m[92m      Adding[0m euclid v0.22.14
+[1m[92m      Adding[0m fdeflate v0.3.7
+[1m[92m      Adding[0m find-msvc-tools v0.1.15
+[1m[92m      Adding[0m flate2 v1.1.10
+[1m[92m      Adding[0m funty v2.0.0
+[1m[92m      Adding[0m hashbrown v0.17.1
+[1m[92m      Adding[0m indexmap v2.14.2
+[1m[92m      Adding[0m kurbo v0.11.3
+[1m[92m      Adding[0m libdeflate-sys v1.26.1
+[1m[92m      Adding[0m libdeflater v1.26.1
+[1m[92m      Adding[0m log v0.4.35
+[1m[92m      Adding[0m miniz_oxide v0.8.9
+[1m[92m      Adding[0m miniz_oxide v0.9.1
+[1m[92m      Adding[0m num-traits v0.2.19
+[1m[92m      Adding[0m oxipng v9.1.5
+[1m[92m      Adding[0m peniko v0.4.1 [1m[33m(available: v0.6.1)[0m
+[1m[92m      Adding[0m png v0.17.16
+[1m[92m      Adding[0m radium v0.7.0
+[1m[92m      Adding[0m rgb v0.8.53
+[1m[92m      Adding[0m rustc-hash v2.1.3
+[1m[92m      Adding[0m shlex v2.0.1
+[1m[92m      Adding[0m simd-adler32 v0.3.10
+[1m[92m      Adding[0m strict-num v0.1.1
+[1m[92m      Adding[0m tap v1.0.1
+[1m[92m      Adding[0m tiny-skia v0.11.4 [1m[33m(available: v0.12.0)[0m
+[1m[92m      Adding[0m tiny-skia-path v0.11.4
+[1m[92m      Adding[0m wyz v0.5.1
+[1m[92m      Adding[0m zlib-rs v0.6.8
+[1m[92m   Compiling[0m shlex v2.0.1
+[1m[92m   Compiling[0m find-msvc-tools v0.1.15
+[1m[92m   Compiling[0m simd-adler32 v0.3.10
+[1m[92m   Compiling[0m crc32fast v1.5.4
+[1m[92m   Compiling[0m adler2 v2.0.1
+[1m[92m   Compiling[0m cfg-if v1.0.5
+[1m[92m   Compiling[0m radium v0.7.0
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m tap v1.0.1
+[1m[92m   Compiling[0m arrayvec v0.7.8
+[1m[92m   Compiling[0m cc v1.10.0
+[1m[92m   Compiling[0m miniz_oxide v0.9.1
+[1m[92m   Compiling[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m fdeflate v0.3.7
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m wyz v0.5.1
+[1m[92m   Compiling[0m arrayref v0.3.9
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m log v0.4.35
+[1m[92m   Compiling[0m funty v2.0.0
+[1m[92m   Compiling[0m bitflags v1.3.2
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m strict-num v0.1.1
+[1m[92m   Compiling[0m hashbrown v0.17.1
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m tiny-skia-path v0.11.4
+[1m[92m   Compiling[0m kurbo v0.11.3
+[1m[92m   Compiling[0m indexmap v2.14.2
+[1m[92m   Compiling[0m libdeflate-sys v1.26.1
+[1m[92m   Compiling[0m color v0.3.3
+[1m[92m   Compiling[0m rustc-hash v2.1.3
+[1m[92m   Compiling[0m bitvec v1.1.1
+[1m[92m   Compiling[0m peniko v0.4.1
+[1m[92m   Compiling[0m flate2 v1.1.10
+[1m[92m   Compiling[0m png v0.17.16
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m tiny-skia v0.11.4
+[1m[92m   Compiling[0m swash v0.2.6
+[1m[92m   Compiling[0m libdeflater v1.26.1
+[1m[92m   Compiling[0m oxipng v9.1.5
+[1m[92m   Compiling[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-line-admission/private)
+[1m[33mwarning[0m[1m: method `text_len` is never used[0m
+   [1m[94m--> [0msrc/layout/cluster.rs:437:19
+    [1m[94m|[0m
+[1m[94m 34[0m [1m[94m|[0m impl<'a, B: Brush> Cluster<'a, B> {
+    [1m[94m|[0m [1m[94m---------------------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m437[0m [1m[94m|[0m     pub(crate) fn text_len(&self) -> u8 {
+    [1m[94m|[0m                   [1m[33m^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: method `source_char` is never used[0m
+   [1m[94m--> [0msrc/layout/data.rs:102:19
+    [1m[94m|[0m
+[1m[94m 67[0m [1m[94m|[0m impl ClusterInfo {
+    [1m[94m|[0m [1m[94m----------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m102[0m [1m[94m|[0m     pub(crate) fn source_char(self) -> char {
+    [1m[94m|[0m                   [1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m: `parley` (lib test) generated 2 warnings
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 38.67s
+[1m[92m     Running[0m unittests src/lib.rs (/private/tmp/novadraw-text-line-oracle/debug/deps/parley-444b65f20a2c38f6)
+
+running 2 tests
+test layout::line_break::admission_tests::rejected_finalization_drops_without_scanning_or_publishing ... ok
+test layout::line_break::admission_tests::ordinary_drop_still_finalizes_partial_lines ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+

@@ -1,0 +1,111 @@
+{
+  "samples": 9000,
+  "sample_sha256": "ccb75ff459765a026f172f88ffaa1c188486e6d865aa8f9c8bb881d5f9596a45",
+  "binary_sha256": "49d91b07baa437bd6d14595ff045d0046d3850ad365af3bc934bf970ff8f5501",
+  "source_sha256": "def071ae32e97756f386006069d7294b6df3c5f9a23aef53ffe51d53cc946f8b",
+  "warmup_per_font_and_mode": 100,
+  "mode_order": "deterministically rotated per sample",
+  "timer": "constructor only; success drop excluded; rejected candidate cleanup included",
+  "scope": "fresh native empty lookup slots, cmap and mark digests; local counter",
+  "excluded": [
+    "lazy lookup initialization",
+    "shape plan",
+    "shaping",
+    "Core",
+    "GPU"
+  ],
+  "allocation_unit": "whole new heap capacity slots, not bytes",
+  "core_improvement_claimed": false,
+  "groups": {
+    "arabic/admitted": {
+      "samples": 1000,
+      "median_us": 1.084,
+      "p95_us": 1.291,
+      "p99_us": 2.167,
+      "max_us": 5.417,
+      "work": 2190,
+      "allocation": 70,
+      "calls": 218
+    },
+    "arabic/ordinary": {
+      "samples": 1000,
+      "median_us": 0.792,
+      "p95_us": 0.958,
+      "p99_us": 2.709,
+      "max_us": 387.0,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "arabic/reject_last": {
+      "samples": 1000,
+      "median_us": 1.167,
+      "p95_us": 1.416,
+      "p99_us": 2.708,
+      "max_us": 31.625,
+      "work": 1934,
+      "allocation": 70,
+      "calls": 218
+    },
+    "cjk/admitted": {
+      "samples": 1000,
+      "median_us": 0.708,
+      "p95_us": 0.917,
+      "p99_us": 1.875,
+      "max_us": 294.541,
+      "work": 1506,
+      "allocation": 27,
+      "calls": 113
+    },
+    "cjk/ordinary": {
+      "samples": 1000,
+      "median_us": 0.542,
+      "p95_us": 0.75,
+      "p99_us": 2.25,
+      "max_us": 125.708,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "cjk/reject_last": {
+      "samples": 1000,
+      "median_us": 0.709,
+      "p95_us": 0.917,
+      "p99_us": 2.0,
+      "max_us": 495.5,
+      "work": 1250,
+      "allocation": 27,
+      "calls": 113
+    },
+    "inter/admitted": {
+      "samples": 1000,
+      "median_us": 0.833,
+      "p95_us": 0.958,
+      "p99_us": 1.625,
+      "max_us": 31.666,
+      "work": 1674,
+      "allocation": 102,
+      "calls": 140
+    },
+    "inter/ordinary": {
+      "samples": 1000,
+      "median_us": 0.625,
+      "p95_us": 0.709,
+      "p99_us": 1.416,
+      "max_us": 22.25,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inter/reject_last": {
+      "samples": 1000,
+      "median_us": 0.958,
+      "p95_us": 1.083,
+      "p99_us": 2.25,
+      "max_us": 19.0,
+      "work": 1418,
+      "allocation": 102,
+      "calls": 140
+    }
+  }
+}

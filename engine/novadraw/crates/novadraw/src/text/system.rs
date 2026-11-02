@@ -98,6 +98,16 @@ impl<'a> MeasureContext<'a> {
         self.engine.layout_styled(request)
     }
 
+    /// Optional staged shaping in the supplied shared preparation session.
+    /// Ordinary measurements keep using the complete-layout entry.
+    pub fn layout_styled_in_session(
+        &mut self,
+        request: &super::StyledTextRequest,
+        session: &super::shaping::TextStageContext,
+    ) -> Result<super::StyledTextLayout, TextError> {
+        super::staged::layout(self.engine, request, session)
+    }
+
     pub(crate) fn layout_styled_with_diagnostics(
         &mut self,
         request: &super::StyledTextRequest,

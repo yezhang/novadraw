@@ -1,0 +1,181 @@
+{
+  "samples": 16000,
+  "sample_sha256": "519e03b2257e4d0b1a8c5724d7214093516eecad860862278a3366d2b95900c9",
+  "binary_sha256": "63949d0c25e207fc8b9057b039cdabb339178e0028cb103f383aa422cb2cf352",
+  "source_sha256": "753be1e547dd04568b66c9fc187bceaabe41265614a0a10b9031566a63033c2f",
+  "warmup_per_input_and_mode": 100,
+  "mode_order": "rotated per sample",
+  "timer": "plan constructor only; success drop excluded; rejection cleanup included",
+  "scope": "no-layout-table font, 0/4/6/72 user features, LTR/RTL/vertical plans",
+  "excluded": [
+    "shaper configuration",
+    "font layout tables",
+    "shaping",
+    "Core",
+    "GPU"
+  ],
+  "allocation_unit": "whole new heap capacity slots, not bytes",
+  "core_improvement_claimed": false,
+  "groups": {
+    "empty_ltr/counted": {
+      "samples": 1000,
+      "median_us": 1.375,
+      "p95_us": 1.584,
+      "p99_us": 2.375,
+      "max_us": 7.875,
+      "work": 404,
+      "allocation": 74,
+      "calls": 214
+    },
+    "empty_ltr/noop": {
+      "samples": 1000,
+      "median_us": 1.042,
+      "p95_us": 1.292,
+      "p99_us": 3.208,
+      "max_us": 9.375,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "empty_ltr/ordinary": {
+      "samples": 1000,
+      "median_us": 0.792,
+      "p95_us": 1.0,
+      "p99_us": 2.0,
+      "max_us": 37.167,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "empty_ltr/reject_last": {
+      "samples": 1000,
+      "median_us": 1.417,
+      "p95_us": 1.625,
+      "p99_us": 2.458,
+      "max_us": 5.0,
+      "work": 404,
+      "allocation": 74,
+      "calls": 214
+    },
+    "inline_rtl/counted": {
+      "samples": 1000,
+      "median_us": 1.917,
+      "p95_us": 2.25,
+      "p99_us": 3.584,
+      "max_us": 54.375,
+      "work": 1088,
+      "allocation": 72,
+      "calls": 554
+    },
+    "inline_rtl/noop": {
+      "samples": 1000,
+      "median_us": 1.5,
+      "p95_us": 1.75,
+      "p99_us": 2.917,
+      "max_us": 16.709,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inline_rtl/ordinary": {
+      "samples": 1000,
+      "median_us": 1.083,
+      "p95_us": 1.375,
+      "p99_us": 3.375,
+      "max_us": 31.458,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inline_rtl/reject_last": {
+      "samples": 1000,
+      "median_us": 1.959,
+      "p95_us": 2.25,
+      "p99_us": 3.75,
+      "max_us": 12.416,
+      "work": 1084,
+      "allocation": 72,
+      "calls": 554
+    },
+    "many_vertical/counted": {
+      "samples": 1000,
+      "median_us": 4.75,
+      "p95_us": 5.834,
+      "p99_us": 8.917,
+      "max_us": 58.708,
+      "work": 4097,
+      "allocation": 335,
+      "calls": 1945
+    },
+    "many_vertical/noop": {
+      "samples": 1000,
+      "median_us": 3.625,
+      "p95_us": 4.167,
+      "p99_us": 7.75,
+      "max_us": 20.041,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "many_vertical/ordinary": {
+      "samples": 1000,
+      "median_us": 2.291,
+      "p95_us": 2.875,
+      "p99_us": 5.75,
+      "max_us": 41.667,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "many_vertical/reject_last": {
+      "samples": 1000,
+      "median_us": 4.75,
+      "p95_us": 5.583,
+      "p99_us": 10.042,
+      "max_us": 51.375,
+      "work": 4025,
+      "allocation": 335,
+      "calls": 1945
+    },
+    "spill_ltr/counted": {
+      "samples": 1000,
+      "median_us": 2.0,
+      "p95_us": 2.458,
+      "p99_us": 4.25,
+      "max_us": 36.708,
+      "work": 1179,
+      "allocation": 78,
+      "calls": 599
+    },
+    "spill_ltr/noop": {
+      "samples": 1000,
+      "median_us": 1.625,
+      "p95_us": 1.958,
+      "p99_us": 3.416,
+      "max_us": 6.708,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "spill_ltr/ordinary": {
+      "samples": 1000,
+      "median_us": 1.125,
+      "p95_us": 1.542,
+      "p99_us": 3.666,
+      "max_us": 19.625,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "spill_ltr/reject_last": {
+      "samples": 1000,
+      "median_us": 2.083,
+      "p95_us": 2.5,
+      "p99_us": 3.667,
+      "max_us": 24.75,
+      "work": 1173,
+      "allocation": 78,
+      "calls": 599
+    }
+  }
+}

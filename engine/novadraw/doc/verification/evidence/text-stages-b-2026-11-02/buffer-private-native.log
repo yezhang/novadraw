@@ -1,0 +1,19 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m     Locking[0m 12 packages to latest compatible versions
+[1m[92m      Adding[0m read-fonts v0.35.0 [1m[33m(available: v0.41.0)[0m
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m harfrust v0.3.2 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-buffer/lib-production)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 3.71s
+[1m[92m     Running[0m unittests /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/harfrust-0.3.2/src/lib.rs (/private/tmp/novadraw-text-harfrust-oracle/debug/deps/harfrust-c8e9f823eba4bd9c)
+
+running 5 tests
+test hb::buffer::admission::tests::limit_and_overflow_do_not_mark_existing_buffer_unsuccessful ... ok
+test hb::buffer::admission::tests::add_rejection_keeps_post_context_and_commit_clears_it ... ok
+test hb::buffer::admission::tests::shared_input_kernel_matches_original_clusters ... ok
+test hb::buffer::admission::tests::cold_and_warm_growth_charge_capacity_migration_and_initialization ... ok
+test hb::buffer::admission::tests::every_rejection_preserves_logical_input_and_array_invariant ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 187 filtered out; finished in 0.00s
+

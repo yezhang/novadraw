@@ -1,0 +1,394 @@
+diff --git a/src/layout/mod.rs b/src/layout/mod.rs
+--- a/src/layout/mod.rs
++++ b/src/layout/mod.rs
+@@ -10,6 +10,7 @@
+ mod glyph;
+ mod line;
+ mod line_break;
++mod operations;
+ mod run;
+ mod storage;
+ 
+@@ -31,6 +32,7 @@
+ pub use layout::Layout;
+ pub use line::{GlyphRun, Line, LineMetrics, PositionedInlineBox, PositionedLayoutItem};
+ pub use line_break::BreakLines;
++pub use operations::{LayoutOperation, LayoutOperationCost, LayoutOperationError};
+ pub use run::{Run, RunMetrics};
+ pub use storage::{LayoutArrayStorage, LayoutOwnedStorage, LayoutStorageField};
+ 
+diff --git a/src/layout/operations.rs b/src/layout/operations.rs
+new file mode 100644
+--- /dev/null
++++ b/src/layout/operations.rs
+@@ -0,0 +1,370 @@
++// Copyright 2026 the Novadraw Contributors
++// SPDX-License-Identifier: Apache-2.0 OR MIT
++
++//! Admitted layout operations. These do not certify shaping or line breaking.
++
++use super::{
++    Alignment, AlignmentOptions, Decoration, Layout, LayoutData, LayoutStorageField, Style,
++};
++use crate::style::Brush;
++use alloc::{collections::TryReserveError, vec::Vec};
++use core::fmt;
++
++/// The operation about to execute.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum LayoutOperation {
++    /// Read the ten array headers and sum the copy costs.
++    ClonePlanning,
++    /// Reserve destination arrays and copy their elements.
++    Clone,
++    /// Read line and line-item metadata to bound alignment scans.
++    AlignmentPlanning,
++    /// Undo any previous justification and apply the requested alignment.
++    Alignment,
++}
++
++/// Logical units admitted before work begins, excluding allocator bookkeeping.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct LayoutOperationCost {
++    /// Element visits, including repeated passes.
++    pub work: usize,
++    /// Newly reserved collection slots, not retained bytes.
++    pub allocation: usize,
++}
++
++/// A rejected operation never returns a partially copied or aligned layout.
++#[derive(Debug)]
++pub enum LayoutOperationError<E> {
++    /// The caller rejected a cost before that step began.
++    Admission(E),
++    /// A destination array could not be reserved.
++    Storage {
++        /// The array whose reservation failed.
++        field: LayoutStorageField,
++        /// The original fallible reservation error.
++        source: TryReserveError,
++    },
++    /// The cost could not be represented.
++    CostOverflow,
++    /// Internal line ranges do not describe a partition of the line items.
++    InvalidLineRanges,
++}
++
++impl<E: fmt::Display> fmt::Display for LayoutOperationError<E> {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        match self {
++            Self::Admission(error) => write!(f, "layout operation rejected: {error}"),
++            Self::Storage { field, source } => {
++                write!(f, "layout array {field:?} reservation failed: {source}")
++            }
++            Self::CostOverflow => f.write_str("layout operation cost overflow"),
++            Self::InvalidLineRanges => f.write_str("invalid layout line ranges"),
++        }
++    }
++}
++
++impl<E: core::error::Error + 'static> core::error::Error for LayoutOperationError<E> {
++    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
++        match self {
++            Self::Admission(error) => Some(error),
++            Self::Storage { source, .. } => Some(source),
++            Self::CostOverflow | Self::InvalidLineRanges => None,
++        }
++    }
++}
++
++fn reserve<T, E>(field: LayoutStorageField, len: usize) -> Result<Vec<T>, LayoutOperationError<E>> {
++    let mut values = Vec::new();
++    values
++        .try_reserve_exact(len)
++        .map_err(|source| LayoutOperationError::Storage { field, source })?;
++    Ok(values)
++}
++
++// Copy the brush itself, rather than invoking a potentially nontrivial Clone
++// implementation even when B: Copy. All other style fields are inline values.
++fn copy_decoration<B: Brush + Copy>(value: &Decoration<B>) -> Decoration<B> {
++    Decoration {
++        brush: value.brush,
++        offset: value.offset,
++        size: value.size,
++    }
++}
++
++fn copy_style<B: Brush + Copy>(value: &Style<B>) -> Style<B> {
++    Style {
++        brush: value.brush,
++        underline: value.underline.as_ref().map(copy_decoration),
++        strikethrough: value.strikethrough.as_ref().map(copy_decoration),
++        line_height: value.line_height,
++        overflow_wrap: value.overflow_wrap,
++        text_wrap_mode: value.text_wrap_mode,
++    }
++}
++
++impl<B: Brush + Copy> Layout<B> {
++    /// Fallibly copies this layout after caller admission.
++    ///
++    /// The immutable borrow binds planning and execution to the same layout.
++    /// Planning visits each of the ten array headers twice; execution visits
++    /// each initialized element once. Each destination reserves exactly the
++    /// source length with `Vec::try_reserve_exact` before any element is copied.
++    /// Unused source capacity is not copied. Fonts retain their existing Blob
++    /// backing through Arc cloning; no font bytes or contexts are copied.
++    ///
++    /// Slot accounting relies on the standard Global Vec exact-reservation
++    /// implementation (verified with Rust 1.96); physical allocator rounding
++    /// is excluded. Recheck that implementation on toolchain upgrades. General
++    /// allocating brushes are deliberately outside this operation.
++    ///
++    /// If admission or reservation fails, this layout is unchanged. All ten
++    /// reservations precede copying, so allocation failure drops only empty
++    /// destination vectors. Admitted costs are not refunded.
++    pub fn try_clone_admitted<E>(
++        &self,
++        mut admit: impl FnMut(LayoutOperation, LayoutOperationCost) -> Result<(), E>,
++    ) -> Result<Self, LayoutOperationError<E>> {
++        // Ten fields are also represented by the fixed-size storage snapshot.
++        const ARRAY_HEADERS: usize = 10;
++        admit(
++            LayoutOperation::ClonePlanning,
++            LayoutOperationCost {
++                work: ARRAY_HEADERS * 2,
++                allocation: 0,
++            },
++        )
++        .map_err(LayoutOperationError::Admission)?;
++        let storage = self.owned_storage();
++        let elements = storage.arrays.iter().try_fold(0_usize, |sum, array| {
++            sum.checked_add(array.len)
++                .ok_or(LayoutOperationError::CostOverflow)
++        })?;
++        admit(
++            LayoutOperation::Clone,
++            LayoutOperationCost {
++                work: elements,
++                allocation: elements,
++            },
++        )
++        .map_err(LayoutOperationError::Admission)?;
++        let source = &self.data;
++        use LayoutStorageField as F;
++        let mut data = LayoutData {
++            scale: source.scale,
++            quantize: source.quantize,
++            has_bidi: source.has_bidi,
++            base_level: source.base_level,
++            text_len: source.text_len,
++            width: source.width,
++            full_width: source.full_width,
++            height: source.height,
++            fonts: reserve(F::Fonts, source.fonts.len())?,
++            coords: reserve(F::Coordinates, source.coords.len())?,
++            styles: reserve(F::Styles, source.styles.len())?,
++            inline_boxes: reserve(F::InlineBoxes, source.inline_boxes.len())?,
++            runs: reserve(F::Runs, source.runs.len())?,
++            items: reserve(F::Items, source.items.len())?,
++            clusters: reserve(F::Clusters, source.clusters.len())?,
++            glyphs: reserve(F::Glyphs, source.glyphs.len())?,
++            lines: reserve(F::Lines, source.lines.len())?,
++            line_items: reserve(F::LineItems, source.line_items.len())?,
++            is_aligned_justified: source.is_aligned_justified,
++            alignment_width: source.alignment_width,
++        };
++        data.fonts.extend(source.fonts.iter().cloned());
++        data.coords.extend(source.coords.iter().copied());
++        data.styles.extend(source.styles.iter().map(copy_style));
++        data.inline_boxes
++            .extend(source.inline_boxes.iter().cloned());
++        data.runs.extend(source.runs.iter().cloned());
++        data.items.extend(source.items.iter().cloned());
++        data.clusters.extend(source.clusters.iter().copied());
++        data.glyphs.extend(source.glyphs.iter().copied());
++        data.lines.extend(source.lines.iter().cloned());
++        data.line_items.extend(source.line_items.iter().cloned());
++        Ok(Self { data })
++    }
++}
++
++impl<B: Brush> Layout<B> {
++    /// Admits metadata planning and all alignment passes before mutating.
++    ///
++    /// This calls the existing alignment algorithm without changing its math.
++    /// Planning scans every line and line item once. The execution bound covers
++    /// all lines, and for each justification pass every line item and every
++    /// cluster in its range, including visits after `num_spaces` is reached.
++    /// Previous justification is an independent pass. Neither planning nor
++    /// alignment allocates collections. Rejection leaves geometry unchanged;
++    /// admitted planning work is not refunded.
++    pub fn try_align_admitted<E>(
++        &mut self,
++        container_width: Option<f32>,
++        alignment: Alignment,
++        options: AlignmentOptions,
++        mut admit: impl FnMut(LayoutOperation, LayoutOperationCost) -> Result<(), E>,
++    ) -> Result<(), LayoutOperationError<E>> {
++        let planning = self
++            .data
++            .lines
++            .len()
++            .checked_add(self.data.line_items.len())
++            .ok_or(LayoutOperationError::CostOverflow)?;
++        admit(
++            LayoutOperation::AlignmentPlanning,
++            LayoutOperationCost {
++                work: planning,
++                allocation: 0,
++            },
++        )
++        .map_err(LayoutOperationError::Admission)?;
++        let mut end = 0;
++        for line in &self.data.lines {
++            if line.item_range.start != end || line.item_range.end < end {
++                return Err(LayoutOperationError::InvalidLineRanges);
++            }
++            end = line.item_range.end;
++        }
++        if end != self.data.line_items.len() {
++            return Err(LayoutOperationError::InvalidLineRanges);
++        }
++        let mut clusters = 0_usize;
++        for item in &self.data.line_items {
++            if item.is_text_run() {
++                if item.cluster_range.end < item.cluster_range.start
++                    || item.cluster_range.end > self.data.clusters.len()
++                {
++                    return Err(LayoutOperationError::InvalidLineRanges);
++                }
++                clusters = clusters
++                    .checked_add(item.cluster_range.len())
++                    .ok_or(LayoutOperationError::CostOverflow)?;
++            }
++        }
++        let undo = usize::from(self.data.is_aligned_justified);
++        let justify_passes = undo + usize::from(alignment == Alignment::Justify);
++        let work = self
++            .data
++            .line_items
++            .len()
++            .checked_add(clusters)
++            .and_then(|visits| visits.checked_mul(justify_passes))
++            .and_then(|visits| {
++                self.data
++                    .lines
++                    .len()
++                    .checked_mul(1 + undo)
++                    .and_then(|lines| visits.checked_add(lines))
++            })
++            .ok_or(LayoutOperationError::CostOverflow)?;
++        admit(
++            LayoutOperation::Alignment,
++            LayoutOperationCost {
++                work,
++                allocation: 0,
++            },
++        )
++        .map_err(LayoutOperationError::Admission)?;
++        self.align(container_width, alignment, options);
++        Ok(())
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn failed_reservation_preserves_original_error_and_field() {
++        let error =
++            reserve::<u64, core::convert::Infallible>(LayoutStorageField::Glyphs, usize::MAX)
++                .unwrap_err();
++        assert!(matches!(
++            error,
++            LayoutOperationError::Storage {
++                field: LayoutStorageField::Glyphs,
++                ..
++            }
++        ));
++        assert!(core::error::Error::source(&error).is_some());
++    }
++
++    #[test]
++    fn clone_copies_lengths_instead_of_retained_spare_capacity() {
++        let mut layout = Layout::<usize>::new();
++        layout.data.coords.reserve_exact(100);
++        layout.data.coords.push(7);
++        let mut steps = Vec::new();
++        let copy = layout
++            .try_clone_admitted(|step, cost| {
++                steps.push((step, cost));
++                Ok::<_, core::convert::Infallible>(())
++            })
++            .unwrap();
++        assert_eq!(copy.data, layout.data);
++        assert_eq!(copy.data.coords.capacity(), 1);
++        assert_eq!(
++            steps[1].1,
++            LayoutOperationCost {
++                work: 1,
++                allocation: 1
++            }
++        );
++        assert_eq!(layout.data.coords.capacity(), 100);
++    }
++
++    #[test]
++    fn invalid_ranges_are_rejected_before_alignment() {
++        let mut layout = Layout::<usize>::new();
++        layout.data.lines.push(super::super::data::LineData {
++            item_range: 0..1,
++            ..Default::default()
++        });
++        let before = layout.data.clone();
++        let mut steps = Vec::new();
++        let result = layout.try_align_admitted(
++            Some(10.0),
++            Alignment::Center,
++            AlignmentOptions::default(),
++            |step, _| {
++                steps.push(step);
++                Ok::<_, core::convert::Infallible>(())
++            },
++        );
++        assert!(matches!(
++            result,
++            Err(LayoutOperationError::InvalidLineRanges)
++        ));
++        assert_eq!(layout.data, before);
++        assert_eq!(steps, [LayoutOperation::AlignmentPlanning]);
++    }
++
++    #[test]
++    fn copy_brush_bypasses_custom_clone_for_style_and_decorations() {
++        #[derive(Copy, Debug, Default, PartialEq)]
++        struct Brush;
++        impl Clone for Brush {
++            fn clone(&self) -> Self {
++                panic!("admitted copy must not invoke brush Clone")
++            }
++        }
++        let decoration = || Decoration {
++            brush: Brush,
++            offset: Some(2.0),
++            size: Some(1.0),
++        };
++        let mut layout = Layout::<Brush>::new();
++        layout.data.styles.push(Style {
++            brush: Brush,
++            underline: Some(decoration()),
++            strikethrough: Some(decoration()),
++            line_height: crate::LineHeight::Absolute(20.0),
++            overflow_wrap: crate::OverflowWrap::Anywhere,
++            text_wrap_mode: crate::TextWrapMode::Wrap,
++        });
++        let copied = layout
++            .try_clone_admitted(|_, _| Ok::<_, core::convert::Infallible>(()))
++            .unwrap();
++        assert_eq!(layout.data, copied.data);
++        assert_eq!(copied.data.styles.capacity(), 1);
++    }
++}

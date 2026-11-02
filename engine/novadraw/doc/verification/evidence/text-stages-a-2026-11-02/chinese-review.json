@@ -1,0 +1,18 @@
+{
+  "check": "Chinese punctuation candidates outside code",
+  "documents": [
+    {
+      "path": "doc/verification/reviews/text-stages-a-implementation-2026-11-02.md",
+      "candidates": []
+    },
+    {
+      "path": "tests/consumers/text-stages/README.md",
+      "candidates": []
+    },
+    {
+      "path": "doc/verification/evidence/text-stages-a-2026-11-02/README.md",
+      "candidates": []
+    }
+  ],
+  "logic_review": "self review; ownership, evidence scope, failure priority and producer responsibility checked; no independent review claimed"
+}

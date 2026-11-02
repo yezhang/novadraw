@@ -1,0 +1,61 @@
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 17.90s
+[1m[92m     Running[0m tests/long_text_layout_contract.rs (/tmp/novadraw-text-stage-target/debug/deps/long_text_layout_contract-0adf6c92752e3d43)
+
+running 7 tests
+test external_outline_revision_replaces_ink_atomically_and_failure_retains_old_snapshot ... ok
+test external_backend_retains_runtime_submission_after_source_retirement ... ok
+test external_engine_reuses_unchanged_paragraphs_and_retains_old_geometry ... ok
+test external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts ... ok
+test engine_without_cache_contract_recomputes_each_paragraph ... ok
+test exact_width_change_reflows_all_paragraphs_and_font_revision_invalidates_cache ... ok
+test instance_caches_are_isolated_and_eviction_preserves_published_snapshots ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+[1m[92m     Running[0m tests/p2_t03_external_flow_engine.rs (/tmp/novadraw-text-stage-target/debug/deps/p2_t03_external_flow_engine-55a36c26ba7af148)
+
+running 1 test
+test independent_engine_drives_flow_mapping_paint_hit_caret_and_selection ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/p2_t03_styled_text_contract.rs (/tmp/novadraw-text-stage-target/debug/deps/p2_t03_styled_text_contract-f03bd09228039cb7)
+
+running 15 tests
+test external_engine_constructs_checked_output_without_parley ... ok
+test rejects_nonfinite_boxes_and_duplicate_identity ... ok
+test rejects_overlapping_unordered_and_non_utf8_styles ... ok
+test empty_text_and_box_only_requests_are_valid ... ok
+test fractional_inline_height_ends_exactly_at_the_published_baseline ... ok
+test normalized_inline_lines_keep_caret_and_selection_in_the_same_coordinates ... ok
+test rejects_external_placement_that_does_not_match_measured_box ... ok
+test checked_output_rejects_run_attributed_to_another_source_style ... ok
+test inline_box_uses_the_line_baseline_and_keeps_identity ... ok
+test newline_only_layout_retains_explicit_line_breaks ... ok
+test font_sizes_and_colors_share_a_paragraph_baseline ... ok
+test paint_only_style_change_invalidates_old_caret_revision ... ok
+test rtl_logical_alignment_and_utf8_interaction_use_original_source ... ok
+test same_font_color_boundaries_preserve_exact_source_ranges ... ok
+test styled_paint_keeps_colors_for_both_glyph_and_outline_paths ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[1m[92m     Running[0m tests/p2_text_underline_contract.rs (/tmp/novadraw-text-stage-target/debug/deps/p2_text_underline_contract-bd78399382f457a4)
+
+running 4 tests
+test underline_direction_preparation_cost ... ignored, release cost evidence; run with --release --ignored
+test invalid_grapheme_ranges_and_replaced_fonts_fail_without_changing_owned_output ... ok
+test external_metrics_use_the_same_protocol_and_cannot_substitute_a_requested_font ... ok
+test fragments_follow_actual_faces_sizes_lines_and_bidi_geometry ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m tests/shared_glyph_storage_contract.rs (/tmp/novadraw-text-stage-target/debug/deps/shared_glyph_storage_contract-e6cea8d522f27ab3)
+
+running 2 tests
+test owned_entry_rejects_non_finite_glyph_coordinates ... ok
+test checked_ranges_preserve_order_and_retain_the_whole_backing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,47 @@
+{
+  "archive_sha256": "92c020db12c71d8a12a3fe7607873cade3a01a6287e29d540c8723276221b9d8",
+  "prior_patches": {
+    "buffer": "9eafab906db86250e97104699d68a4b75fa112d56b2c5e337e717c589ca8e679",
+    "instance": "619335c80a6607b354d1189dbd1e13a1566759f75931144bcf580cb8b2dd6b62",
+    "variation": "cb9b17e178c909b510dda3ba32676c9f5971fa859601721db1d3bb17837e4179"
+  },
+  "incremental_patch_sha256": "4d473adc72c1b57b78fa40aa35fe949b77bcd48e97558bbc190c68e1ccd56cce",
+  "patch_replays_and_reproduces_exact_source": true,
+  "changed_after_variation": [
+    "src/hb/aat/mod.rs",
+    "src/hb/cache.rs",
+    "src/hb/face.rs",
+    "src/hb/ot/lookup.rs",
+    "src/hb/ot/mod.rs",
+    "src/hb/set_digest.rs",
+    "src/hb/tables.rs",
+    "src/lib.rs"
+  ],
+  "added_after_variation": [
+    "src/hb/cold_admission.rs"
+  ],
+  "unchanged_source_files_after_variation": 68,
+  "oracle_source_sha256": "6c72bc7e8aa324709ad8167de2eeb2e034488f30fe4c068be4c4859c1fb42e52",
+  "fixtures_source_sha256": "27c9f08125c5561696be91c90edec7f4b980c31da26acd418e3275b23403f868",
+  "ordinary_output_signatures": {
+    "original-native": "7ac6de4d7bc7f0d3a2a721decb4342ddecc76922515cb2ed6305175d9bf3cd87",
+    "original-portable": "7ac6de4d7bc7f0d3a2a721decb4342ddecc76922515cb2ed6305175d9bf3cd87",
+    "production-native": "7ac6de4d7bc7f0d3a2a721decb4342ddecc76922515cb2ed6305175d9bf3cd87",
+    "production-portable": "7ac6de4d7bc7f0d3a2a721decb4342ddecc76922515cb2ed6305175d9bf3cd87"
+  },
+  "fonts_per_configuration": 143,
+  "glyph_observations_per_configuration": 3432,
+  "private_test_log_sha256": {
+    "native": "c31961be8f4c594672df6b42964d037a0eda8c934e54ad5dfd4276f24f50d5cb",
+    "portable": "0bd2dbdd6fc776ea71a4aeca49869fdeb3244fd274d054d913886f37b607f257"
+  },
+  "external_test_log_sha256": {
+    "native": "a31b370130f302805a6eb2744b7cce48fcd788580e0867536bbf022b41fa96a7",
+    "portable": "2bc5f1e8861b9029375bcfa7e29c3e0c012bbd48ccc285047084cda1d5c93c7e"
+  },
+  "admitted_native": "No AAT table; lazy lookup slots only",
+  "admitted_portable": "No AAT table; zero eager lookups",
+  "lookup_info_or_aat_subtable_admission_complete": false,
+  "whole_cold_constructor_or_shaping_admission_complete": false,
+  "core_staged_adapter_enabled": false
+}

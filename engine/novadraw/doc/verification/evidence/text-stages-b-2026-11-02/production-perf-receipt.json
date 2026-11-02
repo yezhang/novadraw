@@ -1,0 +1,23 @@
+{
+  "workload": "original",
+  "valid_fresh_runtime": 1000,
+  "valid_cold_process": 200,
+  "excluded_warmup": 100,
+  "failures": 0,
+  "fixture_check": "all 1200 valid samples match 40 paragraphs, 51232 bytes, 561 lines, 1022 runs, 4168 fragments, width 586",
+  "extended_check": "all 1200 extended samples have scroll layouts 0, resize layouts 6, native glyphs 51233, commands 7889",
+  "binary_sha256": "ea7e471b3cd2fc56e465a00884e5957a600d02b80d665ccc60d5b8afda996f7b",
+  "raw_samples_sha256": "317cb3f59f4be356a7fe9e5f82c2c5a47cd06e09ade17011bac4ade5652a4e52",
+  "copied_file_sha256": {
+    "production-perf-manifest.json": "188183b1eb1fac3e45de8e56d9bb98bf1a8cbfd9e8554747e73c37618fa4d5d3",
+    "production-perf-summary.json": "d0c6e42f2c98043a78bb89ff52f6ddfdcfd4d49ef9a89d9f006ed65a75311757",
+    "production-perf-session-0-environment.json": "218a47a02cd86597a2e4012f7a457acafde9f65eb2f6c47b3b6be2d14381554c",
+    "production-perf-session-1-environment.json": "f5bdc79cac88afd2552b76cb5e2dd18c021f75b0974e7293e579b280e5207a0a",
+    "production-perf-session-2-environment.json": "586c472786833bef84cd8b268ad2f1a333373c68acf806fc6e0cc820a65531e5",
+    "production-perf-session-3-environment.json": "667b3f67f00399b68cc8b72149458265e7fb52123b1403dad030726c888f4b84",
+    "production-perf-session-4-environment.json": "6b5564c5806289e818f648d6ead9623f64c9076b38a58f6da8aae76020305c92",
+    "production-perf-samples.ndjson.gz": "ec5e82ab2549664effff5b4fce30460e77c8ebb867b0477c30eda57eb2ec143c"
+  },
+  "source_archive_location": "/tmp/novadraw-text-validation-20261102-original",
+  "scope": "single-version CPU cost; no matched speedup or ADR-059 width-reuse evidence"
+}

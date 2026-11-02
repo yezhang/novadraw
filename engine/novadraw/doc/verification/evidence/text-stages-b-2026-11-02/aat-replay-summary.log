@@ -1,0 +1,42 @@
+{
+  "archive_sha256": "92c020db12c71d8a12a3fe7607873cade3a01a6287e29d540c8723276221b9d8",
+  "prior_patches": {
+    "buffer": "9eafab906db86250e97104699d68a4b75fa112d56b2c5e337e717c589ca8e679",
+    "instance": "619335c80a6607b354d1189dbd1e13a1566759f75931144bcf580cb8b2dd6b62",
+    "variation": "cb9b17e178c909b510dda3ba32676c9f5971fa859601721db1d3bb17837e4179",
+    "cold": "4d473adc72c1b57b78fa40aa35fe949b77bcd48e97558bbc190c68e1ccd56cce",
+    "lookup": "7aee4783e1e556d5814448c18f9ff9430cf47b12ae0a125e5f6041f4a1125254"
+  },
+  "incremental_patch_sha256": "020bc6de70b79690051c04c4f2af13b6cf356c851d4f35bf21a6fbf02bd12347",
+  "patch_replays_and_reproduces_exact_source": true,
+  "changed_after_lookup": [
+    "src/hb/aat/cold_headers.rs",
+    "src/hb/aat/mod.rs",
+    "src/hb/face.rs"
+  ],
+  "unchanged_source_files_after_lookup": 75,
+  "oracle_source_sha256": "7d680a068a77173fe07ecf68c30a1ee327f8a64876057a9ebe2c6a9a9e07ca8d",
+  "ordinary_output_signatures": {
+    "original-native": "a28ed36d6ee18a610c4e8b040998fbe9eb1ed6e59d0611cb06c8b178302592d1",
+    "original-portable": "a28ed36d6ee18a610c4e8b040998fbe9eb1ed6e59d0611cb06c8b178302592d1",
+    "production-native": "a28ed36d6ee18a610c4e8b040998fbe9eb1ed6e59d0611cb06c8b178302592d1",
+    "production-portable": "a28ed36d6ee18a610c4e8b040998fbe9eb1ed6e59d0611cb06c8b178302592d1"
+  },
+  "observations_per_configuration": {
+    "original-native": 4968,
+    "original-portable": 4968,
+    "production-native": 4968,
+    "production-portable": 4968
+  },
+  "private_test_log_sha256": {
+    "native": "36f52f79495f0ce2ac3277329bd38715cf06a883de5fd07294e71f4f8df3bb99",
+    "portable": "3ac4ae50ae2cdd90b0b8bc799d06c1a48945437ea75d19422bb3c9e9059cf889"
+  },
+  "external_test_log_sha256": {
+    "native": "a21df859cbb0846cb3d0cc82328bac2bd2867d0c9f99beca64076a966b66736b",
+    "portable": "bde136c9fdb548f86c7774c1a31beeb5fa148da86ad0608bf0dc4a41a73b9a28"
+  },
+  "empty_aat_cache_headers_supported": true,
+  "nonempty_aat_or_plan_or_shaping_admission_complete": false,
+  "core_staged_adapter_enabled": false
+}

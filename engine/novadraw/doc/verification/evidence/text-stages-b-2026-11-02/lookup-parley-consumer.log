@@ -1,0 +1,41 @@
+[1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m objc2 v0.6.5
+[1m[92m   Compiling[0m libc v0.2.191
+[1m[92m   Compiling[0m objc2-encode v4.1.0
+[1m[92m   Compiling[0m litemap v0.8.3
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m equivalent v1.0.3
+[1m[92m   Compiling[0m writeable v0.6.4
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m harfrust v0.3.2 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/harfrust-0.3.2)
+[1m[92m   Compiling[0m swash v0.2.6
+[1m[92m   Compiling[0m tinystr v0.8.5
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m icu_locale_core v2.4.0
+[1m[92m   Compiling[0m memmap2 v0.9.12
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0)
+[1m[92m   Compiling[0m novadraw-parley-storage-candidate v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/parley-storage)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 17.13s
+[1m[92m     Running[0m unittests src/lib.rs (/tmp/novadraw-text-stage-target-portable/debug/deps/novadraw_parley_storage_candidate-b784ed4bf56ae0f0)
+
+running 8 tests
+test tests::backing_resolution_accounts_for_capacity_and_lifetime ... ok
+test tests::every_breaking_rejection_stops_callbacks_and_preserves_template ... ok
+test tests::either_admission_rejection_preserves_template_and_geometry ... ok
+test tests::observations_leave_geometry_and_reflow_unchanged ... ok
+test tests::admitted_copy_and_alignment_preserve_all_alignment_transitions ... ok
+test tests::admitted_breaking_matches_ordinary_reflow_and_capacity_costs ... ok
+test tests::template_clone_and_line_result_have_distinct_observed_storage ... ok
+test tests::long_reflow_admission_work_stays_linear_for_repeated_paragraphs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+

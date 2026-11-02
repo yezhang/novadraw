@@ -1,0 +1,37 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-stages-b/parley-0.7.0)
+[1m[33mwarning[0m[1m: method `text_len` is never used[0m
+   [1m[94m--> [0msrc/layout/cluster.rs:437:19
+    [1m[94m|[0m
+[1m[94m 34[0m [1m[94m|[0m impl<'a, B: Brush> Cluster<'a, B> {
+    [1m[94m|[0m [1m[94m---------------------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m437[0m [1m[94m|[0m     pub(crate) fn text_len(&self) -> u8 {
+    [1m[94m|[0m                   [1m[33m^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: method `source_char` is never used[0m
+   [1m[94m--> [0msrc/layout/data.rs:102:19
+    [1m[94m|[0m
+[1m[94m 67[0m [1m[94m|[0m impl ClusterInfo {
+    [1m[94m|[0m [1m[94m----------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m102[0m [1m[94m|[0m     pub(crate) fn source_char(self) -> char {
+    [1m[94m|[0m                   [1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m: `parley` (lib test) generated 2 warnings
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 14.99s
+[1m[92m     Running[0m unittests src/lib.rs (/tmp/novadraw-text-stage-target/debug/deps/parley-c1c4a68f133b12d1)
+
+running 5 tests
+test layout::storage::tests::zero_sized_capacity_does_not_overflow ... ok
+test layout::storage::tests::caller_constructed_snapshot_with_missing_field_is_safe ... ok
+test layout::storage::tests::snapshot_uses_each_private_element_size_and_capacity ... ok
+test layout::storage::tests::arithmetic_overflow_is_explicit ... ok
+test layout::storage::tests::all_arrays_report_capacity_after_logical_clear ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+

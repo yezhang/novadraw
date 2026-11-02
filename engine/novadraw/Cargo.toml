@@ -1,5 +1,6 @@
 [workspace]
 resolver = "3"
+exclude = ["dependencies/parley-0.7.0", "dependencies/harfrust-0.3.2"]
 members = [
   "crates/novadraw-platform-masonry",
   "crates/novadraw-editor/examples/native/gef-editor-demo",
@@ -113,7 +114,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2"
 pollster = "0.4.0"
 stacker = "0.1.25"
-parley = "0.7.0"
+parley = { version = "=0.7.0", path = "dependencies/parley-0.7.0" }
 kurbo = "0.13.1"
 unicode-segmentation = "1.12.0"
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }

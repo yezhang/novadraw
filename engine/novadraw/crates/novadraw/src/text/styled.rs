@@ -83,6 +83,76 @@ pub struct StyledTextRequest {
 }
 
 impl StyledTextRequest {
+    pub(super) fn try_analysis_copy(&self) -> Result<Self, super::shaping::TextStageError> {
+        use super::shaping::TextStageError;
+        fn copy_style(style: &TextStyle) -> Result<TextStyle, TextStageError> {
+            let mut family = String::new();
+            family
+                .try_reserve_exact(style.font.family.len())
+                .map_err(|_| TextStageError::StorageReservation)?;
+            family.push_str(&style.font.family);
+            Ok(TextStyle {
+                font: FontDescriptor {
+                    family,
+                    size: style.font.size,
+                    weight: style.font.weight,
+                    style: style.font.style,
+                },
+                color: style.color,
+            })
+        }
+        let mut spans = Vec::new();
+        spans
+            .try_reserve_exact(self.spans.len())
+            .map_err(|_| TextStageError::StorageReservation)?;
+        for span in &self.spans {
+            spans.push(TextStyleSpan {
+                range: span.range.clone(),
+                style: copy_style(&span.style)?,
+            });
+        }
+        let mut boxes = Vec::new();
+        boxes
+            .try_reserve_exact(self.boxes.len())
+            .map_err(|_| TextStageError::StorageReservation)?;
+        boxes.extend_from_slice(&self.boxes);
+        // Start from the complete input so future dependencies remain included.
+        let mut copy = Self {
+            text: self.text.clone(),
+            default_style: copy_style(&self.default_style)?,
+            spans,
+            boxes,
+            constraints: self.constraints,
+            direction: self.direction,
+            layout_direction: self.layout_direction,
+            alignment: self.alignment,
+            wrap: self.wrap,
+        };
+        copy.constraints.max_width = None;
+        Ok(copy)
+    }
+
+    pub(super) fn analysis_storage_bytes(&self) -> Option<usize> {
+        let mut bytes = std::mem::size_of::<Self>()
+            .checked_add(self.text.len())?
+            .checked_add(2 * std::mem::size_of::<usize>())?
+            .checked_add(self.default_style.font.family.capacity())?
+            .checked_add(
+                self.spans
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<TextStyleSpan>())?,
+            )?
+            .checked_add(
+                self.boxes
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<TextInlineBox>())?,
+            )?;
+        for span in &self.spans {
+            bytes = bytes.checked_add(span.style.font.family.capacity())?;
+        }
+        Some(bytes)
+    }
+
     pub fn new(
         text: impl Into<String>,
         default_style: TextStyle,

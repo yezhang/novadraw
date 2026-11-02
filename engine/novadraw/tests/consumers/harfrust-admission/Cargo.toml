@@ -1,0 +1,45 @@
+[package]
+name = "novadraw-harfrust-admission"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = ["harfrust/std"]
+portable = []
+
+[dependencies]
+harfrust = { version = "=0.3.2", default-features = false, path = "../../../dependencies/harfrust-0.3.2" }
+
+[[bin]]
+name = "buffer-cost"
+path = "src/cost.rs"
+
+[[bin]]
+name = "instance-cost"
+path = "src/instance_cost.rs"
+
+[[bin]]
+name = "variation-cost"
+path = "src/variation_cost.rs"
+
+[[bin]]
+name = "cold-cost"
+path = "src/cold_cost.rs"
+
+[[bin]]
+name = "lookup-cost"
+path = "src/lookup_cost.rs"
+
+[[bin]]
+name = "aat-cost"
+path = "src/aat_cost.rs"
+
+[[bin]]
+name = "plan-cost"
+path = "src/plan_cost.rs"

@@ -1,0 +1,111 @@
+{
+  "archive_sha256": "ada5338c3a9794af7342e6f765b6e78740db37378aced034d7bf72c96b94ed94",
+  "upstream_git_revision": "10fedab4bfd4254a227a1a0f9602b6218e1fe447",
+  "patch_sha256": "ac72933d4ec13d9bb1a3ed808d9b41a68afbc555b94aeb9c61d7e7fc0dc3e708",
+  "reviewed_source_sha256": "2a90d35628a7395d7142beb3870000a4ef07eb0ff5b55f1a1d67c38b40f0c2c0",
+  "verified_original_sources_and_licenses": [
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "src/bidi.rs",
+    "src/builder.rs",
+    "src/context.rs",
+    "src/editing/cursor.rs",
+    "src/editing/editor.rs",
+    "src/editing/mod.rs",
+    "src/editing/selection.rs",
+    "src/font.rs",
+    "src/inline_box.rs",
+    "src/layout/accessibility.rs",
+    "src/layout/alignment.rs",
+    "src/layout/cluster.rs",
+    "src/layout/data.rs",
+    "src/layout/glyph.rs",
+    "src/layout/layout.rs",
+    "src/layout/line.rs",
+    "src/layout/line_break.rs",
+    "src/layout/mod.rs",
+    "src/layout/run.rs",
+    "src/lib.rs",
+    "src/lru_cache.rs",
+    "src/resolve/mod.rs",
+    "src/resolve/range.rs",
+    "src/resolve/tree.rs",
+    "src/shape/cache.rs",
+    "src/shape/mod.rs",
+    "src/style/brush.rs",
+    "src/style/font.rs",
+    "src/style/mod.rs",
+    "src/style/styleset.rs",
+    "src/swash_convert.rs",
+    "src/tests/mod.rs",
+    "src/tests/test_basic.rs",
+    "src/tests/test_builders.rs",
+    "src/tests/test_cursor.rs",
+    "src/tests/test_editor.rs",
+    "src/tests/test_lines.rs",
+    "src/tests/test_wrap.rs",
+    "src/tests/utils/asserts.rs",
+    "src/tests/utils/cursor_test.rs",
+    "src/tests/utils/env.rs",
+    "src/tests/utils/mod.rs",
+    "src/tests/utils/renderer.rs",
+    "src/util.rs"
+  ],
+  "new_source": [
+    "src/layout/storage.rs"
+  ],
+  "baseline_and_candidate_strict_clippy_errors": [
+    {
+      "file": "src/bidi.rs",
+      "line": 172,
+      "code": "clippy::collapsible_match",
+      "message": "this `if` can be collapsed into the outer `match`"
+    },
+    {
+      "file": "src/bidi.rs",
+      "line": 196,
+      "code": "clippy::collapsible_match",
+      "message": "this `if` can be collapsed into the outer `match`"
+    },
+    {
+      "file": "src/bidi.rs",
+      "line": 502,
+      "code": "clippy::unnecessary_sort_by",
+      "message": "consider using `sort_unstable_by_key`"
+    },
+    {
+      "file": "src/context.rs",
+      "line": 155,
+      "code": "clippy::while_let_loop",
+      "message": "this loop could be written as a `while let` loop"
+    },
+    {
+      "file": "src/layout/data.rs",
+      "line": 807,
+      "code": "clippy::explicit_counter_loop",
+      "message": "the variable `i` is used as a loop counter"
+    },
+    {
+      "file": "src/resolve/mod.rs",
+      "line": 276,
+      "code": "clippy::unnecessary_sort_by",
+      "message": "consider using `sort_by_key`"
+    },
+    {
+      "file": "src/resolve/mod.rs",
+      "line": 300,
+      "code": "clippy::unnecessary_sort_by",
+      "message": "consider using `sort_by_key`"
+    }
+  ],
+  "new_strict_clippy_errors": 0,
+  "private_tests_passed": 5,
+  "native_consumer_tests_passed_per_configuration": 3,
+  "observation_control_cases_per_configuration": 160,
+  "wasm_portable_build": "passed; not executed",
+  "upstream_full_suite": "not run; unpublished parley_dev unavailable",
+  "production_dependency_changed": false,
+  "staged_adapter_complete": false,
+  "operation_accounting_complete": false,
+  "independent_human_review": "pending"
+}

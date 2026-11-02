@@ -1,0 +1,10 @@
+{
+  "time_ns": 1793608703653687000,
+  "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=20775011)\t99%; discharging; 4:58 remaining present: true",
+  "load_average": [
+    10.62548828125,
+    21.30615234375,
+    22.77294921875
+  ],
+  "sampling_policy": "no agent-driven builds or tests during samples; external background load uncontrolled"
+}

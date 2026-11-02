@@ -1,0 +1,44 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m unicode-ident v1.0.27
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m libm v0.2.16
+[1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m libc v0.2.191
+[1m[92m   Compiling[0m objc2 v0.6.5
+[1m[92m   Compiling[0m objc2-encode v4.1.0
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m smallvec v1.16.4
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m litemap v0.8.3
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m equivalent v1.0.3
+[1m[92m   Compiling[0m writeable v0.6.4
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m memmap2 v0.9.12
+[1m[92m   Compiling[0m core_maths v0.1.1
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m syn v3.0.9
+[1m[92m   Compiling[0m bytemuck_derive v1.12.1
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m tinystr v0.8.5
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m icu_locale_core v2.4.0
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m font-types v0.12.7
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-stages-b/baseline/parley-0.7.0)
+[1m[92m   Compiling[0m parley-line-oracle-original v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-line-admission/original)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 57.64s
+[1m[92m     Running[0m `/private/tmp/novadraw-text-line-oracle/debug/oracle`

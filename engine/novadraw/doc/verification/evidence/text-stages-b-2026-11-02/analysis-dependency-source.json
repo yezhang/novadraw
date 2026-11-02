@@ -1,0 +1,84 @@
+{
+  "verification": "registry source equals locked archive; static evidence only",
+  "date": "2026-11-02",
+  "registry_index": "index.crates.io-1949cf8c6b5b557f",
+  "scope": "Selected locked dependencies; not the complete transitive call graph",
+  "method": "Compare archive SHA-256 with Cargo.lock; compare every archive src/ file byte hash with registry source",
+  "source_files_matched": 252,
+  "runtime_tests_run": false,
+  "performance_samples_collected": false,
+  "packages": [
+    {
+      "name": "fontique",
+      "version": "0.7.0",
+      "archive_sha256": "30bbc252c93499b6d3635d692f892a637db0dbb130ce9b32bf20b28e0dcc470b",
+      "source_files_matched": 20,
+      "anchors": [
+        {
+          "path": "src/collection/query.rs",
+          "sha256": "eac10abc21be47855f7087c871bfa225c2b70a8152e61f06de4bb6e52ba79742"
+        },
+        {
+          "path": "src/family.rs",
+          "sha256": "01de0f140447e7b7d43698c45296563c32b2074745e25c406aa937ecfe2cca51"
+        }
+      ]
+    },
+    {
+      "name": "harfrust",
+      "version": "0.3.2",
+      "archive_sha256": "92c020db12c71d8a12a3fe7607873cade3a01a6287e29d540c8723276221b9d8",
+      "source_files_matched": 73,
+      "anchors": [
+        {
+          "path": "src/hb/face.rs",
+          "sha256": "fad6574f1b81f6d88eb1f88ac6f19a92f54dfff036e958f6a38b4dbf008214eb"
+        },
+        {
+          "path": "src/hb/ot_shape_plan.rs",
+          "sha256": "6f57e6ce198d8f248ec6aa92c2f815445ab3e22dda2ed4645d80f03a923c0a89"
+        },
+        {
+          "path": "src/hb/ot_map.rs",
+          "sha256": "baf481cfda3d3c24fac46f030903a072f0c49038303c2d008e535a5d4abc5151"
+        },
+        {
+          "path": "src/hb/buffer.rs",
+          "sha256": "532a62d7cb75145dac3c9900e5c91b00c96c469812b3756bb1b2d87d3cbde07b"
+        },
+        {
+          "path": "src/hb/ot_shape.rs",
+          "sha256": "60559000545b999422a78dbccda5c31a8ee7b0405cf7fca6074406d98db9558a"
+        }
+      ]
+    },
+    {
+      "name": "swash",
+      "version": "0.2.10",
+      "archive_sha256": "6c2499c2d826531388872b2268718aed907a39bd785ab0dcfe57fab26283f92e",
+      "source_files_matched": 61,
+      "anchors": [
+        {
+          "path": "src/text/analyze.rs",
+          "sha256": "97497b037d1ef911b261219e6e50a331ff29147776cf6fe347eedd0788666195"
+        },
+        {
+          "path": "src/text/cluster/parse.rs",
+          "sha256": "b8e34ea78a03929ff8f5bdddd5cb810f14c350d5e67dcd9e3ec5579fa900d384"
+        }
+      ]
+    },
+    {
+      "name": "read-fonts",
+      "version": "0.35.0",
+      "archive_sha256": "6717cf23b488adf64b9d711329542ba34de147df262370221940dfabc2c91358",
+      "source_files_matched": 98,
+      "anchors": [
+        {
+          "path": "src/tables/fvar.rs",
+          "sha256": "494e3108d17b00b35689b5616133bd275e4c1ab0796ad1b1c2a4a4f640a322cd"
+        }
+      ]
+    }
+  ]
+}

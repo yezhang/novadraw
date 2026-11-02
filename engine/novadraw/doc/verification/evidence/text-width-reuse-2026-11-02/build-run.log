@@ -1,0 +1,91 @@
+[1m[92m     Locking[0m 72 packages to highest Rust 1.99.1 compatible versions
+[1m[92m      Adding[0m parley v0.7.0 [1m[33m(available: v0.8.0)[0m
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m unicode-ident v1.0.27
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m libm v0.2.16
+[1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m objc2 v0.6.5
+[1m[92m   Compiling[0m libc v0.2.191
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m objc2-encode v4.1.0
+[1m[92m   Compiling[0m writeable v0.6.4
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m equivalent v1.0.3
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m zmij v1.0.23
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m smallvec v1.16.4
+[1m[92m   Compiling[0m litemap v0.8.3
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m serde_json v1.0.154
+[1m[92m   Compiling[0m itoa v1.0.18
+[1m[92m   Compiling[0m memchr v2.8.3
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/zmij-0faee1a89f5a1d59/rustcgxe4A5/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/zmij-0faee1a89f5a1d59/build_script_build-0faee1a89f5a1d59" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/serde_core-35593854dc6bf8e0/rustc2xiPW6/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/serde_core-35593854dc6bf8e0/build_script_build-35593854dc6bf8e0" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/proc-macro2-0d5ca7cd9d4750cf/rustcYlXWPB/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/proc-macro2-0d5ca7cd9d4750cf/build_script_build-0d5ca7cd9d4750cf" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/quote-9533e365aed92070/rustcoZSVO6/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/quote-9533e365aed92070/build_script_build-9533e365aed92070" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/objc2-36b3dad7d4da92c8/rustcN94BqG/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/objc2-36b3dad7d4da92c8/build_script_build-36b3dad7d4da92c8" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/libc-31573d08f9210852/rustcebj7uP/symbols.o" "<3 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/libc-31573d08f9210852/build_script_build-31573d08f9210852" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m: could not compile `zmij` (build script) due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[0m: could not compile `quote` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `serde_core` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `libc` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `proc-macro2` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `objc2` (build script) due to 1 previous error
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/serde_json-0a21899b98194099/rustcKJ0C5t/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/serde_json-0a21899b98194099/build_script_build-0a21899b98194099" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/libm-504d67f0c69737c1/rustc4pqNcM/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-width-reuse/release/build/libm-504d67f0c69737c1/build_script_build-504d67f0c69737c1" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m: could not compile `libm` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `serde_json` (build script) due to 1 previous error
