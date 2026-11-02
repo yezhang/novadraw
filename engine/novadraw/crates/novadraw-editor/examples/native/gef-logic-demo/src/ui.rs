@@ -6,12 +6,13 @@ use crate::{
 use egui::{Color32, Event, PointerButton, Response, TextureId};
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::geometry::Point;
+use novadraw_example_support::workbench::{self, icons};
 
-const ACCENT: Color32 = Color32::from_rgb(58, 110, 184);
 const SIGNAL: Color32 = Color32::from_rgb(32, 143, 107);
-const SIDEBAR_WIDTH: f32 = 204.0;
-const CONTROL_HEIGHT: f32 = 26.0;
+const SIDEBAR_WIDTH: f32 = workbench::SIDEBAR_WIDTH;
+const CONTROL_HEIGHT: f32 = workbench::CONTROL_HEIGHT;
 const SCROLL_LINE: f32 = 24.0;
+const CONTENT_PADDING: f64 = 40.0;
 
 pub struct Ui {
     pub error: Option<String>,
@@ -21,39 +22,26 @@ pub struct Ui {
     preset: Preset,
     pending_preset: Option<Preset>,
     canvas_size: [f64; 2],
+    initial_fit_pending: bool,
 }
 impl Default for Ui {
     fn default() -> Self {
         Self {
             error: None,
-            path: "logic.json".into(),
+            path: concat!(env!("CARGO_MANIFEST_DIR"), "/logic.json").into(),
             captured: false,
             pan: None,
             preset: Preset::default(),
             pending_preset: None,
             canvas_size: [880.0, 600.0],
+            initial_fit_pending: true,
         }
     }
 }
 impl Ui {
     fn load_preset(&mut self, session: &mut Session, preset: Preset) -> Result<(), String> {
         let mut next = Session::new(preset.circuit())?;
-        let (width, height) =
-            next.viewer
-                .model()
-                .document
-                .nodes
-                .values()
-                .fold((0.0_f64, 0.0_f64), |(w, h), n| {
-                    let b = n.bounds();
-                    (w.max(b.x + b.width + 40.0), h.max(b.y + b.height + 40.0))
-                });
-        let scale = (self.canvas_size[0] / width)
-            .min(self.canvas_size[1] / height)
-            .clamp(0.1, 1.0);
-        next.domain
-            .set_viewport_scale_at(&mut next.viewer, scale, Some(Point::ZERO))
-            .map_err(|e| e.to_string())?;
+        self.fit_canvas(&mut next)?;
         next.sync()?;
         *session = next;
         self.preset = preset;
@@ -61,6 +49,30 @@ impl Ui {
         self.captured = false;
         self.pan = None;
         Ok(())
+    }
+    fn fit_canvas(&self, session: &mut Session) -> Result<(), String> {
+        let (width, height) =
+            session
+                .viewer
+                .model()
+                .document
+                .nodes
+                .values()
+                .fold((0.0_f64, 0.0_f64), |(w, h), n| {
+                    let b = n.bounds();
+                    (
+                        w.max(b.x + b.width + CONTENT_PADDING),
+                        h.max(b.y + b.height + CONTENT_PADDING),
+                    )
+                });
+        let scale = (self.canvas_size[0] / width)
+            .min(self.canvas_size[1] / height)
+            .clamp(0.1, 1.0);
+        session
+            .domain
+            .set_viewport_scale_at(&mut session.viewer, scale, Some(Point::ZERO))
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
     fn apply(&mut self, result: Result<(), String>) {
         if let Err(error) = result {
@@ -73,83 +85,99 @@ impl Ui {
         session: &mut Session,
         texture: TextureId,
     ) -> [f64; 2] {
-        egui::Panel::top("document").show(root, |ui| {
-            ui.horizontal_centered(|ui| {
-                ui.label(egui::RichText::new("Logic").strong().size(18.0));
-                egui::ComboBox::from_id_salt("logic-preset")
-                    .selected_text(self.preset.name())
-                    .show_ui(ui, |ui| {
-                        for preset in Preset::ALL {
-                            if ui
-                                .selectable_label(self.preset == preset, preset.name())
-                                .clicked()
-                            {
-                                if session.domain.is_dirty() {
-                                    self.pending_preset = Some(preset);
-                                } else {
-                                    let result = self.load_preset(session, preset);
-                                    self.apply(result);
-                                }
-                            }
-                        }
-                    });
-                ui.label(egui::RichText::new("expanded").small().color(Color32::GRAY));
-                ui.separator();
-                if ui
-                    .add_enabled(
-                        session.domain.has_undo(),
-                        egui::Button::new("Undo").min_size(egui::vec2(50.0, CONTROL_HEIGHT)),
-                    )
-                    .clicked()
-                {
-                    self.apply(
-                        session
-                            .domain
-                            .undo(&mut session.viewer)
-                            .map_err(|e| e.to_string()),
-                    );
-                }
-                if ui
-                    .add_enabled(
-                        session.domain.has_redo(),
-                        egui::Button::new("Redo").min_size(egui::vec2(50.0, CONTROL_HEIGHT)),
-                    )
-                    .clicked()
-                {
-                    self.apply(
-                        session
-                            .domain
-                            .redo(&mut session.viewer)
-                            .map_err(|e| e.to_string()),
-                    );
-                }
-                ui.separator();
+        workbench::titlebar(root, "document", |ui| {
+            workbench::document_label(ui, "Logic", session.domain.is_dirty());
+            ui.add_space(16.0);
+            ui.menu_button("File", |ui| {
+                workbench::section(ui, "Document location");
                 ui.add_sized(
-                    [150.0, CONTROL_HEIGHT],
+                    [280.0, CONTROL_HEIGHT],
                     egui::TextEdit::singleline(&mut self.path),
                 );
+                ui.add_space(8.0);
                 if ui
-                    .add_sized([48.0, CONTROL_HEIGHT], egui::Button::new("Save"))
+                    .button(format!("{}  Save circuit", icons::FLOPPY_DISK))
                     .clicked()
                 {
                     self.error = None;
                     self.apply(save(session, &self.path));
+                    ui.close();
                 }
                 if ui
                     .add_enabled(
                         !session.domain.is_dirty(),
-                        egui::Button::new("Open").min_size(egui::vec2(48.0, CONTROL_HEIGHT)),
+                        egui::Button::new(format!("{}  Open circuit", icons::FOLDER_OPEN)),
                     )
                     .on_hover_text("Save changes before opening another circuit")
                     .clicked()
                 {
                     self.error = None;
                     self.apply(open(session, &self.path));
-                }
-                if ui.button("Delete").clicked() {
-                    self.apply(session.delete());
+                    ui.close();
                 }
             });
+            ui.separator();
+            egui::ComboBox::from_id_salt("logic-preset")
+                .selected_text(self.preset.name())
+                .show_ui(ui, |ui| {
+                    for preset in Preset::ALL {
+                        if ui
+                            .selectable_label(self.preset == preset, preset.name())
+                            .clicked()
+                        {
+                            if session.domain.is_dirty() {
+                                self.pending_preset = Some(preset);
+                            } else {
+                                let result = self.load_preset(session, preset);
+                                self.apply(result);
+                            }
+                        }
+                    }
+                });
+            ui.separator();
+            if workbench::icon_button(
+                ui,
+                icons::ARROW_COUNTER_CLOCKWISE,
+                "Undo · ⌘Z",
+                session.domain.has_undo(),
+                false,
+            )
+            .clicked()
+            {
+                self.apply(
+                    session
+                        .domain
+                        .undo(&mut session.viewer)
+                        .map_err(|e| e.to_string()),
+                );
+            }
+            if workbench::icon_button(
+                ui,
+                icons::ARROW_CLOCKWISE,
+                "Redo · ⇧⌘Z",
+                session.domain.has_redo(),
+                false,
+            )
+            .clicked()
+            {
+                self.apply(
+                    session
+                        .domain
+                        .redo(&mut session.viewer)
+                        .map_err(|e| e.to_string()),
+                );
+            }
+            if workbench::icon_button(
+                ui,
+                icons::TRASH,
+                "Delete selection",
+                !session.viewer.selection().items().is_empty(),
+                false,
+            )
+            .clicked()
+            {
+                self.apply(session.delete());
+            }
         });
         if let Some(preset) = self.pending_preset {
             egui::Window::new("Load preset?")
@@ -168,51 +196,143 @@ impl Ui {
                     });
                 });
         }
-        egui::Panel::bottom("status").show(root, |ui| {
-            ui.horizontal(|ui| {
-                if let Some(error) = &self.error {
-                    ui.colored_label(Color32::from_rgb(180, 52, 52), error);
-                } else {
-                    ui.label(match session.mode {
-                        Mode::Select => {
-                            "Drag nodes · select wires to reconnect · middle drag to pan"
+        egui::Panel::bottom("status")
+            .exact_size(workbench::STATUS_HEIGHT)
+            .frame(
+                workbench::panel_frame(workbench::CHROME)
+                    .inner_margin(egui::Margin::symmetric(8, 4)),
+            )
+            .show(root, |ui| {
+                ui.spacing_mut().interact_size.y = 24.0;
+                ui.horizontal(|ui| {
+                    if let Some(error) = &self.error {
+                        ui.colored_label(Color32::from_rgb(180, 52, 52), error);
+                    } else {
+                        ui.label(match session.mode {
+                            Mode::Select => {
+                                "Drag nodes · select wires to reconnect · middle drag to pan"
+                            }
+                            Mode::Connect => "Click an output, then an unused input · Esc cancels",
+                            Mode::Create(_) => {
+                                "Click the canvas to place a component · Esc cancels"
+                            }
+                        });
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .small_button(icons::CORNERS_OUT)
+                            .on_hover_text("Fit circuit to canvas")
+                            .clicked()
+                        {
+                            let result = self.fit_canvas(session);
+                            self.apply(result);
                         }
-                        Mode::Connect => "Click an output, then an unused input · Esc cancels",
-                        Mode::Create(_) => "Click the canvas to place a component · Esc cancels",
+                        let zoom = session.viewer.viewport_scale().unwrap_or(1.0);
+                        ui.label(format!("{:.0}%", zoom * 100.0));
+                        for (label, factor) in [("+", 1.25), ("−", 0.8)] {
+                            if ui.small_button(label).clicked() {
+                                self.apply(
+                                    session
+                                        .domain
+                                        .set_viewport_scale_at(
+                                            &mut session.viewer,
+                                            (zoom * factor).clamp(0.25, 4.0),
+                                            None,
+                                        )
+                                        .map(|_| ())
+                                        .map_err(|e| e.to_string()),
+                                );
+                            }
+                        }
+                        ui.label(if session.domain.is_dirty() {
+                            "Modified"
+                        } else {
+                            "Saved"
+                        });
                     });
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let zoom = session.viewer.viewport_scale().unwrap_or(1.0);
-                    ui.label(format!("{:.0}%", zoom * 100.0));
-                    for (label, factor) in [("+", 1.25), ("−", 0.8)] {
-                        if ui.small_button(label).clicked() {
+                });
+            });
+        egui::Panel::left("logic-tool-rail")
+            .exact_size(workbench::TOOL_RAIL_WIDTH)
+            .resizable(false)
+            .frame(workbench::panel_frame(workbench::CHROME))
+            .show(root, |ui| {
+                ui.vertical_centered(|ui| {
+                    for (icon, label, mode) in [
+                        (icons::CURSOR, "Select / move", Mode::Select),
+                        (icons::FLOW_ARROW, "Connect components", Mode::Connect),
+                    ] {
+                        if workbench::icon_button(ui, icon, label, true, session.mode == mode)
+                            .clicked()
+                        {
+                            self.apply(session.set_mode(mode));
+                        }
+                    }
+                });
+            });
+        egui::Panel::left("logic-library")
+            .default_size(SIDEBAR_WIDTH)
+            .size_range(208.0..=320.0)
+            .resizable(true)
+            .frame(workbench::panel_frame(workbench::SIDEBAR))
+            .show(root, |ui| {
+                workbench::panel_heading(ui, icons::SQUARES_FOUR, "Library");
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    workbench::section(ui, "Components");
+                    for kind in Kind::ALL {
+                        if ui
+                            .add_sized(
+                                [ui.available_width(), CONTROL_HEIGHT],
+                                egui::Button::new(format!("{}   {}", icons::CPU, kind.name()))
+                                    .selected(session.mode == Mode::Create(kind)),
+                            )
+                            .clicked()
+                        {
+                            self.apply(session.set_mode(Mode::Create(kind)));
+                        }
+                    }
+                    workbench::section(ui, "Circuit layers");
+                    let nodes = session
+                        .viewer
+                        .model()
+                        .document
+                        .order
+                        .iter()
+                        .map(|id| (*id, session.viewer.model().document.nodes[id].name.clone()))
+                        .collect::<Vec<_>>();
+                    for (id, name) in nodes {
+                        if let Some(part) = session.viewer.part_for_model(Id::Node(id))
+                            && ui
+                                .add_sized(
+                                    [ui.available_width(), CONTROL_HEIGHT],
+                                    egui::Button::new(format!("{}   {name}", icons::STACK))
+                                        .frame(false)
+                                        .selected(
+                                            session.viewer.selection().items().contains(&part),
+                                        ),
+                                )
+                                .clicked()
+                        {
                             self.apply(
                                 session
-                                    .domain
-                                    .set_viewport_scale_at(
-                                        &mut session.viewer,
-                                        (zoom * factor).clamp(0.25, 4.0),
-                                        None,
-                                    )
+                                    .viewer
+                                    .replace_selection(part)
                                     .map(|_| ())
                                     .map_err(|e| e.to_string()),
                             );
                         }
                     }
-                    ui.label(if session.domain.is_dirty() {
-                        "Modified"
-                    } else {
-                        "Saved"
-                    });
                 });
             });
-        });
-        egui::Panel::left("tools")
-            .exact_size(SIDEBAR_WIDTH)
-            .resizable(false)
+        egui::Panel::right("logic-inspector")
+            .default_size(workbench::INSPECTOR_WIDTH)
+            .size_range(240.0..=360.0)
+            .resizable(true)
+            .frame(workbench::panel_frame(workbench::SURFACE))
             .show(root, |ui| {
+                workbench::panel_heading(ui, icons::SLIDERS_HORIZONTAL, "Inspector");
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.label(egui::RichText::new("ROUTING").small().color(Color32::GRAY));
+                    workbench::section(ui, "Connection routing");
                     for routing in Routing::ALL {
                         if ui
                             .selectable_label(
@@ -263,51 +383,7 @@ impl Ui {
                             }
                         }
                     }
-                    ui.add_space(8.0);
-                    ui.label(egui::RichText::new("TOOLS").small().color(Color32::GRAY));
-                    for (name, mode) in [("Select / move", Mode::Select), ("Wire", Mode::Connect)] {
-                        if ui
-                            .add_sized(
-                                [ui.available_width(), 30.0],
-                                egui::Button::new(name).selected(session.mode == mode),
-                            )
-                            .clicked()
-                        {
-                            self.apply(session.set_mode(mode));
-                        }
-                    }
-                    ui.add_space(16.0);
-                    ui.label(
-                        egui::RichText::new("COMPONENTS")
-                            .small()
-                            .color(Color32::GRAY),
-                    );
-                    egui::Grid::new("components")
-                        .num_columns(2)
-                        .spacing([6.0, 6.0])
-                        .show(ui, |ui| {
-                            for (i, kind) in Kind::ALL.into_iter().enumerate() {
-                                if ui
-                                    .add_sized(
-                                        [88.0, 34.0],
-                                        egui::Button::new(kind.name())
-                                            .selected(session.mode == Mode::Create(kind)),
-                                    )
-                                    .clicked()
-                                {
-                                    self.apply(session.set_mode(Mode::Create(kind)));
-                                }
-                                if i % 2 == 1 {
-                                    ui.end_row();
-                                }
-                            }
-                        });
-                    ui.add_space(20.0);
-                    ui.label(
-                        egui::RichText::new("INPUT VALUES")
-                            .small()
-                            .color(Color32::GRAY),
-                    );
+                    workbench::section(ui, "Input values");
                     let inputs = session
                         .viewer
                         .model()
@@ -343,12 +419,7 @@ impl Ui {
                         });
                         ui.add_space(6.0);
                     }
-                    ui.add_space(14.0);
-                    ui.label(
-                        egui::RichText::new("LIVE SIGNALS")
-                            .small()
-                            .color(Color32::GRAY),
-                    );
+                    workbench::section(ui, "Live signals");
                     let outputs = session
                         .viewer
                         .model()
@@ -374,39 +445,11 @@ impl Ui {
                             );
                         });
                     }
-                    ui.add_space(20.0);
-                    ui.label(egui::RichText::new("CIRCUIT").small().color(Color32::GRAY));
-                    let nodes = session
-                        .viewer
-                        .model()
-                        .document
-                        .order
-                        .iter()
-                        .map(|id| (*id, session.viewer.model().document.nodes[id].name.clone()))
-                        .collect::<Vec<_>>();
-                    for (id, name) in nodes {
-                        if let Some(part) = session.viewer.part_for_model(Id::Node(id))
-                            && ui
-                                .selectable_label(
-                                    session.viewer.selection().items().contains(&part),
-                                    name,
-                                )
-                                .clicked()
-                        {
-                            self.apply(
-                                session
-                                    .viewer
-                                    .replace_selection(part)
-                                    .map(|_| ())
-                                    .map_err(|e| e.to_string()),
-                            );
-                        }
-                    }
                 });
             });
         let mut size = [1.0, 1.0];
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(Color32::from_rgb(247, 249, 251)))
+            .frame(workbench::panel_frame(workbench::PASTEBOARD))
             .show(root, |ui| {
                 let (rect, response) =
                     ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
@@ -421,6 +464,12 @@ impl Ui {
             });
         self.apply(session.sync());
         self.canvas_size = size;
+        if self.initial_fit_pending {
+            self.initial_fit_pending = false;
+            let result = self.fit_canvas(session);
+            self.apply(result);
+            root.ctx().request_repaint();
+        }
         size
     }
     fn apply_input(&mut self, response: &Response, session: &mut Session) {
@@ -627,15 +676,5 @@ fn open(session: &mut Session, path: &str) -> Result<(), String> {
     Ok(())
 }
 pub fn configure_style(context: &egui::Context) {
-    context.set_visuals(egui::Visuals::light());
-    context.style_mut_of(egui::Theme::Light, |style| {
-        style.spacing.item_spacing = egui::vec2(6.0, 5.0);
-        style.spacing.button_padding = egui::vec2(8.0, 5.0);
-        style.visuals.selection.bg_fill = Color32::from_rgb(229, 239, 252);
-        style.visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
-        style.visuals.widgets.hovered.bg_stroke = style.visuals.widgets.inactive.bg_stroke;
-        style.visuals.widgets.hovered.weak_bg_fill = Color32::from_gray(239);
-        style.visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, ACCENT);
-        style.animation_time = 0.0;
-    });
+    workbench::configure_style(context);
 }

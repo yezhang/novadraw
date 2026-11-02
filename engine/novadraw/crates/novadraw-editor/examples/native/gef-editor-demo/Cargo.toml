@@ -8,6 +8,7 @@ default-run = "gef-editor-demo"
 publish = false
 
 [dependencies]
+novadraw-example-support = { path = "../../../../../examples/support", default-features = false, features = ["egui-workbench"] }
 novadraw = { path = "../../../../novadraw" }
 novadraw-backend-vello = { path = "../../../../novadraw-backend-vello" }
 novadraw-editor = { path = "../../.." }

@@ -5,11 +5,13 @@ use novadraw_backend_vello::texture::VelloTextureRenderer;
 
 pub fn run() -> eframe::Result {
     eframe::run_native(
-        "Novadraw - Logic · first slice",
+        "Novadraw · Logic",
         eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default()
-                .with_inner_size([1160.0, 660.0])
-                .with_min_inner_size([1000.0, 580.0]),
+            viewport: novadraw_example_support::workbench::viewport(
+                "Novadraw · Logic",
+                [1280.0, 820.0],
+                [1000.0, 640.0],
+            ),
             renderer: eframe::Renderer::Wgpu,
             ..Default::default()
         },

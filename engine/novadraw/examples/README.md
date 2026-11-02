@@ -18,6 +18,8 @@
 
 `support` 和 Core 的 `scenes` 是仓库内部的示例基础设施，不属于稳定产品 API。产品应用应直接
 组合 `novadraw`、渲染后端、平台适配器，以及按需使用的 Editor 或 Inspector crate。
+Shapes 与 Logic 共用 macOS 风格的 [GEF 样例工作台](support/README.md)，
+统一窗口、工具栏、侧栏与状态栏样式。
 
 目录按主要展示的能力归属，平台作为第二层分类。完整应用保留自己的 `Cargo.toml`
 和独立 workspace package，使用 `cargo run -p <package>`；它们不作为库的 Cargo

@@ -3,6 +3,7 @@ target/
 examples/integration/web-validation/dist/
 **/*.profraw
 doc/verification/evidence/**/*_probe
+crates/novadraw-editor/examples/native/gef-logic-demo/logic.json
 
 # Local agent and Python caches
 .trae-html-share-packages/

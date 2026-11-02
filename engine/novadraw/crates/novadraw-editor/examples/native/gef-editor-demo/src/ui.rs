@@ -10,18 +10,19 @@ use egui::{
 use egui_phosphor::regular as icons;
 use novadraw::event::{Key as EditorKey, KeyEvent, KeyEventKind, KeyModifiers, MouseButton};
 use novadraw::geometry::{Point, Rectangle};
+use novadraw_example_support::workbench;
 
-const LEFT_PANEL_WIDTH: f32 = 232.0;
-const RIGHT_PANEL_WIDTH: f32 = 264.0;
-const TOOL_RAIL_WIDTH: f32 = 44.0;
+const LEFT_PANEL_WIDTH: f32 = workbench::SIDEBAR_WIDTH;
+const RIGHT_PANEL_WIDTH: f32 = workbench::INSPECTOR_WIDTH;
+const TOOL_RAIL_WIDTH: f32 = workbench::TOOL_RAIL_WIDTH;
 const COLLAPSED_PANEL_WIDTH: f32 = 28.0;
 const COMMAND_BUTTON_WIDTH: f32 = 36.0;
-const DOCUMENT_CONTROL_HEIGHT: f32 = 26.0;
+const DOCUMENT_CONTROL_HEIGHT: f32 = workbench::TITLEBAR_CONTROL_HEIGHT;
 const FILE_BUTTON_WIDTH: f32 = 30.0;
 const FILE_BUTTON_HEIGHT: f32 = DOCUMENT_CONTROL_HEIGHT;
 const FILE_ICON_SIZE: f32 = 16.0;
 const ALIGN_BUTTON_WIDTH: f32 = 28.0;
-const ALIGN_BUTTON_HEIGHT: f32 = 26.0;
+const ALIGN_BUTTON_HEIGHT: f32 = workbench::CONTROL_HEIGHT;
 const ALIGN_ICON_SIZE: f32 = 16.0;
 const ALIGN_ICON_STROKE: f32 = 1.5;
 const PANEL_MARGIN: i8 = 8;
@@ -38,17 +39,17 @@ const PROPERTY_ROW_GAP: f32 = 4.0;
 const PROPERTY_GROUP_GAP: f32 = 8.0;
 const PROPERTY_FIELD_MAX_WIDTH: f32 = 152.0;
 const INSPECTOR_DIVIDER_GAP: f32 = 8.0;
-const PANEL_TITLE_SIZE: f32 = 17.0;
+const PANEL_TITLE_SIZE: f32 = 14.0;
 const SECTION_TITLE_SIZE: f32 = 11.0;
-const SECONDARY_TEXT: Color32 = Color32::from_gray(96);
-const PANEL_BORDER: Color32 = Color32::from_gray(214);
+const SECONDARY_TEXT: Color32 = workbench::SECONDARY;
+const PANEL_BORDER: Color32 = workbench::BORDER;
 const PROPERTY_FIELD_FILL: Color32 = Color32::from_gray(247);
 const PROPERTY_FIELD_HOVER_FILL: Color32 = Color32::from_gray(242);
 const PROPERTY_FIELD_ACTIVE_FILL: Color32 = Color32::from_gray(238);
 const PROPERTY_FIELD_BORDER: Color32 = Color32::from_gray(216);
-const PRIMARY_BLUE: Color32 = Color32::from_rgb(45, 105, 145);
-pub(crate) const SELECTION_BLUE: Color32 = Color32::from_rgb(224, 236, 244);
-pub(crate) const SELECTION_TEXT: Color32 = Color32::from_rgb(35, 73, 96);
+const PRIMARY_BLUE: Color32 = workbench::ACCENT;
+pub(crate) const SELECTION_BLUE: Color32 = workbench::SELECTED;
+pub(crate) const SELECTION_TEXT: Color32 = workbench::SELECTED_TEXT;
 const ERROR_RED: Color32 = Color32::from_rgb(176, 40, 40);
 const SCROLL_LINE_POINTS: f32 = 32.0;
 const GRID_DOT_RADIUS: f32 = 1.0;
@@ -84,10 +85,10 @@ impl EditorUi {
     ) -> UiOutput {
         self.show_document_bar(root, app);
         self.show_status(root, app);
+        self.show_context_bar(root, app);
         self.show_tool_rail(root, app);
         self.show_left_panel(root, app);
         self.show_inspector(root, app);
-        self.show_context_bar(root, app);
 
         let mut output = UiOutput {
             canvas_size: [0.0, 0.0],
@@ -96,7 +97,7 @@ impl EditorUi {
         egui::CentralPanel::default()
             .frame(
                 Frame::new()
-                    .fill(Color32::from_gray(224))
+                    .fill(workbench::PASTEBOARD)
                     .inner_margin(Margin::same(PANEL_MARGIN)),
             )
             .show(root, |ui| {
@@ -106,7 +107,7 @@ impl EditorUi {
                     .sense(Sense::click_and_drag());
                 let response = Frame::new()
                     .fill(Color32::WHITE)
-                    .stroke(Stroke::new(1.0, Color32::from_gray(148)))
+                    .stroke(Stroke::new(1.0, PANEL_BORDER))
                     .show(ui, |ui| ui.add(image))
                     .inner;
                 let rect = response.rect;
@@ -138,65 +139,78 @@ impl EditorUi {
     }
 
     fn show_document_bar(&self, root: &mut egui::Ui, app: &mut AppState) {
-        egui::Panel::top("document_bar")
-            .frame(
-                Frame::new()
-                    .fill(Color32::from_gray(248))
-                    .inner_margin(Margin::symmetric(8, 4))
-                    .stroke(Stroke::new(1.0, Color32::from_gray(210))),
-            )
-            .show(root, |ui| {
-                ui.allocate_ui_with_layout(
-                    Vec2::new(ui.available_width(), DOCUMENT_CONTROL_HEIGHT),
-                    Layout::left_to_right(Align::Center),
-                    |ui| {
-                        document_title(ui, app.canvas.dirty);
-                        ui.separator();
-                        document_path_field(ui, &mut app.path_input);
-                        file_action_group(ui, app);
-                        ui.separator();
-                        file_action_button(
-                            ui,
-                            icons::FOLDER_SIMPLE_MINUS,
-                            "Discard unsaved changes and open document",
-                            app.canvas.dirty && !app.disabled,
-                            app,
-                            UiCommand::DiscardAndOpen,
-                            egui::CornerRadius::same(4),
-                        );
-                        ui.separator();
-                        command_button(
-                            ui,
-                            icons::ARROW_COUNTER_CLOCKWISE,
-                            "Undo",
-                            app.canvas.can_undo && !app.disabled,
-                            app,
-                            UiCommand::Undo,
-                        );
-                        command_button(
-                            ui,
-                            icons::ARROW_CLOCKWISE,
-                            "Redo",
-                            app.canvas.can_redo && !app.disabled,
-                            app,
-                            UiCommand::Redo,
-                        );
-                    },
-                );
+        workbench::titlebar(root, "document_bar", |ui| {
+            document_title(ui, app.canvas.dirty);
+            ui.add_space(16.0);
+            ui.menu_button("File", |ui| {
+                workbench::section(ui, "Document location");
+                document_path_field(ui, &mut app.path_input);
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    file_action_group(ui, app);
+                    file_action_button(
+                        ui,
+                        icons::FOLDER_SIMPLE_MINUS,
+                        "Discard unsaved changes and open document",
+                        app.canvas.dirty && !app.disabled,
+                        app,
+                        UiCommand::DiscardAndOpen,
+                        egui::CornerRadius::same(4),
+                    );
+                });
             });
+            ui.menu_button("Edit", |ui| {
+                for (label, enabled, command) in [
+                    ("Undo", app.canvas.can_undo, UiCommand::Undo),
+                    ("Redo", app.canvas.can_redo, UiCommand::Redo),
+                    ("Delete", app.can_delete, UiCommand::Delete),
+                    ("Group", app.can_group, UiCommand::Group),
+                    ("Ungroup", app.can_ungroup, UiCommand::Ungroup),
+                ] {
+                    context_command(ui, label, enabled && !app.disabled, app, command);
+                }
+            });
+            ui.menu_button("View", |ui| {
+                for (label, command) in [
+                    ("Fit to content", UiCommand::ZoomFit),
+                    ("Actual size", UiCommand::ZoomReset),
+                    ("Toggle grid", UiCommand::ToggleGrid),
+                    ("Toggle snap", UiCommand::ToggleSnap),
+                ] {
+                    context_command(ui, label, !app.disabled, app, command);
+                }
+            });
+            ui.separator();
+            command_button(
+                ui,
+                icons::ARROW_COUNTER_CLOCKWISE,
+                "Undo",
+                app.canvas.can_undo && !app.disabled,
+                app,
+                UiCommand::Undo,
+            );
+            command_button(
+                ui,
+                icons::ARROW_CLOCKWISE,
+                "Redo",
+                app.canvas.can_redo && !app.disabled,
+                app,
+                UiCommand::Redo,
+            );
+        });
     }
 
     fn show_status(&self, root: &mut egui::Ui, app: &mut AppState) {
         egui::Panel::bottom("editor_status")
-            .default_size(26.0)
-            .size_range(26.0..=26.0)
+            .exact_size(workbench::STATUS_HEIGHT)
             .frame(
                 Frame::new()
-                    .fill(Color32::from_gray(246))
+                    .fill(workbench::CHROME)
                     .inner_margin(Margin::symmetric(8, 4))
-                    .stroke(Stroke::new(1.0, Color32::from_gray(210))),
+                    .stroke(Stroke::new(1.0, PANEL_BORDER)),
             )
             .show(root, |ui| {
+                ui.spacing_mut().interact_size.y = 24.0;
                 ui.horizontal(|ui| {
                     let text = app
                         .canvas
@@ -289,8 +303,8 @@ impl EditorUi {
             .resizable(false)
             .frame(
                 Frame::new()
-                    .fill(Color32::from_gray(242))
-                    .inner_margin(Margin::symmetric(5, 8))
+                    .fill(workbench::CHROME)
+                    .inner_margin(Margin::same(8))
                     .stroke(Stroke::new(1.0, PANEL_BORDER)),
             )
             .show(root, |ui| {
@@ -370,7 +384,7 @@ impl EditorUi {
             .resizable(true)
             .frame(
                 Frame::new()
-                    .fill(Color32::from_gray(247))
+                    .fill(workbench::SIDEBAR)
                     .inner_margin(Margin::same(PANEL_MARGIN))
                     .stroke(Stroke::new(1.0, PANEL_BORDER)),
             )
@@ -552,7 +566,7 @@ impl EditorUi {
             .resizable(true)
             .frame(
                 Frame::new()
-                    .fill(Color32::from_gray(250))
+                    .fill(workbench::SURFACE)
                     .inner_margin(Margin::same(PANEL_MARGIN))
                     .stroke(Stroke::new(1.0, PANEL_BORDER)),
             )
@@ -575,156 +589,151 @@ impl EditorUi {
                     });
                 });
                 ui.add_space(8.0);
-                if let Some((id, _)) = app.property_subject {
-                    let item = app.outline.iter().find(|item| item.id == id);
-                    object_summary(ui, id, item.map(|item| item.kind), app.selected.len());
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    ui.separator();
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    name_editor(ui, app);
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    ui.separator();
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    geometry_editor(ui, app);
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    ui.separator();
-                    ui.add_space(INSPECTOR_DIVIDER_GAP);
-                    appearance_editor(ui, app);
-                } else {
-                    inspector_empty_state(ui, app);
-                }
+                ScrollArea::vertical()
+                    .id_salt("inspector_content")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        if let Some((id, _)) = app.property_subject {
+                            let item = app.outline.iter().find(|item| item.id == id);
+                            object_summary(ui, id, item.map(|item| item.kind), app.selected.len());
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            ui.separator();
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            name_editor(ui, app);
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            ui.separator();
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            geometry_editor(ui, app);
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            ui.separator();
+                            ui.add_space(INSPECTOR_DIVIDER_GAP);
+                            appearance_editor(ui, app);
+                        } else {
+                            inspector_empty_state(ui, app);
+                        }
+                    });
             });
     }
 
     fn show_context_bar(&self, root: &mut egui::Ui, app: &mut AppState) {
-        egui::Panel::top("selection_context_bar")
-            .exact_size(34.0)
-            .frame(
-                Frame::new()
-                    .fill(Color32::from_gray(252))
-                    .inner_margin(Margin::symmetric(8, 4))
-                    .stroke(Stroke::new(1.0, PANEL_BORDER)),
-            )
-            .show(root, |ui| {
-                ui.horizontal(|ui| {
-                    context_icon(
+        workbench::toolbar(root, "selection_context_bar", |ui| {
+            context_icon(
+                ui,
+                icons::TRASH,
+                "Delete selection",
+                app.can_delete && !app.disabled,
+                app,
+                UiCommand::Delete,
+            );
+            ui.separator();
+            alignment_group(
+                ui,
+                app,
+                [
+                    Alignment::Left,
+                    Alignment::HorizontalCenter,
+                    Alignment::Right,
+                ],
+            );
+            alignment_group(
+                ui,
+                app,
+                [Alignment::Top, Alignment::VerticalCenter, Alignment::Bottom],
+            );
+            ui.separator();
+            if ui.available_width() >= 150.0 {
+                context_icon(
+                    ui,
+                    icons::SELECTION_BACKGROUND,
+                    "Send backward",
+                    app.can_send_backward && !app.disabled,
+                    app,
+                    UiCommand::SendBackward,
+                );
+                context_icon(
+                    ui,
+                    icons::SELECTION_FOREGROUND,
+                    "Bring forward",
+                    app.can_bring_forward && !app.disabled,
+                    app,
+                    UiCommand::BringForward,
+                );
+                context_icon(
+                    ui,
+                    icons::SQUARES_FOUR,
+                    "Group selection",
+                    app.can_group && !app.disabled,
+                    app,
+                    UiCommand::Group,
+                );
+                context_icon(
+                    ui,
+                    icons::SELECTION_SLASH,
+                    "Ungroup selection",
+                    app.can_ungroup && !app.disabled,
+                    app,
+                    UiCommand::Ungroup,
+                );
+            } else {
+                ui.menu_button(RichText::new(icons::DOTS_THREE).size(16.0), |ui| {
+                    context_command(
                         ui,
-                        icons::TRASH,
-                        "Delete selection",
-                        app.can_delete && !app.disabled,
+                        &format!("{}  Send backward", icons::SELECTION_BACKGROUND),
+                        app.can_send_backward && !app.disabled,
                         app,
-                        UiCommand::Delete,
+                        UiCommand::SendBackward,
                     );
-                    ui.separator();
-                    alignment_group(
+                    context_command(
                         ui,
+                        &format!("{}  Bring forward", icons::SELECTION_FOREGROUND),
+                        app.can_bring_forward && !app.disabled,
                         app,
-                        [
-                            Alignment::Left,
-                            Alignment::HorizontalCenter,
-                            Alignment::Right,
-                        ],
+                        UiCommand::BringForward,
                     );
-                    alignment_group(
+                    context_command(
                         ui,
+                        &format!("{}  Group", icons::SQUARES_FOUR),
+                        app.can_group && !app.disabled,
                         app,
-                        [Alignment::Top, Alignment::VerticalCenter, Alignment::Bottom],
+                        UiCommand::Group,
                     );
-                    ui.separator();
-                    if ui.available_width() >= 150.0 {
-                        context_icon(
-                            ui,
-                            icons::SELECTION_BACKGROUND,
-                            "Send backward",
-                            app.can_send_backward && !app.disabled,
-                            app,
-                            UiCommand::SendBackward,
-                        );
-                        context_icon(
-                            ui,
-                            icons::SELECTION_FOREGROUND,
-                            "Bring forward",
-                            app.can_bring_forward && !app.disabled,
-                            app,
-                            UiCommand::BringForward,
-                        );
-                        context_icon(
-                            ui,
-                            icons::SQUARES_FOUR,
-                            "Group selection",
-                            app.can_group && !app.disabled,
-                            app,
-                            UiCommand::Group,
-                        );
-                        context_icon(
-                            ui,
-                            icons::SELECTION_SLASH,
-                            "Ungroup selection",
-                            app.can_ungroup && !app.disabled,
-                            app,
-                            UiCommand::Ungroup,
-                        );
-                    } else {
-                        ui.menu_button(RichText::new(icons::DOTS_THREE).size(16.0), |ui| {
-                            context_command(
-                                ui,
-                                &format!("{}  Send backward", icons::SELECTION_BACKGROUND),
-                                app.can_send_backward && !app.disabled,
-                                app,
-                                UiCommand::SendBackward,
-                            );
-                            context_command(
-                                ui,
-                                &format!("{}  Bring forward", icons::SELECTION_FOREGROUND),
-                                app.can_bring_forward && !app.disabled,
-                                app,
-                                UiCommand::BringForward,
-                            );
-                            context_command(
-                                ui,
-                                &format!("{}  Group", icons::SQUARES_FOUR),
-                                app.can_group && !app.disabled,
-                                app,
-                                UiCommand::Group,
-                            );
-                            context_command(
-                                ui,
-                                &format!("{}  Ungroup", icons::SELECTION_SLASH),
-                                app.can_ungroup && !app.disabled,
-                                app,
-                                UiCommand::Ungroup,
-                            );
-                        });
-                    }
-                    if matches!(
-                        app.tool_mode,
-                        ToolMode::SolidConnection | ToolMode::DashedConnection
-                    ) {
-                        ui.separator();
-                        let (icon, tooltip, style) = if app.tool_mode == ToolMode::SolidConnection {
-                            (
-                                icons::LINE_SEGMENT,
-                                "Solid connection; click for dashed",
-                                EdgeStyle::Dashed,
-                            )
-                        } else {
-                            (
-                                icons::LINE_SEGMENTS,
-                                "Dashed connection; click for solid",
-                                EdgeStyle::Solid,
-                            )
-                        };
-                        context_icon(
-                            ui,
-                            icon,
-                            tooltip,
-                            !app.disabled,
-                            app,
-                            UiCommand::Connect(style),
-                        );
-                    }
+                    context_command(
+                        ui,
+                        &format!("{}  Ungroup", icons::SELECTION_SLASH),
+                        app.can_ungroup && !app.disabled,
+                        app,
+                        UiCommand::Ungroup,
+                    );
                 });
-            });
+            }
+            if matches!(
+                app.tool_mode,
+                ToolMode::SolidConnection | ToolMode::DashedConnection
+            ) {
+                ui.separator();
+                let (icon, tooltip, style) = if app.tool_mode == ToolMode::SolidConnection {
+                    (
+                        icons::LINE_SEGMENT,
+                        "Solid connection; click for dashed",
+                        EdgeStyle::Dashed,
+                    )
+                } else {
+                    (
+                        icons::LINE_SEGMENTS,
+                        "Dashed connection; click for solid",
+                        EdgeStyle::Solid,
+                    )
+                };
+                context_icon(
+                    ui,
+                    icon,
+                    tooltip,
+                    !app.disabled,
+                    app,
+                    UiCommand::Connect(style),
+                );
+            }
+        });
     }
 }
 
@@ -1136,7 +1145,7 @@ fn rail_button(
     let response = ui.add_enabled(
         enabled,
         egui::Button::selectable(selected, RichText::new(icon).size(18.0))
-            .min_size(Vec2::splat(32.0)),
+            .min_size(Vec2::splat(workbench::TOOL_SIZE)),
     );
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
@@ -1303,11 +1312,7 @@ fn document_path_field(ui: &mut egui::Ui, path: &mut String) -> Response {
 }
 
 fn document_title(ui: &mut egui::Ui, dirty: bool) -> Response {
-    let response = ui.strong("Shapes");
-    if dirty {
-        ui.label(RichText::new("Modified").color(Color32::from_rgb(166, 83, 18)));
-    }
-    response
+    workbench::document_label(ui, "Shapes", dirty)
 }
 
 fn file_action_group(ui: &mut egui::Ui, app: &mut AppState) -> [Response; 3] {
@@ -1421,6 +1426,28 @@ fn grouped_corner_radius(index: usize, len: usize) -> egui::CornerRadius {
 #[cfg(test)]
 mod file_action_button_tests {
     use super::*;
+
+    #[test]
+    fn titlebar_controls_share_the_native_row_centerline() {
+        let context = egui::Context::default();
+        workbench::configure_style(&context);
+        let mut controls = None;
+        let mut center_y = 0.0;
+        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            center_y = ui.max_rect().top() + workbench::TITLEBAR_HEIGHT / 2.0;
+            workbench::titlebar(ui, "titlebar_alignment_test", |ui| {
+                let title = document_title(ui, false);
+                let menu = ui.menu_button("File", |_| {});
+                let undo =
+                    workbench::icon_button(ui, icons::ARROW_COUNTER_CLOCKWISE, "Undo", true, false);
+                controls = Some([title.rect, menu.response.rect, undo.rect]);
+            });
+        });
+        for rect in controls.unwrap() {
+            assert!((rect.center().y - center_y).abs() < 0.01, "{rect:?}");
+            assert!(rect.height() <= workbench::TITLEBAR_CONTROL_HEIGHT);
+        }
+    }
 
     #[test]
     fn document_path_and_file_buttons_share_height_and_centerline() {
@@ -1566,6 +1593,38 @@ mod file_action_button_tests {
 #[cfg(test)]
 mod alignment_button_tests {
     use super::*;
+
+    #[test]
+    fn toolbar_buttons_and_groups_are_centered_in_the_complete_bar() {
+        let context = egui::Context::default();
+        workbench::configure_style(&context);
+        let mut app = AppState::default();
+        let mut controls = None;
+        let mut center_y = 0.0;
+        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            center_y = ui.max_rect().top() + workbench::TOOLBAR_HEIGHT / 2.0;
+            workbench::toolbar(ui, "toolbar_alignment_test", |ui| {
+                let button = ui.add(
+                    egui::Button::new(RichText::new(icons::TRASH).size(16.0))
+                        .min_size(Vec2::new(28.0, 24.0)),
+                );
+                let group = alignment_group(
+                    ui,
+                    &mut app,
+                    [
+                        Alignment::Left,
+                        Alignment::HorizontalCenter,
+                        Alignment::Right,
+                    ],
+                );
+                controls = Some([button.rect, group[0].rect, group[1].rect, group[2].rect]);
+            });
+        });
+        for rect in controls.unwrap() {
+            assert!((rect.center().y - center_y).abs() < 0.01, "{rect:?}");
+            assert_eq!(rect.height(), workbench::CONTROL_HEIGHT);
+        }
+    }
 
     #[test]
     fn grouped_buttons_dispatch_each_alignment_and_disable_without_selection() {

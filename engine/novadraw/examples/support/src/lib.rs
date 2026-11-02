@@ -28,6 +28,8 @@ pub mod panel;
 pub mod prelude;
 #[cfg(feature = "native")]
 pub mod verification;
+#[cfg(feature = "egui-workbench")]
+pub mod workbench;
 
 #[cfg(feature = "native")]
 pub use app::{

@@ -7,6 +7,7 @@ rust-version = "1.96"
 publish = false
 
 [dependencies]
+novadraw-example-support = { path = "../../../../../examples/support", default-features = false, features = ["egui-workbench"] }
 novadraw = { path = "../../../../novadraw" }
 novadraw-editor = { path = "../../.." }
 novadraw-backend-vello = { path = "../../../../novadraw-backend-vello" }
