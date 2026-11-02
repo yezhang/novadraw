@@ -12,6 +12,8 @@ mod cold_tests;
 mod lookup_tests;
 #[cfg(test)]
 mod plan_tests;
+#[cfg(test)]
+mod configuration_tests;
 
 #[cfg(test)]
 mod tests {

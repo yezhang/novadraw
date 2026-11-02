@@ -274,7 +274,7 @@ impl<'a> ShaperBuilder<'a> {
         self.build_with(&mut cold_admission::AdmittedCold(admit))
     }
 
-    fn build_with<P: cold_admission::ColdAdmission>(
+    fn build_with<P: ColdAdmission>(
         self, policy: &mut P,
     ) -> Result<Option<crate::Shaper<'a>>, P::Error> {
         policy.charge(ColdOperation::Planning, 4, 0)?;
