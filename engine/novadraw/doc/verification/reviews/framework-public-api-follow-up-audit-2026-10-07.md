@@ -248,7 +248,9 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P1
 
-状态：待整改
+状态：部分整改；2026-10-30 S09-A／B 完成 Animation 的 fault／同值分离与
+Inspector／listener 生命周期结果；2026-11-02 S09-C 注册入口完成，剩余 Editor
+分类随 S09-D 验收，见 [S09-C 记录](p2-s09-c-implementation-2026-11-02.md)。
 
 证据：
 
@@ -276,7 +278,9 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - CommandStack `has_undo/has_redo` 已改为 `&self` 纯 history 查询；
 - `check_undo/check_redo` 显式执行扩展 capability 并返回
   `Result<bool, CommandStackError>`；
-- Animation、Inspector 与其余 `Result<bool>` 分类仍保持打开。
+- [S09-A](p2-s09-a-implementation-2026-10-30.md)完成 Animation 的 fault／同值分离；
+- [S09-B](p2-s09-b-implementation-2026-10-30.md)完成 Inspector 显式错误、订阅
+  true／false／foreign 与 fault 后清理；其余错误分类保持打开。
 
 ### API-F09：Core Runtime 承担平台文件读取与过宽资源便利入口
 
@@ -312,11 +316,16 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - `ResourceRequestToken` 拒绝迟到完成；
 - `ImageCompletionError` 分离解码和 Runtime 更新失败。
 
+2026-11-02 残余回填：Anchor／Router 注册已各保留一个 fallible `register_*`
+入口，删除旧 panic wrapper 与 `try_register_*` 别名。真实 fault 准入、独立
+消费者及四项 compile-fail 通过，见 [S09-C 记录](p2-s09-c-implementation-2026-11-02.md)。
+资源读取与 provider 的原整改结论保持。
+
 ### API-F10：Inspector 静默吞掉同步故障
 
 优先级：P2
 
-状态：待整改
+状态：已整改；2026-10-30，见 [S09-B 实施记录](p2-s09-b-implementation-2026-10-30.md)。
 
 证据：
 
@@ -335,6 +344,15 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - 查询和清理返回显式 Inspector error，或暴露可查询 fault 状态；
 - 评估使用 RAII subscription guard 管理 attach/detach；
 - Inspector 保持只读，不因错误处理引入 Runtime mutation 权限。
+
+整改证据：
+
+- 读取／清空显式返回 `InspectorError`，poison 的首 fault 在 Clone 间共享；
+- 已 fault observer self-remove，普通扩展 panic 仍由 Runtime 处理；
+- attach 返回不可 Clone／Copy 的 subscription token，借用 detach 支持 foreign
+  重试、自动注销后的 false 和 fault 后清理；Drop 不持有或修改 Runtime；
+- 无 GPU 恢复通过两次公开 checkpoint 与快照建立新基线；
+  私有 poison／竞争、公开消费者和三项 compile-fail 已通过。
 
 ## 4. 与既有完成记录的关系
 

@@ -17,6 +17,8 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-11-02 | [S09-C Connections 注册准入与单入口迁移](p2-s09-c-implementation-2026-11-02.md) |
+| 2026-10-30 | [S09-B Observations／Inspector 生命周期](p2-s09-b-implementation-2026-10-30.md) |
 | 2026-10-30 | [S09-A Animation 服务结果与成本验证](p2-s09-a-implementation-2026-10-30.md) |
 | 2026-10-30 | [ADR-057 修订 3 设计复核通过](adr-057-revision-3-review-2026-10-30.md) |
 | 2026-10-30 | [ADR-057 修订 3 复核回应](adr-057-revision-3-response-2026-10-30.md) |

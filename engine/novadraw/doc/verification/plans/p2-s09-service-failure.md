@@ -5,7 +5,13 @@
 状态：已接受，实施中；2026-10-30。能力归属：Core／Editor／Inspector 与宿主分项验收。目标见
 [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
 本页定义退出条件；[S09-A](../reviews/p2-s09-a-implementation-2026-10-30.md)已完成，
-SF-01／02／16 和 SF-12／13／14／15 的 Animation 部分通过；其他切片尚未完成。
+SF-01／02／16 和 SF-12／13／14／15 的 Animation 部分通过；
+[S09-B](../reviews/p2-s09-b-implementation-2026-10-30.md)的
+SF-03～08／17／18／20 与本片公开 API／自动门禁已通过；
+SF-14／15 的 Inspector 成本覆盖 64／4096 配置，未验收理论最大容量。
+[S09-C](../reviews/p2-s09-c-implementation-2026-11-02.md)的 SF-09 与
+SF-12／13 的 Connections 部分已通过，Editor 切片尚未完成。
+SF-15 的体积比较按用户明确请求执行，不作为本片默认门禁。
 
 当前为修订 3（2026-10-30），按[修订 2 复核](../reviews/adr-057-revision-2-review-2026-10-30.md)
 补齐无 GPU 恢复、已发布游标推进／持久性，以及首 fault 胜出值的来源规则。
@@ -67,8 +73,13 @@ SF-20 的公开消费者还须通过修订后的 `Frames::stabilize_for_query()`
 - SF-14／15 中 Animation 可达路径的成本记录。
 
 Observations／Inspector 的 SF-03～08、SF-17／18／20 随第二片实施，
-Connections 的 SF-09 随第三片实施，Editor 的 SF-10／11／19 随第四片实施。
+Connections 的 SF-09 已随第三片完成，Editor 的 SF-10／11／19 随第四片实施。
 分片通过不等于 S09 整批关闭。
+
+S09-B 的公开恢复注册拒绝使用真实 foreign scope，私有 Core 注入验证身份耗尽；
+两者分开记录，不增加公共测试 hook。现有容量域是 `NonZeroUsize`，
+没有有限全局上限；SF-14 的最大允许容量要求不据 4096 的采样结果勾选。
+实测范围、分配限制与未覆盖的 payload 成本保留在实施记录。
 
 每片对照 ADR-057 的 `api_semantics` 表回填既有 family；
 Inspector poison／锁竞争是本地合同，宿主恢复是编排合同，

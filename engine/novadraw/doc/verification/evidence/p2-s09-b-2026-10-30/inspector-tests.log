@@ -1,0 +1,106 @@
+[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m kurbo v0.13.1
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m svgtypes v0.16.1
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m uuid v1.18.1
+[1m[92m   Compiling[0m font-types v0.12.4
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m pxfm v0.1.27
+[1m[92m   Compiling[0m moxcms v0.8.1
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0mcrates/novadraw-inspector/tests/../../../tests/consumers/service-failure/src/inspection.rs:335:13
+    [1m[94m|[0m
+[1m[94m335[0m [1m[94m|[0m [1m[33m/[0m             runtime
+[1m[94m336[0m [1m[94m|[0m [1m[33m|[0m                 .frames()
+[1m[94m337[0m [1m[94m|[0m [1m[33m|[0m                 .complete_submission(submission.session_id, submission.frame_id, Err(failure))
+[1m[94m338[0m [1m[94m|[0m [1m[33m|[0m                 .unwrap();
+    [1m[94m|[0m [1m[33m|_________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m335[0m [1m[94m| [0m            [92mlet _ = [0mruntime
+    [1m[94m|[0m             [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw-inspector` (test "service_lifecycle") generated 1 warning
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 41.91s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw_inspector-fd6ceecf2ee80f8d)
+
+running 10 tests
+test cost::inspector_service_cost ... ignored, explicit release measurement; not a correctness gate
+test tests::observer_poison_self_removes_without_faulting_runtime_or_other_observers ... ok
+test tests::fifo_evicts_before_push_without_capacity_growth ... ok
+test tests::shared_fault_across_runtimes_keeps_winning_source_and_tokens_independent ... ok
+test tests::read_and_clear_poison_publish_source_free_first_fault_shared_by_clones ... ok
+test tests::read_first_fault_survives_later_runtime_callbacks_and_recovery_uses_new_instance ... ok
+test tests::healthy_lock_competition_waits_and_preserves_every_record ... ok
+test tests::competing_poison_discoveries_publish_one_complete_candidate ... ok
+test tests::actual_read_and_observer_poison_race_keeps_complete_first_candidate ... ok
+test tests::healthy_observer_waits_for_reader_guard_then_publishes_all_records ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/figure_inspector_contract.rs (target/debug/deps/figure_inspector_contract-ba66c855c366a334)
+
+running 2 tests
+test rejects_unstable_capture_and_bounds_its_event_history ... ok
+test captures_parent_first_tree_and_committed_effect_order ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/service_lifecycle.rs (target/debug/deps/service_lifecycle-26033f25b750a2fa)
+
+running 9 tests
+test host::tests::detach_retries_foreign_then_correct_owner_and_dispose_is_already_removed ... ok
+test host::tests::recovery_records_cleanup_errors_and_multi_runtime_partial_failure ... ok
+test host::tests::idle_suspended_and_old_journal_recovery_do_not_replay_prior_records ... ok
+test host::tests::second_checkpoint_rejection_cleans_new_subscriptions ... ok
+test host::tests::in_flight_frame_is_preserved_and_delayed_completion_follows_baseline ... ok
+test host::tests::checkpoint_query_is_pure_and_cpu_drive_does_not_require_a_frame ... ok
+test host::tests::recovery_cleans_partial_scopes_snapshot_failure_and_changed_checkpoint ... ok
+test host::tests::backend_recovery_damage_does_not_preempt_checkpoint_but_actual_fault_does ... ok
+test host::tests::callback_panic_stops_recovery_and_runtime_fault_does_not_block_detach ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m   Doc-tests[0m novadraw_inspector
+
+running 3 tests
+test crates/novadraw-inspector/src/lib.rs - InspectionSubscription (line 213) - compile fail ... ok
+test crates/novadraw-inspector/src/lib.rs - InspectionSubscription (line 201) - compile fail ... ok
+test crates/novadraw-inspector/src/lib.rs - InspectionSubscription (line 207) - compile fail ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+

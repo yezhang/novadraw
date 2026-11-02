@@ -546,7 +546,7 @@ HTML/PDF 与差异空白检查通过。T-1 至 T-4 全部关闭；上文各增�
 | 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |
 | 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
 | 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `complete` | ADR-020/024、TC-03 | A／B／C／D 全部完成；1,715 项回归通过，Native GPU、外部消费者、API 与成对产物／成本通过，R03／TC-03／API-F04／API-10 关闭，见[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md) |
-| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `in_progress` | P2-S03、TC-10 | 2026-10-30 用户接受 [ADR-057 修订 3](../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A Core Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)的 Result、fault、帧 source、消费者、成本与最终门禁已完成；下一片 S09-B Observations／Inspector，Connections 与 Editor 随后推进，整批审计项尚未关闭 |
+| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `in_progress` | P2-S03、TC-10 | 2026-10-30 用户接受 [ADR-057 修订 3](../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A Core Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)与 [S09-B Core Observations／Inspector](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)实现、消费者、成本与自动门禁已完成；2026-11-02 [S09-C Connections 注册](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)实现、消费者与自动门禁完成；Inspector 成本覆盖容量 64／4096，不代表引擎最大容量验收；下一片 S09-D Editor 扩展错误与 panic 诊断，整批审计项尚未关闭 |
 
 本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受单链 Execute
 约束；P2-S02 → P2-S03 → P2-S04 → P2-S05 已完成。P2-S05 的
@@ -624,7 +624,7 @@ typed 注册、候选仲裁、surface 修正和反馈／提交；Shapes 网格�
 Editor／GEF 当前顺序为 E03 剩余验收 → E04 开放吸附评审与实施 →
 键盘导航、多视图协调和框选策略；下列跨包审计顺序不替代该 Editor 范围。
 
-1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A 已完成，下一片为 S09-B，契约见 ADR-057。每批先核对当前
+1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A／B／C 已完成，下一片为 S09-D，契约见 ADR-057。每批先核对当前
    反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
 2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
    消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。

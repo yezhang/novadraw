@@ -1,0 +1,21 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw-service-failure-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 9.59s
+[1m[92m     Running[0m `tests/consumers/service-failure/target/debug/inspector-lifecycle`
+m: move | e: events | d: detach | r: rebuild subscription | c: clear | q: quit
+x=10; checkpoint=ObservationCheckpoint { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), stable_epoch: 2, last_published_sequence: Some(6) }
+2:5 Notify { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 } }
+2:6 EmitFigure(FigureMoved { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 }, old_bounds: Rectangle { x: 0.0, y: 0.0, width: 40.0, height: 40.0 }, new_bounds: Rectangle { x: 10.0, y: 0.0, width: 40.0, height: 40.0 } })
+detach=true
+detach=false
+x=20; checkpoint=ObservationCheckpoint { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), stable_epoch: 3, last_published_sequence: Some(8) }
+2:5 Notify { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 } }
+2:6 EmitFigure(FigureMoved { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 }, old_bounds: Rectangle { x: 0.0, y: 0.0, width: 40.0, height: 40.0 }, new_bounds: Rectangle { x: 10.0, y: 0.0, width: 40.0, height: 40.0 } })
+gap accepted; x=20; baseline=ObservationCheckpoint { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), stable_epoch: 4, last_published_sequence: Some(8) }; new events=0
+x=30; checkpoint=ObservationCheckpoint { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), stable_epoch: 5, last_published_sequence: Some(10) }
+5:9 Notify { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 } }
+5:10 EmitFigure(FigureMoved { figure_id: FigureId { namespace: RuntimeNamespace(6d480376-f617-477e-831a-251f7cd17782), local: 2v1 }, old_bounds: Rectangle { x: 20.0, y: 0.0, width: 40.0, height: 40.0 }, new_bounds: Rectangle { x: 30.0, y: 0.0, width: 40.0, height: 40.0 } })
+events cleared

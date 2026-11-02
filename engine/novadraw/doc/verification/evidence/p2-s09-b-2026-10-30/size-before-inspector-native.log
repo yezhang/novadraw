@@ -1,0 +1,3 @@
+cargo build --manifest-path /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/s09-b-cost/before/Cargo.toml --release --lib --offline --locked --target-dir /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/s09-b-cost/target --features probe-inspector
+[1m[92m   Compiling[0m novadraw-service-failure-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/verification/s09-b-cost/before)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 26.60s

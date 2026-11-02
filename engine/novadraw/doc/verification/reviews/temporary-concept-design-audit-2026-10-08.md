@@ -58,7 +58,7 @@
 | TC-05 Animation target 闭集 | `complete` | 开放 `PresentationBinding<V>`、外部 Figure consumer 与 Connection route/dash 迁移已完成 |
 | TC-06 Editor Tool/Request/Handle 闭集 | `complete` | ADR-034、P2-S04 与外部 Tool/Request/Policy/Handle consumer 已完成 |
 | TC-07 Viewer 模型可变逃逸 | `complete` | ADR-032、`ViewerEditSession`、`ViewerDrive` 与同步边界已完成 |
-| TC-10 失败语义碎片化 | `partial` | CommandStack `has_*`/`check_*` 已完成；Animation、Inspector 与其余错误分类保留 |
+| TC-10 失败语义碎片化 | `partial` | CommandStack `has_*`/`check_*`、S09-A Animation、[S09-B Observations／Inspector](p2-s09-b-implementation-2026-10-30.md)与 [S09-C Connections 注册](p2-s09-c-implementation-2026-11-02.md)已完成；Editor 扩展错误分类保留 |
 | TC-11 Core Runtime 文件读取 | `complete` | ADR-030、request token 与 Native/Web provider 已完成 |
 | TC-12 backend 无运行失败通道 | `complete` | ADR-029、`RenderResult`、Runtime acknowledgement 与 Vello fault channel 已完成 |
 | TC-13/TC-14 | `complete` | root/prelude 已收窄，分层 rustdoc snapshot 与 hot-path source gate 已进入 quick/full |
@@ -94,7 +94,7 @@ R01 Runtime 公开面已达"大上帝对象"量级、R02 root `pub use` 与 prel
 | TC-07 | P0，已关闭 | Viewer 仍暴露模型可变逃逸 | [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md) + [完成记录](tc07-viewer-edit-boundary-completion-2026-10-09.md) | `ViewerEditSession`、`synchronize_model` 与窄 `ViewerDrive` 已实现 |
 | TC-08 | P0 | Editor 结构发布依赖手工补偿 | `viewer/projection.rs:447-475`、`viewer/mod.rs:1681-1749` | `PartProjectionPlan` / `ConnectionProjectionPlan` prepared commit；`OverlayBatch`/lease 管理清理 |
 | TC-09 | P1 | 查询用默认值吞掉无效身份 | `layout/mod.rs:102-153`、`graph/layout_measurement.rs:983-1007`、`graph/query.rs:31-36,118-135` | 结构查询统一 `Result<Option<T>, QueryError>`；布局 snapshot 不再返回伪造零值 |
-| TC-10 | P1，部分关闭 | fault、幂等和缺失的返回语义碎片化 | CommandStack 已按 ADR-032 完成；`animation/service.rs:1344-1367`、`inspector/lib.rs:165-177` 保留 | 继续收口 Animation、Inspector、错误 source 与查询语义 |
+| TC-10 | P1，部分关闭 | fault、幂等和缺失的返回语义碎片化 | CommandStack 已按 ADR-032 完成；S09-A Animation、[S09-B Observations／Inspector](p2-s09-b-implementation-2026-10-30.md)与 [S09-C Connections 注册](p2-s09-c-implementation-2026-11-02.md)已完成 | 继续收口 Editor 扩展 source／panic |
 | TC-11 | P1，已关闭 | Core Runtime 承担文件读取 | [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md) + [完成记录](tc11-resource-provider-completion-2026-10-09.md) | Native/Web provider、Core request token 与独立错误分类已实现 |
 | TC-12 | P0，已关闭 | Render backend 无运行失败通道 | [ADR-029](../../adr/adr-029-structured-render-backend-failure.md) + [完成记录](tc12-render-backend-failure-completion-2026-10-08.md) | `RenderResult`、结构化 acknowledgement 与 Vello fault channel 已实现 |
 | TC-13 | P1，已关闭 | root/prelude 仍是专业 API 平铺面 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 分层 rustdoc symbol snapshot 已进入 quick/full |
@@ -280,8 +280,11 @@ Overlay 已增加预检查，但 ownership 仍是 `Vec<FigureId>`；Part 和 Con
 - Inspector 提供结构化 fault，并用 subscription token 明确 detach 生命周期。
 
 CommandStack 部分已完成：`has_undo/has_redo` 是纯查询，`check_undo/check_redo` 显式
-返回 `Result<bool, CommandStackError>`，扩展 panic 不再折叠成 `false`。其余条目保持
-打开。
+返回 `Result<bool, CommandStackError>`，扩展 panic 不再折叠成 `false`。
+2026-10-30 [S09-A](p2-s09-a-implementation-2026-10-30.md)与
+[S09-B](p2-s09-b-implementation-2026-10-30.md)补齐 Animation 服务结果、
+Inspector 显式首 fault 与 Core listener／恢复合同；
+Connections 注册别名、Editor 扩展 source 与 panic 诊断保持打开。
 
 ### 3.11 TC-11：资源便利 API 穿透平台边界
 

@@ -1,0 +1,68 @@
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`release` profile [optimized]]8;;\ target(s) in 2.80s
+[1m[92m     Running[0m unittests src/lib.rs (target/release/deps/novadraw_inspector-ebf7812ad10042e4)
+
+running 1 test
+COST session=0 name=enqueue_not_full_c64_b32 samples=201 p50_ns=708 p95_ns=750 allocations=0 bytes=0
+COST session=0 name=enqueue_full_c64_b32 samples=201 p50_ns=792 p95_ns=917 allocations=0 bytes=0
+COST session=0 name=events_copy_c64 samples=201 p50_ns=542 p95_ns=625 allocations=201 bytes=3190272
+COST session=0 name=enqueue_not_full_c4096_b256 samples=201 p50_ns=5584 p95_ns=6125 allocations=0 bytes=0
+COST session=0 name=enqueue_full_c4096_b256 samples=201 p50_ns=6792 p95_ns=7000 allocations=0 bytes=0
+COST session=0 name=events_copy_c4096 samples=201 p50_ns=38625 p95_ns=117542 allocations=201 bytes=204177408
+COST session=0 name=runtime_dispatch_no_inspector_b32 samples=201 p50_ns=39667 p95_ns=103750 allocations=51459 bytes=17747968
+COST session=0 name=runtime_dispatch_inspector_b32 samples=201 p50_ns=44000 p95_ns=139875 allocations=57891 bytes=18442624
+COST session=0 name=first_fault_read samples=201 p50_ns=41 p95_ns=42 allocations=0 bytes=0
+COST session=0 name=first_fault_observe samples=201 p50_ns=42 p95_ns=42 allocations=0 bytes=0
+COST session=0 name=lock_wait_hold_100us samples=201 p50_ns=124458 p95_ns=196625 allocations=0 bytes=0
+COST session=0 name=observer_wait_hold_100us samples=201 p50_ns=117250 p95_ns=226291 allocations=0 bytes=0
+COST session=1 name=enqueue_not_full_c64_b32 samples=201 p50_ns=708 p95_ns=792 allocations=0 bytes=0
+COST session=1 name=enqueue_full_c64_b32 samples=201 p50_ns=792 p95_ns=875 allocations=0 bytes=0
+COST session=1 name=events_copy_c64 samples=201 p50_ns=542 p95_ns=625 allocations=201 bytes=3190272
+COST session=1 name=enqueue_not_full_c4096_b256 samples=201 p50_ns=5542 p95_ns=6334 allocations=0 bytes=0
+COST session=1 name=enqueue_full_c4096_b256 samples=201 p50_ns=6708 p95_ns=6875 allocations=0 bytes=0
+COST session=1 name=events_copy_c4096 samples=201 p50_ns=37000 p95_ns=85000 allocations=201 bytes=204177408
+COST session=1 name=runtime_dispatch_no_inspector_b32 samples=201 p50_ns=39375 p95_ns=42916 allocations=51459 bytes=17747968
+COST session=1 name=runtime_dispatch_inspector_b32 samples=201 p50_ns=43958 p95_ns=47292 allocations=57891 bytes=18442624
+COST session=1 name=first_fault_read samples=201 p50_ns=41 p95_ns=42 allocations=0 bytes=0
+COST session=1 name=first_fault_observe samples=201 p50_ns=41 p95_ns=42 allocations=0 bytes=0
+COST session=1 name=lock_wait_hold_100us samples=201 p50_ns=125250 p95_ns=308834 allocations=0 bytes=0
+COST session=1 name=observer_wait_hold_100us samples=201 p50_ns=120291 p95_ns=222417 allocations=0 bytes=0
+COST session=2 name=enqueue_not_full_c64_b32 samples=201 p50_ns=708 p95_ns=750 allocations=0 bytes=0
+COST session=2 name=enqueue_full_c64_b32 samples=201 p50_ns=792 p95_ns=792 allocations=0 bytes=0
+COST session=2 name=events_copy_c64 samples=201 p50_ns=541 p95_ns=583 allocations=201 bytes=3190272
+COST session=2 name=enqueue_not_full_c4096_b256 samples=201 p50_ns=5334 p95_ns=5625 allocations=0 bytes=0
+COST session=2 name=enqueue_full_c4096_b256 samples=201 p50_ns=6833 p95_ns=7042 allocations=0 bytes=0
+COST session=2 name=events_copy_c4096 samples=201 p50_ns=38042 p95_ns=42792 allocations=201 bytes=204177408
+COST session=2 name=runtime_dispatch_no_inspector_b32 samples=201 p50_ns=39417 p95_ns=41791 allocations=51459 bytes=17747968
+COST session=2 name=runtime_dispatch_inspector_b32 samples=201 p50_ns=44208 p95_ns=46125 allocations=57891 bytes=18442624
+COST session=2 name=first_fault_read samples=201 p50_ns=42 p95_ns=42 allocations=0 bytes=0
+COST session=2 name=first_fault_observe samples=201 p50_ns=42 p95_ns=42 allocations=0 bytes=0
+COST session=2 name=lock_wait_hold_100us samples=201 p50_ns=119125 p95_ns=323500 allocations=0 bytes=0
+COST session=2 name=observer_wait_hold_100us samples=201 p50_ns=115334 p95_ns=138541 allocations=0 bytes=0
+COST session=3 name=enqueue_not_full_c64_b32 samples=201 p50_ns=708 p95_ns=750 allocations=0 bytes=0
+COST session=3 name=enqueue_full_c64_b32 samples=201 p50_ns=833 p95_ns=834 allocations=0 bytes=0
+COST session=3 name=events_copy_c64 samples=201 p50_ns=542 p95_ns=583 allocations=201 bytes=3190272
+COST session=3 name=enqueue_not_full_c4096_b256 samples=201 p50_ns=5541 p95_ns=5584 allocations=0 bytes=0
+COST session=3 name=enqueue_full_c4096_b256 samples=201 p50_ns=6625 p95_ns=7000 allocations=0 bytes=0
+COST session=3 name=events_copy_c4096 samples=201 p50_ns=38542 p95_ns=39542 allocations=201 bytes=204177408
+COST session=3 name=runtime_dispatch_no_inspector_b32 samples=201 p50_ns=38250 p95_ns=41917 allocations=51459 bytes=17747968
+COST session=3 name=runtime_dispatch_inspector_b32 samples=201 p50_ns=43917 p95_ns=52375 allocations=57891 bytes=18442624
+COST session=3 name=first_fault_read samples=201 p50_ns=42 p95_ns=42 allocations=0 bytes=0
+COST session=3 name=first_fault_observe samples=201 p50_ns=42 p95_ns=42 allocations=0 bytes=0
+COST session=3 name=lock_wait_hold_100us samples=201 p50_ns=115333 p95_ns=137083 allocations=0 bytes=0
+COST session=3 name=observer_wait_hold_100us samples=201 p50_ns=112042 p95_ns=128208 allocations=0 bytes=0
+COST session=4 name=enqueue_not_full_c64_b32 samples=201 p50_ns=667 p95_ns=750 allocations=0 bytes=0
+COST session=4 name=enqueue_full_c64_b32 samples=201 p50_ns=791 p95_ns=792 allocations=0 bytes=0
+COST session=4 name=events_copy_c64 samples=201 p50_ns=541 p95_ns=583 allocations=201 bytes=3190272
+COST session=4 name=enqueue_not_full_c4096_b256 samples=201 p50_ns=5375 p95_ns=5875 allocations=0 bytes=0
+COST session=4 name=enqueue_full_c4096_b256 samples=201 p50_ns=6792 p95_ns=7250 allocations=0 bytes=0
+COST session=4 name=events_copy_c4096 samples=201 p50_ns=38416 p95_ns=43375 allocations=201 bytes=204177408
+COST session=4 name=runtime_dispatch_no_inspector_b32 samples=201 p50_ns=39125 p95_ns=49833 allocations=51459 bytes=17747968
+COST session=4 name=runtime_dispatch_inspector_b32 samples=201 p50_ns=42584 p95_ns=47000 allocations=57891 bytes=18442624
+COST session=4 name=first_fault_read samples=201 p50_ns=41 p95_ns=42 allocations=0 bytes=0
+COST session=4 name=first_fault_observe samples=201 p50_ns=41 p95_ns=42 allocations=0 bytes=0
+COST session=4 name=lock_wait_hold_100us samples=201 p50_ns=126667 p95_ns=388000 allocations=0 bytes=0
+COST session=4 name=observer_wait_hold_100us samples=201 p50_ns=122500 p95_ns=249666 allocations=0 bytes=0
+test cost::inspector_service_cost ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.63s
+

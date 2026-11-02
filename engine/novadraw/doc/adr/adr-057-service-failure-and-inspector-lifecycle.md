@@ -27,7 +27,12 @@
 评审时的[修订 3 原文](../verification/evidence/p2-s09-design-2026-10-30/adr-057-revision-3.txt)
 按复核记录的 SHA-256 保留，后续状态回填不改写该快照。
 首个实施片 S09-A Core Animation 已完成，见[实施记录](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)；
-下一片为 S09-B Observations／Inspector，后续切片按执行队列串行推进。
+S09-B Core Observations／Inspector 与宿主恢复实现及自动门禁已完成，
+见[实施记录](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)。
+成本覆盖宿主选择的 64／4096 容量，不代表未设全局上限的引擎最大容量验收。
+S09-C Core Connections 注册实现、消费者与自动门禁已于 2026-11-02 完成，
+见[实施记录](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)。
+下一片为 S09-D Editor 扩展错误与 panic 诊断，后续切片按执行队列串行推进。
 
 ## 问题与范围
 
@@ -366,7 +371,10 @@ Inspector 每条 record 维持一次有界入队，不扫描全树，不创建�
 首个 fault 状态容量为一，不形成无限错误日志。
 不引入 GUI、transport、新字体、默认 feature 或第三方依赖。
 
-实施后比较相同 release 消费者的 Native／Wasm 原始与压缩产物；
+2026-10-30 用户调整执行规则：下述体积比较只在用户明确要求时执行，
+不作为日常功能切片的默认门禁；完整规则见 [CLAUDE.md](../../CLAUDE.md#包体积与性能要求)。
+
+按需比较相同 release 消费者的 Native／Wasm 原始与压缩产物；
 记录不消费 Inspector、消费 Inspector 与消费动画 API 的可达成本。
 测量每批 observer 分发、环形缓冲满／未满、动画同值／变化的 P50／P95、
 分配与 record 复制次数。设计假设不能代替实际测量。

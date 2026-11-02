@@ -1,0 +1,18 @@
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 9.89s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/novadraw_inspector-fd6ceecf2ee80f8d)
+
+running 10 tests
+test cost::inspector_service_cost ... ignored, explicit release measurement; not a correctness gate
+test tests::fifo_evicts_before_push_without_capacity_growth ... ok
+test tests::observer_poison_self_removes_without_faulting_runtime_or_other_observers ... ok
+test tests::read_first_fault_survives_later_runtime_callbacks_and_recovery_uses_new_instance ... ok
+test tests::shared_fault_across_runtimes_keeps_winning_source_and_tokens_independent ... ok
+test tests::healthy_lock_competition_waits_and_preserves_every_record ... ok
+test tests::read_and_clear_poison_publish_source_free_first_fault_shared_by_clones ... ok
+test tests::competing_poison_discoveries_publish_one_complete_candidate ... ok
+test tests::actual_read_and_observer_poison_race_keeps_complete_first_candidate ... ok
+test tests::healthy_observer_waits_for_reader_guard_then_publishes_all_records ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
