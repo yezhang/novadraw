@@ -153,11 +153,27 @@ git diff --check
 
 ## Contributing
 
+Novadraw welcomes contributions through:
+
+- Reproducible issue reports
+- Documentation and example improvements
+- Code changes with corresponding verification coverage
+
 Before opening an Issue or Pull Request, read the
 [contribution workflow](engine/novadraw/book/contributor/src/01-contribution-workflow.md).
 The project requires behavioral contracts, state ownership, and failure models to be defined
 before implementation details. Changes to shared protocols require corresponding negative tests
 and verification evidence.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution entry points.
+
+## Support Novadraw
+
+Novadraw is developed and maintained as an open-source project. If it is useful to you, you can
+[sponsor its continued development through GitHub Sponsors](https://github.com/sponsors/yezhang).
+
+Sponsorship is voluntary. It does not grant additional project governance rights or change the
+terms of the Apache License 2.0.
 
 ## License
 

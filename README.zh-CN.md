@@ -145,10 +145,26 @@ git diff --check
 
 ## 贡献
 
+Novadraw 欢迎通过以下方式参与贡献：
+
+- 提交可复现的问题
+- 改进文档和示例
+- 提交代码及相应的验证覆盖
+
 提交 Issue 或 Pull Request 前，请先阅读
 [贡献工作流](engine/novadraw/book/contributor/src/01-contribution-workflow.md)。
 项目要求行为契约、状态所有权和失败模型先于实现细节；共享协议变化需要相应的负向
 测试和验证证据。
+
+贡献入口汇总见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 支持 Novadraw
+
+Novadraw 是持续开发和维护的开源项目。如果本项目对你有帮助，可以通过
+[GitHub Sponsors 赞助后续开发](https://github.com/sponsors/yezhang)。
+
+赞助完全自愿，不会带来额外的项目治理权，也不会改变 Apache License 2.0
+的授权条款。
 
 ## 许可
 
