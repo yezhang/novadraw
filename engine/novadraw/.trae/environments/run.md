@@ -50,6 +50,8 @@ IME 与系统 AT 均按各自验收范围记录；可见画面不等于全部交
 打开确切路径。构建与 bundle 位于忽略的 `target/official-native`。
 
 PageUp／PageDown 切换场景，Escape 关闭窗口。真实窗口验收应使用交互模式；
+导航包含全部 25 项；第 13 项在主窗口内直接展示 InheritBackground 双 Canvas。
+启动脚本只构建、打包主程序，PageUp／PageDown 可切换到其他场景。
 `--screenshot` 使用独立截图路径，不能代替实际屏幕呈现。
 启动后的前台状态可能被编辑器抢占，操作前需激活应用并核对窗口标题。
 本机 Flow／Grid／Toolbar 的系统窗口 resize 与恢复屏幕像素已验证，

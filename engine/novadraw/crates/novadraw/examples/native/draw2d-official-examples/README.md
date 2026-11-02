@@ -30,9 +30,9 @@ macOS 可通过 Run action `draw2d-official-macos` 启动独立原生 bundle；
 
 窗口标题按完整官方目录显示固定序号和状态，例如
 `[01/25 · 已完成] HelloWorld`、`[07/25 · 进行中] FlowLayoutExample`、
-`[25/25 · 进行中] ZoomExample`。独立 InheritBackground 窗口使用
-`[13/25 · 已完成]`，ShapeStyles 使用 `[14/25 · 进行中]`；场景列表跳过独立宿主
-条目时不重编号。状态标签还包括 `阻塞` 和 `未实现`，与 catalog 使用同一状态来源。
+`[25/25 · 进行中] ZoomExample`。InheritBackground 导航项使用
+`[13/25 · 已完成]`，ShapeStyles 使用 `[14/25 · 进行中]`。
+状态标签还包括 `阻塞` 和 `未实现`，与 catalog 使用同一状态来源。
 `--list` 的首列是同一序号，后续列给出状态、ID、原始类名和上游源码路径。
 截图继续使用原始场景名；数字截图参数仍是运行列表中从 0 开始的索引。
 
@@ -120,21 +120,28 @@ NOVADRAW_THUMBNAIL_EVIDENCE=1 cargo run -p draw2d-official-examples -- --screens
 [K07-4 记录](../../../../../doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)。
 Thumbnail 的 Canvas 消费已完成。
 
-InheritBackground 使用独立 Native 宿主，在同一窗口内拥有两个 Canvas Runtime。
+InheritBackground 已集成到总样例的第 13 项，在主窗口内拥有两个 Canvas Runtime。
 左侧 root 绘制橙色，右侧 root 透明；宿主提供白色、浅绿色、白色的纵向渐变，
 通过 Core 的受检背景完成入口进入统一帧包。两侧显示同一段官方文字。
-滚轮滚动当前 Canvas 内容，Tab 切换焦点，方向键移动 Canvas，B 改背景，
-X 移除或恢复背景，R 重建后端 session。
+两侧黑色文字及内容相同，区别在背景：左侧为均匀橙色，右侧为白→浅绿→白的
+纵向渐变。滚动右侧时文字移动，渐变固定在宿主坐标中；移动右侧 Canvas 时，
+它会显示新位置对应的渐变区域。按 B 后右侧变为白→浅蓝→白，左侧仍为橙色；
+按 X 移除背景后，右侧变白，左侧仍为橙色。
+
+左右键或 PageUp／PageDown 切换场景。滚轮滚动鼠标所在 Canvas 的内容，
+Tab 切换画布焦点（未选择时移动默认作用于右侧），Alt／Option + 方向键
+移动选中的 Canvas；B 改背景，X 移除或恢复背景，F5 重建后端 session。
+S 截图、R 重播和 Escape 退出与其他场景一致。
 
 ```sh
-cargo run -p draw2d-official-examples --bin inherit-background
+cargo run -p draw2d-official-examples --bin draw2d-official-examples
 cargo xtask verify example.inherit-background
 ```
 
 验证保存初始、滚动、移动、背景变化、重建、暂停恢复、DPI 与移除的 Native 图像。
-主程序的 `--inherit-background` 和 `--screenshot=InheritBackgroundExample` 可转到该
-二进制，需先运行 `cargo build -p draw2d-official-examples --bins`。
-通用单 Runtime 场景列表只展示其透明 Canvas 内容；背景对等验收以独立宿主为准。
+默认场景导航包含全部 25 项，PageUp／PageDown 可在第 13 项与其他场景间切换。
+`--screenshot=InheritBackgroundExample` 和 `--screenshot-all` 都捕获完整双 Canvas。
+独立二进制和打开独立窗口的按钮已移除，macOS Run 脚本只构建、打包主程序。
 
 Obstruction 的组求解和交互按 [ADR-040](../../../../../doc/adr/adr-040-group-route-solving.md)
 实现。初始画面只有 5 个绿色矩形及坐标文字，没有端点或连接，与官方初值一致。

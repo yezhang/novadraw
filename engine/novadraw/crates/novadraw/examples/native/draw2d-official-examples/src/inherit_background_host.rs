@@ -1,7 +1,7 @@
-use anyhow::{Context, Result, bail};
-use draw2d_official_examples::inherit_background::{
+use crate::inherit_background::{
     CanvasScene, GRADIENT, GradientBackground, LIGHT_GREEN, ORANGE, ParentGradient,
 };
+use anyhow::{Context, Result, bail};
 use novadraw::{
     geometry::{Affine2D, Rectangle},
     graphics::Color,
@@ -13,6 +13,7 @@ use novadraw::{
     runtime::SubmissionAcknowledgement,
 };
 use novadraw_backend_vello::texture::VelloTextureRenderer;
+use novadraw_example_support::app::WindowScene;
 use novadraw_platform_winit::canvas::{WinitCanvasCoordinator, WinitCanvasHost};
 use std::{path::Path, sync::Arc};
 use vello::{
@@ -20,12 +21,9 @@ use vello::{
     wgpu,
 };
 use winit::{
-    application::ApplicationHandler,
-    dpi::LogicalSize,
     event::{ElementState, MouseScrollDelta, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    keyboard::{Key, NamedKey},
-    window::{Window, WindowId},
+    keyboard::{Key, ModifiersState, NamedKey},
+    window::Window,
 };
 use winit_canvas::{
     geometry::{CanvasRect, WindowMetrics},
@@ -36,9 +34,6 @@ use winit_canvas::{
 const MARGIN: f64 = 24.0;
 const TOP: f64 = 56.0;
 const STEP: f64 = 24.0;
-const WIDTH: f64 = 1100.0;
-const HEIGHT: f64 = 800.0;
-const TITLE: &str = "Paints Background | Inherits Background — wheel: scroll | Tab: focus | arrows: move Canvas | B: background | X: remove | R: repair";
 
 struct Live {
     window: Arc<Window>,
@@ -60,6 +55,8 @@ struct Live {
     midpoint: Color,
     background_enabled: bool,
     background_dirty: bool,
+    verify: bool,
+    modifiers: ModifiersState,
 }
 impl Live {
     fn new(window: Arc<Window>) -> Result<Self> {
@@ -111,6 +108,8 @@ impl Live {
             midpoint: LIGHT_GREEN,
             background_enabled: true,
             background_dirty: true,
+            verify: false,
+            modifiers: ModifiersState::default(),
         };
         live.allocate()?;
         Ok(live)
@@ -360,7 +359,7 @@ impl Live {
         self.coordinator.acknowledge_composite(token)?;
         Ok(())
     }
-    fn key(&mut self, key: &Key) -> Result<()> {
+    fn key(&mut self, key: &Key, alt: bool) -> Result<()> {
         match key {
             Key::Named(NamedKey::Tab) => {
                 let index = usize::from(
@@ -384,14 +383,10 @@ impl Live {
                 self.background_enabled = !self.background_enabled;
                 self.background_dirty = true;
             }
-            Key::Character(s) if s == "r" => self.repair()?,
+            Key::Named(NamedKey::F5) => self.repair()?,
             _ => {
-                let (dx, dy) = match key {
-                    Key::Named(NamedKey::ArrowLeft) => (-STEP, 0.0),
-                    Key::Named(NamedKey::ArrowRight) => (STEP, 0.0),
-                    Key::Named(NamedKey::ArrowUp) => (0.0, -STEP),
-                    Key::Named(NamedKey::ArrowDown) => (0.0, STEP),
-                    _ => return Ok(()),
+                let Some((dx, dy)) = canvas_movement(key, alt) else {
+                    return Ok(());
                 };
                 let id = self
                     .coordinator
@@ -416,7 +411,7 @@ impl Live {
         self.window.request_redraw();
         Ok(())
     }
-    fn screenshot(&self, path: &Path) -> Result<image::RgbaImage> {
+    fn capture(&self, path: &Path) -> Result<image::RgbaImage> {
         let gpu = &self.context.devices[self.surface.as_ref().context("suspended")?.dev_id];
         let texture = self.output.as_ref().context("empty output")?.texture();
         let (width, height) = (texture.width(), texture.height());
@@ -483,126 +478,133 @@ fn layout(metrics: WindowMetrics) -> Result<[CanvasRect; 2]> {
     ])
 }
 
-#[derive(Default)]
-struct App {
-    live: Option<Live>,
-    verify: bool,
-    error: Option<anyhow::Error>,
+/// Construct the full dual Canvas host inside the catalog application's window.
+pub fn create(window: Arc<Window>, verify: bool) -> std::io::Result<Box<dyn WindowScene>> {
+    let mut live = Live::new(window).map_err(io_error)?;
+    live.verify = verify;
+    Ok(Box::new(live))
 }
-impl App {
-    fn fail(&mut self, event_loop: &ActiveEventLoop, error: anyhow::Error) {
-        self.error = Some(error);
-        event_loop.exit();
+
+fn io_error(error: anyhow::Error) -> std::io::Error {
+    std::io::Error::other(format!("{error:#}"))
+}
+
+impl WindowScene for Live {
+    fn render(&mut self, present: bool) -> std::io::Result<()> {
+        Live::render(self, present).map_err(io_error)
     }
-}
-impl ApplicationHandler for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let result = (|| -> Result<()> {
-            if let Some(live) = &mut self.live {
-                let size = live.window.inner_size();
-                live.surface = Some(pollster::block_on(live.context.create_surface(
-                    live.window.clone(),
-                    size.width.max(1),
-                    size.height.max(1),
-                    wgpu::PresentMode::AutoVsync,
-                ))?);
-                let gpu = &live.context.devices[live.surface.as_ref().context("surface")?.dev_id];
-                live.renderers = [
-                    VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
-                    VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
-                ];
-                live.compositor = CanvasCompositor::new(&gpu.device, CANVAS_FORMAT);
-                live.targets = [None, None];
-                let events = live
-                    .coordinator
-                    .resume(WindowMetrics::new(size, live.window.scale_factor())?)?;
-                live.deliver(events)?;
-                live.repair()?;
-                live.resize()?;
-                live.window.request_redraw();
-            } else {
-                let window = Arc::new(
-                    event_loop.create_window(
-                        Window::default_attributes()
-                            .with_title(format!(
-                                "Draw2D Official Examples - {} — {TITLE}",
-                                draw2d_official_examples::official_scene_title(
-                                    "InheritBackgroundExample"
-                                )
-                            ))
-                            .with_inner_size(LogicalSize::new(WIDTH, HEIGHT)),
-                    )?,
-                );
-                let live = Live::new(window)?;
-                live.window.request_redraw();
-                self.live = Some(live);
-            }
-            Ok(())
-        })();
-        if let Err(error) = result {
-            self.fail(event_loop, error);
+
+    fn resume(&mut self) -> std::io::Result<()> {
+        if self.surface.is_some() {
+            return Ok(());
         }
-    }
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
-        if let Some(live) = &mut self.live {
-            let result = live
-                .coordinator
-                .suspend()
-                .map_err(anyhow::Error::from)
-                .and_then(|events| live.deliver(events));
-            live.surface = None;
+        let live = self;
+        (|| -> Result<()> {
+            let size = live.window.inner_size();
+            live.surface = Some(pollster::block_on(live.context.create_surface(
+                live.window.clone(),
+                size.width.max(1),
+                size.height.max(1),
+                wgpu::PresentMode::AutoVsync,
+            ))?);
+            let gpu = &live.context.devices[live.surface.as_ref().context("surface")?.dev_id];
+            live.renderers = [
+                VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+                VelloTextureRenderer::new(&gpu.device, &gpu.queue)?,
+            ];
+            live.compositor = CanvasCompositor::new(&gpu.device, CANVAS_FORMAT);
             live.targets = [None, None];
-            live.output = None;
-            if let Err(error) = result {
-                self.fail(event_loop, error);
-            }
-        }
+            let events = live
+                .coordinator
+                .resume(WindowMetrics::new(size, live.window.scale_factor())?)?;
+            live.deliver(events)?;
+            live.repair()?;
+            live.resize()?;
+            live.window.request_redraw();
+            Ok(())
+        })()
+        .map_err(io_error)
     }
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
-        let Some(live) = &mut self.live else { return };
-        if id != live.window.id() {
-            return;
-        }
-        let result = (|| -> Result<()> {
-            if event == WindowEvent::CloseRequested {
-                event_loop.exit();
-                return Ok(());
-            }
-            if event == WindowEvent::RedrawRequested {
-                live.render(true)?;
-                if std::mem::take(&mut self.verify) {
-                    verify(live)?;
-                    event_loop.exit();
+    fn suspend(&mut self) -> std::io::Result<()> {
+        let live = self;
+        let result = live
+            .coordinator
+            .suspend()
+            .map_err(anyhow::Error::from)
+            .and_then(|events| live.deliver(events));
+        live.surface = None;
+        live.targets = [None, None];
+        live.output = None;
+        result.map_err(io_error)
+    }
+    fn window_event(&mut self, event: &WindowEvent) -> std::io::Result<()> {
+        let live = self;
+        (|| -> Result<()> {
+            let events = live
+                .coordinator
+                .handle_window_event(live.window.id(), event)?;
+            live.deliver(events)?;
+            match event {
+                WindowEvent::ModifiersChanged(modifiers) => live.modifiers = modifiers.state(),
+                WindowEvent::Focused(false) => live.modifiers = ModifiersState::default(),
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    live.resize()?
                 }
-            } else {
-                let events = live.coordinator.handle_window_event(id, &event)?;
-                live.deliver(events)?;
-                match event {
-                    WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                        live.resize()?
-                    }
-                    WindowEvent::KeyboardInput { event, .. }
-                        if event.state == ElementState::Pressed =>
-                    {
-                        live.key(&event.logical_key)?
-                    }
-                    _ => {}
+                WindowEvent::KeyboardInput { event, .. }
+                    if event.state == ElementState::Pressed =>
+                {
+                    live.key(&event.logical_key, live.modifiers.alt_key())?
                 }
+                _ => {}
             }
             live.coordinator.synchronize()?;
-            if !event_loop.exiting() && live.coordinator.canvases().needs_redraw() {
+            if live.coordinator.canvases().needs_redraw() {
                 live.window.request_redraw();
             }
             Ok(())
-        })();
-        if let Err(error) = result {
-            self.fail(event_loop, error);
+        })()
+        .map_err(io_error)
+    }
+    fn screenshot(&mut self, path: &Path) -> std::io::Result<()> {
+        self.capture(path).map_err(io_error)?;
+        if std::mem::take(&mut self.verify) {
+            verify(self).map_err(io_error)?;
+        }
+        Ok(())
+    }
+}
+fn canvas_movement(key: &Key, alt: bool) -> Option<(f64, f64)> {
+    if !alt {
+        return None;
+    }
+    match key {
+        Key::Named(NamedKey::ArrowLeft) => Some((-STEP, 0.0)),
+        Key::Named(NamedKey::ArrowRight) => Some((STEP, 0.0)),
+        Key::Named(NamedKey::ArrowUp) => Some((0.0, -STEP)),
+        Key::Named(NamedKey::ArrowDown) => Some((0.0, STEP)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod shortcut_tests {
+    use super::*;
+    #[test]
+    fn movement_requires_alt_and_maps_all_four_directions() {
+        for (key, delta) in [
+            (NamedKey::ArrowLeft, (-STEP, 0.0)),
+            (NamedKey::ArrowRight, (STEP, 0.0)),
+            (NamedKey::ArrowUp, (0.0, -STEP)),
+            (NamedKey::ArrowDown, (0.0, STEP)),
+        ] {
+            assert_eq!(canvas_movement(&Key::Named(key), false), None);
+            assert_eq!(canvas_movement(&Key::Named(key), true), Some(delta));
         }
     }
 }
 fn verify(live: &mut Live) -> Result<()> {
     let directory = Path::new("target/verification/k07-background");
-    let initial = live.screenshot(&directory.join("initial.png"))?;
+    let initial = live.capture(&directory.join("initial.png"))?;
     let scale = live.coordinator.canvases().metrics().scale_factor();
     let sample = |image: &image::RgbaImage, rect: CanvasRect| {
         *image.get_pixel(
@@ -630,17 +632,17 @@ fn verify(live: &mut Live) -> Result<()> {
         .set_view_location(viewport, 0.0, STEP)?;
     live.hosts[1].request_redraw();
     live.render(false)?;
-    let scrolled = live.screenshot(&directory.join("scrolled.png"))?;
+    let scrolled = live.capture(&directory.join("scrolled.png"))?;
     if sample(&initial, right) != sample(&scrolled, right)
         || initial == scrolled
         || input != live.inputs[1]
     {
         bail!("content scroll moved the Host background or failed to move text");
     }
-    live.key(&Key::Named(NamedKey::ArrowDown))?;
+    live.key(&Key::Named(NamedKey::ArrowDown), true)?;
     live.render(false)?;
     let moved_rect = live.coordinator.canvases().canvas(&live.ids[1])?.rect();
-    let moved = live.screenshot(&directory.join("moved.png"))?;
+    let moved = live.capture(&directory.join("moved.png"))?;
     if sample(&moved, moved_rect) == sample(&scrolled, right)
         || live.inputs[1].unwrap().versions.position == input.unwrap().versions.position
     {
@@ -651,9 +653,9 @@ fn verify(live: &mut Live) -> Result<()> {
         .viewports()
         .handle(viewport)?
         .view_location();
-    live.key(&Key::Character("b".into()))?;
+    live.key(&Key::Character("b".into()), false)?;
     live.render(false)?;
-    let changed = live.screenshot(&directory.join("background-only.png"))?;
+    let changed = live.capture(&directory.join("background-only.png"))?;
     if changed == moved
         || live.scenes[1]
             .runtime
@@ -666,7 +668,7 @@ fn verify(live: &mut Live) -> Result<()> {
     }
     live.repair()?;
     live.render(false)?;
-    let repaired = live.screenshot(&directory.join("repair.png"))?;
+    let repaired = live.capture(&directory.join("repair.png"))?;
     if changed != repaired {
         bail!("backend reset lost frozen background/content");
     }
@@ -677,7 +679,7 @@ fn verify(live: &mut Live) -> Result<()> {
     live.deliver(events)?;
     live.repair()?;
     live.render(false)?;
-    if repaired != live.screenshot(&directory.join("resumed.png"))? {
+    if repaired != live.capture(&directory.join("resumed.png"))? {
         bail!("Canvas suspend/resume changed accepted content");
     }
     // Keep physical extent fixed and exercise independent logical extent/DPI versions.
@@ -689,7 +691,7 @@ fn verify(live: &mut Live) -> Result<()> {
     live.deliver(events)?;
     live.allocate()?;
     live.render(false)?;
-    live.screenshot(&directory.join("dpi.png"))?;
+    live.capture(&directory.join("dpi.png"))?;
     if live.inputs[1].unwrap().versions.dpi <= dpi_version {
         bail!("DPI change did not freeze a new input version");
     }
@@ -699,12 +701,12 @@ fn verify(live: &mut Live) -> Result<()> {
     live.deliver(events)?;
     live.allocate()?;
     live.render(false)?;
-    if repaired != live.screenshot(&directory.join("dpi-restored.png"))? {
+    if repaired != live.capture(&directory.join("dpi-restored.png"))? {
         bail!("DPI restoration did not repair the complete Canvas");
     }
-    live.key(&Key::Character("x".into()))?;
+    live.key(&Key::Character("x".into()), false)?;
     live.render(false)?;
-    let removed = live.screenshot(&directory.join("removed.png"))?;
+    let removed = live.capture(&directory.join("removed.png"))?;
     if sample(&removed, moved_rect).0 != [255, 255, 255, 255]
         || sample(&removed, left) != sample(&initial, left)
     {
@@ -721,18 +723,5 @@ fn verify(live: &mut Live) -> Result<()> {
         "InheritBackground verification passed: {}",
         directory.display()
     );
-    Ok(())
-}
-fn main() -> Result<()> {
-    let mut app = App {
-        verify: std::env::args().any(|arg| arg == "--verify"),
-        ..Default::default()
-    };
-    let event_loop = EventLoop::new()?;
-    event_loop.set_control_flow(ControlFlow::Wait);
-    event_loop.run_app(&mut app)?;
-    if let Some(error) = app.error {
-        return Err(error);
-    }
     Ok(())
 }

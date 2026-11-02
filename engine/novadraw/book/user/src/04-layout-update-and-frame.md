@@ -517,7 +517,7 @@ reset 后目标用自身新 session 恢复，不要求 source 先呈现帧。
 内容滚动不改变 `host_to_canvas`，移动 Canvas 则需要新的位置版本。
 后端必须声明 `HostBackground` capability；不支持的后端在准备时明确拒绝。
 公开调用反例见 [`p2_host_background`](../../../crates/novadraw/tests/p2_host_background.rs)。
-官方 [InheritBackground 宿主](../../../crates/novadraw/examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+官方 [InheritBackground 宿主](../../../crates/novadraw/examples/native/draw2d-official-examples/src/inherit_background_host.rs)
 拥有两个 Canvas Runtime，注册同一个背景提供者，再分别完成各自 request。
 运行 `cargo xtask verify example.inherit-background` 可检查滚动、移动、背景移除和重建。
 

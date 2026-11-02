@@ -9,22 +9,6 @@ fn main() {
         print_catalog();
         return;
     }
-    if std::env::args().any(|argument| {
-        argument == "--inherit-background" || argument == "--screenshot=InheritBackgroundExample"
-    }) {
-        let mut binary = std::env::current_exe().expect("current executable");
-        binary.set_file_name("inherit-background");
-        let mut command = std::process::Command::new(&binary);
-        if std::env::args().any(|argument| argument == "--screenshot=InheritBackgroundExample") {
-            command.arg("--verify");
-        }
-        let status = command.status().unwrap_or_else(|error| {
-            eprintln!("build the dedicated host with `cargo build -p draw2d-official-examples --bins`: {error}");
-            std::process::exit(2);
-        });
-        std::process::exit(status.code().unwrap_or(1));
-    }
-
     let cli = VerificationCli::parse().unwrap_or_else(|error| {
         eprintln!("{error}");
         std::process::exit(2);
@@ -34,13 +18,29 @@ fn main() {
     } else {
         panel_entries()
     };
+    let verify = cli.verify;
     let mut builder = AppBuilder::new(TITLE)
         .with_app_name(APP_NAME)
-        .with_scene_title_formatter(official_scene_title)
+        .with_scene_title_formatter(|name| {
+            let title = official_scene_title(name);
+            if name == "InheritBackgroundExample" {
+                format!("{title} | Left: orange / Right: inherited gradient | arrows: scene | Alt+arrows: move Canvas | Tab: focus | B: background | X: remove | F5: repair")
+            } else {
+                title
+            }
+        })
+        .with_window_scene("InheritBackgroundExample", move |window| {
+            draw2d_official_examples::inherit_background_host::create(window, verify)
+        })
         .with_size(1200.0, 800.0);
     builder = if cli.screenshot_all {
         builder.with_screenshot(true)
-    } else if let Some(scenario) = cli.screenshot {
+    } else if let Some(scenario) = cli.screenshot.or_else(|| {
+        verify.then(|| {
+            cli.scenario
+                .unwrap_or_else(|| "InheritBackgroundExample".to_string())
+        })
+    }) {
         let index = scenario
             .parse::<usize>()
             .ok()
@@ -72,9 +72,6 @@ fn print_catalog() {
         );
         for gap in entry.gaps {
             println!("  gap: {gap}");
-        }
-        if let Some(binary) = entry.native_binary {
-            println!("  native: cargo run -p draw2d-official-examples --bin {binary}");
         }
     }
 }

@@ -8,7 +8,7 @@
 
 ## 宿主背景和 Canvas 内容分别拥有
 
-独立二进制 [`inherit-background`](../../../crates/novadraw/examples/native/draw2d-official-examples/src/bin/inherit-background.rs)
+当时的独立二进制 `inherit-background`（2026-11-02 已集成为[主窗口宿主](../../../crates/novadraw/examples/native/draw2d-official-examples/src/inherit_background_host.rs)）
 在一个 winit Window 中拥有两个 Canvas、两个 Runtime 和两个 Vello 纹理消费者。
 左侧 root 不透明并绘制橙色，右侧 root 透明，两侧显示同一段官方文字。
 文字使用内置 Inter；SWT Group、Shell 和原生滚动条外观不属于本次对等范围。

@@ -56,6 +56,19 @@ const TOOLTIP_BORDER_WIDTH: f64 = 1.0;
 type SceneCreator = Box<dyn FnMut() -> Runtime>;
 type SceneTitleFormatter = Box<dyn Fn(&str) -> String>;
 
+/// Sample-owned rendering host sharing the application's window and navigation.
+/// The default surface is released before this host is constructed.
+pub trait WindowScene {
+    fn render(&mut self, present: bool) -> std::io::Result<()>;
+    fn window_event(&mut self, event: &WindowEvent) -> std::io::Result<()>;
+    fn resume(&mut self) -> std::io::Result<()>;
+    fn suspend(&mut self) -> std::io::Result<()>;
+    fn screenshot(&mut self, path: &std::path::Path) -> std::io::Result<()>;
+}
+
+type WindowSceneFactory =
+    Box<dyn FnMut(Arc<winit::window::Window>) -> std::io::Result<Box<dyn WindowScene>>>;
+
 struct DemoUpdateListener;
 
 impl UpdateListener for DemoUpdateListener {
@@ -76,6 +89,8 @@ impl UpdateListener for DemoUpdateListener {
 }
 
 pub struct DemoApp {
+    window_scenes: Vec<(&'static str, WindowSceneFactory)>,
+    window_scene: Option<Box<dyn WindowScene>>,
     #[cfg(feature = "egui-panel")]
     panel_scenes: Vec<crate::panel::PanelSceneEntry>,
     #[cfg(feature = "egui-panel")]
@@ -121,6 +136,8 @@ impl DemoApp {
             .filter(|mode| *mode != usize::MAX)
             .unwrap_or(0);
         Self {
+            window_scenes: Vec::new(),
+            window_scene: None,
             #[cfg(feature = "egui-panel")]
             panel_scenes: Vec::new(),
             #[cfg(feature = "egui-panel")]
@@ -161,6 +178,43 @@ impl DemoApp {
             self.pointer_adapter.reset();
             self.clock_origin = Instant::now();
             self.current_scene_idx = idx;
+            self.window_scene = None;
+            let name = self.scenes[idx].0;
+            if let Some((_, factory)) = self
+                .window_scenes
+                .iter_mut()
+                .find(|(scene, _)| *scene == name)
+                && let Some(host) = &self.host
+            {
+                self.runtime = None;
+                self.renderer = None;
+                #[cfg(feature = "egui-panel")]
+                {
+                    self.panel = None;
+                    self.panel_host = None;
+                }
+                self.window_scene = Some(factory(host.window_arc()).unwrap_or_else(|error| {
+                    eprintln!("failed to initialize {name}: {error}");
+                    std::process::exit(1);
+                }));
+                self.initial_frame_presented = false;
+                self.initial_frame_attempts = 0;
+                host.window().set_title(&self.window_title());
+                host.request_redraw();
+                return;
+            }
+            if self.renderer.is_none()
+                && let Some(host) = &self.host
+            {
+                self.renderer = Some(
+                    VelloRenderer::new(host.window_arc(), host.surface_info()).unwrap_or_else(
+                        |error| {
+                            eprintln!("failed to restore sample renderer: {error}");
+                            std::process::exit(1);
+                        },
+                    ),
+                );
+            }
             let creator = &mut self.scenes[idx].1;
             let mut runtime = creator();
             #[cfg(feature = "egui-panel")]
@@ -223,6 +277,18 @@ impl DemoApp {
 
     /// 渲染当前场景
     pub fn render(&mut self) -> RenderResult {
+        if let Some(scene) = &mut self.window_scene {
+            let result = scene
+                .render(true)
+                .map(|()| RenderDisposition::Presented)
+                .map_err(|error| {
+                    RenderFailure::Fatal(novadraw::render::RenderFailureDiagnostic::from_error(
+                        &error,
+                    ))
+                });
+            self.record_interactive_frame_outcome(&result);
+            return result;
+        }
         #[cfg(feature = "egui-panel")]
         if let (Some(host), Some(panel_host), Some(panel), Some(runtime)) = (
             &self.host,
@@ -293,6 +359,16 @@ impl DemoApp {
     }
 
     fn render_screenshot_frame(&mut self) -> RenderResult {
+        if let Some(scene) = &mut self.window_scene {
+            return scene
+                .render(false)
+                .map(|()| RenderDisposition::Presented)
+                .map_err(|error| {
+                    RenderFailure::Fatal(novadraw::render::RenderFailureDiagnostic::from_error(
+                        &error,
+                    ))
+                });
+        }
         #[cfg(feature = "egui-panel")]
         if let (Some(host), Some(panel_host), Some(panel), Some(runtime)) = (
             &self.host,
@@ -473,7 +549,7 @@ impl DemoApp {
     ///
     /// 使用 VelloRenderer 直接捕获渲染结果
     /// 截图保存到 `target/visual-verification/screenshots/`。
-    pub fn screenshot(&self, scene_name: &str) -> std::io::Result<std::path::PathBuf> {
+    pub fn screenshot(&mut self, scene_name: &str) -> std::io::Result<std::path::PathBuf> {
         let screenshot_dir = std::env::current_dir()
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
             .join("target/visual-verification/screenshots");
@@ -498,7 +574,10 @@ impl DemoApp {
         let output_path = screenshot_dir.join(&filename);
 
         // 使用 VelloRenderer 捕获渲染结果
-        if let Some(renderer) = &self.renderer {
+        if let Some(scene) = &mut self.window_scene {
+            scene.screenshot(&output_path)?;
+            Ok(output_path)
+        } else if let Some(renderer) = &self.renderer {
             renderer.screenshot(&output_path)?;
             info!("截图已保存: {}", output_path.display());
             Ok(output_path)
@@ -572,6 +651,13 @@ impl DemoApp {
 
 impl ApplicationHandler<()> for DemoApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(scene) = &mut self.window_scene {
+            if let Err(error) = scene.resume() {
+                eprintln!("failed to resume window scene: {error}");
+                event_loop.exit();
+            }
+            return;
+        }
         if self.renderer.is_some() {
             return;
         }
@@ -595,6 +681,15 @@ impl ApplicationHandler<()> for DemoApp {
             });
         if self.host.is_none() {
             self.host = Some(WinitPlatformHost::new(window.clone()));
+        }
+
+        if self.runtime.is_none()
+            && self
+                .current_scene_name()
+                .is_some_and(|name| self.window_scenes.iter().any(|(scene, _)| *scene == name))
+        {
+            self.switch_scene(self.current_scene_idx);
+            return;
         }
 
         let scale_factor = window.scale_factor();
@@ -656,6 +751,75 @@ impl ApplicationHandler<()> for DemoApp {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        if let WindowEvent::ModifiersChanged(modifiers) = &event {
+            self.modifiers = adapt_modifiers(modifiers.state());
+        } else if event == WindowEvent::Focused(false) {
+            self.modifiers = KeyModifiers::default();
+        }
+        if self.window_scene.is_some() {
+            if event == WindowEvent::CloseRequested {
+                event_loop.exit();
+                return;
+            }
+            if let WindowEvent::KeyboardInput { event: key, .. } = &event
+                && key.state == winit::event::ElementState::Pressed
+                && key.physical_key == PhysicalKey::Code(KeyCode::Escape)
+            {
+                event_loop.exit();
+                return;
+            }
+            if self.screenshot_mode.is_none()
+                && let WindowEvent::KeyboardInput { event: key, .. } = &event
+                && key.state == winit::event::ElementState::Pressed
+                && let Some(index) = window_scene_navigation(
+                    &key.physical_key,
+                    self.current_scene_idx,
+                    self.scenes.len(),
+                    self.modifiers.alt,
+                )
+            {
+                self.switch_scene(index);
+                return;
+            }
+            if self.screenshot_mode.is_none()
+                && let WindowEvent::KeyboardInput { event: key, .. } = &event
+                && key.state == winit::event::ElementState::Pressed
+            {
+                match key.physical_key {
+                    PhysicalKey::Code(KeyCode::KeyS) => {
+                        let name = self.current_scene_name().unwrap_or("unknown");
+                        if let Err(error) = self.screenshot(name) {
+                            eprintln!("screenshot failed: {error}");
+                        }
+                        return;
+                    }
+                    PhysicalKey::Code(KeyCode::KeyR) => {
+                        self.replay_current_scene();
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+            if event == WindowEvent::RedrawRequested {
+                if self.screenshot_mode.is_none()
+                    && let Err(error) = self.render()
+                {
+                    eprintln!("window scene render failed: {error:?}");
+                    event_loop.exit();
+                }
+            } else if (self.screenshot_mode.is_none()
+                || matches!(
+                    event,
+                    WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }
+                ))
+                && let Some(scene) = &mut self.window_scene
+                && let Err(error) = scene.window_event(&event)
+            {
+                eprintln!("window scene event failed: {error}");
+                event_loop.exit();
+            }
+            return;
+        }
         // Track all host movement, including events owned by the control panel.
         match &event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -1026,11 +1190,38 @@ impl ApplicationHandler<()> for DemoApp {
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(scene) = &mut self.window_scene {
+            if let Err(error) = scene.suspend() {
+                eprintln!("failed to suspend window scene: {error}");
+                std::process::exit(1);
+            }
+            return;
+        }
         if let Some(runtime) = &mut self.runtime {
             runtime.input().pointer_exited();
         }
         self.sync_platform_effects();
         self.renderer = None;
+    }
+}
+
+fn window_scene_navigation(
+    key: &PhysicalKey,
+    current: usize,
+    count: usize,
+    alt: bool,
+) -> Option<usize> {
+    if count == 0 {
+        return None;
+    }
+    match key {
+        PhysicalKey::Code(KeyCode::PageUp) => Some((current + count - 1) % count),
+        PhysicalKey::Code(KeyCode::PageDown) => Some((current + 1) % count),
+        PhysicalKey::Code(KeyCode::ArrowLeft) if !alt => Some((current + count - 1) % count),
+        PhysicalKey::Code(KeyCode::ArrowRight) if !alt => Some((current + 1) % count),
+        PhysicalKey::Code(KeyCode::Home) => Some(0),
+        PhysicalKey::Code(KeyCode::End) => Some(count - 1),
+        _ => None,
     }
 }
 
@@ -1142,6 +1333,7 @@ fn get_digit_index(key: &winit::keyboard::PhysicalKey) -> Option<usize> {
 /// 用于更灵活地配置应用
 #[allow(clippy::type_complexity)]
 pub struct AppBuilder {
+    window_scenes: Vec<(&'static str, WindowSceneFactory)>,
     #[cfg(feature = "egui-panel")]
     panel_scenes: Vec<crate::panel::PanelSceneEntry>,
     title: String,
@@ -1158,6 +1350,7 @@ impl AppBuilder {
     /// 创建一个新的构建器
     pub fn new(title: &str) -> Self {
         Self {
+            window_scenes: Vec::new(),
             #[cfg(feature = "egui-panel")]
             panel_scenes: Vec::new(),
             title: title.to_string(),
@@ -1168,6 +1361,17 @@ impl AppBuilder {
             height: 600.0,
             screenshot_mode: None,
         }
+    }
+
+    /// Register a sample-owned window host for an existing catalog entry.
+    pub fn with_window_scene(
+        mut self,
+        name: &'static str,
+        factory: impl FnMut(Arc<winit::window::Window>) -> std::io::Result<Box<dyn WindowScene>>
+        + 'static,
+    ) -> Self {
+        self.window_scenes.push((name, Box::new(factory)));
+        self
     }
 
     /// 设置窗口尺寸
@@ -1283,6 +1487,7 @@ impl AppBuilder {
             self.screenshot_mode,
         );
         app.scene_title_formatter = self.scene_title_formatter;
+        app.window_scenes = self.window_scenes;
         #[cfg(feature = "egui-panel")]
         {
             app.panel_scenes = self.panel_scenes;
@@ -1396,6 +1601,101 @@ fn run_runtime_demo_app_with_options(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn window_scene_navigation_reserves_plain_arrows_and_leaves_alt_arrows_to_canvas() {
+        use super::*;
+        assert_eq!(
+            window_scene_navigation(&PhysicalKey::Code(KeyCode::PageUp), 0, 25, false),
+            Some(24)
+        );
+        assert_eq!(
+            window_scene_navigation(&PhysicalKey::Code(KeyCode::PageDown), 24, 25, false),
+            Some(0)
+        );
+        assert_eq!(
+            window_scene_navigation(&PhysicalKey::Code(KeyCode::ArrowLeft), 12, 25, false),
+            Some(11)
+        );
+        assert_eq!(
+            window_scene_navigation(&PhysicalKey::Code(KeyCode::ArrowRight), 12, 25, false),
+            Some(13)
+        );
+        for key in [
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowRight,
+            KeyCode::ArrowUp,
+            KeyCode::ArrowDown,
+            KeyCode::Tab,
+        ] {
+            assert_eq!(
+                window_scene_navigation(&PhysicalKey::Code(key), 12, 25, true),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn window_scene_owns_rendering_and_is_dropped_before_default_scene() {
+        use super::*;
+        use std::sync::{Arc, Mutex};
+        struct Host(Arc<Mutex<Vec<&'static str>>>);
+        impl Drop for Host {
+            fn drop(&mut self) {
+                self.0.lock().unwrap().push("drop");
+            }
+        }
+        impl WindowScene for Host {
+            fn render(&mut self, present: bool) -> std::io::Result<()> {
+                self.0
+                    .lock()
+                    .unwrap()
+                    .push(if present { "present" } else { "capture" });
+                Ok(())
+            }
+            fn window_event(&mut self, _: &WindowEvent) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn resume(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn suspend(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn screenshot(&mut self, _: &std::path::Path) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let factory_calls = calls.clone();
+        let mut app = DemoApp::new(
+            "test",
+            vec![(
+                "default",
+                Box::new(move || {
+                    factory_calls.lock().unwrap().push("default");
+                    Runtime::empty()
+                }),
+            )],
+            100.0,
+            100.0,
+            "test",
+            None,
+        );
+        app.window_scene = Some(Box::new(Host(calls.clone())));
+        assert_eq!(app.render(), Ok(RenderDisposition::Presented));
+        assert_eq!(
+            app.render_screenshot_frame(),
+            Ok(RenderDisposition::Presented)
+        );
+        app.switch_scene(0);
+        assert!(app.window_scene.is_none());
+        assert!(app.runtime.is_some());
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["present", "capture", "drop", "default"]
+        );
+    }
+
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
 

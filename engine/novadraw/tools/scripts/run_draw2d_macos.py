@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import sys
 
+BINARIES = ("draw2d-official-examples",)
+
 
 def main() -> None:
     if sys.platform != "darwin":
@@ -18,14 +20,15 @@ def main() -> None:
     env["CARGO_TARGET_DIR"] = str(build_dir)
     subprocess.run(
         ["cargo", "build", "--locked", "-p", "draw2d-official-examples",
-         "--bin", "draw2d-official-examples"],
+         *[argument for binary in BINARIES for argument in ("--bin", binary)]],
         cwd=project, env=env, check=True,
     )
     bundle = build_dir / "Draw2D Official Examples.app"
     executable_dir = bundle / "Contents" / "MacOS"
     executable_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(build_dir / "debug" / "draw2d-official-examples",
-                 executable_dir / "draw2d-official-examples")
+    (executable_dir / "inherit-background").unlink(missing_ok=True)
+    for binary in BINARIES:
+        shutil.copy2(build_dir / "debug" / binary, executable_dir / binary)
     with (bundle / "Contents" / "Info.plist").open("wb") as output:
         plistlib.dump({
             "CFBundleIdentifier": "org.novadraw.draw2d-official-examples",

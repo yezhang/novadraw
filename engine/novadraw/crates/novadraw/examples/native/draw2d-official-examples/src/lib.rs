@@ -4,6 +4,7 @@
 mod controls;
 mod examples;
 pub mod inherit_background;
+pub mod inherit_background_host;
 
 /// Runs fixed-time Tree animation evidence on a native Vello device.
 pub fn verify_tree_animation(window: std::sync::Arc<winit::window::Window>) {
@@ -83,8 +84,6 @@ pub struct OfficialExample {
     pub upstream_path: &'static str,
     pub status: ParityStatus,
     pub gaps: &'static [&'static str],
-    /// Dedicated Native host for entries requiring multiple independent Canvases.
-    pub native_binary: Option<&'static str>,
     factory: Option<fn() -> Runtime>,
 }
 
@@ -102,7 +101,6 @@ impl OfficialExample {
             upstream_path,
             status: ParityStatus::InProgress,
             gaps,
-            native_binary: None,
             factory: Some(factory),
         }
     }
@@ -119,7 +117,6 @@ impl OfficialExample {
             upstream_path,
             status: ParityStatus::Complete,
             gaps: &[],
-            native_binary: None,
             factory: Some(factory),
         }
     }
@@ -227,7 +224,6 @@ pub fn catalog() -> Vec<OfficialExample> {
             upstream_path: "org/eclipse/draw2d/examples/swt/InheritBackgroundExample.java",
             status: ParityStatus::Complete,
             gaps: &[],
-            native_binary: Some("inherit-background"),
             factory: Some(inherit_background::canvas),
         },
         OfficialExample::in_progress(
@@ -332,7 +328,6 @@ pub fn runnable_entries() -> Vec<SceneEntry> {
 pub fn panel_entries() -> Vec<novadraw_example_support::panel::PanelSceneEntry> {
     catalog()
         .into_iter()
-        .filter(|entry| entry.native_binary.is_none())
         .filter_map(|entry| {
             entry.factory.map(|factory| {
                 let name = entry.name;
@@ -437,6 +432,26 @@ mod tests {
         assert_eq!(official_scene_title("unknown"), "unknown");
         assert_eq!(ParityStatus::NotImplemented.title_label(), "未实现");
         assert_eq!(ParityStatus::Blocked.title_label(), "阻塞");
+    }
+
+    #[test]
+    fn navigation_preserves_all_official_entries_without_launcher_panel() {
+        let mut entries = panel_entries();
+        let names: Vec<_> = entries.iter().map(|entry| entry.0).collect();
+        let expected: Vec<_> = catalog().iter().map(|entry| entry.name).collect();
+        assert_eq!(names, expected);
+        assert_eq!(entries[12].0, "InheritBackgroundExample");
+        assert_eq!(
+            official_scene_title(entries[12].0),
+            "[13/25 · 已完成] InheritBackgroundExample"
+        );
+        let (runtime, panel) = entries[12].1();
+        assert!(runtime.tree().contents().is_some());
+        assert!(
+            panel.is_none(),
+            "the integrated window host must not expose a standalone launcher panel"
+        );
+        assert_eq!(entries[13].0, "ShapeStylesExample");
     }
 
     #[test]
