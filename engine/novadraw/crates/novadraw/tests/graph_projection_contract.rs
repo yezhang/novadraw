@@ -196,7 +196,8 @@ fn fixture_in_viewport(dynamic: bool, viewport: bool) -> Fixture {
             .unwrap();
         let dummy = runtime
             .connections()
-            .register_router(Box::new(DirectRouter));
+            .register_router(Box::new(DirectRouter))
+            .unwrap();
         let connection = runtime
             .connections()
             .register_state(
@@ -215,14 +216,21 @@ fn fixture_in_viewport(dynamic: bool, viewport: bool) -> Fixture {
     );
     let router = runtime
         .connections()
-        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())));
+        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())))
+        .unwrap();
     for &(edge, connection) in binding.edges() {
-        let source = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
-        ));
-        let target = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
-        ));
+        let source = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
+            ))
+            .unwrap();
+        let target = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
+            ))
+            .unwrap();
         runtime
             .connections()
             .set_source(connection, Some(source))
@@ -439,7 +447,8 @@ fn incompatible_anchor_binding_cannot_publish_a_partial_graph() {
         .register_anchor(Box::new(XYAnchor::new(
             novadraw::geometry::Point::new(0.0, 0.0),
             f.binding.routing_space(),
-        )));
+        )))
+        .unwrap();
     f.runtime
         .connections()
         .set_source(f.connections[0], Some(source))
@@ -454,11 +463,15 @@ fn incompatible_anchor_binding_cannot_publish_a_partial_graph() {
         ConnectionResolution::Unresolved(_)
     ));
     let edge = f.binding.edges()[0].0;
-    let source = f.runtime.connections().register_anchor(Box::new(
-        f.binding
-            .anchor(&f.request, edge, RouteEnd::Source)
-            .unwrap(),
-    ));
+    let source = f
+        .runtime
+        .connections()
+        .register_anchor(Box::new(
+            f.binding
+                .anchor(&f.request, edge, RouteEnd::Source)
+                .unwrap(),
+        ))
+        .unwrap();
     f.runtime
         .connections()
         .set_source(f.connections[0], Some(source))
@@ -703,7 +716,8 @@ fn external_non_layered_algorithm_uses_the_same_projection_and_repeated_frames_d
         .unwrap();
     let dummy = runtime
         .connections()
-        .register_router(Box::new(DirectRouter));
+        .register_router(Box::new(DirectRouter))
+        .unwrap();
     let connection = runtime
         .connections()
         .register_state(
@@ -726,13 +740,20 @@ fn external_non_layered_algorithm_uses_the_same_projection_and_repeated_frames_d
     );
     let router = runtime
         .connections()
-        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())));
-    let source = runtime.connections().register_anchor(Box::new(
-        binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
-    ));
-    let target = runtime.connections().register_anchor(Box::new(
-        binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
-    ));
+        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())))
+        .unwrap();
+    let source = runtime
+        .connections()
+        .register_anchor(Box::new(
+            binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
+        ))
+        .unwrap();
+    let target = runtime
+        .connections()
+        .register_anchor(Box::new(
+            binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
+        ))
+        .unwrap();
     runtime
         .connections()
         .set_source(connection, Some(source))
@@ -822,7 +843,8 @@ fn project_fixture(request: GraphLayoutRequest, service: Arc<GraphLayoutService>
     let mut edges = Vec::new();
     let dummy = runtime
         .connections()
-        .register_router(Box::new(DirectRouter));
+        .register_router(Box::new(DirectRouter))
+        .unwrap();
     for edge in request.edges() {
         let figure = runtime
             .figure(owner)
@@ -846,14 +868,21 @@ fn project_fixture(request: GraphLayoutRequest, service: Arc<GraphLayoutService>
     );
     let router = runtime
         .connections()
-        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())));
+        .register_router(Box::new(GraphProjectionRouter::new(binding.clone())))
+        .unwrap();
     for &(edge, connection) in binding.edges() {
-        let source = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
-        ));
-        let target = runtime.connections().register_anchor(Box::new(
-            binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
-        ));
+        let source = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Source).unwrap(),
+            ))
+            .unwrap();
+        let target = runtime
+            .connections()
+            .register_anchor(Box::new(
+                binding.anchor(&request, edge, RouteEnd::Target).unwrap(),
+            ))
+            .unwrap();
         runtime
             .connections()
             .set_source(connection, Some(source))

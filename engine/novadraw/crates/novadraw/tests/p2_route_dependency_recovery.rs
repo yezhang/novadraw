@@ -65,10 +65,12 @@ fn missing_tracked_dependency_stabilizes_and_new_binding_recovers() {
         .unwrap();
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(DependentAnchor(source)));
+        .register_anchor(Box::new(DependentAnchor(source)))
+        .unwrap();
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
     let router = runtime.connections().direct_router();
     let connection = runtime
         .connections()
@@ -133,7 +135,8 @@ fn missing_tracked_dependency_stabilizes_and_new_binding_recovers() {
     assert_ne!(replacement, source);
     let new_anchor = runtime
         .connections()
-        .register_anchor(Box::new(DependentAnchor(replacement)));
+        .register_anchor(Box::new(DependentAnchor(replacement)))
+        .unwrap();
     runtime
         .connections()
         .set_source(connection, Some(new_anchor))

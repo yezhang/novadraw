@@ -1079,7 +1079,8 @@ fn miter_transaction_updates_freeform_extent_with_one_move_notification() {
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_figure_listener(Box::new(Moves(Arc::clone(&events))));
+        .add_figure_listener(Box::new(Moves(Arc::clone(&events))))
+        .expect("healthy listener registration");
     for miter in [12.0, 2.0] {
         let before = runtime.tree().figure_bounds(line).unwrap();
         runtime

@@ -2656,9 +2656,11 @@ impl Runtime {
         )
     }
 
-    pub(crate) fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+    pub(crate) fn add_update_listener(
+        &mut self,
+        listener: Box<dyn UpdateListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_update_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_update_listener_scoped(
@@ -2667,15 +2669,17 @@ impl Runtime {
         listener: Box<dyn UpdateListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_listener(listener);
+        let id = self.updates.add_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
     }
 
-    pub(crate) fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
+    pub(crate) fn add_figure_listener(
+        &mut self,
+        listener: Box<dyn FigureListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_figure_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_figure_listener_scoped(
@@ -2684,7 +2688,7 @@ impl Runtime {
         listener: Box<dyn FigureListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_figure_listener(listener);
+        let id = self.updates.add_figure_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
@@ -2693,9 +2697,8 @@ impl Runtime {
     pub(crate) fn add_coordinate_listener(
         &mut self,
         listener: Box<dyn CoordinateListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_coordinate_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_coordinate_listener_scoped(
@@ -2704,7 +2707,7 @@ impl Runtime {
         listener: Box<dyn CoordinateListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_coordinate_listener(listener);
+        let id = self.updates.add_coordinate_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
@@ -2713,9 +2716,8 @@ impl Runtime {
     pub(crate) fn add_ancestor_listener(
         &mut self,
         listener: Box<dyn AncestorListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_ancestor_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_ancestor_listener_scoped(
@@ -2724,7 +2726,7 @@ impl Runtime {
         listener: Box<dyn AncestorListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_ancestor_listener(listener);
+        let id = self.updates.add_ancestor_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
@@ -2733,9 +2735,8 @@ impl Runtime {
     pub(crate) fn add_property_listener(
         &mut self,
         listener: Box<dyn PropertyChangeListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_property_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_property_listener_scoped(
@@ -2744,15 +2745,17 @@ impl Runtime {
         listener: Box<dyn PropertyChangeListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_property_listener(listener);
+        let id = self.updates.add_property_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
     }
 
-    pub(crate) fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
+    pub(crate) fn add_action_listener(
+        &mut self,
+        listener: Box<dyn ActionListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_action_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_action_listener_scoped(
@@ -2761,15 +2764,17 @@ impl Runtime {
         listener: Box<dyn ActionListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_action_listener(listener);
+        let id = self.updates.add_action_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
     }
 
-    pub(crate) fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
+    pub(crate) fn add_layout_listener(
+        &mut self,
+        listener: Box<dyn LayoutListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_layout_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_layout_listener_scoped(
@@ -2778,7 +2783,7 @@ impl Runtime {
         listener: Box<dyn LayoutListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_layout_listener(listener);
+        let id = self.updates.add_layout_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
@@ -2787,9 +2792,8 @@ impl Runtime {
     pub(crate) fn add_observation_listener(
         &mut self,
         listener: Box<dyn ObservationListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.add_observation_listener_scoped(ListenerScope::Runtime, listener)
-            .expect("Runtime listener scope is always valid")
     }
 
     pub(crate) fn add_observation_listener_scoped(
@@ -2798,17 +2802,17 @@ impl Runtime {
         listener: Box<dyn ObservationListener>,
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
-        let id = self.updates.add_observation_listener(listener);
+        let id = self.updates.add_observation_listener(listener)?;
         let scope_was_set = self.updates.set_listener_scope(id, scope);
         debug_assert!(scope_was_set);
         Ok(id)
     }
 
-    pub(crate) fn remove_listener(&mut self, id: ListenerId) -> bool {
-        if self.faulted {
-            return false;
+    pub(crate) fn remove_listener(&mut self, id: ListenerId) -> Result<bool, RuntimeMutationError> {
+        if id.namespace() != self.tree.namespace() {
+            return Err(RuntimeMutationError::ForeignListener(id));
         }
-        self.updates.remove_listener(id)
+        Ok(self.updates.remove_listener(id))
     }
 
     fn validate_listener_scope(&self, scope: ListenerScope) -> Result<(), RuntimeMutationError> {
@@ -2874,6 +2878,28 @@ impl Runtime {
             });
         }
         Ok(StableSceneQuery::new(self.stable_epoch, &self.tree))
+    }
+
+    pub(crate) fn observation_checkpoint(
+        &self,
+    ) -> Result<crate::event::ObservationCheckpoint, StableQueryError> {
+        if self.faulted {
+            return Err(StableQueryError::Faulted);
+        }
+        let not_stable = || StableQueryError::NotStable {
+            latest_stable_epoch: self.stable_epoch,
+        };
+        if !self.mutations.is_empty()
+            || self.updates.has_pending_layout()
+            || !self.connections.dirty_connections().is_empty()
+            || !self.tree.notification_effects().is_empty()
+            || self.derivation_epoch != self.stable_epoch
+        {
+            return Err(not_stable());
+        }
+        self.updates
+            .publication_checkpoint(self.stable_epoch)
+            .ok_or_else(not_stable)
     }
 
     pub(crate) fn last_validation_error(&self) -> Option<&ValidationError> {
@@ -3673,6 +3699,14 @@ impl Runtime {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "runtime/s09_observations_tests.rs"]
+mod s09_observations_tests;
+
+#[cfg(test)]
+#[path = "runtime/s09_connections_tests.rs"]
+mod s09_connections_tests;
 
 fn route_metadata_in_local(metadata: &RouteMetadata, path_bounds: Rectangle) -> RouteMetadata {
     let translate_endpoint = |endpoint: crate::RouteEndpoint| crate::RouteEndpoint {
@@ -5170,7 +5204,9 @@ mod tests {
 
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut runtime = Runtime::empty();
-        runtime.add_update_listener(Box::new(CaptureUpdates(events.clone())));
+        runtime
+            .add_update_listener(Box::new(CaptureUpdates(events.clone())))
+            .expect("healthy listener registration");
         runtime
             .set_contents(Box::new(
                 RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
@@ -5311,11 +5347,11 @@ mod adr014_tests {
         let (mut first, first_root) = scene();
         let (mut second, second_root) = scene();
         let foreign_anchor =
-            first.register_connection_anchor(Box::new(ChopboxAnchor::new(first_root)));
+            first.register_connection_anchor(Box::new(ChopboxAnchor::new(first_root))).unwrap();
         let local_anchor =
-            second.register_connection_anchor(Box::new(ChopboxAnchor::new(second_root)));
-        let foreign_router = first.register_connection_router(Box::new(DirectRouter));
-        let local_router = second.register_connection_router(Box::new(DirectRouter));
+            second.register_connection_anchor(Box::new(ChopboxAnchor::new(second_root))).unwrap();
+        let foreign_router = first.register_connection_router(Box::new(DirectRouter)).unwrap();
+        let local_router = second.register_connection_router(Box::new(DirectRouter)).unwrap();
         assert!(second.remove_connection_anchor(foreign_anchor).is_err());
         assert!(second.remove_connection_router(foreign_router).is_err());
         assert!(second.remove_connection_anchor(local_anchor).is_ok());
@@ -5326,8 +5362,12 @@ mod adr014_tests {
     fn foreign_listener_does_not_unregister_local_subscription() {
         let (mut first, foreign_owner) = scene();
         let (mut second, _) = scene();
-        let foreign = first.add_update_listener(Box::new(()));
-        let local = second.add_update_listener(Box::new(()));
+        let foreign = first
+            .add_update_listener(Box::new(()))
+            .expect("healthy listener registration");
+        let local = second
+            .add_update_listener(Box::new(()))
+            .expect("healthy listener registration");
         assert!(matches!(
             second.add_update_listener_scoped(
                 ListenerScope::Figure(foreign_owner),
@@ -5335,9 +5375,19 @@ mod adr014_tests {
             ),
             Err(RuntimeMutationError::ForeignRuntime(id)) if id == foreign_owner
         ));
-        assert!(!second.remove_listener(foreign));
-        assert!(second.remove_listener(local));
-        assert!(!second.remove_listener(local));
+        assert!(
+            matches!(second.remove_listener(foreign), Err(RuntimeMutationError::ForeignListener(id)) if id == foreign)
+        );
+        assert!(
+            second
+                .remove_listener(local)
+                .expect("local listener identity")
+        );
+        assert!(
+            !second
+                .remove_listener(local)
+                .expect("local listener identity")
+        );
     }
 
     struct DropProbe(Rc<Cell<usize>>);
@@ -5460,15 +5510,25 @@ mod adr014_tests {
         let owned = runtime
             .add_update_listener_scoped(ListenerScope::Figure(owner), Box::new(()))
             .unwrap();
-        let global = runtime.add_update_listener(Box::new(()));
-        let router = runtime.register_connection_router(Box::new(DirectRouter));
+        let global = runtime
+            .add_update_listener(Box::new(()))
+            .expect("healthy listener registration");
+        let router = runtime.register_connection_router(Box::new(DirectRouter)).unwrap();
         let image = runtime.register_image().expect("image registration");
         runtime
             .add_resource_dependency(image.resource_id(), owner)
             .unwrap();
         runtime.dispose_subtree(owner).unwrap();
-        assert!(!runtime.remove_listener(owned));
-        assert!(runtime.remove_listener(global));
+        assert!(
+            !runtime
+                .remove_listener(owned)
+                .expect("local listener identity")
+        );
+        assert!(
+            runtime
+                .remove_listener(global)
+                .expect("local listener identity")
+        );
         assert!(runtime.remove_connection_router(router).is_ok());
         assert!(matches!(
             runtime.resource_status(image.resource_id()),
@@ -6068,7 +6128,9 @@ mod adr014_tests {
         let (mut runtime, root) = scene();
         runtime.record_full_frame();
         let events = Arc::new(Mutex::new(Vec::new()));
-        runtime.add_ancestor_listener(Box::new(Capture(Arc::clone(&events))));
+        runtime
+            .add_ancestor_listener(Box::new(Capture(Arc::clone(&events))))
+            .expect("healthy listener registration");
         let figure = runtime
             .add_figure(
                 root,
@@ -6085,7 +6147,11 @@ mod adr014_tests {
             )
             .unwrap();
         runtime.dispose_subtree(figure).unwrap();
-        assert!(!runtime.remove_listener(subscription));
+        assert!(
+            !runtime
+                .remove_listener(subscription)
+                .expect("local listener identity")
+        );
         assert_eq!(
             runtime.tree.is_attached(figure),
             Err(crate::tree::TreeQueryError::UnknownFigure(figure))
@@ -6177,8 +6243,10 @@ mod adr014_tests {
     fn moving_runtime_preserves_registry_identity_and_state() {
         let (mut runtime, _) = scene();
         let image = runtime.register_image().expect("image registration");
-        let listener = runtime.add_update_listener(Box::new(()));
-        let router = runtime.register_connection_router(Box::new(DirectRouter));
+        let listener = runtime
+            .add_update_listener(Box::new(()))
+            .expect("healthy listener registration");
+        let router = runtime.register_connection_router(Box::new(DirectRouter)).unwrap();
         let session = runtime.backend_session_id();
 
         let mut moved = runtime;
@@ -6188,7 +6256,11 @@ mod adr014_tests {
             moved.resource_status(image.resource_id()),
             Ok(&ResourceStatus::Pending)
         );
-        assert!(moved.remove_listener(listener));
+        assert!(
+            moved
+                .remove_listener(listener)
+                .expect("local listener identity")
+        );
         assert!(moved.remove_connection_router(router).is_ok());
     }
 }

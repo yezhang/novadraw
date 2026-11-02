@@ -638,7 +638,8 @@ fn deferred_border_rejection_is_observable_without_revision_damage_or_notificati
     let notifications = Arc::new(AtomicUsize::new(0));
     runtime
         .observations()
-        .add_observation_listener(Box::new(Count(notifications.clone())));
+        .add_observation_listener(Box::new(Count(notifications.clone())))
+        .expect("healthy listener registration");
     runtime
         .input()
         .dispatch_mouse_pressed(5.0, 5.0, MouseButton::Left);

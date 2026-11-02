@@ -544,6 +544,32 @@ impl ConnectionRuntime {
     }
 
     #[cfg(test)]
+    pub(crate) fn registration_facts_for_test(&self) -> impl PartialEq + fmt::Debug + use<> {
+        (
+            self.anchors.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            self.routers.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            self.subtree_anchors.clone(),
+            self.layer_defaults.clone(),
+            self.by_dependency.clone(),
+            self.locators.len(),
+            self.stats,
+            self.order
+                .iter()
+                .map(|id| {
+                    let state = &self.states[id];
+                    (
+                        *id,
+                        self.state(*id).unwrap(),
+                        state.dirty_revision,
+                        state.binding_revision,
+                        state.route_generation,
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    #[cfg(test)]
     pub(crate) fn set_dirty_revision_for_test(&mut self, connection: ConnectionId, revision: u64) {
         self.states.get_mut(&connection).unwrap().dirty_revision = revision;
     }

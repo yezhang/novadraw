@@ -559,10 +559,12 @@ fn connection_fixture() -> (
         .unwrap();
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .unwrap();
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
     let direct_router = runtime.connections().direct_router();
     let connection = runtime
         .connections()
@@ -641,7 +643,8 @@ fn incompatible_connection_route_crossfades_and_retires_old_visual() {
     runtime.animation().advance_time(time(0)).unwrap();
     let router = runtime
         .connections()
-        .register_router(Box::new(BendpointConnectionRouter));
+        .register_router(Box::new(BendpointConnectionRouter))
+        .unwrap();
 
     let (_, start) = runtime
         .animation()

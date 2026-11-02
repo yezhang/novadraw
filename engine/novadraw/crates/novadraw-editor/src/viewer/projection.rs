@@ -432,7 +432,7 @@ where
         let source_anchor = self
             .runtime
             .connections()
-            .try_register_anchor(source_anchor_strategy)?;
+            .register_anchor(source_anchor_strategy)?;
         acquired_anchors.push(source_anchor);
         let (target_anchor_key, target_anchor_strategy) = self.build_connection_anchor(
             ConnectionEndpoint::Target,
@@ -443,7 +443,7 @@ where
         let target_anchor = self
             .runtime
             .connections()
-            .try_register_anchor(target_anchor_strategy)?;
+            .register_anchor(target_anchor_strategy)?;
         acquired_anchors.push(target_anchor);
         let connection = self.runtime.connections().register_state(
             primary,
@@ -624,7 +624,7 @@ where
         .unwrap_or_else(|| {
             self.runtime
                 .connections()
-                .try_register_anchor(source_anchor_strategy)
+                .register_anchor(source_anchor_strategy)
         })?;
         let target_anchor = if target_reusable {
             current.target_anchor
@@ -635,7 +635,7 @@ where
         .unwrap_or_else(|| {
             self.runtime
                 .connections()
-                .try_register_anchor(target_anchor_strategy)
+                .register_anchor(target_anchor_strategy)
         })?;
         self.parts
             .bind_connection(current.part, source_part, target_part)?;

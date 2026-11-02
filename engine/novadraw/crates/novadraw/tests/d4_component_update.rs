@@ -195,7 +195,8 @@ fn component_effect_failure_does_not_commit_value_revision_or_property_fact() {
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))))
+        .expect("healthy listener registration");
     record_full_submission(&mut runtime);
     assert!(matches!(
         runtime
@@ -423,7 +424,8 @@ fn external_component_update_commits_typed_property_effect_once() {
     let observed = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))));
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))))
+        .expect("healthy listener registration");
 
     runtime
         .figure(badge)

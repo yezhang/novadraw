@@ -15,14 +15,6 @@ impl Runtime {
     pub(crate) fn register_connection_anchor(
         &mut self,
         anchor: Box<dyn ConnectionAnchor>,
-    ) -> AnchorId {
-        self.try_register_connection_anchor(anchor)
-            .expect("cannot register an Anchor in a faulted Runtime")
-    }
-
-    pub(crate) fn try_register_connection_anchor(
-        &mut self,
-        anchor: Box<dyn ConnectionAnchor>,
     ) -> Result<AnchorId, ConnectionRuntimeError> {
         self.guarded_connection_mutation(move |runtime| {
             Ok(runtime.connections.register_anchor(anchor))
@@ -82,14 +74,6 @@ impl Runtime {
     }
 
     pub(crate) fn register_connection_router(
-        &mut self,
-        router: Box<dyn ConnectionRouter>,
-    ) -> RouterId {
-        self.try_register_connection_router(router)
-            .expect("cannot register a Router in a faulted Runtime")
-    }
-
-    pub(crate) fn try_register_connection_router(
         &mut self,
         router: Box<dyn ConnectionRouter>,
     ) -> Result<RouterId, ConnectionRuntimeError> {

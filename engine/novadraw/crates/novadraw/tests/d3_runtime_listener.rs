@@ -100,37 +100,44 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
         .observations()
         .add_update_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let figure = runtime
         .observations()
         .add_figure_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let coordinate = runtime
         .observations()
         .add_coordinate_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let ancestor = runtime
         .observations()
         .add_ancestor_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let property = runtime
         .observations()
         .add_property_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let action = runtime
         .observations()
         .add_action_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
     let layout = runtime
         .observations()
         .add_layout_listener(Box::new(TypedRecorder {
             counts: Arc::clone(&counts),
-        }));
+        }))
+        .expect("healthy listener registration");
 
     let clickable = runtime
         .figure(root)
@@ -183,8 +190,18 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     for id in [
         update, figure, coordinate, ancestor, property, action, layout,
     ] {
-        assert!(runtime.observations().remove_listener(id));
-        assert!(!runtime.observations().remove_listener(id));
+        assert!(
+            runtime
+                .observations()
+                .remove_listener(id)
+                .expect("local listener identity")
+        );
+        assert!(
+            !runtime
+                .observations()
+                .remove_listener(id)
+                .expect("local listener identity")
+        );
     }
 
     assert!(
@@ -229,22 +246,22 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
     let _ = prepare_next_submission(&mut runtime);
 
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let removing =
-        runtime
-            .observations()
-            .add_property_listener(Box::new(RemoveAfterFirstProperty {
-                calls: Arc::clone(&calls),
-                label: "remove",
-                directive: ListenerDirective::Remove,
-            }));
-    let retaining =
-        runtime
-            .observations()
-            .add_property_listener(Box::new(RemoveAfterFirstProperty {
-                calls: Arc::clone(&calls),
-                label: "keep",
-                directive: ListenerDirective::Keep,
-            }));
+    let removing = runtime
+        .observations()
+        .add_property_listener(Box::new(RemoveAfterFirstProperty {
+            calls: Arc::clone(&calls),
+            label: "remove",
+            directive: ListenerDirective::Remove,
+        }))
+        .expect("healthy listener registration");
+    let retaining = runtime
+        .observations()
+        .add_property_listener(Box::new(RemoveAfterFirstProperty {
+            calls: Arc::clone(&calls),
+            label: "keep",
+            directive: ListenerDirective::Keep,
+        }))
+        .expect("healthy listener registration");
 
     assert!(
         runtime
@@ -263,9 +280,24 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
     let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(*calls.lock().unwrap(), vec!["remove", "keep", "keep"]);
-    assert!(!runtime.observations().remove_listener(removing));
-    assert!(runtime.observations().remove_listener(retaining));
-    assert!(!runtime.observations().remove_listener(retaining));
+    assert!(
+        !runtime
+            .observations()
+            .remove_listener(removing)
+            .expect("local listener identity")
+    );
+    assert!(
+        runtime
+            .observations()
+            .remove_listener(retaining)
+            .expect("local listener identity")
+    );
+    assert!(
+        !runtime
+            .observations()
+            .remove_listener(retaining)
+            .expect("local listener identity")
+    );
 }
 
 #[test]
@@ -298,7 +330,8 @@ fn action_listener_can_remove_itself_after_the_current_action() {
     let calls = Arc::new(Mutex::new(0));
     runtime
         .observations()
-        .add_action_listener(Box::new(OnceAction(Arc::clone(&calls))));
+        .add_action_listener(Box::new(OnceAction(Arc::clone(&calls))))
+        .expect("healthy listener registration");
     assert!(runtime.input().do_click(clickable).unwrap());
     assert!(runtime.input().do_click(clickable).unwrap());
     let _ = prepare_next_submission(&mut runtime);

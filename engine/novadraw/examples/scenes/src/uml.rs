@@ -700,16 +700,16 @@ fn add_relation(
     let label = add_relation_label(runtime, connection, spec.label);
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
     let router = if spec.bendpoints.is_empty() {
         runtime.connections().direct_router()
     } else {
         runtime
             .connections()
-            .register_router(Box::new(BendpointConnectionRouter))
+            .register_router(Box::new(BendpointConnectionRouter)).expect("healthy scene registration")
     };
     let constraint = (!spec.bendpoints.is_empty()).then(|| {
         Box::new(BendpointConstraint::new(

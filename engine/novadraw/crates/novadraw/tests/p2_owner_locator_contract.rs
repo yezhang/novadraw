@@ -270,11 +270,16 @@ fn runtime_external_locator_tracks_owner_and_rejects_size_override_atomically() 
         .unwrap();
     let a = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .unwrap();
     let b = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
-    let router = runtime.connections().register_router(Box::new(FixedRouter));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
+    let router = runtime
+        .connections()
+        .register_router(Box::new(FixedRouter))
+        .unwrap();
     let connection = runtime
         .connections()
         .register_state(
@@ -426,8 +431,12 @@ fn owner_envelope_is_mapped_through_nested_scale_and_rotation() {
             .unwrap();
         let a = runtime
             .connections()
-            .register_anchor(Box::new(ChopboxAnchor::new(owner)));
-        let router = runtime.connections().register_router(Box::new(FixedRouter));
+            .register_anchor(Box::new(ChopboxAnchor::new(owner)))
+            .unwrap();
+        let router = runtime
+            .connections()
+            .register_router(Box::new(FixedRouter))
+            .unwrap();
         let connection = runtime
             .connections()
             .register_state(

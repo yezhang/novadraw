@@ -39,6 +39,9 @@ impl Runtime {
             runtime.apply_pending_mutations_for_frame();
             runtime.try_stabilize()?;
             runtime.process_animation_behaviors()?;
+            runtime
+                .updates
+                .flush_notifications_at(&mut runtime.tree, runtime.stable_epoch);
             Ok(())
         })
     }

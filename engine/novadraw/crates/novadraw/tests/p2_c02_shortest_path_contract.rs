@@ -76,17 +76,22 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .unwrap()
         .add(Box::new(ConnectionFigure::new()))
         .unwrap();
-    let router = runtime.connections().register_router(Box::new(
-        ShortestPathConnectionRouter::new([obstacle])
-            .with_clearance(CLEARANCE)
-            .unwrap(),
-    ));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(
+            ShortestPathConnectionRouter::new([obstacle])
+                .with_clearance(CLEARANCE)
+                .unwrap(),
+        ))
+        .unwrap();
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .unwrap();
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
     let connection = runtime
         .connections()
         .register_state(
@@ -181,7 +186,8 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .unwrap();
     let foreign_router = runtime
         .connections()
-        .register_router(Box::new(ShortestPathConnectionRouter::new([foreign])));
+        .register_router(Box::new(ShortestPathConnectionRouter::new([foreign])))
+        .unwrap();
     runtime
         .connections()
         .set_router_binding(
@@ -201,7 +207,8 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     assert!(!runtime.is_faulted());
     let replacement = runtime
         .connections()
-        .register_router(Box::new(ShortestPathConnectionRouter::new([])));
+        .register_router(Box::new(ShortestPathConnectionRouter::new([])))
+        .unwrap();
     runtime
         .connections()
         .set_router_binding(
@@ -254,17 +261,22 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
             RectangleFigure::new(70.0, 100.0, 40.0, 80.0).expect("valid figure bounds"),
         ))
         .unwrap();
-    let router = runtime.connections().register_router(Box::new(
-        ShortestPathConnectionRouter::new([blocker])
-            .with_clearance(CLEARANCE)
-            .unwrap(),
-    ));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(
+            ShortestPathConnectionRouter::new([blocker])
+                .with_clearance(CLEARANCE)
+                .unwrap(),
+        ))
+        .unwrap();
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .unwrap();
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
     let mut connections = Vec::new();
     for _ in 0..2 {
         let figure = runtime
@@ -362,17 +374,22 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
                 .unwrap(),
         );
     }
-    let router = runtime.connections().register_router(Box::new(
-        ShortestPathConnectionRouter::new(obstacles)
-            .with_clearance(2.0)
-            .unwrap(),
-    ));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(
+            ShortestPathConnectionRouter::new(obstacles)
+                .with_clearance(2.0)
+                .unwrap(),
+        ))
+        .unwrap();
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source)))
+        .unwrap();
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target)))
+        .unwrap();
     let mut connections = Vec::with_capacity(COUNT);
     for _ in 0..COUNT {
         let figure = runtime

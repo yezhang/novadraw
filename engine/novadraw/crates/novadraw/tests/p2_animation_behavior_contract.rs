@@ -126,7 +126,8 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
     let listener_events = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_figure_listener(Box::new(FigureEventRecorder(listener_events.clone())));
+        .add_figure_listener(Box::new(FigureEventRecorder(listener_events.clone())))
+        .expect("healthy listener registration");
 
     runtime
         .figure(figure)

@@ -262,10 +262,12 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
         .generation();
     runtime
         .observations()
-        .add_ancestor_listener(Box::new(Events(trace.clone())));
+        .add_ancestor_listener(Box::new(Events(trace.clone())))
+        .expect("healthy listener registration");
     runtime
         .observations()
-        .add_layout_listener(Box::new(Events(trace.clone())));
+        .add_layout_listener(Box::new(Events(trace.clone())))
+        .expect("healthy listener registration");
     trace.borrow_mut().clear();
     let result = runtime.figure(parent).unwrap().insert_with_constraint(
         0,
@@ -309,10 +311,12 @@ fn runtime_publishes_one_added_and_one_constraint_event() {
     prepare_next_submission(&mut runtime).unwrap();
     runtime
         .observations()
-        .add_ancestor_listener(Box::new(Events(trace.clone())));
+        .add_ancestor_listener(Box::new(Events(trace.clone())))
+        .expect("healthy listener registration");
     runtime
         .observations()
-        .add_layout_listener(Box::new(Events(trace.clone())));
+        .add_layout_listener(Box::new(Events(trace.clone())))
+        .expect("healthy listener registration");
     let child = runtime
         .figure(parent)
         .unwrap()

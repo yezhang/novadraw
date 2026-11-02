@@ -6,14 +6,16 @@
 use std::{
     collections::VecDeque,
     num::NonZeroUsize,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 
+use novadraw::advanced::RuntimeNamespace;
 use novadraw::event::{
-    ListenerDirective, ListenerId, NotificationEffect, NotificationRecord, ObservationListener,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationRecord,
+    ObservationListener,
 };
 use novadraw::geometry::Rectangle;
-use novadraw::runtime::{Runtime, StableQueryError, StableSceneQuery};
+use novadraw::runtime::{Runtime, RuntimeMutationError, StableQueryError, StableSceneQuery};
 use novadraw::tree::{FigureId, FigureTree};
 
 /// A stable, UI-independent view of one attached Figure.
@@ -98,6 +100,8 @@ impl FigureTreeSnapshot {
 /// One committed notification effect retained for diagnostic presentation.
 #[derive(Clone, Debug)]
 pub struct InspectionEvent {
+    /// Runtime owning this record; sequences are ordered only within this namespace.
+    pub namespace: RuntimeNamespace,
     /// Stable epoch that committed this effect.
     pub source_epoch: u64,
     /// Globally ordered sequence inside the Runtime notification stream.
@@ -109,6 +113,7 @@ pub struct InspectionEvent {
 impl From<&NotificationRecord> for InspectionEvent {
     fn from(record: &NotificationRecord) -> Self {
         Self {
+            namespace: record.namespace,
             source_epoch: record.source_epoch,
             sequence: record.sequence,
             effect: record.effect.clone(),
@@ -124,10 +129,116 @@ struct InspectorState {
 
 impl InspectorState {
     fn push(&mut self, record: &NotificationRecord) {
-        self.events.push_back(InspectionEvent::from(record));
-        if self.events.len() > self.event_capacity.get() {
+        if self.events.len() == self.event_capacity.get() {
             self.events.pop_front();
         }
+        self.events.push_back(InspectionEvent::from(record));
+    }
+}
+
+/// Operation discovering or reporting an Inspector-local failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InspectorOperation {
+    Events,
+    ClearEvents,
+    Observe,
+    Attach,
+    AttachScoped,
+}
+
+/// Historical record position at which observer enqueue first published a fault.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InspectionSource {
+    pub namespace: RuntimeNamespace,
+    pub epoch: u64,
+    pub sequence: u64,
+}
+
+/// The first completely published event-buffer poison diagnosis.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InspectorFault {
+    pub operation: InspectorOperation,
+    pub source: Option<InspectionSource>,
+}
+
+/// A local operation failure or a preserved Core registration rejection.
+#[derive(Debug)]
+pub enum InspectorError {
+    Faulted {
+        operation: InspectorOperation,
+        first_fault: InspectorFault,
+    },
+    Registration(RuntimeMutationError),
+}
+
+impl std::fmt::Display for InspectorError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Faulted {
+                operation,
+                first_fault,
+            } => write!(
+                formatter,
+                "Inspector {operation:?} failed; first event-buffer fault: {first_fault:?}"
+            ),
+            Self::Registration(source) => write!(formatter, "Inspector registration: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for InspectorError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Registration(source) => Some(source),
+            Self::Faulted { .. } => None,
+        }
+    }
+}
+
+/// Explicit, movable subscription ownership. Drop performs no Runtime work.
+///
+/// Tokens cannot be cloned or copied:
+/// ```compile_fail
+/// use novadraw_inspector::InspectionSubscription;
+/// fn clone_token(token: &InspectionSubscription) -> InspectionSubscription {
+///     (*token).clone()
+/// }
+/// ```
+/// ```compile_fail
+/// use novadraw_inspector::InspectionSubscription;
+/// fn require_copy<T: Copy>() {}
+/// require_copy::<InspectionSubscription>();
+/// ```
+/// Registration must handle both Inspector and Core rejection:
+/// ```compile_fail
+/// use novadraw::{event::ListenerId, runtime::Runtime};
+/// use novadraw_inspector::FigureInspector;
+/// let inspector = FigureInspector::new(std::num::NonZeroUsize::new(8).unwrap());
+/// let id: ListenerId = inspector.attach(&mut Runtime::empty());
+/// ```
+#[derive(Debug)]
+#[must_use = "retain this token and explicitly detach from its owning Runtime"]
+pub struct InspectionSubscription {
+    listener: ListenerId,
+    scope: ListenerScope,
+}
+
+impl InspectionSubscription {
+    pub fn owner(&self) -> RuntimeNamespace {
+        self.listener.namespace()
+    }
+
+    pub fn listener_id(&self) -> ListenerId {
+        self.listener
+    }
+
+    pub fn scope(&self) -> ListenerScope {
+        self.scope
+    }
+
+    /// Removes the actual registration; a failed attempt leaves the token reusable.
+    pub fn detach(&self, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError> {
+        runtime.observations().remove_listener(self.listener)
     }
 }
 
@@ -135,6 +246,7 @@ impl InspectorState {
 #[derive(Clone, Debug)]
 pub struct FigureInspector {
     state: Arc<Mutex<InspectorState>>,
+    first_fault: Arc<OnceLock<InspectorFault>>,
 }
 
 impl FigureInspector {
@@ -145,16 +257,71 @@ impl FigureInspector {
                 event_capacity,
                 events: VecDeque::with_capacity(event_capacity.get()),
             })),
+            first_fault: Arc::new(OnceLock::new()),
         }
     }
 
     /// Registers this inspector as a Runtime-scoped committed-effect observer.
-    pub fn attach(&self, runtime: &mut Runtime) -> ListenerId {
-        runtime
+    pub fn attach(&self, runtime: &mut Runtime) -> Result<InspectionSubscription, InspectorError> {
+        self.attach_inner(runtime, ListenerScope::Runtime, InspectorOperation::Attach)
+    }
+
+    /// Registers with Figure disposal ownership or explicit Runtime ownership.
+    pub fn attach_scoped(
+        &self,
+        runtime: &mut Runtime,
+        scope: ListenerScope,
+    ) -> Result<InspectionSubscription, InspectorError> {
+        self.attach_inner(runtime, scope, InspectorOperation::AttachScoped)
+    }
+
+    fn attach_inner(
+        &self,
+        runtime: &mut Runtime,
+        scope: ListenerScope,
+        operation: InspectorOperation,
+    ) -> Result<InspectionSubscription, InspectorError> {
+        self.check_health(operation)?;
+        let listener = runtime
             .observations()
-            .add_observation_listener(Box::new(InspectorObserver {
-                state: Arc::clone(&self.state),
-            }))
+            .add_observation_listener_scoped(
+                scope,
+                Box::new(InspectorObserver {
+                    state: Arc::clone(&self.state),
+                    first_fault: Arc::clone(&self.first_fault),
+                }),
+            )
+            .map_err(InspectorError::Registration)?;
+        Ok(InspectionSubscription { listener, scope })
+    }
+
+    /// Reads the shared first fault without locking the event buffer.
+    pub fn fault(&self) -> Option<InspectorFault> {
+        self.first_fault.get().copied()
+    }
+
+    fn check_health(&self, operation: InspectorOperation) -> Result<(), InspectorError> {
+        match self.fault() {
+            Some(first_fault) => Err(InspectorError::Faulted {
+                operation,
+                first_fault,
+            }),
+            None => Ok(()),
+        }
+    }
+
+    fn publish_error(&self, operation: InspectorOperation) -> InspectorError {
+        let first_fault = publish_fault(
+            &self.first_fault,
+            InspectorFault {
+                operation,
+                source: None,
+            },
+        );
+        InspectorError::Faulted {
+            operation,
+            first_fault,
+        }
     }
 
     /// Captures a tree snapshot only after Runtime reports a stable scene.
@@ -164,29 +331,40 @@ impl FigureInspector {
     ) -> Result<FigureTreeSnapshot, StableQueryError> {
         let epoch = {
             let observations = runtime.observations();
-            observations.stable_query()?.epoch()
+            observations.checkpoint()?.stable_epoch
         };
         Ok(FigureTreeSnapshot::from_tree(epoch, runtime.tree()))
     }
 
     /// Returns retained events in FIFO commit order.
-    pub fn events(&self) -> Vec<InspectionEvent> {
+    pub fn events(&self) -> Result<Vec<InspectionEvent>, InspectorError> {
+        self.check_health(InspectorOperation::Events)?;
         self.state
             .lock()
             .map(|state| state.events.iter().cloned().collect())
-            .unwrap_or_default()
+            .map_err(|_| self.publish_error(InspectorOperation::Events))
     }
 
     /// Clears the retained diagnostic timeline without modifying Runtime state.
-    pub fn clear_events(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.events.clear();
-        }
+    pub fn clear_events(&self) -> Result<(), InspectorError> {
+        self.check_health(InspectorOperation::ClearEvents)?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| self.publish_error(InspectorOperation::ClearEvents))?;
+        state.events.clear();
+        Ok(())
     }
 }
 
 struct InspectorObserver {
     state: Arc<Mutex<InspectorState>>,
+    first_fault: Arc<OnceLock<InspectorFault>>,
+}
+
+fn publish_fault(cell: &OnceLock<InspectorFault>, candidate: InspectorFault) -> InspectorFault {
+    // The initializer copies fixed fields only; it cannot invoke a user callback or panic.
+    *cell.get_or_init(|| candidate)
 }
 
 impl ObservationListener for InspectorObserver {
@@ -195,9 +373,34 @@ impl ObservationListener for InspectorObserver {
         record: &NotificationRecord,
         _latest: StableSceneQuery<'_>,
     ) -> ListenerDirective {
-        if let Ok(mut state) = self.state.lock() {
-            state.push(record);
+        if self.first_fault.get().is_some() {
+            return ListenerDirective::Remove;
         }
-        ListenerDirective::Keep
+        match self.state.lock() {
+            Ok(mut state) => {
+                state.push(record);
+                ListenerDirective::Keep
+            }
+            Err(_) => {
+                publish_fault(
+                    &self.first_fault,
+                    InspectorFault {
+                        operation: InspectorOperation::Observe,
+                        source: Some(InspectionSource {
+                            namespace: record.namespace,
+                            epoch: record.source_epoch,
+                            sequence: record.sequence,
+                        }),
+                    },
+                );
+                ListenerDirective::Remove
+            }
+        }
     }
 }
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod cost;

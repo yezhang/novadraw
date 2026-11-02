@@ -39,8 +39,8 @@ pub use listener::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
     ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
-    NotificationRecord, ObservationListener, PropertyChangeListener, StableQueryError,
-    StableSceneQuery, UpdateEvent, UpdateListener, ValidatingListener,
+    NotificationRecord, ObservationCheckpoint, ObservationListener, PropertyChangeListener,
+    StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, ValidatingListener,
 };
 pub use property::{
     DiscretePropertyValue, ErasedPropertyKey, PropertyChangeEvent, PropertyKey, PropertyValue,

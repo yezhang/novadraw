@@ -14,9 +14,15 @@ name = "animation-failure-cost"
 path = "src/main.rs"
 required-features = ["consume-animation"]
 
+[[bin]]
+name = "inspector-lifecycle"
+path = "src/inspector_lifecycle.rs"
+required-features = ["consume-inspector"]
+
 [features]
 default = ["consume-animation"]
 consume-animation = []
+consume-connections = []
 consume-inspector = ["dep:novadraw-inspector"]
 
 [dependencies]

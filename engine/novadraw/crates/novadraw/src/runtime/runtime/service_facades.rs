@@ -299,15 +299,31 @@ impl<'a> RuntimeConnections<'a> {
         self.runtime.direct_connection_router()
     }
 
-    pub fn register_anchor(&mut self, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
-        self.runtime.register_connection_anchor(anchor)
-    }
-
-    pub fn try_register_anchor(
+    /// Registers an Anchor after checking Runtime health.
+    ///
+    /// A faulted Runtime rejects admission without publishing a new identity.
+    /// Registration does not invoke the Anchor's geometry callbacks.
+    ///
+    /// The old direct-ID API must handle the Result:
+    /// ```compile_fail
+    /// use novadraw::{connection::{AnchorId, ConnectionAnchor}, runtime::Runtime};
+    /// fn old(runtime: &mut Runtime, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
+    ///     runtime.connections().register_anchor(anchor)
+    /// }
+    /// ```
+    /// The old fallible alias is removed:
+    /// ```compile_fail
+    /// use novadraw::{connection::{AnchorId, ConnectionAnchor, ConnectionRuntimeError}, runtime::Runtime};
+    /// fn old(runtime: &mut Runtime, anchor: Box<dyn ConnectionAnchor>)
+    ///     -> Result<AnchorId, ConnectionRuntimeError> {
+    ///     runtime.connections().try_register_anchor(anchor)
+    /// }
+    /// ```
+    pub fn register_anchor(
         &mut self,
         anchor: Box<dyn ConnectionAnchor>,
     ) -> Result<AnchorId, ConnectionRuntimeError> {
-        self.runtime.try_register_connection_anchor(anchor)
+        self.runtime.register_connection_anchor(anchor)
     }
 
     pub fn remove_anchor(
@@ -334,15 +350,30 @@ impl<'a> RuntimeConnections<'a> {
         self.runtime.anchor_geometry(figure, key)
     }
 
-    pub fn register_router(&mut self, router: Box<dyn ConnectionRouter>) -> RouterId {
-        self.runtime.register_connection_router(router)
-    }
-
-    pub fn try_register_router(
+    /// Registers a Router after checking Runtime health.
+    ///
+    /// Admission does not invoke route calculation or validate routing constraints.
+    ///
+    /// The old direct-ID API must handle the Result:
+    /// ```compile_fail
+    /// use novadraw::{connection::{ConnectionRouter, RouterId}, runtime::Runtime};
+    /// fn old(runtime: &mut Runtime, router: Box<dyn ConnectionRouter>) -> RouterId {
+    ///     runtime.connections().register_router(router)
+    /// }
+    /// ```
+    /// The old fallible alias is removed:
+    /// ```compile_fail
+    /// use novadraw::{connection::{ConnectionRouter, ConnectionRuntimeError, RouterId}, runtime::Runtime};
+    /// fn old(runtime: &mut Runtime, router: Box<dyn ConnectionRouter>)
+    ///     -> Result<RouterId, ConnectionRuntimeError> {
+    ///     runtime.connections().try_register_router(router)
+    /// }
+    /// ```
+    pub fn register_router(
         &mut self,
         router: Box<dyn ConnectionRouter>,
     ) -> Result<RouterId, ConnectionRuntimeError> {
-        self.runtime.try_register_connection_router(router)
+        self.runtime.register_connection_router(router)
     }
 
     pub fn remove_router(
@@ -853,7 +884,10 @@ impl<'a> RuntimeObservations<'a> {
         Self { runtime }
     }
 
-    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+    pub fn add_update_listener(
+        &mut self,
+        listener: Box<dyn UpdateListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_update_listener(listener)
     }
 
@@ -865,7 +899,10 @@ impl<'a> RuntimeObservations<'a> {
         self.runtime.add_update_listener_scoped(scope, listener)
     }
 
-    pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
+    pub fn add_figure_listener(
+        &mut self,
+        listener: Box<dyn FigureListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_figure_listener(listener)
     }
 
@@ -877,7 +914,10 @@ impl<'a> RuntimeObservations<'a> {
         self.runtime.add_figure_listener_scoped(scope, listener)
     }
 
-    pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
+    pub fn add_coordinate_listener(
+        &mut self,
+        listener: Box<dyn CoordinateListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_coordinate_listener(listener)
     }
 
@@ -889,7 +929,10 @@ impl<'a> RuntimeObservations<'a> {
         self.runtime.add_coordinate_listener_scoped(scope, listener)
     }
 
-    pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
+    pub fn add_ancestor_listener(
+        &mut self,
+        listener: Box<dyn AncestorListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_ancestor_listener(listener)
     }
 
@@ -904,7 +947,7 @@ impl<'a> RuntimeObservations<'a> {
     pub fn add_property_listener(
         &mut self,
         listener: Box<dyn PropertyChangeListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_property_listener(listener)
     }
 
@@ -916,7 +959,10 @@ impl<'a> RuntimeObservations<'a> {
         self.runtime.add_property_listener_scoped(scope, listener)
     }
 
-    pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
+    pub fn add_action_listener(
+        &mut self,
+        listener: Box<dyn ActionListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_action_listener(listener)
     }
 
@@ -928,7 +974,10 @@ impl<'a> RuntimeObservations<'a> {
         self.runtime.add_action_listener_scoped(scope, listener)
     }
 
-    pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
+    pub fn add_layout_listener(
+        &mut self,
+        listener: Box<dyn LayoutListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_layout_listener(listener)
     }
 
@@ -943,7 +992,7 @@ impl<'a> RuntimeObservations<'a> {
     pub fn add_observation_listener(
         &mut self,
         listener: Box<dyn ObservationListener>,
-    ) -> ListenerId {
+    ) -> Result<ListenerId, RuntimeMutationError> {
         self.runtime.add_observation_listener(listener)
     }
 
@@ -956,12 +1005,17 @@ impl<'a> RuntimeObservations<'a> {
             .add_observation_listener_scoped(scope, listener)
     }
 
-    pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+    pub fn remove_listener(&mut self, id: ListenerId) -> Result<bool, RuntimeMutationError> {
         self.runtime.remove_listener(id)
     }
 
     pub fn stable_query(&self) -> Result<StableSceneQuery<'_>, StableQueryError> {
         self.runtime.stable_query()
+    }
+
+    /// Reads the complete publication boundary without driving Runtime or GPU work.
+    pub fn checkpoint(&self) -> Result<crate::event::ObservationCheckpoint, StableQueryError> {
+        self.runtime.observation_checkpoint()
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {

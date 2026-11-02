@@ -85,10 +85,12 @@ fn rejected_feedback_restores_routes_and_external_decoration_geometry() {
         .unwrap();
     let source = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(children[0])));
+        .register_anchor(Box::new(ChopboxAnchor::new(children[0])))
+        .unwrap();
     let target = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(children[1])));
+        .register_anchor(Box::new(ChopboxAnchor::new(children[1])))
+        .unwrap();
     let connection = runtime
         .connections()
         .register_state(
@@ -317,7 +319,8 @@ fn activity_source_write_survives_later_preparation_failure() {
     let moves = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_figure_listener(Box::new(Moves(moves.clone())));
+        .add_figure_listener(Box::new(Moves(moves.clone())))
+        .expect("healthy listener registration");
     let before = runtime.tree().figure_bounds(children[0]).unwrap();
     mode.store(6, Ordering::Relaxed);
     assert!(!frame(&mut runtime));

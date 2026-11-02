@@ -123,7 +123,8 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
         .observations()
         .add_update_listener(Box::new(CaptureListener {
             effects: effects.clone(),
-        }));
+        }))
+        .expect("healthy listener registration");
     runtime
         .figure(child)
         .unwrap()
@@ -208,7 +209,8 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
         .observations()
         .add_update_listener(Box::new(PanicOnceListener {
             did_panic: AtomicBool::new(false),
-        }));
+        }))
+        .expect("healthy listener registration");
     runtime
         .figure(child)
         .unwrap()

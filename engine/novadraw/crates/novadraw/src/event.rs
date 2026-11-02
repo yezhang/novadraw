@@ -28,7 +28,7 @@ pub use crate::runtime::update::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, DiscretePropertyValue, ErasedPropertyKey, FigureEvent, FigureListener,
     LayoutEvent, LayoutEventKind, LayoutListener, ListenerDirective, ListenerId, ListenerScope,
-    NotificationEffect, NotificationRecord, ObservationListener, PropertyChangeEvent,
-    PropertyChangeListener, PropertyKey, PropertyValue, PropertyValueType, TypedPropertyChange,
-    UpdateEvent, UpdateListener, ValidatingListener,
+    NotificationEffect, NotificationRecord, ObservationCheckpoint, ObservationListener,
+    PropertyChangeEvent, PropertyChangeListener, PropertyKey, PropertyValue, PropertyValueType,
+    TypedPropertyChange, UpdateEvent, UpdateListener, ValidatingListener,
 };

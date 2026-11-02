@@ -204,18 +204,18 @@ fn anchor_matrix() -> Runtime {
             0 => (
                 runtime
                     .connections()
-                    .register_anchor(Box::new(ChopboxAnchor::new(source))),
+                    .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration"),
                 runtime
                     .connections()
-                    .register_anchor(Box::new(ChopboxAnchor::new(target))),
+                    .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration"),
             ),
             1 => (
                 runtime
                     .connections()
-                    .register_anchor(Box::new(EllipseAnchor::new(source))),
+                    .register_anchor(Box::new(EllipseAnchor::new(source))).expect("healthy scene registration"),
                 runtime
                     .connections()
-                    .register_anchor(Box::new(EllipseAnchor::new(target))),
+                    .register_anchor(Box::new(EllipseAnchor::new(target))).expect("healthy scene registration"),
             ),
             2 => (
                 runtime.connections().register_anchor(Box::new(
@@ -223,13 +223,13 @@ fn anchor_matrix() -> Runtime {
                         source,
                         Dimension::new(48.0, 48.0),
                     ),
-                )),
+                )).expect("healthy scene registration"),
                 runtime.connections().register_anchor(Box::new(
                     RoundedRectangleAnchor::with_corner_dimensions(
                         target,
                         Dimension::new(48.0, 48.0),
                     ),
-                )),
+                )).expect("healthy scene registration"),
             ),
             3 => {
                 let icon = AnchorGeometryKey::icon();
@@ -280,10 +280,10 @@ fn anchor_matrix() -> Runtime {
                 (
                     runtime
                         .connections()
-                        .register_anchor(Box::new(LabelAnchor::new(source))),
+                        .register_anchor(Box::new(LabelAnchor::new(source))).expect("healthy scene registration"),
                     runtime
                         .connections()
-                        .register_anchor(Box::new(LabelAnchor::new(target))),
+                        .register_anchor(Box::new(LabelAnchor::new(target))).expect("healthy scene registration"),
                 )
             }
             _ => (
@@ -292,13 +292,13 @@ fn anchor_matrix() -> Runtime {
                     .register_anchor(Box::new(XYAnchor::new(
                         Point::new(SOURCE_X + NODE_WIDTH, y + NODE_HEIGHT / 2.0),
                         CoordinateSpace::ChildContent(root),
-                    ))),
+                    ))).expect("healthy scene registration"),
                 runtime
                     .connections()
                     .register_anchor(Box::new(XYAnchor::new(
                         Point::new(TARGET_X, y + NODE_HEIGHT / 2.0),
                         CoordinateSpace::ChildContent(root),
-                    ))),
+                    ))).expect("healthy scene registration"),
             ),
         };
         let direct_router = runtime.connections().direct_router();
@@ -359,13 +359,13 @@ fn bendpoint_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
     let router = runtime
         .connections()
-        .register_router(Box::new(BendpointConnectionRouter));
+        .register_router(Box::new(BendpointConnectionRouter)).expect("healthy scene registration");
     let constraint = BendpointConstraint::new(vec![
         Bendpoint::Absolute(Point::new(250.0, 130.0)),
         Bendpoint::Relative {
@@ -400,7 +400,7 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
         .expect("valid Runtime mutation");
     let router = runtime
         .connections()
-        .register_router(Box::new(ManhattanConnectionRouter));
+        .register_router(Box::new(ManhattanConnectionRouter)).expect("healthy scene registration");
     for index in 0..3 {
         let connection_figure = runtime
             .figure(root)
@@ -445,10 +445,10 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
             .expect("valid Runtime mutation");
         let source_anchor = runtime
             .connections()
-            .register_anchor(Box::new(ChopboxAnchor::new(source)));
+            .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
         let target_anchor = runtime
             .connections()
-            .register_anchor(Box::new(ChopboxAnchor::new(target)));
+            .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
         let id = runtime
             .connections()
             .register_state(
@@ -471,7 +471,7 @@ fn shared_manhattan_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let router = runtime
         .connections()
-        .register_router(Box::new(ManhattanConnectionRouter));
+        .register_router(Box::new(ManhattanConnectionRouter)).expect("healthy scene registration");
     let source = runtime
         .figure(root)
         .unwrap()
@@ -502,10 +502,10 @@ fn shared_manhattan_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
     let mut entries = Vec::new();
     for index in 0..4 {
         let connection_figure = runtime
@@ -597,10 +597,10 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        .register_anchor(Box::new(ChopboxAnchor::new(source))).expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+        .register_anchor(Box::new(ChopboxAnchor::new(target))).expect("healthy scene registration");
     let direct_router = runtime.connections().direct_router();
     let connection_id = runtime
         .connections()
@@ -676,13 +676,13 @@ fn fan_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let source_anchor = runtime
         .connections()
-        .register_anchor(Box::new(EllipseAnchor::new(source)));
+        .register_anchor(Box::new(EllipseAnchor::new(source))).expect("healthy scene registration");
     let target_anchor = runtime
         .connections()
-        .register_anchor(Box::new(EllipseAnchor::new(target)));
+        .register_anchor(Box::new(EllipseAnchor::new(target))).expect("healthy scene registration");
     let router = runtime.connections().register_router(Box::new(
         FanRouter::new(Box::new(DirectRouter), FAN_DEFAULT_SEPARATION).unwrap(),
-    ));
+    )).expect("healthy scene registration");
     let ids: Vec<_> = connection_figures
         .into_iter()
         .map(|figure| {
@@ -764,13 +764,13 @@ fn connection_layer_scene() -> Runtime {
         .expect("valid Runtime mutation");
     let source_anchor = runtime.connections().register_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(source, Dimension::new(40.0, 40.0)),
-    ));
+    )).expect("healthy scene registration");
     let target_anchor = runtime.connections().register_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(target, Dimension::new(40.0, 40.0)),
-    ));
+    )).expect("healthy scene registration");
     let router = runtime
         .connections()
-        .register_router(Box::new(ManhattanConnectionRouter));
+        .register_router(Box::new(ManhattanConnectionRouter)).expect("healthy scene registration");
     runtime
         .connections()
         .set_layer_router(layer, router)

@@ -173,13 +173,15 @@ fn fixture(required: bool) -> Fixture {
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(10.0, 10.0),
             CoordinateSpace::ChildContent(owner),
-        )));
+        )))
+        .unwrap();
     let target = runtime
         .connections()
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(90.0, 60.0),
             CoordinateSpace::ChildContent(owner),
-        )));
+        )))
+        .unwrap();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let route_fail = Arc::new(AtomicBool::new(false));
     let router = runtime
@@ -188,7 +190,8 @@ fn fixture(required: bool) -> Fixture {
             owner,
             seen: seen.clone(),
             fail: route_fail.clone(),
-        }));
+        }))
+        .unwrap();
     let connection = runtime
         .connections()
         .register_state(
@@ -257,7 +260,8 @@ fn required_members_must_cover_the_full_solver_group() {
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(90.0, 30.0),
             CoordinateSpace::ChildContent(f.owner),
-        )));
+        )))
+        .unwrap();
     let extra = f
         .runtime
         .connections()
@@ -517,7 +521,8 @@ fn changed_binding_route_failure_preserves_binding_and_rejects_old_resolution() 
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(15.0, 20.0),
             CoordinateSpace::ChildContent(f.owner),
-        )));
+        )))
+        .unwrap();
     f.runtime
         .connections()
         .set_source(f.connection, Some(source))
@@ -774,14 +779,16 @@ fn new_cross_owner_candidate_reads_are_rejected_before_publication_and_recover()
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(10.0, 10.0),
             CoordinateSpace::ChildContent(child),
-        )));
+        )))
+        .unwrap();
     let target = f
         .runtime
         .connections()
         .register_anchor(Box::new(XYAnchor::new(
             Point::new(70.0, 50.0),
             CoordinateSpace::ChildContent(child),
-        )));
+        )))
+        .unwrap();
     let router = f
         .runtime
         .connections()
@@ -789,7 +796,8 @@ fn new_cross_owner_candidate_reads_are_rejected_before_publication_and_recover()
             owner: f.owner,
             seen: f.seen.clone(),
             fail: f.route_fail.clone(),
-        }));
+        }))
+        .unwrap();
     let connection = f
         .runtime
         .connections()
@@ -894,7 +902,8 @@ fn replacing_router_binding_retires_the_old_calculation_edges() {
     let router = f
         .runtime
         .connections()
-        .register_router(Box::new(DirectRouter));
+        .register_router(Box::new(DirectRouter))
+        .unwrap();
     f.runtime
         .connections()
         .set_router_binding(f.connection, RouterBinding::Explicit { router })

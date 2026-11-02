@@ -176,7 +176,8 @@ impl DemoApp {
             }
             runtime
                 .observations()
-                .add_update_listener(Box::new(DemoUpdateListener));
+                .add_update_listener(Box::new(DemoUpdateListener))
+                .expect("healthy listener registration");
             self.runtime = Some(runtime);
             self.sync_logical_viewport();
             self.initial_frame_presented = false;

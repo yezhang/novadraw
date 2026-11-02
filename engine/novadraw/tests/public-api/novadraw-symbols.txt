@@ -276,6 +276,7 @@ module.event struct ListenerId
 module.event struct MonotonicTime
 module.event struct MouseEvent
 module.event struct NotificationRecord
+module.event struct ObservationCheckpoint
 module.event struct PointerId
 module.event struct PropertyChangeEvent
 module.event struct PropertyKey

@@ -392,6 +392,8 @@ impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeMutationError {
     ForeignRuntime(FigureId),
+    ForeignListener(crate::event::ListenerId),
+    ListenerIdExhausted,
     Faulted,
     BorderPreparation {
         figure: FigureId,
@@ -459,6 +461,8 @@ impl fmt::Display for RuntimeMutationError {
             }
             Self::Animation(error) => error.fmt(formatter),
             Self::ForeignRuntime(figure) => write!(formatter, "foreign Runtime Figure: {figure:?}"),
+            Self::ForeignListener(id) => write!(formatter, "foreign Runtime listener: {id:?}"),
+            Self::ListenerIdExhausted => formatter.write_str("listener identity space exhausted"),
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::FigureBatch { index, source } => {
                 write!(formatter, "Figure input {index}: {source}")

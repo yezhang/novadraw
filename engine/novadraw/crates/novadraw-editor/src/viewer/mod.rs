@@ -1423,7 +1423,7 @@ where
             if connection_routers.contains_key(&key) {
                 return Err(EditPartError::operation("duplicate connection Router key").into());
             }
-            let router = runtime.connections().try_register_router(router)?;
+            let router = runtime.connections().register_router(router)?;
             connection_routers.insert(key, router);
         }
         let parts = PartTree::new(root_layers.root(), root_layers.primary());
@@ -1623,7 +1623,7 @@ where
         if self.ensure_ready().is_err() {
             return Err(ConnectionRuntimeError::Faulted);
         }
-        self.runtime.connections().try_register_router(router)
+        self.runtime.connections().register_router(router)
     }
 
     /// Removes an application router after all layer and explicit bindings release it.

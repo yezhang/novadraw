@@ -368,12 +368,14 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         .observations()
         .add_figure_listener(Box::new(CoordinateEventRecorder(Arc::clone(
             &figure_events,
-        ))));
+        ))))
+        .expect("healthy listener registration");
     runtime
         .observations()
         .add_coordinate_listener(Box::new(CoordinateEventRecorder(Arc::clone(
             &figure_events,
-        ))));
+        ))))
+        .expect("healthy listener registration");
     assert!(
         runtime
             .figure(coordinate_root)

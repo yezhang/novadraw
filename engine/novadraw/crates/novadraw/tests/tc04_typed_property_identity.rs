@@ -219,7 +219,8 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
     let observed = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))));
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))))
+        .expect("healthy listener registration");
 
     runtime
         .input()

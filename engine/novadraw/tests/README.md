@@ -53,7 +53,19 @@ cargo run --manifest-path tests/consumers/service-failure/Cargo.toml --release -
 
 消费者的可达体积变体和采样范围见 [service-failure](consumers/service-failure/README.md)。
 结果按 [S09-A 实施记录](../doc/verification/reviews/p2-s09-a-implementation-2026-10-30.md)
-统计，S09-B Inspector／Observations 尚未完成。
+统计。S09-B Inspector／Observations 已完成，见
+[实施记录](../doc/verification/reviews/p2-s09-b-implementation-2026-10-30.md)。
+
+S09-C Connections 注册使用以下定向入口，最终仍执行 workspace 门禁：
+
+```bash
+cargo test -p novadraw --lib s09_faulted_connection_registration
+cargo test -p novadraw --test p2_s09_connection_registration
+cargo test --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --offline --no-default-features --features consume-connections
+cargo check --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --offline --no-default-features --features consume-connections --target wasm32-unknown-unknown
+```
+
+测试范围及平台限制见 [S09-C 实施记录](../doc/verification/reviews/p2-s09-c-implementation-2026-11-02.md)。
 
 ADR-055 容器协议使用公开 API 契约夹具及独立 workspace 消费者：
 

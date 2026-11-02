@@ -390,7 +390,8 @@ fn action_listener_flushes_at_the_update_transaction_boundary() {
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_action_listener(Box::new(ActionRecorder(Arc::clone(&events))));
+        .add_action_listener(Box::new(ActionRecorder(Arc::clone(&events))))
+        .expect("healthy listener registration");
 
     assert!(runtime.input().do_click(clickable).unwrap());
     assert!(events.lock().unwrap().is_empty());

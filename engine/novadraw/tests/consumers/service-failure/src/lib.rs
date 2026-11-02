@@ -1,5 +1,31 @@
 use novadraw::runtime::Runtime;
 
+#[cfg(feature = "consume-inspector")]
+pub mod inspection;
+
+#[cfg(feature = "consume-connections")]
+#[unsafe(no_mangle)]
+pub extern "C" fn connection_registration() -> bool {
+    let mut runtime = Runtime::empty();
+    let anchor =
+        runtime
+            .connections()
+            .register_anchor(Box::new(novadraw::connection::XYAnchor::new(
+                novadraw::geometry::Point::new(0.0, 0.0),
+                novadraw::connection::CoordinateSpace::LogicalSurface,
+            )));
+    anchor.is_ok()
+        && runtime
+            .connections()
+            .register_router(Box::new(novadraw::connection::DirectRouter))
+            .is_ok()
+}
+
+#[cfg(all(test, feature = "consume-connections"))]
+mod connection_contracts {
+    include!("../../../../crates/novadraw/tests/p2_s09_connection_registration.rs");
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn empty_owner() -> bool {
     Runtime::empty().is_faulted()
@@ -38,11 +64,14 @@ pub extern "C" fn inspection_events() -> usize {
     use novadraw_inspector::FigureInspector;
     let inspector = FigureInspector::new(std::num::NonZeroUsize::new(16).unwrap());
     let mut runtime = Runtime::empty();
-    let _subscription = inspector.attach(&mut runtime);
-    inspector.events().len()
+    let subscription = inspector.attach(&mut runtime).unwrap();
+    runtime.frames().stabilize_for_query().unwrap();
+    let count = inspector.events().unwrap().len();
+    subscription.detach(&mut runtime).unwrap();
+    count
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "consume-animation"))]
 mod contracts {
     include!("../../../../crates/novadraw/tests/p2_s09_animation_failure.rs");
 }

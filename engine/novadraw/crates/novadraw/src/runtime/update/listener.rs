@@ -153,9 +153,18 @@ pub enum NotificationEffect {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NotificationRecord {
+    pub namespace: crate::RuntimeNamespace,
     pub source_epoch: u64,
     pub sequence: u64,
     pub effect: NotificationEffect,
+}
+
+/// A fully published notification boundary, independent of GPU presentation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ObservationCheckpoint {
+    pub namespace: crate::RuntimeNamespace,
+    pub stable_epoch: u64,
+    pub last_published_sequence: Option<u64>,
 }
 
 #[derive(Clone, Copy)]

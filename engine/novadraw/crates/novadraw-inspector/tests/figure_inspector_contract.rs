@@ -66,7 +66,7 @@ fn captures_parent_first_tree_and_committed_effect_order() {
 
     let inspector =
         FigureInspector::new(NonZeroUsize::new(EVENT_CAPACITY).expect("non-zero capacity"));
-    inspector.attach(&mut runtime);
+    let subscription = inspector.attach(&mut runtime).unwrap();
     let changed_bounds = Rectangle::new(16.0, 18.0, 32.0, 36.0);
     assert!(
         runtime
@@ -88,7 +88,7 @@ fn captures_parent_first_tree_and_committed_effect_order() {
     assert_eq!(snapshot.nodes()[2].bounds, changed_bounds);
     assert_eq!(snapshot.nodes()[2].figure_name, "RectangleFigure");
 
-    let events = inspector.events();
+    let events = inspector.events().unwrap();
     assert!(
         events
             .windows(2)
@@ -104,6 +104,7 @@ fn captures_parent_first_tree_and_committed_effect_order() {
             }) if figure_id == child && new_bounds == changed_bounds
         )
     }));
+    assert!(subscription.detach(&mut runtime).unwrap());
 }
 
 #[test]
@@ -111,7 +112,7 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     let (mut runtime, contents, _) = runtime_with_contents();
     let inspector =
         FigureInspector::new(NonZeroUsize::new(NARROW_EVENT_CAPACITY).expect("non-zero capacity"));
-    inspector.attach(&mut runtime);
+    let subscription = inspector.attach(&mut runtime).unwrap();
 
     assert!(matches!(
         inspector.capture_tree(&mut runtime),
@@ -128,7 +129,8 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     );
     stabilize(&mut runtime);
 
-    assert!(inspector.events().len() <= NARROW_EVENT_CAPACITY);
-    inspector.clear_events();
-    assert!(inspector.events().is_empty());
+    assert!(inspector.events().unwrap().len() <= NARROW_EVENT_CAPACITY);
+    inspector.clear_events().unwrap();
+    assert!(inspector.events().unwrap().is_empty());
+    assert!(subscription.detach(&mut runtime).unwrap());
 }

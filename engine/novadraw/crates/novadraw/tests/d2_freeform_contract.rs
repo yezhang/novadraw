@@ -232,7 +232,8 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime
         .observations()
-        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))))
+        .expect("healthy listener registration");
     runtime
         .figure(child)
         .unwrap()

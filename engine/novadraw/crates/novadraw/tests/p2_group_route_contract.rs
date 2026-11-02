@@ -100,7 +100,8 @@ fn external_group_outputs_are_atomic_and_recover_after_invalid_identity_sets() {
     let mode = Arc::new(AtomicUsize::new(0));
     let router = runtime
         .connections()
-        .register_router(Box::new(ExternalGroupSolver { mode: mode.clone() }));
+        .register_router(Box::new(ExternalGroupSolver { mode: mode.clone() }))
+        .unwrap();
     let mut connections = Vec::new();
     for y in [30.0, 100.0] {
         let figure = runtime
@@ -113,13 +114,15 @@ fn external_group_outputs_are_atomic_and_recover_after_invalid_identity_sets() {
             .register_anchor(Box::new(XYAnchor::new(
                 Point::new(20.0, y),
                 CoordinateSpace::ChildContent(root),
-            )));
+            )))
+            .unwrap();
         let b = runtime
             .connections()
             .register_anchor(Box::new(XYAnchor::new(
                 Point::new(300.0, y),
                 CoordinateSpace::ChildContent(root),
-            )));
+            )))
+            .unwrap();
         connections.push(
             runtime
                 .connections()

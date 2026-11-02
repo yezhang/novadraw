@@ -105,7 +105,8 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         .add_observation_listener(Box::new(CaptureMoves {
             figure,
             records: Arc::clone(&records),
-        }));
+        }))
+        .expect("healthy listener registration");
 
     let first = Rectangle::new(5.0, 6.0, 30.0, 20.0);
     let second = Rectangle::new(9.0, 10.0, 40.0, 24.0);
@@ -184,7 +185,8 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         .observations()
         .add_observation_listener(Box::new(CaptureAll {
             records: Arc::clone(&notification_only),
-        }));
+        }))
+        .expect("healthy listener registration");
     let previous_epoch = runtime.observations().stable_query().unwrap().epoch();
     assert!(
         runtime

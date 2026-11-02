@@ -71,6 +71,8 @@ pub struct UpdateManager {
     observation_listeners: Vec<(ListenerId, Box<dyn ObservationListener>)>,
     next_listener_id: u64,
     next_notification_sequence: u64,
+    last_published_sequence: Option<u64>,
+    dispatching: bool,
     publication_epoch: u64,
     last_validation_error: Option<ValidationError>,
 }
@@ -228,64 +230,84 @@ impl UpdateManager {
             observation_listeners: Vec::new(),
             next_listener_id: 1,
             next_notification_sequence: 1,
+            last_published_sequence: None,
+            dispatching: false,
             publication_epoch: 0,
             last_validation_error: None,
         }
     }
 
     /// 注册更新监听器
-    pub fn add_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_listener(
+        &mut self,
+        listener: Box<dyn UpdateListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
-    pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_figure_listener(
+        &mut self,
+        listener: Box<dyn FigureListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.figure_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
-    pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_coordinate_listener(
+        &mut self,
+        listener: Box<dyn CoordinateListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.coordinate_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
-    pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_ancestor_listener(
+        &mut self,
+        listener: Box<dyn AncestorListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.ancestor_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
     pub fn add_property_listener(
         &mut self,
         listener: Box<dyn PropertyChangeListener>,
-    ) -> ListenerId {
-        let id = self.allocate_listener_id();
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.property_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
-    pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_action_listener(
+        &mut self,
+        listener: Box<dyn ActionListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.action_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
-    pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
-        let id = self.allocate_listener_id();
+    pub fn add_layout_listener(
+        &mut self,
+        listener: Box<dyn LayoutListener>,
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.layout_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
     pub fn add_observation_listener(
         &mut self,
         listener: Box<dyn ObservationListener>,
-    ) -> ListenerId {
-        let id = self.allocate_listener_id();
+    ) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
+        let id = self.allocate_listener_id()?;
         self.observation_listeners.push((id, listener));
-        id
+        Ok(id)
     }
 
     pub fn remove_listener(&mut self, id: ListenerId) -> bool {
@@ -300,13 +322,42 @@ impl UpdateManager {
             || remove_listener(&mut self.observation_listeners, id)
     }
 
-    fn allocate_listener_id(&mut self) -> ListenerId {
+    fn allocate_listener_id(&mut self) -> Result<ListenerId, crate::runtime::RuntimeMutationError> {
         let id = ListenerId::new(self.namespace, self.next_listener_id);
         self.next_listener_id = self
             .next_listener_id
             .checked_add(1)
-            .expect("listener id space exhausted");
-        id
+            .ok_or(crate::runtime::RuntimeMutationError::ListenerIdExhausted)?;
+        Ok(id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exhaust_listener_ids_for_test(&mut self) {
+        self.next_listener_id = u64::MAX;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn listener_admission_facts_for_test(
+        &self,
+    ) -> (
+        u64,
+        [usize; 8],
+        std::collections::HashMap<ListenerId, FigureId>,
+    ) {
+        (
+            self.next_listener_id,
+            [
+                self.listeners.len(),
+                self.figure_listeners.len(),
+                self.coordinate_listeners.len(),
+                self.ancestor_listeners.len(),
+                self.property_listeners.len(),
+                self.action_listeners.len(),
+                self.layout_listeners.len(),
+                self.observation_listeners.len(),
+            ],
+            self.listener_owners.clone(),
+        )
     }
 
     /// 向所有监听器分发 effect 队列中的事件
@@ -316,6 +367,7 @@ impl UpdateManager {
         graph: &crate::FigureTree,
         source_epoch: u64,
     ) {
+        self.dispatching = true;
         for effect in effects {
             let sequence = self.next_notification_sequence;
             self.next_notification_sequence = self
@@ -323,6 +375,7 @@ impl UpdateManager {
                 .checked_add(1)
                 .expect("notification sequence space exhausted");
             let record = NotificationRecord {
+                namespace: self.namespace,
                 source_epoch,
                 sequence,
                 effect: effect.clone(),
@@ -392,7 +445,23 @@ impl UpdateManager {
                     });
                 }
             }
+            self.last_published_sequence = Some(sequence);
         }
+        self.dispatching = false;
+    }
+
+    pub(crate) fn publication_checkpoint(
+        &self,
+        stable_epoch: u64,
+    ) -> Option<super::ObservationCheckpoint> {
+        if self.dispatching || !self.notification_effects.is_empty() {
+            return None;
+        }
+        Some(super::ObservationCheckpoint {
+            namespace: self.namespace,
+            stable_epoch,
+            last_published_sequence: self.last_published_sequence,
+        })
     }
 
     fn absorb_graph_effects(&mut self, graph: &mut crate::graph::FigureTree) {
@@ -767,6 +836,106 @@ fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: Lis
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn publication_cursor_preserves_complete_prefix_on_observer_panic() {
+        use std::{
+            cell::Cell,
+            panic::{AssertUnwindSafe, catch_unwind},
+            rc::Rc,
+        };
+        struct PanicSecond(Rc<Cell<usize>>);
+        impl ObservationListener for PanicSecond {
+            fn observed(
+                &self,
+                _: &NotificationRecord,
+                _: StableSceneQuery<'_>,
+            ) -> ListenerDirective {
+                let count = self.0.get() + 1;
+                self.0.set(count);
+                assert_ne!(count, 2, "injected observer panic");
+                ListenerDirective::Keep
+            }
+        }
+        let mut graph = crate::FigureTree::new();
+        let mut manager = UpdateManager::with_namespace(graph.namespace());
+        assert_eq!(
+            manager
+                .publication_checkpoint(0)
+                .unwrap()
+                .last_published_sequence,
+            None
+        );
+        manager
+            .add_observation_listener(Box::new(PanicSecond(Rc::new(Cell::new(0)))))
+            .unwrap();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| manager.dispatch_effects(
+                &[
+                    NotificationEffect::Notify {
+                        figure_id: graph.root_id()
+                    },
+                    NotificationEffect::Notify {
+                        figure_id: graph.root_id()
+                    }
+                ],
+                &graph,
+                7
+            )))
+            .is_err()
+        );
+        assert_eq!(manager.last_published_sequence, Some(1));
+        assert!(manager.dispatching);
+        assert!(manager.publication_checkpoint(7).is_none());
+        graph.drain_notification_effects();
+    }
+
+    #[test]
+    fn publication_cursor_advances_with_zero_listeners_and_self_removal() {
+        struct Once;
+        impl ObservationListener for Once {
+            fn observed(
+                &self,
+                _: &NotificationRecord,
+                _: StableSceneQuery<'_>,
+            ) -> ListenerDirective {
+                ListenerDirective::Remove
+            }
+        }
+        let graph = crate::FigureTree::new();
+        let mut manager = UpdateManager::with_namespace(graph.namespace());
+        let effect = NotificationEffect::Notify {
+            figure_id: graph.root_id(),
+        };
+        manager.dispatch_effects(std::slice::from_ref(&effect), &graph, 1);
+        assert_eq!(manager.last_published_sequence, Some(1));
+        let id = manager.add_observation_listener(Box::new(Once)).unwrap();
+        struct Unmatched;
+        impl FigureListener for Unmatched {
+            fn figure_moved(&self, _: crate::event::FigureEvent) -> ListenerDirective {
+                panic!("Notify must not match a Figure listener");
+            }
+        }
+        let unmatched = manager.add_figure_listener(Box::new(Unmatched)).unwrap();
+        manager.dispatch_effects(&[effect.clone(), effect], &graph, 2);
+        assert!(!manager.remove_listener(id));
+        assert!(manager.remove_listener(unmatched));
+        assert_eq!(
+            manager
+                .publication_checkpoint(2)
+                .unwrap()
+                .last_published_sequence,
+            Some(3)
+        );
+        manager.clear();
+        assert_eq!(
+            manager
+                .publication_checkpoint(2)
+                .unwrap()
+                .last_published_sequence,
+            Some(3)
+        );
+    }
     use crate::Color;
     use crate::geometry::Dimension;
     use crate::{
@@ -1036,9 +1205,11 @@ mod tests {
                     ListenerDirective::Keep
                 }
             }
-            manager.add_listener(Box::new(CaptureUpdate {
-                effects: effects.clone(),
-            }));
+            manager
+                .add_listener(Box::new(CaptureUpdate {
+                    effects: effects.clone(),
+                }))
+                .expect("healthy listener registration");
         }
 
         let mut canvas = NdCanvas::new();
@@ -1091,9 +1262,11 @@ mod tests {
                 ListenerDirective::Keep
             }
         }
-        manager.add_listener(Box::new(CapturePainting {
-            effects: effects.clone(),
-        }));
+        manager
+            .add_listener(Box::new(CapturePainting {
+                effects: effects.clone(),
+            }))
+            .expect("healthy listener registration");
 
         let mut canvas = NdCanvas::new();
         manager.perform_update(&mut graph, &mut canvas);
@@ -1133,9 +1306,11 @@ mod tests {
                 ListenerDirective::Keep
             }
         }
-        manager.add_listener(Box::new(CaptureUpdate {
-            effects: effects.clone(),
-        }));
+        manager
+            .add_listener(Box::new(CaptureUpdate {
+                effects: effects.clone(),
+            }))
+            .expect("healthy listener registration");
 
         let mut canvas = NdCanvas::new();
         manager.perform_update(&mut graph, &mut canvas);
@@ -1181,9 +1356,11 @@ mod tests {
                 ListenerDirective::Keep
             }
         }
-        manager.add_listener(Box::new(CaptureUpdate {
-            effects: effects.clone(),
-        }));
+        manager
+            .add_listener(Box::new(CaptureUpdate {
+                effects: effects.clone(),
+            }))
+            .expect("healthy listener registration");
 
         let mut canvas = NdCanvas::new();
         manager.perform_update(&mut graph, &mut canvas);
@@ -1309,9 +1486,11 @@ mod tests {
                 ListenerDirective::Keep
             }
         }
-        manager.add_listener(Box::new(CaptureAll {
-            effects: effects.clone(),
-        }));
+        manager
+            .add_listener(Box::new(CaptureAll {
+                effects: effects.clone(),
+            }))
+            .expect("healthy listener registration");
 
         manager.perform_update(&mut graph, &mut NdCanvas::new());
 
@@ -1393,21 +1572,31 @@ mod tests {
     fn test_typed_listeners_dispatch_and_remove_independently() {
         let mut manager = UpdateManager::new();
         let counts = Arc::new(std::sync::Mutex::new(TypedListenerCounts::default()));
-        let figure_id = manager.add_figure_listener(Box::new(TypedListener {
-            counts: counts.clone(),
-        }));
-        let coordinate_id = manager.add_coordinate_listener(Box::new(TypedListener {
-            counts: counts.clone(),
-        }));
-        let ancestor_id = manager.add_ancestor_listener(Box::new(TypedListener {
-            counts: counts.clone(),
-        }));
-        let property_id = manager.add_property_listener(Box::new(TypedListener {
-            counts: counts.clone(),
-        }));
-        let layout_id = manager.add_layout_listener(Box::new(TypedListener {
-            counts: counts.clone(),
-        }));
+        let figure_id = manager
+            .add_figure_listener(Box::new(TypedListener {
+                counts: counts.clone(),
+            }))
+            .expect("healthy listener registration");
+        let coordinate_id = manager
+            .add_coordinate_listener(Box::new(TypedListener {
+                counts: counts.clone(),
+            }))
+            .expect("healthy listener registration");
+        let ancestor_id = manager
+            .add_ancestor_listener(Box::new(TypedListener {
+                counts: counts.clone(),
+            }))
+            .expect("healthy listener registration");
+        let property_id = manager
+            .add_property_listener(Box::new(TypedListener {
+                counts: counts.clone(),
+            }))
+            .expect("healthy listener registration");
+        let layout_id = manager
+            .add_layout_listener(Box::new(TypedListener {
+                counts: counts.clone(),
+            }))
+            .expect("healthy listener registration");
 
         let mut graph = FigureTree::new();
         let root = graph.set_contents(Box::new(
