@@ -1,0 +1,268 @@
+--- a/src/hb/aat/cold_headers.rs
++++ b/src/hb/aat/cold_headers.rs
+@@ -4,7 +4,7 @@
+ //! Prove empty AAT cache inputs before any variable-size reader runs.
+ 
+ use crate::hb::face::cold_admission::{directory, ColdAdmission, ColdOperation};
+-use read_fonts::{types::Tag, FontRef};
++use read_fonts::{types::Tag, FontData, FontRef};
+ 
+ pub(super) fn empty_caches<P: ColdAdmission>(
+     font: &FontRef,
+@@ -15,29 +15,37 @@
+         let Some(data) = font.table_data(tag) else {
+             continue;
+         };
+-        // FontData is a borrowed slice. Reads below inspect scalar headers;
+-        // they never invoke FontRead or VarSize::total_len_for_count.
+-        let count = if tag == Tag::new(b"kern") {
+-            policy.charge(ColdOperation::TableRead, 2, 0)?;
+-            let Ok(version) = data.read_at::<u16>(0) else {
+-                return Ok(false);
+-            };
+-            if version == 0 {
+-                policy.charge(ColdOperation::TableRead, 2, 0)?;
+-                data.read_at::<u16>(2).map(u32::from)
+-            } else {
+-                policy.charge(ColdOperation::TableRead, 4, 0)?;
+-                data.read_at::<u32>(4)
+-            }
+-        } else {
+-            policy.charge(ColdOperation::TableRead, 4, 0)?;
+-            data.read_at::<u32>(4)
+-        };
+-        if count != Ok(0) {
+-            // Nonempty and truncated headers remain unsupported. No
+-            // subtable reader, glyph collection or candidate is published.
++        if !empty_table(data, tag, policy)? {
+             return Ok(false);
+         }
+     }
+     Ok(true)
+ }
++
++pub(super) fn empty_table<P: ColdAdmission>(
++    data: FontData<'_>,
++    tag: Tag,
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    // FontData is a borrowed slice. Reads below inspect scalar headers;
++    // they never invoke FontRead or VarSize::total_len_for_count.
++    let count = if tag == Tag::new(b"kern") {
++        policy.charge(ColdOperation::TableRead, 2, 0)?;
++        let Ok(version) = data.read_at::<u16>(0) else {
++            return Ok(false);
++        };
++        if version == 0 {
++            policy.charge(ColdOperation::TableRead, 2, 0)?;
++            data.read_at::<u16>(2).map(u32::from)
++        } else {
++            policy.charge(ColdOperation::TableRead, 4, 0)?;
++            data.read_at::<u32>(4)
++        }
++    } else {
++        policy.charge(ColdOperation::TableRead, 4, 0)?;
++        data.read_at::<u32>(4)
++    };
++    // Nonempty and truncated headers remain unsupported. No
++    // subtable reader, glyph collection or candidate is published.
++    Ok(count == Ok(0))
++}
+--- a/src/hb/aat/mod.rs
++++ b/src/hb/aat/mod.rs
+@@ -106,6 +106,35 @@
+ }
+ 
+ impl<'a> AatTables<'a> {
++    pub(crate) fn new_with<P: ColdAdmission>(
++        font: &FontRef<'a>, cache: &'a AatCache, table_offsets: &TableOffsets,
++        policy: &mut P,
++    ) -> Result<Option<Self>, P::Error> {
++        if P::ADMITTED {
++            // Inspect the exact stored offsets consumed by new(), not a
++            // second directory lookup (which can differ on unsorted fonts).
++            for (offset, tag) in [
++                (table_offsets.morx, read_fonts::types::Tag::new(b"morx")),
++                (table_offsets.kern, read_fonts::types::Tag::new(b"kern")),
++                (table_offsets.kerx, read_fonts::types::Tag::new(b"kerx")),
++            ] {
++                policy.charge(ColdOperation::Planning, 1, 0)?;
++                if let Some(data) = offset.resolve_data(font) {
++                    if !cold_headers::empty_table(data, tag, policy)? {
++                        return Ok(None);
++                    }
++                }
++            }
++        }
++        // Empty morx/kerx only resolve fixed headers and zero-length
++        // VarSize arrays. Kern's top-level reader resolves its header only.
++        // ankr/trak/feat advance fixed headers and borrow array spans;
++        // no nested anchors, tracks, settings or cache elements are read.
++        const HEADER_BYTES: usize = 8 + 8 + 8 + 12 + 12 + 12;
++        policy.charge(ColdOperation::TableRead, HEADER_BYTES, 0)?;
++        Ok(Some(Self::new(font, cache, table_offsets)))
++    }
++
+     pub fn new(font: &FontRef<'a>, cache: &'a AatCache, table_offsets: &TableOffsets) -> Self {
+         let morx = table_offsets
+             .morx
+--- a/src/hb/charmap.rs
++++ b/src/hb/charmap.rs
+@@ -1,6 +1,7 @@
+ use crate::hb::tables::{SelectedCmapSubtable, TableOffsets};
+ 
+ use super::cache::hb_cache_t;
++use super::face::cold_admission::{ColdAdmission, ColdOperation};
+ use read_fonts::{
+     tables::cmap::{Cmap, Cmap14, CmapSubtable, MapVariant},
+     types::GlyphId,
+@@ -17,6 +18,18 @@
+ }
+ 
+ impl<'a> Charmap<'a> {
++    pub(crate) fn new_with<P: ColdAdmission>(
++        font: &FontRef<'a>, table_offsets: &TableOffsets, cache: &'a cache_t,
++        policy: &mut P,
++    ) -> Result<Self, P::Error> {
++        // Cmap header and at most two encoding records. Each subtable
++        // resolution reads Offset32, format u16 and at most a u32 count.
++        // Generated readers borrow payload spans without scanning them.
++        const HEADER_AND_RECORD_BYTES: usize = 4 + 2 * (4 + 2 + 4);
++        policy.charge(ColdOperation::CmapSubtable, HEADER_AND_RECORD_BYTES, 0)?;
++        Ok(Self::new(font, table_offsets, cache))
++    }
++
+     pub fn new(font: &FontRef<'a>, table_offsets: &TableOffsets, cache: &'a cache_t) -> Self {
+         if let Some(cmap) = table_offsets.cmap.resolve_table::<Cmap>(font) {
+             let data = cmap.offset_data();
+--- a/src/hb/face.rs
++++ b/src/hb/face.rs
+@@ -253,23 +253,53 @@
+ 
+     /// Builds the shaper with the current configuration.
+     pub fn build(self) -> crate::Shaper<'a> {
++        match self.build_with(&mut cold_admission::OrdinaryCold) {
++            Ok(Some(value)) => value,
++            Ok(None) => unreachable!("ordinary configuration supports every table"),
++            Err(error) => match error {},
++        }
++    }
++
++    /// Configures borrowed font tables with operation admission.
++    ///
++    /// Covers mapping/metric headers, coordinate scans and OT/AAT table
++    /// configuration. Nonempty or truncated morx/kern/kerx headers decline
++    /// before their variable-size readers run. Previously completed data and
++    /// instances remain usable after rejection; no ordinary fallback runs.
++    /// Does not admit data construction, plans, glyph queries or shaping.
++    pub fn try_build_admitted<E>(
++        self,
++        admit: impl FnMut(ColdOperation, ColdOperationCost) -> Result<(), E>,
++    ) -> Result<Option<crate::Shaper<'a>>, ColdOperationError<E>> {
++        self.build_with(&mut cold_admission::AdmittedCold(admit))
++    }
++
++    fn build_with<P: ColdAdmission>(
++        self, policy: &mut P,
++    ) -> Result<Option<crate::Shaper<'a>>, P::Error> {
++        policy.charge(ColdOperation::Planning, 4, 0)?;
+         let font = self.font;
++        let Some(aat_tables) = AatTables::new_with(
++            &font, &self.data.aat_cache, &self.data.table_offsets, policy,
++        )? else {
++            return Ok(None);
++        };
+         let units_per_em = self.data.table_offsets.units_per_em;
+-        let charmap = Charmap::new(&font, &self.data.table_offsets, &self.data.cmap_cache);
+-        let glyph_metrics = GlyphMetrics::new(&font, &self.data.table_offsets);
++        let charmap = Charmap::new_with(&font, &self.data.table_offsets, &self.data.cmap_cache, policy)?;
++        let glyph_metrics = GlyphMetrics::new_with(&font, &self.data.table_offsets, policy)?;
+         let (coords, feature_variations) = self
+             .instance
+             .map(|instance| (instance.coords(), instance.feature_variations))
+             .unwrap_or_default();
+-        let ot_tables = OtTables::new(
++        let ot_tables = OtTables::new_with(
+             &font,
+             &self.data.ot_cache,
+             &self.data.table_offsets,
+             coords,
+             feature_variations,
+-        );
+-        let aat_tables = AatTables::new(&font, &self.data.aat_cache, &self.data.table_offsets);
+-        hb_font_t {
++            policy,
++        )?;
++        Ok(Some(hb_font_t {
+             font,
+             units_per_em,
+             points_per_em: self.point_size,
+@@ -277,7 +307,7 @@
+             glyph_metrics,
+             ot_tables,
+             aat_tables,
+-        }
++        }))
+     }
+ }
+ 
+--- a/src/hb/glyph_metrics.rs
++++ b/src/hb/glyph_metrics.rs
+@@ -1,5 +1,6 @@
+ use crate::hb::buffer::hb_buffer_t;
+ use crate::{hb::tables::TableOffsets, Tag};
++use super::face::cold_admission::{ColdAdmission, ColdOperation};
+ use read_fonts::{
+     tables::{
+         glyf::Glyf,
+@@ -40,6 +41,21 @@
+ }
+ 
+ impl<'a> GlyphMetrics<'a> {
++    pub(crate) fn new_with<P: ColdAdmission>(
++        font: &FontRef<'a>, table_offsets: &TableOffsets, policy: &mut P,
++    ) -> Result<Self, P::Error> {
++        // Locked read-fonts 0.35 readers: hmtx/vmtx/loca/glyf only
++        // borrow spans; HVAR/VVAR skip 20/24-byte headers; VORG reads
++        // its u16 count; GVAR reads count+flags; MVAR reads u16 count.
++        // Prepay the complete fixed headers conservatively. No glyph,
++        // variation delta, outline or vertical-origin record is visited.
++        const FIXED_HEADERS: usize = 20 + 24 + 8 + 20 + 12;
++        // Four span wrappers plus h_metrics() and cached scalar reads.
++        const SPAN_AND_METADATA_VISITS: usize = 4 + 1 + 7;
++        policy.charge(ColdOperation::TableRead, FIXED_HEADERS + SPAN_AND_METADATA_VISITS, 0)?;
++        Ok(Self::new(font, table_offsets))
++    }
++
+     pub fn new(font: &FontRef<'a>, table_offsets: &TableOffsets) -> Self {
+         let num_glyphs = table_offsets.num_glyphs;
+         let upem = table_offsets.units_per_em;
+--- a/src/hb/ot/mod.rs
++++ b/src/hb/ot/mod.rs
+@@ -179,6 +179,26 @@
+ }
+ 
+ impl<'a> OtTables<'a> {
++    pub(crate) fn new_with<P: ColdAdmission>(
++        font: &FontRef<'a>, cache: &'a OtCache, table_offsets: &TableOffsets,
++        coords: &'a [F2Dot14], feature_variations: [Option<u32>; 2],
++        policy: &mut P,
++    ) -> Result<Self, P::Error> {
++        policy.charge(ColdOperation::Planning, 1, 0)?;
++        policy.charge(ColdOperation::TableRead, coords.len(), 0)?;
++        // GSUB/GPOS fixed headers; GDEF fixed header, two nullable
++        // class offsets (test+resolve), ClassDef enum/format/count reads,
++        // mark-set offset (test+resolve) and count. All payloads borrow.
++        const LAYOUT_HEADERS: usize = 14 * 2;
++        const GDEF_AND_CHILD_HEADERS: usize = 18 + 2 * (2 + 2 + 2 + 6) + 2 + 2 + 4;
++        // Optional ItemVariationStore: Offset32 test+resolve, its
++        // fixed 8-byte header and a borrowed offset array; no delta read.
++        const VAR_STORE_HEADER: usize = 4 + 4 + 8;
++        policy.charge(ColdOperation::TableRead,
++            LAYOUT_HEADERS + GDEF_AND_CHILD_HEADERS + VAR_STORE_HEADER, 0)?;
++        Ok(Self::new(font, cache, table_offsets, coords, feature_variations))
++    }
++
+     pub fn new(
+         font: &FontRef<'a>,
+         cache: &'a OtCache,
