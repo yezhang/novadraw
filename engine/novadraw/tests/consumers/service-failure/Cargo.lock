@@ -494,6 +494,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "novadraw-editor"
+version = "0.1.0"
+dependencies = [
+ "novadraw",
+ "slotmap",
+ "stacker",
+ "uuid",
+]
+
+[[package]]
 name = "novadraw-inspector"
 version = "0.1.0"
 dependencies = [
@@ -505,6 +515,7 @@ name = "novadraw-service-failure-consumer"
 version = "0.1.0"
 dependencies = [
  "novadraw",
+ "novadraw-editor",
  "novadraw-inspector",
 ]
 

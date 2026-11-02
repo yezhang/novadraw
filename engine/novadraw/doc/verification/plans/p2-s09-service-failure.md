@@ -10,7 +10,11 @@ SF-01／02／16 和 SF-12／13／14／15 的 Animation 部分通过；
 SF-03～08／17／18／20 与本片公开 API／自动门禁已通过；
 SF-14／15 的 Inspector 成本覆盖 64／4096 配置，未验收理论最大容量。
 [S09-C](../reviews/p2-s09-c-implementation-2026-11-02.md)的 SF-09 与
-SF-12／13 的 Connections 部分已通过，Editor 切片尚未完成。
+SF-12／13 的 Connections 部分已通过。
+[S09-D](../reviews/p2-s09-d-implementation-2026-11-02.md)已实现，
+SF-10／11／12／19 的定向验证与 24 项 Native 消费者测试通过；
+最新 Wasm、成本与最终门禁仍待补验，
+本片与整批均未关闭。
 SF-15 的体积比较按用户明确请求执行，不作为本片默认门禁。
 
 当前为修订 3（2026-10-30），按[修订 2 复核](../reviews/adr-057-revision-2-review-2026-10-30.md)

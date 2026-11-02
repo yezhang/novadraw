@@ -67,6 +67,17 @@ cargo check --manifest-path tests/consumers/service-failure/Cargo.toml --lib --l
 
 测试范围及平台限制见 [S09-C 实施记录](../doc/verification/reviews/p2-s09-c-implementation-2026-11-02.md)。
 
+S09-D Editor 扩展诊断使用公开夹具和独立消费者：
+
+```bash
+cargo test -p novadraw-editor --test p2_s09_extension_failure
+cargo test -p novadraw-editor --doc
+cargo test --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --no-default-features --features consume-editor
+```
+
+实现、成本探针与待补验门禁见
+[S09-D 实施记录](../doc/verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
+
 ADR-055 容器协议使用公开 API 契约夹具及独立 workspace 消费者：
 
 ```bash

@@ -126,9 +126,9 @@ mod tests {
             model_id: ModelId,
         ) -> Result<Box<dyn Figure>, EditPartError> {
             Ok(if model_id == ROOT {
-                Box::new(RootFigure::new(0.0, 0.0, 200.0, 120.0))
+                Box::new(RootFigure::new(0.0, 0.0, 200.0, 120.0).unwrap())
             } else {
-                Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 50.0))
+                Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 50.0).unwrap())
             })
         }
 
@@ -147,7 +147,7 @@ mod tests {
                         handled: Rc::clone(&self.handled),
                     },
                 )
-                .map_err(|error| EditPartError::operation(error.to_string()))?,
+                .map_err(|error| EditPartError::operation_with_source(error.to_string(), error))?,
             ];
             if self.duplicate_slot {
                 policies.push(
@@ -157,7 +157,9 @@ mod tests {
                             handled: Rc::clone(&self.handled),
                         },
                     )
-                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+                    .map_err(|error| {
+                        EditPartError::operation_with_source(error.to_string(), error)
+                    })?,
                 );
             }
             Ok(policies)
@@ -284,7 +286,7 @@ mod tests {
                     .add_handle_visual_with_action::<GuideHandle>(
                         owner,
                         coordinate,
-                        Box::new(RectangleFigure::new(coordinate, 30.0, 16.0, 16.0)),
+                        Box::new(RectangleFigure::new(coordinate, 30.0, 16.0, 16.0).unwrap()),
                     )
                     .unwrap()
                     .1,
@@ -386,7 +388,7 @@ mod tests {
             .add_handle_visual_with_action::<GuideHandle>(
                 owner,
                 64.0,
-                Box::new(RectangleFigure::new(30.0, 30.0, 16.0, 16.0)),
+                Box::new(RectangleFigure::new(30.0, 30.0, 16.0, 16.0).unwrap()),
             )
             .unwrap();
 

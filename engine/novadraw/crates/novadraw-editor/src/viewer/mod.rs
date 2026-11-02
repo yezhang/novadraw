@@ -11,6 +11,7 @@ use std::{
     error::Error,
     fmt,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -536,7 +537,7 @@ pub enum ViewerError {
         /// Original error, independent of subsequent cleanup failures.
         original: Box<ViewerError>,
         /// Actual cleanup progress, also available through Viewer diagnostics.
-        report: Arc<ProjectionCleanup>,
+        report: Rc<ProjectionCleanup>,
     },
     /// An Overlay batch was rejected before any write.
     InvalidOverlayBatch {
@@ -604,6 +605,13 @@ pub enum ViewerError {
     DepthLimitExceeded,
     /// An application model query failed.
     Model(String),
+    /// An application model query failed with an owned source.
+    ModelSource {
+        /// Model query callback.
+        operation: &'static str,
+        /// Original application error.
+        source: std::rc::Rc<dyn Error>,
+    },
     /// An application EditPart extension failed.
     EditPart(EditPartError),
     /// Part topology became inconsistent.
@@ -710,6 +718,9 @@ impl fmt::Display for ViewerError {
                 )
             }
             Self::Model(message) => write!(formatter, "model query failed: {message}"),
+            Self::ModelSource { operation, source } => {
+                write!(formatter, "{operation} failed: {source}")
+            }
             Self::EditPart(error) => error.fmt(formatter),
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
@@ -749,6 +760,7 @@ impl Error for ViewerError {
             Self::Connection(error) => Some(error),
             Self::Layer(error) => Some(error),
             Self::Policy(error) => Some(error),
+            Self::ModelSource { source, .. } => Some(source.as_ref()),
             Self::DirectTextEdit(error) => Some(error),
             _ => None,
         }
@@ -859,7 +871,10 @@ where
         Self::capture_subtree(model, root, 0, &mut seen, &mut children, &mut parents)?;
         let connections = model
             .connections()
-            .map_err(|error| ViewerError::Model(error.to_string()))?;
+            .map_err(|error| ViewerError::ModelSource {
+                operation: "model.connections",
+                source: std::rc::Rc::new(error),
+            })?;
         let mut connection_indexes = HashMap::with_capacity(connections.len());
         for (index, connection) in connections.iter().enumerate() {
             if connection_indexes.insert(connection.id(), index).is_some() {
@@ -933,7 +948,10 @@ where
         }
         let direct = model
             .children(model_id)
-            .map_err(|error| ViewerError::Model(error.to_string()))?;
+            .map_err(|error| ViewerError::ModelSource {
+                operation: "model.children",
+                source: std::rc::Rc::new(error),
+            })?;
         for child in direct.iter().copied() {
             parents.insert(child, model_id);
             Self::capture_subtree(model, child, depth + 1, seen, children, parents)?;
@@ -1203,8 +1221,9 @@ where
     applied_revision: ModelRevision,
     model_root: A::ModelId,
     faulted: bool,
+    last_panic: Option<crate::diagnostics::PanicDiagnostic>,
     active_behaviors: HashSet<EditPartId>,
-    last_cleanup: Option<Arc<ProjectionCleanup>>,
+    last_cleanup: Option<Rc<ProjectionCleanup>>,
 }
 
 pub(crate) struct ViewerEditSession<'a, A, F>
@@ -1452,6 +1471,7 @@ where
             applied_revision,
             model_root: snapshot.root,
             faulted: false,
+            last_panic: None,
             active_behaviors: HashSet::new(),
             last_cleanup: None,
         };
@@ -1464,6 +1484,11 @@ where
     /// Returns the namespace that owns all Part IDs in this Viewer.
     pub const fn namespace(&self) -> EditorNamespace {
         self.parts.namespace()
+    }
+
+    /// Returns the first caught extension panic, retained after fault.
+    pub fn panic_diagnostic(&self) -> Option<&crate::diagnostics::PanicDiagnostic> {
+        self.last_panic.as_ref()
     }
 
     /// Returns the synthetic root part.
@@ -1499,7 +1524,7 @@ where
         match catch_unwind(AssertUnwindSafe(|| update(&mut self.model))) {
             Ok(()) => Ok(self.synchronize()? || changed_before_update),
             Err(payload) => {
-                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
+                self.record_extension_panic(payload.as_ref(), "model.update");
                 resume_unwind(payload)
             }
         }
@@ -1612,7 +1637,12 @@ where
             .figure(self.root_layers.viewport())?
             .update_capability(ReplaceFigureBorder::set(border))
             .map(|receipt| receipt.changed)
-            .map_err(|error| ViewerError::EditPart(EditPartError::operation(error.to_string())))
+            .map_err(|error| {
+                ViewerError::EditPart(EditPartError::operation_with_source(
+                    error.to_string(),
+                    error,
+                ))
+            })
     }
 
     /// Registers a connection Router owned by this Viewer.
@@ -2434,17 +2464,27 @@ where
                 let mut report = ProjectionCleanup {
                     original: match &result {
                         Ok(Err(error)) => error.to_string(),
-                        Err(_) => "Figure disposal panic".to_owned(),
+                        Err(payload) => failure::panic_message(payload.as_ref()),
                         _ => unreachable!(),
+                    },
+                    panic: match &result {
+                        Err(payload) => Some(crate::diagnostics::PanicDiagnostic::capture(
+                            payload.as_ref(),
+                            "overlay.dispose",
+                        )),
+                        _ => None,
                     },
                     ..Default::default()
                 };
+                if self.last_panic.is_none() {
+                    self.last_panic = report.panic.clone();
+                }
                 self.record_figure_progress(&acquired, &mut report);
                 self.visual_registry
                     .retain(|id, _| self.runtime.tree().is_attached(*id) == Ok(true));
                 self.faulted = true;
                 self.drop_direct_text_edit_into(&mut report);
-                self.last_cleanup = Some(Arc::new(report));
+                self.last_cleanup = Some(Rc::new(report));
                 return match result {
                     Ok(Err(error)) => Err(error.into()),
                     Err(payload) => resume_unwind(payload),
@@ -2525,17 +2565,27 @@ where
                 let mut report = ProjectionCleanup {
                     original: match &failed {
                         Ok(Err(error)) => error.to_string(),
-                        Err(_) => "Overlay installation panic".to_owned(),
+                        Err(payload) => failure::panic_message(payload.as_ref()),
                         _ => unreachable!(),
+                    },
+                    panic: match &failed {
+                        Err(payload) => Some(crate::diagnostics::PanicDiagnostic::capture(
+                            payload.as_ref(),
+                            "overlay.install",
+                        )),
+                        _ => None,
                     },
                     ..Default::default()
                 };
+                if self.last_panic.is_none() {
+                    self.last_panic = report.panic.clone();
+                }
                 self.cleanup_created_figures(&roots, &mut report);
                 self.record_figure_progress(&acquired, &mut report);
                 self.faulted = true;
                 self.drop_direct_text_edit_into(&mut report);
-                let report = Arc::new(report);
-                self.last_cleanup = Some(Arc::clone(&report));
+                let report = Rc::new(report);
+                self.last_cleanup = Some(Rc::clone(&report));
                 match failed {
                     Ok(Err(error)) => Err(ViewerError::ProjectionCleanup {
                         original: Box::new(error.into()),
@@ -2611,7 +2661,10 @@ where
             caret_feedback: None,
             caret_visible: false,
         };
-        let projection = active.plan.feedback(&active.state, &self.model)?;
+        let projection = active
+            .plan
+            .feedback(&active.state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.feedback"))?;
         let attached = self.attach_direct_text_feedback(
             request.source(),
             &active.state,
@@ -2853,7 +2906,10 @@ where
         let Some(active) = self.direct_text_edit.as_mut() else {
             return Ok(false);
         };
-        let projection = active.plan.feedback(&active.state, &self.model)?;
+        let projection = active
+            .plan
+            .feedback(&active.state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.feedback"))?;
         let mut active = self
             .direct_text_edit
             .take()
@@ -3022,9 +3078,17 @@ where
         if active.state.composition().is_some() {
             return Err(DirectTextEditError::ActiveComposition.into());
         }
-        active.plan.validate(&active.state, &self.model)?;
+        active
+            .plan
+            .validate(&active.state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.validate"))?;
         let command = if active.state.is_changed() {
-            Some(active.plan.command(&active.state, &self.model)?)
+            Some(
+                active
+                    .plan
+                    .command(&active.state, &self.model)
+                    .map_err(|error| error.at_operation("direct_text.command"))?,
+            )
         } else {
             None
         };
@@ -3061,7 +3125,8 @@ where
         let projection = prepared
             .active
             .plan
-            .feedback(&prepared.active.state, &self.model)?;
+            .feedback(&prepared.active.state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.feedback"))?;
         let attached = self.attach_direct_text_feedback(
             prepared.active.state.source(),
             &prepared.active.state,
@@ -3105,7 +3170,7 @@ where
             Ok(projection) => projection,
             Err(error) => {
                 active.state = previous_state;
-                return Err(error.into());
+                return Err(error.at_operation("direct_text.feedback").into());
             }
         };
         let mut active = self
@@ -3538,7 +3603,8 @@ where
                         })
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let resolution = R::reduce(contributions)?;
+            let resolution =
+                R::reduce(contributions).map_err(|error| error.at_operation("request.reduce"))?;
             limit.validate(resolution.len())?;
             Ok(resolution)
         })
@@ -3604,7 +3670,7 @@ where
                 &self.model,
             )?);
         }
-        Ok(R::reduce(contributions)?)
+        Ok(R::reduce(contributions).map_err(|error| error.at_operation("request.reduce"))?)
     }
 
     fn dispatch_request_erased_inner(
@@ -3724,15 +3790,17 @@ where
         )
     }
 
+    #[track_caller]
     fn with_extension_fault_boundary<T>(
         &mut self,
         operation: impl FnOnce(&mut Self) -> Result<T, ViewerError>,
     ) -> Result<T, ViewerError> {
         self.ensure_ready()?;
+        let call_site = std::panic::Location::caller();
         match catch_unwind(AssertUnwindSafe(|| operation(self))) {
             Ok(result) => result,
             Err(payload) => {
-                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
+                self.record_panic_at(payload.as_ref(), "viewer.extension", call_site);
                 resume_unwind(payload)
             }
         }
@@ -3747,8 +3815,28 @@ where
         self.force_drop_direct_text_edit(original);
     }
 
-    pub(crate) fn fault_extension(&mut self) {
-        self.mark_faulted();
+    #[track_caller]
+    pub(crate) fn record_extension_panic(
+        &mut self,
+        payload: &(dyn Any + Send),
+        location: &'static str,
+    ) {
+        self.record_panic_at(payload, location, std::panic::Location::caller());
+    }
+
+    pub(crate) fn record_panic_at(
+        &mut self,
+        payload: &(dyn Any + Send),
+        location: &'static str,
+        call_site: &'static std::panic::Location<'static>,
+    ) {
+        let diagnostic =
+            crate::diagnostics::PanicDiagnostic::capture_at(payload, location, call_site);
+        let message = diagnostic.to_string();
+        if self.last_panic.is_none() {
+            self.last_panic = Some(diagnostic);
+        }
+        self.mark_faulted_with_cause(&message);
     }
 
     /// Resolves one unambiguous source policy into a connection-creation plan.
@@ -3807,8 +3895,9 @@ where
             target.map(PolicyHost::model),
             request.location(),
         )?;
-        let contributions =
-            plan.feedback_with_route(source, target, request, route, &self.model)?;
+        let contributions = plan
+            .feedback_with_route(source, target, request, route, &self.model)
+            .map_err(|error| error.at_operation("connection.feedback"))?;
         self.add_feedback_batch(
             contributions
                 .into_iter()
@@ -3835,7 +3924,10 @@ where
         let Some(target) = self.valid_connection_target(plan, source, request)? else {
             return Ok(None);
         };
-        Ok(Some(plan.command(source, target, request, &self.model)?))
+        Ok(Some(
+            plan.command(source, target, request, &self.model)
+                .map_err(|error| error.at_operation("connection.command"))?,
+        ))
     }
 
     /// Resolves one unambiguous connection policy into a reconnect plan.
@@ -3919,8 +4011,9 @@ where
             target_model,
             request.location(),
         )?;
-        let contributions =
-            plan.feedback_with_route(connection, fixed, candidate, request, route, &self.model)?;
+        let contributions = plan
+            .feedback_with_route(connection, fixed, candidate, request, route, &self.model)
+            .map_err(|error| error.at_operation("reconnection.feedback"))?;
         self.add_feedback_batch(
             contributions
                 .into_iter()
@@ -4007,13 +4100,10 @@ where
         else {
             return Ok(None);
         };
-        Ok(Some(plan.command(
-            connection,
-            fixed,
-            candidate,
-            request,
-            &self.model,
-        )?))
+        Ok(Some(
+            plan.command(connection, fixed, candidate, request, &self.model)
+                .map_err(|error| error.at_operation("reconnection.command"))?,
+        ))
     }
 
     fn reconnection_fixed_host(
@@ -4041,7 +4131,10 @@ where
         let Some(candidate) = self.connection_target_host(candidate)? else {
             return Ok(None);
         };
-        if plan.can_complete(connection, fixed, candidate, request, &self.model)? {
+        if plan
+            .can_complete(connection, fixed, candidate, request, &self.model)
+            .map_err(|error| error.at_operation("reconnection.can_complete"))?
+        {
             Ok(Some(candidate))
         } else {
             Ok(None)
@@ -4060,7 +4153,10 @@ where
         let Some(target) = self.connection_target_host(target)? else {
             return Ok(None);
         };
-        if plan.can_complete(source, target, request, &self.model)? {
+        if plan
+            .can_complete(source, target, request, &self.model)
+            .map_err(|error| error.at_operation("connection.can_complete"))?
+        {
             Ok(Some(target))
         } else {
             Ok(None)

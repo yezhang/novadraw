@@ -332,10 +332,21 @@ mod tests {
             } else {
                 RenderFailure::SurfaceLost(RenderFailureDiagnostic::new("recoverable surface"))
             };
-            runtime
+            let acknowledgement = runtime
                 .frames()
                 .complete_submission(submission.session_id, submission.frame_id, Err(failure))
                 .unwrap();
+            if terminal {
+                assert!(matches!(
+                    acknowledgement,
+                    novadraw::runtime::SubmissionAcknowledgement::Terminated(_)
+                ));
+            } else {
+                assert!(matches!(
+                    acknowledgement,
+                    novadraw::runtime::SubmissionAcknowledgement::SurfaceInvalidated { .. }
+                ));
+            }
             if terminal {
                 // A backend Terminated acknowledgement alone does not fault the CPU owner.
                 assert!(runtime.observations().checkpoint().is_ok());

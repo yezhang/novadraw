@@ -1,0 +1,233 @@
+Suite extensions: External Core/Editor consumers and open Editor protocols
+
+==> $ cargo test -p novadraw --test d4_component_update --test d4_constrained_measurement --test m10_text_extension_contract
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 34.99s
+[1m[92m     Running[0m tests/d4_component_update.rs (target/debug/deps/d4_component_update-2ae448ebefba6fd7)
+
+running 8 tests
+test external_component_update_commits_typed_property_effect_once ... ok
+test external_figure_callback_can_defer_a_typed_self_update ... ok
+test deferred_component_rejection_is_reported_without_losing_fifo_suffix ... ok
+test component_update_rejects_wrong_foreign_and_disposed_targets ... ok
+test component_prepare_or_commit_panic_faults_runtime ... ok
+test external_component_update_is_typed_atomic_and_conservatively_invalidated ... ok
+test component_effect_failure_does_not_commit_value_revision_or_property_fact ... ok
+test lifecycle_invalidation_panic_faults_all_public_mutation_domains ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/d4_constrained_measurement.rs (target/debug/deps/d4_constrained_measurement-c6952fcdbe5bb445)
+
+running 2 tests
+test xy_layout_passes_fixed_width_hint_when_height_is_automatic ... ok
+test constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/m10_text_extension_contract.rs (target/debug/deps/m10_text_extension_contract-a741524457ac2bcc)
+
+running 2 tests
+test external_text_engine_constructs_non_empty_backend_neutral_layout ... ok
+test backend_neutral_layout_can_be_consumed_without_vello_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+==> $ cargo test -p novadraw-editor --test ga4_external_visual_component
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 12.70s
+[1m[92m     Running[0m tests/ga4_external_visual_component.rs (target/debug/deps/ga4_external_visual_component-a6b93f614d89275e)
+
+running 2 tests
+test external_compound_visual_updates_private_component_during_model_refresh ... ok
+test model_refresh_rejects_a_component_target_outside_the_part_visuals ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+==> $ ./tools/scripts/check_editor_open_protocol.sh
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m unicode-ident v1.0.26
+[1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m cfg-if v1.0.5
+[1m[92m   Compiling[0m memchr v2.8.3
+[1m[92m   Compiling[0m simd-adler32 v0.3.10
+[1m[92m   Compiling[0m libc v0.2.190
+[1m[92m   Compiling[0m smallvec v1.16.3
+[1m[92m   Compiling[0m libm v0.2.16
+[1m[92m   Compiling[0m crc32fast v1.5.2
+[1m[92m   Compiling[0m find-msvc-tools v0.1.14
+[1m[92m   Compiling[0m object v0.39.1
+[1m[92m   Compiling[0m shlex v2.0.1
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m adler2 v2.0.1
+[1m[92m   Compiling[0m cc v1.7.0
+[1m[92m   Compiling[0m arrayvec v0.7.8
+[1m[92m   Compiling[0m version_check v0.9.5
+[1m[92m   Compiling[0m miniz_oxide v0.9.1
+[1m[92m   Compiling[0m float-cmp v0.9.0
+[1m[92m   Compiling[0m slotmap v1.1.1
+[1m[92m   Compiling[0m autocfg v1.5.1
+[1m[92m   Compiling[0m log v0.4.34
+[1m[92m   Compiling[0m objc2 v0.6.5
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m strict-num v0.1.1
+[1m[92m   Compiling[0m polycool v0.4.0
+[1m[92m   Compiling[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m fdeflate v0.3.7
+[1m[92m   Compiling[0m objc2-encode v4.1.0
+[1m[92m   Compiling[0m arrayref v0.3.9
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m kurbo v0.13.1
+[1m[92m   Compiling[0m objc2-core-foundation v0.3.2
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m tinyvec v1.13.3
+[1m[92m   Compiling[0m getrandom v0.4.3
+[1m[92m   Compiling[0m litemap v0.8.3
+[1m[92m   Compiling[0m byteorder-lite v0.1.0
+[1m[92m   Compiling[0m equivalent v1.0.2
+[1m[92m   Compiling[0m writeable v0.6.4
+[1m[92m   Compiling[0m siphasher v1.0.4
+[1m[92m   Compiling[0m svgtypes v0.16.1
+[1m[92m   Compiling[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m objc2-core-text v0.3.2
+[1m[92m   Compiling[0m memmap2 v0.9.11
+[1m[92m   Compiling[0m stacker v0.1.25
+[1m[92m   Compiling[0m simplecss v0.2.2
+[1m[92m   Compiling[0m roxmltree v0.21.1
+[1m[92m   Compiling[0m base64 v0.23.1
+[1m[92m   Compiling[0m serde v1.0.229
+[1m[92m   Compiling[0m pico-args v0.5.0
+[1m[92m   Compiling[0m pxfm v0.1.30
+[1m[92m   Compiling[0m linebender_resource_handle v0.1.1
+[1m[92m   Compiling[0m imagesize v0.15.0
+[1m[92m   Compiling[0m unicode-vo v0.1.0
+[1m[92m   Compiling[0m unicode-bidi v0.3.18
+[1m[92m   Compiling[0m color_quant v1.1.0
+[1m[92m   Compiling[0m xmlwriter v0.1.0
+[1m[92m   Compiling[0m data-url v0.3.2
+[1m[92m   Compiling[0m weezl v0.1.12
+[1m[92m   Compiling[0m zune-core v0.5.3
+[1m[92m   Compiling[0m unicode-script v0.5.8
+[1m[92m   Compiling[0m flate2 v1.1.10
+[1m[92m   Compiling[0m quick-error v2.0.1
+[1m[92m   Compiling[0m core_maths v0.1.1
+[1m[92m   Compiling[0m objc2-foundation v0.3.2
+[1m[92m   Compiling[0m zune-jpeg v0.5.15
+[1m[92m   Compiling[0m gif v0.14.2
+[1m[92m   Compiling[0m fontdb v0.24.0
+[1m[92m   Compiling[0m unicode-segmentation v1.13.3
+[1m[92m   Compiling[0m ar_archive_writer v0.5.3
+[1m[92m   Compiling[0m uuid v1.28.0
+[1m[92m   Compiling[0m psm v0.1.32
+[1m[92m   Compiling[0m image-webp v0.2.4
+[1m[92m   Compiling[0m png v0.18.1
+[1m[92m   Compiling[0m moxcms v0.8.1
+[1m[92m   Compiling[0m syn v3.0.7
+[1m[92m   Compiling[0m bytemuck_derive v1.12.1
+[1m[92m   Compiling[0m displaydoc v0.2.7
+[1m[92m   Compiling[0m serde_derive v1.0.229
+[1m[92m   Compiling[0m bytemuck v1.25.2
+[1m[92m   Compiling[0m font-types v0.12.6
+[1m[92m   Compiling[0m font-types v0.10.1
+[1m[92m   Compiling[0m tiny-skia-path v0.12.0
+[1m[92m   Compiling[0m rgb v0.8.53
+[1m[92m   Compiling[0m image v0.25.10
+[1m[92m   Compiling[0m read-fonts v0.35.0
+[1m[92m   Compiling[0m read-fonts v0.41.0
+[1m[92m   Compiling[0m tiny-skia v0.12.0
+[1m[92m   Compiling[0m tinystr v0.8.4
+[1m[92m   Compiling[0m icu_locale_core v2.3.0
+[1m[92m   Compiling[0m skrifa v0.37.0
+[1m[92m   Compiling[0m harfrust v0.3.2
+[1m[92m   Compiling[0m fontique v0.7.0
+[1m[92m   Compiling[0m skrifa v0.44.0
+[1m[92m   Compiling[0m harfrust v0.12.0
+[1m[92m   Compiling[0m swash v0.2.10
+[1m[92m   Compiling[0m usvg v0.48.1
+[1m[92m   Compiling[0m parley v0.7.0
+[1m[92m   Compiling[0m resvg v0.48.1
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m   Compiling[0m novadraw-editor-open-protocol-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/editor-open-protocol)
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RootFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0msrc/lib.rs:129:17
+    [1m[94m|[0m
+[1m[94m129[0m [1m[94m|[0m                 Box::new(RootFigure::new(0.0, 0.0, 200.0, 120.0))
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RootFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RootFigure, ShapeGeometryError>>` to `Box<dyn novadraw::figure::Figure>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0msrc/lib.rs:131:17
+    [1m[94m|[0m
+[1m[94m131[0m [1m[94m|[0m                 Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 50.0))
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<dyn novadraw::figure::Figure>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0msrc/lib.rs:287:25
+    [1m[94m|[0m
+[1m[94m287[0m [1m[94m|[0m                         Box::new(RectangleFigure::new(coordinate, 30.0, 16.0, 16.0)),
+    [1m[94m|[0m                         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1m[91merror[E0277][0m[1m: the trait bound `std::result::Result<RectangleFigure, ShapeGeometryError>: novadraw::figure::Figure` is not satisfied[0m
+   [1m[94m--> [0msrc/lib.rs:389:17
+    [1m[94m|[0m
+[1m[94m389[0m [1m[94m|[0m                 Box::new(RectangleFigure::new(30.0, 30.0, 16.0, 16.0)),
+    [1m[94m|[0m                 [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mthe trait `novadraw::figure::Figure` is not implemented for `std::result::Result<RectangleFigure, ShapeGeometryError>`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: the following other types implement trait `novadraw::figure::Figure`:
+              BlockFlowFigure
+              ButtonFigure
+              ClickableFigure
+              ConnectionFigure
+              ConnectionLayerFigure
+              EllipseFigure
+              FlowAdapterFigure
+              FlowPageFigure
+            and 26 others
+    [1m[94m= [0m[1mnote[0m: required for the cast from `Box<std::result::Result<RectangleFigure, ShapeGeometryError>>` to `Box<(dyn novadraw::figure::Figure + 'static)>`
+
+[1mFor more information about this error, try `rustc --explain E0277`.[0m
+[1m[91merror[0m: could not compile `novadraw-editor-open-protocol-consumer` (lib test) due to 4 previous errors
+xtask: `./tools/scripts/check_editor_open_protocol.sh` failed with exit status: 101

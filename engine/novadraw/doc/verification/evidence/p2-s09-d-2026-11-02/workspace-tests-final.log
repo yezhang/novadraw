@@ -1,0 +1,373 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[33mwarning[0m[1m: multiple methods are never used[0m
+    [1m[94m--> [0mcrates/novadraw/src/render/context.rs:374:8
+     [1m[94m|[0m
+[1m[94m  76[0m [1m[94m|[0m impl NdCanvas {
+     [1m[94m|[0m [1m[94m-------------[0m [1m[94mmethods in this implementation[0m
+[1m[94m...[0m
+[1m[94m 374[0m [1m[94m|[0m     fn color_with_global_alpha(&self, color: Color) -> Color {
+     [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 551[0m [1m[94m|[0m     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 736[0m [1m[94m|[0m     pub fn draw_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 751[0m [1m[94m|[0m     pub fn fill_polygon(&mut self, points: &[Point]) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 772[0m [1m[94m|[0m     pub fn close_path(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 796[0m [1m[94m|[0m     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 820[0m [1m[94m|[0m     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 828[0m [1m[94m|[0m     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 837[0m [1m[94m|[0m     pub fn fill(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^[0m
+[1m[94m...[0m
+[1m[94m 873[0m [1m[94m|[0m     pub fn fill_and_stroke(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 923[0m [1m[94m|[0m     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 937[0m [1m[94m|[0m     pub fn clear_commands(&mut self) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 958[0m [1m[94m|[0m     pub fn to_submission(&self) -> RenderSubmission {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 963[0m [1m[94m|[0m     pub fn to_submission_for_surface(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m 975[0m [1m[94m|[0m     pub fn to_submission_for_frame(
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1043[0m [1m[94m|[0m     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1048[0m [1m[94m|[0m     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1054[0m [1m[94m|[0m     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1060[0m [1m[94m|[0m     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1065[0m [1m[94m|[0m     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1075[0m [1m[94m|[0m     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1080[0m [1m[94m|[0m     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m...[0m
+[1m[94m1089[0m [1m[94m|[0m     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+     [1m[94m|[0m            [1m[33m^^^^^^^^^^^^^^^^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4491:9
+     [1m[94m|[0m
+[1m[94m4491[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4492[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4493[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4494[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4497[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+     [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4491[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4541:9
+     [1m[94m|[0m
+[1m[94m4541[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4542[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4543[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4544[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4547[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4541[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4594:9
+     [1m[94m|[0m
+[1m[94m4594[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4595[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4596[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4597[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4600[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4594[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4611:9
+     [1m[94m|[0m
+[1m[94m4611[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4612[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4613[0m [1m[94m|[0m [1m[33m|[0m                 replacement.session_id,
+[1m[94m4614[0m [1m[94m|[0m [1m[33m|[0m                 replacement.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4617[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4611[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4649:9
+     [1m[94m|[0m
+[1m[94m4649[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4650[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4651[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4652[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4655[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4649[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4668:9
+     [1m[94m|[0m
+[1m[94m4668[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4669[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4670[0m [1m[94m|[0m [1m[33m|[0m                 partial.session_id,
+[1m[94m4671[0m [1m[94m|[0m [1m[33m|[0m                 partial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4674[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4668[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4701:9
+     [1m[94m|[0m
+[1m[94m4701[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4702[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4703[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4704[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4707[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4701[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4762:9
+     [1m[94m|[0m
+[1m[94m4762[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4763[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4764[0m [1m[94m|[0m [1m[33m|[0m                 retry.session_id,
+[1m[94m4765[0m [1m[94m|[0m [1m[33m|[0m                 retry.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4768[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4762[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4793:9
+     [1m[94m|[0m
+[1m[94m4793[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4794[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4795[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4796[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4799[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4793[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4812:9
+     [1m[94m|[0m
+[1m[94m4812[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4813[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4814[0m [1m[94m|[0m [1m[33m|[0m                 first_update.session_id,
+[1m[94m4815[0m [1m[94m|[0m [1m[33m|[0m                 first_update.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4818[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4812[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:4851:9
+     [1m[94m|[0m
+[1m[94m4851[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m4852[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m4853[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m4854[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m4857[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m4851[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5074:9
+     [1m[94m|[0m
+[1m[94m5074[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5075[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5076[0m [1m[94m|[0m [1m[33m|[0m                 initial.session_id,
+[1m[94m5077[0m [1m[94m|[0m [1m[33m|[0m                 initial.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5080[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5074[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+    [1m[94m--> [0mcrates/novadraw/src/runtime/runtime.rs:5220:9
+     [1m[94m|[0m
+[1m[94m5220[0m [1m[94m|[0m [1m[33m/[0m         runtime
+[1m[94m5221[0m [1m[94m|[0m [1m[33m|[0m             .complete_submission(
+[1m[94m5222[0m [1m[94m|[0m [1m[33m|[0m                 submission.session_id,
+[1m[94m5223[0m [1m[94m|[0m [1m[33m|[0m                 submission.frame_id,
+[1m[94m...[0m    [1m[33m|[0m
+[1m[94m5226[0m [1m[94m|[0m [1m[33m|[0m             .expect("frame completion");
+     [1m[94m|[0m [1m[33m|_______________________________________^[0m
+     [1m[94m|[0m
+     [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+     [1m[94m|[0m
+[1m[94m5220[0m [1m[94m| [0m        [92mlet _ = [0mruntime
+     [1m[94m|[0m         [92m+++++++[0m
+
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m   Compiling[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m   Compiling[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/scenes)
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m   Compiling[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m   Compiling[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m   Compiling[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m   Compiling[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/examples/native/gef-editor-demo)
+[1m[92m   Compiling[0m gef-logic-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/examples/native/gef-logic-demo)
+[1m[92m   Compiling[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m   Compiling[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/draw2d-official-examples)
+[1m[92m   Compiling[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/integration/web-validation)
+[1m[33mwarning[0m[1m: function `record_full_submission` is never used[0m
+  [1m[94m--> [0mcrates/novadraw/tests/support/mod.rs:31:8
+   [1m[94m|[0m
+[1m[94m31[0m [1m[94m|[0m pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+   [1m[94m|[0m        [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[92m   Compiling[0m ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/ndcanvas-app)
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/rustc2AEkem/symbols.o" "<17 object files omitted>" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/{libresvg-32d48d834a729929,libimage_webp-7942499b1303da11,libgif-dd186367beb73e2c,libcolor_quant-9aa603ad3f12da7f,librgb-754c7df44207867d,libusvg-b83eb7c72740eb37,libbase64-149540ead82d13ac,libunicode_bidi-aaa05b3d9dc73065,libunicode_vo-5bf15621261ccd09,libimagesize-7f2681926327a275,libdata_url-807d5a8839b6c84e,libunicode_script-a3f4423d8c53d6a1,libharfrust-40581acedf452cfc,libxmlwriter-f2ebf4b3ebd11d0f,libsimplecss-822bcfda00e44da3,libroxmltree-e800c1f755628fea,libsvgtypes-833de903b162585c,libsiphasher-e99047f83bdd6cbe,libfontdb-8ea4a97785fb091c,libtinyvec-b5cc5ec8a8a27384,libtinyvec_macros-1865c26bcdcdf62a,libtiny_skia-b2ad1c43aac61bf5,liblog-a02b0469805592f7,libtiny_skia_path-e89995626d5b9d00,libstrict_num-ae98d8761db1507c,libfloat_cmp-ae6d7eea13756da0,libarrayref-199a16520b75e591,libstacker-ea56d9c3eda57202,libpsm-af08e5ddca7d3e26,libserde_json-b2ab7eedc8329927,libmemchr-c9dfa8e59440b86f,libitoa-41f263bd9a35f33d,libryu-bb7442da51238b2e}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/{libparley-945b77989e251eb9,libskrifa-4b41a59b4222d5e4,libharfrust-29793698bb471907,libswash-1379dba42aaf56a0,libskrifa-de717d3e56242818,libread_fonts-1db5e7a219432aa1,libfont_types-1e2b0be34be0b33c,libfontique-66bcaf1ec0ec453c,libmemmap2-e3efbfa4e0ca92ac,liblinebender_resource_handle-b53d093424543d31,libicu_locale_core-9b938dd5e719e9e4,libwriteable-bd1978e260271c20,libtinystr-1c802e41da34403f,libzerovec-d57e0280cd88b747,libyoke-c2ec2d7ff22cf714,libstable_deref_trait-475f576c99c0cf59,libzerofrom-05cf548b59037397,liblitemap-d8351a7e3023a825,libread_fonts-c313bdc734287323,libcore_maths-9a3f100d805f7b9e,liblibm-efa11f8617b68c16,libfont_types-42f9c191aedf16b5,libobjc2_foundation-7d8ec319a16dc8b0,libblock2-9043a25bbb7d5bf3,libobjc2_core_text-6c9452c84e367b97,libobjc2_core_foundation-de63c1b9dabffc36,libobjc2-70d3416c9c9e7831,libobjc2_encode-5ee368a9d4aab6a5,libhashbrown-15de1740d67d638a,libequivalent-b159afe82b44b51e,liballocator_api2-d70fe24790d6f2fb,libfoldhash-056558f5098ffd96,libimage-d8758c6301ee43e1,libbytemuck-28e050e70b1cc51f,libmoxcms-15fdf45e7dcc4465,libpxfm-0b9e6f4f885300e8,libtiff-8d7dabc527dfc130,libfax-aae81f3bb7c116b3,libquick_error-209df645ac7b2d58,libweezl-7c7b20adc82efc2e,libzune_jpeg-6979ac10109e97fc,libzune_core-6873a1f8f3fd6b2f,libhalf-c0c7f3443822fbdb,libzerocopy-a07da8d529ccaa0f,libpng-6ee23f475483fe74,libbitflags-d0e0ff6a4f0a0d8a,libflate2-f13e8dd8f77b1cd1,libminiz_oxide-c3b9309d2ee703c6,libfdeflate-a59474edcfd7bff8,libsimd_adler32-5c9e22d21606bbbf,libcrc32fast-8ff469db6b7b927e,libbyteorder_lite-f6dedc74bce6b369,libnum_traits-9e75c9e5f200d2a2,libunicode_segmentation-9ad2535ac5b72f74,libkurbo-a37eda9f64dbc7bc,libpolycool-00a7d1fbb8b4159e,libsmallvec-09e0985062969d6e,libarrayvec-a85323b19749366c,libslotmap-c794355acbcd32c7,libuuid-39a3b98281c7b8ed,libgetrandom-6b700ebcdd6d946e,liblibc-214115e53ce28489,libcfg_if-1a3217a599942a12,libserde-33ea350852ed1d0b,libserde_core-39a0afee97430cdd}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-framework" "Foundation" "-framework" "CoreText" "-framework" "CoreFoundation" "-lobjc" "-framework" "Foundation" "-liconv" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/build/psm-6c4666c40760cac9/out" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/novadraw-4b5aa475ab601750" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: ld: warning: object file (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/libpsm-af08e5ddca7d3e26.rlib[5](4f9a91766097c4c5-aarch_aapcs64.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: write() failed, errno=17
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[33mwarning[0m: `novadraw` (lib test) generated 14 warnings
+[1m[91merror[0m: could not compile `novadraw` (lib test) due to 1 previous error; 14 warnings emitted
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[0m[1m: error writing dependencies to `/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/ndcanvas_app-8744e8d674520853.d`: No space left on device (os error 28)[0m
+
+[1m[91merror[0m[1m: could not write output to /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/draw2d_official_examples-b0738de47f19d46a.draw2d_official_examples.c6223293e545da50-cgu.01.rcgu.o: No space left on device[0m
+
+[1m[91merror[0m: could not compile `ndcanvas-app` (bin "ndcanvas-app" test) due to 1 previous error
+[1m[91merror[0m: could not compile `draw2d-official-examples` (lib) due to 1 previous error
+[1m[91merror[0m[1m: failed to build archive at `/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/libgef_logic_demo-06566f7e104dcb28.rlib`: failed to remove temporary directory: No space left on device (os error 28) at path "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/.tmpqyuE0o.temp-archive"[0m
+
+[1m[91merror[0m: could not compile `novadraw` (test "graph_layout_protocol") due to 1 previous error
+[1m[91merror[0m: could not parse/generate dep info at: /Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/novadraw_platform_masonry-dd4258f88f7a56e2.d
+
+Caused by:
+  failed to write `/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/.fingerprint/novadraw-platform-masonry-dd4258f88f7a56e2/dep-lib-novadraw_platform_masonry`
+
+Caused by:
+  No space left on device (os error 28)
+[1m[91merror[0m: could not compile `gef-logic-demo` (lib) due to 1 previous error
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/rustcewhg8W/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/{libnovadraw-8f339797e39025a9,libresvg-32d48d834a729929,libimage_webp-7942499b1303da11,libgif-dd186367beb73e2c,libcolor_quant-9aa603ad3f12da7f,librgb-754c7df44207867d,libusvg-b83eb7c72740eb37,libbase64-149540ead82d13ac,libunicode_bidi-aaa05b3d9dc73065,libunicode_vo-5bf15621261ccd09,libimagesize-7f2681926327a275,libdata_url-807d5a8839b6c84e,libunicode_script-a3f4423d8c53d6a1,libharfrust-40581acedf452cfc,libxmlwriter-f2ebf4b3ebd11d0f,libsimplecss-822bcfda00e44da3,libroxmltree-e800c1f755628fea,libmemchr-c9dfa8e59440b86f,libsvgtypes-833de903b162585c,libsiphasher-e99047f83bdd6cbe,libfontdb-8ea4a97785fb091c,libtinyvec-b5cc5ec8a8a27384,libtinyvec_macros-1865c26bcdcdf62a,libtiny_skia-b2ad1c43aac61bf5,liblog-a02b0469805592f7,libtiny_skia_path-e89995626d5b9d00,libstrict_num-ae98d8761db1507c,libfloat_cmp-ae6d7eea13756da0,libarrayref-199a16520b75e591,libstacker-ea56d9c3eda57202,libpsm-af08e5ddca7d3e26,libimage-d8758c6301ee43e1,libmoxcms-15fdf45e7dcc4465,libpxfm-0b9e6f4f885300e8,libtiff-8d7dabc527dfc130,libfax-aae81f3bb7c116b3,libquick_error-209df645ac7b2d58,libweezl-7c7b20adc82efc2e,libzune_jpeg-6979ac10109e97fc,libzune_core-6873a1f8f3fd6b2f,libhalf-c0c7f3443822fbdb,libzerocopy-a07da8d529ccaa0f,libpng-6ee23f475483fe74,libflate2-f13e8dd8f77b1cd1,libminiz_oxide-c3b9309d2ee703c6,libfdeflate-a59474edcfd7bff8,libsimd_adler32-5c9e22d21606bbbf,libcrc32fast-8ff469db6b7b927e,libbyteorder_lite-f6dedc74bce6b369,libnum_traits-9e75c9e5f200d2a2,libparley-945b77989e251eb9,libskrifa-4b41a59b4222d5e4,libharfrust-29793698bb471907,libswash-1379dba42aaf56a0,libskrifa-de717d3e56242818,libread_fonts-1db5e7a219432aa1,libfont_types-1e2b0be34be0b33c,libfontique-66bcaf1ec0ec453c,libmemmap2-e3efbfa4e0ca92ac,liblinebender_resource_handle-b53d093424543d31,libicu_locale_core-9b938dd5e719e9e4,libwriteable-bd1978e260271c20,libtinystr-1c802e41da34403f,libzerovec-d57e0280cd88b747,libyoke-c2ec2d7ff22cf714,libstable_deref_trait-475f576c99c0cf59,libzerofrom-05cf548b59037397,liblitemap-d8351a7e3023a825,libread_fonts-c313bdc734287323,libcore_maths-9a3f100d805f7b9e,liblibm-efa11f8617b68c16,libfont_types-42f9c191aedf16b5,libbytemuck-28e050e70b1cc51f,libobjc2_foundation-7d8ec319a16dc8b0,libblock2-9043a25bbb7d5bf3,libobjc2_core_text-6c9452c84e367b97,libobjc2_core_foundation-de63c1b9dabffc36,libbitflags-d0e0ff6a4f0a0d8a,libobjc2-70d3416c9c9e7831,libobjc2_encode-5ee368a9d4aab6a5,libhashbrown-15de1740d67d638a,libequivalent-b159afe82b44b51e,liballocator_api2-d70fe24790d6f2fb,libfoldhash-056558f5098ffd96,libunicode_segmentation-9ad2535ac5b72f74,libkurbo-a37eda9f64dbc7bc,libpolycool-00a7d1fbb8b4159e,libsmallvec-09e0985062969d6e,libarrayvec-a85323b19749366c,libslotmap-c794355acbcd32c7,libuuid-39a3b98281c7b8ed,libgetrandom-6b700ebcdd6d946e,liblibc-214115e53ce28489,libcfg_if-1a3217a599942a12,libserde-33ea350852ed1d0b,libserde_core-39a0afee97430cdd}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-framework" "Foundation" "-framework" "CoreText" "-framework" "CoreFoundation" "-lobjc" "-framework" "Foundation" "-liconv" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/build/psm-6c4666c40760cac9/out" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/m10_text_extension_contract-e3e2e18d071993cb" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=No space left on device)
+          
+
+[1m[91merror[0m: could not compile `novadraw` (test "m10_text_extension_contract") due to 1 previous error
+[1m[33mwarning[0m: `novadraw` (test "p2_route_dependency_recovery") generated 1 warning
+[1m[91merror[0m: could not compile `novadraw` (test "p2_route_dependency_recovery") due to 1 previous error; 1 warning emitted
+[1m[91merror[0m: could not compile `gef-editor-demo` (bin "ui-shell-baseline" test) due to 1 previous error
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 71[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "-Wl,-exported_symbols_list" "-Wl,/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/rustclEE8YN/list" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/rustclEE8YN/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/build/psm-6c4666c40760cac9/out" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/debug/deps/libweb_validation.dylib" "-Wl,-dead_strip" "-dynamiclib" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: cc: error: can't exec '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang' (errno=Input/output error)
+          
+
+[1m[91merror[0m: could not compile `web-validation` (lib) due to 1 previous error

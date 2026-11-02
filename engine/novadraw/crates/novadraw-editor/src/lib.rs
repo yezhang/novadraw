@@ -12,6 +12,7 @@
 mod autoexpose;
 pub mod command;
 pub mod container;
+pub mod diagnostics;
 mod direct_edit;
 mod domain;
 pub mod model;

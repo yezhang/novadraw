@@ -17,7 +17,7 @@ where
                 Err(error)
             }
             Err(payload) => {
-                self.mark_faulted_with_cause(&failure::panic_message(payload.as_ref()));
+                self.record_extension_panic(payload.as_ref(), "viewer.synchronize");
                 resume_unwind(payload)
             }
         }
@@ -121,7 +121,7 @@ where
             ..Default::default()
         };
         self.drop_direct_text_edit_into(&mut report);
-        self.last_cleanup = Some(Arc::new(report));
+        self.last_cleanup = Some(Rc::new(report));
     }
 
     pub(super) fn drop_direct_text_edit_into(&mut self, report: &mut ProjectionCleanup) {

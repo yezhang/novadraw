@@ -1,0 +1,93 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on shared package cache
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m libm v0.2.15
+[1m[92m   Compiling[0m libc v0.2.191
+[1m[92m   Compiling[0m crc32fast v1.5.0
+[1m[92m   Compiling[0m object v0.39.1
+[1m[92m   Compiling[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m slotmap v1.0.7
+[1m[92m   Compiling[0m objc2 v0.6.4
+[1m[92m   Compiling[0m float-cmp v0.9.0
+[1m[92m   Compiling[0m strict-num v0.1.1
+[1m[92m   Compiling[0m polycool v0.4.0
+[1m[92m   Compiling[0m fdeflate v0.3.7
+[1m[91merror[0m[1m: couldn't create a temp dir: No space left on device (os error 28) at path "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/deps/rustcdOsPXY"[0m
+
+[1m[91merror[0m: could not compile `fdeflate` (lib) due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/crc32fast-ee62971616efd33c/rustcvQBpZx/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/crc32fast-ee62971616efd33c/build_script_build-ee62971616efd33c" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/num-traits-185999b37ddae8fc/rustc3gNr2K/symbols.o" "<2 object files omitted>" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/deps/libautocfg-4187f0aad02fd43e.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/num-traits-185999b37ddae8fc/build_script_build-185999b37ddae8fc" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/slotmap-63d408f15a4be7b3/rustcdQNSbJ/symbols.o" "<2 object files omitted>" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/deps/libversion_check-1542d152d61424be.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/slotmap-63d408f15a4be7b3/build_script_build-63d408f15a4be7b3" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/proc-macro2-630ead60fad61f75/rustchQQFg9/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/proc-macro2-630ead60fad61f75/build_script_build-630ead60fad61f75" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/libc-c8b4597d6506aa49/rustcxgiGRO/symbols.o" "<3 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/libc-c8b4597d6506aa49/build_script_build-c8b4597d6506aa49" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/object-8595760cb93c1878/rustcScrjPV/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/object-8595760cb93c1878/build_script_build-8595760cb93c1878" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/libm-8163feee8952c1f9/rustcEGR5G4/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/libm-8163feee8952c1f9/build_script_build-8163feee8952c1f9" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m: could not compile `num-traits` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `libm` (build script) due to 1 previous error
+[1m[91merror[0m[1m: linking with `cc` failed: exit status: 1[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m:  "cc" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/quote-723f5147ebb70765/rustcSEMcuA/symbols.o" "<2 object files omitted>" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib" "-o" "/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure/target/release/build/quote-723f5147ebb70765/build_script_build-723f5147ebb70765" "-Wl,-dead_strip" "-nodefaultlibs"
+  [1m[94m= [0m[1mnote[0m: some arguments are omitted. use `--verbose` to show all linker arguments
+  [1m[94m= [0m[1mnote[0m: clang: error: unable to execute command: posix_spawn failed: No space left on device
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+[1m[91merror[0m: could not compile `object` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `proc-macro2` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `slotmap` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `libc` (build script) due to 1 previous error
+[1m[91merror[0m: could not compile `quote` (build script) due to 1 previous error

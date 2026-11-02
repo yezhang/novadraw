@@ -3,6 +3,7 @@
 //! Commands may retain stable application model identity and owned model data. They must not
 //! retain live EditPart or Figure handles because views are rebuilt after model restoration.
 
+use crate::diagnostics::{OwnedError, PanicDiagnostic};
 use std::{
     error::Error,
     fmt,
@@ -10,10 +11,19 @@ use std::{
 };
 
 /// Failure returned by a model command.
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// Arbitrary owned sources have no equality contract.
+/// ```compile_fail
+/// fn requires_eq<T: Eq>() {}
+/// requires_eq::<novadraw_editor::command::CommandError>();
+/// ```
+#[derive(Clone, Debug)]
 pub struct CommandError {
     kind: CommandErrorKind,
     message: String,
+    source: Option<OwnedError>,
+    operation: Option<CommandOperation>,
+    compensation: Option<Box<CommandError>>,
 }
 
 impl CommandError {
@@ -22,6 +32,9 @@ impl CommandError {
         Self {
             kind: CommandErrorKind::Operation,
             message: message.into(),
+            source: None,
+            operation: None,
+            compensation: None,
         }
     }
 
@@ -30,6 +43,56 @@ impl CommandError {
         Self {
             kind: CommandErrorKind::Inconsistent,
             message: message.into(),
+            source: None,
+            operation: None,
+            compensation: None,
+        }
+    }
+
+    /// Creates a recoverable failure retaining an owned application error.
+    pub fn operation_with_source(message: impl Into<String>, source: impl Error + 'static) -> Self {
+        Self {
+            source: Some(OwnedError::new(source)),
+            ..Self::operation(message)
+        }
+    }
+
+    /// Creates an inconsistent-state failure retaining an owned application error.
+    pub fn state_unknown_with_source(
+        message: impl Into<String>,
+        source: impl Error + 'static,
+    ) -> Self {
+        Self {
+            source: Some(OwnedError::new(source)),
+            ..Self::state_unknown(message)
+        }
+    }
+
+    /// Returns the failure category independently of its display message.
+    pub const fn kind(&self) -> CommandErrorKind {
+        self.kind
+    }
+
+    /// Returns the stack operation that failed, when called through a stack.
+    pub const fn failed_operation(&self) -> Option<CommandOperation> {
+        self.operation
+    }
+
+    /// Returns a failed rollback or restoration, independently of the original failure.
+    pub fn compensation_error(&self) -> Option<&CommandError> {
+        self.compensation.as_deref()
+    }
+
+    fn at_operation(mut self, operation: CommandOperation) -> Self {
+        self.operation = Some(operation);
+        self
+    }
+
+    fn compensation_failed(message: String, original: Self, compensation: Self) -> Self {
+        Self {
+            source: Some(OwnedError::new(original)),
+            compensation: Some(Box::new(compensation)),
+            ..Self::state_unknown(message)
         }
     }
 
@@ -50,11 +113,18 @@ impl fmt::Display for CommandError {
     }
 }
 
-impl Error for CommandError {}
+impl Error for CommandError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source.as_ref().map(OwnedError::get)
+    }
+}
 
+/// Category of an application command failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CommandErrorKind {
+pub enum CommandErrorKind {
+    /// The command guarantees its pre-call state.
     Operation,
+    /// The command cannot guarantee its pre-call state.
     Inconsistent,
 }
 
@@ -143,10 +213,11 @@ impl<M> CompoundCommand<M> {
             if let Err(error) = result {
                 for rollback in (0..self.executed).rev() {
                     if let Err(rollback_error) = self.commands[rollback].undo(model) {
-                        return Err(CommandError::state_unknown(format!(
-                            "{}; compound rollback failed: {}",
-                            error, rollback_error
-                        )));
+                        return Err(CommandError::compensation_failed(
+                            format!("{}; compound rollback failed: {}", error, rollback_error),
+                            error,
+                            rollback_error,
+                        ));
                     }
                 }
                 self.executed = 0;
@@ -184,10 +255,14 @@ impl<M> Command<M> for CompoundCommand<M> {
                 Err(error) => {
                     for restore in index + 1..original_executed {
                         if let Err(restore_error) = self.commands[restore].redo(model) {
-                            return Err(CommandError::state_unknown(format!(
-                                "{}; compound undo compensation failed: {}",
-                                error, restore_error
-                            )));
+                            return Err(CommandError::compensation_failed(
+                                format!(
+                                    "{}; compound undo compensation failed: {}",
+                                    error, restore_error
+                                ),
+                                error,
+                                restore_error,
+                            ));
                         }
                         self.executed = restore + 1;
                     }
@@ -272,7 +347,12 @@ impl CommandStackEvent {
 }
 
 /// Failure returned by a command stack operation.
-#[derive(Debug, Eq, PartialEq)]
+///
+/// ```compile_fail
+/// fn requires_eq<T: PartialEq>() {}
+/// requires_eq::<novadraw_editor::command::CommandStackError>();
+/// ```
+#[derive(Debug)]
 pub enum CommandStackError {
     /// The command declined execution for the current model.
     Rejected {
@@ -295,6 +375,8 @@ pub enum CommandStackError {
         operation: CommandOperation,
         /// Label of the command that panicked.
         label: String,
+        /// Original payload classification, text, and callback location.
+        diagnostic: PanicDiagnostic,
     },
     /// The stack was faulted by a previous command panic.
     Faulted,
@@ -310,8 +392,15 @@ impl fmt::Display for CommandStackError {
             Self::NothingToUndo => write!(formatter, "there is no command to undo"),
             Self::NothingToRedo => write!(formatter, "there is no command to redo"),
             Self::HistoryExhausted => write!(formatter, "command history identity is exhausted"),
-            Self::Panicked { operation, label } => {
-                write!(formatter, "command panicked during {operation}: {label}")
+            Self::Panicked {
+                operation,
+                label,
+                diagnostic,
+            } => {
+                write!(
+                    formatter,
+                    "command panicked during {operation}: {label}: {diagnostic}"
+                )
             }
             Self::Faulted => write!(formatter, "command stack is faulted"),
         }
@@ -404,21 +493,23 @@ impl<M> CommandStack<M> {
         self.ensure_ready()?;
         let label = match catch_unwind(AssertUnwindSafe(|| command.label().to_owned())) {
             Ok(label) => label,
-            Err(_) => {
+            Err(payload) => {
                 self.faulted = true;
                 return Err(CommandStackError::Panicked {
                     operation: CommandOperation::Execute,
                     label: "<unavailable>".to_owned(),
+                    diagnostic: PanicDiagnostic::capture(payload.as_ref(), "command.label"),
                 });
             }
         };
         let executable = match catch_unwind(AssertUnwindSafe(|| command.can_execute(model))) {
             Ok(executable) => executable,
-            Err(_) => {
+            Err(payload) => {
                 self.faulted = true;
                 return Err(CommandStackError::Panicked {
                     operation: CommandOperation::Execute,
                     label,
+                    diagnostic: PanicDiagnostic::capture(payload.as_ref(), "command.can_execute"),
                 });
             }
         };
@@ -436,13 +527,14 @@ impl<M> CommandStack<M> {
                 if !error.is_recoverable() {
                     self.faulted = true;
                 }
-                return Err(error.into());
+                return Err(error.at_operation(CommandOperation::Execute).into());
             }
-            Err(_) => {
+            Err(payload) => {
                 self.faulted = true;
                 return Err(CommandStackError::Panicked {
                     operation: CommandOperation::Execute,
                     label,
+                    diagnostic: PanicDiagnostic::capture(payload.as_ref(), "command.execute"),
                 });
             }
         }
@@ -473,11 +565,25 @@ impl<M> CommandStack<M> {
         };
         let label = match label {
             Ok(label) => label,
-            Err(_) => return self.fault_from_query(CommandOperation::Undo, "<unavailable>"),
+            Err(payload) => {
+                return self.fault_from_query(
+                    CommandOperation::Undo,
+                    "<unavailable>",
+                    payload.as_ref(),
+                    "command.label",
+                );
+            }
         };
         let allowed = match allowed {
             Ok(allowed) => allowed,
-            Err(_) => return self.fault_from_query(CommandOperation::Undo, &label),
+            Err(payload) => {
+                return self.fault_from_query(
+                    CommandOperation::Undo,
+                    &label,
+                    payload.as_ref(),
+                    "command.can_undo",
+                );
+            }
         };
         if !allowed {
             return Err(CommandStackError::Rejected {
@@ -493,19 +599,20 @@ impl<M> CommandStack<M> {
             Ok(Ok(())) => {}
             Ok(Err(error)) if error.is_recoverable() => {
                 self.undoable.push(entry);
-                return Err(error.into());
+                return Err(error.at_operation(CommandOperation::Undo).into());
             }
             Ok(Err(error)) => {
                 self.undoable.push(entry);
                 self.faulted = true;
-                return Err(error.into());
+                return Err(error.at_operation(CommandOperation::Undo).into());
             }
-            Err(_) => {
+            Err(payload) => {
                 self.undoable.push(entry);
                 self.faulted = true;
                 return Err(CommandStackError::Panicked {
                     operation: CommandOperation::Undo,
                     label,
+                    diagnostic: PanicDiagnostic::capture(payload.as_ref(), "command.undo"),
                 });
             }
         }
@@ -530,11 +637,25 @@ impl<M> CommandStack<M> {
         };
         let label = match label {
             Ok(label) => label,
-            Err(_) => return self.fault_from_query(CommandOperation::Redo, "<unavailable>"),
+            Err(payload) => {
+                return self.fault_from_query(
+                    CommandOperation::Redo,
+                    "<unavailable>",
+                    payload.as_ref(),
+                    "command.label",
+                );
+            }
         };
         let allowed = match allowed {
             Ok(allowed) => allowed,
-            Err(_) => return self.fault_from_query(CommandOperation::Redo, &label),
+            Err(payload) => {
+                return self.fault_from_query(
+                    CommandOperation::Redo,
+                    &label,
+                    payload.as_ref(),
+                    "command.can_redo",
+                );
+            }
         };
         if !allowed {
             return Err(CommandStackError::Rejected {
@@ -550,19 +671,20 @@ impl<M> CommandStack<M> {
             Ok(Ok(())) => {}
             Ok(Err(error)) if error.is_recoverable() => {
                 self.redoable.push(entry);
-                return Err(error.into());
+                return Err(error.at_operation(CommandOperation::Redo).into());
             }
             Ok(Err(error)) => {
                 self.redoable.push(entry);
                 self.faulted = true;
-                return Err(error.into());
+                return Err(error.at_operation(CommandOperation::Redo).into());
             }
-            Err(_) => {
+            Err(payload) => {
                 self.redoable.push(entry);
                 self.faulted = true;
                 return Err(CommandStackError::Panicked {
                     operation: CommandOperation::Redo,
                     label,
+                    diagnostic: PanicDiagnostic::capture(payload.as_ref(), "command.redo"),
                 });
             }
         }
@@ -592,7 +714,12 @@ impl<M> CommandStack<M> {
             .ok_or(CommandStackError::NothingToUndo)?;
         match catch_unwind(AssertUnwindSafe(|| entry.command.can_undo())) {
             Ok(allowed) => Ok(allowed),
-            Err(_) => self.fault_from_query(CommandOperation::Undo, "<unavailable>"),
+            Err(payload) => self.fault_from_query(
+                CommandOperation::Undo,
+                "<unavailable>",
+                payload.as_ref(),
+                "command.can_undo",
+            ),
         }
     }
 
@@ -605,7 +732,12 @@ impl<M> CommandStack<M> {
             .ok_or(CommandStackError::NothingToRedo)?;
         match catch_unwind(AssertUnwindSafe(|| entry.command.can_redo())) {
             Ok(allowed) => Ok(allowed),
-            Err(_) => self.fault_from_query(CommandOperation::Redo, "<unavailable>"),
+            Err(payload) => self.fault_from_query(
+                CommandOperation::Redo,
+                "<unavailable>",
+                payload.as_ref(),
+                "command.can_redo",
+            ),
         }
     }
 
@@ -672,15 +804,19 @@ impl<M> CommandStack<M> {
         Ok(())
     }
 
+    #[track_caller]
     fn fault_from_query<T>(
         &mut self,
         operation: CommandOperation,
         label: &str,
+        payload: &(dyn std::any::Any + Send),
+        location: &'static str,
     ) -> Result<T, CommandStackError> {
         self.faulted = true;
         Err(CommandStackError::Panicked {
             operation,
             label: label.to_owned(),
+            diagnostic: PanicDiagnostic::capture(payload, location),
         })
     }
 

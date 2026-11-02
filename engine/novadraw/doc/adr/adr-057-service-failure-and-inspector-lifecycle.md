@@ -32,7 +32,9 @@ S09-B Core Observations／Inspector 与宿主恢复实现及自动门禁已完�
 成本覆盖宿主选择的 64／4096 容量，不代表未设全局上限的引擎最大容量验收。
 S09-C Core Connections 注册实现、消费者与自动门禁已于 2026-11-02 完成，
 见[实施记录](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)。
-下一片为 S09-D Editor 扩展错误与 panic 诊断，后续切片按执行队列串行推进。
+S09-D Editor 扩展错误与 panic 诊断已实现并通过定向验证，
+见[实施记录](../verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
+最终门禁因磁盘空间不足待补验；S09 整批尚未关闭，按执行队列串行推进。
 
 ## 问题与范围
 

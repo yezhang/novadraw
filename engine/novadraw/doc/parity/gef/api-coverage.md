@@ -86,6 +86,11 @@ target 时只聚合一次。
 Command 修改模型，不修改 EditPart/Figure。新 execute 清空 redo；undo/redo 产生模型
 通知并驱动同一 refresh 链路。Command history 不保存活 controller/view 句柄。
 
+2026-11-02 S09-D 对既有 `command.protocol`、`command.stack` 与 `policy.protocol`
+补充 owned Error source、独立失败操作和 panic 分类，沿用原有事务／fault 边界，
+不计作新增 GEF 能力。公开契约定向测试已通过；最终门禁待补验，见
+[实施记录](../../verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
+
 ### 输入
 
 Figure-native widget 和 Tool 必须共存。Figure 消费或 capture 后不再进入 Tool；Tool

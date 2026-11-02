@@ -198,7 +198,9 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 服务结果，[S09-B](p2-s09-b-implementation-2026-10-30.md)完成 Core Observations
 与 Inspector 生命周期。2026-11-02 [S09-C](p2-s09-c-implementation-2026-11-02.md)
 完成 Connections 单一 fallible 注册入口与真实 fault 准入。
-Editor 扩展 source／panic 仍待 S09-D；R07 保持部分关闭。
+Editor 扩展 source／panic 已由 [S09-D](p2-s09-d-implementation-2026-11-02.md)
+实现并通过定向验证，最终门禁因磁盘空间不足待补验；
+S09-B 最大容量成本要求仍未验收，R07 保持部分关闭。
 以下源码描述保留为原审计证据。
 
 - 优先级：P1

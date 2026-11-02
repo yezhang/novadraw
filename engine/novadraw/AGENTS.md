@@ -89,7 +89,8 @@
   GA-1/GA-4 为基础，已完成 S01–S08 的既定切片；S08-A／B／C／D 已完成，
   输入不变量审计项已关闭；ADR-057 修订 3 已于 2026-10-30 接受，S09-A Core
   Animation、S09-B Observations／Inspector 与 S09-C Core Connections 已完成，
-  下一片为 S09-D Editor 扩展错误与 panic 诊断；Inspector 成本证据覆盖容量
+  S09-D Editor 扩展错误与 panic 诊断已实现并通过定向验证，最终门禁因磁盘
+  空间不足待补验，S09 整批保持未关闭；Inspector 成本证据覆盖容量
   64／4096，不代表引擎最大容量验收。Editor 开放吸附
   ADR-058 仍待评审。
   当前执行队列只在 `doc/roadmap/p2-delta-backlog.md` 维护。

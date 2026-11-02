@@ -1,0 +1,4 @@
+Suite extensions: External Core/Editor consumers and open Editor protocols
+
+==> $ cargo test -p novadraw --test d4_component_update --test d4_constrained_measurement --test m10_text_extension_contract
+[1m[92m    Blocking[0m waiting for file lock on build directory

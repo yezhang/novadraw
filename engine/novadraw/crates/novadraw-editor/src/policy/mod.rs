@@ -234,9 +234,16 @@ impl FeedbackVisual {
 }
 
 /// Failure returned by an EditPolicy extension.
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// ```compile_fail
+/// fn requires_eq<T: PartialEq>() {}
+/// requires_eq::<novadraw_editor::policy::PolicyError>();
+/// ```
+#[derive(Clone, Debug)]
 pub struct PolicyError {
     message: String,
+    source: Option<crate::diagnostics::OwnedError>,
+    operation: Option<&'static str>,
 }
 
 impl PolicyError {
@@ -244,7 +251,27 @@ impl PolicyError {
     pub fn operation(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            source: None,
+            operation: None,
         }
+    }
+
+    /// Creates a policy rejection retaining an owned application error.
+    pub fn operation_with_source(message: impl Into<String>, source: impl Error + 'static) -> Self {
+        Self {
+            source: Some(crate::diagnostics::OwnedError::new(source)),
+            ..Self::operation(message)
+        }
+    }
+
+    /// Returns the policy callback that rejected the operation, when known.
+    pub const fn failed_operation(&self) -> Option<&'static str> {
+        self.operation
+    }
+
+    pub(crate) fn at_operation(mut self, operation: &'static str) -> Self {
+        self.operation = Some(operation);
+        self
     }
 
     /// Returns the failure message.
@@ -259,7 +286,13 @@ impl fmt::Display for PolicyError {
     }
 }
 
-impl Error for PolicyError {}
+impl Error for PolicyError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(crate::diagnostics::OwnedError::get)
+    }
+}
 
 /// Pluggable editing behavior installed in one typed policy slot.
 pub trait EditPolicy<A: ModelAdapter>: 'static {
@@ -545,7 +578,8 @@ impl<A: ModelAdapter> PolicyEntry<A> {
         host: PolicyHost<A::ModelId>,
         model: &A,
     ) -> Result<(), PolicyError> {
-        (self.activate)(self.policy.as_mut(), host, model)?;
+        (self.activate)(self.policy.as_mut(), host, model)
+            .map_err(|error| error.at_operation("policy.activate"))?;
         self.active = true;
         Ok(())
     }
@@ -809,8 +843,9 @@ impl<A: ModelAdapter> PolicyStore<A> {
             };
             registered = true;
             if handler.has_target()
-                && let Some(target) =
-                    handler.target(entry.policy.as_mut(), host, metadata, payload, model)?
+                && let Some(target) = handler
+                    .target(entry.policy.as_mut(), host, metadata, payload, model)
+                    .map_err(|error| error.at_operation("policy.target"))?
             {
                 return Ok(Some(target));
             }
@@ -861,8 +896,9 @@ impl<A: ModelAdapter> PolicyStore<A> {
             let Some(handler) = entry.handlers.get(&key) else {
                 continue;
             };
-            let Some(contribution) =
-                handler.contribute(entry.policy.as_mut(), host, metadata, payload, model)?
+            let Some(contribution) = handler
+                .contribute(entry.policy.as_mut(), host, metadata, payload, model)
+                .map_err(|error| error.at_operation("policy.contribute"))?
             else {
                 continue;
             };

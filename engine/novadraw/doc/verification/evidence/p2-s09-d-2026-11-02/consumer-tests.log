@@ -1,0 +1,54 @@
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m    Blocking[0m waiting for file lock on package cache
+[1m[92m   Compiling[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m   Compiling[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m   Compiling[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m   Compiling[0m novadraw-service-failure-consumer v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/service-failure)
+[1m[33mwarning[0m[1m: unused `SubmissionAcknowledgement` that must be used[0m
+   [1m[94m--> [0msrc/inspection.rs:335:13
+    [1m[94m|[0m
+[1m[94m335[0m [1m[94m|[0m [1m[33m/[0m             runtime
+[1m[94m336[0m [1m[94m|[0m [1m[33m|[0m                 .frames()
+[1m[94m337[0m [1m[94m|[0m [1m[33m|[0m                 .complete_submission(submission.session_id, submission.frame_id, Err(failure))
+[1m[94m338[0m [1m[94m|[0m [1m[33m|[0m                 .unwrap();
+    [1m[94m|[0m [1m[33m|_________________________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: the host must apply the Runtime's render recovery decision
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+[1m[96mhelp[0m: use `let _ = ...` to ignore the resulting value
+    [1m[94m|[0m
+[1m[94m335[0m [1m[94m| [0m            [92mlet _ = [0mruntime
+    [1m[94m|[0m             [92m+++++++[0m
+
+[1m[33mwarning[0m: `novadraw-service-failure-consumer` (lib test) generated 1 warning
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 37.81s
+[1m[92m     Running[0m unittests src/lib.rs (tests/consumers/service-failure/target/debug/deps/novadraw_service_failure_consumer-378b0828431363fc)
+
+running 23 tests
+test contracts::frame_animation_error_preserves_domain_source ... ok
+test editor_contracts::adjacent_model_editpart_and_tool_errors_keep_owned_sources ... ok
+test editor_contracts::command_source_survives_stack_domain_and_clone_without_error_clone_or_thread_bounds ... ok
+test editor_contracts::all_command_panic_boundaries_retain_text_or_nontext_classification_and_committed_prefix ... ok
+test editor_contracts::failed_compensation_retains_both_causes_and_faults_without_history_publication ... ok
+test contracts::healthy_same_mode_has_no_revision_or_frame_work ... ok
+test connection_contracts::builtin_and_external_registration_share_admission_without_strategy_callbacks ... ok
+test connection_contracts::external_strategies_run_only_when_registered_connection_is_prepared ... ok
+test contracts::mixed_behavior_success_and_rejection_preserve_prefix_and_consume_facts_once ... ok
+test editor_contracts::external_tool_panic_is_retained_at_activation_boundary_and_rethrown ... ok
+test editor_contracts::external_policy_source_survives_real_registry_viewer_tool_domain_and_clone ... ok
+test editor_contracts::external_policy_panics_preserve_payload_and_fault_viewer_without_formatting ... ok
+test connection_contracts::actual_callback_fault_rejects_new_objects_and_only_new_owner_recovers ... ok
+test inspection::tests::checkpoint_query_is_pure_and_cpu_drive_does_not_require_a_frame ... ok
+test inspection::tests::callback_panic_stops_recovery_and_runtime_fault_does_not_block_detach ... ok
+test inspection::tests::backend_recovery_damage_does_not_preempt_checkpoint_but_actual_fault_does ... ok
+test contracts::factory_panic_faults_owner_and_same_mode_still_returns_error ... ok
+test inspection::tests::detach_retries_foreign_then_correct_owner_and_dispose_is_already_removed ... ok
+test inspection::tests::idle_suspended_and_old_journal_recovery_do_not_replay_prior_records ... ok
+test inspection::tests::in_flight_frame_is_preserved_and_delayed_completion_follows_baseline ... ok
+test inspection::tests::second_checkpoint_rejection_cleans_new_subscriptions ... ok
+test inspection::tests::recovery_cleans_partial_scopes_snapshot_failure_and_changed_checkpoint ... ok
+test inspection::tests::recovery_records_cleanup_errors_and_multi_runtime_partial_failure ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

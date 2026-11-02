@@ -7,8 +7,10 @@ use super::*;
 pub struct ProjectionCleanup {
     /// Original refusal or panic, retained independently of cleanup failures.
     pub original: String,
+    /// Original panic payload diagnostic, separate from ordinary rejection errors.
+    pub panic: Option<crate::diagnostics::PanicDiagnostic>,
     /// Diagnostic from a nested failed scope, retained when its parent also cleans up.
-    pub prior_cleanup: Option<Arc<ProjectionCleanup>>,
+    pub prior_cleanup: Option<Rc<ProjectionCleanup>>,
     /// Cleanup steps that failed; later independent steps may still have completed.
     pub failures: Vec<ProjectionCleanupFailure>,
     /// Acquired Figure identities still attached to the old Runtime.
@@ -40,6 +42,8 @@ pub struct ProjectionCleanupFailure {
     pub error: Option<Box<ViewerError>>,
     /// A callback unwound instead of completing normally.
     pub panicked: bool,
+    /// Payload diagnostic when this cleanup callback panicked.
+    pub panic: Option<crate::diagnostics::PanicDiagnostic>,
 }
 
 pub(super) struct CreationBaseline {
@@ -121,13 +125,23 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
                 Err(payload) => panic_message(payload.as_ref()),
                 _ => unreachable!(),
             },
+            panic: match &result {
+                Err(payload) => Some(crate::diagnostics::PanicDiagnostic::capture(
+                    payload.as_ref(),
+                    "viewer.creation",
+                )),
+                _ => None,
+            },
             prior_cleanup: match &result {
-                Ok(Err(ViewerError::ProjectionCleanup { report, .. })) => Some(Arc::clone(report)),
+                Ok(Err(ViewerError::ProjectionCleanup { report, .. })) => Some(Rc::clone(report)),
                 _ => None,
             },
             live_anchors: anchors.to_vec(),
             ..Default::default()
         };
+        if self.last_panic.is_none() {
+            self.last_panic = report.panic.clone();
+        }
         let figures = self.collect_creation_figures(&roots);
         let acquired_parts: Vec<_> = parts
             .iter()
@@ -159,8 +173,8 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
         }
         self.faulted = true;
         self.drop_direct_text_edit_into(&mut report);
-        let report = Arc::new(report);
-        self.last_cleanup = Some(Arc::clone(&report));
+        let report = Rc::new(report);
+        self.last_cleanup = Some(Rc::clone(&report));
         match result {
             Ok(Err(original)) if report.failures.is_empty() && !report.runtime_faulted => {
                 Err(original)
@@ -239,8 +253,8 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
             // Each policy records attempted deactivation before calling the extension.
             if let Some(entries) = self.policies.entries_mut(id) {
                 for policy in entries.values_mut() {
-                    if catch_unwind(AssertUnwindSafe(|| policy.deactivate(host, &self.model)))
-                        .is_err()
+                    if let Err(payload) =
+                        catch_unwind(AssertUnwindSafe(|| policy.deactivate(host, &self.model)))
                     {
                         report.failures.push(ProjectionCleanupFailure {
                             stage: "policy deactivation",
@@ -248,6 +262,10 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
                             figure: None,
                             error: None,
                             panicked: true,
+                            panic: Some(crate::diagnostics::PanicDiagnostic::capture(
+                                payload.as_ref(),
+                                "policy.deactivate",
+                            )),
                         });
                     }
                 }
@@ -310,15 +328,22 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
     ) -> bool {
         let failure = match catch_unwind(AssertUnwindSafe(|| operation(self))) {
             Ok(Ok(())) => return true,
-            Ok(Err(error)) => (Some(Box::new(error)), false),
-            Err(_) => (None, true),
+            Ok(Err(error)) => (Some(Box::new(error)), None),
+            Err(payload) => (
+                None,
+                Some(crate::diagnostics::PanicDiagnostic::capture(
+                    payload.as_ref(),
+                    stage,
+                )),
+            ),
         };
         report.failures.push(ProjectionCleanupFailure {
             stage,
             figure,
             part,
             error: failure.0,
-            panicked: failure.1,
+            panicked: failure.1.is_some(),
+            panic: failure.1,
         });
         false
     }
@@ -361,15 +386,7 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
 }
 
 pub(super) fn panic_message(payload: &(dyn Any + Send)) -> String {
-    payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| {
-            payload
-                .downcast_ref::<&str>()
-                .map(|value| (*value).to_owned())
-        })
-        .unwrap_or_else(|| "extension panic".to_owned())
+    crate::diagnostics::PanicDiagnostic::capture(payload, "viewer.extension").to_string()
 }
 
 #[cfg(test)]
@@ -515,7 +532,9 @@ mod tests {
                         crate::PolicyKey::<CleanupSlot>::new("cleanup-probe"),
                         CleanupPolicy(Arc::clone(&self.calls)),
                     )
-                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+                    .map_err(|error| {
+                        EditPartError::operation_with_source(error.to_string(), error)
+                    })?,
                 ])
             } else {
                 Ok(vec![])

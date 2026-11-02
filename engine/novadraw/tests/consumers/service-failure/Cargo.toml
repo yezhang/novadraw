@@ -19,15 +19,22 @@ name = "inspector-lifecycle"
 path = "src/inspector_lifecycle.rs"
 required-features = ["consume-inspector"]
 
+[[bin]]
+name = "editor-failure-cost"
+path = "src/editor_failure_cost.rs"
+required-features = ["consume-editor"]
+
 [features]
 default = ["consume-animation"]
 consume-animation = []
 consume-connections = []
 consume-inspector = ["dep:novadraw-inspector"]
+consume-editor = ["dep:novadraw-editor"]
 
 [dependencies]
 novadraw = { path = "../../../crates/novadraw", default-features = false }
 novadraw-inspector = { path = "../../../crates/novadraw-inspector", optional = true }
+novadraw-editor = { path = "../../../crates/novadraw-editor", optional = true }
 
 [profile.release]
 opt-level = "s"

@@ -644,9 +644,10 @@ impl fmt::Display for PartTreeError {
 impl Error for PartTreeError {}
 
 /// Error returned by an application EditPart extension.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct EditPartError {
     message: String,
+    source: Option<crate::diagnostics::OwnedError>,
 }
 
 impl EditPartError {
@@ -654,6 +655,15 @@ impl EditPartError {
     pub fn operation(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Creates an extension failure retaining its original owned source.
+    pub fn operation_with_source(message: impl Into<String>, source: impl Error + 'static) -> Self {
+        Self {
+            source: Some(crate::diagnostics::OwnedError::new(source)),
+            ..Self::operation(message)
         }
     }
 
@@ -669,11 +679,17 @@ impl fmt::Display for EditPartError {
     }
 }
 
-impl Error for EditPartError {}
+impl Error for EditPartError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(crate::diagnostics::OwnedError::get)
+    }
+}
 
 impl From<RuntimeMutationError> for EditPartError {
     fn from(value: RuntimeMutationError) -> Self {
-        Self::operation(value.to_string())
+        Self::operation_with_source(value.to_string(), value)
     }
 }
 
@@ -990,7 +1006,7 @@ impl<'a> VisualBuildContext<'a> {
             .runtime
             .tree()
             .is_connection_figure(self.primary)
-            .map_err(|e| EditPartError::operation(e.to_string()))?
+            .map_err(|e| EditPartError::operation_with_source(e.to_string(), e))?
         {
             return Err(EditPartError::operation(
                 "connection child requires a Connection Figure",
@@ -1071,6 +1087,7 @@ impl<'a> VisualUpdateContext<'a> {
         self.runtime
             .figure(visual)?
             .update_component(update)
+            // This protocol permits display-only errors, not owned Error sources.
             .map_err(|error| EditPartError::operation(error.to_string()))
     }
 
@@ -1108,7 +1125,7 @@ impl<'a> VisualUpdateContext<'a> {
             .figure(self.primary)?
             .update_component(SetLabelText::new(text))
             .map(|receipt| receipt.changed)
-            .map_err(|error| EditPartError::operation(error.to_string()))
+            .map_err(|error| EditPartError::operation_with_source(error.to_string(), error))
     }
 }
 

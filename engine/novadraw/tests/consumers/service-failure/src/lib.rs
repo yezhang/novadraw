@@ -1,5 +1,20 @@
 use novadraw::runtime::Runtime;
 
+#[cfg(all(test, feature = "consume-editor"))]
+mod editor_contracts {
+    include!("../../../../crates/novadraw-editor/tests/p2_s09_extension_failure.rs");
+}
+
+#[cfg(feature = "consume-editor")]
+pub fn editor_error_source() -> bool {
+    use std::error::Error;
+    let error = novadraw_editor::command::CommandError::operation_with_source(
+        "external rejection",
+        std::io::Error::other("owned cause"),
+    );
+    error.source().unwrap().is::<std::io::Error>()
+}
+
 #[cfg(feature = "consume-inspector")]
 pub mod inspection;
 

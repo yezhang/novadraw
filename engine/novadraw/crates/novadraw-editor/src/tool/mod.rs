@@ -696,6 +696,15 @@ pub enum ToolError {
     Container(crate::container::ContainerEditError),
     /// Tool protocol or lifecycle state was inconsistent.
     Protocol(String),
+    /// An external Tool rejection retaining its owned cause.
+    Extension {
+        /// Display-only context.
+        message: String,
+        /// Original application error; no additional thread bounds are imposed.
+        source: std::rc::Rc<dyn Error>,
+        /// Tool callback boundary that rejected the operation, when known.
+        operation: Option<&'static str>,
+    },
 }
 
 impl fmt::Display for ToolError {
@@ -704,6 +713,7 @@ impl fmt::Display for ToolError {
             Self::Viewer(error) => error.fmt(formatter),
             Self::Container(error) => error.fmt(formatter),
             Self::Protocol(message) => message.fmt(formatter),
+            Self::Extension { message, .. } => message.fmt(formatter),
         }
     }
 }
@@ -714,6 +724,7 @@ impl Error for ToolError {
             Self::Viewer(error) => Some(error),
             Self::Container(error) => Some(error),
             Self::Protocol(_) => None,
+            Self::Extension { source, .. } => Some(source.as_ref()),
         }
     }
 }
@@ -731,6 +742,22 @@ impl From<crate::container::ContainerEditError> for ToolError {
 }
 
 impl ToolError {
+    /// Creates a Tool failure retaining an owned external cause.
+    pub fn protocol_with_source(message: impl Into<String>, source: impl Error + 'static) -> Self {
+        Self::Extension {
+            message: message.into(),
+            source: std::rc::Rc::new(source),
+            operation: None,
+        }
+    }
+
+    pub(crate) fn at_operation(mut self, location: &'static str) -> Self {
+        if let Self::Extension { operation, .. } = &mut self {
+            *operation = Some(location);
+        }
+        self
+    }
+
     /// Creates a Tool protocol or lifecycle failure.
     pub fn protocol(message: impl Into<String>) -> Self {
         Self::Protocol(message.into())

@@ -1,8 +1,27 @@
 # Service failure consumer
 
-独立 workspace，只从公开领域路径消费 Core；Inspector 通过可选依赖接入。
+独立 workspace，只从公开领域路径消费 Core；Inspector 和 Editor 通过可选依赖接入。
 覆盖 ADR-057 的 S09-A Animation、S09-B Observations／Inspector 订阅恢复和
-S09-C Connections 注册。
+S09-C Connections 注册及 S09-D Editor 扩展诊断。
+
+## Editor 扩展诊断
+
+```bash
+cargo test --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --no-default-features --features consume-editor
+cargo check --manifest-path tests/consumers/service-failure/Cargo.toml --lib --locked --no-default-features --features consume-editor --target wasm32-unknown-unknown
+cargo run --manifest-path tests/consumers/service-failure/Cargo.toml --locked --release --no-default-features --features consume-editor --bin editor-failure-cost
+```
+
+外部 Command／Policy／Tool 走引擎的公开注册和执行协议，测试多层 source
+downcast、无 Clone／Send 要求的错误、失败操作、panic payload 与历史／fault 边界。
+测试使用 unwind profile；Wasm 编译不等于运行了 panic 场景。
+`consume-editor` 选择消费者调用，不是引擎 feature。
+
+成本探针预热 10,000 次，测量 201 个样本，每样本执行 10,000 次操作。
+输出的 P50／P95 是每个样本的总纳秒数，分配数是全部样本的总数。
+测量覆盖文本／owned 错误构造、Clone、source downcast 和历史查询，
+不描述任意用户错误构造或恢复成本。实际状态见
+[S09-D 实施记录](../../../doc/verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
 
 ## Connections 注册
 

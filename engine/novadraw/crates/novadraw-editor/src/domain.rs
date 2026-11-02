@@ -407,6 +407,7 @@ where
         }
     }
 
+    #[track_caller]
     fn call_active_tool<F, T>(
         &mut self,
         viewer: &mut GraphicalViewer<A, F>,
@@ -415,6 +416,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        let call_site = std::panic::Location::caller();
         let result = catch_unwind(AssertUnwindSafe(|| {
             let mut context = ToolContext::new(viewer);
             let value = callback(self.active_tool.as_mut(), &mut context)?;
@@ -428,10 +430,10 @@ where
                     self.autoexpose_requested = false;
                     viewer.pointer_exited();
                 }
-                Err(error.into())
+                Err(error.at_operation("tool.callback").into())
             }
             Err(payload) => {
-                viewer.fault_extension();
+                viewer.record_panic_at(payload.as_ref(), "tool.callback", call_site);
                 resume_unwind(payload)
             }
         }
@@ -763,7 +765,7 @@ where
                 let created = match created {
                     Ok(created) => created?,
                     Err(payload) => {
-                        viewer.fault_extension();
+                        viewer.record_extension_panic(payload.as_ref(), "tool.handle_factory");
                         resume_unwind(payload)
                     }
                 };
@@ -1030,10 +1032,10 @@ where
             }
             Ok(Err(error)) => {
                 self.call_active_tool(viewer, |tool, context| tool.activate(context))?;
-                Err(error.into())
+                Err(error.at_operation("tool.activate").into())
             }
             Err(payload) => {
-                viewer.fault_extension();
+                viewer.record_extension_panic(payload.as_ref(), "tool.activate");
                 resume_unwind(payload)
             }
         }

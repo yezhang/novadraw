@@ -249,8 +249,9 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 优先级：P1
 
 状态：部分整改；2026-10-30 S09-A／B 完成 Animation 的 fault／同值分离与
-Inspector／listener 生命周期结果；2026-11-02 S09-C 注册入口完成，剩余 Editor
-分类随 S09-D 验收，见 [S09-C 记录](p2-s09-c-implementation-2026-11-02.md)。
+Inspector／listener 生命周期结果；2026-11-02 S09-C 注册入口完成，
+[S09-D](p2-s09-d-implementation-2026-11-02.md)已实现 Editor 分类与 source／panic
+诊断并通过定向验证。最终门禁因磁盘空间不足待补验，本项保持部分整改。
 
 证据：
 
