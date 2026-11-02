@@ -96,6 +96,8 @@ ASCII／等宽等受限路径必须有显式适用条件，并与完整引擎比
 产物体积分析仅按用户明确要求执行。
 
 行业研究见[性能技术参考](../../reference/text-layout-performance-2026-11-02.md)。
+用户已明确暂时保留 Parley；Core 直接编排底层文本库的替代路径保存在
+[未来技术候选](parley-replacement-candidate.md)，尚未批准替换实施。
 完整目标与状态所有权由[长文本总方案](long-text-performance-proposal.md)负责；
 安全算法由[增量排版提案](long-text-incremental-layout-proposal.md)负责；
 原生绘制依据由[覆盖提案](long-text-native-coverage-boundary.md)负责。
