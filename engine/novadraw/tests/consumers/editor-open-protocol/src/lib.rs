@@ -4,6 +4,10 @@
 #[path = "../../../../crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs"]
 mod external_container_contracts;
 
+// Snapping is compiled for both Native and Wasm, not only inside test configuration.
+#[path = "../../../../crates/novadraw-editor/tests/p2_e04_open_snapping_contract.rs"]
+pub mod external_snapping_contracts;
+
 #[cfg(test)]
 mod tests {
     use std::{

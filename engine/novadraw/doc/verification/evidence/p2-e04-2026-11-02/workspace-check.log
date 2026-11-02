@@ -1,0 +1,219 @@
+[1m[92m    Checking[0m stable_deref_trait v1.2.1
+[1m[92m   Compiling[0m syn v2.0.111
+[1m[92m    Checking[0m objc2-foundation v0.3.2
+[1m[92m    Checking[0m zerofrom v0.1.8
+[1m[92m    Checking[0m objc2-core-text v0.3.2
+[1m[92m    Checking[0m tracing-core v0.1.36
+[1m[92m    Checking[0m futures-core v0.3.34
+[1m[92m    Checking[0m objc2-app-kit v0.2.2
+[1m[92m   Compiling[0m time-core v0.1.9
+[1m[92m   Compiling[0m num-conv v0.2.2
+[1m[92m    Checking[0m regex-syntax v0.8.8
+[1m[92m    Checking[0m futures-intrusive v0.5.0
+[1m[92m    Checking[0m powerfmt v0.2.1
+[1m[92m    Checking[0m yoke v0.8.4
+[1m[92m   Compiling[0m time-macros v0.2.32
+[1m[92m    Checking[0m deranged v0.5.9
+[1m[92m    Checking[0m lazy_static v1.5.0
+[1m[92m    Checking[0m zerovec v0.11.8
+[1m[92m    Checking[0m zerotrie v0.2.5
+[1m[92m    Checking[0m sharded-slab v0.1.7
+[1m[92m    Checking[0m tracing-log v0.2.0
+[1m[92m    Checking[0m regex-automata v0.4.13
+[1m[92m    Checking[0m thread_local v1.1.9
+[1m[92m    Checking[0m nu-ansi-term v0.50.3
+[1m[92m   Compiling[0m paste v1.0.15
+[1m[92m    Checking[0m core-foundation v0.10.1
+[1m[92m    Checking[0m malloc_buf v0.0.6
+[1m[92m   Compiling[0m naga v28.0.0
+[1m[92m    Checking[0m bit-vec v0.8.0
+[1m[92m    Checking[0m core-graphics-types v0.2.0
+[1m[92m    Checking[0m bit-set v0.8.0
+[1m[92m    Checking[0m tinystr v0.8.4
+[1m[92m    Checking[0m potential_utf v0.1.6
+[1m[92m    Checking[0m objc2-metal v0.3.2
+[1m[92m    Checking[0m matchers v0.2.0
+[1m[92m    Checking[0m objc v0.2.7
+[1m[92m    Checking[0m codespan-reporting v0.12.0
+[1m[92m   Compiling[0m wgpu-hal v28.0.1
+[1m[92m    Checking[0m icu_collections v2.3.0
+[1m[92m    Checking[0m icu_locale_core v2.3.0
+[1m[92m    Checking[0m block v0.1.6
+[1m[92m   Compiling[0m wasm-bindgen-shared v0.2.127
+[1m[92m    Checking[0m time v0.3.55
+[1m[92m   Compiling[0m bytemuck_derive v1.10.2
+[1m[92m   Compiling[0m zerocopy-derive v0.8.30
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m foreign-types-macros v0.2.3
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m    Checking[0m icu_provider v2.3.1
+[1m[92m    Checking[0m objc2-core-graphics v0.3.2
+[1m[92m    Checking[0m bytemuck v1.25.2
+[1m[92m    Checking[0m zerocopy v0.8.30
+[1m[92m    Checking[0m icu_properties v2.3.0
+[1m[92m    Checking[0m color v0.3.3
+[1m[92m    Checking[0m font-types v0.11.3
+[1m[92m    Checking[0m peniko v0.6.1
+[1m[92m    Checking[0m font-types v0.12.4
+[1m[92m    Checking[0m foreign-types v0.5.0
+[1m[92m    Checking[0m tiny-skia-path v0.12.0
+[1m[92m    Checking[0m font-types v0.10.1
+[1m[92m    Checking[0m rgb v0.8.53
+[1m[92m    Checking[0m read-fonts v0.41.0
+[1m[92m    Checking[0m tracing v0.1.44
+[1m[92m    Checking[0m objc2-quartz-core v0.3.2
+[1m[92m    Checking[0m wgpu-types v29.0.4
+[1m[92m    Checking[0m read-fonts v0.35.0
+[1m[92m    Checking[0m core-graphics v0.23.2
+[1m[92m    Checking[0m tiny-skia v0.12.0
+[1m[92m    Checking[0m half v2.7.1
+[1m[92m    Checking[0m serde v1.0.228
+[1m[92m    Checking[0m icu_normalizer v2.3.0
+[1m[92m    Checking[0m tiff v0.11.3
+[1m[92m    Checking[0m naga v29.0.4
+[1m[92m    Checking[0m winit v0.30.13
+[1m[92m    Checking[0m raw-window-metal v1.1.0
+[1m[92m    Checking[0m read-fonts v0.39.2
+[1m[92m    Checking[0m vello_common v0.0.9
+[1m[92m    Checking[0m uuid v1.18.1
+[1m[92m    Checking[0m image v0.25.10
+[1m[92m    Checking[0m emath v0.35.0
+[1m[92m    Checking[0m accesskit v0.24.1
+[1m[92m    Checking[0m ecolor v0.35.0
+[1m[92m    Checking[0m ahash v0.8.12
+[1m[92m    Checking[0m vello_cpu v0.0.9
+[1m[92m    Checking[0m idna_adapter v1.2.2
+[1m[92m    Checking[0m objc2-app-kit v0.3.2
+[1m[92m    Checking[0m tracing-subscriber v0.3.23
+[1m[92m    Checking[0m idna v1.1.0
+[1m[92m    Checking[0m read-fonts v0.37.0
+[1m[92m    Checking[0m url v2.5.8
+[1m[92m    Checking[0m skrifa v0.37.0
+[1m[92m    Checking[0m harfrust v0.3.2
+[1m[92m    Checking[0m fontique v0.7.0
+[1m[92m    Checking[0m skrifa v0.44.0
+[1m[92m    Checking[0m harfrust v0.12.0
+[1m[92m    Checking[0m arboard v3.7.0
+[1m[92m    Checking[0m wgpu-naga-bridge v29.0.4
+[1m[92m    Checking[0m skrifa v0.42.1
+[1m[92m    Checking[0m harfrust v0.7.0
+[1m[92m    Checking[0m wgpu-hal v29.0.4
+[1m[92m    Checking[0m webbrowser v1.2.5
+[1m[92m    Checking[0m metal v0.33.0
+[1m[92m    Checking[0m wgpu-types v28.0.0
+[1m[92m    Checking[0m swash v0.2.10
+[1m[92m    Checking[0m usvg v0.48.1
+[1m[92m    Checking[0m wgpu-core-deps-apple v29.0.4
+[1m[92m    Checking[0m vello_encoding v0.10.0
+[1m[92m    Checking[0m wgpu-core v29.0.4
+[1m[92m    Checking[0m skrifa v0.40.0
+[1m[92m    Checking[0m epaint v0.35.0
+[1m[92m   Compiling[0m icu_locale_fallback_data v2.3.0
+[1m[92m   Compiling[0m vello_shaders v0.10.0
+[1m[92m    Checking[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/dependencies/parley-0.7.0)
+[1m[92m    Checking[0m resvg v0.48.1
+[1m[92m   Compiling[0m wgpu-core v28.0.1
+[1m[92m    Checking[0m egui v0.35.0
+[1m[92m   Compiling[0m rustversion v1.0.22
+[1m[92m   Compiling[0m icu_segmenter_data v2.3.0
+[1m[92m    Checking[0m novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw)
+[1m[92m    Checking[0m imaging v0.0.1
+[1m[92m   Compiling[0m wgpu v28.0.0
+[1m[92m    Checking[0m wgpu-core-deps-apple v28.0.0
+[1m[92m    Checking[0m icu_locale_fallback v2.3.0
+[1m[92m    Checking[0m wgpu v29.0.4
+[1m[92m    Checking[0m ttf-parser v0.25.1
+[1m[92m    Checking[0m egui-winit v0.35.0
+[1m[92m    Checking[0m egui-phosphor v0.13.0
+[1m[92m    Checking[0m keyboard-types v0.8.3
+[1m[92m    Checking[0m vello v0.10.0
+[1m[92m    Checking[0m winit-canvas v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/winit-canvas)
+[1m[92m    Checking[0m egui-wgpu v0.35.0
+[1m[92m    Checking[0m parlance v0.1.1
+[1m[92m   Compiling[0m bumpalo v3.19.0
+[1m[92m    Checking[0m fontique v0.8.0
+[1m[92m   Compiling[0m wasm-bindgen-macro-support v0.2.127
+[1m[92m    Checking[0m ui-events v0.3.0
+[1m[92m    Checking[0m icu_segmenter v2.3.0
+[1m[92m    Checking[0m vello_encoding v0.8.0
+[1m[92m    Checking[0m harfrust v0.5.2
+[1m[92m    Checking[0m parley_data v0.8.0
+[1m[92m    Checking[0m unicode-bidi-mirroring v0.4.0
+[1m[92m   Compiling[0m wasm-bindgen v0.2.127
+[1m[92m    Checking[0m unicode-ccc v0.4.0
+[1m[92m    Checking[0m anymore v1.0.0
+[1m[92m    Checking[0m unicode-properties v0.1.4
+[1m[92m    Checking[0m eframe v0.35.0
+[1m[92m    Checking[0m fontdb v0.23.0
+[1m[92m    Checking[0m rustybuzz v0.20.1
+[1m[92m    Checking[0m tree_arena v0.2.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m imagesize v0.14.0
+[1m[92m    Checking[0m anymap3 v1.1.0
+[1m[92m    Checking[0m futures-task v0.3.34
+[1m[92m    Checking[0m slab v0.4.11
+[1m[92m    Checking[0m base64 v0.22.1
+[1m[92m    Checking[0m futures-util v0.3.34
+[1m[92m    Checking[0m accesskit_consumer v0.38.0
+[1m[92m   Compiling[0m linebender_include_doc_path v0.1.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m parley v0.8.0
+[1m[92m    Checking[0m accesskit_macos v0.26.3
+[1m[92m    Checking[0m usvg v0.47.0
+[1m[92m    Checking[0m imaging_wgpu v0.0.1
+[1m[92m    Checking[0m understory_virtual_list v0.1.2
+[1m[92m    Checking[0m xilem_core v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m   Compiling[0m wasm-bindgen-macro v0.2.127
+[1m[92m    Checking[0m ui-events-winit v0.3.0
+[1m[92m    Checking[0m accesskit_winit v0.32.2
+[1m[92m    Checking[0m masonry_core v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m copypasta v0.10.2
+[1m[92m    Checking[0m novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor)
+[1m[92m    Checking[0m novadraw-backend-vello v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-backend-vello)
+[1m[92m    Checking[0m novadraw-example-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/scenes)
+[1m[92m    Checking[0m tokio v1.54.1
+[1m[92m   Compiling[0m vello_shaders v0.8.0
+[1m[92m    Checking[0m novadraw-inspector v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-inspector)
+[1m[92m    Checking[0m resvg v0.47.0
+[1m[92m    Checking[0m r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/r8-perf)
+[1m[92m    Checking[0m vello-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/backend/vello-app)
+[1m[92m    Checking[0m xtask v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tools/xtask)
+[1m[92m    Checking[0m native-vello-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/benchmarks/native-vello-perf)
+[1m[92m    Checking[0m js-sys v0.3.104
+[1m[92m    Checking[0m novadraw-platform-winit v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-winit)
+[1m[92m    Checking[0m novadraw-platform-web v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-web)
+[1m[92m    Checking[0m novadraw-example-support v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/support)
+[1m[92m    Checking[0m winit-canvas-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/integration/winit-canvas-demo)
+[1m[92m    Checking[0m masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m vello v0.8.0
+[1m[92m    Checking[0m draw2d-official-examples v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/draw2d-official-examples)
+[1m[92m    Checking[0m gef-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/examples/native/gef-editor-demo)
+[1m[92m    Checking[0m gef-logic-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/examples/native/gef-logic-demo)
+[1m[92m    Checking[0m connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/connections-demo)
+[1m[92m    Checking[0m uml-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/uml-demo)
+[1m[92m    Checking[0m transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/transform-app)
+[1m[92m    Checking[0m clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/clip-app)
+[1m[92m    Checking[0m imaging_vello v0.0.1
+[1m[92m    Checking[0m masonry_imaging v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/update-app)
+[1m[92m    Checking[0m composite-shapes-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/composite-shapes-app)
+[1m[92m    Checking[0m text-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/text-app)
+[1m[92m    Checking[0m layout-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/layout-app)
+[1m[92m    Checking[0m masonry_winit v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m wasm-bindgen-futures v0.4.77
+[1m[92m    Checking[0m web-sys v0.3.104
+[1m[92m    Checking[0m xilem_masonry v0.4.0 (https://github.com/linebender/xilem?rev=66c8893f12232b9d5cdf4296f773aa3dc07ee776#66c8893f)
+[1m[92m    Checking[0m animation-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/animation-app)
+[1m[92m    Checking[0m ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/ndcanvas-app)
+[1m[92m    Checking[0m node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-editor/examples/native/node-editor-demo)
+[1m[92m    Checking[0m advanced-figures-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/advanced-figures-app)
+[1m[92m    Checking[0m event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/event-app)
+[1m[92m    Checking[0m scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/scroll-pane-demo)
+[1m[92m    Checking[0m viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/viewport-app)
+[1m[92m    Checking[0m shape-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/shape-app)
+[1m[92m    Checking[0m style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/style-app)
+[1m[92m    Checking[0m border-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/border-app)
+[1m[92m    Checking[0m widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw/examples/native/widgets-app)
+[1m[92m    Checking[0m novadraw-platform-masonry v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/crates/novadraw-platform-masonry)
+[1m[92m    Checking[0m web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/examples/integration/web-validation)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 35.36s
+[1m[33mwarning[0m: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+[1m[92mnote[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

@@ -17,6 +17,12 @@ struct Gesture<I> {
     dragging: bool,
     feedback: Vec<FigureId>,
     visited: Vec<(EditPartId, PolicyGeneration)>,
+    snapping: Option<crate::snap::SnapSession>,
+}
+
+enum ToolMovePlan<A: ModelAdapter, P: ContainerMoveProtocol<A>> {
+    Plain(Box<CheckedMovePlan<A, P>>),
+    Snapped(Box<crate::snap::SnappedMovePlan<A, P>>),
 }
 
 /// Optional containment move tool, shared by every application protocol and layout.
@@ -29,6 +35,7 @@ pub struct ContainerMoveTool<A: ModelAdapter, P: ContainerMoveProtocol<A>> {
         InteractionRevision,
     )>,
     protocol: PhantomData<fn() -> P>,
+    snapping: Option<crate::snap::SnapSettings>,
 }
 
 impl<A: ModelAdapter, P: ContainerMoveProtocol<A>> Default for ContainerMoveTool<A, P> {
@@ -44,7 +51,15 @@ impl<A: ModelAdapter, P: ContainerMoveProtocol<A>> ContainerMoveTool<A, P> {
             gesture: None,
             pending: None,
             protocol: PhantomData,
+            snapping: None,
         }
+    }
+
+    /// Enables the same Viewer registry used by external snapping tools.
+    /// The application plan must declare its actual target-domain geometry.
+    pub fn with_snapping(mut self, settings: crate::snap::SnapSettings) -> Self {
+        self.snapping = Some(settings);
+        self
     }
 
     /// Starts from explicit programmatic input once installed through `set_active_tool`.
@@ -81,6 +96,10 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> ContainerMoveTool<A
             dragging,
             feedback: Vec::new(),
             visited: Vec::new(),
+            snapping: self
+                .snapping
+                .map(|_| ctx.begin_snap_session())
+                .transpose()?,
         });
         Ok(())
     }
@@ -90,7 +109,8 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> ContainerMoveTool<A
         gesture: &mut Gesture<A::ModelId>,
         location: Point,
         revision: InteractionRevision,
-    ) -> Result<Option<CheckedMovePlan<A, P>>, ToolError> {
+        settings: Option<crate::snap::SnapSettings>,
+    ) -> Result<Option<ToolMovePlan<A, P>>, ToolError> {
         ctx.validate_container_move(&gesture.batch)?;
         if gesture
             .visited
@@ -107,7 +127,14 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> ContainerMoveTool<A
             }
             let candidate =
                 ctx.container_move_candidate(&gesture.batch, target, location, revision)?;
-            if let Some(plan) = ctx.resolve_container_move::<P>(&candidate)? {
+            let plan = if let (Some(session), Some(settings)) = (&mut gesture.snapping, settings) {
+                ctx.resolve_snapped_container_move::<P>(session, &candidate, settings)?
+                    .map(|plan| ToolMovePlan::Snapped(Box::new(plan)))
+            } else {
+                ctx.resolve_container_move::<P>(&candidate)?
+                    .map(|plan| ToolMovePlan::Plain(Box::new(plan)))
+            };
+            if let Some(plan) = plan {
                 return Ok(Some(plan));
             }
             let Some(parent) = ctx.part_tree().parent(target) else {
@@ -143,8 +170,17 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> ContainerMoveTool<A
         if !gesture.dragging {
             return Ok(());
         }
-        if let Some(checked) = Self::plan(ctx, gesture, location, revision)? {
-            gesture.feedback = ctx.show_container_move_feedback(&checked)?;
+        if let Some(checked) = Self::plan(ctx, gesture, location, revision, self.snapping)? {
+            gesture.feedback = match checked {
+                ToolMovePlan::Plain(checked) => ctx.show_container_move_feedback(&checked)?,
+                ToolMovePlan::Snapped(checked) => ctx.show_snapped_container_move_feedback(
+                    gesture
+                        .snapping
+                        .as_mut()
+                        .ok_or_else(|| ToolError::protocol("missing snap session"))?,
+                    &checked,
+                )?,
+            };
             ctx.add_autoexpose_range_reserve(location, &mut gesture.feedback)?;
         }
         Ok(())
@@ -169,6 +205,9 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> Tool<A> for Contain
 
     fn cancel(&mut self, ctx: &mut ToolContext<'_, A>) -> Result<(), ToolError> {
         if let Some(gesture) = &mut self.gesture {
+            if let Some(session) = &mut gesture.snapping {
+                session.cancel();
+            }
             ctx.remove_overlay_visuals(&gesture.feedback)?;
             gesture.feedback.clear();
         }
@@ -236,7 +275,8 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> Tool<A> for Contain
         let dispatch = ctx.dispatch_moved(event.location());
         match self.update(ctx, event.location(), event.revision()) {
             Ok(()) => Ok((ToolDirective::Continue, dispatch)),
-            Err(ToolError::Container(ContainerEditError::Invalidated)) => {
+            Err(ToolError::Container(ContainerEditError::Invalidated))
+            | Err(ToolError::Snap(crate::snap::SnapError::Invalidated)) => {
                 self.cancel(ctx)?;
                 Ok((ToolDirective::ReleaseCapture, dispatch))
             }
@@ -267,21 +307,39 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> Tool<A> for Contain
             gesture.dragging |= delta.x().abs() >= crate::tool::DRAG_START_DISTANCE
                 || delta.y().abs() >= crate::tool::DRAG_START_DISTANCE;
             if gesture.dragging {
-                Self::plan(ctx, &mut gesture, event.location(), event.revision())
+                Self::plan(
+                    ctx,
+                    &mut gesture,
+                    event.location(),
+                    event.revision(),
+                    self.snapping,
+                )
             } else {
                 ctx.validate_container_move(&gesture.batch).map(|()| None)
             }
         })();
         // Cleanup failure prevents both command construction and submission.
         if let Err(error) = ctx.remove_overlay_visuals(&gesture.feedback) {
+            if let Some(session) = &mut gesture.snapping {
+                session.cancel();
+            }
             self.gesture = Some(gesture);
             return Err(error);
         }
         match result {
-            Ok(Some(checked)) => {
-                ctx.submit_container_move(checked)?;
-            }
-            Ok(None) | Err(ToolError::Container(ContainerEditError::Invalidated)) => {}
+            Ok(Some(checked)) => match checked {
+                ToolMovePlan::Plain(checked) => ctx.submit_container_move(*checked)?,
+                ToolMovePlan::Snapped(checked) => ctx.submit_snapped_container_move(
+                    gesture
+                        .snapping
+                        .as_mut()
+                        .ok_or_else(|| ToolError::protocol("missing snap session"))?,
+                    *checked,
+                )?,
+            },
+            Ok(None)
+            | Err(ToolError::Container(ContainerEditError::Invalidated))
+            | Err(ToolError::Snap(crate::snap::SnapError::Invalidated)) => {}
             Err(error) => return Err(error),
         }
         Ok((ToolDirective::ReleaseCapture, dispatch))
@@ -309,7 +367,8 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> Tool<A> for Contain
     ) -> Result<(), ToolError> {
         match self.update(ctx, location, revision) {
             Ok(()) => Ok(()),
-            Err(ToolError::Container(ContainerEditError::Invalidated)) => self.cancel(ctx),
+            Err(ToolError::Container(ContainerEditError::Invalidated))
+            | Err(ToolError::Snap(crate::snap::SnapError::Invalidated)) => self.cancel(ctx),
             Err(error) => {
                 self.cancel(ctx)?;
                 Err(error)

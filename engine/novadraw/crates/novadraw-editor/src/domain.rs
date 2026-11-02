@@ -297,6 +297,49 @@ impl<A: ModelAdapter + 'static> EditorDomain<A> {
         Ok(())
     }
 
+    /// Drops a template through the same snapping registry and actual-plan gate as pointer creation.
+    /// The explicit grab offset remains in target-parent units; the pointer remains unsnapped.
+    pub fn drop_into_container_with_snapping<T, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        template: &T,
+        location: Point,
+        grab_offset: Point,
+        modifiers: crate::RequestModifiers,
+        settings: crate::snap::SnapSettings,
+    ) -> Result<(), EditorDomainError>
+    where
+        T: crate::container::ContainerCreationTemplate<A>,
+        F: EditPartFactory<A>,
+    {
+        viewer.cancel_direct_text_edit()?;
+        self.cancel_active_tools(viewer)?;
+        viewer.stabilize_for_query()?;
+        let revision = self.next_interaction_revision()?;
+        let command = {
+            let mut context = ToolContext::new(viewer);
+            let mut session = context.begin_snap_session()?;
+            let checked = context.resolve_snapped_container_drop(
+                &mut session,
+                template,
+                location,
+                grab_offset,
+                modifiers,
+                revision,
+                settings,
+            )?;
+            if let Some(checked) = checked {
+                context.submit_snapped_container_creation(&mut session, checked)?;
+            }
+            session.cancel();
+            context.take_command()
+        };
+        if let Some(command) = command {
+            self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))?;
+        }
+        Ok(())
+    }
+
     /// Checks whether the top command currently permits undo.
     pub fn check_undo(&mut self) -> Result<bool, EditorDomainError> {
         Ok(self.command_stack.check_undo()?)

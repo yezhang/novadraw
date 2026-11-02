@@ -27,6 +27,7 @@ use uuid::Uuid;
 /// ```
 #[derive(Clone, Debug)]
 pub struct CreationStart {
+    operation: Uuid,
     namespace: EditorNamespace,
     revision: ModelRevision,
     contents: EditPartId,
@@ -73,6 +74,9 @@ pub struct CreationCandidate<I> {
     pointer: Point,
     target_to_surface: Affine2D,
     modifiers: RequestModifiers,
+    pub(crate) fixed_origin: Option<Point>,
+    pub(crate) moving_low: (bool, bool),
+    pub(crate) operation: Uuid,
 }
 
 impl<I: Copy> CreationCandidate<I> {
@@ -154,6 +158,11 @@ pub trait CreationPlan<A: ModelAdapter>: 'static {
     fn header(&self) -> &CreationPlanHeader<A::ModelId>;
     /// Returns visuals already projected to the existing feedback domain.
     fn feedback(&self) -> Result<Vec<FeedbackVisual>, ContainerEditError>;
+    /// Returns the actual model bounds consumed by the command, in target child-content units.
+    /// Snapping requires this declaration; ordinary creation may leave it absent.
+    fn actual_bounds(&self) -> Result<Option<Rectangle>, ContainerEditError> {
+        Ok(None)
+    }
     /// Builds an atomic model command after validation and successful cleanup.
     fn build_command(self, model: &A) -> Result<Option<Box<dyn Command<A>>>, ContainerEditError>;
 }
@@ -186,13 +195,18 @@ pub trait ContainerCreationTemplate<A: ModelAdapter>: 'static {
 /// ```
 pub struct CheckedCreationPlan<A: ModelAdapter, T: ContainerCreationTemplate<A>> {
     pub(crate) plan: T::Plan,
-    header: CreationPlanHeader<A::ModelId>,
+    pub(crate) header: CreationPlanHeader<A::ModelId>,
+    actual_bounds: Option<Rectangle>,
 }
 
 impl<A: ModelAdapter, T: ContainerCreationTemplate<A>> CheckedCreationPlan<A, T> {
     /// Returns the owned declaration used for validation.
     pub const fn header(&self) -> &CreationPlanHeader<A::ModelId> {
         &self.header
+    }
+    /// Returns the checked snapshot of the plan's actual model bounds.
+    pub const fn actual_bounds(&self) -> Option<Rectangle> {
+        self.actual_bounds
     }
 }
 
@@ -209,6 +223,7 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
         let map = inverse(self.child_content_to_surface(contents)?)?
             .ok_or(ContainerEditError::Singular)?;
         Ok(CreationStart {
+            operation: Uuid::new_v4(),
             namespace: self.part_tree().namespace(),
             revision: self.model().revision(),
             contents,
@@ -281,6 +296,12 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
             pointer,
             target_to_surface,
             modifiers,
+            fixed_origin: geometry.end.map(|_| origin),
+            moving_low: geometry
+                .end
+                .map(|end| (end.x() < origin.x(), end.y() < origin.y()))
+                .unwrap_or((false, false)),
+            operation: Uuid::new_v4(),
         })
     }
 
@@ -298,7 +319,7 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
         let origin = map_point(self.child_content_to_surface(start.contents)?, start.point)?;
         let parent_inverse =
             inverse(self.child_content_to_surface(target)?)?.ok_or(ContainerEditError::Singular)?;
-        self.creation_candidate(
+        let mut candidate = self.creation_candidate(
             target,
             pointer,
             CreationGeometry {
@@ -312,7 +333,9 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
             },
             start.modifiers,
             revision,
-        )
+        )?;
+        candidate.operation = start.operation;
+        Ok(candidate)
     }
 
     /// Maps a drop using an explicit grab offset measured in target-parent units.
@@ -377,10 +400,19 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
         {
             return Err(ContainerEditError::Invalidated.into());
         }
-        Ok(Some(CheckedCreationPlan { plan, header }))
+        let actual_bounds = plan
+            .actual_bounds()?
+            .map(|bounds| ConstraintGeometry::xy(bounds)?.xy_bounds(GeometryTolerance::EXACT))
+            .transpose()?;
+        self.validate_creation_candidate(candidate)?;
+        Ok(Some(CheckedCreationPlan {
+            plan,
+            header,
+            actual_bounds,
+        }))
     }
 
-    fn validate_creation_candidate(
+    pub(crate) fn validate_creation_candidate(
         &mut self,
         candidate: &CreationCandidate<A::ModelId>,
     ) -> Result<(), ToolError> {
@@ -392,7 +424,25 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
         {
             return Err(ContainerEditError::Invalidated.into());
         }
+        if self.part_tree().get(candidate.target).is_none_or(|node| {
+            !node.is_active()
+                || node.kind() != PartKind::Containment
+                || node.model_id() != Some(candidate.target_model)
+        }) {
+            return Err(ContainerEditError::Identity(candidate.target).into());
+        }
         Ok(())
+    }
+
+    pub(crate) fn corrected_creation_candidate(
+        &mut self,
+        candidate: &CreationCandidate<A::ModelId>,
+        bounds: Rectangle,
+    ) -> Result<CreationCandidate<A::ModelId>, ToolError> {
+        self.validate_creation_candidate(candidate)?;
+        let mut corrected = candidate.clone();
+        corrected.bounds = ConstraintGeometry::xy(bounds)?.xy_bounds(GeometryTolerance::EXACT)?;
+        Ok(corrected)
     }
 
     /// Publishes checked parent-domain creation feedback through the same public tool services.
@@ -460,12 +510,19 @@ struct Gesture {
     dragging: bool,
     visited: Vec<(EditPartId, PolicyGeneration)>,
     feedback: Vec<FigureId>,
+    snapping: Option<crate::snap::SnapSession>,
+}
+
+enum ToolCreationPlan<A: ModelAdapter, T: ContainerCreationTemplate<A>> {
+    Plain(Box<CheckedCreationPlan<A, T>>),
+    Snapped(Box<crate::snap::SnappedCreationPlan<A, T>>),
 }
 
 /// One-shot creation using the same open template as programmatic parent-domain drops.
 pub struct ContainerCreationTool<T> {
     template: T,
     gesture: Option<Gesture>,
+    snapping: Option<crate::snap::SnapSettings>,
 }
 
 impl<T> ContainerCreationTool<T> {
@@ -474,7 +531,15 @@ impl<T> ContainerCreationTool<T> {
         Self {
             template,
             gesture: None,
+            snapping: None,
         }
+    }
+
+    /// Enables ordinary registered snapping for this creation template.
+    /// The template plan must declare actual model bounds.
+    pub fn with_snapping(mut self, settings: crate::snap::SnapSettings) -> Self {
+        self.snapping = Some(settings);
+        self
     }
 
     fn plan<A: ModelAdapter + 'static>(
@@ -483,7 +548,8 @@ impl<T> ContainerCreationTool<T> {
         gesture: &mut Gesture,
         pointer: Point,
         revision: InteractionRevision,
-    ) -> Result<Option<CheckedCreationPlan<A, T>>, ToolError>
+        settings: Option<crate::snap::SnapSettings>,
+    ) -> Result<Option<ToolCreationPlan<A, T>>, ToolError>
     where
         T: ContainerCreationTemplate<A>,
     {
@@ -516,7 +582,14 @@ impl<T> ContainerCreationTool<T> {
                 gesture.dragging,
                 revision,
             )?;
-            if let Some(plan) = ctx.resolve_container_creation(template, &candidate)? {
+            let plan = if let (Some(session), Some(settings)) = (&mut gesture.snapping, settings) {
+                ctx.resolve_snapped_container_creation(session, template, &candidate, settings)?
+                    .map(|plan| ToolCreationPlan::Snapped(Box::new(plan)))
+            } else {
+                ctx.resolve_container_creation(template, &candidate)?
+                    .map(|plan| ToolCreationPlan::Plain(Box::new(plan)))
+            };
+            if let Some(plan) = plan {
                 return Ok(Some(plan));
             }
             let Some(parent) = ctx.part_tree().parent(target) else {
@@ -538,6 +611,13 @@ impl<A: ModelAdapter + 'static, T: ContainerCreationTemplate<A>> Tool<A>
         ToolKey::<Self>::new("container-creation").erase()
     }
     fn cancel(&mut self, ctx: &mut ToolContext<'_, A>) -> Result<(), ToolError> {
+        if let Some(session) = self
+            .gesture
+            .as_mut()
+            .and_then(|gesture| gesture.snapping.as_mut())
+        {
+            session.cancel();
+        }
         self.clear_transient_feedback(ctx)?;
         self.gesture = None;
         Ok(())
@@ -568,6 +648,10 @@ impl<A: ModelAdapter + 'static, T: ContainerCreationTemplate<A>> Tool<A>
                 dragging: false,
                 visited: vec![],
                 feedback: vec![],
+                snapping: self
+                    .snapping
+                    .map(|_| ctx.begin_snap_session())
+                    .transpose()?,
             });
         }
         Ok((ToolDirective::Continue, outcome))
@@ -597,23 +681,38 @@ impl<A: ModelAdapter + 'static, T: ContainerCreationTemplate<A>> Tool<A>
         if event.button() != MouseButton::Left {
             return Ok((ToolDirective::Continue, dispatch));
         }
-        let Some(gesture) = &mut self.gesture else {
+        let Some(mut gesture) = self.gesture.take() else {
             return Ok((ToolDirective::ReleaseCapture, dispatch));
         };
         let result = Self::plan(
             &self.template,
             ctx,
-            gesture,
+            &mut gesture,
             event.location(),
             event.revision(),
+            self.snapping,
         );
-        self.cancel(ctx)?;
-        match result {
-            Ok(Some(checked)) => {
-                ctx.submit_container_creation(checked)?;
+        if let Err(error) = ctx.remove_overlay_visuals(&gesture.feedback) {
+            if let Some(session) = &mut gesture.snapping {
+                session.cancel();
             }
+            self.gesture = Some(gesture);
+            return Err(error);
+        }
+        match result {
+            Ok(Some(ToolCreationPlan::Plain(checked))) => {
+                ctx.submit_container_creation(*checked)?
+            }
+            Ok(Some(ToolCreationPlan::Snapped(checked))) => ctx.submit_snapped_container_creation(
+                gesture
+                    .snapping
+                    .as_mut()
+                    .ok_or_else(|| ToolError::protocol("missing snap session"))?,
+                *checked,
+            )?,
             Ok(None) => {}
-            Err(ToolError::Container(ContainerEditError::Invalidated)) => {
+            Err(ToolError::Container(ContainerEditError::Invalidated))
+            | Err(ToolError::Snap(crate::snap::SnapError::Invalidated)) => {
                 return Ok((ToolDirective::ReleaseCapture, dispatch));
             }
             Err(error) => return Err(error),
@@ -636,10 +735,29 @@ impl<A: ModelAdapter + 'static, T: ContainerCreationTemplate<A>> Tool<A>
         let Some(gesture) = &mut self.gesture else {
             return Ok(());
         };
-        let result = Self::plan(&self.template, ctx, gesture, location, revision);
+        let result = Self::plan(
+            &self.template,
+            ctx,
+            gesture,
+            location,
+            revision,
+            self.snapping,
+        );
         let result = match result {
             Ok(Some(checked)) => (|| {
-                gesture.feedback = ctx.show_container_creation_feedback(&checked)?;
+                gesture.feedback = match checked {
+                    ToolCreationPlan::Plain(checked) => {
+                        ctx.show_container_creation_feedback(&checked)?
+                    }
+                    ToolCreationPlan::Snapped(checked) => ctx
+                        .show_snapped_container_creation_feedback(
+                            gesture
+                                .snapping
+                                .as_mut()
+                                .ok_or_else(|| ToolError::protocol("missing snap session"))?,
+                            &checked,
+                        )?,
+                };
                 ctx.add_autoexpose_range_reserve(location, &mut gesture.feedback)?;
                 Ok(())
             })(),
@@ -648,7 +766,8 @@ impl<A: ModelAdapter + 'static, T: ContainerCreationTemplate<A>> Tool<A>
         };
         match result {
             Ok(()) => Ok(()),
-            Err(ToolError::Container(ContainerEditError::Invalidated)) => self.cancel(ctx),
+            Err(ToolError::Container(ContainerEditError::Invalidated))
+            | Err(ToolError::Snap(crate::snap::SnapError::Invalidated)) => self.cancel(ctx),
             Err(error) => {
                 self.cancel(ctx)?;
                 Err(error)

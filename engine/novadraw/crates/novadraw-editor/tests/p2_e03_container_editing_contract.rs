@@ -42,6 +42,11 @@ struct Node {
 
 #[derive(Default)]
 struct Trace {
+    snap_layout: Vec<novadraw_editor::snap::RuleCall>,
+    snap_omit_geometry: bool,
+    snap_plan_shift: Option<f64>,
+    snap_break_batch: bool,
+    snap_plan_positions: Vec<f64>,
     permissions: Vec<(u32, PermissionKind, Vec<u32>)>,
     build_count: usize,
     feedback_count: usize,
@@ -193,6 +198,7 @@ impl ContainerMoveProtocol<Model> for Protocol {
 struct Plan {
     header: MovePlanHeader<u32>,
     candidate: MoveCandidate<u32>,
+    geometry: Vec<ConstraintGeometry>,
     trace: Rc<RefCell<Trace>>,
     insertion: Option<InsertionPosition<u32>>,
 }
@@ -201,10 +207,12 @@ impl MovePlan<Model> for Plan {
     fn header(&self) -> &MovePlanHeader<u32> {
         &self.header
     }
+    fn actual_geometry(&self) -> Result<Option<Vec<ConstraintGeometry>>, ContainerEditError> {
+        Ok((!self.trace.borrow().snap_omit_geometry).then(|| self.geometry.clone()))
+    }
     fn feedback(&self) -> Result<Vec<FeedbackVisual>, ContainerEditError> {
         self.trace.borrow_mut().feedback_count += 1;
-        self.candidate
-            .geometry()
+        self.geometry
             .iter()
             .map(|geometry| {
                 // Application projects target-parent geometry before returning feedback.
@@ -241,7 +249,7 @@ impl MovePlan<Model> for Plan {
             &sources,
             self.insertion.unwrap_or(InsertionPosition::End),
         )?;
-        for (source, geometry) in self.header.sources().iter().zip(self.candidate.geometry()) {
+        for (source, geometry) in self.header.sources().iter().zip(&self.geometry) {
             after.get_mut(&source.model()).unwrap().bounds =
                 geometry.xy_bounds(GeometryTolerance::EXACT)?;
         }
@@ -319,6 +327,12 @@ impl EditPolicy<Model> for ContainerPolicy {
         builder.handle::<CheckContainerPermission>(Self::permission);
         builder.handle::<OtherMoveFamily>(Self::other_plan);
         builder.handle::<CreateFamily>(Self::create);
+        builder.handle::<novadraw_editor::snap::MoveLayoutConstraints>(|_, _, _, _, model| {
+            Ok(Some(model.trace.borrow().snap_layout.clone()))
+        });
+        builder.handle::<novadraw_editor::snap::CreationLayoutConstraints>(|_, _, _, _, model| {
+            Ok(Some(model.trace.borrow().snap_layout.clone()))
+        });
     }
 }
 
@@ -355,9 +369,29 @@ impl ContainerPolicy {
             trace.stale_header = Some(MovePlanHeader::from_candidate(candidate));
             trace.save_header = false;
         }
+        let mut geometry = candidate.geometry().to_vec();
+        if let Some(shift) = trace.snap_plan_shift {
+            geometry = geometry
+                .iter()
+                .enumerate()
+                .map(|(index, geometry)| {
+                    geometry.mapped(Affine2D::from_translation(
+                        if trace.snap_break_batch && index > 0 {
+                            0.0
+                        } else {
+                            shift
+                        },
+                        0.0,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| PolicyError::operation(error.to_string()))?;
+        }
+        trace.snap_plan_positions.push(geometry[0].corners()[0].x());
         Ok(Some(Plan {
             header,
             candidate: candidate.clone(),
+            geometry,
             trace: model.trace.clone(),
             insertion: (trace.ordered && host.model() == RIGHT).then_some(InsertionPosition::Start),
         }))
@@ -509,6 +543,15 @@ impl CreationPlan<Model> for CreatePlan {
     fn header(&self) -> &CreationPlanHeader<u32> {
         &self.header
     }
+    fn actual_bounds(&self) -> Result<Option<Rectangle>, ContainerEditError> {
+        let trace = self.trace.borrow();
+        if trace.snap_omit_geometry {
+            return Ok(None);
+        }
+        let mut bounds = self.header.candidate().bounds();
+        bounds.x += trace.snap_plan_shift.unwrap_or(0.0);
+        Ok(Some(bounds))
+    }
     fn feedback(&self) -> Result<Vec<FeedbackVisual>, ContainerEditError> {
         self.trace.borrow_mut().feedback_count += 1;
         let candidate = self.header.candidate();
@@ -538,7 +581,7 @@ impl CreationPlan<Model> for CreatePlan {
         after.insert(
             self.id,
             Node {
-                bounds: candidate.bounds(),
+                bounds: self.actual_bounds()?.unwrap_or(candidate.bounds()),
                 children: vec![],
             },
         );
@@ -771,6 +814,775 @@ fn editor() -> (GraphicalViewer<Model, Factory>, EditorDomain<Model>) {
         .set_active_tool(&mut viewer, ContainerMoveTool::<Model, Protocol>::new())
         .unwrap();
     (viewer, domain)
+}
+
+#[cfg(test)]
+fn snapped_editor() -> (GraphicalViewer<Model, Factory>, EditorDomain<Model>) {
+    let (mut viewer, mut domain) = editor();
+    let settings = install_snap_grid(&mut viewer);
+    domain
+        .set_active_tool(
+            &mut viewer,
+            ContainerMoveTool::<Model, Protocol>::new().with_snapping(settings),
+        )
+        .unwrap();
+    (viewer, domain)
+}
+
+#[cfg(test)]
+fn install_snap_grid(
+    viewer: &mut GraphicalViewer<Model, Factory>,
+) -> novadraw_editor::snap::SnapSettings {
+    use novadraw_editor::snap::*;
+    let mut registry = viewer.snapping().unwrap();
+    let admission = registry
+        .register_rule(
+            ExactProjection::<NearestGrid>::key(),
+            ExactProjection::new(NearestGrid),
+        )
+        .unwrap();
+    let alignment = registry
+        .register_rule(NearestGrid::key(), NearestGrid)
+        .unwrap();
+    registry
+        .register_provider(
+            GridProvider::key(),
+            GridProvider,
+            GridSpec::new(Point::ZERO, Some(100.0), None).unwrap(),
+        )
+        .unwrap();
+    registry
+        .register_strategy(
+            Grid::<ExactProjection<NearestGrid>>::key(),
+            Grid::new(admission.clone(), alignment),
+            (),
+            &admission,
+        )
+        .unwrap();
+    let limit = std::num::NonZeroUsize::new(128).unwrap();
+    SnapSettings::new(
+        8.0,
+        1.0e-9,
+        SnapBudget {
+            sources: limit,
+            features: limit,
+            candidates: limit,
+            feedback: limit,
+        },
+    )
+    .unwrap()
+}
+
+#[cfg(test)]
+fn creation_snap_settings() -> novadraw_editor::snap::SnapSettings {
+    use novadraw_editor::snap::*;
+    let limit = std::num::NonZeroUsize::new(128).unwrap();
+    SnapSettings::new(
+        8.0,
+        1.0e-9,
+        SnapBudget {
+            sources: limit,
+            features: limit,
+            candidates: limit,
+            feedback: limit,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn snapped_creation_preserves_template_or_fixed_origin_and_one_history() {
+    for (start, end, expected) in [
+        (
+            Point::new(452.0, 120.0),
+            Point::new(452.0, 120.0),
+            Rectangle::new(100.0, 70.0, 30.0, 20.0),
+        ),
+        (
+            Point::new(400.0, 120.0),
+            Point::new(448.0, 160.0),
+            Rectangle::new(50.0, 70.0, 50.0, 40.0),
+        ),
+        (
+            Point::new(500.0, 170.0),
+            Point::new(452.0, 120.0),
+            Rectangle::new(100.0, 70.0, 50.0, 50.0),
+        ),
+    ] {
+        let (mut viewer, mut domain) = snapped_editor();
+        domain
+            .set_active_tool(
+                &mut viewer,
+                ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+            )
+            .unwrap();
+        drag(&mut viewer, &mut domain, start, end);
+        assert_eq!(viewer.model().nodes[&20].bounds, expected);
+        assert!(viewer.model().trace.borrow().permissions.is_empty());
+        assert_eq!(viewer.model().trace.borrow().build_count, 1);
+        assert_eq!(domain.command_stack().undo_len(), 1);
+        domain.undo(&mut viewer).unwrap();
+        assert!(!viewer.model().nodes.contains_key(&20));
+        domain.redo(&mut viewer).unwrap();
+        assert_eq!(viewer.model().nodes[&20].bounds, expected);
+    }
+}
+
+#[test]
+fn snapped_creation_release_uses_latest_endpoint_without_preview_fallback() {
+    let (mut viewer, mut domain) = snapped_editor();
+    domain
+        .set_active_tool(
+            &mut viewer,
+            ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+        )
+        .unwrap();
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(400.0, 120.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(448.0, 160.0))
+        .unwrap();
+    assert_eq!(viewer.model().trace.borrow().build_count, 0);
+    domain
+        .pointer_released(&mut viewer, Point::new(552.0, 180.0), MouseButton::Left)
+        .unwrap();
+    assert_eq!(
+        viewer.model().nodes[&20].bounds,
+        Rectangle::new(50.0, 70.0, 150.0, 60.0)
+    );
+    assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+}
+
+#[test]
+fn snapped_creation_rejects_missing_or_changed_actual_bounds_before_build() {
+    for omitted in [false, true] {
+        let (mut viewer, mut domain) = snapped_editor();
+        let before = viewer.model().nodes.clone();
+        {
+            let mut trace = viewer.model().trace.borrow_mut();
+            trace.snap_omit_geometry = omitted;
+            trace.snap_plan_shift = (!omitted).then_some(3.0);
+        }
+        domain
+            .set_active_tool(
+                &mut viewer,
+                ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+            )
+            .unwrap();
+        domain
+            .pointer_pressed(
+                &mut viewer,
+                Point::new(452.0, 120.0),
+                MouseButton::Left,
+                Default::default(),
+            )
+            .unwrap();
+        assert!(
+            domain
+                .pointer_released(&mut viewer, Point::new(452.0, 120.0), MouseButton::Left)
+                .is_err()
+        );
+        assert_eq!(viewer.model().nodes, before);
+        assert_eq!(viewer.model().trace.borrow().build_count, 0);
+        assert_eq!(viewer.model().trace.borrow().feedback_count, 0);
+        assert_eq!(domain.command_stack().undo_len(), 0);
+    }
+}
+
+#[test]
+fn snapped_drop_keeps_parent_size_grab_offset_and_raw_targeting_under_transforms() {
+    for map in [
+        Affine2D::IDENTITY,
+        Affine2D::from_scale(1.5, 1.5),
+        Affine2D::from_rotation_radians(0.2),
+    ] {
+        let mut model = Model::new();
+        model.panes.insert(RIGHT, map);
+        let mut viewer =
+            GraphicalViewer::new(model, Factory, Rectangle::new(0.0, 0.0, 800.0, 600.0)).unwrap();
+        support::prepare_next_submission(&mut viewer);
+        let settings = install_snap_grid(&mut viewer);
+        let target = viewer.part_for_model(RIGHT).unwrap();
+        let pointer = viewer
+            .child_content_to_surface(target)
+            .unwrap()
+            .transform_point(Point::new(103.0, 77.0));
+        let mut domain = EditorDomain::new();
+        domain
+            .drop_into_container_with_snapping(
+                &mut viewer,
+                &Template(20),
+                pointer,
+                Point::new(5.0, 7.0),
+                Default::default(),
+                settings,
+            )
+            .unwrap();
+        assert_eq!(viewer.model().nodes[&RIGHT].children, [LOCAL, 20]);
+        let actual = viewer.model().nodes[&20].bounds;
+        assert!((actual.x - 100.0).abs() < 1.0e-9);
+        assert!((actual.y - 70.0).abs() < 1.0e-9);
+        assert_eq!(actual.width, 30.0);
+        assert_eq!(actual.height, 20.0);
+        assert!(viewer.model().trace.borrow().permissions.is_empty());
+        assert_eq!(domain.command_stack().undo_len(), 1);
+    }
+}
+
+#[test]
+fn snapped_creation_stationary_zoom_refresh_keeps_fixed_contents_origin() {
+    let (mut viewer, mut domain) = snapped_editor();
+    let settings = creation_snap_settings();
+    domain
+        .set_active_tool(
+            &mut viewer,
+            ContainerCreationTool::new(Template(20)).with_snapping(settings),
+        )
+        .unwrap();
+    let start = Point::new(400.0, 120.0);
+    domain
+        .pointer_pressed(&mut viewer, start, MouseButton::Left, Default::default())
+        .unwrap();
+    let pointer = Point::new(448.0, 160.0);
+    domain.pointer_moved(&mut viewer, pointer).unwrap();
+    viewer.set_viewport_scale_at(1.1, None).unwrap();
+    domain.refresh_after_viewport_change(&mut viewer).unwrap();
+    assert!(domain.has_active_gesture());
+    domain
+        .pointer_released(&mut viewer, pointer, MouseButton::Left)
+        .unwrap();
+    let actual = viewer.model().nodes[&20].bounds;
+    assert!((actual.x - 50.0).abs() < 1.0e-9);
+    assert!((actual.y - 70.0).abs() < 1.0e-9);
+    assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+}
+
+#[test]
+fn snapped_release_uses_new_position_and_commits_one_actual_plan_with_undo() {
+    let (mut viewer, mut domain) = snapped_editor();
+    select(&mut viewer, &[FIRST, SECOND]);
+    let before = viewer.model().nodes.clone();
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 80.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(430.0, 120.0))
+        .unwrap();
+    let moved = *viewer
+        .model()
+        .trace
+        .borrow()
+        .snap_plan_positions
+        .last()
+        .unwrap();
+    domain
+        .pointer_released(&mut viewer, Point::new(530.0, 120.0), MouseButton::Left)
+        .unwrap();
+    let trace = viewer.model().trace.borrow();
+    let released = *trace.snap_plan_positions.last().unwrap();
+    assert!((released - moved - 100.0).abs() < 1.0e-9);
+    assert_eq!(
+        trace.snap_plan_positions.len(),
+        2,
+        "one complete plan per event"
+    );
+    assert_eq!(trace.build_count, 1);
+    assert_eq!(trace.feedback_count, 1);
+    drop(trace);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+    assert_eq!(viewer.model().nodes[&FIRST].bounds.x, released);
+    assert_eq!(viewer.model().nodes[&SECOND].bounds.x - released, 80.0);
+    domain.undo(&mut viewer).unwrap();
+    assert_eq!(viewer.model().nodes, before);
+    domain.redo(&mut viewer).unwrap();
+    assert_eq!(viewer.model().nodes[&FIRST].bounds.x, released);
+}
+
+#[test]
+fn snapped_plan_rewrite_or_missing_geometry_rejects_without_preview_command_or_retry() {
+    for omitted in [false, true] {
+        let (mut viewer, mut domain) = snapped_editor();
+        select(&mut viewer, &[FIRST]);
+        let before = viewer.model().nodes.clone();
+        {
+            let mut trace = viewer.model().trace.borrow_mut();
+            trace.snap_omit_geometry = omitted;
+            trace.snap_plan_shift = (!omitted).then_some(3.0);
+        }
+        domain
+            .pointer_pressed(
+                &mut viewer,
+                Point::new(80.0, 80.0),
+                MouseButton::Left,
+                Default::default(),
+            )
+            .unwrap();
+        assert!(
+            domain
+                .pointer_released(&mut viewer, Point::new(430.0, 120.0), MouseButton::Left)
+                .is_err()
+        );
+        let trace = viewer.model().trace.borrow();
+        assert_eq!(trace.snap_plan_positions.len(), 1);
+        assert_eq!(trace.build_count, 0);
+        assert_eq!(trace.feedback_count, 0);
+        assert_eq!(domain.command_stack().undo_len(), 0);
+        assert_eq!(viewer.model().nodes, before);
+    }
+}
+
+#[test]
+fn snapped_actual_plan_cannot_distort_one_source_in_a_multi_source_batch() {
+    let (mut viewer, mut domain) = snapped_editor();
+    select(&mut viewer, &[FIRST, SECOND]);
+    {
+        let mut trace = viewer.model().trace.borrow_mut();
+        trace.snap_plan_shift = Some(100.0);
+        trace.snap_break_batch = true;
+    }
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 80.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    assert!(
+        domain
+            .pointer_released(&mut viewer, Point::new(430.0, 120.0), MouseButton::Left)
+            .is_err()
+    );
+    assert_eq!(viewer.model().trace.borrow().build_count, 0);
+    assert_eq!(domain.command_stack().undo_len(), 0);
+}
+
+#[cfg(test)]
+struct NoFreeTranslation;
+#[cfg(test)]
+impl novadraw_editor::snap::EvaluationRule for NoFreeTranslation {
+    type Payload = ();
+    type Error = Infallible;
+    fn key() -> novadraw_editor::snap::ProtocolKey<Self> {
+        novadraw_editor::snap::ProtocolKey::new("no-free-translation")
+    }
+    fn version(&self, _: &()) -> Result<u64, Infallible> {
+        Ok(0)
+    }
+    fn evaluate(
+        &self,
+        _: &(),
+        context: &novadraw_editor::snap::EvaluationContext<'_>,
+    ) -> Result<bool, Infallible> {
+        Ok(context.geometry.values().iter().all(|v| *v == 0.0))
+    }
+}
+
+#[test]
+fn target_layout_can_decline_free_grid_translation_through_open_rule_contribution() {
+    use novadraw_editor::snap::*;
+    let (mut viewer, mut domain) = snapped_editor();
+    let rule = viewer
+        .snapping()
+        .unwrap()
+        .register_rule(NoFreeTranslation::key(), NoFreeTranslation)
+        .unwrap();
+    viewer.model().trace.borrow_mut().snap_layout = vec![rule.bind(())];
+    select(&mut viewer, &[FIRST]);
+    drag(
+        &mut viewer,
+        &mut domain,
+        Point::new(80.0, 80.0),
+        Point::new(430.0, 120.0),
+    );
+    assert!(viewer.model().nodes[&FIRST].bounds.x % 100.0 != 0.0);
+    assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+}
+
+#[test]
+fn creation_layout_rule_keeps_legal_raw_position_when_grid_translation_is_declined() {
+    use novadraw_editor::snap::*;
+    let (mut viewer, mut domain) = snapped_editor();
+    let rule = viewer
+        .snapping()
+        .unwrap()
+        .register_rule(NoFreeTranslation::key(), NoFreeTranslation)
+        .unwrap();
+    viewer.model().trace.borrow_mut().snap_layout = vec![rule.bind(())];
+    domain
+        .set_active_tool(
+            &mut viewer,
+            ContainerCreationTool::new(Template(20)).with_snapping(creation_snap_settings()),
+        )
+        .unwrap();
+    let pointer = Point::new(440.0, 160.0);
+    let target = viewer.part_for_model(RIGHT).unwrap();
+    let raw = viewer
+        .surface_to_child_content(target)
+        .unwrap()
+        .unwrap()
+        .transform_point(pointer);
+    drag(
+        &mut viewer,
+        &mut domain,
+        Point::new(440.0, 160.0),
+        Point::new(440.0, 160.0),
+    );
+    assert_eq!(
+        viewer.model().nodes[&20].bounds,
+        Rectangle::new(raw.x(), raw.y(), 30.0, 20.0)
+    );
+    assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+}
+
+#[cfg(test)]
+struct QueryChange {
+    armed: Rc<Cell<bool>>,
+    version: Rc<Cell<u64>>,
+    calls: Rc<Cell<usize>>,
+}
+#[cfg(test)]
+impl novadraw_editor::snap::SnapStrategy for QueryChange {
+    type Payload = ();
+    type Prepared = ();
+    type Error = novadraw_editor::snap::SnapError;
+    fn key() -> novadraw_editor::snap::ProtocolKey<Self> {
+        novadraw_editor::snap::ProtocolKey::new("release-query-change")
+    }
+    fn version(&self, _: &()) -> Result<u64, Self::Error> {
+        Ok(self.version.get())
+    }
+    fn prepare(
+        &self,
+        _: &(),
+        _: &novadraw_editor::snap::SnapInput,
+        _: &[novadraw_editor::snap::SnapFeature],
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+    fn query(
+        &self,
+        _: &(),
+        _: &(),
+        _: &novadraw_editor::snap::SnapInput,
+        _: &mut novadraw_editor::snap::CandidateSink<'_>,
+    ) -> Result<(), Self::Error> {
+        self.calls.set(self.calls.get() + 1);
+        if self.armed.get() {
+            self.version.set(self.version.get() + 1);
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn release_query_configuration_change_rejects_move_and_creation_without_retry() {
+    use novadraw_editor::snap::*;
+    for creation in [false, true] {
+        let (mut viewer, mut domain) = snapped_editor();
+        let armed = Rc::new(Cell::new(false));
+        let calls = Rc::new(Cell::new(0));
+        let mut registry = viewer.snapping().unwrap();
+        let admission = registry
+            .register_rule(ThresholdCapture::key(), ThresholdCapture)
+            .unwrap();
+        registry
+            .register_strategy(
+                QueryChange::key(),
+                QueryChange {
+                    armed: armed.clone(),
+                    calls: calls.clone(),
+                    version: Rc::new(Cell::new(0)),
+                },
+                (),
+                &admission,
+            )
+            .unwrap();
+        select(&mut viewer, &[FIRST]);
+        if creation {
+            domain
+                .set_active_tool(
+                    &mut viewer,
+                    ContainerCreationTool::new(Template(20))
+                        .with_snapping(creation_snap_settings()),
+                )
+                .unwrap();
+        }
+        domain
+            .pointer_pressed(
+                &mut viewer,
+                Point::new(80.0, 80.0),
+                MouseButton::Left,
+                Default::default(),
+            )
+            .unwrap();
+        domain
+            .pointer_moved(&mut viewer, Point::new(440.0, 160.0))
+            .unwrap();
+        let before = viewer.model().nodes.clone();
+        let before_calls = calls.get();
+        armed.set(true);
+        domain
+            .pointer_released(&mut viewer, Point::new(450.0, 160.0), MouseButton::Left)
+            .unwrap();
+        assert_eq!(calls.get(), before_calls + 1);
+        assert_eq!(viewer.model().nodes, before);
+        assert_eq!(viewer.model().trace.borrow().build_count, 0);
+        assert_eq!(domain.command_stack().undo_len(), 0);
+        assert!(!domain.has_active_gesture());
+    }
+}
+
+#[test]
+fn snapped_cleanup_failure_prevents_final_command_build() {
+    let (mut viewer, mut domain) = snapped_editor();
+    select(&mut viewer, &[FIRST]);
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 80.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(430.0, 120.0))
+        .unwrap();
+    viewer.model().trace.borrow_mut().panic_cleanup = true;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        domain.pointer_released(&mut viewer, Point::new(530.0, 120.0), MouseButton::Left)
+    }));
+    assert!(result.is_err());
+    assert_eq!(viewer.model().trace.borrow().build_count, 0);
+    assert_eq!(domain.command_stack().undo_len(), 0);
+    assert!(viewer.is_faulted());
+}
+
+#[cfg(test)]
+struct FeedbackProbeStrategy(
+    novadraw_editor::snap::RuleBinding<novadraw_editor::snap::ThresholdCapture>,
+);
+#[cfg(test)]
+impl novadraw_editor::snap::SnapStrategy for FeedbackProbeStrategy {
+    type Payload = ();
+    type Prepared = ();
+    type Error = Infallible;
+    fn key() -> novadraw_editor::snap::ProtocolKey<Self> {
+        novadraw_editor::snap::ProtocolKey::new("feedback-probe")
+    }
+    fn version(&self, _: &()) -> Result<u64, Infallible> {
+        Ok(0)
+    }
+    fn prepare(
+        &self,
+        _: &(),
+        _: &novadraw_editor::snap::SnapInput,
+        _: &[novadraw_editor::snap::SnapFeature],
+    ) -> Result<(), Infallible> {
+        Ok(())
+    }
+    fn query(
+        &self,
+        _: &(),
+        _: &(),
+        input: &novadraw_editor::snap::SnapInput,
+        sink: &mut novadraw_editor::snap::CandidateSink<'_>,
+    ) -> Result<(), Infallible> {
+        use novadraw_editor::snap::*;
+        let x = DofKey::of::<SurfaceTranslationX>();
+        let feature = sink.features()[0].id();
+        sink.push(SnapCandidate::new(
+            feature,
+            0,
+            vec![(x, 0.0)],
+            vec![x],
+            self.0.bind(()),
+            self.0.bind(()),
+            vec![FeedbackDeclaration::new(
+                ReferenceLine::key(),
+                ReferenceLine::new(
+                    input.controls()[0].origin(),
+                    novadraw::geometry::Vec2::new(1.0, 0.0),
+                )
+                .unwrap(),
+            )],
+        ))
+        .unwrap();
+        Ok(())
+    }
+}
+#[cfg(test)]
+struct FeedbackProbeRenderer {
+    fail: bool,
+    panic: bool,
+    trace: Rc<RefCell<Trace>>,
+    calls: Rc<Cell<usize>>,
+}
+#[cfg(test)]
+impl novadraw_editor::snap::FeedbackRenderer for FeedbackProbeRenderer {
+    type Payload = novadraw_editor::snap::ReferenceLine;
+    type Error = std::io::Error;
+    fn key() -> novadraw_editor::snap::ProtocolKey<Self> {
+        novadraw_editor::snap::ProtocolKey::new("feedback-probe-renderer")
+    }
+    fn render(
+        &self,
+        _: &Self::Payload,
+        geometry: &novadraw_editor::snap::SnapGeometry,
+    ) -> Result<Vec<FeedbackVisual>, std::io::Error> {
+        self.calls.set(self.calls.get() + 1);
+        assert!(!self.panic, "snap renderer panic probe");
+        if self.fail {
+            return Err(std::io::Error::other("snap renderer source probe"));
+        }
+        let p = geometry.points()[0];
+        Ok(vec![feedback_visual(
+            Rectangle::new(p.x(), p.y(), 10.0, 10.0),
+            self.trace.clone(),
+        )])
+    }
+}
+
+#[test]
+fn snapping_feedback_renderer_failure_has_source_or_panic_and_never_builds_command() {
+    use novadraw_editor::snap::*;
+    for panic in [false, true] {
+        let (mut viewer, mut domain) = snapped_editor();
+        let calls = Rc::new(Cell::new(0));
+        let trace = viewer.model().trace.clone();
+        let mut registry = viewer.snapping().unwrap();
+        let rule = registry
+            .register_rule(ThresholdCapture::key(), ThresholdCapture)
+            .unwrap();
+        let id = registry
+            .register_strategy(
+                FeedbackProbeStrategy::key(),
+                FeedbackProbeStrategy(rule.clone()),
+                (),
+                &rule,
+            )
+            .unwrap();
+        registry.order_strategy(id, 0).unwrap();
+        registry
+            .register_renderer(
+                FeedbackProbeRenderer::key(),
+                FeedbackProbeRenderer {
+                    fail: true,
+                    panic,
+                    trace,
+                    calls: calls.clone(),
+                },
+            )
+            .unwrap();
+        select(&mut viewer, &[FIRST]);
+        domain
+            .pointer_pressed(
+                &mut viewer,
+                Point::new(80.0, 80.0),
+                MouseButton::Left,
+                Default::default(),
+            )
+            .unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            domain.pointer_moved(&mut viewer, Point::new(430.0, 120.0))
+        }));
+        assert_eq!(calls.get(), 1);
+        if panic {
+            assert!(result.is_err());
+            assert!(viewer.is_faulted());
+            assert_eq!(
+                viewer.panic_diagnostic().unwrap().message(),
+                Some("snap renderer panic probe")
+            );
+        } else {
+            let error = result.unwrap().unwrap_err();
+            let mut source: &dyn std::error::Error = &error;
+            while let Some(next) = source.source() {
+                source = next;
+            }
+            assert_eq!(source.to_string(), "snap renderer source probe");
+            assert!(!viewer.is_faulted());
+        }
+        assert_eq!(viewer.model().trace.borrow().build_count, 0);
+        assert_eq!(domain.command_stack().undo_len(), 0);
+    }
+}
+
+#[test]
+fn combined_plan_and_snap_feedback_budget_rejects_before_command() {
+    use novadraw_editor::snap::*;
+    let (mut viewer, mut domain) = snapped_editor();
+    let calls = Rc::new(Cell::new(0));
+    let trace = viewer.model().trace.clone();
+    {
+        let mut registry = viewer.snapping().unwrap();
+        let rule = registry
+            .register_rule(ThresholdCapture::key(), ThresholdCapture)
+            .unwrap();
+        let id = registry
+            .register_strategy(
+                FeedbackProbeStrategy::key(),
+                FeedbackProbeStrategy(rule.clone()),
+                (),
+                &rule,
+            )
+            .unwrap();
+        registry.order_strategy(id, 0).unwrap();
+        registry
+            .register_renderer(
+                FeedbackProbeRenderer::key(),
+                FeedbackProbeRenderer {
+                    fail: false,
+                    panic: false,
+                    trace,
+                    calls: calls.clone(),
+                },
+            )
+            .unwrap();
+    }
+    let budget = SnapBudget {
+        feedback: std::num::NonZeroUsize::new(1).unwrap(),
+        ..creation_snap_settings().budget()
+    };
+    let settings = SnapSettings::new(8.0, 1.0e-9, budget).unwrap();
+    domain
+        .set_active_tool(
+            &mut viewer,
+            ContainerMoveTool::<Model, Protocol>::new().with_snapping(settings),
+        )
+        .unwrap();
+    select(&mut viewer, &[FIRST]);
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 80.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    assert!(
+        domain
+            .pointer_moved(&mut viewer, Point::new(430.0, 120.0))
+            .is_err()
+    );
+    assert_eq!(calls.get(), 1);
+    assert_eq!(viewer.model().trace.borrow().build_count, 0);
+    assert_eq!(domain.command_stack().undo_len(), 0);
 }
 
 /// Matched release consumer: initialize one Viewer, optionally execute container creation.
@@ -2146,10 +2958,397 @@ fn stationary_multi_selection_survives_dual_axis_autoexpose_scroll_and_resize() 
         .unwrap();
     let first = viewer.model().nodes[&FIRST].bounds;
     let second = viewer.model().nodes[&SECOND].bounds;
-    assert_eq!(second.x - first.x, 80.0);
-    assert_eq!(second.y - first.y, 10.0);
+    assert!((second.x - first.x - 80.0).abs() < 1.0e-9);
+    assert!((second.y - first.y - 10.0).abs() < 1.0e-9);
     assert_eq!(domain.command_stack().undo_len(), 1);
     assert_eq!(viewer.model().trace.borrow().build_count, 1);
+}
+
+#[test]
+fn snapped_stationary_multi_selection_recomputes_after_scroll_zoom_and_resize() {
+    let (mut viewer, mut domain) = snapped_editor();
+    select(&mut viewer, &[SECOND, FIRST]);
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 80.0),
+            MouseButton::Left,
+            Default::default(),
+        )
+        .unwrap();
+    let pointer = Point::new(440.0, 160.0);
+    domain.pointer_moved(&mut viewer, pointer).unwrap();
+    let preview = *viewer
+        .model()
+        .trace
+        .borrow()
+        .snap_plan_positions
+        .last()
+        .unwrap();
+    domain
+        .set_viewport_origin(&mut viewer, Point::new(40.0, 30.0))
+        .unwrap();
+    domain
+        .set_viewport_scale_at(&mut viewer, 1.5, None)
+        .unwrap();
+    viewer
+        .drive()
+        .resize_logical_viewport(700.0, 500.0)
+        .unwrap();
+    domain.refresh_after_viewport_change(&mut viewer).unwrap();
+    assert!(domain.has_active_gesture());
+    let refreshed = *viewer
+        .model()
+        .trace
+        .borrow()
+        .snap_plan_positions
+        .last()
+        .unwrap();
+    assert_ne!(preview, refreshed);
+    let plans = viewer.model().trace.borrow().snap_plan_positions.len();
+    domain
+        .pointer_released(&mut viewer, pointer, MouseButton::Left)
+        .unwrap();
+    let trace = viewer.model().trace.borrow();
+    assert_eq!(trace.snap_plan_positions.len(), plans + 1);
+    assert_eq!(trace.build_count, 1);
+    assert_eq!(trace.snap_plan_positions.last(), Some(&refreshed));
+    drop(trace);
+    let first = viewer.model().nodes[&FIRST].bounds;
+    let second = viewer.model().nodes[&SECOND].bounds;
+    assert!((second.x - first.x - 80.0).abs() < 1.0e-9);
+    assert!((second.y - first.y - 10.0).abs() < 1.0e-9);
+    assert_eq!(second.x, refreshed);
+    assert_eq!(domain.command_stack().undo_len(), 1);
+    domain.undo(&mut viewer).unwrap();
+    assert_eq!(viewer.model().nodes[&FIRST].bounds.x, 20.0);
+    domain.redo(&mut viewer).unwrap();
+    assert_eq!(viewer.model().nodes[&FIRST].bounds, first);
+}
+
+#[test]
+fn snapped_mixed_parents_preserve_one_surface_displacement_under_rotation() {
+    for transform in [
+        Affine2D::from_scale(2.0, 0.5),
+        Affine2D::new(0.0, 1.0, -1.0, 0.0, 180.0, 0.0),
+    ] {
+        let mut model = Model::new();
+        model.panes.insert(LEFT, transform);
+        model.panes.insert(RIGHT, transform);
+        let mut viewer =
+            GraphicalViewer::new(model, Factory, Rectangle::new(0.0, 0.0, 800.0, 600.0)).unwrap();
+        support::prepare_next_submission(&mut viewer);
+        let settings = install_snap_grid(&mut viewer);
+        let first = viewer.part_for_model(FIRST).unwrap();
+        let local = viewer.part_for_model(LOCAL).unwrap();
+        let left = viewer.part_for_model(LEFT).unwrap();
+        let right = viewer.part_for_model(RIGHT).unwrap();
+        let start = viewer
+            .child_content_to_surface(left)
+            .unwrap()
+            .transform_point(Point::new(30.0, 30.0));
+        let end = viewer
+            .child_content_to_surface(right)
+            .unwrap()
+            .transform_point(Point::new(60.0, 70.0));
+        let mut domain = EditorDomain::new();
+        domain
+            .set_active_tool(
+                &mut viewer,
+                ContainerMoveTool::<Model, Protocol>::from_sources(
+                    vec![local, first],
+                    Some(first),
+                    start,
+                    novadraw_editor::InteractionRevision::initial(),
+                )
+                .with_snapping(settings),
+            )
+            .unwrap();
+        domain
+            .pointer_released(&mut viewer, end, MouseButton::Left)
+            .unwrap();
+        let first_bounds = viewer.model().nodes[&FIRST].bounds;
+        let local_bounds = viewer.model().nodes[&LOCAL].bounds;
+        let inverse = transform.checked_inverse().unwrap().unwrap();
+        let separation = inverse.transform_vector(novadraw::geometry::Vec2::new(300.0, 0.0));
+        // Preserve the original source separation, including the distinct parent origins.
+        let baseline_local = Model::new().nodes[&LOCAL].bounds;
+        assert!(
+            (local_bounds.x - first_bounds.x - (baseline_local.x - 20.0) - separation.x()).abs()
+                < 1.0e-9
+        );
+        assert!(
+            (local_bounds.y - first_bounds.y - (baseline_local.y - 20.0) - separation.y()).abs()
+                < 1.0e-9
+        );
+        assert_eq!(domain.command_stack().undo_len(), 1);
+        assert_eq!(viewer.model().trace.borrow().build_count, 1);
+    }
+}
+
+#[test]
+fn snapped_move_and_creation_cancel_switch_or_model_change_never_submit() {
+    for creation in [false, true] {
+        for cancellation in 0..3 {
+            let (mut viewer, mut domain) = snapped_editor();
+            select(&mut viewer, &[FIRST]);
+            if creation {
+                domain
+                    .set_active_tool(
+                        &mut viewer,
+                        ContainerCreationTool::new(Template(20))
+                            .with_snapping(creation_snap_settings()),
+                    )
+                    .unwrap();
+            }
+            domain
+                .pointer_pressed(
+                    &mut viewer,
+                    Point::new(80.0, 80.0),
+                    MouseButton::Left,
+                    Default::default(),
+                )
+                .unwrap();
+            domain
+                .pointer_moved(&mut viewer, Point::new(440.0, 160.0))
+                .unwrap();
+            assert!(domain.has_active_gesture());
+            match cancellation {
+                0 => domain.cancel_tool(&mut viewer).unwrap(),
+                1 => domain
+                    .set_active_tool(&mut viewer, novadraw_editor::SelectionTool::new())
+                    .unwrap(),
+                _ => {
+                    viewer.synchronize_model(Model::publish).unwrap();
+                    domain
+                        .pointer_moved(&mut viewer, Point::new(450.0, 160.0))
+                        .unwrap();
+                }
+            }
+            assert!(!domain.has_active_gesture());
+            let before = viewer.model().nodes.clone();
+            domain
+                .pointer_released(&mut viewer, Point::new(450.0, 160.0), MouseButton::Left)
+                .unwrap();
+            assert_eq!(viewer.model().nodes, before);
+            assert_eq!(viewer.model().trace.borrow().build_count, 0);
+            assert_eq!(domain.command_stack().undo_len(), 0);
+        }
+    }
+}
+
+#[test]
+#[ignore = "headless snapping cost evidence; run explicitly with --nocapture"]
+fn snapping_cost_samples_separate_cold_hot_feedback_and_full_release() {
+    use novadraw_editor::snap::*;
+    const WARMUP: usize = 8;
+    const SAMPLES: usize = 16;
+    for n in [64_u32, 1024, 10000] {
+        for source_count in [1_usize, 64] {
+            let mut model = Model::new();
+            model.nodes.get_mut(&LOCAL).unwrap().bounds = Rectangle::new(40.0, 60.0, 10.0, 10.0);
+            for index in 1..n {
+                let id = 10000 + index;
+                model.nodes.get_mut(&RIGHT).unwrap().children.push(id);
+                model.nodes.insert(
+                    id,
+                    Node {
+                        bounds: Rectangle::new(
+                            1000.0 + f64::from(index) * 20.0,
+                            1000.0 + f64::from(index) * 20.0,
+                            10.0,
+                            10.0,
+                        ),
+                        children: vec![],
+                    },
+                );
+            }
+            let source_ids = (0..source_count)
+                .map(|index| 30000 + index as u32)
+                .collect::<Vec<_>>();
+            for (index, id) in source_ids.iter().enumerate() {
+                model.nodes.get_mut(&LEFT).unwrap().children.push(*id);
+                model.nodes.insert(
+                    *id,
+                    Node {
+                        bounds: Rectangle::new(20.0 + index as f64, 20.0, 10.0, 10.0),
+                        children: vec![],
+                    },
+                );
+            }
+            let total_nodes = model.nodes.len();
+            let mut viewer =
+                GraphicalViewer::new(model, Factory, Rectangle::new(0.0, 0.0, 800.0, 600.0))
+                    .unwrap();
+            support::prepare_next_submission(&mut viewer);
+            let mut registration = viewer.snapping().unwrap();
+            let threshold = registration
+                .register_rule(ThresholdCapture::key(), ThresholdCapture)
+                .unwrap();
+            let alignment = registration
+                .register_rule(LineAlignment::key(), LineAlignment)
+                .unwrap();
+            registration
+                .register_provider(GeometryProvider::key(), GeometryProvider, ())
+                .unwrap();
+            registration
+                .register_strategy(
+                    Geometry::key(),
+                    Geometry::new(threshold.clone(), alignment),
+                    (),
+                    &threshold,
+                )
+                .unwrap();
+            registration
+                .register_renderer(
+                    ReferenceLineRenderer::key(),
+                    ReferenceLineRenderer::new(
+                        novadraw::graphics::Color::BLACK,
+                        novadraw::render::StrokeStyle::default(),
+                        4.0,
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+            let limit = std::num::NonZeroUsize::new(n as usize * 8 + 512).unwrap();
+            let settings = SnapSettings::new(
+                8.0,
+                1.0e-9,
+                SnapBudget {
+                    sources: std::num::NonZeroUsize::new(n as usize + 64).unwrap(),
+                    features: limit,
+                    candidates: limit,
+                    feedback: limit,
+                },
+            )
+            .unwrap();
+            let parts = source_ids
+                .iter()
+                .map(|id| viewer.part_for_model(*id).unwrap())
+                .collect::<Vec<_>>();
+            let target = viewer.part_for_model(RIGHT).unwrap();
+            let mut domain = EditorDomain::new();
+            domain.set_active_tool(&mut viewer, Probe(Box::new(move |ctx| {
+                let revision = novadraw_editor::InteractionRevision::initial();
+                let batch = ctx.begin_container_move::<Protocol>(&parts, None, Point::new(80.0, 80.0), revision)?;
+                for cold in [true, false] {
+                    let mut session = ctx.begin_snap_session()?;
+                    let mut stages: [Vec<(u128, usize, usize)>; 3] = std::array::from_fn(|_| Vec::new());
+                    let mut last_metrics = None;
+                    for index in 0..WARMUP + SAMPLES {
+                        if cold { session = ctx.begin_snap_session()?; }
+                        let clock = std::time::Instant::now();
+                        session.set_measurement_clock(move || clock.elapsed());
+                        let (candidate, candidate_cost) = container_allocations::measure(|| {
+                            ctx.container_move_candidate(&batch, target, Point::new(400.0 + (index % 3) as f64, 120.0), revision)
+                        });
+                        let candidate = candidate?;
+                        let (plan, plan_cost) = container_allocations::measure(|| {
+                            ctx.resolve_snapped_container_move::<Protocol>(&mut session, &candidate, settings)
+                        });
+                        let plan = plan?.unwrap();
+                        let (feedback, feedback_cost) = container_allocations::measure(|| {
+                            let visuals = ctx.show_snapped_container_move_feedback(&mut session, &plan)?;
+                            ctx.remove_overlay_visuals(&visuals)?;
+                            Ok::<_, ToolError>(())
+                        });
+                        feedback?;
+                        if index >= WARMUP {
+                            stages[0].push(candidate_cost);
+                            stages[1].push(plan_cost);
+                            stages[2].push(feedback_cost);
+                        }
+                        last_metrics = Some(session.metrics().clone());
+                    }
+                    for (stage, samples) in ["candidate", "solve_actual_plan", "feedback_cleanup"].into_iter().zip(stages) {
+                        print_snap_cost(n, source_count, total_nodes, cold, stage, samples);
+                    }
+                    println!("snap_counts siblings={n} sources={source_count} cold={cold} metrics={:?}", last_metrics.unwrap());
+                }
+                Ok(())
+            }))).unwrap();
+            let mut releases = Vec::new();
+            for index in 0..WARMUP + SAMPLES {
+                let parts = source_ids
+                    .iter()
+                    .map(|id| viewer.part_for_model(*id).unwrap())
+                    .collect::<Vec<_>>();
+                domain
+                    .set_active_tool(
+                        &mut viewer,
+                        ContainerMoveTool::<Model, Protocol>::from_sources(
+                            parts,
+                            None,
+                            Point::new(80.0, 80.0),
+                            novadraw_editor::InteractionRevision::initial(),
+                        )
+                        .with_snapping(settings),
+                    )
+                    .unwrap();
+                let (release, cost) = container_allocations::measure(|| {
+                    domain.pointer_released(
+                        &mut viewer,
+                        Point::new(400.0, 120.0),
+                        MouseButton::Left,
+                    )
+                });
+                if let Err(error) = release {
+                    assert!(
+                        matches!(
+                            error,
+                            novadraw_editor::EditorDomainError::Viewer(
+                                novadraw_editor::ViewerError::RuntimePreparation(
+                                    novadraw::runtime::FramePreparationError::Validation(
+                                        novadraw::tree::ValidationError::NonConvergingValidation {
+                                            budget: novadraw::tree::DEFAULT_VALIDATION_BUDGET,
+                                            ..
+                                        }
+                                    )
+                                )
+                            )
+                        ) && n == 10000,
+                        "unexpected release failure"
+                    );
+                    println!(
+                        "snap_blocked siblings={n} sources={source_count} stage=full_release reason=default_validation_budget samples={}",
+                        releases.len()
+                    );
+                    break;
+                }
+                assert_eq!(domain.command_stack().undo_len(), 1);
+                if index >= WARMUP {
+                    releases.push(cost);
+                }
+                domain.undo(&mut viewer).unwrap();
+            }
+            if !releases.is_empty() {
+                print_snap_cost(n, source_count, total_nodes, true, "full_release", releases);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn print_snap_cost(
+    n: u32,
+    sources: usize,
+    nodes: usize,
+    cold: bool,
+    stage: &str,
+    samples: Vec<(u128, usize, usize)>,
+) {
+    let mut nanos = samples.iter().map(|sample| sample.0).collect::<Vec<_>>();
+    nanos.sort_unstable();
+    println!(
+        "snap_cost siblings={n} sources={sources} nodes={nodes} cold={cold} stage={stage} samples={} p50_ns={} p95_ns={} allocations_min={} allocations_max={} requested_bytes_min={} requested_bytes_max={}",
+        samples.len(),
+        nanos[nanos.len() / 2],
+        nanos[nanos.len() * 95 / 100],
+        samples.iter().map(|sample| sample.1).min().unwrap(),
+        samples.iter().map(|sample| sample.1).max().unwrap(),
+        samples.iter().map(|sample| sample.2).min().unwrap(),
+        samples.iter().map(|sample| sample.2).max().unwrap()
+    );
 }
 
 #[test]

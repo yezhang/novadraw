@@ -378,6 +378,12 @@ impl<I: Copy + Eq> MovePlanHeader<I> {
 pub trait MovePlan<A: ModelAdapter>: 'static {
     /// Returns the plan's declaration; the checker reads and owns one copy.
     fn header(&self) -> &MovePlanHeader<A::ModelId>;
+    /// Actual model constraints in target child-content coordinates, in header source order.
+    /// Snapping requires this declaration; absence never implies free translation is legal.
+    /// The command must use these same constraints. Legacy unsnapped plans may omit it.
+    fn actual_geometry(&self) -> Result<Option<Vec<ConstraintGeometry>>, ContainerEditError> {
+        Ok(None)
+    }
     /// Creates feedback already projected to the existing scaled or surface layer.
     fn feedback(&self) -> Result<Vec<FeedbackVisual>, ContainerEditError>;
     /// Builds one model-only command after cleanup and full framework validation.
@@ -419,9 +425,14 @@ pub struct CheckedMovePlan<A: ModelAdapter, P: ContainerMoveProtocol<A>> {
     pub(crate) header: MovePlanHeader<A::ModelId>,
     pub(crate) receipts: Vec<PermissionReceipt<A::ModelId>>,
     pub(crate) candidate: MoveCandidate<A::ModelId>,
+    pub(crate) geometry: Option<Vec<ConstraintGeometry>>,
 }
 
 impl<A: ModelAdapter, P: ContainerMoveProtocol<A>> CheckedMovePlan<A, P> {
+    /// Returns the owned actual-constraint declaration checked for this precise plan.
+    pub fn actual_geometry(&self) -> Option<&[ConstraintGeometry]> {
+        self.geometry.as_deref()
+    }
     /// Returns the single owned declaration used during validation.
     pub const fn header(&self) -> &MovePlanHeader<A::ModelId> {
         &self.header

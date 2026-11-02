@@ -273,7 +273,7 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
         })
     }
 
-    fn validate_move_candidate(
+    pub(crate) fn validate_move_candidate(
         &mut self,
         candidate: &MoveCandidate<A::ModelId>,
     ) -> Result<(), ToolError> {
@@ -365,6 +365,16 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
             )
             .into());
         }
+        let geometry = plan.actual_geometry()?;
+        if geometry
+            .as_ref()
+            .is_some_and(|geometry| geometry.len() != candidate.batch.sources.len())
+        {
+            return Err(ContainerEditError::Mismatch(
+                "actual plan geometry does not cover the complete operation batch",
+            )
+            .into());
+        }
         let queries = self.permission_queries::<P>(candidate);
         let mut receipts = Vec::with_capacity(queries.len());
         for query in queries {
@@ -409,6 +419,7 @@ impl<A: ModelAdapter + 'static> ToolContext<'_, A> {
             header,
             receipts,
             candidate: candidate.clone(),
+            geometry,
         }))
     }
 

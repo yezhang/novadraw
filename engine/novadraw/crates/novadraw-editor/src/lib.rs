@@ -22,6 +22,7 @@ mod part;
 pub mod policy;
 mod request;
 mod selection;
+pub mod snap;
 pub mod text_input;
 pub mod tool;
 pub mod viewer;

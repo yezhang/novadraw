@@ -43,9 +43,16 @@ Viewport 协作。
 
 Editor／GEF 框架能力补充（分批评审与实施）：
 
+- [开放吸附校验成本整改提案](snapping-validation-cost-proposal.md)：E04 正式采样后的
+  私有流式校验、容量复用与减少完整扫描的证明条件；待评审，不授权 Core 改动。
 - [ADR-058：Editor 开放吸附协议](../../adr/adr-058-open-editor-snapping.md)：
-  草案，待评审；[专题](open-snapping.md)定义 typed 策略、统一 surface 修正、
-  版本失效与反馈／提交，退出条件见[矩阵](../../verification/plans/editor-open-snapping.md)。
+  修订 2 已接受，E04-A 实施中；[专题](open-snapping.md)定义 typed 策略、受检特征、
+  自由度与反馈／提交，退出条件见[矩阵](../../verification/plans/editor-open-snapping.md)。
+  [依赖核验](../../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)
+  区分 E03 来源取消、有界重算、Core 依赖和 Editor 新增；
+  [协议实施记录](../../verification/reviews/p2-e04-a-implementation-2026-11-02.md)列出已通过与待验收范围。
+  [修订回应](../../verification/reviews/adr-058-revision-2-response-2026-11-02.md)
+  逐项处理修订 1 的七项意见，原评审记录保持。
 - [Editor／GEF 框架能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
   多视图和可选编辑策略的分批范围。
 - [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：

@@ -1,0 +1,19 @@
+{
+  "crates/novadraw-editor/tests/p2_e03_container_editing_contract.rs": "714a07b4558ef4ac5b10737bc4d1c0b74d99883c2689ab09662f313abd70ad81",
+  "crates/novadraw-editor/src/snap/creation.rs": "b4e55ff46d4eb52acf923a58581bfc0414a1e111aa7e8df3e0b25f6f866af4f5",
+  "crates/novadraw-editor/src/snap/feedback.rs": "10e0f077da06c281e86e1fdc6d24d21614827bbb45b0a60a5c25cb07b77109e1",
+  "crates/novadraw-editor/src/snap/geometry.rs": "f1a10b976da8627b53134a583b80de28ce182dc5bc1efd59faff338bdd624ff1",
+  "crates/novadraw-editor/src/snap/grid.rs": "ac59c7cc71cba77a27f71709b3edb10b66175c6bb1165bdb28ec606c592d86d6",
+  "crates/novadraw-editor/src/snap/lines.rs": "a1faa33a52b12372df7217d703730487a07c252add077c32914679b119a877c7",
+  "crates/novadraw-editor/src/snap/mod.rs": "4da7f0f6a80d05ced7239d2c69fbb6b56d82931c2f02e49a58e34c7e036f6d68",
+  "crates/novadraw-editor/src/snap/movement.rs": "b8f9a6f69a7209dfa44a9f5d9941ab03abc4b98348ae34d2b8646ca8bfc1fc9d",
+  "crates/novadraw-editor/src/snap/registry.rs": "4698bcb937ee2f33fe9446c18a522c74708076ce38700ddad91476e519fbe894",
+  "crates/novadraw-editor/src/snap/resize.rs": "920a797a256fbc7f361d76d405d546850f29505d034afbf6e80d93893bb0498e",
+  "crates/novadraw-editor/src/snap/resize_tool.rs": "c6a48816b5baf7782fc2c143e227701650ba1ca74ef9f773b89fd369c85b8cb7",
+  "crates/novadraw-editor/src/snap/service.rs": "0c448de62c3318dde3a24cc7dfab39bb68db2f150168f59eeb0962e01152982f",
+  "crates/novadraw-editor/src/snap/solver.rs": "f31348af8af69fbab08b3bf86f44bcb0464ef9daa48d5f051f6faa32f8e6ec4e",
+  "crates/novadraw-editor/src/snap/tests.rs": "b4cf8c6bb9d79af79afece5f50b6c44f3945db8b77a74ce009155179279a000c",
+  "crates/novadraw-editor/src/container/tool.rs": "741aad9cd7c681dd4772d9814ead49c0dafcb5e24d66028e443e5c554546ff38",
+  "crates/novadraw-editor/src/container/creation.rs": "93d376fd6f84cfeb6fbf9f6c6244ddeebb6e068102dfdf49523a93bab2c3c033",
+  "crates/novadraw/src/runtime/update/deferred.rs": "13dff655ecd149a70d914e421a187c1f553264bf64765d4f22c9ef05f25ad025"
+}

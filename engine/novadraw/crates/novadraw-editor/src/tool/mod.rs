@@ -131,6 +131,42 @@ pub enum ToolDirective {
 pub(crate) type ErasedRequestContributions = Vec<(EditPartId, Box<dyn Any>)>;
 
 pub(crate) trait ToolHost<A: ModelAdapter> {
+    fn render_snap_feedback(
+        &mut self,
+        declarations: &[crate::snap::FeedbackDeclaration],
+        geometry: &crate::snap::SnapGeometry,
+        limit: usize,
+    ) -> Result<Vec<FeedbackVisual>, crate::snap::SnapError>;
+    fn begin_snap_session(&self) -> Result<crate::snap::SnapSession, crate::snap::SnapError>;
+    fn snap_move_input(
+        &mut self,
+        candidate: &crate::container::MoveCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError>;
+    fn snap_creation_input(
+        &mut self,
+        candidate: &crate::container::CreationCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError>;
+    fn snap_resize_input(
+        &mut self,
+        candidate: &crate::snap::ResizeCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError>;
+    fn solve_snapping(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        input: crate::snap::SnapInput,
+    ) -> Result<crate::snap::SnapSolution, crate::snap::SnapError>;
+    fn validate_snapping_plan_geometry(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        solution: &crate::snap::SnapSolution,
+        geometry: crate::snap::SnapGeometry,
+    ) -> Result<crate::snap::SnapGeometry, crate::snap::SnapError>;
     fn model(&self) -> &A;
     fn part_tree(&self) -> &crate::PartTree<A::ModelId>;
     fn synchronize_model(&mut self) -> Result<bool, ViewerError>;
@@ -230,6 +266,72 @@ pub struct ToolContext<'a, A: ModelAdapter> {
 }
 
 impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
+    pub(crate) fn render_snap_feedback(
+        &mut self,
+        declarations: &[crate::snap::FeedbackDeclaration],
+        geometry: &crate::snap::SnapGeometry,
+        limit: usize,
+    ) -> Result<Vec<FeedbackVisual>, ToolError> {
+        Ok(self
+            .host
+            .render_snap_feedback(declarations, geometry, limit)?)
+    }
+    /// Starts an independently owned snapping gesture through the Viewer fault gate.
+    pub fn begin_snap_session(&self) -> Result<crate::snap::SnapSession, ToolError> {
+        Ok(self.host.begin_snap_session()?)
+    }
+
+    /// Builds checked unsnapped move input without exposing mutable Viewer state.
+    pub fn snap_move_input(
+        &mut self,
+        candidate: &crate::container::MoveCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, ToolError> {
+        Ok(self.host.snap_move_input(candidate, settings, layouts)?)
+    }
+
+    /// Builds checked click/drop or fixed-origin drag-creation input.
+    pub fn snap_creation_input(
+        &mut self,
+        candidate: &crate::container::CreationCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, ToolError> {
+        Ok(self
+            .host
+            .snap_creation_input(candidate, settings, layouts)?)
+    }
+
+    /// Builds checked variable-edge or proportional resize input.
+    pub fn snap_resize_input(
+        &mut self,
+        candidate: &crate::snap::ResizeCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, ToolError> {
+        Ok(self.host.snap_resize_input(candidate, settings, layouts)?)
+    }
+
+    /// Solves once; commands and actual-plan validation remain separate checked gates.
+    pub fn solve_snapping(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        input: crate::snap::SnapInput,
+    ) -> Result<crate::snap::SnapSolution, ToolError> {
+        Ok(self.host.solve_snapping(session, input)?)
+    }
+
+    pub(crate) fn validate_snapping_plan_geometry(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        solution: &crate::snap::SnapSolution,
+        geometry: crate::snap::SnapGeometry,
+    ) -> Result<crate::snap::SnapGeometry, ToolError> {
+        Ok(self
+            .host
+            .validate_snapping_plan_geometry(session, solution, geometry)?)
+    }
     pub(crate) fn new(host: &'a mut dyn ToolHost<A>) -> Self {
         Self {
             host,
@@ -690,6 +792,8 @@ struct DragGesture {
 /// Failure while updating or cancelling a Tool gesture.
 #[derive(Debug)]
 pub enum ToolError {
+    /// A complete snapping flow failed without publishing a partial result.
+    Snap(crate::snap::SnapError),
     /// Viewer targeting, policy feedback, or overlay cleanup failed.
     Viewer(ViewerError),
     /// Checked containment geometry, batch, or permission failure.
@@ -710,6 +814,7 @@ pub enum ToolError {
 impl fmt::Display for ToolError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Snap(error) => error.fmt(formatter),
             Self::Viewer(error) => error.fmt(formatter),
             Self::Container(error) => error.fmt(formatter),
             Self::Protocol(message) => message.fmt(formatter),
@@ -721,6 +826,7 @@ impl fmt::Display for ToolError {
 impl Error for ToolError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Snap(error) => Some(error),
             Self::Viewer(error) => Some(error),
             Self::Container(error) => Some(error),
             Self::Protocol(_) => None,
@@ -732,6 +838,12 @@ impl Error for ToolError {
 impl From<ViewerError> for ToolError {
     fn from(value: ViewerError) -> Self {
         Self::Viewer(value)
+    }
+}
+
+impl From<crate::snap::SnapError> for ToolError {
+    fn from(error: crate::snap::SnapError) -> Self {
+        Self::Snap(error)
     }
 }
 

@@ -118,6 +118,56 @@ where
     A: ModelAdapter + 'static,
     F: EditPartFactory<A>,
 {
+    fn render_snap_feedback(
+        &mut self,
+        declarations: &[crate::snap::FeedbackDeclaration],
+        geometry: &crate::snap::SnapGeometry,
+        limit: usize,
+    ) -> Result<Vec<FeedbackVisual>, crate::snap::SnapError> {
+        self.render_snap_feedback(declarations, geometry, limit)
+    }
+    fn begin_snap_session(&self) -> Result<crate::snap::SnapSession, crate::snap::SnapError> {
+        self.begin_snap_session()
+    }
+    fn snap_creation_input(
+        &mut self,
+        candidate: &crate::container::CreationCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError> {
+        GraphicalViewer::snap_creation_input(self, candidate, settings, layouts)
+    }
+    fn snap_resize_input(
+        &mut self,
+        candidate: &crate::snap::ResizeCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError> {
+        GraphicalViewer::snap_resize_input(self, candidate, settings, layouts)
+    }
+    fn snap_move_input(
+        &mut self,
+        candidate: &crate::container::MoveCandidate<A::ModelId>,
+        settings: crate::snap::SnapSettings,
+        layouts: Vec<crate::snap::RuleCall>,
+    ) -> Result<crate::snap::SnapInput, crate::snap::SnapError> {
+        self.snap_move_input(candidate, settings, layouts)
+    }
+    fn solve_snapping(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        input: crate::snap::SnapInput,
+    ) -> Result<crate::snap::SnapSolution, crate::snap::SnapError> {
+        self.solve_snapping(session, input)
+    }
+    fn validate_snapping_plan_geometry(
+        &mut self,
+        session: &mut crate::snap::SnapSession,
+        solution: &crate::snap::SnapSolution,
+        geometry: crate::snap::SnapGeometry,
+    ) -> Result<crate::snap::SnapGeometry, crate::snap::SnapError> {
+        self.validate_snapping_plan_geometry(session, solution, geometry)
+    }
     fn model(&self) -> &A {
         &self.model
     }
@@ -1224,6 +1274,7 @@ where
     last_panic: Option<crate::diagnostics::PanicDiagnostic>,
     active_behaviors: HashSet<EditPartId>,
     last_cleanup: Option<Rc<ProjectionCleanup>>,
+    pub(crate) snapping: crate::snap::registry::Registry,
 }
 
 pub(crate) struct ViewerEditSession<'a, A, F>
@@ -1474,6 +1525,7 @@ where
             last_panic: None,
             active_behaviors: HashSet::new(),
             last_cleanup: None,
+            snapping: crate::snap::registry::Registry::new(namespace),
         };
         let contents = viewer.create_subtree(root_part, snapshot.root, &snapshot)?;
         viewer.parts.designate_contents(contents)?;
