@@ -1,10 +1,31 @@
 //! Optional host UI. Panel callbacks own example state and use only public Runtime mutations.
 use std::sync::{Arc, Mutex};
 
-use novadraw::runtime::Runtime;
+use novadraw::{render::BuiltinFont, runtime::Runtime};
 use novadraw_backend_vello::{NativeOverlay, wgpu};
 
 pub use egui;
+
+fn panel_context() -> egui::Context {
+    let context = egui::Context::default();
+    let mut fonts = egui::FontDefinitions::default();
+    let chinese = BuiltinFont::NotoSansSc;
+    fonts.font_data.insert(
+        chinese.family().to_owned(),
+        Arc::new(egui::FontData::from_static(chinese.bytes())),
+    );
+    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .push(chinese.family().to_owned());
+    }
+    context.set_fonts(fonts);
+    context.set_visuals(egui::Visuals::light());
+    context.style_mut_of(egui::Theme::Light, |style| style.animation_time = 0.0);
+    context
+}
 
 type PanelDraw = Box<dyn FnMut(&mut egui::Ui, &mut Runtime)>;
 
@@ -93,9 +114,7 @@ pub(crate) struct PanelHost {
 
 impl PanelHost {
     pub fn new(window: &winit::window::Window) -> Self {
-        let context = egui::Context::default();
-        context.set_visuals(egui::Visuals::light());
-        context.style_mut_of(egui::Theme::Light, |style| style.animation_time = 0.0);
+        let context = panel_context();
         let state = egui_winit::State::new(
             context.clone(),
             egui::ViewportId::ROOT,
@@ -230,6 +249,41 @@ impl NativeOverlay for Overlay {
 mod tests {
     use super::*;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn native_panel_fonts_cover_chinese_labels_and_launch_errors() {
+        let context = panel_context();
+        let text = "打开双 Canvas 样例当前窗口展示透明文字内容橙色继承渐变背景无法启动请先构建：关闭后可再次打开。";
+        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            ui.label(text);
+            context.fonts_mut(|fonts| {
+                for font in [
+                    egui::FontId::proportional(14.0),
+                    egui::FontId::monospace(14.0),
+                ] {
+                    let missing = fonts.layout_no_wrap(
+                        "\u{10ffff}".to_owned(),
+                        font.clone(),
+                        egui::Color32::BLACK,
+                    );
+                    let replacement_uv = missing.rows[0].glyphs[0].uv_rect;
+                    // Whitespace advances do not require a drawable glyph.
+                    for character in text.chars().filter(|character| !character.is_whitespace()) {
+                        let glyph = fonts.layout_no_wrap(
+                            character.to_string(),
+                            font.clone(),
+                            egui::Color32::BLACK,
+                        );
+                        assert_ne!(
+                            glyph.rows[0].glyphs[0].uv_rect, replacement_uv,
+                            "missing panel glyph {character:?} in {:?}",
+                            font.family
+                        );
+                    }
+                }
+            });
+        });
+    }
 
     #[test]
     fn canvas_press_after_leaving_panel_does_not_wait_for_a_redraw() {
