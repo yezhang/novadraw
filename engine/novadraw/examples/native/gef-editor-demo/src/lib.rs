@@ -221,7 +221,10 @@ impl Default for AppState {
             presentation_draft: None,
             geometry_dirty: false,
             appearance_dirty: false,
-            path_input: "shapes.json".into(),
+            path_input: Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("shapes.json")
+                .to_string_lossy()
+                .into_owned(),
             current_path: None,
             canvas_bounds: Rectangle::new(0.0, 0.0, 0.0, 0.0),
             property_subject: None,

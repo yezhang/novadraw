@@ -68,6 +68,8 @@ python3 tools/scripts/run_gef_macos.py
 - 左右侧栏可折叠但位置固定。停靠、浮动和布局恢复仍按
   [docking 延期方案](../../../doc/design/editor/egui-docking-deferred-plan.md)后置。
 - 路径输入框指定 JSON 文件。Save 保存当前文件；Save as 使用输入的新路径。
+  默认文件为本样例目录内的 `shapes.json`，路径由构建时的样例目录确定，
+  不随启动时的工作目录变化。该文件是可编辑的本地存档，已加入本目录的 Git 忽略规则。
   保存成功才标记保存点。Open 拒绝丢弃未保存修改，Discard & open 明确放弃修改。
   文件读取、解析或写入失败会保留当前文档和历史。
 
