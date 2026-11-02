@@ -1,0 +1,240 @@
+diff --git a/engine/novadraw/crates/novadraw/src/figure/flow/snapshot.rs b/engine/novadraw/crates/novadraw/src/figure/flow/snapshot.rs
+index cef43f77..2accbef0 100644
+--- a/engine/novadraw/crates/novadraw/src/figure/flow/snapshot.rs
++++ b/engine/novadraw/crates/novadraw/src/figure/flow/snapshot.rs
+@@ -36,12 +36,16 @@ const PARAGRAPH_CACHE_CAPACITY: usize = 256;
+ struct FlowWork {
+     statistics: FlowWorkStatistics,
+     paragraphs: Vec<ParagraphAsset>,
++    // Length only narrows candidates; engine/version and the full request prove reuse.
++    // Reading it does not hash or materialize the text, spans, or inline boxes.
++    paragraph_lookup: HashMap<usize, Vec<usize>>,
++    // Stable slots preserve FIFO eviction without moving every retained asset.
++    oldest_paragraph: usize,
+ }
+ 
+ struct ParagraphAsset {
+     engine_identity: Option<crate::text::shaping::TextLayoutCacheIdentity>,
+     engine_revision: u64,
+-    fingerprint: u64,
+     layout: StyledTextLayout,
+     padding: Vec<(f64, f64)>,
+     padded: Option<StyledTextLayout>,
+@@ -58,6 +62,50 @@ struct FlowLayoutCall<'a, 'scene> {
+ }
+ 
+ impl FlowWork {
++    fn cached_paragraph(
++        &self,
++        engine_identity: Option<crate::text::shaping::TextLayoutCacheIdentity>,
++        engine_revision: u64,
++        request: &StyledTextRequest,
++    ) -> Option<usize> {
++        let identity = engine_identity?;
++        self.paragraph_lookup
++            .get(&request.text().len())?
++            .iter()
++            .copied()
++            .find(|&index| {
++                let asset = &self.paragraphs[index];
++                asset.engine_identity == Some(identity)
++                    && asset.engine_revision == engine_revision
++                    && asset.layout.request() == request
++            })
++    }
++
++    fn cache_paragraph(&mut self, asset: ParagraphAsset) -> usize {
++        let text_len = asset.layout.request().text().len();
++        let index = if self.paragraphs.len() < PARAGRAPH_CACHE_CAPACITY {
++            let index = self.paragraphs.len();
++            self.paragraphs.push(asset);
++            index
++        } else {
++            let index = self.oldest_paragraph;
++            let retired = std::mem::replace(&mut self.paragraphs[index], asset);
++            let retired_len = retired.layout.request().text().len();
++            let bucket = self.paragraph_lookup.get_mut(&retired_len).unwrap();
++            bucket.retain(|&candidate| candidate != index);
++            if bucket.is_empty() {
++                self.paragraph_lookup.remove(&retired_len);
++            }
++            self.oldest_paragraph = (index + 1) % PARAGRAPH_CACHE_CAPACITY;
++            index
++        };
++        self.paragraph_lookup
++            .entry(text_len)
++            .or_default()
++            .push(index);
++        index
++    }
++
+     fn layout(
+         &mut self,
+         context: &mut MeasureContext<'_>,
+@@ -101,14 +149,7 @@ impl FlowWork {
+                 });
+         };
+         let lookup = diagnostics.time("flow-paragraph-lookup");
+-        let fingerprint = request.fingerprint();
+-        if let Some(index) = self.paragraphs.iter().position(|asset| {
+-            engine_identity.is_some()
+-                && asset.engine_identity == engine_identity
+-                && asset.engine_revision == engine_revision
+-                && asset.fingerprint == fingerprint
+-                && asset.layout.request() == request
+-        }) {
++        if let Some(index) = self.cached_paragraph(engine_identity, engine_revision, request) {
+             drop(lookup);
+             observe(
+                 true,
+@@ -132,19 +173,15 @@ impl FlowWork {
+         self.statistics.styled_layout_calls += 1;
+         self.statistics.styled_layout_ns += engine_ns;
+         let layout = result?;
+-        if self.paragraphs.len() == PARAGRAPH_CACHE_CAPACITY {
+-            self.paragraphs.remove(0);
+-        }
+-        self.paragraphs.push(ParagraphAsset {
++        let index = self.cache_paragraph(ParagraphAsset {
+             engine_identity,
+             engine_revision,
+-            fingerprint,
+             layout: layout.clone(),
+             padding: Vec::new(),
+             padded: None,
+             source_geometry: HashMap::new(),
+         });
+-        Ok((self.paragraphs.len() - 1, layout))
++        Ok((index, layout))
+     }
+ }
+ 
+@@ -1374,6 +1411,128 @@ mod measurement_tests {
+     };
+     use std::sync::atomic::{AtomicUsize, Ordering};
+ 
++    fn paragraph_asset(
++        context: &mut MeasureContext<'_>,
++        request: &StyledTextRequest,
++    ) -> ParagraphAsset {
++        ParagraphAsset {
++            engine_identity: context.cache_identity(),
++            engine_revision: context.revision(),
++            layout: context.layout_styled(request).unwrap(),
++            padding: Vec::new(),
++            padded: None,
++            source_geometry: HashMap::new(),
++        }
++    }
++
++    fn cache_request(text: String, width: f32) -> StyledTextRequest {
++        StyledTextRequest::new(
++            text,
++            crate::text::TextStyle::new(FontDescriptor::default(), crate::graphics::Color::BLACK),
++            Vec::new(),
++            Vec::new(),
++            TextConstraints::new(Some(width)).unwrap(),
++        )
++        .unwrap()
++    }
++
++    #[test]
++    fn paragraph_index_checks_complete_request_engine_and_revision_on_collisions() {
++        let mut system = TextSystem::new();
++        system.register_builtin_font(BuiltinFont::Inter).unwrap();
++        let mut context = system.measure(FontDescriptor::default());
++        let first = cache_request("same text".into(), 75.0);
++        let second = cache_request("same text".into(), 240.0);
++        let mut work = FlowWork::default();
++        let first_index = work.cache_paragraph(paragraph_asset(&mut context, &first));
++        let second_index = work.cache_paragraph(paragraph_asset(&mut context, &second));
++        let identity = context.cache_identity();
++        let revision = context.revision();
++        assert_eq!(
++            work.cached_paragraph(identity, revision, &first),
++            Some(first_index)
++        );
++        assert_eq!(
++            work.cached_paragraph(identity, revision, &second),
++            Some(second_index)
++        );
++        assert_eq!(work.cached_paragraph(None, revision, &first), None);
++        assert_eq!(
++            work.cached_paragraph(Some(Default::default()), revision, &first),
++            None
++        );
++        assert_eq!(work.cached_paragraph(identity, revision + 1, &first), None);
++        let different = cache_request("fake text".into(), 75.0);
++        assert_eq!(first.text().len(), different.text().len());
++        assert_eq!(work.cached_paragraph(identity, revision, &different), None);
++    }
++
++    #[test]
++    fn paragraph_index_preserves_fifo_capacity_and_retained_layouts() {
++        let mut system = TextSystem::new();
++        system.register_builtin_font(BuiltinFont::Inter).unwrap();
++        let mut context = system.measure(FontDescriptor::default());
++        let requests = (0..PARAGRAPH_CACHE_CAPACITY * 2 + 1)
++            .map(|index| cache_request(format!("paragraph {index}"), 240.0))
++            .collect::<Vec<_>>();
++        let mut work = FlowWork::default();
++        let first = paragraph_asset(&mut context, &requests[0]);
++        let retained = first.layout.clone();
++        work.cache_paragraph(first);
++        for request in &requests[1..] {
++            work.cache_paragraph(paragraph_asset(&mut context, request));
++        }
++        assert_eq!(work.paragraphs.len(), PARAGRAPH_CACHE_CAPACITY);
++        assert!(work.paragraph_lookup.len() <= PARAGRAPH_CACHE_CAPACITY);
++        assert_eq!(
++            work.paragraph_lookup.values().map(Vec::len).sum::<usize>(),
++            PARAGRAPH_CACHE_CAPACITY
++        );
++        for (index, request) in requests.iter().enumerate() {
++            let found =
++                work.cached_paragraph(context.cache_identity(), context.revision(), request);
++            assert_eq!(
++                found.is_some(),
++                index >= requests.len() - PARAGRAPH_CACHE_CAPACITY
++            );
++            if let Some(slot) = found {
++                assert_eq!(work.paragraphs[slot].layout.request(), request);
++            }
++        }
++        assert_eq!(retained.request(), &requests[0]);
++        assert!(!retained.layout().line_metrics().is_empty());
++    }
++
++    #[test]
++    fn paragraph_index_eviction_removes_only_the_retired_collision_candidate() {
++        let mut system = TextSystem::new();
++        system.register_builtin_font(BuiltinFont::Inter).unwrap();
++        let mut context = system.measure(FontDescriptor::default());
++        let mut work = FlowWork::default();
++        // Equal byte lengths share one bucket; full requests remain different.
++        let requests = (0..=PARAGRAPH_CACHE_CAPACITY)
++            .map(|index| cache_request(format!("collision {index:04}"), 240.0))
++            .collect::<Vec<_>>();
++        for request in &requests {
++            work.cache_paragraph(paragraph_asset(&mut context, request));
++        }
++        assert_eq!(work.paragraph_lookup.len(), 1);
++        assert_eq!(
++            work.paragraph_lookup[&requests[0].text().len()].len(),
++            PARAGRAPH_CACHE_CAPACITY
++        );
++        assert_eq!(
++            work.cached_paragraph(context.cache_identity(), context.revision(), &requests[0]),
++            None
++        );
++        for request in &requests[1..] {
++            let index = work
++                .cached_paragraph(context.cache_identity(), context.revision(), request)
++                .unwrap();
++            assert_eq!(work.paragraphs[index].layout.request(), request);
++        }
++    }
++
+     struct MeasuredBorder(Arc<AtomicUsize>);
+     impl FlowFragmentBorder for MeasuredBorder {
+         fn metrics(

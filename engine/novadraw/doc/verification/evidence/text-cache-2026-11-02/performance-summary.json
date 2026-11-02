@@ -1,0 +1,337 @@
+{
+  "sessions": 3,
+  "warmup_per_session": 8,
+  "samples_per_session": 32,
+  "workload": "original TextFlowLarge, exact layout, append Z, scroll and width resize",
+  "scope": "CPU only; diagnostics enabled; no GPU or present; external load uncontrolled",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: aarch64-apple-darwin\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+  "binaries": {
+    "before": {
+      "path": "/tmp/novadraw-text-cache-before",
+      "sha256": "a8bfea706581ebc74a02a5b133dc10da669d3d5f88a15ddbf727b434dabb3923"
+    },
+    "after": {
+      "path": "/tmp/novadraw-text-cache-after",
+      "sha256": "faa1076dcb2f326346907763621bc63f9738f66979945a06db5e7ccead20fd3d"
+    }
+  },
+  "semantic_rows_and_work_counters_equal": true,
+  "per_session": {
+    "before": [
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 633682.5,
+          "p95_ns": 663082
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 241878.0,
+          "p95_ns": 268877
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 34547938.0,
+          "p95_ns": 36144750
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 14548770.0,
+          "p95_ns": 15426375
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1897521.0,
+          "p95_ns": 2370334
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 97024.5,
+          "p95_ns": 104457
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 629776.5,
+          "p95_ns": 665083
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5595958.0,
+          "p95_ns": 6008458
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 31219604.5,
+          "p95_ns": 32632000
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3593437.5,
+          "p95_ns": 3843166
+        }
+      },
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 628699.0,
+          "p95_ns": 671336
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 241251.0,
+          "p95_ns": 257464
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 34201708.5,
+          "p95_ns": 37506708
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 14525354.5,
+          "p95_ns": 15913666
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1938750.0,
+          "p95_ns": 2446125
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 97831.5,
+          "p95_ns": 109626
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 630209.5,
+          "p95_ns": 672197
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5585833.5,
+          "p95_ns": 6420542
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 31332417.0,
+          "p95_ns": 35551583
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3599062.5,
+          "p95_ns": 4493958
+        }
+      },
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 640607.0,
+          "p95_ns": 675382
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 246062.5,
+          "p95_ns": 256831
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 34661271.0,
+          "p95_ns": 37909625
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 14743562.0,
+          "p95_ns": 15935958
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1947187.5,
+          "p95_ns": 2317084
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 97208.5,
+          "p95_ns": 110579
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 641012.5,
+          "p95_ns": 705874
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5709291.5,
+          "p95_ns": 6418875
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 31853062.0,
+          "p95_ns": 34002291
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3609562.5,
+          "p95_ns": 3947583
+        }
+      }
+    ],
+    "after": [
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 117311.5,
+          "p95_ns": 140785
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 49956.0,
+          "p95_ns": 58468
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 31738020.5,
+          "p95_ns": 36733791
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 13674082.0,
+          "p95_ns": 15560375
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1804791.5,
+          "p95_ns": 2328625
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 12561.0,
+          "p95_ns": 16335
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 239244.5,
+          "p95_ns": 283428
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5270312.5,
+          "p95_ns": 6181125
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 29357833.5,
+          "p95_ns": 33888250
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3467333.0,
+          "p95_ns": 4017625
+        }
+      },
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 122605.5,
+          "p95_ns": 144357
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 53018.5,
+          "p95_ns": 64625
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 33504604.5,
+          "p95_ns": 36392375
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 14502395.5,
+          "p95_ns": 15916083
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1931958.5,
+          "p95_ns": 2258167
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 13669.0,
+          "p95_ns": 18624
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 254757.5,
+          "p95_ns": 288902
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5490896.5,
+          "p95_ns": 6501875
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 31005771.0,
+          "p95_ns": 33730833
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3563166.5,
+          "p95_ns": 4114875
+        }
+      },
+      {
+        "runtime-initial/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 126084.0,
+          "p95_ns": 140759
+        },
+        "runtime-append/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 53952.0,
+          "p95_ns": 61591
+        },
+        "initial_ns": {
+          "samples": 32,
+          "p50_ns": 33909250.0,
+          "p95_ns": 37743875
+        },
+        "append_e2e_ns": {
+          "samples": 32,
+          "p50_ns": 14565000.0,
+          "p95_ns": 15855624
+        },
+        "stable_ns": {
+          "samples": 32,
+          "p50_ns": 1935667.0,
+          "p95_ns": 2246125
+        },
+        "runtime-scroll/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 14227.5,
+          "p95_ns": 16920
+        },
+        "runtime-resize/flow-paragraph-lookup": {
+          "samples": 32,
+          "p50_ns": 254029.5,
+          "p95_ns": 275338
+        },
+        "scroll_ns": {
+          "samples": 32,
+          "p50_ns": 5573479.0,
+          "p95_ns": 6398000
+        },
+        "resize_ns": {
+          "samples": 32,
+          "p50_ns": 31229375.5,
+          "p95_ns": 33533792
+        },
+        "record_ns": {
+          "samples": 32,
+          "p50_ns": 3615479.0,
+          "p95_ns": 4169292
+        }
+      }
+    ]
+  }
+}

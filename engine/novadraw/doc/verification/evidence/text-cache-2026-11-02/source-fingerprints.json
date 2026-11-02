@@ -1,0 +1,7 @@
+{
+  "doc/verification/evidence/text-cache-2026-11-02/before.rs": "869152edd54e29ba3b6a1b5bc96cdf929bd6222bf690c80ab82442b47113331d",
+  "doc/verification/evidence/text-cache-2026-11-02/after.rs": "ea8bed86cf2d4dcdfa62d5f00b2056c2fb3905ba13125bdc3ca08e71a7f0b0a0",
+  "Cargo.lock": "c564c81d4e70b25ac47d8d0383bbb51712186f799321be28dcee67f5cc4d4ee9",
+  "crates/novadraw/examples/native/draw2d-official-examples/src/bin/textflow-perf.rs": "0479c9cc798df13b665cfdc592ceced6d26855e16a455c2c926cdfe08fd6b435",
+  "crates/novadraw/examples/native/draw2d-official-examples/src/bin/textflow-perf/workloads.rs": "7fe9a3a434fc8416a93dcb009faa14c582a946a41daf5117b2c5b6d3ae7848ca"
+}
