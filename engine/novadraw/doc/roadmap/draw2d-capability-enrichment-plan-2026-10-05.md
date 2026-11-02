@@ -7,17 +7,21 @@
 平台声明见 [支持矩阵](platform-support-matrix.md)，对等分母见
 [语义账本](../parity/draw2d/api-coverage.md#长期能力分母与处置)。
 
+2026-11-02 按当前 Rust 实现复核：本表的价值分组不表示待实现清单。
+图布局、structured flow、Thumbnail、ScrollBar 和 Core 动画已有实现；
+完整平台及性能验收另记，见[能力复核](../verification/reviews/core-capability-status-2026-11-02.md)。
+
 ## 能力分组
 
 | 价值分组 | 能力 | 去向与契约入口 |
 |---|---|---|
-| P0 | 可选动画与表现平面 | P2-M01；[动画专题](../design/animation/00-index.md) |
-| P1 | repeat、ButtonGroup、checkbox/radio、Slider | P2-W01；[基础控件](../design/architecture/basic-widgets.md) |
+| P0 | 可选动画与表现平面 | Core A/B/C 与 Tree 批次已实现；P2-M01 的 D 平台验收保留；[动画专题](../design/animation/00-index.md) |
+| P1 | repeat、ButtonGroup、checkbox/radio、Slider | ScrollBar repeat 已实现；完整 family 的 P2-W01 保持 deferred；[基础控件](../design/architecture/basic-widgets.md) |
 | P1 | LabeledContainer/GroupBox、Separator、Focus/Frame Border、MultiLineLabel | 消费者成立后登记；优先组合已有容器、Label、Border、TextFlow |
-| P1 | Directed/Compound graph layout adapter | P2-L01；独立图快照及确定性输出，限制参考于 `org.eclipse.draw2d.graph` |
-| P2 | Ghost/snapshot feedback、Thumbnail/minimap | 消费者成立后登记；稳定或表现快照只读消费 |
+| P1 | Directed/Compound graph layout adapter | P2-L01 已完成；独立图快照及确定性输出，限制参考于 `org.eclipse.draw2d.graph` |
+| P2 | Ghost/snapshot feedback、Thumbnail/minimap | K07 capture／SceneView／Thumbnail 已实现；其他反馈消费者独立登记，稳定或表现快照只读消费 |
 | P2 | Graphics surface、跨 Viewport Connection、多区域 clip | P2-G01/C03；[Graphics](../design/rendering/p2-g01-graphics-extension.md)、[连接](../design/architecture/connection-routing.md) |
-| P2 | fragment style、剩余 inline/block flow | P2-T03；[文字布局](../design/architecture/text-layout.md) |
+| P2 | fragment style、剩余 inline/block flow | P2-T03 已完成；[文字布局](../design/architecture/text-layout.md)；长文本性能按 LT 独立验收 |
 | P2 | printing/export、ScaledGraphics 等价输出 | P2-O01；输出目标与 scale/clip adapter |
 | P2 | Web action/focus、Native AT provider | P2-A01；[Tooltip/AT](../design/architecture/tooltip-accessibility.md) |
 | P3 | getClip/getAbsoluteScale/removeAll/isMirrored 等便利入口 | 真实跨消费者需求成立后登记；不重建内置专用 mutation |
@@ -60,9 +64,9 @@ Draw2D/GEF 语义证据。
 
 ## 图布局与输出的后续设计
 
-P2-L01 先固定普通/compound 图的不可变 node/edge snapshot、rank、反馈边、
-long-edge bendpoints、输入顺序及数值策略；外部算法通过 adapter 接入。
-布局应用先校验身份、版本、数值与覆盖范围，再由已有 owner 发布，
+P2-L01 已按 ADR-043 固定普通/compound 图的不可变 node/edge snapshot、rank、
+反馈边、long-edge bendpoints、输入顺序及数值策略；外部算法通过 adapter 接入。
+布局应用校验身份、版本、数值与覆盖范围，再由已有 owner 发布，
 不预设覆盖模型/history 的通用回滚事务。
 
 P2-O01 使用输出目标及 scale/clip adapter。文字、图像、路径与屏幕语义同源，

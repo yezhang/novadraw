@@ -77,9 +77,12 @@ GA-2/GA-3 剩余环境采证后置到发布准备，
 保留未完成状态，不阻塞平台无关核心开发。原 G6 的产品 schema、
 serializer 和产品级 Native/Web 场景由独立产品包负责；已完成的 D0-D4、M8/M9 与
 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为当前工作入口。
-Core 机制之后的动画与表现平面、图布局、内置组件、Thumbnail、打印和平台能力建议顺序见
+Core 机制之后的能力分组见
 [`Draw2D 内置能力丰富度补齐计划`](draw2d-capability-enrichment-plan-2026-10-05.md)；
-具体执行状态仍只由 P2 backlog 与平台支持矩阵维护。
+该计划的早期顺序不表示尚未实现：图布局、Tree 动画、Thumbnail、ScrollBar 和
+structured flow 已落地。当前 Rust 能力与残余边界见
+[能力复核](../verification/reviews/core-capability-status-2026-11-02.md)，
+执行状态仍只由 P2 backlog 与平台支持矩阵维护。
 
 `D0-D4` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。

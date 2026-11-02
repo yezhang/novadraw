@@ -72,6 +72,9 @@ K08 SVG 栅格密度切片已实现，见
 [SVG 证据](../reviews/k08-svg-density-evidence-2026-10-23.md)。
 K06 Tree 动画已按 ADR-046 完成，契约与 Native retained-partial 证据见
 [实施复核](../reviews/tree-layout-presentation-implementation-2026-10-26.md)。
-K08 AA 与混合字体段的通用文字装饰继续保留。
-Path 已消费单字体的下划线指标，不能据此关闭混合字体装饰增量。
+2026-11-02 源码复核：K08 逐操作 AA 已按 ADR-047 实施，低 miter 按 ADR-049
+实施，跨字体／跨行／bidi 下划线已按 ADR-050 提供准备与绘制协议；
+Path 消费同一公开接口。这些能力不再列为缺失。
+通用设备 hairline、原生栅格和平台呈现仍保留，见
+[能力复核](../reviews/core-capability-status-2026-11-02.md)。
 依赖顺序和状态统一回写 P2 backlog。

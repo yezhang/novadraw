@@ -4,7 +4,31 @@
 
 日期：2026-10-19
 
-状态：执行中；按用户最新要求收回到 Canvas / LightweightSystem 范围
+状态：Canvas 功能已实现，逐入口和平台验收继续；2026-11-02 按当前 Rust 能力复核。
+
+## 当前能力状态
+
+能力归属：Core 负责图形、布局、文字、输入和共享场景协议；backend／platform
+负责设备覆盖、字体来源与呈现；样例负责场景编排。
+当前 25 个入口均可运行，catalog 保持 17 个 complete、8 个 in_progress。
+入口状态与 Core 能力状态分别记录，不能从未验收的入口推断 Core 尚未实现。
+逐项源码和证据见[本轮能力复核](../reviews/core-capability-status-2026-11-02.md)。
+
+| 能力 | 当前实现 | 尚未完成的边界 |
+|---|---|---|
+| Grid／Flow／Toolbar 与文字约束重测 | 已实现；已有 Rust、retained 像素与 macOS 窗口证据 | 其他平台像素及完整呈现验收 |
+| owner-aware Locator、visibility graph 路由 | 已实现，连接和 UML 已消费 | 跨 viewport Connection 是独立未实施 delta |
+| 五部件 ScrollBar、共享 RangeModel、repeat | 已实现 | 完整主题、滚轮／cursor 与跨平台输入验收 |
+| structured flow、真实 inline Figure、继承方向、caret／selection | 已实现，六个文字入口已有契约证据 | Large 性能目标和部分跨平台栅格验收 |
+| Directed／Compound 图布局、Tree 表现动画 | 已实现，批准切片已验证 | 通用动画的 M01-D 平台验收仍保留 |
+| capture／SceneView／Thumbnail 与透明宿主背景 | 已实现，K07 六片完成 | Web 背景、跨显示器 DPI 与原生 runner 验收 |
+| 逐操作图形／文字 AA、低 miter、SVG 密度、跨字体下划线 | 已实现，ADR-047／049／050 已有契约与 GPU 证据 | 通用设备 hairline 未实现；Cocoa 零宽映射不等于设备 hairline |
+| Canvas 图文输出 | 已实现 | P2-O01 通用打印／导出目标未实施，SWT 打印作业不在本计划 |
+| 精确段落缓存与共享 glyph IR | 已实现 | 默认原生 glyph 的安全可见输出、宽度分阶段复用和整体性能目标未闭合 |
+
+本轮按用户要求推进文字优化，先保持 ADR-051 的完整请求、引擎身份、revision、
+预算和发布合同，优化既有精确缓存查找。新 shaping／换行阶段协议、worker、
+渐进几何和原生覆盖能力另行评审，不以实现内部优化代替其验收。
 
 ## 目标与边界
 
@@ -60,7 +84,10 @@ K/H 编号沿用已有任务身份，收窄其定义；不创建新 M/G 编号�
 | H03 | 原真实打印平台任务 | 从本计划退出；未来有独立产品需求再规划 |
 | H04 | Canvas 结构、行为、资源与视觉验收 | 逐入口记录通过范围，不以测试数代替全部 Canvas 功能完成 |
 
-## 当前进度与下一批
+## 历次实施与验收范围
+
+以下保留各批次当时的推进记录。当前能力以本页开头和 P2 backlog 为准；
+后续实施已替代早期的“待 K05／K06／K07／K08”描述。
 
 K01 已完成多个通用切片并接入 Tree、Grid 与 ConnectionAndAnchor，仍有后续消费者
 依赖 K03/K05/K06。K02 已修复 Grid span/grab、最小测量和整数居中；
