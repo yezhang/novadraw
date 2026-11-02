@@ -38,7 +38,7 @@ example target，也不将 GUI 依赖加入 Core／Editor 的 `dev-dependencies`
 | Core／Native | `layout-app` | 布局管理器 | `cargo run -p layout-app` |
 | Core／Native | `event-app` | 输入、焦点与 capture | `cargo run -p event-app` |
 | Core／Native | `border-app` | Border 装饰器 | `cargo run -p border-app` |
-| Core／Native | `text-app` | 文本、图像与资源 | `cargo run -p text-app` |
+| Core／Native | `text-app` | 文本、图像与资源；`Emoji_Color` 展示彩色 emoji 和组合序列混排 | `cargo run -p text-app` |
 | Core／Native | `widgets-app` | Widget 与 Tooltip | `cargo run -p widgets-app` |
 | Core／Native | `update-app` | 更新生命周期与通知 | `cargo run -p update-app` |
 | Core／Native | `connections-demo` | Anchor、Router 与 Connection | `cargo run -p connections-demo` |

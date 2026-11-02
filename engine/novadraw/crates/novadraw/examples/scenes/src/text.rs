@@ -33,6 +33,20 @@ const FOLD_SIZE: u32 = 7;
 const IMAGE_CARD_LEFT: f64 = 35.0;
 const IMAGE_CARD_STRIDE: f64 = 180.0;
 const IMAGE_CARD_WIDTH: f64 = 160.0;
+const EMOJI_FONT: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
+const EMOJI_FAMILY: &str = "Noto Color Emoji";
+const EMOJI_ROWS: [(&str, &str); 4] = [
+    ("Faces and objects", "😀😂🥰😎🤔🎉🚀🌈"),
+    ("ZWJ sequences", "👩‍💻 👨‍👩‍👧‍👦 🧑‍🚀"),
+    ("Skin tones", "👍🏻 👍🏽 👍🏿 👩🏽‍💻"),
+    ("Flags and presentation", "🇨🇳 🇯🇵 🇺🇸 🏳️‍🌈 ❤️ ✈️"),
+];
+const EMOJI_ROW_TOP: f64 = 100.0;
+const EMOJI_ROW_STRIDE: f64 = 78.0;
+const EMOJI_ROW_HEIGHT: f64 = 66.0;
+const EMOJI_SAMPLE_SIZE: f32 = 32.0;
+const EMOJI_MIXED_TEXT: &str = "Hello 😀，你好 👩🏽‍💻！一起出发 🚀，探索世界 🇨🇳 🇯🇵 🇺🇸。\
+     Mixed text and colorful emoji share paragraph wrapping and baselines 🎉.";
 #[cfg(test)]
 const WEB_MINIMUM_CONTENT_WIDTH: f64 = 760.0;
 
@@ -75,6 +89,7 @@ pub fn suite() -> DemoSuite {
                 image_resources_scene,
             ),
             SceneSpec::runtime_visual("text-flow", "Text_Flow", size, text_flow_scene),
+            SceneSpec::runtime_visual("emoji-color", "Emoji_Color", size, emoji_scene),
         ],
     )
 }
@@ -592,6 +607,88 @@ fn text_flow_scene() -> Runtime {
     runtime
 }
 
+fn emoji_scene() -> Runtime {
+    let mut runtime = runtime();
+    let emoji_font = runtime
+        .resources()
+        .register_font()
+        .expect("emoji font identity");
+    runtime
+        .resources()
+        .complete_font(
+            emoji_font,
+            novadraw::render::FontData::new(EMOJI_FONT.to_vec()),
+        )
+        .expect("bundled Noto Color Emoji font");
+    let root = root(&mut runtime);
+    add_label(
+        &mut runtime,
+        root,
+        "Color emoji / 彩色表情",
+        Rectangle::new(40.0, 24.0, 720.0, 42.0),
+        "26px Inter Variable",
+        HEADING,
+    );
+    add_label(
+        &mut runtime,
+        root,
+        "Noto Color Emoji · COLRv1 · Parley + Vello",
+        Rectangle::new(40.0, 66.0, 720.0, 24.0),
+        "14px Inter Variable",
+        ACCENT,
+    );
+    let emoji_style = format!("{EMOJI_SAMPLE_SIZE}px {EMOJI_FAMILY}");
+    for (index, (caption, sample)) in EMOJI_ROWS.iter().enumerate() {
+        let card = panel(
+            &mut runtime,
+            root,
+            Rectangle::new(
+                40.0,
+                EMOJI_ROW_TOP + index as f64 * EMOJI_ROW_STRIDE,
+                720.0,
+                EMOJI_ROW_HEIGHT,
+            ),
+        );
+        add_label(
+            &mut runtime,
+            card,
+            caption,
+            Rectangle::new(16.0, 19.0, 220.0, 28.0),
+            "14px Inter Variable",
+            HEADING,
+        );
+        add_label(
+            &mut runtime,
+            card,
+            sample,
+            Rectangle::new(250.0, 8.0, 450.0, 50.0),
+            &emoji_style,
+            HEADING,
+        );
+    }
+    let flow = runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(
+            TextFlowFigure::new(
+                Rectangle::new(56.0, 430.0, 688.0, 140.0),
+                FlowPage::from_text(EMOJI_MIXED_TEXT),
+            )
+            .expect("emoji flow bounds"),
+        ))
+        .expect("attach emoji flow");
+    runtime
+        .figure(flow)
+        .unwrap()
+        .set_style(FigureStyle {
+            font: Some(novadraw::text::FontDescriptor::parse("22px Inter Variable").unwrap()),
+            foreground: Some(HEADING),
+            ..FigureStyle::default()
+        })
+        .expect("mixed text style");
+    runtime
+}
+
 #[cfg(test)]
 mod tests {
     use novadraw::render::{BackendCapabilities, SurfaceInfo};
@@ -618,7 +715,7 @@ mod tests {
     #[test]
     fn shared_text_suite_builds_every_web_scene_with_required_resources() {
         let mut suite = suite();
-        assert_eq!(suite.scenes.len(), 7);
+        assert_eq!(suite.scenes.len(), 8);
 
         for scene in &mut suite.scenes {
             let mut runtime = scene.build();
@@ -640,6 +737,105 @@ mod tests {
                 .expect("text/image scene must produce a supported initial frame");
 
             assert!(!submission.commands.is_empty(), "empty scene: {}", scene.id);
+        }
+    }
+
+    #[test]
+    fn emoji_sequences_shape_as_complete_glyphs_and_mixed_flow_has_no_missing_glyphs() {
+        let mut runtime = emoji_scene();
+        let font = novadraw::text::FontDescriptor::new(EMOJI_FAMILY, EMOJI_SAMPLE_SIZE).unwrap();
+        let space_layout = runtime
+            .text()
+            .layout(" ", &font, novadraw::text::TextConstraints::UNBOUNDED)
+            .unwrap();
+        let space_glyph = space_layout.glyph_runs()[0].glyphs[0].id;
+        for sequence in [
+            "😀",
+            "👩‍💻",
+            "👨‍👩‍👧‍👦",
+            "🧑‍🚀",
+            "👍🏻",
+            "👍🏽",
+            "👍🏿",
+            "👩🏽‍💻",
+            "🇨🇳",
+            "🇯🇵",
+            "🇺🇸",
+            "🏳️‍🌈",
+            "❤️",
+            "✈️",
+        ] {
+            let layout = runtime
+                .text()
+                .layout(sequence, &font, novadraw::text::TextConstraints::UNBOUNDED)
+                .expect("emoji layout");
+            let glyphs = layout
+                .glyph_runs()
+                .iter()
+                .flat_map(|run| run.glyphs.iter())
+                .collect::<Vec<_>>();
+            // Shaping may retain a default-ignorable character as an invisible space glyph.
+            assert!(
+                glyphs.iter().all(|glyph| glyph.id != 0),
+                "missing emoji glyph: {sequence}"
+            );
+            assert_eq!(
+                glyphs
+                    .iter()
+                    .filter(|glyph| glyph.id != space_glyph)
+                    .count(),
+                1,
+                "sequence must form one emoji glyph: {sequence}: {glyphs:?}"
+            );
+        }
+        let mut suite = suite();
+        let scene = suite
+            .scenes
+            .iter_mut()
+            .find(|scene| scene.id == "emoji-color")
+            .unwrap();
+        let mut runtime = scene.build();
+        runtime
+            .frames()
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: WINDOW_WIDTH,
+                    logical_height: WINDOW_HEIGHT,
+                    pixel_width: WINDOW_WIDTH as u32,
+                    pixel_height: WINDOW_HEIGHT as u32,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL.with_glyph_runs(),
+            )
+            .into_ready()
+            .expect("emoji glyph submission");
+        let root = runtime.tree().contents().unwrap();
+        let children = runtime.tree().child_order(root).unwrap();
+        for (card, (_, sample)) in children
+            .iter()
+            .skip(2)
+            .take(EMOJI_ROWS.len())
+            .zip(EMOJI_ROWS)
+        {
+            let sample_label = runtime.tree().child_order(*card).unwrap()[1];
+            assert_eq!(
+                runtime
+                    .text()
+                    .label_layout(sample_label)
+                    .unwrap()
+                    .key()
+                    .text(),
+                sample,
+                "emoji sample must fit without ellipsis"
+            );
+        }
+        let flow = *runtime.tree().child_order(root).unwrap().last().unwrap();
+        let text = runtime.text();
+        let layout = text.flow_layout(flow).unwrap();
+        assert_eq!(layout.key().text(), EMOJI_MIXED_TEXT);
+        assert!(layout.line_metrics().len() > 1, "mixed paragraph must wrap");
+        for glyph in layout.glyph_runs().iter().flat_map(|run| run.glyphs.iter()) {
+            assert_ne!(glyph.id, 0, "missing glyph in mixed emoji flow");
         }
     }
 

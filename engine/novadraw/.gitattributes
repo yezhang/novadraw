@@ -1,4 +1,7 @@
 assets/fonts/*.ttf filter=lfs diff=lfs merge=lfs -text
+crates/novadraw/examples/scenes/assets/*.ttf filter=lfs diff=lfs merge=lfs -text
+# Preserve the upstream font license bytes, including CRLF and original whitespace.
+crates/novadraw/examples/scenes/assets/NotoColorEmoji-OFL.txt -text -whitespace
 doc/verification/evidence/*.log -whitespace
 doc/verification/evidence/*.patch -whitespace
 doc/verification/evidence/p2-s09-a-2026-10-30/*.log -whitespace
