@@ -1,0 +1,181 @@
+{
+  "samples": 16000,
+  "sample_sha256": "fe717f590b93a912a54a82848905afc5062f30b1461ae563b782532267ed6d38",
+  "binary_sha256": "f450a9d4055795c8e58843f1fa630637ebb338b87f2e1516c33978733aa6275f",
+  "source_sha256": "2000832efc901dfcecd1be1aa2f994cb5ed2305c47de9c14aa541b2da5803027",
+  "warmup_per_input_and_mode": 100,
+  "mode_order": "rotated per sample",
+  "timer": "configuration only; existing data and instance excluded",
+  "scope": "Inter default/nondefault, Arabic nondefault, CJK default",
+  "excluded": [
+    "data and instance construction",
+    "plans",
+    "shaping",
+    "Core",
+    "GPU"
+  ],
+  "allocation_unit": "whole new heap capacity slots, not bytes",
+  "core_improvement_claimed": false,
+  "groups": {
+    "arabic_variable/counted": {
+      "samples": 1000,
+      "median_us": 0.167,
+      "p95_us": 0.209,
+      "p99_us": 0.25,
+      "max_us": 0.583,
+      "work": 284,
+      "allocation": 0,
+      "calls": 10
+    },
+    "arabic_variable/noop": {
+      "samples": 1000,
+      "median_us": 0.166,
+      "p95_us": 0.208,
+      "p99_us": 0.291,
+      "max_us": 0.5,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "arabic_variable/ordinary": {
+      "samples": 1000,
+      "median_us": 0.125,
+      "p95_us": 0.167,
+      "p99_us": 0.25,
+      "max_us": 0.416,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "arabic_variable/reject_last": {
+      "samples": 1000,
+      "median_us": 0.084,
+      "p95_us": 0.125,
+      "p99_us": 0.208,
+      "max_us": 0.375,
+      "work": 190,
+      "allocation": 0,
+      "calls": 10
+    },
+    "cjk_default/counted": {
+      "samples": 1000,
+      "median_us": 0.167,
+      "p95_us": 0.208,
+      "p99_us": 0.25,
+      "max_us": 10.167,
+      "work": 282,
+      "allocation": 0,
+      "calls": 10
+    },
+    "cjk_default/noop": {
+      "samples": 1000,
+      "median_us": 0.166,
+      "p95_us": 0.167,
+      "p99_us": 0.209,
+      "max_us": 0.5,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "cjk_default/ordinary": {
+      "samples": 1000,
+      "median_us": 0.125,
+      "p95_us": 0.167,
+      "p99_us": 0.208,
+      "max_us": 0.458,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "cjk_default/reject_last": {
+      "samples": 1000,
+      "median_us": 0.083,
+      "p95_us": 0.125,
+      "p99_us": 0.167,
+      "max_us": 0.375,
+      "work": 188,
+      "allocation": 0,
+      "calls": 10
+    },
+    "inter_default/counted": {
+      "samples": 1000,
+      "median_us": 0.208,
+      "p95_us": 0.292,
+      "p99_us": 0.375,
+      "max_us": 1.875,
+      "work": 282,
+      "allocation": 0,
+      "calls": 10
+    },
+    "inter_default/noop": {
+      "samples": 1000,
+      "median_us": 0.208,
+      "p95_us": 0.25,
+      "p99_us": 0.417,
+      "max_us": 1.75,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inter_default/ordinary": {
+      "samples": 1000,
+      "median_us": 0.167,
+      "p95_us": 0.25,
+      "p99_us": 0.375,
+      "max_us": 9.625,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inter_default/reject_last": {
+      "samples": 1000,
+      "median_us": 0.125,
+      "p95_us": 0.167,
+      "p99_us": 0.25,
+      "max_us": 6.292,
+      "work": 188,
+      "allocation": 0,
+      "calls": 10
+    },
+    "inter_variable/counted": {
+      "samples": 1000,
+      "median_us": 0.208,
+      "p95_us": 0.25,
+      "p99_us": 0.333,
+      "max_us": 0.833,
+      "work": 284,
+      "allocation": 0,
+      "calls": 10
+    },
+    "inter_variable/noop": {
+      "samples": 1000,
+      "median_us": 0.167,
+      "p95_us": 0.209,
+      "p99_us": 0.292,
+      "max_us": 19.833,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inter_variable/ordinary": {
+      "samples": 1000,
+      "median_us": 0.167,
+      "p95_us": 0.209,
+      "p99_us": 0.333,
+      "max_us": 0.583,
+      "work": 0,
+      "allocation": 0,
+      "calls": 0
+    },
+    "inter_variable/reject_last": {
+      "samples": 1000,
+      "median_us": 0.084,
+      "p95_us": 0.125,
+      "p99_us": 0.208,
+      "max_us": 20.292,
+      "work": 190,
+      "allocation": 0,
+      "calls": 10
+    }
+  }
+}
