@@ -8,6 +8,7 @@
 
 | 顺序 | 文档 | 证据范围 |
 |---:|---|---|
+| 0 | [文字优化验证指南](text-optimization-validation.md) | 当前能力、契约入口、release 采样及匹配对照方法 |
 | 1 | [GA-2 方法](ga2-methodology.md) | 工作负载、统计口径及验收维度 |
 | 2 | [Novadraw CPU](ga2-novadraw-cpu-2026-10-01.md) | 无窗口 Core CPU 基线 |
 | 3 | [Draw2D 对照](ga2-draw2d-comparison-2026-10-01.md) | 对照工作负载与比较边界 |

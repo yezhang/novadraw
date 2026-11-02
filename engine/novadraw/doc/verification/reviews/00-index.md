@@ -9,6 +9,11 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-11-02 | [E04-A 开放吸附协议首段验证（实施中）](p2-e04-a-implementation-2026-11-02.md) |
+| 2026-11-02 | [ADR-058 修订 2 设计复核通过（建议接受，未授权实施）](adr-058-revision-2-review-2026-11-02.md) |
+| 2026-11-02 | [ADR-058 修订 2：七项评审回应与文档自审（待复核）](adr-058-revision-2-response-2026-11-02.md) |
+| 2026-11-02 | [ADR-058 修订 1 评审意见（待回应与复核）](adr-058-revision-1-review-2026-11-02.md) |
+| 2026-11-02 | [E04 开放吸附依赖核验与修订 1（待评审）](adr-058-dependency-and-design-review-2026-11-02.md) |
 | 2026-10-30 | [Logic 预设、相对折点与路由切换](gef-logic-routing-2026-10-30.md) |
 | 2026-10-30 | [Zoom 类图图标对齐修正](zoom-icon-alignment-2026-10-30.md) |
 | 2026-10-29 | [方案与评审文档表达审查及中文写作技能建议](document-writing-audit-2026-10-29.md) |
@@ -17,6 +22,23 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-11-02 | [ADR-059 B1：Harfrust 输入 buffer 准入（冷构造与 shaping 待完成）](text-stages-b1-buffer-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：规范化坐标与条件选择准入](text-stages-b1-instance-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：用户坐标归一化准入（avar2 与冷构造待完成）](text-stages-b1-variation-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：冷缓存目录、cmap 与 mark digest 准入（lookup／AAT 展开待完成）](text-stages-b1-cold-cache-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：LookupInfo 与子表缓存准入（AAT／计划／shaping 待完成）](text-stages-b1-lookup-cache-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：空 AAT 缓存的表头准入（非空 AAT／计划／shaping 待完成）](text-stages-b1-aat-headers-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：无布局表的 ShapePlan 集合与排序准入](text-stages-b1-plan-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B：候选断行准入与上游普通入口对照（分析与适配未完成）](text-stages-b-line-breaking-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B：模板复制与对齐的操作前准入](text-stages-b-operations-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B：Parley 只读存储补丁已获批接入（适配未完成）](text-stages-b-storage-patch-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 A：统一文字阶段协议与实例资产登记](text-stages-a-implementation-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 修订 2 最终复核通过并接受（实施待授权）](adr-059-revision-2-review-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 修订 2：F01–F03 复核回应（待复核）](adr-059-revision-2-response-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 修订 1 复核意见（缓存查询顺序与错误规则待补清）](adr-059-revision-1-review-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 修订 1：R01–R06 设计回应（待复核）](adr-059-revision-1-response-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 分阶段文字引擎草案评审（建议修订后批准）](adr-059-draft-review-2026-11-02.md) |
+| 2026-11-02 | [文字宽度复用隔离可行性与完整输出对照](text-width-reuse-feasibility-2026-11-02.md) |
 | 2026-11-02 | [精确文字缓存查找优化与匹配 CPU 对照](text-cache-optimization-2026-11-02.md) |
 | 2026-11-02 | [当前 Core Rust 能力状态复核](core-capability-status-2026-11-02.md) |
 | 2026-11-02 | [S09-C Connections 注册准入与单入口迁移](p2-s09-c-implementation-2026-11-02.md) |

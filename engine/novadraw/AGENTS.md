@@ -42,6 +42,8 @@
   架构设计或实现逻辑参考
 - SWT GC: `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt`
 - vello: `/Users/bytedance/Documents/code/GitHub/vello`
+- Parley 0.7.0 生产补丁：`dependencies/parley-0.7.0/`；独立第三方依赖，
+  不属于一方 workspace，来源和本地修改见 `dependencies/README.md`。
 - xilem: `/Users/bytedance/Documents/code/GitHub/xilem`
 - Zed: `/Users/bytedance/Documents/code/GitHub/zed`
 
@@ -92,7 +94,9 @@
   S09-D Editor 扩展错误与 panic 诊断已实现并通过定向验证，最终门禁因磁盘
   空间不足待补验，S09 整批保持未关闭；Inspector 成本证据覆盖容量
   64／4096，不代表引擎最大容量验收。Editor 开放吸附
-  ADR-058 仍待评审。
+  ADR-058 修订 2 已于 2026-11-02 复核通过并获用户条件授权，移动／创建／单源
+  resize 已实现并通过定向验证；六组无窗口成本采样完成，校验成本整改提案待评审，
+  10000 sibling 的完整 release 受默认 validation 预算阻塞，E04 保持未关闭。
   当前执行队列只在 `doc/roadmap/p2-delta-backlog.md` 维护。
   WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
   保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以

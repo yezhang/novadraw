@@ -42,6 +42,27 @@ cargo xtask verify <suite-id>
 
 单个 Cargo test、应用启动、性能观测和平台构建不再包装成 suite。
 
+ADR-059 A 使用 [text-stages 独立消费者](consumers/text-stages/README.md)
+验证 typed 分析资产、lease、预算和阶段绑定。
+私有事务入口为 `cargo test -p novadraw --lib text::staged`；
+公开入口为 `cargo test -p novadraw --test p2_text_stages`。
+该片不选择默认 Parley 的阶段能力，Flow 全输出等价与性能仍归后续 B／C／D。
+
+ADR-059 B 的[依赖消费者](consumers/parley-storage/README.md)验证容量、
+复制、对齐及候选断行准入；Core 会话预算入口为
+`cargo test -p novadraw --test p2_parley_operations_contract`。
+这些接口尚未用于生产 Flow，验证范围见
+[B 操作记录](../doc/verification/reviews/text-stages-b-operations-2026-11-02.md)与
+[B 断行记录](../doc/verification/reviews/text-stages-b-line-breaking-2026-11-02.md)。
+
+ADR-059 B1 的 [Harfrust 独立消费者](consumers/harfrust-admission/README.md)
+验证输入 buffer、规范化实例、错误 source、拒绝恢复、变量轴 spill、
+条件选择与普通输出对照。
+当前增量重放和原始版本／Native／portable oracle 由
+`tools/scripts/check_harfrust_instance_admission.py` 执行；
+输入单片的历史 receipt 与私有容量测试仍保留。
+完整 shaping 准入与 Core 阶段适配仍待完成。
+
 ADR-057 首片使用 Animation 定向回归与独立消费者：
 
 ```bash
@@ -93,6 +114,8 @@ cargo build --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --re
 覆盖边界和结果见[容器编辑实施记录](../doc/verification/reviews/adr-055-implementation-2026-10-29.md)。
 
 长文本完整采样使用直接命令，smoke 不代替统计验收：
+第一次验证当前优化时，先看[文字优化验证指南](../doc/verification/performance/text-optimization-validation.md)，
+区分已接入的完整布局优化、ADR-059 协议与尚未实现的 Flow 宽度复用。
 
 ```bash
 python3 tools/scripts/textflow_performance.py compare target/verification/long-text/comparison

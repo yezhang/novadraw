@@ -44,8 +44,10 @@
 | [official-example-capability-increment-2026-10-26.md](official-example-capability-increment-2026-10-26.md) | 现有能力内的样例修正；方向上下文、Cocoa 零宽映射、低 miter 和通用下划线已批准实施 |
 | [shared-scene-view-background-proposal.md](shared-scene-view-background-proposal.md) | K07 修订 3 已批准，ADR-044/045 接受：保守结构依赖、Runtime 提交点版本校验、独立捕获与宿主背景统一提交；功能验收按切片推进 |
 | [text-layout.md](text-layout.md) | Text Layout、Label 与标题边框 |
+| [text-performance-strategy.md](text-performance-strategy.md) | 顶尖性能路线：精确增量、宽度复用、可见绘制、共享资产与调度；隔离实验完成，生产接入合同 ADR-059 已接受 |
 | [parley-replacement-candidate.md](parley-replacement-candidate.md) | 未来技术候选：当前保留 Parley，记录 Core 直接编排底层文本库的职责、取舍与重新评估条件；替换尚未授权 |
-| [text-performance-strategy.md](text-performance-strategy.md) | 顶尖性能路线：精确增量、宽度复用、可见绘制、共享资产、调度及可验证比较口径；下一片为宽度复用可行性 |
+| [ADR-059 修订 2](../../adr/adr-059-staged-text-width-reuse.md) | 已接受、已批准实施：先查询有效资产再判断新增准入，复合失败和原始 source 保留；阶段绑定、账本及启用门禁不变 |
+| [text-analysis-admission-proposal.md](text-analysis-admission-proposal.md) | 待评审：ADR-059 B 的字体查询、冷 shaping 与导出计费；建议补齐 Fontique／Harfrust 下层拒绝通道 |
 | [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
 | [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 已批准的滚动／resize 方案，观测与共享 IR 首片已落地；原生覆盖、宽度复用和调度仍按各自合同取证 |
 | [long-text-incremental-layout-proposal.md](long-text-incremental-layout-proposal.md) | 待评审：基于第四轮测量与 Lapce／Xi 的 source delta、分阶段排版、安全巨段增量及可见输出细化 |

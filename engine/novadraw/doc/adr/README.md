@@ -69,7 +69,8 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [055](adr-055-container-editing-protocol.md) | 容器编辑与父坐标协议 | 已接受，修订 2 | 2026-10-29 |
 | [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 已接受 | 2026-10-29 |
 | [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 草案，待评审 | 2026-10-29 |
-| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 草案，待评审 | 2026-10-29 |
+| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 修订 2 已接受，E04-A 实施中 | 2026-11-02 |
+| [059](adr-059-staged-text-width-reuse.md) | 可选分阶段文字引擎与宽度复用 | 修订 2 已接受，已批准实施 | 2026-11-02 |
 
 ## 现行与历史隔离
 

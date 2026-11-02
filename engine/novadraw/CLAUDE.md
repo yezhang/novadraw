@@ -35,6 +35,7 @@ tools/scripts/                  - 构建、浏览器验收和性能采样脚本
 doc/verification/evidence/      - 保持原始内容的历史证据
 doc/reference/fonts/reports/    - 独立字体报告及原始 GPU demos
 target/                         - 构建产物、日志、截图与本地采样输出
+dependencies/                   - 经批准的生产第三方依赖补丁，不属于一方 workspace
 ```
 
 完整目录归属见 [README.md](README.md)。库包名与 Cargo 命令不因目录迁移改变。
@@ -104,6 +105,9 @@ git diff --check
 跨工具 suite 由 xtask 维护，当前入口见 `tests/README.md` 和
 `cargo xtask list`。`cargo xtask docs` 只检查 Markdown 类型、本地链接、当前命令引用、
 设计索引与 parity 状态，不编译 Rust。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
+`cargo fmt --all` 会递归扫描 path 依赖。生产第三方补丁在 `dependencies/`
+保留上游格式；新增本地 Rust 模块另用 `rustfmt --config disable_all_formatting=false`
+定向检查，不将第三方格式重写混入功能补丁。维护入口为 `dependencies/README.md`。
 
 ## Git 提交规范
 
@@ -183,7 +187,9 @@ Animation、S09-B Observations／Inspector 与 S09-C Core Connections 已完成�
 S09-D Editor 扩展错误与 panic 诊断已实现并通过定向验证，最终门禁因磁盘
 空间不足待补验，S09 整批保持未关闭；Inspector 成本证据覆盖容量
 64／4096，不代表引擎最大容量验收。Editor 开放吸附
-ADR-058 仍待评审。当前执行队列只在
+ADR-058 修订 2 已于 2026-11-02 复核通过并获用户条件授权，移动／创建／单源
+resize 已实现并通过定向验证；六组无窗口成本采样完成，校验成本整改提案待评审，
+10000 sibling 的完整 release 受默认 validation 预算阻塞，E04 保持未关闭。当前执行队列只在
 [P2 backlog](doc/roadmap/p2-delta-backlog.md)维护。
 WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
 保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以

@@ -46,6 +46,8 @@ Direct text edit/IME 的回归范围见
 [矩阵](../../verification/plans/p2-text-direct-edit.md)。
 后续失败、输入不变量和服务整改顺序只在
 [P2 backlog](../p2-delta-backlog.md#当前推进顺序2026-10-14-校准)维护。
+开放吸附采用已接受的 [ADR-058 修订 2](../../adr/adr-058-open-editor-snapping.md)，
+分片证据见 [E04-A 实施记录](../../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。
 
 ## 下游产品与变更规则
 

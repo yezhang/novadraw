@@ -608,10 +608,50 @@ E03 本轮[组合续验](../verification/reviews/editor-container-combinations-2
 跨显示器 DPI、Native 系统文件 DnD、完整 Native 组合与内部工作量计数仍未完成；
 E03 保持 `in_progress`，本轮未启动 E04。
 
-P2-E04 开放吸附已形成 [ADR-058 草案](../adr/adr-058-open-editor-snapping.md)、
+P2-E04 开放吸附已接受 [ADR-058 修订 2](../adr/adr-058-open-editor-snapping.md)，
+当前为 `in_progress`，移动／创建／单源 resize 已通过定向验证，继续补 E04-C 组合矩阵，再进入 E04-D。
+以下保留设计和实施经过。
+最初形成 [ADR-058 草案](../adr/adr-058-open-editor-snapping.md)、
 [专题](../design/editor/open-snapping.md)与[验证矩阵](../verification/plans/editor-open-snapping.md)，
-状态为 `design-draft`，待评审，尚未实施。Grid／Geometry／Guide 与第三方策略共用
+初稿状态为 `design-draft`。Grid／Geometry／Guide 与第三方策略共用
 typed 注册、候选仲裁、surface 修正和反馈／提交；Shapes 网格不计为框架毕业证据。
+2026-11-02 按用户要求继续推进设计，已完成
+[GEF→Draw2D→Core 依赖核验与修订 1 说明](../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)。
+所查基础契约有 Core 对应入口；新增受检特征查询、有效性编排和策略机制归 Editor。
+ADR-058／专题／矩阵修订 1 已准备评审，未进入 Execute：
+模型／权限变化沿用 E03 取消，坐标／独立配置变化有界重算；
+明确真实角点、耦合自由度、多选 Guide 扩展与资源预算。
+S09-D 最终构建／Wasm／成本因磁盘不足待补验，E03 平台与内部计数残余保持，
+本轮不以只读设计核验关闭这些条目。
+随后按[修订 1 评审](../verification/reviews/adr-058-revision-1-review-2026-11-02.md)
+的 SN-R1-01～07 完成[修订 2 回应](../verification/reviews/adr-058-revision-2-response-2026-11-02.md)，
+ADR／专题／矩阵修订 2 的[设计复核](../verification/reviews/adr-058-revision-2-review-2026-11-02.md)
+已通过，七项意见均解决。用户授权“如果复核通过，则推进方案”，条件已满足：
+修订 2 已接受，E04-A 进入 `in_progress`，其余切片待顺序实施。
+已新增 `snap` 开放注册、受检输入、预算、仲裁与最终几何复验，
+并补齐 Grid／Geometry／Guide 纯策略和受检 prepared 复用：
+32 项协议／策略测试、20 项公开消费者测试通过，覆盖八类扩展回调的 Error／panic。
+旧结果在每次求解尝试前失效，失败不能恢复旧命中。
+独立消费者 Native／Wasm 首段编译及 2 项不可伪造断言已有通过证据。
+移动已通过 SnappedMovePlan 连接 E03 实际几何与父权限；
+开放布局规则、typed feedback renderer 和 ContainerMoveTool 可选吸附已接通。
+容器 integration 46 项通过、3 项性能测试默认忽略，覆盖最新 release、单次历史、
+实际改写拒绝、缺失几何、多源失真、清理与 renderer 失败。
+创建／drop 已接通实际几何、固定起点／尺寸与最新 release，缩放／旋转 drop 和
+stationary zoom refresh 已验证；独立 Native／Wasm 消费者已包含移动／创建受检计划
+与 ReferenceLineRenderer。单源 resize 已接通开放计划、固定边、比例角拖拽、最小尺寸、
+第三方约束求值器和 Handle，验证最新 release、一次历史、undo／redo、旋转映射、
+stationary zoom 及取消／释放失效。居中与多源 resize 不属于本切片；
+已补吸附混合父旋转、静止指针 scroll／zoom／resize、取消／切换／模型发布、
+创建布局规则与 release query 配置变化零重试。
+六组正式无窗口采样完成，实际命中暴露完整 owner 扫描、版本回调和重复分配成本，
+10000 sibling 的完整 release 受 Runtime 默认 validation 上限阻塞；
+[校验成本整改提案](../design/editor/snapping-validation-cost-proposal.md)待评审。
+workspace fmt／check 通过，最终 Clippy 被既有 Core 三项告警阻断；
+其余组合矩阵、完整成本与平台输入尚未完成，
+见 [实施记录](../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。
+明确 release 最新位置与零额外重试、公共准入规则、最终对齐事实、
+布局改写的拒绝终点、prepare／query 依赖表及统一预算门禁。
 后续顺序为吸附、键盘导航、多视图协调、框选策略与可选编辑支持。
 这些候选尚未冻结接口，不因总体方向授权而记为已实施。
 本轮按用户批准进入 E03 Execute；坐标与事务取舍采用 ADR-055 修订 2。
@@ -621,7 +661,8 @@ typed 注册、候选仲裁、surface 修正和反馈／提交；Shapes 网格�
 
 2026-10-29 补充：按本节用户授权优先完成 P2-E03 Design 与评审，
 再进入首批实现；以下既有审计与平台采证队列保留。
-Editor／GEF 当前顺序为 E03 剩余验收 → E04 开放吸附评审与实施 →
+Editor／GEF 当前继续 E04-C 移动／创建／resize 组合补验，E03 剩余平台／成本验收保留；
+随后为 E04-D →
 键盘导航、多视图协调和框选策略；下列跨包审计顺序不替代该 Editor 范围。
 
 1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A／B／C 已完成；S09-D 已实现并通过定向验证，下一步补成本与最终门禁，契约见 ADR-057。每批先核对当前
@@ -1311,7 +1352,143 @@ IR 录制没有改善；该小片完成不关闭 LT-00～03、16 ms／4 ms 或�
 [文本顶尖性能路线](../design/architecture/text-performance-strategy.md)明确技术组合、
 owner、失败边界、测量口径与顺序。本轮下一片进入宽度变化的阶段核对与隔离实验，
 不提前启用未评审的分阶段引擎 API、原生覆盖裁剪或 worker。
-可行性记录完成后再依据完整成本冻结具体合同，LT 整体与平台状态保持。
+已完成[宽度复用隔离实验](../verification/reviews/text-width-reuse-feasibility-2026-11-02.md)：
+三会话共 2304 个正式路径样本，每会话 240 组输出与交互比较通过；
+长文新鲜 Parley 总 P95 16.553～23.005 ms，克隆后断行与完整实验导出
+1.854～2.402 ms。复制成本未抵消收益，优先推进统一可选分阶段合同。
+下一片先冻结模板身份、预算及失败合同，再测量 Core 实际导出、校验、
+inline 反馈和稳定化；本轮未接入生产 API，LT 整体与平台状态保持。
+
+2026-11-02 用户要求继续推进，已形成
+[ADR-059 生产接入草案](../adr/adr-059-staged-text-width-reuse.md)，
+只排除宽度、保留其他完整请求字段；统一可选阶段与 typed asset registry，
+区分会话分配单位、分析留存字节和缓存未准入／真正预算失败。
+源码核对确认 Parley 0.7.0 不公开完整私有 Vec 容量，
+先前 allocator 样本不能证明生产存储上界。
+阶段合同待评审；默认适配计费依据须在启用缓存前补齐。
+本轮没有新增生产代码或再次宣称端到端性能通过，LT-04 仍待独立授权。
+
+2026-11-02 用户要求按[ADR-059 草案评审](../verification/reviews/adr-059-draft-review-2026-11-02.md)
+修改，R01–R06 均已采纳到修订 1：
+Core 捕获四项阶段绑定；区分生产者的存储申报义务和 registry 检查范围；
+补齐登记事务与最后 lease 的计费生命周期、操作前成本计划、提前／分析后拒绝路径；
+B／C 保持显式受控接入，默认启用与限额只在 C／D 门禁通过后决定。
+[逐项回应](../verification/reviews/adr-059-revision-1-response-2026-11-02.md)已列复核入口。
+状态为已完成设计回应、待复核，ADR 仍 `proposed`；
+原评审保留，意见未记关闭，LT-04 未进入生产 Execute。
+
+2026-11-02 用户要求按[修订 1 复核](../verification/reviews/adr-059-revision-1-review-2026-11-02.md)
+修改，F01–F03 已回应到 ADR-059 修订 2：
+分析资产查询先于新增费用预判，剩余额度为零不跳过有效模板；
+新增下界使用统一可选协议；复合失败按会话预算、绑定、原始阶段错误、
+Core 校验顺序选择主错误，全部伴随失败及原始 source 保留；
+context 描述统一为预算、诊断与 Core 封装的只读绑定。
+[修订 2 回应](../verification/reviews/adr-059-revision-2-response-2026-11-02.md)列出待验证用例。
+状态仍 `proposed`、待复核；既有 R01–R04／R06 设计复核范围保留，
+本轮未新增生产代码或性能数据，LT-04 未进入 Execute。
+
+2026-11-02 用户明确接受 ADR-059 并要求记录最终结论。
+[修订 2 最终复核与接受结论](../verification/reviews/adr-059-revision-2-review-2026-11-02.md)
+确认 R01–R06、F01–F03 的设计意见已关闭，ADR 状态为 `accepted`。
+本次仅接受并记录生产接入合同，未启动 Execute，LT-04 仍待独立实施授权。
+Parley 存储计费与操作计划、外部消费者、Core 完整等价及匹配性能均待实施验证；
+默认限额和启用仍由 C／D 门禁后的决策确定。
+LT-00～LT-03、16 ms／4 ms 与平台验收状态保持。
+
+2026-11-02 用户明确授权“方案通过，可以实施了”。
+LT-04 按 ADR-059 的 A→D 顺序实施。
+A 已完成统一可选协议、typed 分析资产登记、lease 账本、预算计划、阶段绑定和
+复合失败；独立消费者 19 项与私有事务 5 项通过，公开 Native／Wasm 边界通过，
+见 [A 实施记录](../verification/reviews/text-stages-a-implementation-2026-11-02.md)。
+当前唯一文字 Execute 转入 B 的默认 Parley 计费接口与适配依据。
+生产缺省仍保持完整入口，C／D 门禁完成前不默认启用阶段缓存。
+
+2026-11-02 B 已形成 Parley 0.7.0
+[只读存储补丁候选](../verification/reviews/text-stages-b-storage-patch-2026-11-02.md)：
+十个数组的实际容量与共享字体引用可观察，5 项私有测试及两种 Native 配置各
+3 项消费者测试通过，portable Wasm 构建通过。
+严格 Clippy 的原始版与候选版均有同样 7 条上游错误，新增模块无新增错误。
+用户后续明确批准存储补丁，已接入 `dependencies/parley-0.7.0`：
+Core／workspace check、Core Wasm、生产路径消费者与 32 项定向文字回归通过。
+全仓 fmt 因并发 Editor 改动未通过，上游格式保留及新增模块单独格式检查已落实。
+复制、断行、shaping 的操作前计费和阶段适配仍未完成，B 不记为已退出。
+
+2026-11-02 B 继续补齐
+[模板复制与对齐操作前准入](../verification/reviews/text-stages-b-operations-2026-11-02.md)：
+依赖私有测试 4 项、两种 Native 配置各 5 项及 Core 会话预算 3 项通过；
+各配置对齐转换为 960 组，Wasm 构建和 Core Wasm check 通过。
+原模板拒绝后保持，费用沿用同一会话的粘滞预算。
+断行、shaping、导出计费及阶段适配仍待实施，普通配置继续完整入口。
+
+2026-11-02 B 已补齐[候选断行准入](../verification/reviews/text-stages-b-line-breaking-2026-11-02.md)：
+两种 Native 配置各 8 项消费者测试、640 组准入断行对照与 5 项 Core 预算测试通过。
+原始 Parley 的 960 组普通入口对照一致，私有 Drop 哨兵 2 项通过，
+portable Wasm 消费者构建通过。回退重扫、Bidi 重排、行扩容及最终汇总均先准入；
+拒绝后释放候选，保留模板和预算粘滞行为。
+当前唯一文字 Execute 继续 B 的分析／shaping 计费依据，
+随后补导出与阶段适配；C／D 未启动，生产缓存未启用。
+
+2026-11-02 B 已完成分析必经路径的定向源码核对，
+形成[下层依赖准入提案](../design/architecture/text-analysis-admission-proposal.md)：
+Fontique 查询集合和冷字体匹配、Harfrust 冷计划及 buffer 增长尚缺完整拒绝通道，
+`max_ops` 不能代替当前会话计费；导出还需覆盖样式片段的前缀重扫。
+四个锁定依赖的 252 个源码文件与原始归档一致，仅作为静态来源证据。
+用户已批准提案限定的 Parley 0.7.0、Fontique 0.7.0／Harfrust 0.3.2
+分析补丁范围，当前唯一文字 Execute 从 B1 的 Harfrust buffer 与冷构造开始。
+该次源码核对未新增运行时改动或性能数据，B／C／D 与默认启用状态保持。
+
+2026-11-02 B1 首片已实现
+[Harfrust 输入 buffer 准入](../verification/reviews/text-stages-b1-buffer-2026-11-02.md)：
+三个输入入口先收取扫描、容量迁移／预留、初始化和写入费用；
+拒绝保留已有输入与可恢复 buffer。外部 Native／portable 各 3 项、
+私有各 5 项、四组普通入口各 216 个输入对照通过；Wasm 构建及既有
+Parley／Core 预算回归通过。当前唯一文字 Execute 继续 B1 冷构造和 shaping，
+不将输入子片通过记为 B1 关闭；B2–B4、C／D 与默认启用保持待完成。
+
+随后已实现 [B1 规范化坐标与条件选择准入](../verification/reviews/text-stages-b1-instance-2026-11-02.md)：
+短输入、默认检测、SmallVec spill 和 GSUB／GPOS 条件选择共用普通算法内核，
+只返回完整候选；Native／portable 各 7 项消费者测试与四组原始版本输出对照通过。
+用户坐标转换、完整冷缓存、计划和 shaping 仍待补齐，唯一文字 Execute 继续 B1。
+
+现已补齐 [B1 用户坐标归一化准入](../verification/reviews/text-stages-b1-variation-2026-11-02.md)：
+无 avar／avar1 的轴扫描、前缀重放、重复分段访问和 SmallVec spill 均在操作前准入。
+Native／portable 各 12 项消费者及各 193 项库测试通过；
+四组原始版本对照输出一致，Wasm 构建、Core check 与 Parley 回归通过。
+avar2 在读取固定 header 后返回成功缺失，不进入未知转换。
+完整冷缓存、计划和 shaping 继续 B1，B2–B4、C／D 与默认启用状态保持。
+
+现已完成 [B1 冷缓存基础准入](../verification/reviews/text-stages-b1-cold-cache-2026-11-02.md)：
+目录、cmap、Native 空 lookup 槽、mark digest 与内联 mapping 初始化先准入；
+AAT 表在 reader 前、portable 非零 lookup 在展开前返回未支持。
+原始／生产 Native／portable 四组各 3,432 份 glyph 观察散列一致，
+消费者各 18 项、私有各 194 项通过；9,000 次小片成本采样只覆盖冷对象。
+唯一文字 Execute 继续 B1 的 lookup／AAT 展开、计划和 shaping，
+不把部分冷构造通过记为 B1 关闭；Core 阶段适配与默认启用保持待完成。
+
+随后已完成 [B1 LookupInfo 与子表缓存准入](../verification/reviews/text-stages-b1-lookup-cache-2026-11-02.md)：
+portable 可展开非零 lookup，Native 通过显式 prepare 完整提交 lazy 缓存；
+Full／Small、连字扫描、context 与 extension 共用准入内核。
+原始／生产 Native／portable 每组 4,104 份输出一致，
+各 23 项消费者与 196 项私有测试通过，Core Native／Wasm 和预算合同通过。
+15,000 次局部采样的热查询新增堆容量为零，不代表 Core 排版改善。
+唯一文字 Execute 继续 B1 的 AAT、计划、buffer 恢复与 shaping；
+B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已实现 [B1 空 AAT 缓存的表头准入](../verification/reviews/text-stages-b1-aat-headers-2026-11-02.md)：
+morx／kern／kerx 缺失或标量 count 为零时返回空缓存，非零和截断表头在 reader 前拒绝；
+新增模块及两个既有文件的补丁重放通过，其他 75 个源码文件逐字节保持。
+原始／生产 Native／portable 四组各 4,968 份输出一致，
+外部测试各 24 项、私有测试各 196 项通过；16,000 个空表冷构造成本样本已保存。
+唯一文字 Execute 继续 B1 的 ShapePlan、buffer 恢复与 shaping；
+非空 AAT 仍未支持，B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已实现 [B1 无布局表 ShapePlan 准入](../verification/reviews/text-stages-b1-plan-2026-11-02.md)：
+feature、重复项合并、无堆临时数组的排序、集合增长和最终 SmallVec 存储共用内核；
+语言、布局表查询、脚本计划回调及 trak 在未知操作前返回未支持。
+四组原始／生产 Native／portable 各 39,744 份观察一致，
+外部测试各 28 项、私有测试各 197 项通过；16,000 个计划成本样本已保存。
+唯一文字 Execute 继续 B1 的布局表计划、配置、buffer 恢复与 shaping；
+B1、B2–B4、C／D 和默认启用仍未关闭。
 
 | 切片 | 状态 | 当前证据 |
 |---|---|---|
@@ -1319,6 +1496,7 @@ owner、失败边界、测量口径与顺序。本轮下一片进入宽度变化
 | LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；本轮共享 glyph buffer/range 消除录制与 submission 的数组 clone，外部 lease 与唯一 backing 计费验证通过；其他复制、缓存留存与 Web 产物仍待采证 |
 | LT-02 | `in_progress` | 精确复用与失效反例通过；第四轮原 Large 追加 p50 17.157→15.302 ms、p95 20.112→19.214 ms，Flow 构建自身平均 9.200→7.695 ms，部分尾延迟回退，未达到 16 ms；长段/长行追加 p95 为 38.526/52.733 ms；混排标准宽度为 6.864 ms，默认预算下缩窄成功，优化版 resize p95 14.469 ms |
 | LT-03 | `in_progress` | 18 组 Full/Partial GPU 对照通过；第四轮原 Large 滚动新增 shaping 为 0，稳定化 p95 7.867 ms，resize 后 IR p95 5.748 ms；默认 native glyph 仍完整输出 51233 个；生产证书边界已形成待复核提案，4 ms 查询/IR 验收未完成 |
+| LT-04 | `in_progress` | ADR-059 A 已验证；B 存储及复制／对齐／断行准入已实现，依赖／Core 预算／Wasm 定向验证通过，原始普通入口对照一致；分析／shaping、导出计费与适配未完成；C／D 未实施，生产缓存未默认启用 |
 
 详情见[实施记录](../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
 原样例首次布局的五个会话均达到 p95 ≤ 100 ms，追加的五个会话均未达到 16 ms。
@@ -1329,7 +1507,7 @@ owner、失败边界、测量口径与顺序。本轮下一片进入宽度变化
 16 ms 与 4 ms 目标保持未完成，默认原生 glyph 仍完整输出。
 混排 resize 保留基线预算拒绝与优化版重复成功两份证据，不计算前后耗时比；
 有限输入的成功不证明任意混排均可准入。
-LT-04～LT-09 未纳入本次授权，保持独立评审；本批整体仍待验收。
+LT-04 已按 ADR-059 获批实施；LT-05～LT-09 保持独立评审，本批整体仍待验收。
 
 ## P2-F03：逐角圆角与矩形分边描边
 
