@@ -10,13 +10,9 @@ Core 基础协议的使用作为依赖验证；平台输入与应用消费者证
 [ADR-058](../../adr/adr-058-open-editor-snapping.md)与
 [专题](../../design/editor/open-snapping.md)。首段结果见
 [E04-A 实施记录](../reviews/p2-e04-a-implementation-2026-11-02.md)，其余要求仍待执行。
-依赖源码与修订原因见
-[本轮依赖核验](../reviews/adr-058-dependency-and-design-review-2026-11-02.md)。
-评审意见的逐项修改见
-[修订回应](../reviews/adr-058-revision-2-response-2026-11-02.md)；
-下表保留完整验收要求；局部通过不能代替整行场景毕业。
-设计结论见[修订 2 复核](../reviews/adr-058-revision-2-review-2026-11-02.md)，
-复核通过后，用户的条件实施授权已满足；行为结果按实际执行补录。
+依赖与设计结论见[E04 验证状态](../reviews/open-snapping-review-status.md)。
+用户的条件实施授权已满足；下表保留完整验收要求，
+局部通过不能代替整行场景毕业。
 
 | ID | 场景 | 必须观察 |
 |---|---|---|

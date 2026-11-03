@@ -10,8 +10,7 @@ T-1 至 T-4 的实施状态只在 [P2 backlog](../roadmap/p2-delta-backlog.md)�
 ## 决策
 
 接受 [Tree 表现几何修订 3](../design/animation/tree-layout-presentation-proposal.md)。
-该方案已经过首轮、修订 2 和
-[修订 3 复核](../verification/reviews/tree-layout-presentation-revision-3-review-2026-10-24.md)，
+该方案的[修订 3 评审结论](../verification/reviews/framework-contract-review-status.md)已通过，
 原始发现与各轮结论保留，不以设计通过代替实施证据。
 
 - Runtime 拥有真实 bounds、表现可见性、viewport origin 与派生 drawing。

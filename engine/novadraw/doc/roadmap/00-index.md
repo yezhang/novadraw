@@ -71,7 +71,7 @@ scope、历史事件、串行 session handoff、递归性能和最终回归门�
 [`目标一致性调整计划`](goal-alignment-adjustment-plan-2026-09-30.md)
 的核心架构与 API 优先级推进。后续失败与 API 收口、外部图布局和平台采证
 的唯一执行队列见
-[P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准)。
+[P2 backlog](p2-delta-backlog.md#当前推进顺序)。
 P2-G01 尚待 Native surface 验收；P2-M01 A/B/C 已完成，M01-D 待平台/视觉采证。
 GA-2/GA-3 剩余环境采证后置到发布准备，
 保留未完成状态，不阻塞平台无关核心开发。原 G6 的产品 schema、

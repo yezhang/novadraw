@@ -31,7 +31,7 @@ GA-1/GA-4 已完成的边界作为基础。原首批 P2-S01、P2-F02、P2-G02 �
 P2-S02–S06 已完成；S06 按 2026-10-15 接受的矩阵修订 2 关闭，
 完整计数耗尽集成与平台保留项见其完成记录。S07 已完成，当前队列为 S08 Design → S09，
 随后进入 P2-L01 外部布局算法 Design，状态与顺序只在
-[P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准) 维护。
+[P2 backlog](p2-delta-backlog.md#当前推进顺序) 维护。
 S07 的 [ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)与验证矩阵
 已完成实现与行为验收，见[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
 每个切片先明确契约、失败语义和外部消费者，

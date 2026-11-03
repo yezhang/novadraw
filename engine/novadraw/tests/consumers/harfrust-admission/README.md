@@ -243,7 +243,7 @@ python3 tools/scripts/check_harfrust_plan_layout_ordinary_cost.py \
 
 通用语言成本为三组输入、四种模式各 1,000 次，共 12,000 次；
 普通入口原始／生产三轮匹配共 18,000 次。计时与限制见
-[B1 通用语言记录](../../../doc/verification/reviews/text-stages-b1-general-language-2026-11-02.md)。
+[B1 通用语言记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-general-language-2026-11-02.md)。
 
 ## 脚本专用规划回调
 
@@ -272,7 +272,7 @@ python3 tools/scripts/check_harfrust_plan_layout_ordinary_cost.py \
 ```
 
 实现、成本边界和验证结论见
-[B1 脚本规划回调记录](../../../doc/verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)。
+[B1 脚本规划回调记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)。
 
 非扩张塑形首片工具保留其历史快照，成本采样入口继续可用：
 
@@ -289,7 +289,7 @@ python3 tools/scripts/check_harfrust_plan_layout_ordinary_cost.py \
 ```
 
 范围、费用、buffer 恢复和未完成门禁见
-[B1 非扩张塑形记录](../../../doc/verification/reviews/text-stages-b1-shaping-2026-11-02.md)。
+[B1 非扩张塑形记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-shaping-2026-11-02.md)。
 本入口支持已映射 LTR ASCII，不表示复杂文本的完整分析准入已经可用。
 
 当前生产源码核对使用多字形替换工具，重放十四份冻结补丁再追加本片：
@@ -313,24 +313,24 @@ python3 tools/scripts/check_harfrust_multiple_gates.py \
 
 单字形替换的两种格式、两种 coverage 和冷／热 lookup 计费，
 以及上游完整输出对照见
-[B1 单字形替换记录](../../../doc/verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)。
+[B1 单字形替换记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)。
 后续正长度多字形增长已接入，完整输出、扩容费用、逐点拒绝及普通路径成本对照见
-[B1 多字形替换记录](../../../doc/verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)。
+[B1 多字形替换记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)。
 输出原始字节无损压缩保存，散列针对解压内容。
 连字匹配位置 inline／spill、嵌套组件求和、逐点拒绝与混合替换见
-[B1 连字替换记录](../../../doc/verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)。
+[B1 连字替换记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)。
 
 一至八位置 Format 3 上下文已接入准入，嵌套叶子限定零 flags 单字形替换。
 四项新测试核对完整输出、逐点拒绝前缀、未知路径提前拒绝、
 错误 source 和 buffer 复用；完整原版对照矩阵保持独立，见
-[B1 上下文替换记录](../../../doc/verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)。
+[B1 上下文替换记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)。
 
 Format 3 堆匹配与备份消费者覆盖 9／17／64 位置、逐点拒绝、
 65 位置未支持，以及此前五组件连字后接 52／53 位置的求和边界。
 两份匹配数组每次 shape 预留一次，所有嵌套单字形记录复用存储。
 独立 spill oracle 与成本程序分别覆盖完整输出与分配费用；
 实施状态和复验命令见
-[B1 上下文堆存储记录](../../../doc/verification/reviews/text-stages-b1-context-spill-2026-11-02.md)。
+[B1 上下文堆存储记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-context-spill-2026-11-02.md)。
 当前仍不支持删除、递归替换或完整复杂文字分析。
 
 GPOS 单字形定位消费者覆盖两种格式、两种 coverage、标量值、
@@ -340,7 +340,7 @@ GPOS 单字形定位消费者覆盖两种格式、两种 coverage、标量值、
 定位本身不分配；前置替换的扩容与冷 lookup 存储仍独立收费。
 十二矩阵四配置、32,000 个准入成本和 24,000 个普通对照样本
 及复验命令见
-[B1 GPOS 单字形定位记录](../../../doc/verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)。
+[B1 GPOS 单字形定位记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)。
 
 GPOS 配对定位消费者新增两种 PairPos、coverage／class 格式、
 第一／第二标量记录、三种 cluster level 和前置替换的完整输出对照。
@@ -348,7 +348,7 @@ GPOS 配对定位消费者新增两种 PairPos、coverage／class 格式、
 原始设备／保留位，以及非法 class 值在矩阵寻址前未支持。
 SinglePos 同步补齐原始保留位反例。
 十三矩阵四配置的冻结输出、成本与跨目标复验入口见
-[B1 GPOS 配对定位记录](../../../doc/verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)。
+[B1 GPOS 配对定位记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)。
 
 ASCII RTL 消费者覆盖 Latin／Common／unknown／未指定 script、
 真实镜像缺字、原生方向与最终反转、三种 cluster level、备用容量，
@@ -359,7 +359,7 @@ SinglePos 的旧 ASCII RTL 负例改为非 ASCII 反例，冻结普通 oracle �
 Native／portable 各 203 项依赖与 75 项消费者测试通过。
 64,000 个准入成本、48,000 个普通对照样本和跨目标定向门禁通过，
 Wasm 只构建未执行。范围与复验命令见
-[B1 ASCII RTL 记录](../../../doc/verification/reviews/text-stages-b1-rtl-2026-11-02.md)。
+[B1 ASCII RTL 记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-rtl-2026-11-02.md)。
 
 简单 Unicode 消费者新增六项测试，覆盖已映射的 Ll／Lu／Lt／Lo／Zs、
 Han 默认 shaper、四种 cluster level、六种 cmap reader、
@@ -370,7 +370,7 @@ MacRoman／Symbol、冷／热逐点拒绝、source 和 buffer 恢复。
 Native／portable 各 203 项依赖与 81 项消费者测试通过。
 192,000 条准入成本、144,000 条普通对照样本及跨目标定向门禁通过；
 库 Clippy 新增诊断为零，Wasm 只构建未执行。范围及复验命令见
-[B1 简单 Unicode 记录](../../../doc/verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)。
+[B1 简单 Unicode 记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)。
 
 GDEF 消费者新增五项测试，覆盖 ClassDef 1／2、空与损坏 reader、
 字体 mark、替换后的分类变化、上下文重复 record 和冷热逐点拒绝恢复。
@@ -379,7 +379,7 @@ GDEF 消费者新增五项测试，覆盖 ClassDef 1／2、空与损坏 reader�
 各 203 项依赖与 86 项消费者测试通过；旧 GDEF 负例改为 mark attachment flag。
 192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过。
 库 Clippy 新增诊断为零，Wasm 只构建未执行，范围和复验命令见
-[B1 GDEF 记录](../../../doc/verification/reviews/text-stages-b1-gdef-2026-11-02.md)。
+[B1 GDEF 记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gdef-2026-11-02.md)。
 
 一般字符消费者新增四项测试，覆盖已映射标点、数字、符号、
 单独 emoji、非提前返回类别、缺失镜像、逐点拒绝与费用隔离。
@@ -388,7 +388,7 @@ GDEF 消费者新增五项测试，覆盖 ClassDef 1／2、空与损坏 reader�
 各 203 项依赖与 90 项消费者测试通过。
 192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过；
 库 Clippy 新增诊断为零，Wasm 只构建未执行。范围和复验命令见
-[B1 一般字符记录](../../../doc/verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)。
+[B1 一般字符记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)。
 
 一对一规范化消费者新增四项测试，覆盖 canonical singleton 分解、
 `.notdef`、完整字段、逐点拒绝、原始 source 与普通恢复，
@@ -398,7 +398,7 @@ fixture 和普通 oracle 保持原字节。
 Native／portable 各 204 项依赖内部测试与 94 项消费者测试通过；
 192,000 条准入成本、144,000 条普通对照和跨目标定向门禁通过。
 库 Clippy 新增诊断为零，Wasm 只构建未执行；复验命令见
-[B1 一对一规范化记录](../../../doc/verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)。
+[B1 一对一规范化记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)。
 
 `space_tests.rs` 补齐原始 Zs 和 U+2011 缺字回退，覆盖 SPACE、
 数字和标点映射、GSUB 后空格定位以及逐点拒绝恢复。
@@ -408,7 +408,7 @@ invisible 另有 160 份一致观察。
 Native／portable 各 205 项依赖内部测试与 98 项消费者测试、
 192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过；
 库 Clippy 新增诊断为零，Wasm 只构建未执行。当前复验入口见
-[B1 空格回退记录](../../../doc/verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)。
+[B1 空格回退记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)。
 
 `decomposition_miss_tests.rs` 新增四项消费者测试，覆盖 a／b 映射组合、
 直接终止和单字符链后终止、完整输出、原始 source 与逐点拒绝恢复。
@@ -418,7 +418,7 @@ b 命中仍在 Recovery 前返回未支持，原 fixture 和普通 oracle 保持
 Native／portable 各 205 项依赖内部测试与 102 项消费者测试、
 192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过。
 库 Clippy 新增诊断为零，Wasm 只构建未执行；见
-[B1 第二字符缺字记录](../../../doc/verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)。
+[B1 第二字符缺字记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)。
 
 `normalizer_kernel_oracle.rs` 增加包含分解增长、重排、重组、CGJ、
 variation selector 与 Hangul 的独立普通输出矩阵；
@@ -430,7 +430,7 @@ Native／portable 各 211 项依赖内部测试与 102 项消费者测试通过�
 格式修正的源码证明与最终源码成本重采通过；库 Clippy 新增诊断为零，
 Wasm 只构建未执行。公共 mark、非 singleton 输出与未知回调继续拒绝。
 当前复验入口见
-[B1 共享规范化记录](../../../doc/verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)。
+[B1 共享规范化记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)。
 
 `dotted_circle_kernel_oracle.rs` 增加圆圈映射存在／缺失、flags／context
 抑制和规范化增长的独立普通矩阵，每配置 497,664 份观察。
@@ -441,9 +441,9 @@ Native／portable 各 214 项内部测试与 102 项消费者测试通过。
 全部七份采样前 Clippy 收据与十九份原始采样文件复核通过；
 库 Clippy 新增诊断为零，Wasm 只构建未执行。公共组合输入尚未开放。
 当前冻结快照复验入口见
-[B1 dotted-circle 记录](../../../doc/verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)。
+[B1 dotted-circle 记录](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)。
 
-当前 [grapheme 合并与反向分组](../../../doc/verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
+当前 [grapheme 合并与反向分组](../../../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
 的定向测试、完整普通输出对照与跨目标检查通过，成本记录完成。
 三十份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致。
 Native 与 portable 各 218 项内部测试、102 项消费者测试通过。

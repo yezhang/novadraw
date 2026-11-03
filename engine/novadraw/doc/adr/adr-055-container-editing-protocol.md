@@ -12,14 +12,11 @@ Core 基础故障由 Editor 端到端测试验证其传播，不计为新增 Cor
 
 已接受，修订 2，2026-10-29。设计复核通过后，用户明确授权
 “评审通过，按 ADR-055 执行”，进入接口落定与实施验证。
-依据见[修订 2 复核](../verification/reviews/adr-055-revision-2-review-2026-10-29.md)。
+依据见[容器协议评审结论](../verification/reviews/framework-contract-review-status.md)。
 总体范围见 [Editor／GEF 框架能力补充方案](../design/editor/core-capability-increment.md)。
 本决策不替代已接受的 ADR-032/034/037/054。
 
-本轮采纳[首轮评审](../verification/reviews/adr-055-draft-review-2026-10-29.md)的
-CE-DR01～09。修订 2 继续采纳
-[修订 1 复核](../verification/reviews/adr-055-revision-1-review-2026-10-29.md)的
-R1-01～03；其余已解决合同保持。接口已落定于
+修订 2 已采纳 CE-DR01～09 和 R1-01～03；其余已解决合同保持。接口已落定于
 `crates/novadraw-editor/src/container/`，结果以 P2 backlog 与验证记录为准。
 
 ## 问题与参考事实
@@ -474,35 +471,10 @@ ToolContext 的 begin/candidate/resolve/show/submit 服务；外部 Tool 可复�
 Payload/Request/Plan，创建不查询移出资格。
 私有批次、候选、查询、回执与 checked wrapper 通过 compile-fail doctest 固定构造边界。
 
-## 8. 评审处置与同步清单
+## 8. 验收归属
 
-九项建议均采纳；具体实现选择为通用 host 聚合、私有受检凭证和关联类型计划。
-保留原[评审报告](../verification/reviews/adr-055-draft-review-2026-10-29.md)作为首次草案证据，
-不把其原结论改为已通过。
-
-| 评审 ID | 修订位置 | 必须补充的验证 |
-|---|---|---|
-| CE-DR01 | §2，通用 aggregate_at 不运行 target callback | CE-04/16 普通重定向与 host 聚合对照 |
-| CE-DR02 | §2.1，统一受检 header、资格凭证和关联 Plan | CE-02/10/16 漏项、重复、错目标/父/revision/generation |
-| CE-DR03 | §4，本地子批与多原父移入分别取资格 | CE-08/09/10 混合批次与参数断言 |
-| CE-DR04 | §5，完整 selection、独立 focus、每次 history 操作前快照 | CE-01/12/13 后代 primary、连接、外部删除 |
-| CE-DR05 | §3.1，独立创建协议/Tool/drop/尺寸和抓取点 | CE-11/16/17 第三方嵌套创建 |
-| CE-DR06 | §3，约束几何公式、组合可表示性与数值分类 | CE-06/07/14 相同旋转、反射、极小尺度、溢出 |
-| CE-DR07 | §4 状态表与清理/事务顺序 | CE-13/14/15 release 重算、policy 更换、清理失败 |
-| CE-DR08 | §6，显式首尾及 Before/After | CE-09/10 source reference、反向选择、多原父 |
-| CE-DR09 | §6，完整工作计数和缓存失效 | CE-18 多选、多 slot、宽序列、大子树 |
-
-修订 1 复核的剩余三项均采纳：
-
-| 复核 ID | 修订位置 | 必须补充的验证 |
-|---|---|---|
-| R1-01 | §3 唯一锚点与批次 D，程序化启动和零尺寸抓取点 | CE-06/08/14 多 source 间距、异父映射、非 primary/被覆盖后代、静止指针 |
-| R1-02 | §2.2 统一 CheckContainerPermission 类型、精确 metadata 子批与阶段 | CE-10/16 外部 handler 实际派发和回执来源 |
-| R1-03 | §1/§7 固定活动 P、共同协议的同 Viewer XY→Ordered 消费 | CE-16 两个泛型消费者与同 Viewer 场景分别验收，不兼容 family 为未支持 |
-
-原修订 1 复核结论保留为历史证据，本次修订不表示复核已通过。
-
-本轮同步总体方案、验证矩阵、GEF 账本与 P2 的修订入口，
-保持 `design-draft`。接受后再更新架构总览和 ADR-034 的 host 聚合补充；
-实施时新增领域公开导出、消费者、对应 API snapshot 与错误契约测试，
-通过后才提升 parity。设计修订不修改现行架构为“已实现”。
+通用 host 聚合、私有受检凭证、关联类型计划、唯一锚点和跨布局消费已接受，
+对应的拒绝、组合及成本要求由[验证矩阵](../verification/plans/editor-container-editing.md)维护。
+设计通过不证明 Native 系统 DnD、跨显示器 DPI 或完整内部工作量通过；
+最新覆盖与恢复条件见[专题结论](../verification/reviews/framework-contract-review-status.md)
+和[P2 backlog](../roadmap/p2-delta-backlog.md)。

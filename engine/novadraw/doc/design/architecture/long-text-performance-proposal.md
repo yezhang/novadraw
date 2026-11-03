@@ -2,32 +2,26 @@
 
 类型：`proposal`
 
-日期：2026-10-27。修订：2。设计状态：LT-00～LT-03 复核通过。首批实施状态：`in_progress`。
+日期：2026-10-27。修订：2。能力归属：Core Text／Flow／Runtime；
+backend 与 platform 分别承担字形输出和呈现验收。
+设计状态：LT-00～LT-03 复核通过。整体性能验收尚未关闭。
 
 用户已批准首批实施，当前契约增量见 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)，
 状态与证据见[实施记录](../../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
 LT-04～LT-09 保持独立评审，本方案的性能目标与平台呈现验收尚未通过。
 
-2026-10-28 的[滚动与 resize 优化提案](long-text-scroll-resize-optimization-proposal.md)
-记录共享 IR、原生可见输出、宽度复用与后续调度的审核方案；
-用户已批准该提案，观测与共享 IR 首片已落地。原生覆盖、宽度分阶段复用和
-后续调度仍须按各自合同取证，不改变本页未完成的整体性能验收状态。
-
-2026-11-02 用户要求先记录顶尖性能方案再推进，
-技术组合、比较口径和工作包顺序见[性能路线](text-performance-strategy.md)。
-当前下一片为宽度变化的阶段分母与复用可行性；本页继续负责完整目标和状态所有权，
-不会据路线记录将后续候选协议记为已实现或已验收。
-
-修订 2 按[方向评审](../../verification/reviews/long-text-performance-proposal-review-2026-10-27.md)
-处理 LTP-R01～R05。方向有条件通过不等于整体实施批准；
-本文“评审响应”记录设计处理，原评审结论和基线保持不变。
+本页负责完整目标、精确／渐进模式和预算原则；共享 IR 与调度候选见
+[滚动／resize 专题](long-text-scroll-resize-optimization-proposal.md)，
+技术组合见[性能路线](text-performance-strategy.md)。
+最新成本与限制见[优化验证](../../verification/performance/text-optimization-validation.md)，
+执行顺序只在[P2 backlog](../../roadmap/p2-delta-backlog.md#当前推进顺序)维护。
 
 本方案从长文本需求、Draw2D 文字流契约和既有测量事实出发，定义目标架构与实施顺序。
 方案编写阶段未重新扫描本项目 Rust 实现。本文拟定类型、接口角色和切片均不表示已经实现；
 获批后再定向审阅实现、形成最小 ADR 增量并登记执行队列。
 
 本文是长文本性能设计的当前提案入口，承接并取代
-[10 月 23 日初步提案](textflow-performance-proposal-2026-10-23.md)的方案职责。
+[10 月 23 日初步提案的归档](../../verification/evidence/knowledge-maintenance-2026-11-03/doc/design/architecture/textflow-performance-proposal-2026-10-23.md)的方案职责。
 原始测量事实由[10 月 26 日分析报告](../../verification/reviews/textflow-large-performance-analysis-2026-10-26.md)
 保存；当前已接受的运行时语义仍以 ADR 和规范文档为准。
 
@@ -963,31 +957,11 @@ Draw2D 参考限定为 `org.eclipse.draw2d.text` 及其基础绘制/布局协议
 接受各增量时定向核对[API 语义账本](../../parity/draw2d/api-coverage.md)，
 保留现有 verified 事实；渐进模式、逻辑来源和新失败结果单独记录采用差异。
 
-## 评审响应
+## 设计效力与剩余验收
 
-本表响应[修订 1 评审](../../verification/reviews/long-text-performance-proposal-review-2026-10-27.md)。
-原基线 SHA-256 为
-`f7fe809f70ef7ad6de020e020db1ebb12005e40f5846a43b2a95f18fa76eed88`，
-与修订前文件核对一致。评审文件保持原文，不将其“待修订”状态改成通过。
-
-| 编号 | 采用方式与修订位置 | 复核/实施边界 |
-|---|---|---|
-| LTP-R01 | 采用；“索引与共享资产”“可见绘制与通用坐标边界”改为支持重叠的保守摘要剪枝，区分 H/C/G/V 及最坏全扫描，新增屏外墨迹与跨段重叠反例 | 设计响应已补齐，待首批复核；算法与像素待 LT-03 |
-| LTP-R02 | 采用；数据模型及失效表分开 layout/ink/paint；新增“布局、墨迹与绘制包络的发布合同”，同次发布包络/索引/damage；未知替代轮廓先准备或保守回退 | 设计响应已补齐，待首批复核；provider/描边/DPI 反例待 LT-01～03 |
-| LTP-R03 | 采用；新增“精确模式长期等待与输入准入”，明确同 Runtime 整体等待、写入前预算预留、有限合并/收敛阶段与 FIFO；局部发布留作独立增量 | 待 LT-05/06 独立评审；未宣称当前 Runtime 已提供非阻塞/背压入口 |
-| LTP-R04 | 采用；新增“必需工作集的预算准入、终止与恢复”，按真实 allocation 去重计量，分配前预留，不能容纳时终态失败并按条件重试 | 待相关切片复核及实际分配/lease/worker 证据 |
-| LTP-R05 | 采用；新增“基准协议与统计口径”，冻结 manifest、时钟边界、独立会话/样本数、分位数、失败记录与实际驱动交付；同步 LT-00 关闭条件 | 协议设计已补齐；驱动未建立、采证未开始，性能目标仍未通过 |
-
-本次只修订方案及其导航状态，不扫描本项目 Rust、不实现新 API 或基准驱动，
-不重新运行算法/GPU/性能采证。设计响应完成不等于复核通过，也不授权实施。
-原有三次测量仍仅证明问题存在，候选性能目标和所有 LT 切片的未完成状态保持不变。
-
-## 修订后的评审状态
-
-推荐采用精确文字流先行、海量视图后续的单链方案。
-首批应完成受检共享资产、段落增量缓存与可见绘制，
-以原 Large、长段和真实图文混排共同验收。
-后台与渐进能力在明确发布范围、未就绪查询、滚动锚点和来源身份后接入。
-现有数据只能证明需要优化，尚不能证明本方案的性能目标已经达到。
-R01/R02 完成设计复核后首批才具备实施设计前提；
-R03/R04 的后续异步/渐进增量独立评审，R05 在 LT-00 交付执行证据。
+修订 2 的首批设计已复核通过并获准实施，原判断见
+[复核基线](../../verification/reviews/long-text-performance-revision-2-review-2026-10-27.md)。
+受检共享资产、段落缓存和可见绘制按各自已接受合同验证；
+默认原生 glyph 裁剪、Flow 宽度复用和整体性能目标尚未完成。
+异步驱动、渐进覆盖和紧凑来源仍需独立评审，
+不能以首批批准或文档归并推断这些后续能力已获授权。

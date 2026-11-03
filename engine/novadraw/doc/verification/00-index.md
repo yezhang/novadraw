@@ -22,7 +22,7 @@
 ## 自动化入口
 
 跨工具 suite 与直接 Cargo 门禁见
-[`../../verification/README.md`](../../tests/README.md)。
+[tests/README.md](../../tests/README.md)。
 
 ```bash
 cargo xtask list
@@ -38,7 +38,7 @@ suite ID 或精确 test target 和执行结果，不复制冗余别名。
 - `reviews/` 保存可阅读的结论，不冒充当前设计 SSOT。
 - `manual/` 只补充窗口、GPU、浏览器和输入设备体验。
 - `target/verification/` 保存可重建的本地运行产物，不提交 Git。
-- [`../../verification/evidence/`](evidence/README.md) 保存需要随审计
+- [evidence/](evidence/README.md) 保存需要随审计
   提交的日志、JSON、探针源码和分组报告。
 - 编译后的探针和其他二进制生成物不得进入 `doc/` 或 `doc/verification/evidence/`。
 

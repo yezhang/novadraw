@@ -6,7 +6,7 @@
 平台输入、应用模型 Command 和 Guide 持久化仍由各自 owner 验收。
 
 日期：2026-11-02。状态：E04 实施中，协议、内置策略和移动／创建／resize 计划已通过定向验证。
-用户授权“如果复核通过，则推进方案”；[修订 2 复核](adr-058-revision-2-review-2026-11-02.md)
+用户授权“如果复核通过，则推进方案”；[修订 2 复核](../evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/adr-058-revision-2-review-2026-11-02.md)
 通过，故 [ADR-058](../../adr/adr-058-open-editor-snapping.md)修订 2 已接受并进入实施。
 本记录不关闭 E04；平台输入、完整成本与最终门禁仍待验收。
 

@@ -16,25 +16,10 @@
 状态：已接受；2026-10-30。用户批准修订 3 并授权按切片推进 P2-S09。
 执行状态见 [P2 backlog](../roadmap/p2-delta-backlog.md)。
 
-当前为修订 3（2026-10-30），已按[修订 2 复核](../verification/reviews/adr-057-revision-2-review-2026-10-30.md)
-补清 checkpoint 与 backend 完成的分层、发布游标和首 fault 胜出值的来源。
-逐项处理见[修订 3 回应](../verification/reviews/adr-057-revision-3-response-2026-10-30.md)。
-修订 2 的[回应](../verification/reviews/adr-057-revision-2-response-2026-10-30.md)与
-[原始文本](../verification/evidence/p2-s09-design-2026-10-30/adr-057-revision-2.txt)保留。
-修订 1 的[源码盘点](../verification/reviews/p2-s09-design-inventory-2026-10-30.md)与
-[原始文本](../verification/evidence/p2-s09-design-2026-10-30/adr-057-revision-1.txt)保留。
-修订 3 的[设计复核](../verification/reviews/adr-057-revision-3-review-2026-10-30.md)已通过。
-评审时的[修订 3 原文](../verification/evidence/p2-s09-design-2026-10-30/adr-057-revision-3.txt)
-按复核记录的 SHA-256 保留，后续状态回填不改写该快照。
-首个实施片 S09-A Core Animation 已完成，见[实施记录](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)；
-S09-B Core Observations／Inspector 与宿主恢复实现及自动门禁已完成，
-见[实施记录](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)。
-成本覆盖宿主选择的 64／4096 容量，不代表未设全局上限的引擎最大容量验收。
-S09-C Core Connections 注册实现、消费者与自动门禁已于 2026-11-02 完成，
-见[实施记录](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)。
-S09-D Editor 扩展错误与 panic 诊断已实现并通过定向验证，
-见[实施记录](../verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
-最终门禁因磁盘空间不足待补验；S09 整批尚未关闭，按执行队列串行推进。
+当前为修订 3（2026-10-30）。checkpoint 与 backend 完成的分层、发布游标及
+首 fault 的来源规则已复核通过。本页维护决策，评审与实施证据归入
+[S09 验证状态](../verification/reviews/service-failure-review-status.md)。
+S09 整批尚未关闭，执行和恢复条件由 backlog 维护。
 
 ## 问题与范围
 

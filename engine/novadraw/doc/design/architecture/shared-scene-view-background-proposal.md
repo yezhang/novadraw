@@ -8,6 +8,7 @@
 
 修订：3；按修订 2 复核补齐结构依赖、Runtime 强制准入与继承 alpha，已批准。
 
+能力归属：Core 共享场景与只读视图、宿主背景提交分别负责。
 范围：官方示例计划 K07；参考契约为 Draw2D，不扫描 Novadraw Rust 实现推导目标架构。
 本文件提出两个独立决策：共享场景捕获与视图、宿主背景统一合成。两者复用不可变资源
 闭包，分别验收，已由 [ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)和
@@ -15,13 +16,9 @@
 与现行 ADR 的增量关系见
 [与现行提交协议的关系](#与现行提交协议的关系)。
 
-评审记录：[K07 方案评审意见](../../verification/reviews/k07-shared-scene-view-background-review-2026-10-23.md)。
-修订 2 的处理见 [首轮修订响应](../../verification/reviews/k07-shared-scene-view-background-revision-2026-10-23.md)。
-后续依据 [修订 2 复核](../../verification/reviews/k07-shared-scene-view-background-revision-2-review-2026-10-23.md)
-继续修改，本轮处理见 [修订 3 响应](../../verification/reviews/k07-shared-scene-view-background-revision-3-response-2026-10-23.md)。
-原评审结论保持不变；
-[修订 3 设计复核通过](../../verification/reviews/k07-shared-scene-view-background-revision-3-review-2026-10-23.md)
-只证明设计契约，功能和平台证据按实施切片提供。
+评审结论与分片证据归入
+[共享场景验证状态](../../verification/reviews/framework-contract-review-status.md)。
+本页只维护现行契约；原稿从专题状态的归档入口追溯。
 
 ## 需求来自两个独立消费者
 

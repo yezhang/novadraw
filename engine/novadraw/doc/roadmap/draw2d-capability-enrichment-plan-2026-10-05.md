@@ -3,7 +3,7 @@
 类型：`roadmap`
 
 本页承接 2026-10-05 能力规划，维护价值分组和拆分原则，不定义运行时契约或 delta
-状态。执行顺序见 [P2 backlog](p2-delta-backlog.md#当前推进顺序2026-10-14-校准)，
+状态。执行顺序见 [P2 backlog](p2-delta-backlog.md#当前推进顺序)，
 平台声明见 [支持矩阵](platform-support-matrix.md)，对等分母见
 [语义账本](../parity/draw2d/api-coverage.md#长期能力分母与处置)。
 

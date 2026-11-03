@@ -7,16 +7,11 @@
 平台输入及应用模型／Guide 持久化按各自 owner 验收。
 完整职责表见 [ADR-058 的分层归属](../../adr/adr-058-open-editor-snapping.md#分层归属)。
 
-规范效力：修订 2 已接受。2026-11-02，按
-[ADR-058](../../adr/adr-058-open-editor-snapping.md)进入 E04-A 实施。
-初稿依据需求、ADR-055 和只读 GEF 源码；本轮为依赖核验定向审阅 Rust 入口。
-结论与修订原因见
-[依赖核验](../../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)。
-修订 1 的意见与本轮修改见
-[原评审](../../verification/reviews/adr-058-revision-1-review-2026-11-02.md)和
-[修订回应](../../verification/reviews/adr-058-revision-2-response-2026-11-02.md)；
-本修订的[设计复核](../../verification/reviews/adr-058-revision-2-review-2026-11-02.md)
-已通过，用户授权在复核通过后推进；本轮进入实施。
+规范效力：修订 2 已接受，2026-11-02。
+[ADR-058](../../adr/adr-058-open-editor-snapping.md)定义决策与分层。
+依赖核验、评审结论和最新实施限制见
+[E04 验证状态](../../verification/reviews/open-snapping-review-status.md)；
+本页只维护吸附契约，不重复修订流水。
 
 Core 依赖按 GEF 对 Draw2D 对等契约的实际调用与行为核验，
 具体门禁见 [ADR-058](../../adr/adr-058-open-editor-snapping.md#分层归属)。

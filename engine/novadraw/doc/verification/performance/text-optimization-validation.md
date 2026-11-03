@@ -1,16 +1,51 @@
-# 文字优化验证指南
+# 文字优化验证与当前成本
 
 类型：`verification`
 
-日期：2026-11-02。能力归属：Core 文字布局、Flow 缓存与 Render IR；
+更新：2026-11-03。能力归属：Core 文字布局、Flow 缓存与 Render IR；
 官方样例提供消费者和性能驱动，窗口呈现由平台／后端另行验证。
 
 当前可以验证完整布局缓存、段落复用、共享 glyph 与来源几何。
 ADR-059 A 的阶段协议已完成，B 的只读存储补丁已批准接入，
 Parley 阶段适配及 Flow 宽度复用仍未实现。
 因此本轮存储补丁不会让拖动窗口时自动省去 shaping。
-当前状态见 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md)及
-[B 接入记录](../reviews/text-stages-b-storage-patch-2026-11-02.md)。
+阶段验证见[文字阶段状态](../reviews/text-stages-status.md)。
+FR-01 已复用同一只读作用域内的准备输入，整体延迟尚未达标；
+当前优先设计 FR-02 贡献组装复用合同，B1 扩张暂停。
+执行顺序以[P2 backlog](../../roadmap/p2-delta-backlog.md#当前推进顺序)为准。
+
+## 最新匹配比较
+
+2026-11-03 的 FR-01 对照使用 Apple M1 Pro、Rust 1.96.0、
+相同 release／依赖／字体／驱动与预算，交替运行五个会话。
+每版本 500 个 fresh Runtime 样本、15 个独立进程样本；预热不计入分位数，
+失败为 0。独立进程不代表已清空 OS 缓存，外部后台负载未受控。
+构建参数与采样器默认工具链字段的差异已单独记入收据。
+
+以下只列 fresh Runtime，单位 ms；完整 P50／P95／P99、构建和会话限制见
+[FR-01 匹配验证](../reviews/flow-runtime-input-reuse-2026-11-03.md#匹配性能验证)。
+
+| 指标 | baseline P95 | 当前 P95 | 当前 P99 |
+|---|---:|---:|---:|
+| 首次稳定化 | 40.236 | 40.199 | 55.144 |
+| 追加端到端 | 17.508 | 16.935 | 20.676 |
+| 稳定查询 | 2.609 | 2.713 | 3.579 |
+| 滚动更新 | 6.980 | 7.250 | 8.943 |
+| resize 更新 | 37.236 | 36.439 | 47.380 |
+| CPU IR 录制 | 4.536 | 4.611 | 5.871 |
+| resize 批次验证累计自身成本 | 2.458 | 1.537 | 见完整记录 |
+| resize 贡献组装累计自身成本 | 10.287 | 10.382 | 见完整记录 |
+
+局部批次验证 P95 下降约 37.5%，resize 总体 P95 仅下降约 2.1%，P99 上升。
+当前仍有 13 次 Flow 构建、520 个请求／514 次命中；
+40 段、51,232 初始字节及追加后 51,233 个原生 glyph、7,889 条 IR 命令未改变。
+证据支持局部复用有效，不支持稳定尾延迟改善或整体 16 ms／4 ms 门禁通过。
+阶段分位数不相加，不与下文单版本历史采样计算提速比例。
+
+归因见[重复工作分析](../reviews/flow-runtime-repeat-work-analysis-2026-11-03.md)。
+独立研究宿主的[CPU／Native 固定回放](../reviews/textflow-large-app-implementation-2026-11-03.md)
+已验证，人工交互、DPI、IME、AT 与实际屏幕呈现仍待验收。
+本地匹配证据位于 `target/verification/text-fr01-2026-11-03/`，不纳入 Git。
 
 ## 先检查行为
 
@@ -125,7 +160,7 @@ RUSTUP_TOOLCHAIN=1.96.0 python3 tools/scripts/textflow_performance.py \
 不能直接把旧报告中的数值或配置不同的旧二进制与当前运行计算提速比例。
 初始化、命中、resize 和失败路径分开判断，不能用缓存查找更快代替整体更快。
 
-## 本轮实际采样
+## 历史单版本基线
 
 2026-11-02 在 Apple M1 Pro、macOS 14.7.8、Rust 1.96.0 上完成
 5 个会话的原始负载采样。共 1,000 个同进程新建 Runtime 样本、
@@ -171,6 +206,8 @@ macOS 可运行 `python3 tools/scripts/run_draw2d_macos.py`，
 检查连续缩窄／放宽窗口、滚动、光标及选择、混排换行和 inline 位置，
 注意是否出现旧字形残留、位置漂移或预算拒绝。
 该启动脚本使用 debug 构建，适合功能复核；窗口性能仍需 release 宿主单独采证。
+独立 Large 研究宿主的启动、固定回放与导出见
+[研究应用计划](../plans/textflow-large-research-app.md)，自动回放通过不代替人工验收。
 
 性能驱动不创建窗口或 GPU，输出 `present: unavailable` 是预期行为。
 它不能证明输入到屏幕的延迟、compositor 性能或 WebGPU 性能。

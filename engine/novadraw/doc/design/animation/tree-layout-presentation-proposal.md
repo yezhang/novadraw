@@ -4,20 +4,12 @@
 
 状态：修订 3，已实施并通过 T-1 至 T-4 退出验证。承接 K06 与 ADR-026 的领域消费者目标。
 
-2026-10-24 按 R01–R10 补齐实施契约，处理结果见文末“评审响应”。
-首轮方案与 Rust 实现核对的原始判断、源码证据和验证结果见
-[评审记录](../../verification/reviews/tree-layout-presentation-review-2026-10-24.md)。
-本稿不覆盖已接受的 ADR；设计复核通过不表示实现或平台验收完成。
-2026-10-24 用户明确批准落地，决策固化为
-[ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)；
-实施状态与退出证据见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
-
-修订 2 的复核结论与 F01/F02 原始判断见
-[修订 2 复核记录](../../verification/reviews/tree-layout-presentation-revision-2-review-2026-10-24.md)。
-修订 3 按这两项意见统一时间快照与容量预留规则，处理结果见文末“修订 2 复核响应”。
-
-2026-10-24 修订 3 的设计复核通过，F01/F02 已收口；结论与实施验证范围见
-[修订 3 复核记录](../../verification/reviews/tree-layout-presentation-revision-3-review-2026-10-24.md)。
+能力归属：Core 表现几何与动画、Tree 领域消费者；宿主负责实际呈现。
+修订 3 已获批准，决策固化为
+[ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)。
+R01～R10、F01／F02 的评审结论见
+[表现几何验证状态](../../verification/reviews/framework-contract-review-status.md)；
+执行状态由[P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
 2026-10-26 的 Rust 契约、Native GPU 像素和最终门禁记录见
 [实施复核](../../verification/reviews/tree-layout-presentation-implementation-2026-10-26.md)。
@@ -511,37 +503,9 @@ Tree Viewport。T-4 增加默认关闭的 Use Animation checkbox；关闭时继�
 几何、glyph、线条、origin 和像素。编译或 active track 数量不替代这些证据。
 稳定验证入口依 `tests/README.md` 和当前 xtask 建立，未实现前不新增通过声明。
 
-该设计涉及渲染使用的几何协议。实施前需要评审，不直接扩张现有 affine bounds
+该设计涉及渲染使用的几何协议。后续增量仍须评审，不直接扩张现有 affine bounds
 实现。渲染主循环如需调整，必须限定为从统一只读几何视图取值；不得增加第二套
 遍历或为 Tree 增设快路径。
-
-## 评审响应
-
-以下“已纳入”仅表示本次设计修订处理了意见，不表示复核通过或实现问题关闭。
-原评审记录的判断与测试快照保留，复核另行记录。
-
-| 编号 | 处理方式 | 修订位置与复核重点 |
-|---|---|---|
-| R01 | 已纳入：独立 committed/表现终点；标题中心受检转换与容器包围域；同帧清除 | “折叠保留显示，交互立即使用终值”；收拢、零尺寸、反向和静态等价 |
-| R02 | 已纳入：完整读取表、edge 组合、普通/OverflowVisible clip；不沿用 affine 绕过 | “增加 Runtime 拥有的表现几何快照”；嵌套、insets、border 与全路径几何一致 |
-| R03 | 已纳入：Motion/派生角色分开、稳定依赖顺序、循环拒绝、Result 与阶段失败表 | “采样阶段、派生依赖与错误传播”；外部 provider、整组清理与 panic fault |
-| R04 | 已纳入：目标/依赖闭包、兄弟影响、版本表、当前表现起点；明确旧计划有效条件 | “捕获范围、版本与原子替换”；反向、拓扑/字体/insets 变化与候选失败 |
-| R05 | 已纳入：合法保留的祖先合取，外部 hide/surface suspend 独立，交互只用源状态 | “表现有效可见性与 suspension”；三种 policy、模式切换与释放 |
-| R06 | 已纳入：每次 Oa/Xa 锚定、内容域截止、冻结 clamp 区间、首末帧与输入原子接管 | “Viewport 跟踪与布局共用一个进度”；双轴、反向、输入与 owner 冲突 |
-| R07 | 已纳入：保留旧帧 envelope、统一 clip/world、合并区域遍历、分阶段预算与统计 | “Damage、遍历预算与帧恢复”；retained-partial、Retry 与线性工作量 |
-| R08 | 已纳入：提取共用端点算法、typed provider、显式新增 Viewport 和真实 checkbox | “线条使用同一个几何视图”“实施与退出证据”；19 节点与静态消费者 |
-| R09 | 已纳入：语义类型身份、bounds/transform/insets 次序、旧 affine API 保留与文字冻结 | “channel 身份与兼容范围”“文字与内容输入冻结”；外部同底层值多语义 |
-| R10 | 已纳入：补齐六个 family 与 T-1–T-4 证据，不把旧基础回归当新实现证据 | `api_semantics` 与“实施与退出证据”；按账本逐项核验 |
-
-## 修订 2 复核响应
-
-以下响应记录设计处理，F01/F02 是否通过须由后续复核确认。原复核的“暂不通过”
-结论和验证限制保留，不改写为已实现或验收通过。
-
-| 编号 | 处理方式 | 修订位置与复核重点 |
-|---|---|---|
-| F01 | 已纳入：以最后成功 Runtime 采样 S 为当前表现；E 区分源/活动版本；几何物化不推进 Motion 时钟，提交与呈现独立 | “当前表现由 Runtime 采样时刻确定”“未录制、在途与失败场景”及 viewport 锚点；advance 后未 prepare、同时间变更和在途/Retry |
-| F02 | 已纳入：准入预留自身上限 B、净容量替换与独立 staging；共享失败不驱逐合法组；配置下调低于存活预留时拒绝 | “准入容量与单组上限分别记账”“单组越限与共享不可用的失败归属”；顺序交换、恰满、违约组与静态修复 |
 
 依据：[ADR-026](../../adr/adr-026-animation-and-presentation-plane.md)、
 [领域能力矩阵](capability-integration.md)、

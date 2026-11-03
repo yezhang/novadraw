@@ -63,14 +63,20 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 已接受，修订 1，实施中 | 2026-10-22 |
 | [044](adr-044-shared-scene-capture-and-view.md) | 共享场景捕获、资源闭包与只读视图 | 已接受 | 2026-10-23 |
 | [045](adr-045-host-background-submission.md) | 宿主背景统一帧提交 | 已接受 | 2026-10-23 |
+| [046](adr-046-sampled-geometry-and-animation-reservations.md) | 表现几何与动画容量预留 | 已接受 | 2026-10-24 |
+| [047](adr-047-per-operation-antialias.md) | 逐操作抗锯齿与受预算约束的覆盖准备 | 已接受 | 2026-10-26 |
+| [048](adr-048-inherited-layout-direction.md) | 继承式布局方向 | 已接受 | 2026-10-27 |
+| [049](adr-049-low-miter-and-cocoa-sample-profile.md) | 低 miter 与 Cocoa 样例轮廓 | 已接受 | 2026-10-27 |
+| [050](adr-050-prepared-text-underlines.md) | 准备后的字体下划线 | 已接受 | 2026-10-27 |
+| [051](adr-051-exact-flow-layout-reuse.md) | 精确文字流布局复用 | 已接受 | 2026-10-27 |
 | [052](adr-052-independent-corners-and-edge-borders.md) | 逐角圆角与矩形分边描边 | 已接受 | 2026-10-27 |
 | [053](adr-053-embedded-vello-scene-target.md) | 嵌入式 Vello Scene 输出目标 | 按用户批准方向实施 | 2026-10-28 |
 | [054](adr-054-template-creation-and-marquee.md) | 类型化模板创建与框选 | 按已批准样例方向实施 | 2026-10-28 |
 | [055](adr-055-container-editing-protocol.md) | 容器编辑与父坐标协议 | 已接受，修订 2 | 2026-10-29 |
 | [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 已接受 | 2026-10-29 |
-| [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 草案，待评审 | 2026-10-29 |
-| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 修订 2 已接受，E04-A 实施中 | 2026-11-02 |
-| [059](adr-059-staged-text-width-reuse.md) | 可选分阶段文字引擎与宽度复用 | 修订 2 已接受，已批准实施 | 2026-11-02 |
+| [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 已接受，修订 3 | 2026-10-30 |
+| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 已接受，修订 2 | 2026-11-02 |
+| [059](adr-059-staged-text-width-reuse.md) | 可选分阶段文字引擎与宽度复用 | 已接受，修订 2 | 2026-11-02 |
 
 ## 现行与历史隔离
 

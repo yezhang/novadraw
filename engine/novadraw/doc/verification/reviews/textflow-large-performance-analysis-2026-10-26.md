@@ -155,5 +155,5 @@ reparent、内嵌 Figure、边框、字体替换、缩放和过期后台任务�
 目前只有前述基线测量通过，所有优化收益仍待实施后验证。
 
 完整架构取舍继续参考
-[10 月 23 日性能提案](../../design/architecture/textflow-performance-proposal-2026-10-23.md)；
+[10 月 23 日性能提案](../evidence/knowledge-maintenance-2026-11-03/doc/design/architecture/textflow-performance-proposal-2026-10-23.md)；
 本报告补充测量事实并校准优先级，不改变路线图执行队列。

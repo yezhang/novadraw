@@ -48,11 +48,10 @@ Editor／GEF 框架能力补充（分批评审与实施）：
 - [ADR-058：Editor 开放吸附协议](../../adr/adr-058-open-editor-snapping.md)：
   修订 2 已接受，E04-A 实施中；[专题](open-snapping.md)定义 typed 策略、受检特征、
   自由度与反馈／提交，退出条件见[矩阵](../../verification/plans/editor-open-snapping.md)。
-  [依赖核验](../../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)
+  [依赖与评审结论](../../verification/reviews/open-snapping-review-status.md)
   区分 E03 来源取消、有界重算、Core 依赖和 Editor 新增；
   [协议实施记录](../../verification/reviews/p2-e04-a-implementation-2026-11-02.md)列出已通过与待验收范围。
-  [修订回应](../../verification/reviews/adr-058-revision-2-response-2026-11-02.md)
-  逐项处理修订 1 的七项意见，原评审记录保持。
+  逐轮回应退出当前阅读路径，原稿从专题状态的归档入口追溯。
 - [Editor／GEF 框架能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
   多视图和可选编辑策略的分批范围。
 - [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：

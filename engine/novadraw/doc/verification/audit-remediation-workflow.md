@@ -201,7 +201,7 @@ Full gate 阻断分两类：
 ## 7. 当前执行入口
 
 R01/R02/R05 与 S05 已有完成记录，ADR-033/034/035 已实施，不再以本周行动重复启动。
-当前顺序见 [P2 backlog](../roadmap/p2-delta-backlog.md#当前推进顺序2026-10-14-校准)，
+当前顺序见 [P2 backlog](../roadmap/p2-delta-backlog.md#当前推进顺序)，
 未关闭要求和来源见[整改总清单](checklists/audit-remediation-execution.md)。
 辅助工具保持候选，不作为 S06–S09 前置任务；先证明现有 manifest/snapshot 无法满足
 的检查需求再登记。

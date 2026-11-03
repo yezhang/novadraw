@@ -8,11 +8,14 @@
 
 | 文档 | 范围 | 状态 |
 |---|---|---|
+| [textflow-large-research-app.md](textflow-large-research-app.md) | 独立 Large 原场景、固定回放、CPU／Native 测量与有界导出 | 已实现；自动回放通过，人工交互未验收 |
 | [editor-container-editing.md](editor-container-editing.md) | 容器 targeting、父域坐标、换父/有序插入、嵌套创建与外部策略 | 修订 2 已批准；无窗口已验证，平台待验收 |
+| [editor-open-snapping.md](editor-open-snapping.md) | 开放策略、移动／创建／resize、失败、成本及平台矩阵 | 修订 2 已接受；定向通过，完整矩阵未关闭 |
+| [p2-s09-service-failure.md](p2-s09-service-failure.md) | Core／Editor／Inspector 服务失败、订阅与 source | A／B／C 完成，D 与整批待补验 |
 | [draw2d-official-examples-remaining-contracts.md](draw2d-official-examples-remaining-contracts.md) | 全部 25 个官方入口、共享缺口与 Core/扩展/平台责任矩阵 | 修订 3，已获准实施 |
 | [draw2d-official-examples-core-plan.md](draw2d-official-examples-core-plan.md) | Core K00–K09、算法/控件扩展、宿主 H01–H04 的顺序与退出条件 | 已获准按顺序实施 |
 | [p2-text-direct-edit.md](p2-text-direct-edit.md) | P2-T02 TextFlow interaction geometry 与 P2-E02 direct edit/IME | `complete` |
 | [p2-s06-incremental-failure-isolation.md](p2-s06-incremental-failure-isolation.md) | 新建 Part/Connection 失败清理、Overlay 预检及模型/history 边界 | `complete`，修订 2；组合证明及平台限制永久保留 |
 | [p2-s07-query-identity-and-failure-semantics.md](p2-s07-query-identity-and-failure-semantics.md) | 查询身份、合法缺失、测量失败与候选传播 | `complete`，修订 1；实现与行为验证完成 |
-| [p2-s08-detached-input-invariants.md](p2-s08-detached-input-invariants.md) | Border／Style 构造、外部准入、溢出与失败恢复 | 草案，待评审；用例待执行 |
+| [p2-s08-detached-input-invariants.md](p2-s08-detached-input-invariants.md) | Border／Style 构造、外部准入、溢出与失败恢复 | `complete`；保留回归矩阵 |
 | [xtask-command-simplification-2026-10-16.md](xtask-command-simplification-2026-10-16.md) | xtask 三入口、13 个跨边界 suite 与直接 Cargo 门禁 | `complete` |

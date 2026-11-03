@@ -2,1757 +2,290 @@
 
 类型：`roadmap`
 
-本页记录 Draw2D Core 1.0 与当前 Editor roadmap 之外已确认的能力 delta 及其状态。
-每项进入实施前必须先补充对应的 design/parity delta、自动验证和完成证据；本页不定义
-运行时契约。
+更新：2026-11-03。能力归属：Core、Editor、Inspector、backend、platform 和应用分别列项。
+本页是 P2 的唯一执行队列，记录已确认增量、当前状态、阻塞和恢复条件；
+运行时契约由 design／ADR 定义，验证依据由 verification 保存。
 
-本页汇总多个能力队列，不能将所有 delta 统称为 Editor／GEF 迁移。
-各方案须声明能力归属；Core 依赖、Editor 行为、平台接入与应用消费分别验收。
-S08 属于 Core 输入整改；S09 按 Core／Editor／Inspector 分项；
-E03 容器编辑与 E04 开放吸附属于 Editor。用户指定 Editor 范围时，
-按 Editor 队列推进，不自动转入其他队列。
+`complete` 表示该切片的契约、实现和验收闭合；`in_progress` 表示交付仍有缺项，
+不表示正在并行执行。`design-draft` 尚未通过设计评审，`not_started` 尚未实现，
+`deferred` 不进入当前实施主线。未完成平台证据和长期能力分母不能因文档归并而删除。
+执行遵守[单链工作流](../verification/audit-remediation-workflow.md)。
 
-Editor 的必要 Core 依赖以 GEF 对 Draw2D 对等契约的实际依赖为依据。
-确认 Core 缺失后停止增加 Editor 能力，登记阻塞关系，
-先交付 Core 增补建议；对应 Core 契约验收通过后才恢复。
-依赖证据、建议内容和恢复条件见
-[项目门禁](../../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
-本规则不把尚未完成的测试或平台采证直接归类为 Core 能力缺失。
+Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失后停止新增 Editor
+能力，先提出独立 Core 增补建议；Core 验收通过后恢复。
+详见[依赖门禁](../../CLAUDE.md#editor-缺失-core-依赖时停止新增)。
+
+## 当前推进顺序
+
+| owner／工作 | 当前状态 | 下一步与恢复条件 |
+|---|---|---|
+| Core 长文本 | FR-01 已实现并完成定向与匹配采样；整体延迟未达标。ADR-059 B1 扩张暂停 | 优先设计 FR-02 贡献组装复用合同，生产 Execute 尚未启动；恢复 B1 前明确端到端收益及推进顺序 |
+| Editor E04 | 移动、创建／drop、单源 resize 已通过定向验证；E04-C／D 未关闭 | 补组合矩阵、完整事件成本和平台输入；校验成本整改提案待评审 |
+| Editor E03 | 开放容器协议、自动行为及部分 Native／Web 输入已验证 | 补 Native 系统 DnD、跨显示器 DPI、完整 Native 组合和内部工作量 |
+| 跨包 S09 | A／B／C 已完成，D 已实现并通过定向验证，整批未关闭 | 补 S09-D 最新 Wasm、成本及最终门禁；保留磁盘不足导致的失败证据 |
+| 平台与发布准备 | P2-G01 surface、M01-D、GA-2／GA-3 仍未完成 | 按[目标调整计划](goal-alignment-adjustment-plan-2026-09-30.md)后置采证；发现 Core 正确性问题仍须重新 Triage |
+
+不同 owner 的状态不是并行 Execute 指令。用户指定 Editor 范围时按 Editor 队列推进，
+不转入 Core 或应用开发。后续 Editor 候选为键盘导航、多视图协调、框选策略和可选编辑支持，
+接口尚未冻结。P2-L01、P2-T03 已完成，不再列为下一批。
 
 ## 已完成批次
 
-| 顺序 | Delta | 范围 | 状态 | 依赖 |
-|---|---|---|---|---|
-| 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `complete` | M9、M10.1 |
-| 2 | P2-C02 | 障碍感知 shortest-path routing | `complete` | P2-C01 |
-| 3 | P2-F01 | ScalablePolygonFigure | `complete` | P2-C01 的 PointList envelope |
-| 4 | P2-T01 | TextFlow 第一阶段 | `complete` | M10.2、D4.4 |
-| 5 | P2-T02 | TextFlow immutable interaction geometry | `complete` | P2-T01 |
+| Delta | owner | 完成范围／依据 |
+|---|---|---|
+| P2-C01／C02 | Core | Connection decoration／locator／visual bounds、障碍感知路由 |
+| P2-F01 | Core | ScalablePolygonFigure |
+| P2-T01／T02 | Core | TextFlow 第一阶段、不可变交互几何 |
+| P2-E02 | Editor／platform | Direct edit、draft、selection、IME、Native／Web bridge 与人工复验 |
 
-状态只表示本页 delta 的执行进度：
-
-- `design-draft`：已形成 ADR 或 normative design 草案，尚未批准进入实施；
-- `not_started`：契约已进入 backlog，尚未实现；
-- `in_progress`：已有实现或验证增量，完成判据尚未全部满足；
-- `complete`：契约、实现、验证和 parity 证据全部闭合；
-- `deferred`：已确认边界，但不进入当前 Core 增强批次。
-
-本批次已于 2026-09-29 完成自动门禁与 macOS Native/Vello 人工验收。后续工作必须
-建立新的 P2 delta 并完成设计评审；FigureInspector、Studio、offscreen thumbnail
-与高级 self-loop 继续保持 deferred，不因本批次完成而自动进入实施。
-
-## 下一批规划
-
-| 顺序 | Delta | 范围 | 状态 | 依赖 |
-|---|---|---|---|---|
-| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `complete` | P2-T02、G1-G5 |
-
-P2-T02 已闭合且未向 Core 引入 mutable editor state。P2-E02b 的 Native/Web input
-bridge 与可运行场景已完成；2026-09-30 视觉回归修正版已通过 Native/Web 人工复验。
-P2-E02 不复制 shaping、caret 或 selection geometry。
+以上批次于 2026-09-29 完成自动和 macOS 验收，E02 的视觉修正版于 2026-09-30
+通过 Native／Web 人工复验。后续能力须登记独立 delta。
 
 ## 长期能力分母批次
 
-以下 delta 承接
-[`Draw2D 长期能力分母`](../parity/draw2d/api-coverage.md#长期能力分母与处置)。
-`deferred` 表示已确认目标和退出条件，但未进入当前实施主线；不能从长期分母中删除。
+对应[Draw2D 长期能力分母](../parity/draw2d/api-coverage.md#长期能力分母与处置)。
+每项实施前核对 `api_semantics`，以可观察行为、失败语义和外部消费者证明等价。
+公开 Render IR 必须被启用后端完整消费或结构化拒绝；只参考 Draw2D／GEF，不采用 Zest。
 
-| 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
-|---|---|---|---|---|---|
-| 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
-| 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
-| 3 | P2-F02 | 开放的 Figure capability registry 与 Runtime mutation | `complete` | ADR-014/019、GA-4 | 外部标准/自定义 capability、无 Core accessor 扩张或横切能力 concrete 分支 |
-| 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02、P2-F02 已完成；Native surface 视觉毕业依赖 P2-G01 present 证据 | A/B/C 已完成；D 待 Native/Web 关键帧、组合场景与实际 runner 预算 |
-| 5 | P2-L01 | Directed/Compound graph layout adapter | `complete` | GA-4 扩展边界、ADR-043 已实施 | 独立模型、默认/外部算法、统一投影、52 个官方组合与 Native 验收、最终门禁 |
-| 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
-| 7 | P2-T03 | fragment style 与剩余 inline/block flow | `complete` | P2-T01/T02、ADR-042 | 测量、paint、interaction 使用同一快照；六个官方 text 入口验收 |
-| 8 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
-| 9 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
-| 10 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
-| 11 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
+已登记切片的语义身份保留如下；具体行为由契约和账本负责，不随状态精简而删除：
 
-共同约束：
+| Delta | `api_semantics` |
+|---|---|
+| P2-F02 | `paint.protocol`、`figure.lifecycle`、`figure.box.client_area`、`figure.properties`、`event.input_listeners`、`accessibility.bridge`、`viewport.scroll_zoom`、`connection.figure`、`text.flow`、`widgets.basic` |
+| P2-S01 | `figure.tree`、`layout.manager`、`notification.ancestor`、`notification.layout_update`、`validation.protocol`、`damage.repaint` |
+| P2-G02 | `graphics.context`、`text.flow`、`text.interaction`、`paint.protocol`、`damage.repaint`、`render.backend_session` |
+| P2-G01 | `graphics.context`、`geometry.primitives`、`paint.protocol`、`builtin.figures`、`connection.figure`、`damage.repaint`、`frame.preparation`、`render.backend_session` |
+| P2-M01 | `animation.timeline`、`animation.presentation`、`frame.preparation`、`damage.repaint` |
+| P2-C01 | `builtin.figures`、`connection.figure`、`connection.locator`；原 P2-R01 PointList visual bounds 合并于此 |
+| P2-C02 | `connection.router` |
+| P2-F01 | `builtin.figures` |
+| P2-T01／T02 | `text.flow`／`text.interaction` |
+| P2-R02 | `graphics.context` |
+| P2-E02 | `direct_edit` |
 
-1. 每项实施前新增或修订 `normative-design` / ADR，并列出 `api_semantics`；
-2. 不以复制 Java 类名作为毕业条件，以可观察行为和失败语义为准；
-3. 所有 public Render IR 必须被启用 backend 完整消费，或在提交前结构化拒绝；
-4. P2-L01 只参考 `org.eclipse.draw2d.graph`，不得使用 Zest 定义目标；
-5. P2-LC01 不恢复自动跨 Runtime 活对象迁移，默认仍是模型/描述重建；
-6. 平台相关 delta 的支持声明以 `platform-support-matrix.md` 为准。
+| Delta | owner | 状态 | 剩余范围或完成依据 |
+|---|---|---|---|
+| P2-S01 | Core | `complete` | 原子 indexed + constraint child add，Builder／Runtime 失败、顺序和通知 |
+| P2-G01 | Core／backend／platform | `in_progress` | Graphics 已贯通；Native surface 局部修复验收未闭合 |
+| P2-G02 | Core／backend | `complete` | 统一测量／绘制、默认与外部 glyph 轮廓链路；不含未来自研 shader |
+| P2-F02 | Core | `complete` | 开放 capability 与统一 mutation |
+| P2-M01 | Core／platform | `in_progress` | A／B／C 已完成；D 缺 Native／Web 关键帧、组合及实际 runner 预算 |
+| P2-L01 | Core | `complete` | 独立图模型、开放 solver、统一投影、52 个官方组合、Native 与最终门禁 |
+| P2-C03 | Core | `not_started` | 跨 viewport Connection 的 nearest-common viewport、damage 和 hit-test |
+| P2-T03 | Core | `complete` | ADR-042 structured flow、fragment style、inline／block 与六个 text 入口 |
+| P2-W01 | Core | `deferred` | repeat scheduler、ButtonGroup／radio／checkbox／slider |
+| P2-O01 | Core／backend | `deferred` | printing／export／ScaledGraphics 等价输出目标 |
+| P2-A01 | Core／platform | `not_started` | Web action／focus 与 Native AT 双向闭环 |
+| P2-LC01 | Core | `deferred` | 同 Runtime live unmount／mount 评估；不恢复跨 Runtime 活对象迁移 |
 
 ## API / 架构 Review 2026-10-09 批次
 
-2026-10-30 首轮 Zoom 图标留白校正后，用户确认改为成员图标底部贴 baseline、
-类图标中心贴参考字母 H 的可见中心。已恢复 SVG，通过外部 preparation 行组合
-与既有轮廓准备服务实施；八项定向测试和独立 GPU 回归通过，
-默认／最大缩放窗口已检查。Release 换字号稳定化 P95 为 4.115 ms；
-范围与限制见[文字指标对齐](../verification/reviews/zoom-typographic-alignment-2026-10-30.md)。
-严格 Clippy 的既有新 lint 阻断保留；默认 Label 语义保持，Zoom 继续 `in_progress`。
-
-2026-10-29 按用户要求优先核验 Flow／Grid／Toolbar 的真实窗口。
-本机 macOS 的系统窗口连续 resize、稳定显示和恢复检查通过，
-每项保存五张屏幕截图，恢复 Canvas 与基线均为零像素差异。
-见[验收记录](../verification/reviews/official-layout-native-window-2026-10-29.md)。
-随后通过正常鼠标事件完成代表性控件和窗口角拖拽，保存 25 张截图及输入日志，
-见[鼠标窗口验收](../verification/reviews/official-layout-native-mouse-2026-10-29.md)。
-Flow／Grid 的拖拽恢复比较为零；Flow 控件循环的屏幕 RGB 最大单通道差值为 1，
-原因未归属。逐帧延迟、跨平台、系统 DPI 切换和上游像素证据仍保留；
-三项继续 `in_progress`，目录计数保持 17 complete／8 in_progress。
-
-同日续验 ScrollPane 的标题移动、角 resize、竖向 thumb／箭头与自动显隐，
-以及 Zoom 的缩放端点、箭头恢复、跨面板捕获和窗口恢复。
-见[窗口记录](../verification/reviews/scroll-zoom-native-window-2026-10-29.md)。
-Zoom 局部恢复比较通过，浮动面板位移和输入法遮挡保留限制；
-滚轮、八向 cursor、跨平台与 DPI 仍未验收，两项继续 `in_progress`。
-
-2026-10-29 按需继续核对 Core 输入边界，先修复 ADR-020 既有颜色解析契约。
-`Color::from_hex` 与 `FromStr` 对六或八字节 Unicode 输入可能 panic，并错误接受
-带正号的分量；现在按 ASCII 字节解析并保留结构化分量错误。三项外部回归、
-九项颜色单测和 Rust 1.96 严格定向 Clippy 通过，
-见[实施记录](../verification/reviews/core-color-text-input-2026-10-29.md)。
-随后完成 [ADR-056 草案](../adr/adr-056-detached-input-invariants.md)、
-[输入不变量设计](../design/architecture/detached-input-invariants.md)与
-[验证矩阵](../verification/plans/p2-s08-detached-input-invariants.md)。
-用户随后批准按更新后的 ADR-056 实施 S08-A。受检样式与 Opacity 迁移已实现，
-验证和成本记录见 [S08-A 实施记录](../verification/reviews/p2-s08-a-implementation-2026-10-29.md)。
-S08 后续 B／C／D 已完成，整批状态为 `complete`，
-关闭依据见[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md)；
-颜色修复本身不作为整批关闭依据。
-
-2026-10-28 继续补充官方 PrintExample 与 ZoomExample 的宿主字体采用。
-样例宿主通过 Fontique 查询系统集合，使用既有字体资源协议向 Runtime 注入实际字节；
-Core 继续保持显式
-字体集合，不启用隐式系统扫描。macOS 已采用 Helvetica、Times New Roman 和 Arial，
-Perpetua 缺失时明确回退 Inter；16/24/48 point 按 96/72 映射为逻辑像素。
-Zoom 的 12 point 映射为 16 逻辑像素。定向测试核对资源身份、字号、图像、连接与
-resize 恢复；Native 截图已检查。其他平台字体采用和像素验收保留，两个入口仍为
-`in_progress`。实施记录见
-[Print、Zoom 与 UML 系统字体采用](../verification/reviews/official-system-fonts-2026-10-28.md)。
-同一宿主协议随后接入 UML 的 system-ui regular 与 10 point bold 标题；普通成员和
-连接标签通过根 Figure 继承。字体资源身份、字号、原始图标命令、DogEar、窄宽便笺
-和 Native 截图均已核对，UMLClassDiagram 升为 `complete`。当前目录为
-17 complete、8 in_progress。
-同日，官方样例共享窗口与 InheritBackground 独立窗口的标题改为显示固定序号和
-中文 parity 状态，状态直接读取 catalog，不建立第二份完成度数据。
-
-2026-10-27 用户批准先核验 Caret 与三种布局的真实消费者。
-本批发现并修复组合字素选区终点被拒绝，以及 Grid 分配列宽后遗漏文字重测。
-Core 字素范围查询与外部 provider 共用原交互协议；Grid 受约束测量和放置共用
-列宽/重测/行高阶段。补充消费者与 60 组 Native retained GPU 对照已通过，
-其中 18 帧实际 Partial。记录见
-[布局与 Caret 核验](../verification/reviews/official-layout-caret-consumers-2026-10-27.md)。
-连续窗口事件、surface present、真实字体与跨平台验收保留；
-官方入口仍为 16 complete、9 in_progress。长文本继续原 LT 批次，不另开实施线。
-
-2026-10-26 按用户要求先分析、再补官方样例能力，形成
-[能力补充方案](../design/architecture/official-example-capability-increment-2026-10-26.md)。
-现有 K02/K08 契约内先实施 HelloWorld resize、UML DogEar 与 ShapeStyles 几何修正；
-验证结果见 [实施记录](../verification/reviews/official-example-capability-increment-2026-10-26.md)。
-2026-10-27 用户批准方向上下文、低 miter、Cocoa 零宽映射和通用下划线。
-方向切片按 [ADR-048](../adr/adr-048-inherited-layout-direction.md)已通过定向
-测试与 Core 严格 Clippy，含方向/resize 的 GPU Partial/Full 比较；
-K08 低 miter 与 Cocoa 零宽映射已按 [ADR-049](../adr/adr-049-low-miter-and-cocoa-sample-profile.md)
-接入两条后端并通过 GPU Bevel 对比；通用下划线按
-[ADR-050](../adr/adr-050-prepared-text-underlines.md)完成实际字体/run 准备、公开绘制
-和局部擦除回归。本批最终门禁与产物成本已完成：
-workspace 1,516 项测试通过，严格 Clippy、Native/Wasm API、三本书和 GPU 复核通过。
-完整记录见 [本批 Core 增量](../verification/reviews/official-example-core-increment-2026-10-27.md)；
-下划线准备 P95 为 0.207–0.349 ms；同配置 Core 探针启用后的 Wasm gzip 增加 18,690 字节。
-通用设备 hairline 保持独立 Design/Gate。
-SWT Cocoa/GTK 的零宽处理不等于统一设备 hairline。
-本批不变更入口完成计数，不覆盖此前快照，也不启动第二个 Core 实施切片。
-
-2026-10-26 [25 入口功能复核](../verification/reviews/draw2d-official-examples-functional-audit-2026-10-26.md)
-发现 BidiBlockExample 的右侧 Canvas 镜像遗漏，入口撤回 complete，当前目录为
-16 complete、8 in_progress、1 blocked。此发现回到 K05/K07 的契约核验，
-不撤销已通过的 structured flow 和 shared range 能力证据，不新增并行执行批次。
-Caret 选择绘制与边界、HelloWorld resize 和跨入口字体替代列为待核验；
-原始完成记录保留其当时快照。
-
-2026-10-19 按用户批准的
-[官方示例 Core 计划](../verification/plans/draw2d-official-examples-core-plan.md)
-按用户最新要求只推进 25 个入口中的 Canvas / LightweightSystem 能力。
-Java 仅作只读语义参考，撤销 Java 编写/运行探针及其生成基线、验证门禁；
-撤销 SWT 原生控件库、完整面板对等和真实打印作业作为本计划目标。
-临时示例控制工具可以保留，但不作为 Core 演进方向或完成条件。
-K01 的 subtree/回执、资源准入、contents 替换、Connection binding 和消费者保留；
-K02 的 Grid span/grab 与 Flow/Toolbar 测量修复保留，改用独立 Rust 契约验证。
-撤销及 Rust 回归已完成。当前 K03 首批修复普通 Locator child 的旧 bounds 尺寸，
-改为受检 preferred measurement，非法测量拒绝路由批次并可恢复；
-2026-10-21 补齐普通 Locator child 的 layout generation 失效跟踪，尺寸覆盖/重置与
-UML 连接文字修改无需端点移动即可重新定位；测量失败可自动恢复并保持稳定。
-owner-side 定位已按用户批准的 [ADR-039](../adr/adr-039-owner-aware-connection-locator.md)
-接入统一 LocatorInput/ChildLocatorPlacement、tracked owner 边界与官方 UML，最终门禁通过。
-保留 EndpointLocator 既有切线偏移；ConnectionEndpointLocator 实现 owner 四侧与 child-size 定位。
-Obstruction 已按用户批准的 [ADR-040](../adr/adr-040-group-route-solving.md)
-实现完整组求解、visibility/shared corner 与 Canvas 生命周期。
-外部 solver、失败恢复、独立障碍不变量、真实输入与四阶段 Native 截图已验证；
-最终 workspace 门禁通过（1,155 项测试通过、1 项忽略）。K03 的其他示例验收继续保留。
-2026-10-21 按用户要求实施 [ADR-041](../adr/adr-041-composable-scrollbar.md)：
-独立 ScrollBar 的五个普通 Figure 部件、可替换 RangeModel/thumb、横纵布局、
-250ms/40ms 连发及取消共用公开 FigureActivity；Zoom 删除私有组件，
-ScrollPane 复用同一实现。九项外部契约、26 项 viewport 回归、Zoom 两项交互
-与 Native 截图通过；最终 workspace fmt、Clippy 和 test 通过
-（1,164 项通过、1 项忽略）。
-K04 通用切片完成后回到 K05 的只读源码契约与设计，Path/MultiLineLabel
-仍依赖文字流和 Graphics 增量，不关闭 K04 整批。K05 先形成可评审契约，
-重大公共 API 变更依仓库规则评审后实施。
-K05 已按用户批准进入 [ADR-042](../adr/adr-042-structured-flow-layout.md) 实施，
-明确开放贡献协议、styled request、同 revision fragment 快照、
-FlowBorder 和真实 Figure placement；现已完成。
-styled 引擎、通用原子 preparation、开放 flow registry、结构化节点与来源快照
-已有独立消费者证据。相邻/嵌套 margin、跨字号 baseline、RTL 对齐、fragment
-命中、真实 Figure 二次测量、外部 fragment border 与字体/来源失效已覆盖；
-普通 page/block Border、外部 root 的公开布局服务、跨段落首尾边框与独立替代
-文字引擎已补齐。内嵌反馈失败闭环、四侧边框度量与六个 text 入口均已实现，
-Native 六个截图与 56 项示例测试通过；最终 workspace fmt、check、Clippy 和 test
-通过（1,216 项通过、1 项忽略）。后续回到 K06、K07/K08 的依赖顺序。
-2026-10-22 Path 首个消费者切片已接入，状态改为 in_progress。通用 BorderLayout
-修复显式 Center 预留不存在的边带；Path 的真实 ScrollBar 输入、旋转路径、
-双绘制选字与 Native 最小/最大截图已覆盖。SchemeBorder 与字体指标下划线
-仍留在 K08；不关闭 K04/K05/K08 整批。接下来进入 P2-L01 Design，
-只读 Draw2D 图算法与官方 fixture，形成独立模型、求解器与 Figure 投影契约。
-[ADR-043](../adr/adr-043-directed-compound-graph-layout.md) 修订 1 已获用户批准，进入实施；
-默认/外部算法共用 typed registry，16+10 个 fixture 的双方向组合共 52 项。
-按纯请求/结果与 registry → Directed → Compound → Figure/Connection adapter →
-两个官方场景推进；纯请求/受检结果与开放 registry 第一切片已实现，
-18 项外部非分层协议测试通过。Directed 阶段已实现确定性消环、加权 rank、
-virtual nodes、排序/放置与有限走廊路由；16 fixture 的双方向 32 组合、
-穷举加权目标及独立端点/排序/证据验证通过。Compound 的包含域消环、head/tail、
-bridge、连续区块与共享 separator 已实现，10 fixture 的双方向 20 组合、
-小数几何与嵌套/反馈端点反例通过。统一 Figure/Connection adapter 已完成 Core 接入，
-官方场景与整体交付随后完成，最终证据见本段末尾。
-adapter 实施前的静态核对确认候选 bounds 可读，但候选领域数据/身份、prepared Figure 的
-约束重测量和整组必需路由发布缺少完整契约。随后形成
-[候选快照查询提案](../design/architecture/graph-projection-preparation.md)，
-已按[增量评审意见](../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
-完成提案修订 2，全部采纳 GP01–GP04，补齐 identity 保留条件、结构环检测、
-测量优先级与结构化错误。用户随后授权按 ADR-043 和增量方案推进 Core 编码，
-修订 2 进入实施，先推进候选快照查询与必需组发布，再推进测量/source 前缀和 adapter。
-Core 约束测量协议已落地：`measure_scene`/`measure_figure`、独立 preferred/minimum
-来源选择、单次 Border 组合、结构化错误和测量重入检查。独立外部消费者覆盖
-新约束、override/LayoutManager 优先级、不支持/非法尺寸/baseline、非对称边距、
-缩放、有限输入溢出及错误 source 链。后续 Core 批次已接入 Runtime 快照身份、
-稳定结果版本、源/派生 bounds 分离、路由快照依赖及必需组发布检查。
-快照计算观察已参与路由环检测，必需组准入拒绝读取路由及 Locator 子树输出，
-受检查询与缓存复用校验观察。必需组连接的成功记录支持同源 resolved 恢复，
-改源/绑定失败不能恢复旧 resolution，首帧失败保留重试入口。
-LayoutManager 子查询已进入同一受约束测量会话；preferred/minimum 单独分派，
-缓存命中保留传递观察，嵌套错误保留叶节点及原始原因。
-受约束测量源依赖与已提交 metrics 依赖已分开；同源失败后重试保留
-快照 identity、resolved metadata 和 route calculation count。
-快照源输入已改为逐项比对，批次写入前复核源与计算观察。
-字体替换或移除立即撤销旧快照的路由查询权限，重新准备后更新 identity；
-`p2_prepared_scene_routing_contract` 覆盖资源变更后的显式路由拒绝与恢复。
-挂载时的 capability/显式依赖和 component effect 绑定的资源状态参与源前缀与测量源依赖；
-图片完成或移除后，失败恢复保留资源变化并拒绝旧 resolution。
-无关图片更新不替换图快照；测量、路由及 Label 定向回归共 42 项通过。
-同批候选依赖校验、共享预算与 FlowPage/TextFlow 的约束测量已完成 Core 接入。
-统一 `GraphProjection` producer、完整 flat binding、候选宽度重测量、
-attachment Anchor 与整组完整路径输出已实现；外部非分层算法走同一 adapter。
-纯结果缓存核对精确源输入与最终测量，Runtime 保持唯一发布权威。
-宿主可配置每次完整稳定化的有限预算，图求解与测量继续共享计数器。
-官方 Directed/Compound 场景已接入，52 个组合通过真实 Label、完整路径和 binding
-检查；宿主菜单真实点击覆盖 fixture/方向替换。Core graph 容器的受约束测量复用纯
-producer，tracked viewport 测量/滚动保持图 identity 和路由计算次数。
-Native 代表性截图已生成并检查。普通布局约束测量、共享不可变源前缀及
-Editor 文字 offset 更新后的稳定查询已补齐，默认预算保持不变。
-最终 workspace fmt、check、严格 Clippy、test 通过（1,321 项通过、1 项忽略、
-0 项失败）；五个应用探针、Web backend 编译和公开 API 边界门禁均通过。
-P2-L01 为 `complete`，证据见[实施记录](../verification/evidence/adr043/implementation.md)。
-原 ADR 修订 1 与增量修订 2 保持有效；K06 的 tree contour 与动画不随图布局关闭。
-Canvas 内的 size/reset、文字换行和布局边界继续保留。Draw2D Figure ScrollBar、TextFlow、
-MultiLineLabel 等仍在范围内；平台只承担 Canvas 输入、DPI/font、surface、背景源
-和生命周期适配。K00/H04 的清单与场景验收按 Canvas 范围维护，S08/S09 未启动。
-
-2026-10-23 官方示例继续消费现有 Core：ConnectionAndAnchor 改为 owner-aware
-端点标签并使用真实标题测量；PageNode 根据选中状态绘制蓝色渐变；PrintExample
-增加完整 Canvas 组合和图形输出消费者。K08 普通扩展增加 SchemeBorder 与受检字体
-下划线指标，Path/Zoom 滑块标签接入同一 Border 契约；K09 增加原始 ICO 解码；
-Zoom 使用原始 SVG，经已有解码器在固有尺寸栅格化。
-契约见[本批增量](../design/architecture/official-example-border-output-increment.md)。
-K07 的共享树投影和透明 Canvas 背景输入为下一批 Design；K06 动画、K08 AA 模式、
-SVG 随缩放/DPI 重栅格化与混合字体装饰仍保留未完成，不扩张本批完成范围。
-ConnectionAndAnchor、Path、SimpleTree 已收口，入口状态为 14 complete、8 in_progress、
-3 blocked；本批[交付证据](../verification/evidence/official-examples-2026-10-23/implementation.md)
-保留真实 Native 截图与验证边界。
-
-2026-10-23 后续复核形成
-[11 个未收口入口的工作清单](../verification/plans/draw2d-official-examples-next-slices-2026-10-23.md)。
-Grid 的 Native Canvas 用普通 MarginBorder/FillLayout 跟随逻辑视口 resize；
-跨列 grab/fill Shape 的缩小、放大、恢复及 surface 原点通过真实入口回归。
-Toolbar 的方向切换、stretch、收缩和尺寸恢复通过真实 Shape geometry 回归。
-ScrollPane 的五部件 ScrollBar 已实现，清除将其列为缺失 Core 能力的过时描述。
-本批不关闭入口或 K02；当前仍为 14 complete、8 in_progress、3 blocked。
-K07 进入 `design-draft`：
-[共享视图与宿主背景草案](../design/architecture/shared-scene-view-background-proposal.md)
-提出不可变源快照、destination 资源导入与独立宿主背景帧输入，待用户评审，
-没有开始共享视图实现；K06 动画和 K08 AA/SVG 保留原状态。
-本批执行证据见
-[后续实施记录](../verification/evidence/official-examples-followup-2026-10-23/implementation.md)。
-
-K07 草案已按
-[2026-10-23 评审记录](../verification/reviews/k07-shared-scene-view-background-review-2026-10-23.md)
-形成修订 2，逐项采纳 K07-R01 至 K07-R08，处理说明见
-[修订响应](../verification/reviews/k07-shared-scene-view-background-revision-2026-10-23.md)。
-共享场景捕获与宿主背景统一合成作为两个独立决策，分别固化 ADR 和验收；
-当前仍为 `design-draft`、待复核，未获实施批准，不改变其他批次状态。
-
-K07 [修订 2 复核](../verification/reviews/k07-shared-scene-view-background-revision-2-review-2026-10-23.md)
-暂不通过：循环依赖按实际捕获内容统计，尚未覆盖普通几何与 derived commit 的写入前保证。
-原方案已形成修订 3，改为捕获根整棵子树的保守结构依赖，由 Runtime 统一提交器强制
-准入并在提交点重验 graph revision；同时补齐捕获根的最近值 alpha 继承。
-处理见 [修订 3 响应](../verification/reviews/k07-shared-scene-view-background-revision-3-response-2026-10-23.md)。
-当前仍为 `design-draft`、待复核，未获实施批准，保留原复核记录与其他批次状态。
-
-2026-10-23 [修订 3 设计复核通过](../verification/reviews/k07-shared-scene-view-background-revision-3-review-2026-10-23.md)，
-用户明确批准开始实施。已固化 [ADR-044](../adr/adr-044-shared-scene-capture-and-view.md)
-和 [ADR-045](../adr/adr-045-host-background-submission.md)；K07 从 `design-draft` 转为
-`in_progress`。下表是本批唯一执行切片，已批准契约不因切片安排缩减：
-
-| 顺序 | 切片 | 当前状态 | 最低退出证据 |
+| Delta | owner | 状态 | 契约与完成证据 |
 |---|---|---|---|
-| K07-1 | source-local capture、完整资源闭包、身份/配置、订阅有界更新与终止交接 | `complete` | [捕获证据](../verification/reviews/k07-1-scene-capture-evidence-2026-10-23.md)：13 个外部契约测试、397 个库级测试；alpha/clip/精确资源、暂停/在途/错误隔离、独立终止和 API 28/28 已验证 |
-| K07-2 | binding group、保守结构依赖与 Runtime 强制提交准入 | `complete` | [共享组证据](../verification/reviews/k07-2-scene-group-evidence-2026-10-23.md)：9 个外部反例、5 个内部准入反例与 28 个子树回归；交错候选、hidden/rect 外、callback/typed reparent、完整替换和耗尽批次已验证，API 28/28 |
-| K07-3 | destination 多版本导入、SceneView Figure 与测量/完整 damage | `complete` | [目标视图证据](../verification/reviews/k07-3-scene-view-evidence-2026-10-23.md)：11 个外部契约、13 个定向库级检查；完整库级 407 项通过；font/image 共存、Border/提示、stale/conflict、reset/Retry、释放及 API 28/28 |
-| K07-4 | Thumbnail 官方 Canvas 与真实双视图消费者 | `complete` | [消费者证据](../verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md)：独立活源 Runtime、真实目标输入、两个只读视图、resize 不重新捕获、终止清理及三张 Native 截图 |
-| K07-5 | 宿主背景候选、统一输入冻结与恢复 | `complete` | [背景证据](../verification/reviews/k07-5-host-background-evidence-2026-10-23.md)：7 项外部契约、身份耗尽与 Native GPU 像素通过；版本拒绝、移除/迟到、lease、Retry/reset、明确清屏和后端拒绝，API 28/28 |
-| K07-6 | InheritBackground 官方 Canvas 与平台合成验收 | `complete` | [双 Canvas 证据](../verification/reviews/k07-6-inherit-background-evidence-2026-10-23.md)：真实双 Runtime、宿主 typed provider、opaque/transparent、内容滚动与 Canvas 移动、背景移除、DPI、暂停恢复及 session repair 的 Native 像素通过 |
+| P2-S02 | Core／Editor | `complete` | ADR-035 显式领域导入和 crate root；[完成记录](../verification/reviews/p2-s02-explicit-domain-imports-completion-2026-10-09.md) |
+| P2-S03 | Core | `complete` | ADR-033 子 facade 与统一 Figure mutation；[完成记录](../verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md) |
+| P2-S04 | Editor | `complete` | ADR-034 开放 Tool／Request／Policy／Handle；[完成记录](../verification/reviews/p2-s04-editor-open-protocol-completion-2026-10-10.md) |
+| P2-S05 | Core | `complete` | 深层布局和文字 presentation；[完成记录](../verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
+| P2-S06 | Editor | `complete` | ADR-037 与矩阵修订 2；[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md) |
+| P2-S07 | Core | `complete` | ADR-038 查询身份与失败；[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md) |
+| P2-S08 | Core | `complete` | ADR-056 的 A／B／C／D；[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md) |
+| P2-S09 | Core／Editor／Inspector | `in_progress` | ADR-057 修订 3 已接受；A／B／C 已完成，D 定向通过、成本和最终门禁待补验 |
 
-K07 六个批准切片已完成，Thumbnail 与 InheritBackground 的 macOS Native 消费已验收。
-Web 背景像素、Windows/Linux runner 和跨显示器系统 DPI 仍未验收；
-其他 K06/K08 与 S08/S09 的状态保持不变。
+S06 永久限制：不承诺完整 synchronize 前缀、扩展副作用或成功模型命令回滚；
+Web 异步 fault 退出保留 `S06-PL02`，Native surface 归 G01。
+S08 关闭 R03／TC-03／API-F04／API-10；颜色解析修复不单独证明整批完成。
+S09、R07 与 TC-10 保持未关闭，Inspector 容量 64／4096 的成本证据不代表引擎最大容量验收。
 
-2026-10-23 返回 K02/H04 已批准的布局消费者契约，Flow/Toolbar/Grid
-[后续核验切片](../verification/reviews/k02-layout-consumers-evidence-2026-10-23.md)已完成：
-Flow 的官方 majorSpacing 映射到行间距、minorSpacing 映射到元素间距；
-Flow/Toolbar 通过普通 MarginBorder/FillLayout 随 Host 视口布局；验证实际 egui 输入、
-方向/双轴 alignment/stretch/尺寸恢复及连续 Native GPU 提交后的旧像素清理。
-真实面板、零可用空间恢复、Native GPU 擦除、两张窗口截图和最终 workspace 门禁通过。
-本批不新增 Core API；连续 Native 窗口 resize、文字 minimum 与 retained-partial
-像素仍待验收，不关闭三项完整入口或 K02 批次。
-
-2026-10-23 K08 SVG 密度切片按
-[纯解码契约](../design/rendering/svg-raster-density.md)实现：
-保留解析源，分配前校验像素预算，更新密度时自然尺寸不变；Zoom 通过普通资源 token
-替换三个共享图标，同密度不重复更新。Native GPU 替换与恢复像素已验证，
-见 [SVG 证据](../verification/reviews/k08-svg-density-evidence-2026-10-23.md)。
-同时修复 K06 Disabled/ReducedMotion 在零尺寸折叠布局中提前构造仿射变换的错误。
-Tree branch/lines/viewport 动画、逐 Shape AA 和混合字体装饰仍未完成；
-Zoom 的完整入口和跨显示器系统 DPI 验收不随此切片关闭。
-下一步进入 [Tree 表现几何](../design/animation/tree-layout-presentation-proposal.md)
-的 Design/Gate；现有 affine 过渡不能表达上游真实 bounds 重放。
-[逐图形 AA](../design/rendering/shape-antialias-proposal.md)也已形成待评审方案，
-先评审后端可行性切片，不将 hairline 或低 miter 隐式并入 AA。
-两份方案均未进入 Execute。
-
-2026-10-26 逐图形 AA 的独立后端实验已通过，证据见
-[设备像素游程实验](../verification/reviews/shape-aa-feasibility-2026-10-26.md)。
-[方案修订 2](../design/rendering/shape-antialias-proposal.md)改为受预算约束的设备
-像素中心采样与整数游程路径，复用现有 Vello 合成；不引入依赖 fork。
-AA-0 只关闭实验，AA-1–AA-4 仍为 Design/Gate、待批准，Core 与生产 backend
-未实施；ShapeStyles 仍为 blocked。Hairline、低 miter 和混合字体装饰保持独立。
-
-2026-10-26 用户批准按方案修订 2 实施，接受
-[ADR-047](../adr/adr-047-per-operation-antialias.md)。AA-1 进入 `in_progress`，
-AA-2–AA-4 为 `pending`；按顺序推进，每次最多一个实施切片。
-ShapeStyles 的完整入口状态待实际契约与像素证据裁定，hairline 与低 miter 保留原边界。
-
-AA-1 Core 契约与外部消费者验证已完成，见
-[实施记录](../verification/reviews/per-operation-antialias-implementation-2026-10-26.md)。
-Native/Wasm Core check、严格 lib Clippy、workspace check 及 49 项定向测试通过；
-公共快照与全量门禁随完整增量退出核验。随后按单链推进 AA-2–AA-4，
-截至下述实施复核的状态为：
-
-| 切片 | 当前状态 | 退出内容 |
-|---|---|---|
-| AA-1 | `complete` | 独立提示、命令冻结、状态恢复、外部消费者与两级拒绝 |
-| AA-2 | `complete` | 预算扫描线、完整缓存身份、描边/文字准备与提交前检查 |
-| AA-3 | `complete` | 默认回归、混合像素、DPI/恢复、release 性能与体积 |
-| AA-4 | `complete` | 原始样式矩阵消费者、受支持输入与清理恢复 |
-
-2026-10-26 AA-1–AA-4 的实现及既定自动验证切片完成，最终 API/workspace 门禁
-通过；workspace 测试通过 1,501 项，8 项忽略。40 个 GPU 矩阵通过，
-ShapeStyles 改为 `in_progress`；
-窗口呈现、浏览器像素及完整上游几何仍待验收。目录当前为
-16 complete、9 in_progress、0 blocked。持续变换 DPI 2 的帧等待 P95
-实测为 19.7–28.9 ms，不保证 60 fps；成本与产物增量见上述实施记录。
-Hairline、低 miter 与混合字体装饰未实施，不将这些输入夹值后登记为对等。
-
-2026-10-24 Tree 方案已按
-[首轮评审 R01–R10](../verification/reviews/tree-layout-presentation-review-2026-10-24.md)
-完成修订 2，逐项响应在方案正文。当前仍为 Design/Gate、待复核，未批准实施；
-T-1–T-4 与其他批次状态不因文档修订改变。
-
-2026-10-24 [修订 2 复核](../verification/reviews/tree-layout-presentation-revision-2-review-2026-10-24.md)
-暂不通过，F01/F02 要求明确采样时刻与预算失败归属。当前方案已形成修订 3，
-以最后成功 Runtime 采样的完整表现版本作为锚点，按准入预留容量并区分单组违约
-和共享不可用；逐项响应与退出证据见方案正文。仍为 Design/Gate、待复核，未批准实施。
-
-2026-10-24 [修订 3 设计复核通过](../verification/reviews/tree-layout-presentation-revision-3-review-2026-10-24.md)，
-用户明确批准落地，接受 [ADR-046](../adr/adr-046-sampled-geometry-and-animation-reservations.md)。
-K06 Tree 几何按下表单链进入 Execute，不缩减批准契约；逐 Shape AA 与混合字体装饰
-不在本次 Tree 实施范围。
-
-| 顺序 | 切片 | 当前状态 | 最低退出证据 |
-|---|---|---|---|
-| T-1 | typed 真实几何、S/E 物化、capture/retarget、派生依赖与容量预留 | `complete` | 完整读取与外部 typed 扩展、S/E/留存/净替换/失败回归、公开 API 和全量门禁通过 |
-| T-2 | Tree 静态/动画同源端点、冻结内容与资源版本 | `complete` | Normal/Hanging 静态端点与动画同源；字形和线条回归通过 |
-| T-3 | 显式 Viewport、收拢与兄弟重排、直接输入接管 | `complete` | 当前 S 反向、后代中心收拢、wheel/scrollbar/公开写入、旧 owner 冲突通过 |
-| T-4 | 默认关闭的真实面板与完整 Native 验收 | `complete` | Native GPU 中间帧与 partial/full 擦除、模式最终像素、Retry/reset/释放通过；surface present 独立保留 |
-
-T-1 已完成基础 Motion 缓存的同时间幂等、整组样本预检后发布，以及活动轨道预留、
-净容量替换、独立 staging 和配置下调拒绝。公开 `sample_version()` 区分 Unanchored
-与最后接受的时间，并标识同时间的活动集合变化。定向测试
-`p2_animation_sample_reservation_contract` 的 4 项、原有 `p2_animation_contract` 的
-29 项与 `p2_animation_transition_contract` 的 15 项通过。
-2026-10-25 基础切片通过 workspace fmt/check、严格 Clippy 和完整测试：
-1,420 项通过、0 失败、6 项按原有配置忽略；文档门禁通过 373 份 Markdown。
-真实 bounds、完整 E、几何 provider、节点/输出工作上限和快照 lease 尚未完成；
-这些基础证据不代替 T-1 退出验证，状态继续为 `in_progress`。
-
-2026-10-26 T-1 新增独立 `LayoutBounds`、typed 几何 descriptor、缓存表现几何与
-Runtime capture/真实 bounds 事务入口，保留旧 affine 过渡。派生协议先发布几何，
-再通过受检 builder 生成 owned 线条；循环、未声明查询、重复输出和内容 owner 冲突
-在预检拒绝。输出越限保留 provider 身份与声明/实际计数，清除所属整组；共享分配
-失败返回准备错误，不驱逐合法组。静态重建不再次运行失败 provider，并复用无关组
-已成功的派生结果。route/dash 原有家族组合回归保持通过。
-
-定向证据：`p2_animation_geometry_contract` 17 项、
-`p2_animation_sample_reservation_contract` 4 项、原有 animation 29 项、
-behavior 7 项与 transition 15 项均通过；几何与预留目标的严格 Clippy 通过。
-仍需完成快照/capture/提交与资源的真实留存容量、完整冻结绘制输入以及实际工作量
-证明。当前容量实现包含多维准入与线条输出声明，但不能替代这些剩余条件，
-T-1 继续为 `in_progress`，T-2 至 T-4 保持 `pending`。
-
-T-1 后续增量为 owned capture 增加独立 `capture_bytes` 配额和随 capture 释放的
-留存凭证。共享同一几何对象的多个 capture 也分别承担留存责任；额度不足拒绝新
-capture，配置下调低于存活 capture 时原子拒绝。当前字节统计覆盖几何集合、子顺序、
-源依赖集合与字符串，不包含 opaque drawing、边框内部数据及字体/图像 payload；
-提交包和恢复前缀的独立留存记账仍待完成，不能据此关闭 F02。
-静态 capture 也执行节点、边与集合存储预检；祖先 child order 在克隆前检查边上限。
-几何数据由不可变 Arc 共享，无关源 epoch 变化只替换版本包装，不再深拷贝几何表；
-最大根归并缓存父链判断，避免重叠目标重复扫描相同祖先。样式、opaque、裁剪策略和
-可取得的边框对象从冻结输入读取；任意 Figure 自绘及 visual bounds 的完整冻结
-仍属 T-1 剩余条件。
-本增量定向回归为几何 19 项、采样预留 4 项、原 affine transition 15 项通过；
-上述两个新协议目标与 Core lib 的严格 Clippy、373 份 Markdown 文档门禁及
-`git diff --check` 通过。这些结果未覆盖剩余的 payload/资源留存和 Native 验收。
-
-内容冻结增量新增 `FigureContentSnapshot` 与 typed `CONTENT_SNAPSHOT` capability。
-Label 和外部 Figure 使用同一注册入口，将已准备的自绘输入复制到不可变 drawing；
-采样与录制不再读取这些 Figure 的当前内容。内容 revision 变化取消关联组；仅布局
-位置或尺寸变化仍可使用原冻结输入。静态 capture 也保留预检时取得的内容快照。
-Label 定向测试直接统计 TextLayoutEngine 调用，并比较各采样帧的完整 glyph runs；
-外部消费者测试覆盖单次冻结、连续录制和 revision 失效后切回静态绘制。
-本增量回归为几何 21 项、采样预留 4 项、原 affine transition 15 项通过。
-该能力仍不提供 opaque drawing 或字体/图像 payload 的字节统计与资源 lease；
-这些留存条件和通用 bounds-dependent 自绘仍待完成，T-1 状态不变。
-
-资源冻结增量在准入边界将内容 drawing 录制为不可变命令，继承解析后的画笔样式；
-录制器在追加命令时检查存储额度，回调忽略错误也不能发布截断内容。不透明回调及其
-domain data 不进入动画快照；glyph、路径、渐变、dash 和精确字体/图像 payload 纳入
-留存字节统计，同一冻结源内的资源版本去重。捕获不消耗资源同步前缀，资源 revision
-变化取消关联组，即使消费者未手工注册 resource dependency。
-新增外部消费者回归验证 capture 保留旧图像版本，Runtime 销毁后该资源仍由 capture
-持有，最后一个 capture 释放后资源才释放；另一回归验证不透明绘图回调中的共享数据
-变化不会污染已冻结命令。边框数据、提交与恢复前缀的独立存储保证、通用自绘冻结
-和工作量证明仍待完成，T-1 不关闭。
-
-提交留存增量新增 `AnimationLimits::submission_bytes` 与公开
-`RenderSubmission::retention`，提交包、in-flight 和 Retry 恢复前缀共享独立存储凭证。
-准备失败不消耗帧编号或资源同步前缀，不清理合法活动组；新提交成功取得额度后才
-移交旧恢复责任。damage 基线缩减为版本与 surface envelope，不保留 drawing。
-几何 binding 与 provider 统一使用固定 `Copy` 值表示，值的 Arc 分配纳入字节统计。
-新 capture 在冻结内容前取得有限存储预留，完成后归还未使用额度；owner 结束时清理
-无查询权限的旧缓存。边框、通用自绘与缓存/候选的完整峰值证明、实际工作计数仍待完成。
-
-冻结自绘增量新增 typed `BOUNDS_SNAPSHOT` 与 `BoundsDrawing`：固定 `Copy` 输入、
-函数指针和有限命令存储声明共同描述 sampled border box 下的绘制。矩形、
-Line/Margin/Rectangle/Bevel/Etched/Compound 边框使用同一扩展接口；复合描述显式
-累计子描述存储和 inset，不保留可变 Border 对象或旧私有边框枚举的堆数据。
-未提供尺寸描述的普通 Figure 自绘在捕获时录制为固定内容，动画录制不调用原 Figure。
-自绘输出越限携带 Figure 与声明/实际字节数，只清理关联组并重建静态内容。
-静态 capture 缓存持有共享留存凭证，几何与节点视图不提供公开 Clone，独立留存
-必须通过 capture 或提交包取得额度。标题与 Scheme 边框的冻结描述、完整峰值预检
-和实际工作计数仍待完成，T-1 保持 `in_progress`。
-
-后续冻结绘制增量补齐椭圆、SchemeBorder 与 TitleBarBorder。Scheme 的各层端点和静态
-协议一致；标题通过 `BoundsDrawing::recorded` 保留排好的字形和精确字体资源，只按
-采样宽度调整位置。继承颜色经通用边框入口冻结，CompoundBorder 使用同一接口递交
-子边框，不保留可变文本布局或边框对象。记录描述和复合描述累计命令、作用域及资源
-存储上限；资源版本冲突在冻结阶段拒绝。
-capture 在候选集合分配和尺寸相关绘制前检查合并依赖闭包及源/候选共存峰值；
-活动预留使用同一集合与命令上限。Disabled/ReducedMotion 通用 start 在内容冻结与
-provider 预检前返回静态 fallback，仍校验 channel 身份和最终值。几何定向回归 28 项、
-采样预留 4 项、原有 animation 29 项、behavior 7 项与 affine transition 15 项通过；
-新增标题字形/颜色/字体留存、峰值不足时不执行绘制回调和静态模式不调用冻结/派生
-接口的反例。完整物化工作计数与 provider 配置存储证明
-仍待完成，T-1 保持 `in_progress`，T-2 至 T-4 尚未启动。
-
-工作量与配置增量将 provider 回调收紧为固定 `Copy` 捕获，配置、依赖容器容量、
-调度临时表和结果表纳入预留。调度使用线性拓扑队列；查询及坐标操作逐次计数，
-忽略越限错误仍拒绝发布。几何遍历提供 `materialization_work()` 实际节点、child
-order、矩阵、clip 与 envelope 计数，发布前核对上界；capture 核对合并源工作容量。
-活动存储增加 provider 阶段重建与当前/候选共存预留。旧 typed Motion 通过
-`AnimationValue::storage_bytes()` 计入内联与堆存储，PointList 包含 Vec 容量；
-采样超过端点/当前值声明时以 `TrackStorageExceeded` 终止所属组。
-新增配置拒绝、查询越限被忽略、嵌套节点去重与旧轨道堆值越限反例，退出验证待运行。
-
-`AnimationPlan::geometry_track()` 显式区分表现终点与已提交最终几何，只接受
-GeometryBinding 通道。完成/取消清除覆盖后显示源状态；普通 track 的最终值校验
-保持不变。该入口承接批准方案的非零收拢终点，不引入 Tree 特殊通道。
-
-上述增量已通过 Core lib 与五个 animation integration target 的严格 Clippy、
-33 项几何、4 项采样预留、29 项基础动画、7 项 behavior 与 15 项旧 transition
-回归；373 份文档检查及差异空白检查通过。T-1 关闭前仍需总体验证与 API 证据复核，
-本记录不代替后续 Tree 消费者及 Native 像素验收。
-
-Tree 消费者接入准备已提取 Normal/Hanging 共用端点算法。静态布局继续写最终
-Lines；动画使用固定 `Copy` 配置和显式依赖链派生端点，由受检 drawing
-发布各分支的线条，不逐帧写 Lines。PageNode 冻结选中颜色，折角边框提供受检的
-尺寸相关绘制描述。19 节点树的两个方向已通过首帧与静态线段逐项等价测试。
-展开/折叠、Viewport 与 Native 中间帧仍待接入，不以这项测试关闭 T-2。
-
-2026-10-26 最终实现已补齐 Tree 展开/折叠、普通 Viewport、默认关闭的真实 checkbox、
-queued toggle 与同 S 反向。直接输入经 Runtime 物化/预检后接管整个关联计划。
-外部 visibility revision 撤销旧保留，按 Advance/Pause/Finish 处理；topology/dispose、
-字体/内容/边框和 viewport extent/scale 变化按冻结依赖取消。
-
-稳定退出入口为 `animation.tree`：41 项几何、4 项采样预留、28 项 Viewport、21 项
-Tree 定向测试通过。Native GPU 横纵方向、DPI 1/2 的中间/最终 retained-partial 与
-Full 逐像素等价，最终与默认关闭、Disabled、ReducedMotion 像素等价。40 幅截图及
-`geometry-work.csv` 位于 `target/verification/tree-animation/`；每个活动 E 最终遍历
-79 节点、78 边、1,181 次矩阵/角点操作、213 次 clip、157 次 envelope。
-8/32/128 层重叠 target 回归证明节点/边去重；资源/capture/submission/recovery
-按各自留存期释放。真实 surface 提交在本机基线返回 Skipped，不声明 present 通过。
-完整边界、证据与限制见
-[实施复核](../verification/reviews/tree-layout-presentation-implementation-2026-10-26.md)。
-最终 workspace fmt/check、严格 Clippy 与 test 通过：1,472 项通过、0 失败、6 项既有
-忽略。host/wasm API 边界通过，Runtime 保持 28/28；374 份 Markdown、三本书
-HTML/PDF 与差异空白检查通过。T-1 至 T-4 全部关闭；上文各增量的“待完成”均为当时快照。
-
-承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
-的 R01、R02、R05 发现。顺序依
-[审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
-"当前 Execute 批次 ≤ 1"约束执行；三份 ADR 均已实现。
-
-| 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
-|---|---|---|---|---|---|
-| 1 | P2-S02 | 删除库级 Prelude、显式领域导入与 Crate Root 收口 | `complete` | ADR-021 | ADR-035、module-only root、领域导入 consumer 与 API snapshot 已验证 |
-| 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法按其预算门禁（K01 两个受检构造器后 ≤ 27）、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
-| 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
-| 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
-| 5 | P2-S06 | Editor 增量投影失败隔离与 Overlay 批量校验 | `complete` | P2-S04、TC-08 | ADR-037 与矩阵修订 2 完成；失败作用域清理、Overlay 整批校验、模型/history 与 fault 分离、Native GPU 队列退出；组合证明和平台限制见完成记录 |
-| 6 | P2-S07 | 结构查询身份与失败语义 | `complete` | ADR-018/036、TC-09 | ADR-038 已实现；身份、合法缺失与数值失败分离；测量准入、候选隔离、缓存和新绑定恢复通过；消费者与最终门禁见完成核验 |
-| 7 | P2-S08 | Detached Figure / Border / Style 输入不变量 | `complete` | ADR-020/024、TC-03 | A／B／C／D 全部完成；1,715 项回归通过，Native GPU、外部消费者、API 与成对产物／成本通过，R03／TC-03／API-F04／API-10 关闭，见[完成记录](../verification/reviews/p2-s08-d-completion-2026-10-29.md) |
-| 8 | P2-S09 | 服务 fault、注册、订阅与扩展错误 | `in_progress` | P2-S03、TC-10 | 2026-10-30 用户接受 [ADR-057 修订 3](../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A Core Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)与 [S09-B Core Observations／Inspector](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)实现、消费者、成本与自动门禁已完成；2026-11-02 [S09-C Connections 注册](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)实现、消费者与自动门禁完成；[S09-D Editor 扩展诊断](../verification/reviews/p2-s09-d-implementation-2026-11-02.md)已实现，8 项公开夹具和 24 项消费者测试、定向严格 Clippy 通过，最终门禁与成本因磁盘空间不足待补验；Inspector 成本覆盖容量 64／4096，不代表引擎最大容量验收；整批审计项尚未关闭 |
-
-本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受单链 Execute
-约束；P2-S02 → P2-S03 → P2-S04 → P2-S05 已完成。P2-S05 的
-[normative design](../design/architecture/deep-layout-presentation-convergence.md)、
-实现与验证证据见
-[completion record](../verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)。
-P2-S06 已于 2026-10-15 按用户接受的矩阵修订 2 完成，
-证据见[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)。
-
-P2-S07 的契约见 [ADR-038](../adr/adr-038-query-identity-and-failure-semantics.md)，
-回归范围见 [验证矩阵](../verification/plans/p2-s07-query-identity-and-failure-semantics.md)。
-2026-10-16 实施与验收闭合，R04/TC-09/API-F06/API-07 的关闭依据及各阶段结果见
-[完成核验](../verification/reviews/p2-s07-query-identity-completion-2026-10-16.md)。
+S09 当前依据：
+[Animation](../verification/reviews/p2-s09-a-implementation-2026-10-30.md)、
+[Observations／Inspector](../verification/reviews/p2-s09-b-implementation-2026-10-30.md)、
+[Connections](../verification/reviews/p2-s09-c-implementation-2026-11-02.md)、
+[Editor 扩展诊断](../verification/reviews/p2-s09-d-implementation-2026-11-02.md)。
+设计轮次归入[评审结论](../verification/reviews/service-failure-review-status.md)。
 
 ### GEF 对等样例接入（2026-10-28 用户授权）
 
-用户批准[对等方案](../design/editor/gef-official-examples-parity-proposal.md)并要求开始实施。
-Scene 前置切片已完成，用户要求“继续实施吧”后进入实际 Widget/View 与 Shapes
-首批消费者。CreationTool、框选和模板拖放随后依次推进，不另建并行执行队列，
-不更改既有 LT 或其他未完成批次的状态。
-
-| 切片 | 状态 | 契约与退出证据 |
-|---|---|---|
-| Scene backend 输出 | `complete` | [ADR-053](../adr/adr-053-embedded-vello-scene-target.md)；[首批证据](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)，4 项契约、12 帧 GPU 对照、39 项 backend 回归及独立消费成本 |
-| Masonry Widget / Xilem View | `deferred` | [接入契约](../design/editor/masonry-xilem-canvas-integration.md)与既有实施证据继续作为独立 adapter 保留；删除 vendor 后 7 项输入/生命周期/GPU 消费测试和 4 项适配契约通过。2026-10-28 起不再承担 Shapes 应用外壳，也不再阻塞 Shapes 对等验收；其完整 IME、系统 AT、窗口外 capture 与原生交互按独立消费者需求继续评审 |
-| egui Shapes 宿主 | `in_progress` | eframe/egui 0.35 负责工具栏、Palette、Outline、属性表和 WGPU 纹理合成；应用本地 Session 持有 Viewer/EditorDomain。20 项样例测试通过，包含六方向对齐的主选择参照、复合命令撤销/重做、重复操作无历史、连接过滤及按钮派发；原有局部坐标、焦点取消、模板投放、快捷键、typed tool mode、连接、Outline、持久化、DPI、默认拓扑、箭头比例、Resize 和拖动反馈回归保持通过。严格 Clippy 与 release 构建通过，真实窗口已确认非空且布局正常；完整原生交互、跨显示器 DPI、窗口外 capture、IME 与系统 AT 仍待验收 |
-| Shapes 工具与完整样例 | `in_progress` | [ADR-054](../adr/adr-054-template-creation-and-marquee.md)；[SH-01～SH-10 实施证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)：创建/框选/模板拖放、两种连接线型、端点重连、障碍路由、多选编辑与删除关系恢复、Outline/Geometry、文件与保存点、滚动/平移/快捷键均已实现并完成自动验证；默认启动文档使用 6 节点/6 连接展示两种 Figure、Anchor、线型、箭头、ConnectionPart 与多障碍路由，节点采用三列两行等尺寸网格，默认 route 均为两点直线，最小测试夹具与展示内容分离；egui 宿主显示已核验，完整原生交互仍待核验 |
-
-Logic 应用消费者于 2026-10-29 进入首个可运行切片，状态为 `in_progress`。
-[行为契约](../design/editor/gef-logic-first-slice.md)定义 typed 端口、半加器、
-无环组合传播及独立 egui/Vello 宿主；[实施记录](../verification/reviews/gef-logic-first-slice-2026-10-29.md)
-按功能、成本与平台证据分别记录。该消费者不新增框架执行批次，也不关闭
-LG-01～15 的整组对等验收。
-
-2026-10-30 补齐官方半加器、全加器、四位加法器的展开门级预设、Live/Ground、
-Manual/Manhattan/可见性最短路径、相对折点与路由切换历史。
-[本轮证据](../verification/reviews/gef-logic-routing-2026-10-30.md)记录真值表、
-缩放下 Tool 编辑、取消、撤销、持久化和障碍避让。Circuit 嵌套层级与边界端口、
-完整平台输入仍保留未验收状态。
+| 切片 | owner | 状态 | 最新范围与限制 |
+|---|---|---|---|
+| Scene backend 输出 | backend | `complete` | ADR-053；[契约、GPU 和成本](../verification/reviews/gef-scene-target-implementation-2026-10-28.md) |
+| Masonry Widget／Xilem View | adapter | `deferred` | 独立接入保留；不承担 Shapes 外壳，不阻塞 Shapes；IME、AT、窗口外 capture 按消费者需求续验 |
+| egui Shapes 宿主及 SH-01～10 | 应用 | `in_progress` | 创建／框选／drop、连接、多选、Outline、文件和保存点已实现；[自动证据](../verification/reviews/shapes-editor-implementation-2026-10-28.md)；完整 Native、跨显示器、capture、IME、AT 待验 |
+| Logic 首个切片 | 应用 | `in_progress` | 半／全加器、四位加法器、Live／Ground、三种路由、相对折点及历史；[最新证据](../verification/reviews/gef-logic-routing-2026-10-30.md)；Circuit 层级、边界端口和完整平台输入未验收 |
 
 ### Editor／GEF 框架能力补充（2026-10-29 用户授权）
 
-能力归属：Editor（`novadraw-editor`）。Core 命中、坐标与 Runtime 是基础依赖，
-平台输入和应用 Command 按各自 owner 验收。
+| Delta | 状态 | 最新验证与剩余条件 |
+|---|---|---|
+| P2-E03 | `in_progress` | ADR-055 修订 2，容器移动／创建／drop、跨布局和外部消费者已接入；Web DPR 1／2 的 46 个组合检查点和四组阶段成本完成；[组合续验](../verification/reviews/editor-container-combinations-2026-11-02.md)。Native 系统 DnD、跨显示器 DPI、完整 Native 组合和内部工作量未完成 |
+| P2-E04 | `in_progress` | ADR-058 修订 2，开放注册、内置／第三方策略、实际移动／创建／resize 计划及失败诊断定向通过；[当前实施与成本](../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。其余矩阵、完整事件成本、最终门禁和平台输入未完成 |
 
-用户要求先提交最近修改，再开始补充 `novadraw-editor` 的 GEF 框架能力。
-最近 Shapes 与共享框选修改已提交；本轮先进入容器编辑 Design。
-总体范围见[补充方案](../design/editor/core-capability-increment.md)。
+E04 已覆盖单源八方向及比例角 resize，居中和多源 resize 不在该切片。
+六组无窗口采样证明 prepared 命中，但完整 owner 扫描、版本回调和分配仍昂贵；
+10000 sibling 的完整 release 被默认 validation 上限拒绝，没有正式成功样本。
+[校验成本整改提案](../design/editor/snapping-validation-cost-proposal.md)待评审，
+不授权 Core 改动。workspace fmt／check 通过，最终 Clippy 被既有 Core 三项告警阻断。
+依赖和设计结论见[开放吸附评审状态](../verification/reviews/open-snapping-review-status.md)。
 
-| Delta | 范围 | 状态 | 退出依据 |
-|---|---|---|---|
-| P2-E03 | 容器编辑、父域坐标、换父、有序插入与嵌套创建 | `in_progress` | [ADR-055 修订 2](../adr/adr-055-container-editing-protocol.md)已获批准；公开协议、移动与父域创建/drop、跨布局与第三方消费者、完整选择/focus 与 history 已接入，见[实施记录](../verification/reviews/adr-055-implementation-2026-10-29.md)；续验容器契约 29 项、独立消费者 33 项通过，补创建视口变化及已取得反馈的清理准入拒绝，采集多父／大子树分配并修复无变化重排的重复扫描，见[续验复核](../verification/reviews/adr-055-followup-2026-10-29.md)；最终 workspace fmt／Clippy／test 与 docs 通过；2026-10-30 在隔离源码副本补真实 revision 耗尽的移动／创建 Tool 链路，并通过 Web DPR 1／2 的 capture、取消、静止指针 zoom／scroll 及 Native Retina 部分输入，见[补验记录](../verification/reviews/editor-container-followup-2026-10-30.md)；macOS 两种 Tool 窗口外释放已通过；跨显示器 DPI、系统 DnD、完整平台组合与成本拆分保留，未关闭 E03 |
+## 官方 Draw2D 示例
 
-E03 本轮[组合续验](../verification/reviews/editor-container-combinations-2026-11-02.md)
-新增 Web DPR 1／2 的 46 个检查点，覆盖多选有序插入与历史、
-两种 Tool 的 revision／policy 失效和切换、静止指针 resize，以及 HTML 模板 drop。
-独立输入消费者 32 项通过；四组成本各采样 32 次，
-补齐模型复制、snapshot、投影更新、反馈与稳定化的阶段耗时。
-跨显示器 DPI、Native 系统文件 DnD、完整 Native 组合与内部工作量计数仍未完成；
-E03 保持 `in_progress`，本轮未启动 E04。
+范围限于 Canvas／LightweightSystem 的 Draw2D 能力，Java 仅供只读参考，
+不建设 SWT 原生控件替代体系。目录与逐入口完成度以
+[当前矩阵](../verification/plans/draw2d-official-examples-remaining-contracts.md)为准。
+当前为 17 complete／8 in_progress，不从某次窗口通过推断全部完成。
 
-P2-E04 开放吸附已接受 [ADR-058 修订 2](../adr/adr-058-open-editor-snapping.md)，
-当前为 `in_progress`，移动／创建／单源 resize 已通过定向验证，继续补 E04-C 组合矩阵，再进入 E04-D。
-以下保留设计和实施经过。
-最初形成 [ADR-058 草案](../adr/adr-058-open-editor-snapping.md)、
-[专题](../design/editor/open-snapping.md)与[验证矩阵](../verification/plans/editor-open-snapping.md)，
-初稿状态为 `design-draft`。Grid／Geometry／Guide 与第三方策略共用
-typed 注册、候选仲裁、surface 修正和反馈／提交；Shapes 网格不计为框架毕业证据。
-2026-11-02 按用户要求继续推进设计，已完成
-[GEF→Draw2D→Core 依赖核验与修订 1 说明](../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)。
-所查基础契约有 Core 对应入口；新增受检特征查询、有效性编排和策略机制归 Editor。
-ADR-058／专题／矩阵修订 1 已准备评审，未进入 Execute：
-模型／权限变化沿用 E03 取消，坐标／独立配置变化有界重算；
-明确真实角点、耦合自由度、多选 Guide 扩展与资源预算。
-S09-D 最终构建／Wasm／成本因磁盘不足待补验，E03 平台与内部计数残余保持，
-本轮不以只读设计核验关闭这些条目。
-随后按[修订 1 评审](../verification/reviews/adr-058-revision-1-review-2026-11-02.md)
-的 SN-R1-01～07 完成[修订 2 回应](../verification/reviews/adr-058-revision-2-response-2026-11-02.md)，
-ADR／专题／矩阵修订 2 的[设计复核](../verification/reviews/adr-058-revision-2-review-2026-11-02.md)
-已通过，七项意见均解决。用户授权“如果复核通过，则推进方案”，条件已满足：
-修订 2 已接受，E04-A 进入 `in_progress`，其余切片待顺序实施。
-已新增 `snap` 开放注册、受检输入、预算、仲裁与最终几何复验，
-并补齐 Grid／Geometry／Guide 纯策略和受检 prepared 复用：
-32 项协议／策略测试、20 项公开消费者测试通过，覆盖八类扩展回调的 Error／panic。
-旧结果在每次求解尝试前失效，失败不能恢复旧命中。
-独立消费者 Native／Wasm 首段编译及 2 项不可伪造断言已有通过证据。
-移动已通过 SnappedMovePlan 连接 E03 实际几何与父权限；
-开放布局规则、typed feedback renderer 和 ContainerMoveTool 可选吸附已接通。
-容器 integration 46 项通过、3 项性能测试默认忽略，覆盖最新 release、单次历史、
-实际改写拒绝、缺失几何、多源失真、清理与 renderer 失败。
-创建／drop 已接通实际几何、固定起点／尺寸与最新 release，缩放／旋转 drop 和
-stationary zoom refresh 已验证；独立 Native／Wasm 消费者已包含移动／创建受检计划
-与 ReferenceLineRenderer。单源 resize 已接通开放计划、固定边、比例角拖拽、最小尺寸、
-第三方约束求值器和 Handle，验证最新 release、一次历史、undo／redo、旋转映射、
-stationary zoom 及取消／释放失效。居中与多源 resize 不属于本切片；
-已补吸附混合父旋转、静止指针 scroll／zoom／resize、取消／切换／模型发布、
-创建布局规则与 release query 配置变化零重试。
-六组正式无窗口采样完成，实际命中暴露完整 owner 扫描、版本回调和重复分配成本，
-10000 sibling 的完整 release 受 Runtime 默认 validation 上限阻塞；
-[校验成本整改提案](../design/editor/snapping-validation-cost-proposal.md)待评审。
-workspace fmt／check 通过，最终 Clippy 被既有 Core 三项告警阻断；
-其余组合矩阵、完整成本与平台输入尚未完成，
-见 [实施记录](../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。
-明确 release 最新位置与零额外重试、公共准入规则、最终对齐事实、
-布局改写的拒绝终点、prepare／query 依赖表及统一预算门禁。
-后续顺序为吸附、键盘导航、多视图协调、框选策略与可选编辑支持。
-这些候选尚未冻结接口，不因总体方向授权而记为已实施。
-本轮按用户批准进入 E03 Execute；坐标与事务取舍采用 ADR-055 修订 2。
-既有 S08/S09、LT 和平台待验收状态保持，各批仍遵守单链 Execute。
+owner-side Locator、组路由、ScrollBar、structured flow、图布局、共享场景、
+宿主背景和 Tree 表现几何的通用切片已按 ADR-039～046 实施。
+Tree T-1～T-4 已关闭，[实施复核](../verification/reviews/tree-layout-presentation-implementation-2026-10-26.md)
+保留 surface 返回 Skipped 的限制。方向、低 miter、Cocoa 零宽和实际字体下划线
+按 ADR-048～050 完成，[Core 增量验证](../verification/reviews/official-example-core-increment-2026-10-27.md)
+不等于通用设备 hairline 已交付。
 
-### 当前推进顺序（2026-10-14 校准）
-
-2026-10-29 补充：按本节用户授权优先完成 P2-E03 Design 与评审，
-再进入首批实现；以下既有审计与平台采证队列保留。
-Editor／GEF 当前继续 E04-C 移动／创建／resize 组合补验，E03 剩余平台／成本验收保留；
-随后为 E04-D →
-键盘导航、多视图协调和框选策略；下列跨包审计顺序不替代该 Editor 范围。
-
-1. **审计整改主链**：P2-S06/S07/S08 已完成，P2-S09 修订 3 已接受，S09-A／B／C 已完成；S09-D 已实现并通过定向验证，下一步补成本与最终门禁，契约见 ADR-057。每批先核对当前
-   反例和既有机制，再冻结最小契约；顺序不等于相邻批次间均有技术依赖。
-2. **后续能力切片**：上述 API/失败边界收口后进入 P2-L01 Design。动画为可选
-   消费者，M01-D 的平台证据不阻塞独立图模型、算法 adapter 或无动画布局。
-3. **待采证**：P2-G01 Native surface 验收、P2-M01 M01-D、GA-2/GA-3 保留
-   未完成状态。G01 的 Skipped 先区分 runner 驱动与引擎缺陷；若证明 Core 正确性
-   问题，重新 Triage，不能仅因归入发布准备而忽略。
-4. **长期候选**：P2-C03/T03/W01/O01/A01/LC01 及尚未登记的组件、概览能力按
-   消费者需求评审；`not_started` 和 `deferred` 均不表示已批准立即实施。
-
-`in_progress` 表示交付尚未闭合，不表示同时执行；G01/M01 的待采证状态不应改成
-`complete` 或重新做 A/B/C。单链约束针对当前进入 Execute 的整改批次。
-候选类型名、统一错误枚举、所有字段私有化或新 guard 均不能单独成为毕业条件。
-校准依据见[路线图复核](../verification/reviews/roadmap-calibration-2026-10-14.md)。
-
-P2-S06 已按 [ADR-037](../adr/adr-037-editor-incremental-failure-isolation.md)与
-[矩阵修订 2](../verification/plans/p2-s06-incremental-failure-isolation.md)关闭。
-永久限制：采用已接受的组合证明，不承诺完整 synchronize 前缀、扩展副作用或成功
-模型命令回滚；Web 异步 fault 退出保留 `S06-PL02`，Native surface 仍归 P2-G01。
-机制必要性、草案、实现和剩余证据的时间线由
-[完成记录](../verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md)导航。
+Flow／Grid／Toolbar、ScrollPane 和 Zoom 的 macOS 部分窗口交互已验收，
+完整连续输入、跨平台、DPI 和呈现成本仍未闭合。
+[布局窗口](../verification/reviews/official-layout-native-mouse-2026-10-29.md)、
+[Scroll／Zoom 窗口](../verification/reviews/scroll-zoom-native-window-2026-10-29.md)和
+[Zoom 最新文字指标对齐](../verification/reviews/zoom-typographic-alignment-2026-10-30.md)
+保存具体范围；不再保留旧目录计数与逐次实施流水。
 
 ## Figure capability
 
 ### P2-F02: 开放的 Figure capability registry
 
-状态：`complete`（2026-10-08 registry、mutation、分层迁移与开放
-`PresentationBinding<V>` 已通过验证）。
-
-目标：`GOAL-EXT`、`GOAL-CAP`。关闭
-[临时概念设计审计 TC-02](../verification/reviews/temporary-concept-design-audit-2026-10-08.md#32-tc-02capability-仍由-core-列举)，
-并为 P2-M01 外部 presentation binding 提供发现基础。
-
-`api_semantics`：`paint.protocol`、`figure.lifecycle`、`figure.box.client_area`、
-`figure.properties`、`event.input_listeners`、`accessibility.bridge`、
-`viewport.scroll_zoom`、`connection.figure`、`text.flow`、`widgets.basic`。
-
-规范入口：
-
-- [ADR-027](../adr/adr-027-open-figure-capability-registry.md)；
-- [Figure Capability 统一扩展模型](../design/architecture/figure-capability-model.md)。
-
-有效交付范围：attach-time owned descriptor、typed discovery/mutation、标准与外部
-capability，以及开放 `PresentationBinding<V>`。后续 ADR-033 已取消 concrete facade
-例外；内置与外部 Figure 统一从 FigureMut 提交 component/capability update。
-
-最低毕业证据：
-
-1. 外部 Figure 接入标准和自定义 capability 均不修改 Core 类型分支；
-2. 同步与 deferred capability update 共享 prepared commit、revision、invalidation、
-   damage 和 notification；
-3. duplicate、foreign、stale、absent、prepare rejection 和 panic/fault 有结构化语义；
-4. Core 中不再通过具体 Figure downcast 判断横切能力；PointList/TextFlow/Image/
-   Viewport 等具体类型不再伪装成 capability；
-5. render、layout、event、connection、Native/Web 编译及外部消费者门禁通过；
-6. 工作量基线无未解释回退，最终 quick/full 按项目分层门禁执行。
-
-实施快照与当时门禁结果见
-[P2-F02 实现记录](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)；
-公开路径及统一更新的后续修订见
-[P2-S02](../verification/reviews/p2-s02-explicit-domain-imports-completion-2026-10-09.md)与
-[P2-S03](../verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md)。
+状态：`complete`。契约为[ADR-027](../adr/adr-027-open-figure-capability-registry.md)和
+[能力模型](../design/architecture/figure-capability-model.md)；
+attach-time descriptor、typed discovery／mutation、外部 capability 和
+`PresentationBinding<V>` 已验证。后续 ADR-033 取消 concrete facade 例外，
+内置与扩展共用更新、失效、通知和错误通道。
+[完成依据](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。
 
 ## Figure 树 API
 
 ### P2-S01: 原子 indexed + constraint child add
 
-状态：`complete`
-
-目标：`GOAL-CAP`、`GOAL-EXT`。2026-10-02 核心 API 主线首个切片。
-
-`api_semantics`：`figure.tree`、`layout.manager`、`notification.ancestor`、
-`notification.layout_update`、`validation.protocol`、`damage.repaint`。
-
-规范入口：[动态协议 §5.1](../design/architecture/dynamic-architecture.md#51-原子-child-insertionp2-s01)。
-对标 `org.eclipse.draw2d.Figure.add(IFigure,Object,int)` 的顺序、constraint 与通知时序；
-延续 ADR-019 命名复合操作，使用 Rust owned Figure 与 Result 失败语义。
-
-交付与毕业条件：
-
-1. Builder/ContainerMut 提供指定 index 的添加及携带外部 typed constraint 的添加；
-2. 预检 parent、admission、index、深度及 manager compatibility，失败不发布半成品；
-3. 无 manager 的 constraint 保留、后续替换 manager 校验、生命周期与通知顺序一致；
-4. 外部自定义 Figure/Layout 消费者验证，不修改引擎枚举即可接入新 constraint；
-5. `core.p2-s01-child-insertion` suite 覆盖顺序、布局、错误原子性与发布通知；
-6. 使用平台无关 headless 契约验证，O(n) 有序插入不新增全树扫描；平台采证后置。
-
-实现与验证证据（2026-10-02）：
-
-- Builder 与 ContainerMut 已共享结构预检/发布原语；既有 add 与 Layer 添加继续
-  复用该原语，Runtime 资源登记、失效与生命周期复用既有路径；
-- `crates/novadraw/tests/p2_child_insertion.rs` 仅通过公开 API 实现外部 Figure/Layout 与
-  自定义 Placement constraint，验证 Builder/Runtime 得到相同顺序与布局；
-- `core.p2-s01-child-insertion`：8 项通过，覆盖原子拒绝、失败 ID 作废、通知、
-  admission、10,000 层深度及 validator panic 隔离；
-- 当时 quick/full 质量门禁通过；当前直接 Cargo 与跨边界 suite 的分工见
-  [验证入口](../../tests/README.md)；
-- 本项不改变 callback FIFO、已有 Figure reparent 或 keyed Layer 协议。
+状态：`complete`。Builder／Runtime 同一事务检查身份、位置和布局约束，
+失败不发布部分树、revision 或通知。当前 API 以
+[公共契约](../design/architecture/public-api-contract.md)为准。
 
 ## Graphics
 
 ### P2-G02: 统一测量/绘制 API 与 glyph 准备链路
 
-状态：`complete`（2026-10-05 API、默认/可替换轮廓链路与验证门禁已完成）。
-
-目标：`GOAL-CAP`、`GOAL-EXT`。在现有布局与 Graphics 基础上提供统一调用集合，
-并为未来片段着色器字体后端保留“布局 → 曲线 → 预处理 → 绘制实例”链路。
-
-`api_semantics`：`graphics.context`、`text.flow`、`text.interaction`、
-`paint.protocol`、`damage.repaint`、`render.backend_session`。
-
-规范入口：[ADR-025](../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
-[文字与图形整合](../design/rendering/text-graphics-integration.md)。
-本项与 P2-T03 富文本样式增量无关，也不关闭 P2-G01 未完成的 surface 验收。
-
-交付切片：
-
-1. Graphics 同一 API 集合提供 font metrics、measure/layout text 与图文绘制，
-   MeasureContext/PaintContext 保持阶段边界，复用 Runtime-owned 服务。
-2. 默认 Parley/Vello 主链路与独立 GlyphOutlineProvider 消费者；
-   保留字体身份、变体、曲线、baseline、布局与 ink 的一致性。
-3. 独立字体后端 consumer 验证定位 glyph、曲线预处理和实例组合；
-   网格/曲线索引格式保持 backend-local，覆盖缓存复用、资产导入校验和失效。
-4. 外部 Figure、失败原子性、图文交错 clip/transform/paint 的 Native/Web 验证。
-
-实现证据：
-
-- `Graphics`、`MeasureContext`、`PaintContext` 和 `RecordedDrawing` 已形成统一、
-  分阶段且资源闭合的公开调用面；外部 Figure 通过不可变 `FigurePresentation`
-  原子发布 measurement、visual bounds 与 drawing。
-- `SkrifaOutlineProvider`、`OutlineCache`、`GlyphInstance` 与显式
-  `OutlineTextEngine` 已实现；默认 glyph 路径保持不变，显式 provider 路径降低为
-  backend-neutral Path 并由 Vello 编码。
-- `core.p2-g02-text-graphics` 覆盖 fallback/RTL/variation、空轮廓、缓存复用、
-  stale/foreign revision、状态栈和外部 Figure；详细记录见
-  [P2-G02 实现证据](../verification/reviews/p2-g02-text-graphics-evidence.md)。
-- 用户未来自研片段着色器、分网格算法和 GPU 数据格式仍属于 backend-local 后续实现，
-  不作为本项 Core API 交付。
+状态：`complete`。[ADR-025](../adr/adr-025-unified-graphics-and-glyph-preparation.md)
+定义字体指标、测量、图文绘制和布局后轮廓边界；
+[完成证据](../verification/reviews/p2-g02-text-graphics-evidence.md)覆盖默认和可替换链路。
+后端 GPU 格式和未来自研字体算法不进入 Core 布局结果或当前交付。
 
 ### P2-G01: Graphics 扩展
 
-状态：`in_progress`（实现已贯通，Native GPU 离屏与 WebGPU 像素已验证；
-Native surface 局部修复验收尚未闭合）。
-
-目标：`GOAL-CAP`、`GOAL-EXT`。
-
-`api_semantics`：`graphics.context`、`geometry.primitives`、`paint.protocol`、
-`builtin.figures`、`connection.figure`、`damage.repaint`、`frame.preparation`、
-`render.backend_session`。
-
-规范入口：[Graphics 扩展契约](../design/rendering/p2-g01-graphics-extension.md)、
-[ADR-024](../adr/adr-024-graphics-paint-stroke-and-clipping.md)。
-已对标 Draw2D/GEF，并核对锁定版本 Vello 0.10 的 lowering 能力；
-规范已获批准，能力毕业仍需实现和视觉证据。
-
-实施顺序：
-
-1. 统一 StrokeStyle，贯通 custom dash/offset/miter、backend 与实际 visual bounds；
-2. ClipPath/FillRule 与矩形 clip 共享可恢复状态链；
-3. Paint/linear gradient 贯通形状、路径和 glyph，以及多能力与非法输入拒绝；
-4. 反馈 layer 替代 XOR 交互用途，完成外部消费者及 Native/Web 视觉验收。
-
-公共 IR、现由 ADR-029 统一的 `RenderResult` 错误边界与 XOR 处置已获批准；
-`core.p2-g01-graphics` 已登记，随切片加入对应验证。毕业仍要求 Core IR、
-Vello lowering、失败原子性和视觉证据全部闭合。
-本项不推进后置的 WindowServer/Chrome 性能采证或原生 runner 建设。
-
-实现切片进展（2026-10-03，尚未毕业）：
-
-- 受检 `StrokeStyle`、custom dash/offset/miter 已贯通 Canvas 状态与矢量 IR、
-  Vello lowering；显式 recorder 携带完整样式，宽度 setter 返回 Result。
-- Polyline/Polygon、Connection、端点 decoration 与 ScalablePolygon 统一持有
-  完整受检描边；包围盒与绘制使用相同实际 miter/cap。PointList scoped mutable facade
-  支持完整替换及 miter/cap/dash/offset 修改，在同一事务中完成几何重归一、
-  新旧 damage、freeform extent 失效与单次 FigureMoved。
-- `required_capabilities` 与统一预检已接入 Runtime、Vello 和 Canvas2D fallback；
-  backend 在接受资源/session 前拒绝不支持的描边。
-- `core.p2-g01-graphics` 已登记 Core 和 Vello 两个验证入口。描边基础轮次 Core
-  8 项公开契约、Vello 17 项单测通过，M1/M10 相关回归 16 项通过。Figure 轮次
-  Core 公开契约扩展到 13 项通过，M10 图元/边框 14 项及 M9 Connection 29 项
-  回归通过，workspace 全目标类型检查通过。新增用例覆盖 miter 增大/缩小、
-  dash 重绘、非法修改不排入重绘、实际 decoration envelope、freeform extent
-  与一次移动通知；旧无效 Connection 几何 fixture 已迁移为有限描边包络溢出。
-- 路径裁剪已贯通受检 `ClipPath`、独立路径所有权、Canvas 状态深度及 Vello
-  矩形/路径混合裁剪链；`FillPath` 携带 NonZero/EvenOdd。恢复前缀比较包含完整
-  几何、fill rule 和调用时 transform；空裁剪保留抑制绘制的语义。Vello 单测
-  扩展到 19 项通过，workspace 全目标类型检查通过。
-- Paint/LinearGradient/GradientStop 已贯通矢量与 glyph 消费，原颜色 setter
-  替换为 Solid；Canvas 快照将 alpha 乘入所有渐变站点一次，恢复原 Paint。
-  Vello 显式使用 Pad、sRGB 与 premultiplied alpha；渐变端点随几何缩放。
-- GlyphPaint 使用完整 StrokeStyle。锁定版 Vello glyph cache 忽略 dash，
-  因而有虚线的轮廓字形由 backend 私有 Skrifa 轮廓转换接入共享路径描边；
-  没有矢量轮廓的彩色/位图字形延续 Vello 行为，不声称其具有轮廓虚线。
-- 多能力预检覆盖 ellipse 两种 Paint 和 glyph 的三项组合；Runtime 发布前、
-  Vello 接收资源/session 前（含截图入口）拒绝实际 DPI/transform 下的溢出、
-  退化渐变与裁剪曲线溢出。结构化 InvalidGraphicsInput 携带命令索引与原因。
-- Core 公开契约扩展到 23 项通过，Core 完整 crate 测试通过；新增用例覆盖
-  alpha/state、颜色覆盖渐变、逐项能力消融、派生值拒绝、重复拒绝后帧号和资源
-  snapshot 保留并重试。Vello 21 项单测、Editor 9 项直接文本编辑回归通过。
-  跨 crate quick gate（含 Native/Web 后端）、文档门禁通过。
-- 2026-10-05 共享外部消费者与像素程序已落地，使用真实公开 API 组合渐变、
-  custom stroke、曲线路径裁剪、glyph/image 及专用 feedback layer。
-  Native GPU 离屏 DPI 1/2 通过；WebGPU 使用可选帧内 PNG 快照避免读取已清空的
-  交换缓冲区，复用相同像素断言。miter 增大/还原与反馈显示/移动/取消有连续帧证据，
-  后端两个提交入口拒绝非法输入后保留原像素且原合法帧可重试。
-- 最终 Core/Vello 契约、Native 离屏、WebGPU 像素、文档门禁通过；
-  full 质量门禁各入口通过（Clippy 奇偶判断等价整改后续跑 Clippy 与 workspace
-  单测、集成和 doctest，未重复已通过入口）。
-- Native surface suite 在重绘事件后首帧仍返回 Skipped，局部 retained repair
-  不能用离屏完整重绘结果替代，因此本 delta 保留 `in_progress`。
-  详细 suite、结果、平台范围与复现方式见
-  [P2-G01 验证记录](../verification/reviews/p2-g01-graphics-evidence.md)。
+状态：`in_progress`。custom stroke、path clip、gradient、glyph 和 feedback 已贯通，
+Native 离屏与 WebGPU 像素通过；Native surface 局部 retained repair 尚未闭合。
+完整重绘不能代替 surface 局部修复。
+[契约](../design/rendering/p2-g01-graphics-extension.md)、
+[验证与限制](../verification/reviews/p2-g01-graphics-evidence.md)。
 
 ## Animation
 
 ### P2-M01: Animation Timeline 与 Presentation Plane
 
-状态：`in_progress`。ADR-026 已接受；M01-A/B/C 已完成，剩余切片为 M01-D
-平台与视觉采证，不重新建设已完成的时钟、表现平面或领域消费者。
-
-目标：`GOAL-CAP`、`GOAL-EXT`、`GOAL-PERF`。建立可选的一等动画基础设施，
-让属性、布局结果、Connection route、Viewport、生命周期和持续效果共享同一
-Runtime 时钟、编排、取消、damage 与提交协议。
-
-`api_semantics`：`animation.timeline`、`animation.presentation`、
-`frame.preparation`、`damage.repaint`。
-
-规范入口：[ADR-026](../adr/adr-026-animation-and-presentation-plane.md)、
-[Animation / Presentation Plane 设计](../design/animation/animation-system.md)、
-[Animation 公开 API 合同](../design/animation/public-api-contract.md)、
-[Animation Behavior / Trigger 合同](../design/animation/behavior-trigger-contract.md)、
-[Animation 领域能力集成矩阵](../design/animation/capability-integration.md)。
-评审检查见
-[P2-M01 Animation 架构评审记录](../verification/reviews/p2-m01-animation-architecture-review.md)。
-Draw2D 源码事实见
-[Animation / Animator 分析](../reference/draw2d/figure/animation.md)。
-
-依赖与启动门禁：
-
-1. P2-G02 的统一 Graphics、FigurePresentation 与 glyph 准备链路已经完成；
-2. P2-G01 Native surface visual repair 仍未通过；它约束 M01-D 的 Native surface
-   视觉毕业，不能倒写为已完成 M01-B/C 的启动阻塞。Core/Headless 已有证据保留，
-   Native surface 等价仍须独立验证；
-3. ADR-026、公开 API、错误枚举与外部 typed consumer 已完成人工评审；
-4. `core.p2-m01-animation` 已登记且覆盖 A/B/C；M01-D 新采证入口先注册可执行
-   命令及原始证据路径，不登记空门禁。
-
-分阶段毕业证据：
-
-1. **M01-A Clock / Timeline / optionality**：确定性单调时间、Tween/Keyframes、
-   Parallel/Sequence/Stagger、取消/替换/retarget、三种模式及无活动动画零工作；
-2. **M01-B Presentation / damage**：committed/presentation 分离、old/new visual
-   envelope、temporary visual 生命周期、hidden/suspend/dispose 与 fault 清理；
-3. **M01-C 领域消费者**：属性、布局结果、Connection route、Viewport、dash flow，
-   以及沿 route arc length 移动的 pulse 到 endpoint decoration 的交接；
-4. **M01-D 平台与视觉**：Headless 固定时间 replay、Native/Web 关键帧等价、
-   DPI/nested transform/scroll/zoom、disabled/reduced-motion 与
-   1/64/1,024 active track 工作量基线。
-
-完成态必须证明关闭动画不改变 committed state、通知、命中、accessibility 或 history；
-Core 默认不安装隐式 Trigger，无 active track 时不持续 tick、request redraw、扫描全树
-或提交空帧。
-
-M01-A 实现证据（2026-10-06）：
-
-- Runtime-owned typed channel、AnimationId、Clock 与 scoped `AnimationMut` 已实现；
-- Tween/Keyframes/Spring/Decay 与 Parallel/Sequence/Stagger/Delay/Repeat/Reverse 已实现；
-- Enabled/Disabled/ReducedMotion、Replace/Ignore、cancel、atomic retarget、预算与有界
-  terminal journal 已实现；
-- 外部自定义 `AnimationValue` 不修改 Core 枚举即可接入；
-- `core.p2-m01-animation` 14 项、Core 完整 crate 测试与 Clippy 通过；
-- 详细证据见
-  [P2-M01A 实现记录](../verification/reviews/p2-m01a-animation-evidence.md)。
-
-M01-B 实现证据（2026-10-06）：
-
-- Figure opacity/transform override、old/new surface envelope 与 immutable frame snapshot
-  已接入既有 damage/recording/submission；
-- Runtime-owned temporary visual、hidden/suspend/dispose/cancel/completion/fault 清理已实现；
-- provider 非法 sample 结构化失败，provider panic 进入 Runtime fault boundary；
-- 无 active presentation 时不构造 snapshot，active 路径只遍历 active subject；
-- 详细证据见
-  [P2-M01B 实现记录](../verification/reviews/p2-m01b-animation-presentation-evidence.md)。
-
-M01-C 已完成：
-
-- Figure bounds one-shot capture、source-final transition、stable-order stagger 已实现；
-- empty/duplicate/foreign/disposed capture 与退化尺寸变换已结构化拒绝；
-- Behavior/Trigger 已作为独立于 AnimationPlan 的稳定边界实现，覆盖 scope、stable
-  fact coalescing、PlanFactory、ReducedMotion fallback、failure journal 与 dispose；
-- layout transaction、route interpolation/crossfade、viewport transition、
-  continuous dash 与 arc-length pulse/handoff 已实现；
-- 进展证据见
-  [P2-M01C 实现记录](../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
-
-M01-D 剩余工作：Native/Web 同时间关键帧像素、DPI/nested transform/scroll/zoom
-组合、disabled/reduced-motion 视觉等价及实际 runner 帧时间预算。
-Headless replay 和 1/64/1,024 active track 工作量已有 C 阶段证据；仅在行为变更后
-运行回归，不将它们重复列为未实现能力。不得从 headless 计数推断实际帧时间。
+状态：`in_progress`。A Clock／Timeline、B Presentation／Damage、C 领域消费者已完成；
+D 的 Native／Web 关键帧、组合场景和实际 runner 预算待验。
+不重复推进 A／B／C，Tree T-1～T-4 完成不关闭 M01-D。
+[动画契约](../design/animation/00-index.md)与[ADR-026](../adr/adr-026-animation-and-presentation-plane.md)。
 
 ## Connection
 
 ### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
 
-状态：`complete`
-
-`api_semantics`：`builtin.figures`、`connection.figure`、`connection.locator`
-
-原 `P2-R01` PointList miter visual bounds 合并到本项，不再独立实施。原因是普通
-Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope 契约，不能
-让箭头 Figure 和普通 PointList Figure 使用两套 bounds 规则。
-
-交付范围：
-
-1. PointList visual envelope 同时消费 line join、stroke width 和显式 miter limit；
-   Round/Bevel 不采用 miter 扩张，style mutation 必须重新规范化 bounds；
-2. 提供基于模板点的 polygon/polyline decoration Figure；方向来自 terminal
-   non-zero segment，找不到时才使用 AnchorSite normal，否则返回结构化错误；
-3. source/target terminal locator 输出位置与切线方向；side-aware endpoint label
-   locator 使用沿切线的 `u_distance` 与沿法线的 `v_distance`；
-4. decoration 仍是 Connection 的普通 child；route endpoint 保持 Anchor 真值，
-   line inset 只影响 Connection paint/hit-test，不改 committed route points；
-5. geometry、locator child、subtree envelope、freeform extent 与 old/new damage 在
-   同一 Runtime route commit 中预检并原子提交。
-
-完成判据：
-
-1. 锐角 miter、Round/Bevel、style mutation 和 clip 不截断测试；
-2. source/target、直线/折线/self-loop、重复 terminal point 与全退化 route 测试；
-3. transform/viewport 下 decoration orientation 和 endpoint offset 测试；
-4. decoration old/new damage、freeform extent 与 path bounds 分离测试；
-5. `core.p2-c01-connection-decoration` suite 通过。
-
-规范入口：
-
-- `doc/design/architecture/reusable-shape-border.md`
-- `doc/design/architecture/connection-routing.md`
-- `doc/parity/draw2d/api-coverage.md`
-
-完成证据（2026-09-29）：
-
-- `PolylineFigure`、`PolygonFigure` 与 `ConnectionFigure` 共享
-  `DEFAULT_STROKE_MITER_LIMIT` visual outset；
-- `FigureMut` 可原子修改 PointList stroke width / line join；
-- `PolygonDecorationFigure`、`PolylineDecorationFigure`、`EndpointLocator` 已进入
-  Core 公开 API；
-- route preflight 同时校验 decoration geometry，terminal duplicate point 与
-  AnchorSite normal fallback 已覆盖；
-- `advanced-figures-app` 提供 decoration orientation、line inset 与
-  EndpointLocator offset 的 Native 可视验收场景；
-- `cargo xtask verify core.p2-c01-connection-decoration` 通过。
+状态：`complete`。语义范围由[路由专题](../design/architecture/connection-routing.md)
+和[ADR-005](../adr/adr-005-connection-routing-contract.md)定义。
 
 ### P2-C02: 障碍感知 Shortest-path Router
 
-状态：`complete`
-
-`api_semantics`：`connection.router`
-
-在既有 `RouterRegistry`、routing-domain group、tracked dependency 和 atomic batch
-commit 上增加障碍感知路由，不复制 Draw2D Router 持有 Figure listener、直接修改
-Connection 或使用全局可变状态的实现方式。
-
-交付范围：
-
-1. Router 配置显式给出有序 obstacle FigureId；Runtime 每批将其中 attached、可见且
-   非 Connection member 的 Figure 映射为 immutable routing-domain snapshot；
-2. 每个 routing batch 只构建一次稳定 obstacle snapshot；obstacle
-   geometry/visibility/topology/transform 通过现有 dependency generation 增量失效；
-3. 端点从 obstacle 边界安全出入，搜索结果为确定性正交 PointList，不穿越 obstacle
-   interior，并移除重复点与共线冗余点；
-4. 同批 connection 先完成 route 与 locator geometry preflight，再原子提交；任一
-   失败产生结构化 unresolved 原因，不保留陈旧 route；
-5. 建立节点数、障碍数、连接数明确的 headless 性能基线，记录 route calculation 与
-   obstacle snapshot rebuild 次数。
-
-完成判据：
-
-1. 直达、单障碍、多障碍、不可达、端点贴边、障碍移动/删除/隐藏测试；
-2. 同一 snapshot 输出确定、child order 稳定、无关 mutation 不重路由测试；
-3. batch failure 无 partial commit，恢复后自动重路由；
-4. 64 connections / 64 obstacles 基线与增量失效计数验证；
-5. `core.p2-c02-shortest-path-routing` suite 通过。
-
-规范入口：
-
-- `doc/design/architecture/connection-routing.md`
-- `doc/parity/draw2d/api-coverage.md`
-
-完成证据（2026-09-29）：
-
-- `ShortestPathConnectionRouter` 使用显式有序 obstacle FigureId 与可配置 clearance、
-  bend penalty、minimum stub；
-- Runtime 将障碍映射到 routing domain，一次 snapshot 服务同组全部 connection；
-- Hanan grid + bend-aware Dijkstra 生成确定性正交路径，直线与 L 路径使用无阻挡快速路径；
-- 几何、可见性和拓扑变化通过 tracked dependency 自动重路由；
-- 64 connections / 64 obstacles 验证为 1 次 snapshot build、64 次 route calculation；
-- `advanced-figures-app` 提供双连接共享 obstacle snapshot 与上下避障路径的 Native
-  可视场景；
-- `cargo xtask verify core.p2-c02-shortest-path-routing` 通过。
+状态：`complete`。采用 Draw2D 障碍感知路由语义；后续组求解按
+[ADR-040](../adr/adr-040-group-route-solving.md)细化。高级 self-loop 产品策略另列。
 
 ## Figures
 
 ### P2-F01: ScalablePolygonFigure
 
-状态：`complete`
-
-`api_semantics`：`builtin.figures`
-
-交付一个 bounds-driven 的可缩放多边形。模板点是不可变设计坐标；实际 local points
-由模板 bounds 到 Figure client bounds 的确定性映射派生。它不建立独立渲染路径，
-继续复用 PolygonFigure 的 fill/outline、precise hit、stroke envelope 和 Runtime
-damage 协议。
-
-交付范围与完成判据：
-
-1. template replacement、bounds resize、stroke/join mutation 都使派生几何失效；
-2. 空模板、单轴退化模板和非有限输入有明确 Result 语义，不产生 NaN；
-3. preserve-aspect 与 stretch 模式均有稳定 alignment 规则；
-4. fill/outline、锐角 miter、precise hit、nested transform 和 old/new damage 测试；
-5. 示例展示同一模板在不同 bounds 和缩放模式下的结果；
-6. `core.p2-f01-scalable-polygon` suite 通过。
-
-规范入口：
-
-- `doc/design/architecture/reusable-shape-border.md`
-- `doc/parity/draw2d/api-coverage.md`
-
-完成证据（2026-09-29）：
-
-- `ScalablePolygonFigure` 将不可变 template 映射到当前 NodeState bounds；
-- Stretch 与 PreserveAspect 支持双轴 alignment 和单轴/双轴退化模板；
-- stroke/miter outset、fill/outline 与 precise hit 共用同一派生点集；
-- FigureMut 支持 template、scale mode 与 alignment 的 typed mutation；
-- `shape-app` 与 `advanced-figures-app` 提供 scalable polygon 场景，后者集中验证
-  Stretch、PreserveAspect、alignment 与 bounds mutation；
-- `cargo xtask verify core.p2-f01-scalable-polygon` 通过。
+状态：`complete`。受检模板、bounds 映射、实际描边包络和命中共用 Core Figure 协议；
+契约见[Shape／Border](../design/architecture/reusable-shape-border.md)。
 
 ## Text
 
 ### P2-T01: TextFlow 第一阶段
 
-状态：`complete`
-
-`api_semantics`：`text.flow`
-
-第一阶段建立只读段落流，不包含 caret、selection、IME 或直接编辑。它复用
-Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测量，不建立
-第二套 shaping/line-breaking 实现。
-
-交付范围：
-
-1. FlowPage 包含有序 Paragraph，Paragraph 包含有序 inline text fragment；
-2. fragment 作为稳定语义边界；第一阶段整页继承 Figure resolved style，fragment
-   级 font/foreground 留给后续独立 delta；
-3. 支持 hard break、soft wrap 与尾部 truncate，bidi 由 TextLayoutEngine 解析；
-4. 相同 width constraint 的 measure、arrange、paint 复用同一 immutable layout；
-5. fragment 或 width 变化通过 Runtime validation 原子更新 measurement、glyph IR、
-   bounds 与 damage；
-6. UTF-8/CJK/bidi、fragment 拼接、窄宽换行、hard break、truncate 和 cache
-   invalidation 测试；
-7. `core.p2-t01-text-flow` suite 通过。
-
-规范入口：
-
-- `doc/design/architecture/text-layout.md`
-- `doc/parity/draw2d/api-coverage.md`
-
-完成证据（2026-09-29）：
-
-- `FlowPage`、`FlowParagraph`、`InlineTextFragment` 与 `TextFlowFigure` 已进入 Core；
-- NoWrap、SoftWrap 和行数 Truncate 复用 Runtime-owned TextLayoutEngine；
-- paragraph hard break、UTF-8 grapheme-safe ellipsis、CJK/bidi 与 width cache 已覆盖；
-- FigureMut 支持 page 与 wrapping typed mutation；
-- `text-app` 增加共享 Native/Web TextFlow 场景；`advanced-figures-app` 集中验证段落、
-  fragment、SoftWrap、NoWrap、CJK 与 Truncate 可视结果；
-- `cargo xtask verify core.p2-t01-text-flow` 通过。
+状态：`complete`。后续 structured flow 由 ADR-042／P2-T03 承接，
+不把性能优化或海量渐进模式计入此阶段。[文字规范](../design/architecture/text-layout.md)。
 
 ### P2-T02: TextFlow interaction geometry
 
-状态：`complete`
-
-`api_semantics`：`text.interaction`
-
-Core 在 P2-T01 immutable TextLayout 上增加 document position、affinity、hit-test、
-caret、selection quad 与 movement 查询。`TextFlowFigure` 不拥有 draft、selection 或
-IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
-
-交付范围：
-
-1. paragraph-local UTF-8 position、upstream/downstream affinity 与有向 range；
-2. immutable interaction map 保存 paragraph/fragment、cluster、line、bidi 与 visible
-   range 映射；
-3. point/position 双向查询、caret geometry 和跨 paragraph selection quads；
-4. visual cluster、word、line、paragraph 与 document movement；
-5. 外部 TextLayoutEngine 可构造同等受检 interaction map，不暴露 Parley 类型；
-6. `core.p2-t02-text-interaction` suite。
-
-完成判据：
-
-1. ASCII/CJK/emoji/combining mark 与 grapheme-safe movement；
-2. soft/hard wrap affinity、空 paragraph、跨 fragment/paragraph selection；
-3. mixed bidi logical/visual 映射；
-4. truncate、stale revision、非法 UTF-8 boundary 的结构化拒绝；
-5. nested transform、viewport scroll/zoom 后 caret surface geometry；
-6. 纯查询不产生 validation 或 damage。
-
-规范入口：
-
-- `doc/design/architecture/text-layout.md`
-- `doc/design/editor/p2-direct-text-edit.md`
-- `doc/verification/plans/p2-text-direct-edit.md`
-- `doc/parity/draw2d/api-coverage.md`
-
-完成证据（2026-09-29）：
-
-- `TextLayout` 通过 backend-neutral `TextInteractionProvider` 携带 interaction map；
-- Parley cursor/selection/cluster 数据被收口为 Novadraw position、caret 与 quad；
-- TextFlow 提供 paragraph-local UTF-8 position，并区分 fragment 内换行与 paragraph；
-- position 绑定 layout revision，旧位置在 relayout 后结构化拒绝；
-- Runtime query 完成 local/surface transform，查询不产生 validation 或 damage；
-- `cargo xtask verify core.p2-t02-text-interaction` 通过。
+状态：`complete`。不可变来源、caret、selection 和命中几何由同一布局快照提供，
+不向 Core 引入 mutable editor state。
+[完成记录](../verification/reviews/p2-text-interaction-2026-09-29.md)。
 
 ## Rendering
 
 ### P2-R02: Image source rectangle
 
-状态：`complete`
-
-`api_semantics`：`graphics.context`
-
-2026-09-29 已完成 Draw2D `Graphics.drawImage(Image, source, destination)` 对等切片：
-
-1. Image Render IR 始终携带图像物理像素域的显式 source rectangle；
-2. `PaintContext::draw_image_region` 使用结构化错误拒绝非有限、负尺寸和越界 source；
-3. Vello adapter 使用 source-to-destination affine 与 destination clip，完整消费该命令；
-4. 完整图像 convenience API 进入同一 IR，不保留 `Option` 或 backend 特判协议；
-5. `core.image-source-rectangle` 覆盖 backend-neutral、Vello 与 Web feature 门禁。
-
-规范与证据：
-
-- `doc/design/rendering/image-source-rectangle.md`
-- `doc/parity/draw2d/api-coverage.md`
-- `crates/novadraw/tests/image_source_rectangle_contract.rs`
-- `tests/README.md`
+状态：`complete`。公开 source rectangle、完整 image resource 与受检绘制边界已收口，
+以[公共 API 契约](../design/architecture/public-api-contract.md)为准。
 
 ## Developer tooling
 
 ### P2-D01: FigureInspector 开发期可观测性
 
-状态：`deferred`
-
-FigureInspector 以独立 crate 消费 Runtime 的稳定场景查询与提交后 notification journal，
-为 Native、Web 和 headless 工具提供统一诊断事实。它不属于 Draw2D Core 的运行时语义，
-也不改变 GEF Editor 里程碑。按当前优先级，本项与 Studio 一并后置，不进入
-P2-C01/C02/F01/T01 执行批次；已有实现和文档保留，工具 UI 和新增诊断功能后置。
-现有 Inspector 的 fault、订阅释放与错误传播归 P2-S09，不能因 D01 deferred 而跳过。
-
-首期范围：
-
-1. `FigureTreeSnapshot` 保留 containment、child order、节点状态和 Figure diagnostic name；
-2. 有界 FIFO event timeline 保留 `source_epoch`、`sequence` 和 typed effect；
-3. outline tree、属性面板、时间线作为宿主 UI 标准布局；
-4. 不进入 render/validation 热路径，不保存逐 effect 的完整历史场景；
-5. Editor Figure -> VisualOwner -> EditPart -> Model 关联由可选 adapter 后置。
-
-规范与决策：
-
-- `doc/design/architecture/figure-inspector.md`
-- `doc/adr/adr-016-figure-inspector-observability.md`
+状态：`deferred`。后续 Inspector 能力不由早期 FigureInspector 候选自动授权；
+当前已有能力见[诊断规范](../design/architecture/figure-inspector.md)，
+生命周期整改见 S09。Studio／offscreen thumbnail 的产品方向不自动进入实施。
 
 ## Editor
 
 ### P2-E01: 高级 Self-loop 路由策略
 
-状态：`deferred`
-
-Draw2D/GEF 核心只提供同源同目标 Connection、Anchor、Router 与 routing constraint
-扩展点，不规定 self-loop 的开口方向、折点数量或障碍避让。Native node editor 当前用
-两个显式 absolute bendpoints 实现节点右侧的三段正交 self-loop；该策略只承担 demo
-验收，不进入 Draw2D/GEF parity。
-
-Core 与当前 G5 必须继续保证：
-
-1. self-loop 只投影一个 ConnectionPart，并同时进入 source/target relation；
-2. 两个 endpoint handle 保持独立，重连保留 Connection 身份与 history 原子性；
-3. 应用可通过 Anchor Descriptor、Router 和 typed constraint 生成非退化回环；
-4. demo self-loop 跨 owner 重连时在新 owner 坐标域重建折点，节点移动时整体平移。
-
-后续产品 delta 可按真实需求补充：
-
-1. 根据可用空间选择上、下、左、右开口；
-2. 多条 self-loop 的 lane 分配与稳定排序；
-3. 节点、端口、标签和其他连接的障碍避让；
-4. resize、端口迁移与自动布局后的形状保持；
-5. 对应基准、视觉回归和可序列化 routing descriptor。
+状态：`deferred`。GEF 基础合同保留单一 ConnectionPart、独立端点、身份和历史原子性；
+开口方向、lane、障碍避让及序列化属于后续产品策略。既有显式折点 demo 不定义 parity。
 
 ### P2-E02: Direct text edit 与 IME
 
-状态：`complete`
-
-`api_semantics`：`direct_edit`
-
-Editor 在既有 Request/Policy/CommandStack 和 P2-T02 text geometry 上建立一次只允许
-一个 owner 的直接编辑会话。它采用 GEF manager/policy/command 的职责分离，但不采用
-SWT/JFace CellEditor 作为公共契约或可见文本真值。
-
-交付范围：
-
-1. typed feature descriptor、request/policy role、source revision 与 session identity；
-2. transient draft、text selection、preedit、feedback、caret blink 与 cleanup；
-3. accept/cancel、stale conflict、CommandStack、undo/redo 和 part retire；
-4. platform-neutral text-input event/effect 与 lease identity；
-5. Winit IME bridge、Web DOM input/composition bridge 和 candidate area；
-6. headless replay、Native/Web 示例与人工验收。
-
-完成判据：
-
-1. draft 不修改业务模型，accept 只生成一个 Command，cancel 不进入 history；
-2. Viewer selection 与 text selection 隔离，active session 阻止 Tool fallback；
-3. preedit/commit、dead key、focus loss 和迟到 lease event 有确定语义；
-4. stale source revision 不覆盖外部修改，cleanup failure 进入 faulted；
-5. scroll/zoom/resize 后 feedback、caret 与候选窗对齐；
-6. `editor.p2-e02-direct-text-edit` 与 `platform.p2-e02-text-input` suites 通过。
-
-P2-E02a 已完成 Viewer-scoped 单会话、typed feature/descriptor/policy plan、draft、
-selection、preedit、TextFlow interaction geometry、feedback lifecycle、accept/cancel、
-stale revision、source retire 与 CommandStack undo/redo。P2-E02b 已完成 host lease、
-Native Winit IME、Web DOM input bridge、可运行 Web composition root 与默认
-caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑文本居中与 caret
-可见性修复已通过 Web Vello 自动视觉复核，以及
-`doc/verification/manual/p2-direct-text-edit.md` 记录的 Native/Web 人工复验。
-
-规范入口：
-
-- `doc/reference/gef/direct-editing.md`
-- `doc/design/editor/p2-direct-text-edit.md`
-- `doc/verification/plans/p2-text-direct-edit.md`
-- `doc/parity/gef/api-coverage.md`
+状态：`complete`。Editor 持有单会话 draft／selection／preedit，accept 生成一次 Command，
+cancel 不写历史；Native／Web 输入 bridge 和人工复验已完成。
+[设计](../design/editor/p2-direct-text-edit.md)、
+[矩阵](../verification/plans/p2-text-direct-edit.md)。
 
 ## P2 长文本精确布局优化
 
-2026-10-27 用户批准[修订 2 首批复核](../verification/reviews/long-text-performance-revision-2-review-2026-10-27.md)
-后启动 LT-00～LT-03，契约见 [ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)。
-本批的观测与共享 IR Execute 切片已验证退出；其他未完成项保持待验收状态。
+能力归属：Core Text／Flow／Runtime；backend 负责字形覆盖和合成，
+platform 负责真实输入与呈现，研究应用只提供消费者。
+当前设计由[总方案](../design/architecture/long-text-performance-proposal.md)、
+[ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)和
+[ADR-059](../adr/adr-059-staged-text-width-reuse.md)分别维护。
 
-2026-10-28 用户批准[滚动与 resize 方案](../design/architecture/long-text-scroll-resize-optimization-proposal.md)，
-既有最新修改已分主题提交。LT-00 请求与阶段观测已退出：
-完整 request、source component versions、engine identity/revision、measure/prepare、
-inline prefix、cache hit 和失败前成本；同一默认关闭诊断入口供内置与外部引擎使用。
-共享 IR 切片已实施并验证退出；原生覆盖 SR-R01 与默认宽度复用 SR-R02 不因总方案授权而自动验收，
-局部 shaping／检查点 LTI-R01/R02 继续独立评审。
-
-测量接口与三个原 Large 完整 request 序列已通过定向验证：
-每次 resize 520 次请求中有 514 次命中，其余为三种不同输入 × 400/386 两个宽度；
-滚动 80 次 measure 请求全部命中，未新增 shaping。
-完整阶段采样完成：1000 热样本、200 新进程、100 预热，无失败；
-1300 个序列的源版本和五类操作阶段核算通过。
-热样本 scroll/resize/submission p95 为 8.866/43.674/6.565 ms；
-共享 glyph buffer/range 已实现，外部 engine/backend、缓存淘汰、源退休、
-唯一 backing 计费与 18 组 GPU 像素对照通过；Native/Web API 边界核验通过。
-原 Large 追加前当前帧绘制 51232 glyph，仅钉住 58788 bytes 唯一 glyph/coords payload
-与 2592 bytes Arc 计数器；不是整个 Runtime 的内存归因。
-共享 IR 匹配对照完成：每版 1000 热样本、200 新进程、100 预热，无失败；
-完整 CPU submission p95 4.935→4.561 ms，五个会话均下降；
-scroll/resize p95 为 6.316/32.952 ms，变化较小且 resize 部分会话反向。
-原 Large 追加 p95 本轮为 15.513 ms，但基线也低于 16 ms；
-长段/长行、resize 16 ms 与查询/完整 IR 4 ms 整体目标仍未关闭。
-下一步先核验重复贡献读取与稳定化的通用复用边界，再按证据选择宽度/原生分支。
-workspace fmt/check/Clippy、1575 项测试、公开 API Native/Web 与专项门禁通过；
-最后的范围值相等语义另通过定向测试。目标与剩余准入不改变，
-详情见[首批实施记录](../verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md)。
-
-2026-11-02 按当前 Rust 能力完成[状态复核](../verification/reviews/core-capability-status-2026-11-02.md)，
-高级 Graphics、Animation、structured flow、ScrollBar、共享场景均有实现，
-平台与整体性能状态分别保留。用户要求随后推进文字优化，本轮在 ADR-051
-内完成[精确缓存查找优化](../verification/reviews/text-cache-optimization-2026-11-02.md)：
-长度只预筛选候选，完整 request／引擎身份／revision 继续证明命中；
-固定槽位保留 FIFO 与旧快照。58 项定向测试、Rust 1.96 严格 Core Clippy 和
-Wasm Core 编译通过。每版三个会话、每会话 32 个正式 CPU 样本的查找累计
-P95 中位数降低约 58%～85%，整体追加／scroll／resize 变化不足 1%，
-IR 录制没有改善；该小片完成不关闭 LT-00～03、16 ms／4 ms 或平台验收。
-下一片仍需用完整阶段分母选择重复贡献／稳定化或宽度／原生覆盖分支。
-
-2026-11-02 用户要求先记录性能路线再继续推进，已在
-[文本顶尖性能路线](../design/architecture/text-performance-strategy.md)明确技术组合、
-owner、失败边界、测量口径与顺序。本轮下一片进入宽度变化的阶段核对与隔离实验，
-不提前启用未评审的分阶段引擎 API、原生覆盖裁剪或 worker。
-已完成[宽度复用隔离实验](../verification/reviews/text-width-reuse-feasibility-2026-11-02.md)：
-三会话共 2304 个正式路径样本，每会话 240 组输出与交互比较通过；
-长文新鲜 Parley 总 P95 16.553～23.005 ms，克隆后断行与完整实验导出
-1.854～2.402 ms。复制成本未抵消收益，优先推进统一可选分阶段合同。
-下一片先冻结模板身份、预算及失败合同，再测量 Core 实际导出、校验、
-inline 反馈和稳定化；本轮未接入生产 API，LT 整体与平台状态保持。
-
-2026-11-02 用户要求继续推进，已形成
-[ADR-059 生产接入草案](../adr/adr-059-staged-text-width-reuse.md)，
-只排除宽度、保留其他完整请求字段；统一可选阶段与 typed asset registry，
-区分会话分配单位、分析留存字节和缓存未准入／真正预算失败。
-源码核对确认 Parley 0.7.0 不公开完整私有 Vec 容量，
-先前 allocator 样本不能证明生产存储上界。
-阶段合同待评审；默认适配计费依据须在启用缓存前补齐。
-本轮没有新增生产代码或再次宣称端到端性能通过，LT-04 仍待独立授权。
-
-2026-11-02 用户要求按[ADR-059 草案评审](../verification/reviews/adr-059-draft-review-2026-11-02.md)
-修改，R01–R06 均已采纳到修订 1：
-Core 捕获四项阶段绑定；区分生产者的存储申报义务和 registry 检查范围；
-补齐登记事务与最后 lease 的计费生命周期、操作前成本计划、提前／分析后拒绝路径；
-B／C 保持显式受控接入，默认启用与限额只在 C／D 门禁通过后决定。
-[逐项回应](../verification/reviews/adr-059-revision-1-response-2026-11-02.md)已列复核入口。
-状态为已完成设计回应、待复核，ADR 仍 `proposed`；
-原评审保留，意见未记关闭，LT-04 未进入生产 Execute。
-
-2026-11-02 用户要求按[修订 1 复核](../verification/reviews/adr-059-revision-1-review-2026-11-02.md)
-修改，F01–F03 已回应到 ADR-059 修订 2：
-分析资产查询先于新增费用预判，剩余额度为零不跳过有效模板；
-新增下界使用统一可选协议；复合失败按会话预算、绑定、原始阶段错误、
-Core 校验顺序选择主错误，全部伴随失败及原始 source 保留；
-context 描述统一为预算、诊断与 Core 封装的只读绑定。
-[修订 2 回应](../verification/reviews/adr-059-revision-2-response-2026-11-02.md)列出待验证用例。
-状态仍 `proposed`、待复核；既有 R01–R04／R06 设计复核范围保留，
-本轮未新增生产代码或性能数据，LT-04 未进入 Execute。
-
-2026-11-02 用户明确接受 ADR-059 并要求记录最终结论。
-[修订 2 最终复核与接受结论](../verification/reviews/adr-059-revision-2-review-2026-11-02.md)
-确认 R01–R06、F01–F03 的设计意见已关闭，ADR 状态为 `accepted`。
-本次仅接受并记录生产接入合同，未启动 Execute，LT-04 仍待独立实施授权。
-Parley 存储计费与操作计划、外部消费者、Core 完整等价及匹配性能均待实施验证；
-默认限额和启用仍由 C／D 门禁后的决策确定。
-LT-00～LT-03、16 ms／4 ms 与平台验收状态保持。
-
-2026-11-02 用户明确授权“方案通过，可以实施了”。
-LT-04 按 ADR-059 的 A→D 顺序实施。
-A 已完成统一可选协议、typed 分析资产登记、lease 账本、预算计划、阶段绑定和
-复合失败；独立消费者 19 项与私有事务 5 项通过，公开 Native／Wasm 边界通过，
-见 [A 实施记录](../verification/reviews/text-stages-a-implementation-2026-11-02.md)。
-当前唯一文字 Execute 转入 B 的默认 Parley 计费接口与适配依据。
-生产缺省仍保持完整入口，C／D 门禁完成前不默认启用阶段缓存。
-
-2026-11-02 B 已形成 Parley 0.7.0
-[只读存储补丁候选](../verification/reviews/text-stages-b-storage-patch-2026-11-02.md)：
-十个数组的实际容量与共享字体引用可观察，5 项私有测试及两种 Native 配置各
-3 项消费者测试通过，portable Wasm 构建通过。
-严格 Clippy 的原始版与候选版均有同样 7 条上游错误，新增模块无新增错误。
-用户后续明确批准存储补丁，已接入 `dependencies/parley-0.7.0`：
-Core／workspace check、Core Wasm、生产路径消费者与 32 项定向文字回归通过。
-全仓 fmt 因并发 Editor 改动未通过，上游格式保留及新增模块单独格式检查已落实。
-复制、断行、shaping 的操作前计费和阶段适配仍未完成，B 不记为已退出。
-
-2026-11-02 B 继续补齐
-[模板复制与对齐操作前准入](../verification/reviews/text-stages-b-operations-2026-11-02.md)：
-依赖私有测试 4 项、两种 Native 配置各 5 项及 Core 会话预算 3 项通过；
-各配置对齐转换为 960 组，Wasm 构建和 Core Wasm check 通过。
-原模板拒绝后保持，费用沿用同一会话的粘滞预算。
-断行、shaping、导出计费及阶段适配仍待实施，普通配置继续完整入口。
-
-2026-11-02 B 已补齐[候选断行准入](../verification/reviews/text-stages-b-line-breaking-2026-11-02.md)：
-两种 Native 配置各 8 项消费者测试、640 组准入断行对照与 5 项 Core 预算测试通过。
-原始 Parley 的 960 组普通入口对照一致，私有 Drop 哨兵 2 项通过，
-portable Wasm 消费者构建通过。回退重扫、Bidi 重排、行扩容及最终汇总均先准入；
-拒绝后释放候选，保留模板和预算粘滞行为。
-当前唯一文字 Execute 继续 B 的分析／shaping 计费依据，
-随后补导出与阶段适配；C／D 未启动，生产缓存未启用。
-
-2026-11-02 B 已完成分析必经路径的定向源码核对，
-形成[下层依赖准入提案](../design/architecture/text-analysis-admission-proposal.md)：
-Fontique 查询集合和冷字体匹配、Harfrust 冷计划及 buffer 增长尚缺完整拒绝通道，
-`max_ops` 不能代替当前会话计费；导出还需覆盖样式片段的前缀重扫。
-四个锁定依赖的 252 个源码文件与原始归档一致，仅作为静态来源证据。
-用户已批准提案限定的 Parley 0.7.0、Fontique 0.7.0／Harfrust 0.3.2
-分析补丁范围，当前唯一文字 Execute 从 B1 的 Harfrust buffer 与冷构造开始。
-该次源码核对未新增运行时改动或性能数据，B／C／D 与默认启用状态保持。
-
-2026-11-02 B1 首片已实现
-[Harfrust 输入 buffer 准入](../verification/reviews/text-stages-b1-buffer-2026-11-02.md)：
-三个输入入口先收取扫描、容量迁移／预留、初始化和写入费用；
-拒绝保留已有输入与可恢复 buffer。外部 Native／portable 各 3 项、
-私有各 5 项、四组普通入口各 216 个输入对照通过；Wasm 构建及既有
-Parley／Core 预算回归通过。当前唯一文字 Execute 继续 B1 冷构造和 shaping，
-不将输入子片通过记为 B1 关闭；B2–B4、C／D 与默认启用保持待完成。
-
-随后已实现 [B1 规范化坐标与条件选择准入](../verification/reviews/text-stages-b1-instance-2026-11-02.md)：
-短输入、默认检测、SmallVec spill 和 GSUB／GPOS 条件选择共用普通算法内核，
-只返回完整候选；Native／portable 各 7 项消费者测试与四组原始版本输出对照通过。
-用户坐标转换、完整冷缓存、计划和 shaping 仍待补齐，唯一文字 Execute 继续 B1。
-
-现已补齐 [B1 用户坐标归一化准入](../verification/reviews/text-stages-b1-variation-2026-11-02.md)：
-无 avar／avar1 的轴扫描、前缀重放、重复分段访问和 SmallVec spill 均在操作前准入。
-Native／portable 各 12 项消费者及各 193 项库测试通过；
-四组原始版本对照输出一致，Wasm 构建、Core check 与 Parley 回归通过。
-avar2 在读取固定 header 后返回成功缺失，不进入未知转换。
-完整冷缓存、计划和 shaping 继续 B1，B2–B4、C／D 与默认启用状态保持。
-
-现已完成 [B1 冷缓存基础准入](../verification/reviews/text-stages-b1-cold-cache-2026-11-02.md)：
-目录、cmap、Native 空 lookup 槽、mark digest 与内联 mapping 初始化先准入；
-AAT 表在 reader 前、portable 非零 lookup 在展开前返回未支持。
-原始／生产 Native／portable 四组各 3,432 份 glyph 观察散列一致，
-消费者各 18 项、私有各 194 项通过；9,000 次小片成本采样只覆盖冷对象。
-唯一文字 Execute 继续 B1 的 lookup／AAT 展开、计划和 shaping，
-不把部分冷构造通过记为 B1 关闭；Core 阶段适配与默认启用保持待完成。
-
-随后已完成 [B1 LookupInfo 与子表缓存准入](../verification/reviews/text-stages-b1-lookup-cache-2026-11-02.md)：
-portable 可展开非零 lookup，Native 通过显式 prepare 完整提交 lazy 缓存；
-Full／Small、连字扫描、context 与 extension 共用准入内核。
-原始／生产 Native／portable 每组 4,104 份输出一致，
-各 23 项消费者与 196 项私有测试通过，Core Native／Wasm 和预算合同通过。
-15,000 次局部采样的热查询新增堆容量为零，不代表 Core 排版改善。
-唯一文字 Execute 继续 B1 的 AAT、计划、buffer 恢复与 shaping；
-B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已实现 [B1 空 AAT 缓存的表头准入](../verification/reviews/text-stages-b1-aat-headers-2026-11-02.md)：
-morx／kern／kerx 缺失或标量 count 为零时返回空缓存，非零和截断表头在 reader 前拒绝；
-新增模块及两个既有文件的补丁重放通过，其他 75 个源码文件逐字节保持。
-原始／生产 Native／portable 四组各 4,968 份输出一致，
-外部测试各 24 项、私有测试各 196 项通过；16,000 个空表冷构造成本样本已保存。
-唯一文字 Execute 继续 B1 的 ShapePlan、buffer 恢复与 shaping；
-非空 AAT 仍未支持，B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已实现 [B1 无布局表 ShapePlan 准入](../verification/reviews/text-stages-b1-plan-2026-11-02.md)：
-feature、重复项合并、无堆临时数组的排序、集合增长和最终 SmallVec 存储共用内核；
-语言、布局表查询、脚本计划回调及 trak 在未知操作前返回未支持。
-四组原始／生产 Native／portable 各 39,744 份观察一致，
-外部测试各 28 项、私有测试各 197 项通过；16,000 个计划成本样本已保存。
-唯一文字 Execute 继续 B1 的布局表计划、配置、buffer 恢复与 shaping；
-B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已实现 [B1 Shaper 配置准入](../verification/reviews/text-stages-b1-configuration-2026-11-02.md)：
-字体映射、指标、OT／AAT 表头与坐标扫描共用配置内核；借用配置零新增堆容量，
-未知 AAT count 在可变长 reader 前返回未支持。
-四组原始／生产 Native／portable 各 39,744 份观察一致，
-外部测试各 32 项、私有测试各 197 项通过；16,000 个配置成本样本已保存。
-唯一文字 Execute 继续 B1 的布局表计划、buffer 恢复与实际 shaping；
-B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已实现 [B1 GSUB／GPOS 计划查询与 lookup 收集准入](../verification/reviews/text-stages-b1-plan-layout-2026-11-02.md)：
-script、LangSys、必选 feature、变体替换、lookup 展开及去重共用内核；
-字体表 header 与重复访问在执行前计费，有效索引增长前 fallible 预留。
-原始／生产 Native／portable 的既有 39,744 与新增 50,688 份普通观察分别一致，
-外部测试各 34 项、私有测试各 197 项通过；Native／Wasm、Clippy 定向门禁通过。
-16,000 个准入模式成本样本及 24,000 个原始／生产普通路径样本已保存；
-GPOS／中文普通路径中位数的小幅成本增量保留，不声明零开销或 Core 性能通过。
-唯一文字 Execute 继续 B1 的语言、脚本专用计划回调、buffer 恢复与实际 shaping；
-B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已接入 [B1 私有语言标签准入](../verification/reviews/text-stages-b1-private-language-2026-11-02.md)：
-`hbot` 扫描和计划 Language 的 inline／spill 存储先准入；
-通用语言映射仍在未知操作前返回未支持。普通入口的长前缀搜索回退已定位，
-采用固定字宽跳过无候选区间，重新核对原始输出与匹配成本。
-唯一文字 Execute 继续 B1 的通用语言、脚本计划回调、实际 shaping 和 buffer 恢复；
-B1、B2–B4、C／D 和默认启用仍未关闭，子片状态见验证记录。
-
-随后已实现 [B1 通用语言映射准入](../verification/reviews/text-stages-b1-general-language-2026-11-02.md)：
-主语言表、扩展语言及 148 条复合规则共用逐操作准入内核，
-保留条件、规则和输出顺序；省去已规范化前缀的临时 Language。
-唯一文字 Execute 继续 B1 的脚本计划回调、实际 shaping 和 buffer 恢复；
-有序规则、全部主语言条目、四类输出矩阵及逐点拒绝均通过定向核验；
-B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已实现 [B1 脚本规划回调准入](../verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)：
-Arabic／Syriac／Hangul 的 feature、pause、字体查询、mask 与规划数据存储先准入，
-普通和准入路径共用内核；专用 Syriac 合成夹具及逐点拒绝通过定向核验。
-十二份补丁重放、五类完整输出矩阵的四配置对照、Native／portable 消费者及
-Core Native／Wasm check 通过；唯一文字 Execute 继续 B1 的
-实际 shaping 和 buffer 恢复；B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已接入 [B1 非扩张塑形准入与 buffer 恢复](../verification/reviews/text-stages-b1-shaping-2026-11-02.md)：
-无布局表的 LTR ASCII 走共享实际塑形 pipeline，重复映射和完整初始化数组访问
-在执行前计费；未知路径保留输入，中断路径恢复变量位、上限和可用容量。
-16,000 个四模式成本样本与 24,000 个原始／生产普通路径样本完成；
-六矩阵四配置完整输出、Native／portable 私有与消费者测试、
-Core Native／Wasm 串行补验及文档门禁通过；首次磁盘空间不足日志保留。
-唯一文字 Execute 继续 B1 的复杂 shaping；B1、B2–B4、C／D 和默认启用仍未关闭。
-
-随后已完成 [B1 单字形替换准入](../verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)：
-零 flags 的 GSUB SingleSubst format 1／2 走共享 lookup 内核，
-冷缓存与实际 lookup 前计费覆盖 coverage 搜索、未命中子表和重复 glyph 读取。
-七矩阵四配置完整输出、Native／portable 各 202 项私有与 46 项外部测试、
-Core Native／Wasm check、16,000 个准入成本和 24,000 个普通对照样本完成。
-最后费用复核补正 digest 相交的双数组访问，重放与消费者补验已通过；
-16,000 个准入成本与 24,000 个普通对照样本已补验通过，
-Native／portable Clippy、Core Native／Wasm check 与 portable Wasm 构建通过。
-补正前的完整输出与采样证据另存，验证工具改用固定 Cargo 包身份和串行低调试构建。
-随后已完成
-[B1 多字形替换准入](../verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)：
-正长度 MultipleSubst 的实际 sequence 长度、全计划增长上界、
-双数组扩容／初始化和输出复制在执行前准入。
-十四份前序补丁保持；八矩阵四配置共 964,032 份完整观察一致，
-Native／portable 各 202 项私有与 51 项消费者测试通过。
-32,000 个准入成本、24,000 个普通对照样本、Core Native／Wasm check、
-portable Wasm 构建与消费者严格 Clippy 通过；
-第三方库直接 Clippy 与冻结前片均保留六项既有诊断，新增诊断为零。
-完整输出无损 gzip 保存，原始字节散列和分母核对通过；Wasm 未执行测试。
-随后已接入
-[B1 连字替换准入](../verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)：
-组件求和检查、匹配位置 inline／spill 及重复访问在执行前准入；
-九矩阵四配置共 1,102,272 份完整观察一致，
-Native／portable 各 203 项依赖与 56 项消费者测试通过。
-混合 lookup 输出前缀扩张及尾部组件的费用已补正；
-48,000 个准入成本、36,000 个普通对照样本、Core Native／Wasm check、
-portable Wasm 构建与消费者严格 Clippy 通过。
-库 Clippy 的六项诊断与冻结前片一致，新增诊断为零；Wasm 未执行测试。
-当前唯一文字 Execute 继续 B1 的上下文／递归替换与后续复杂 shaping。
-B1、B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 上下文替换准入](../verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)：
-Format 3 匹配一至八位置，只调用零 flags 单字形叶子，
-克隆、移动、嵌套 lookup 和重复访问均在执行前计费。
-十矩阵四配置共 1,194,432 份完整观察一致，
-Native／portable 各 203 项依赖与 60 项消费者测试通过；
-32,000 个准入成本、24,000 个普通对照样本与 Core Native／Wasm 定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1；B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 上下文堆存储准入](../verification/reviews/text-stages-b1-context-spill-2026-11-02.md)：
-Format 3 支持范围扩展至 64 位置，单字形嵌套记录复用匹配与备份数组，
-两份数组均在 lookup 前准入并预留；此前连字后的组件求和在 shaping 前检查。
-十一矩阵四配置共 1,209,792 份完整观察一致，依赖测试各 203 项通过；
-Native／portable 各 64 项消费者、32,000 个准入成本、
-24,000 个普通对照样本与 Core／Wasm 定向门禁通过；
-库 Clippy 与前十七片六项既有诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1；B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 GPOS 单字形定位准入](../verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)：
-零 flags 的 SinglePos format 1／2 标量定位进入共享策略，
-查表与 position 读写在 lookup 前收费，前置替换扩容继续独立计费。
-十二矩阵四配置共 1,357,248 份完整观察一致；
-Native／portable 各 203 项依赖与 67 项消费者、
-32,000 个准入成本、24,000 个普通对照样本与 Core／Wasm 定向门禁通过。
-库 Clippy 与前十八片六项既有诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1 的其余 GPOS 与复杂 shaping；
-B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 GPOS 配对定位准入](../verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)：
-零 flags 的 PairPos format 1／2 标量定位进入共享策略，
-pair-set／class 查询与安全标记先收费，非法 class 在矩阵寻址前未支持。
-SinglePos 同步修复解码时丢弃保留位导致的检查缺口。
-二十份补丁精确重放；十三矩阵四配置共 1,504,704 份完整观察一致。
-Native／portable 各 203 项依赖与 71 项消费者、
-64,000 个准入成本、48,000 个普通对照样本与 Core／Wasm 定向门禁通过。
-库 Clippy 与前十九片六项既有诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1，下一片先补齐 ASCII RTL 的镜像与反转准入；
-规范化、复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 ASCII RTL 准入](../verification/reviews/text-stages-b1-rtl-2026-11-02.md)：
-真实目标方向在 pipeline 前保存，原生反转、镜像查询与最终反转先计费；
-镜像缺字可用已映射原字符，未知操作仍提前未支持。
-二十一份补丁精确重放；十四矩阵四配置共 1,619,904 份完整观察一致。
-Native／portable 各 203 项依赖与 75 项消费者、
-64,000 个准入成本、48,000 个普通对照样本与 Core／Wasm 定向门禁通过。
-库 Clippy 与前二十片六项既有诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1，下一片补齐已映射非 mark Unicode 的通用映射和属性检查；
-完整规范化、复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
-
-随后已接入
-[B1 简单 Unicode 准入](../verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)：
-已映射的 Ll／Lu／Lt／Lo／Zs 字符与 Han 默认 shaper 进入共享内核，
-六种 cmap reader、MacRoman／Symbol 及重复属性查询先计费。
-二十二份补丁精确重放；十五矩阵四配置共 3,831,744 份完整观察一致。
-Native／portable 各 203 项依赖与 81 项消费者测试通过。
-192,000 条准入成本、144,000 条普通对照样本与跨目标定向门禁通过。
-库 Clippy 与前二十一片六项既有诊断一致，Wasm 未执行测试。
-唯一文字 Execute 继续 B1 的 GDEF 属性查询；完整规范化、复杂 shaping、
-B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 GDEF 属性准入](../verification/reviews/text-stages-b1-gdef-2026-11-02.md)
-已接入初始字形、GSUB 输出及上下文叶子的分类查询，
-并覆盖字体 mark 的 advance 清零和 offset 调整。
-二十三份补丁精确重放；十六矩阵四配置共 4,274,112 份完整观察一致。
-Native／portable 各 203 项依赖与 86 项消费者测试通过。
-192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
-该片之后继续 B1 的一般字符与规范化边界；
-复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 一般字符准入](../verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)
-已补齐已映射标点、数字、符号和单独 emoji 的属性判断，
-支付非提前返回分支的额外访问，并验证缺失镜像与逐点拒绝恢复。
-二十四份补丁精确重放；十七矩阵四配置共 4,569,024 份完整观察一致。
-Native／portable 各 203 项依赖与 90 项消费者测试通过。
-192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
-该片之后继续 B1 的缺字与规范化边界；
-复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 一对一规范化准入](../verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)
-已补齐缺字 `.notdef` 与 canonical one-to-one 分解，
-支付重复查询、输出切换及前缀／后续复制费用，逐点拒绝恢复通过。
-二十五份补丁精确重放；十八矩阵四配置共 5,453,760 份完整观察一致，
-全部重新执行。Native／portable 各 204 项依赖内部测试与 94 项消费者测试通过。
-192,000 条准入成本、144,000 条普通对照和跨目标定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
-该片之后继续 B1 的空格／不换行连字符 fallback，
-完整规范化与复杂 shaping；B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 空格与不换行连字符回退](../verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)
-已补齐原始字符回退、重复映射及 GSUB 后实际长度的空格定位费用。
-二十六份补丁精确重放；十九矩阵四配置共 5,945,280 份完整观察一致，
-全部重新执行；内部 invisible 普通参考另有 160 份一致观察。
-Native／portable 各 205 项依赖内部测试与 98 项消费者测试、
-192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 只构建未执行。
-当前唯一文字 Execute 继续 B1 的完整规范化与复杂 shaping；
-B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 分解后第二字符缺字](../verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)
-已覆盖 a、b 独立查询、终止后按原始字符回退及逐点拒绝恢复；
-b 命中仍在未覆盖操作前返回未支持。
-二十七份补丁精确重放；二十矩阵四配置共 6,338,496 份完整观察一致。
-旧矩阵原始版本 38 份配置逐字节核对后复用，其余配置重新执行。
-Native／portable 各 205 项依赖内部测试与 102 项消费者测试、
-192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过；
-库 Clippy 与冻结前片六项诊断一致，Wasm 只构建未执行。
-当前唯一文字 Execute 继续完整规范化与复杂 shaping；
-B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 共享规范化内核](../verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)
-已接入分解、排序、重组、输出增长及规范化后实际长度的准入。
-二十八份补丁精确重放；二十一矩阵四配置共 8,796,096 份完整观察一致。
-Native／portable 各 211 项依赖内部测试与 102 项消费者测试通过。
-192,000 条准入成本、两组各 144,000 条普通对照及十四项定向门禁通过。
-格式修正的源码证明、普通输出字节复核与最终源码成本重采通过；
-库 Clippy 新增诊断为零，Wasm 只构建未执行。公共组合输入尚未开放。
-当前唯一文字 Execute 继续 B1，B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 dotted-circle 输出与同步](../verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)
-已接入圆圈判定、映射、输出及未消费后缀复制的操作前准入。
-二十九份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致。
-Native／portable 各 214 项内部测试与 102 项消费者测试通过。
-192,000 条准入和三组共 576,000 条普通成本样本、十一项边界检查通过；
-七份采样前 Clippy 收据与十九份原始采样文件复核通过。
-库 Clippy 新增诊断为零，Wasm 只构建未执行。公共组合输入尚未开放。
-当前唯一文字 Execute 继续 grapheme 合并、反向分组与 mark 定位；
-B1、B2–B4、C／D 和默认启用保持未关闭。
-
-[B1 grapheme 合并与反向分组](../verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
-共享内核、逐点拒绝、完整普通输出对照与跨目标检查通过，成本记录完成。
-三十份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致，
-原版 44 份配置经核对后复用，生产 44 份配置重新执行。
-Native 与 portable 各 218 项内部测试、102 项消费者测试通过；
-Core 长文本布局、绘制、共享 glyph 与阶段协议定向回归 32 项通过。
-768,000 条成本样本、七份采样前 Clippy 收据及十九份原始采样文件核对完成；
-十一项边界检查通过，库 Clippy 新增诊断为零，Wasm 只构建未执行。
-普通路径个别配置 P95 比值达到 3.409，外部负载未受控，不能证明没有性能回退，
-不将成本记录完成记为 16 ms／4 ms 或默认配置性能通过。
-该结果不代表公共组合输入或 Flow 阶段适配已经启用。
-当前唯一文字 Execute 继续 mark 属性与定位，
-B1、B2–B4、C／D 和默认启用保持未关闭。
-
-| 切片 | 状态 | 当前证据 |
+| 切片 | 状态 | 已实现与剩余范围 |
 |---|---|---|
-| LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 本轮另补齐 1300 次独立源版本观测，正式样本和阶段核算通过；first-ready、生产 GPU/present 与 Web 体积仍缺证据 |
-| LT-01 | `in_progress` | 共享布局/snapshot、source 索引、有序依赖去重、局部边框扫描及同 scene 的静态签名与字体解析复用已接入；第四轮测量仅生成尺寸，完整来源与绘制几何归准备阶段；本轮共享 glyph buffer/range 消除录制与 submission 的数组 clone，外部 lease 与唯一 backing 计费验证通过；其他复制、缓存留存与 Web 产物仍待采证 |
-| LT-02 | `in_progress` | 精确复用与失效反例通过；第四轮原 Large 追加 p50 17.157→15.302 ms、p95 20.112→19.214 ms，Flow 构建自身平均 9.200→7.695 ms，部分尾延迟回退，未达到 16 ms；长段/长行追加 p95 为 38.526/52.733 ms；混排标准宽度为 6.864 ms，默认预算下缩窄成功，优化版 resize p95 14.469 ms |
-| LT-03 | `in_progress` | 18 组 Full/Partial GPU 对照通过；第四轮原 Large 滚动新增 shaping 为 0，稳定化 p95 7.867 ms，resize 后 IR p95 5.748 ms；默认 native glyph 仍完整输出 51233 个；生产证书边界已形成待复核提案，4 ms 查询/IR 验收未完成 |
-| LT-04 | `in_progress` | ADR-059 A 已验证；B 存储及复制／对齐／断行准入已实现，依赖／Core 预算／Wasm 定向验证通过，原始普通入口对照一致；分析／shaping、导出计费与适配未完成；C／D 未实施，生产缓存未默认启用 |
+| LT-00 | `in_progress` | release 驱动、请求／阶段诊断、冻结和匹配采样已提供；first-ready、生产 GPU／present 仍缺证据 |
+| LT-01 | `in_progress` | 共享布局／snapshot／glyph range、source 索引和依赖去重已实现；其他复制、缓存留存和完整成本未验完 |
+| LT-02 | `in_progress` | 精确请求／段落复用、失效反例和受约束测量已验证；完整贡献组装重复及 16 ms 更新目标未关闭 |
+| LT-03 | `in_progress` | 已有 Full／Partial GPU 对照和共享 IR；默认原生输出仍为追加后 51,233 glyph，4 ms 查询／IR 与生产覆盖证书未通过 |
+| LT-04 | `in_progress` | ADR-059 A 已完成，B 存储、复制／对齐／断行准入已有实现；B1 扩张暂停，B2～B4、C／D 和默认启用未完成 |
+| LT-05～09 | `not_started` | worker、渐进覆盖、紧凑来源和后端／平台后续范围独立评审，未授权整批实施 |
 
-详情见[实施记录](../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
-原样例首次布局的五个会话均达到 p95 ≤ 100 ms，追加的五个会话均未达到 16 ms。
-第四轮只比较两份独立匹配构建，不与旧轮二进制计算严格提速比。
-原 Large 源提交补录使用独立冻结构建，取得 1000 次热样本、200 个新进程
-和 100 次预热；追加 p95 为 17.514 ms，resize 后录制 p95 为 5.335 ms。
-这是单版本证据，未改排版算法，不与第四轮计算严格提速比；
-16 ms 与 4 ms 目标保持未完成，默认原生 glyph 仍完整输出。
-混排 resize 保留基线预算拒绝与优化版重复成功两份证据，不计算前后耗时比；
-有限输入的成功不证明任意混排均可准入。
-LT-04 已按 ADR-059 获批实施；LT-05～LT-09 保持独立评审，本批整体仍待验收。
+FR-01 在同一不可变借用内复用准备输入，每次仍重读外部 provider revision，
+不缓存 contributor／handler／border 回调结果。每版本 500 个匹配 fresh Runtime 样本中，
+resize 批次验证 P95 为 2.458 → 1.537 ms，整体 resize P95 为 37.236 → 36.439 ms，
+P99 上升；13 次贡献组装及 520 请求／514 命中的分母未变。
+支持局部复用有效，不支持稳定尾延迟已改善。
+
+下一步 FR-02 先拆分组装成本，再冻结 contributor／registry／绑定状态的版本合同，
+不删布局反馈轮次或跳过外部重读。独立 TextFlowLarge 应用已实现，自动 CPU／Native
+两轮回放通过；人工交互、DPI、IME、AT 和屏幕呈现未验收。
+最新证据和测量限制统一见[文字优化验证](../verification/performance/text-optimization-validation.md)；
+阶段边界见[文字阶段验证状态](../verification/reviews/text-stages-status.md)。
+产物体积只按用户明确请求比较，不作为日常功能门禁。
 
 ## P2-F03：逐角圆角与矩形分边描边
 
-2026-10-27 用户批准实施 [ADR-052](../adr/adr-052-independent-corners-and-edge-borders.md)。
-状态：`complete`（Core 实现、自动验证、macOS GPU 与可达产物测量完成）。
-
-Core 提供公开 `ShapeContour`、真实逐角半径、矩形逐边颜色和开关，以及原子的
-typed component updates。标题区结构留在 `composite-shapes-app` 独立样例，
-不进入 Core。旧圆角宽高和 `RectangleBorder` struct literal 保持兼容。
-
-上述为 P2-F03 原验收边界；S08-B 按 ADR-056 将 RectangleBorder 的原始数值字段
-收口为受检构造，替换 literal 兼容要求，圆角与分边绘制语义保持。
-
-十一组 macOS GPU 场景检查圆形/椭圆圆角、不等半径、半透明接缝及关闭底边，
-同时验证纯几何、外部 Figure、Border snapshot、同值与失败原子性。
-suite：`shape.independent-corners`；[实施证据](../verification/reviews/independent-shape-corners-2026-10-27.md)。
-Web、Windows、Linux 的实际像素验收仍属于平台发布准备，不由 macOS 结果外推。
-
-2026-10-27 自由端修订已获用户批准：相邻边关闭时采用 Butt 平齐截面，接角保持
-原有颜色分区。实现、16 种开关组合、native GPU 端点与最终门禁均已通过；
-见[自由端实施记录](../verification/reviews/shape-free-end-butt-2026-10-27.md)。
+状态：`complete`。Core Shape／Border；[ADR-052](../adr/adr-052-independent-corners-and-edge-borders.md)、
+[实现验证](../verification/reviews/independent-shape-corners-2026-10-27.md)和
+[自由端续验](../verification/reviews/shape-free-end-butt-2026-10-27.md)。
+逐角和逐边使用统一绘制、包络与外部消费者合同。

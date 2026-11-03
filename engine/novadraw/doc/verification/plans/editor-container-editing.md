@@ -27,9 +27,9 @@ HTML drop 不替代 Native 系统文件 DnD，阶段耗时不替代全部内部�
 每次操作记录模型 revision、父/child 顺序与约束、ModelId/PartId/FigureId、
 selection/focus、feedback owner、history/dirty 和 fault。
 所有拒绝场景比较前后模型与历史，不用截图替代事务事实。
-本轮按[首次评审](../reviews/adr-055-draft-review-2026-10-29.md)补齐断言。
-修订 2 再补[修订 1 复核](../reviews/adr-055-revision-1-review-2026-10-29.md)
-的 R1-01～03，保留其余已解决合同的验证范围。
+修订 2 已补齐 CE-DR01～09 和 R1-01～03 的断言，
+设计结论见[容器协议评审状态](../reviews/framework-contract-review-status.md)，
+保留全部已解决合同的验证范围。
 本轮续验映射见[契约与成本复核](../reviews/adr-055-followup-2026-10-29.md)；
 提前退休反馈的清理准入拒绝不替代 Core revision 耗尽的端到端场景。
 这些场景是退出条件。实际覆盖与尚缺证据见

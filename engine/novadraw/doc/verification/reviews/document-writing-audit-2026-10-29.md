@@ -237,7 +237,7 @@
 
 ## 可保留的写法
 
-[容器编辑首轮评审](adr-055-draft-review-2026-10-29.md)第 119～127 行是清楚的对照样本：
+[容器编辑首轮评审](../evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/adr-055-draft-review-2026-10-29.md)第 119～127 行是清楚的对照样本：
 
 > 例如选择目标 B 中的节点 b，以及容器 A 中的节点 a，再一起拖入 B：
 > b 需要重排或约束修改；a 需要 A 的移出和 B 的移入。按“每个原父都须允许移出”

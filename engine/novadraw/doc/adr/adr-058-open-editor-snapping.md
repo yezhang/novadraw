@@ -7,10 +7,9 @@
 状态：修订 2 已接受；2026-11-02。用户授权在复核通过后推进，P2-E04-A 进入实施。
 依赖 [ADR-055](adr-055-container-editing-protocol.md)的父域映射和容器事务。
 专题见 [开放吸附设计](../design/editor/open-snapping.md)。
-本次修改意见见[修订 1 评审记录](../verification/reviews/adr-058-revision-1-review-2026-11-02.md)；
-逐项修改见[修订回应](../verification/reviews/adr-058-revision-2-response-2026-11-02.md)，
-原评审记录保持不变。[修订 2 复核](../verification/reviews/adr-058-revision-2-review-2026-11-02.md)
-复核通过，用户的条件授权已满足。
+修订 2 复核通过，用户的条件授权已满足。评审、依赖和实施范围归入
+[E04 验证状态](../verification/reviews/open-snapping-review-status.md)，
+当前执行条件见[P2 backlog](../roadmap/p2-delta-backlog.md)。
 
 ## 分层归属
 
@@ -22,7 +21,7 @@
 | 应用 | Grid／Guide 资源、业务资格、Command 与 attachment 持久化 | 消费者责任；应用功能不计为框架新增能力 |
 
 本轮已完成本页引用方法的只读依赖核验，证据链见
-[依赖核验与修订说明](../verification/reviews/adr-058-dependency-and-design-review-2026-11-02.md)。
+[依赖核验结论](../verification/reviews/open-snapping-review-status.md)。
 所查坐标、bounds、有效可见性与反馈基础契约在 Core 有对应入口；
 新增受检特征查询和吸附会话编排归 Editor。该结论不表示实现或平台验收通过。
 若确认必要 Core 契约缺失，停止增加 Editor 吸附能力，先交付 Core 增补建议；

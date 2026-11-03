@@ -128,7 +128,7 @@ Layout/Container Policy 的换父、有序插入与父坐标语义，
 首次评审的 CE-DR01～09 已采纳，补充通用 host 聚合、第三方受检计划、
 混合父批次、完整选择/focus 恢复、独立创建协议及数值/时序/成本合同；
 修订 2 再补唯一锚点/批次平移、统一资格 request 与固定活动协议的跨布局消费，
-对应[修订 1 复核](../../verification/reviews/adr-055-revision-1-review-2026-10-29.md)
+对应[容器协议评审结论](../../verification/reviews/framework-contract-review-status.md)
 的 R1-01～03。公开容器协议、移动 Tool、父域创建/drop 与共享受检服务已接入；
 无窗口契约及独立消费者已验证，Native/Web 实际输入仍待验收。
 

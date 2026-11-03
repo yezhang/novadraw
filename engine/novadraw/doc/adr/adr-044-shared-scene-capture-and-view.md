@@ -8,7 +8,7 @@
 
 Thumbnail 要求两个 Runtime 观察同一可变 Figure 树，不能复制场景或跨 Runtime
 挂载活 Figure。设计经过三轮修订，
-[修订 3 复核通过](../verification/reviews/k07-shared-scene-view-background-revision-3-review-2026-10-23.md)，
+[修订 3 复核通过](../verification/reviews/framework-contract-review-status.md)，
 用户随后明确批准实施。完整契约由
 [共享视图与宿主背景](../design/architecture/shared-scene-view-background-proposal.md)负责。
 

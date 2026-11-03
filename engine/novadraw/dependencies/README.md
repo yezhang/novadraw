@@ -59,9 +59,9 @@ cargo check -p novadraw --lib --target wasm32-unknown-unknown
 直接 owner 为 Core 文字引擎的 Parley shaping 链路。用户于 2026-11-02
 批准本版本的分析准入补丁；当前已完成输入 buffer 与规范化坐标子片，
 冷构造及 shaping 准入仍待完成，见
-[B1 buffer 记录](../doc/verification/reviews/text-stages-b1-buffer-2026-11-02.md)。
+[B1 buffer 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-buffer-2026-11-02.md)。
 坐标与 GSUB／GPOS 条件选择的范围见
-[B1 instance 记录](../doc/verification/reviews/text-stages-b1-instance-2026-11-02.md)。
+[B1 instance 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-instance-2026-11-02.md)。
 
 - 来源：crates.io `harfrust 0.3.2`，上游 `https://github.com/harfbuzz/harfrust`。
 - 发布提交：`7e7d63e1122d39e38e25dd9c0ebe4efb57b1d9d5`。
@@ -105,68 +105,68 @@ cargo check -p novadraw --lib --target wasm32-unknown-unknown
 新模块单独检查格式。独立消费者和原始版本对照见
 [验证说明](../tests/consumers/harfrust-admission/README.md)。
 用户坐标的无 avar／avar1 已补齐准入，见
-[B1 用户坐标记录](../doc/verification/reviews/text-stages-b1-variation-2026-11-02.md)。
+[B1 用户坐标记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-variation-2026-11-02.md)。
 冷缓存基础准入现覆盖目录、cmap、Native 空 lookup 槽及 mark digest，见
-[B1 冷缓存记录](../doc/verification/reviews/text-stages-b1-cold-cache-2026-11-02.md)。
+[B1 冷缓存记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-cold-cache-2026-11-02.md)。
 lookup 缓存准入已补齐 portable eager 和 Native 显式 lazy prepare，见
-[B1 lookup 记录](../doc/verification/reviews/text-stages-b1-lookup-cache-2026-11-02.md)。
+[B1 lookup 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-lookup-cache-2026-11-02.md)。
 空 AAT 缓存准入支持零 count；非空与截断表头仍提前拒绝，见
-[B1 AAT 表头记录](../doc/verification/reviews/text-stages-b1-aat-headers-2026-11-02.md)。
+[B1 AAT 表头记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-aat-headers-2026-11-02.md)。
 无布局表的 ShapePlan 准入已覆盖 feature、排序与存储；未知路径提前返回未支持，见
-[B1 计划记录](../doc/verification/reviews/text-stages-b1-plan-2026-11-02.md)。
+[B1 计划记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-plan-2026-11-02.md)。
 配置准入覆盖借用字体表和坐标扫描；未知 AAT count 提前返回未支持，见
-[B1 配置记录](../doc/verification/reviews/text-stages-b1-configuration-2026-11-02.md)。
+[B1 配置记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-configuration-2026-11-02.md)。
 布局表计划准入已覆盖 GSUB／GPOS 的 script、feature、变体替换与 lookup 收集，见
-[B1 布局表计划记录](../doc/verification/reviews/text-stages-b1-plan-layout-2026-11-02.md)。
+[B1 布局表计划记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-plan-layout-2026-11-02.md)。
 私有 `hbot` 语言标签的扫描与计划语言存储已接入准入，见
-[B1 私有语言记录](../doc/verification/reviews/text-stages-b1-private-language-2026-11-02.md)。
+[B1 私有语言记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-private-language-2026-11-02.md)。
 通用主语言、扩展语言及复合标签已接入同一准入内核，见
-[B1 通用语言记录](../doc/verification/reviews/text-stages-b1-general-language-2026-11-02.md)。
+[B1 通用语言记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-general-language-2026-11-02.md)。
 Arabic／Syriac／Hangul 规划回调已接入共享准入内核及可失败数据存储，见
-[B1 脚本回调记录](../doc/verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)。
+[B1 脚本回调记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)。
 已接入非扩张 LTR ASCII 塑形准入与中断 buffer 恢复，见
-[B1 塑形记录](../doc/verification/reviews/text-stages-b1-shaping-2026-11-02.md)。
+[B1 塑形记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-shaping-2026-11-02.md)。
 已接入零 flags 的 GSUB SingleSubst format 1／2 与完整 lookup 缓存准入，见
-[B1 单字形替换记录](../doc/verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)。
+[B1 单字形替换记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)。
 已接入零 flags 的正长度 MultipleSubst，按 sequence 长度证明增长上界，
 并在 lookup 前准入双数组扩容与输出复制，见
-[B1 多字形替换记录](../doc/verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)。
+[B1 多字形替换记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)。
 零 flags 连字匹配的组件边界、匹配位置存储与重复访问已接入准入，见
-[B1 连字替换记录](../doc/verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)。
+[B1 连字替换记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)。
 已接入 inline Format 3 上下文的嵌套单字形替换、移动与重复访问准入，见
-[B1 上下文替换记录](../doc/verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)。
+[B1 上下文替换记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)。
 Format 3 上下文已扩展至 64 位置，堆匹配数组与备份在 lookup 前准入并预留，
 组件求和按此前连字上界检查；实施与验证范围见
-[B1 上下文堆存储记录](../doc/verification/reviews/text-stages-b1-context-spill-2026-11-02.md)。
+[B1 上下文堆存储记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-context-spill-2026-11-02.md)。
 GPOS SinglePos format 1／2 的零 flags 标量定位已接入同一策略，
 lookup 前覆盖查表与 position 读写，定位本身不新增存储；见
-[B1 单字形定位记录](../doc/verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)。
+[B1 单字形定位记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)。
 GPOS PairPos format 1／2 的零 flags 标量定位已接入同一策略，
 pair-set／class 查询、安全标记和矩阵寻址均在执行前准入。
 原始 ValueFormat 保留位与非法 class 值在 pipeline 前返回未支持；见
-[B1 配对定位记录](../doc/verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)。
+[B1 配对定位记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)。
 ASCII RTL 的原生方向反转、镜像查询与最终反转已接入同一策略，
 真实目标方向在进入 pipeline 前保存；见
-[B1 RTL 记录](../doc/verification/reviews/text-stages-b1-rtl-2026-11-02.md)。
+[B1 RTL 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-rtl-2026-11-02.md)。
 已映射的 Ll／Lu／Lt／Lo／Zs 字符及 Han 默认 shaper 已接入准入，
 六种 cmap reader、MacRoman 与 Symbol 映射的重复访问各自计费；见
-[B1 简单 Unicode 记录](../doc/verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)。
+[B1 简单 Unicode 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)。
 GDEF glyph／mark 分类、替换后再查询和 mark 零宽读写已接入准入；
 完整输出、成本与跨目标定向门禁通过，见
-[B1 GDEF 记录](../doc/verification/reviews/text-stages-b1-gdef-2026-11-02.md)。
+[B1 GDEF 记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-gdef-2026-11-02.md)。
 已映射一般字符的非 early-return 属性判断也已接入准入，
 继续排除 mark、特殊 continuation、分数斜线与缺字规范化。
 二十四份补丁重放、十七矩阵四配置共 4,569,024 份完整观察、
 192,000 条准入成本、144,000 条普通对照和跨目标门禁通过，见
-[B1 一般字符记录](../doc/verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)。
+[B1 一般字符记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)。
 缺字 `.notdef` 与 canonical one-to-one 规范化已接入准入，
 覆盖分解与映射的重复访问、独立输出数组切换和前缀／后续复制。
 二十五份补丁精确重放，十八矩阵四配置共 5,453,760 份完整观察一致，
 Native／portable 各 204 项依赖内部测试与 94 项消费者测试通过；见
-[B1 一对一规范化记录](../doc/verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)。
+[B1 一对一规范化记录](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)。
 192,000 条准入成本、144,000 条普通对照与跨目标定向门禁也已通过，
 库 Clippy 新增诊断为零，Wasm 只构建未执行测试。
-[缺字空格与 U+2011 回退](../doc/verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)
+[缺字空格与 U+2011 回退](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)
 已覆盖原始字符回退、重复映射及 GSUB 后实际长度的空格定位费用。
 二十六份补丁精确重放，十九矩阵四配置共 5,945,280 份完整观察一致；
 内部 invisible 普通参考另有 160 份一致观察。
@@ -175,7 +175,7 @@ Native／portable 各 205 项依赖内部测试与 98 项消费者测试、
 库 Clippy 新增诊断为零，Wasm 只构建未执行。
 此前生产源码核对使用 `tools/scripts/check_harfrust_space_admission.py`；
 此前脚本保留对应历史快照。
-[分解后第二字符缺字](../doc/verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)
+[分解后第二字符缺字](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)
 已接入 a、b 独立查询及缺字终止后的原始字符回退；b 命中仍未支持。
 二十七份补丁精确重放；二十矩阵四配置共 6,338,496 份完整观察一致。
 旧原始版本 38 份配置逐字节核对后复用，生产及新增配置重新执行。
@@ -184,7 +184,7 @@ Native／portable 各 205 项依赖内部测试与 102 项消费者测试、
 库 Clippy 新增诊断为零，Wasm 只构建未执行。
 此前生产核对入口是 `tools/scripts/check_harfrust_decomposition_miss_admission.py`，
 保留用于对应冻结快照。
-[共享规范化内核](../doc/verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)
+[共享规范化内核](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)
 已接入分解、排序、重组、输出增长及规范化后实际长度的准入。
 二十八份补丁精确重放；二十一矩阵四配置共 8,796,096 份完整观察一致。
 Native／portable 各 211 项依赖内部测试与 102 项消费者测试通过。
@@ -193,7 +193,7 @@ Native／portable 各 211 项依赖内部测试与 102 项消费者测试通过�
 144,000 条普通 mark 对照及十四项定向门禁通过。
 两处纯格式修正经过严格 Rustfmt 证明，全部普通输出逐字节复核，
 定向测试和成本重新执行。库 Clippy 新增诊断为零，Wasm 只构建未执行。
-[dotted-circle 输出与同步](../doc/verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)
+[dotted-circle 输出与同步](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)
 已接入圆圈判定、映射、输出和未消费后缀复制的操作前准入。
 二十九份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致。
 Native／portable 各 214 项内部测试与 102 项消费者测试通过。
@@ -202,7 +202,7 @@ Native／portable 各 214 项内部测试与 102 项消费者测试通过。
 七份采样前 Clippy 收据和十九份原始采样文件已复核；
 库 Clippy 新增诊断为零，Wasm 只构建未执行。
 该片冻结快照的核对入口是 `tools/scripts/check_harfrust_dotted_circle_kernel_admission.py`。
-[grapheme 合并与反向分组](../doc/verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
+[grapheme 合并与反向分组](../doc/verification/evidence/knowledge-maintenance-2026-11-03/doc/verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
 已完成共享内核、定向测试、完整普通输出对照和跨目标检查。
 三十份补丁精确重放；Native 与 portable 各 218 项内部测试、102 项消费者测试通过。
 768,000 条成本样本已记录，十一项边界检查通过，库 Clippy 新增诊断为零；
