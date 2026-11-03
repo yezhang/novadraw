@@ -7,6 +7,7 @@ use super::unicode::GeneralCategory;
 use super::{hb_font_t, script};
 
 pub const THAI_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: None,
     override_features: None,
     create_data: None,

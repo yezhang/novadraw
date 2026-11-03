@@ -1,0 +1,361 @@
+--- a/src/hb/ot_layout.rs
++++ b/src/hb/ot_layout.rs
+@@ -151,11 +151,25 @@
+     buffer: &mut hb_buffer_t,
+     table: Option<&T>,
+ ) {
++    match apply_layout_table_with(plan, face, buffer, table, &mut super::face::shape_admission::OrdinaryShape) {
++        Ok(()) => {},
++        Err(error) => match error {},
++    }
++}
++
++pub(crate) fn apply_layout_table_with<T: LayoutTable, P: super::face::shape_admission::ShapeAdmission>(
++    plan: &hb_ot_shape_plan_t,
++    face: &hb_font_t,
++    buffer: &mut hb_buffer_t,
++    table: Option<&T>,
++    policy: &mut P,
++) -> Result<(), P::Error> {
+     let mut ctx = OT::hb_ot_apply_context_t::new(T::INDEX, face, buffer);
+ 
+     for (stage_index, stage) in plan.ot_map.stages(T::INDEX).iter().enumerate() {
+         if let Some(table) = table {
+             for lookup_map in plan.ot_map.stage_lookups(T::INDEX, stage_index) {
++                policy.before_lookup(face, ctx.buffer, lookup_map.index)?;
+                 let Some(lookup) = table.get_lookup(lookup_map.index) else {
+                     continue;
+                 };
+@@ -180,6 +194,7 @@
+             }
+         }
+     }
++    Ok(())
+ }
+ 
+ fn apply_string<T: LayoutTable>(ctx: &mut OT::hb_ot_apply_context_t, lookup: &LookupInfo) {
+--- a/src/hb/ot_layout_gsub_table.rs
++++ b/src/hb/ot_layout_gsub_table.rs
+@@ -3,6 +3,8 @@
+ use super::ot_layout::*;
+ use super::ot_shape_plan::hb_ot_shape_plan_t;
+ 
+-pub fn substitute(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t) {
+-    apply_layout_table(plan, face, buffer, face.ot_tables.gsub.as_ref());
++pub fn substitute<P: super::face::shape_admission::ShapeAdmission>(
++    plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t, policy: &mut P,
++) -> Result<(), P::Error> {
++    apply_layout_table_with(plan, face, buffer, face.ot_tables.gsub.as_ref(), policy)
+ }
+--- a/src/hb/ot_shape.rs
++++ b/src/hb/ot_shape.rs
+@@ -421,7 +421,7 @@
+     }
+ 
+     policy.before(Phase::Substitute, ctx)?;
+-    substitute_pre(ctx);
++    substitute_pre(ctx, policy)?;
+     policy.before(Phase::Position, ctx)?;
+     position(ctx);
+     policy.before(Phase::Postprocess, ctx)?;
+@@ -436,16 +436,17 @@
+     Ok(())
+ }
+ 
+-fn substitute_pre(ctx: &mut hb_ot_shape_context_t) {
++fn substitute_pre<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+     hb_ot_substitute_default(ctx);
+ 
+     ctx.buffer.allocate_gsubgpos_vars();
+ 
+-    hb_ot_substitute_plan(ctx);
++    hb_ot_substitute_plan(ctx, policy)?;
+ 
+     if ctx.plan.apply_morx && ctx.plan.apply_gpos {
+         aat::layout::remove_deleted_glyphs(ctx.buffer);
+     }
++    Ok(())
+ }
+ 
+ fn substitute_post(ctx: &mut hb_ot_shape_context_t) {
+@@ -484,7 +485,7 @@
+         .deallocate_var(GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
+ }
+ 
+-fn hb_ot_substitute_plan(ctx: &mut hb_ot_shape_context_t) {
++fn hb_ot_substitute_plan<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+     hb_ot_layout_substitute_start(ctx.face, ctx.buffer);
+ 
+     if ctx.plan.fallback_glyph_classes {
+@@ -496,8 +497,9 @@
+         ctx.buffer.update_digest();
+     } else {
+         ctx.buffer.update_digest();
+-        ot_layout_gsub_table::substitute(ctx.plan, ctx.face, ctx.buffer);
+-    }
++        ot_layout_gsub_table::substitute(ctx.plan, ctx.face, ctx.buffer, policy)?;
++    }
++    Ok(())
+ }
+ 
+ fn position(ctx: &mut hb_ot_shape_context_t) {
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -1,18 +1,30 @@
+ // Copyright 2026 the Novadraw Contributors
+ // SPDX-License-Identifier: MIT
+ 
+-//! Admission for the proven, nonexpanding horizontal shaping path.
+-
++//! Admission for proven, nonexpanding horizontal shaping paths.
++
++use super::cold_admission::{ColdAdmission, ColdOperation};
+ use super::hb_font_t;
++use crate::hb::buffer::hb_buffer_t;
++use crate::hb::ot::lookup::SubtableKind;
+ use crate::hb::ot_layout::TableIndex;
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
+ use crate::{script, Direction, Feature, GlyphBuffer, ShapePlan, UnicodeBuffer};
++use alloc::{collections::TryReserveError, vec::Vec};
+ use core::{convert::Infallible, fmt};
+-use read_fonts::types::Tag;
++use read_fonts::tables::{
++    gsub::{SingleSubstFormat1, SingleSubstFormat2},
++    layout::CoverageTable,
++};
++use read_fonts::{types::Tag, FontData, FontRead};
+ 
+ /// A shaping operation whose work is admitted before execution.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ pub enum ShapeOperation {
++    /// Prepare or inspect a complete lookup cache with cold-operation admission.
++    Cold(ColdOperation),
++    /// Read substitution table fields or coverage search records.
++    TableRead,
+     /// Inspect scalar state or borrowed collection headers.
+     Planning,
+     /// Check logical input records for a supported algorithm path.
+@@ -51,6 +63,8 @@
+ pub enum ShapeOperationError<E> {
+     /// Caller rejection, preserving the original source.
+     Admission(E),
++    /// Lookup cache reservation failed before publication.
++    Storage(TryReserveError),
+     /// An operation cost cannot be represented.
+     CostOverflow,
+     /// The supplied plan does not match buffer direction or script.
+@@ -61,6 +75,7 @@
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         match self {
+             Self::Admission(error) => write!(f, "shaping operation rejected: {error}"),
++            Self::Storage(error) => write!(f, "shaping cache reservation failed: {error}"),
+             Self::CostOverflow => f.write_str("shaping operation cost overflow"),
+             Self::PlanMismatch => f.write_str("buffer properties do not match shape plan"),
+         }
+@@ -71,6 +86,7 @@
+     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+         match self {
+             Self::Admission(error) => Some(error),
++            Self::Storage(error) => Some(error),
+             Self::CostOverflow | Self::PlanMismatch => None,
+         }
+     }
+@@ -91,6 +107,12 @@
+ pub(crate) trait ShapeAdmission {
+     type Error;
+     fn before(&mut self, phase: Phase, ctx: &hb_ot_shape_context_t) -> Result<(), Self::Error>;
++    fn before_lookup(
++        &mut self,
++        face: &hb_font_t,
++        buffer: &hb_buffer_t,
++        index: u16,
++    ) -> Result<(), Self::Error>;
+ }
+ 
+ pub(crate) struct OrdinaryShape;
+@@ -99,6 +121,10 @@
+     type Error = Infallible;
+     #[inline]
+     fn before(&mut self, _: Phase, _: &hb_ot_shape_context_t) -> Result<(), Infallible> {
++        Ok(())
++    }
++    #[inline]
++    fn before_lookup(&mut self, _: &hb_font_t, _: &hb_buffer_t, _: u16) -> Result<(), Infallible> {
+         Ok(())
+     }
+ }
+@@ -174,13 +200,11 @@
+         {
+             return Ok(false);
+         }
+-        // No GDEF class helper, GSUB lookup, AAT data, or external callback
++        // No GDEF class helper, GPOS lookup, AAT data, or external callback
+         // can run on this slice. Directory searching is itself admitted.
+         self.charge(ShapeOperation::Planning, 1)?;
+         let directory_work = face.font.table_directory().table_records().len() + 3;
+-        for tag in [
+-            b"GDEF", b"GSUB", b"GPOS", b"morx", b"kern", b"kerx", b"trak",
+-        ] {
++        for tag in [b"GDEF", b"GPOS", b"morx", b"kern", b"kerx", b"trak"] {
+             self.charge(ShapeOperation::Directory, directory_work)?;
+             if face.font.table_data(Tag::new(tag)).is_some() {
+                 return Ok(false);
+@@ -191,9 +215,32 @@
+             let stages = plan.ot_map.stages(table);
+             self.charge(ShapeOperation::Features, stages.len())?;
+             for (index, stage) in stages.iter().enumerate() {
+-                if stage.pause_func.is_some() || !plan.ot_map.stage_lookups(table, index).is_empty()
+-                {
++                if stage.pause_func.is_some() {
+                     return Ok(false);
++                }
++                let lookups = plan.ot_map.stage_lookups(table, index);
++                self.charge(ShapeOperation::Features, lookups.len())?;
++                if table == TableIndex::GPOS && !lookups.is_empty() {
++                    return Ok(false);
++                }
++                if let Some(gsub) = face.ot_tables.gsub.as_ref() {
++                    for map in lookups {
++                        let lookup = gsub.lookups.get_with(&gsub.table, map.index, self)?;
++                        let Some(lookup) = lookup else { continue };
++                        self.charge(ShapeOperation::Planning, 4)?;
++                        if !lookup.is_subst || lookup.is_reverse() || lookup.props != 0 {
++                            return Ok(false);
++                        }
++                        self.charge(ShapeOperation::Features, lookup.subtables.len())?;
++                        for subtable in &lookup.subtables {
++                            if !matches!(
++                                subtable.kind,
++                                SubtableKind::SingleSubst1 | SubtableKind::SingleSubst2
++                            ) {
++                                return Ok(false);
++                            }
++                        }
++                    }
+                 }
+             }
+         }
+@@ -226,10 +273,109 @@
+     }
+ }
+ 
++impl<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>> ColdAdmission
++    for AdmittedShape<F>
++{
++    type Error = ShapeOperationError<E>;
++    const ADMITTED: bool = true;
++
++    fn charge(
++        &mut self,
++        operation: ColdOperation,
++        work: usize,
++        allocation: usize,
++    ) -> Result<(), Self::Error> {
++        (self.admit)(
++            ShapeOperation::Cold(operation),
++            ShapeOperationCost { work, allocation },
++        )
++        .map_err(ShapeOperationError::Admission)
++    }
++
++    fn reserve<T>(&mut self, values: &mut Vec<T>, count: usize) -> Result<(), Self::Error> {
++        ColdAdmission::charge(self, ColdOperation::Planning, 2, 0)?;
++        let required = values
++            .len()
++            .checked_add(count)
++            .ok_or(ShapeOperationError::CostOverflow)?;
++        if required > values.capacity() {
++            ColdAdmission::charge(self, ColdOperation::Storage, values.len(), required)?;
++            values
++                .try_reserve_exact(count)
++                .map_err(ShapeOperationError::Storage)?;
++        }
++        Ok(())
++    }
++}
++
++fn coverage_search_work(coverage: &CoverageTable) -> usize {
++    let (count, record_reads) = match coverage {
++        CoverageTable::Format1(table) => (table.glyph_array().len(), 1),
++        CoverageTable::Format2(table) => (table.range_records().len(), 3),
++    };
++    // Rust binary_search[_by] compares at most bit_length(n)+1 times.
++    (usize::BITS - count.leading_zeros()) as usize * record_reads + record_reads
++}
++
+ impl<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>> ShapeAdmission
+     for AdmittedShape<F>
+ {
+     type Error = ShapeOperationError<E>;
++
++    fn before_lookup(
++        &mut self,
++        face: &hb_font_t,
++        buffer: &hb_buffer_t,
++        index: u16,
++    ) -> Result<(), Self::Error> {
++        let Some(gsub) = face.ot_tables.gsub.as_ref() else {
++            return Ok(());
++        };
++        // Preflight has already admitted construction; this is still a charged
++        // cache access, independent of whether the previous access was cold.
++        let Some(lookup) = gsub.lookups.get_with(&gsub.table, index, self)? else {
++            return Ok(());
++        };
++        self.charge(ShapeOperation::Planning, 40)?;
++        self.charge(ShapeOperation::Cache, 6)?; // three masks from each digest
++        let n = buffer.len;
++        // Single substitution advances exactly once and never switches output
++        // arrays. Admit each possible pass, including failed coverage attempts.
++        self.charge(ShapeOperation::Information, n)?; // forward skip scan
++        self.pass(ShapeOperation::Cache, n, 3)?; // lookup digest
++        self.charge(ShapeOperation::Information, n)?; // current glyph read
++        self.charge(ShapeOperation::Information, n)?; // property read
++        self.charge(ShapeOperation::Information, n)?; // property write
++        self.pass(ShapeOperation::Cache, n, 3)?; // new glyph digest
++        self.charge(ShapeOperation::Information, n)?; // output glyph write
++        self.charge(ShapeOperation::Features, lookup.subtables.len())?;
++        for subtable in &lookup.subtables {
++            self.charge(ShapeOperation::Planning, 1)?;
++            self.charge(ShapeOperation::TableRead, 10)?;
++            let data = FontData::new(gsub.table.offset_data().as_bytes())
++                .split_off(subtable.offset as usize);
++            let Some(data) = data else { continue };
++            // Fixed generated headers, coverage offset/format/count. Invalid
++            // readers terminate the same attempted subtable in the kernel.
++            let coverage = match subtable.kind {
++                SubtableKind::SingleSubst1 => SingleSubstFormat1::read(data)
++                    .ok()
++                    .and_then(|t| t.coverage().ok()),
++                SubtableKind::SingleSubst2 => SingleSubstFormat2::read(data)
++                    .ok()
++                    .and_then(|t| t.coverage().ok()),
++                _ => unreachable!("preflight rejected non-single substitution"),
++            };
++            self.charge(ShapeOperation::Features, n)?; // subtable attempts
++            self.charge(ShapeOperation::Information, n)?; // each subtable's cur(0)
++            self.pass(ShapeOperation::Cache, n, 3)?; // subtable digest
++                                                     // Each attempt repeats its header/coverage reads and search. The
++                                                     // delta or substitute-array access contributes one final read.
++            let search = coverage.as_ref().map_or(0, coverage_search_work);
++            self.pass(ShapeOperation::TableRead, n, 10 + search + 1)?;
++        }
++        Ok(())
++    }
+ 
+     fn before(&mut self, phase: Phase, ctx: &hb_ot_shape_context_t) -> Result<(), Self::Error> {
+         let n = ctx.buffer.len;
+@@ -314,9 +460,11 @@
+     /// Shapes a proven nonexpanding horizontal path after operation admission.
+     ///
+     /// Supports mapped ASCII, LTR Latin/Common/unknown script, default
+-    /// coordinates, global features, and fonts without OT/AAT layout tables.
++    /// coordinates, global features, and layout-free fonts or selected GSUB
++    /// single-substitution lookups with zero lookup flags. GDEF, GPOS and
++    /// AAT tables remain unsupported. Lookup caches are separately admitted.
+     /// These structural restrictions apply to any font; there is no identity
+-    /// whitelist. Complex scripts, absent nominal mappings and unknown tables
++    /// whitelist. Complex scripts, absent nominal mappings and unknown lookups
+     /// return `Ok(None)` before shaping, preserving the logical input.
+     ///
+     /// Takes a borrowed buffer so callers never lose its recovery handle.

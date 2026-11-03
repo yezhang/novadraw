@@ -1,0 +1,274 @@
+--- a/src/hb/ot/mod.rs
++++ b/src/hb/ot/mod.rs
+@@ -248,6 +248,41 @@
+     pub fn has_glyph_classes(&self) -> bool {
+         self.gdef.classes.is_some()
+     }
++
++    /// Bound a cache miss without querying or warming a glyph property.
++    /// Readers borrow existing ClassDef arrays and allocate no storage.
++    /// The caller must admit the borrowed headers before calling this helper.
++    pub(crate) fn glyph_properties_work(&self) -> usize {
++        fn class_work(class: &ClassDef) -> usize {
++            match class {
++                ClassDef::Format1(_) => 4, // start, array header and indexed value
++                ClassDef::Format2(table) => {
++                    let count = table.class_range_records().len();
++                    // Rust 1.96 binary_search_by: at most bit_length(n)+1
++                    // start reads, then selected start/end/class. Empty arrays
++                    // perform no comparisons. No ordering assumption is needed.
++                    let comparisons = if count == 0 {
++                        0
++                    } else {
++                        (usize::BITS - count.leading_zeros()) as usize + 1
++                    };
++                    comparisons + 4 // array header plus selected fields
++                }
++            }
++        }
++        // Cache get/set and scalar optional-class/branch accesses. A hit is
++        // also charged; no preflight query changes this miss upper bound.
++        let mut work = 2 + 6;
++        if let Some(classes) = self.gdef.classes.as_ref() {
++            work += class_work(classes);
++            // A class-3 miss may additionally query mark attachment classes.
++            // Absent glyph classes cannot enter that branch.
++            if let Some(mark_classes) = self.gdef.mark_classes.as_ref() {
++                work += class_work(mark_classes);
++            }
++        }
++        work
++    }
+ 
+     pub fn glyph_class(&self, glyph_id: u32) -> u16 {
+         self.gdef
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -12,8 +12,8 @@
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
+ use crate::hb::unicode::{CharExt, GeneralCategory};
+ use crate::{
+-    BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
+-    UnicodeBuffer, script,
++    script, BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
++    UnicodeBuffer,
+ };
+ use alloc::{collections::TryReserveError, vec::Vec};
+ use core::{convert::Infallible, fmt};
+@@ -22,7 +22,7 @@
+     gsub::{LigatureSubstFormat1, MultipleSubstFormat1, SingleSubstFormat1, SingleSubstFormat2},
+     layout::{ClassDef, CoverageTable, SequenceContextFormat3},
+ };
+-use read_fonts::{FontData, FontRead, types::Tag};
++use read_fonts::{types::Tag, FontData, FontRead};
+ 
+ /// A shaping operation whose work is admitted before execution.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+@@ -43,6 +43,8 @@
+     Directory,
+     /// Map a character, including cache reads and writes.
+     Mapping,
++    /// Query GDEF glyph/mark classes and their fixed property cache.
++    GlyphProperties,
+     /// Read generated Unicode property tables.
+     Unicode,
+     /// Visit shape-plan features or stages.
+@@ -157,6 +159,8 @@
+     admit: F,
+     mapping_work: usize,
+     non_ascii: usize,
++    glyph_properties_work: usize,
++    has_glyph_classes: bool,
+ }
+ 
+ impl<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>> AdmittedShape<F> {
+@@ -248,19 +252,28 @@
+         {
+             return Ok(false);
+         }
+-        // No GDEF class helper, AAT data, or external callback
+-        // can run on this slice. Directory searching is itself admitted.
++        // No AAT data or external callback can run on this slice.
++        // Directory searching is itself admitted.
+         self.charge(ShapeOperation::Planning, 1)?;
+         let directory_work = face.font.table_directory().table_records().len() + 3;
+-        for tag in [b"GDEF", b"morx", b"kern", b"kerx", b"trak"] {
++        for tag in [b"morx", b"kern", b"kerx", b"trak"] {
+             self.charge(ShapeOperation::Directory, directory_work)?;
+             if face.font.table_data(Tag::new(tag)).is_some() {
+                 return Ok(false);
+             }
+         }
++        // Admit borrowed GDEF class headers before deriving query bounds.
++        // Missing or invalid readers retain the ordinary class-zero behavior.
++        self.charge(ShapeOperation::Planning, 6)?;
++        self.glyph_properties_work = face.ot_tables.glyph_properties_work();
++        self.has_glyph_classes = face.ot_tables.has_glyph_classes();
+         let mut output_bound = buffer.len();
+-        // No marks/GDEF exist on this path. Initially every glyph contributes
+-        // one component; later ligatures store at most four component bits.
++        // Initially lig_props is zero regardless of GDEF classification.
++        // Single preserves it; Multiple either preserves a ligature base or
++        // writes components with id zero and IS_LIG_BASE unset. Only ligating
++        // can increase the component bound, and its storage uses four bits.
++        // Zero lookup flags prohibit skipped marks, so ligate_input never
++        // assigns nonzero attachment ids to glyphs between matched records.
+         let mut component_bound = 1usize;
+         for table in TableIndex::iter() {
+             self.charge(ShapeOperation::Planning, 1)?;
+@@ -1169,6 +1182,18 @@
+                         .context_plan(face, gsub.table.offset_data(), subtable.offset)?
+                         .expect("preflight checked immutable contextual lookup");
+                     self.context_work(n, &plan, positions, saved_positions)?;
++                    if self.has_glyph_classes {
++                        // Every allowed leaf record can replace at most once
++                        // at each outer position, even when positions repeat.
++                        let queries = n
++                            .checked_mul(plan.records)
++                            .ok_or(ShapeOperationError::CostOverflow)?;
++                        self.pass(
++                            ShapeOperation::GlyphProperties,
++                            queries,
++                            self.glyph_properties_work,
++                        )?;
++                    }
+                     // All input coverage searches are included in context_work.
+                     None
+                 }
+@@ -1177,8 +1202,8 @@
+             self.charge(ShapeOperation::Features, n)?; // subtable attempts
+             self.charge(ShapeOperation::Information, n)?; // each subtable's cur(0)
+             self.pass(ShapeOperation::Cache, n, 3)?; // subtable digest
+-            // Each attempt repeats its header/coverage reads and search. The
+-            // delta or substitute-array access contributes one final read.
++                                                     // Each attempt repeats its header/coverage reads and search. The
++                                                     // delta or substitute-array access contributes one final read.
+             let search = coverage.as_ref().map_or(0, coverage_search_work);
+             self.pass(ShapeOperation::TableRead, n, 10 + search + 1)?;
+             if subtable.kind == SubtableKind::MultipleSubst1 {
+@@ -1187,6 +1212,18 @@
+                 self.pass(ShapeOperation::TableRead, n, 4)?;
+                 self.pass(ShapeOperation::TableRead, n, maximum)?;
+             }
++        }
++        if self.has_glyph_classes {
++            // A direct lookup publishes at most maximum outputs per input.
++            // Alternatives stop on first success; unsuccessful attempts do
++            // not call set_glyph_class. Context leaves were prepaid above.
++            self.pass(
++                ShapeOperation::GlyphProperties,
++                n,
++                maximum
++                    .checked_mul(self.glyph_properties_work)
++                    .ok_or(ShapeOperationError::CostOverflow)?,
++            )?;
+         }
+         if ligature {
+             self.matching_storage(positions, matching)?;
+@@ -1321,9 +1358,13 @@
+                 // map_glyphs_fast revisits both info and its output alias.
+                 self.charge(ShapeOperation::Information, n)?;
+                 self.charge(ShapeOperation::Information, n)?;
+-                // set_glyph_props: info, fixed cache get and set.
++                // Initial glyph_props runs even without a valid ClassDef.
+                 self.charge(ShapeOperation::Information, n)?;
+-                self.pass(ShapeOperation::Cache, n, 2)?;
++                self.pass(
++                    ShapeOperation::GlyphProperties,
++                    n,
++                    self.glyph_properties_work,
++                )?;
+                 if ctx.plan.fallback_glyph_classes {
+                     self.charge(ShapeOperation::Information, n)?;
+                 }
+@@ -1354,6 +1395,19 @@
+                 if ctx.plan.zero_marks {
+                     self.charge(ShapeOperation::Information, n)?;
+                     self.charge(ShapeOperation::Positions, n)?;
++                    if self.has_glyph_classes {
++                        // GDEF can classify a Unicode letter as mark. Two
++                        // advance writes plus, when enabled, four offset/
++                        // advance reads and two offset writes per glyph.
++                        let writes = if ctx.plan.adjust_mark_positioning_when_zeroing
++                            && ctx.buffer.direction.is_forward()
++                        {
++                            8
++                        } else {
++                            2
++                        };
++                        self.pass(ShapeOperation::Positions, n, writes)?;
++                    }
+                 }
+                 // No GPOS attachments or ignorables exist on the ASCII path.
+                 if ctx.plan.fallback_mark_positioning {
+@@ -1402,7 +1456,9 @@
+     /// raw value formats may contain only the four placement/advance bits.
+     /// Multiple lookup growth is checked against the existing buffer limit
+     /// before shaping, and both arrays are reserved before each lookup.
+-    /// GDEF, other GPOS algorithms, device/variation positioning and AAT tables
++    /// GDEF glyph/mark classification uses bounded borrowed ClassDef readers;
++    /// mark filtering remains unsupported through the zero lookup flag rule.
++    /// Other GPOS algorithms, device/variation positioning and AAT tables
+     /// remain unsupported. Lookup caches are separately admitted.
+     /// These structural restrictions apply to any font; there is no identity
+     /// whitelist. Other scalar categories, complex scripts, absent nominal
+@@ -1426,6 +1482,8 @@
+             admit,
+             mapping_work: 0,
+             non_ascii: 0,
++            glyph_properties_work: 0,
++            has_glyph_classes: false,
+         };
+         if !policy.supports(self, plan, buffer, features)? {
+             return Ok(None);
+@@ -1490,6 +1548,8 @@
+             },
+             mapping_work: 0,
+             non_ascii: 0,
++            glyph_properties_work: 0,
++            has_glyph_classes: false,
+         };
+         policy.matching_storage(&mut positions, 8).unwrap();
+         assert!(!positions.spilled());
+@@ -1516,10 +1576,16 @@
+                 admit: |_, _| {
+                     let index = calls;
+                     calls += 1;
+-                    if index == reject { Err(index) } else { Ok(()) }
++                    if index == reject {
++                        Err(index)
++                    } else {
++                        Ok(())
++                    }
+                 },
+                 mapping_work: 0,
+                 non_ascii: 0,
++                glyph_properties_work: 0,
++                has_glyph_classes: false,
+             };
+             assert!(matches!(policy.matching_storage(&mut positions, 9),
+                 Err(ShapeOperationError::Admission(i)) if i == reject));
+@@ -1539,6 +1605,8 @@
+             },
+             mapping_work: 0,
+             non_ascii: 0,
++            glyph_properties_work: 0,
++            has_glyph_classes: false,
+         };
+         assert!(matches!(
+             policy.pass(ShapeOperation::Mapping, usize::MAX, 2),
+@@ -1603,11 +1671,9 @@
+         assert_eq!(shaper.shape_with_plan(&plan, buffer, &[]).len(), 4);
+ 
+         let mut buffer = input();
+-        assert!(
+-            shaper
+-                .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
+-                .is_err()
+-        );
++        assert!(shaper
++            .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
++            .is_err());
+         assert_eq!(buffer.len(), 3);
+         assert_eq!(buffer.0.allocated_var_bits, 0);
+     }

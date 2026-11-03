@@ -1,0 +1,660 @@
+--- a/src/hb/mod.rs
++++ b/src/hb/mod.rs
+@@ -66,6 +66,7 @@
+ pub(crate) mod set_digest;
+ mod tables;
+ mod tag;
++mod tag_rules;
+ mod tag_table;
+ mod text_parser;
+ #[rustfmt::skip]
+--- a/src/hb/ot_shape_plan.rs
++++ b/src/hb/ot_shape_plan.rs
+@@ -54,8 +54,8 @@
+     /// Builds a plan with operation admission before scanning or growing storage.
+     ///
+     /// Supports borrowed GSUB/GPOS queries and lookup collection, with no
+-    /// general language-table selection, tracking tables, or AAT/script-specific
+-    /// plan callbacks. Private-use `hbot` language overrides are supported.
++    /// tracking tables or AAT/script-specific plan callbacks. General language
++    /// table selection and private-use `hbot` overrides are supported.
+     /// Unknown paths and invalid directions return `Ok(None)` before those
+     /// operations execute. This does not admit shaping or shaper configuration.
+     pub fn try_new_admitted<E>(
+--- a/src/hb/tag.rs
++++ b/src/hb/tag.rs
+@@ -1,5 +1,3 @@
+-use core::str::FromStr;
+-
+ use smallvec::SmallVec;
+ 
+ use super::common::TagExt;
+@@ -100,15 +98,10 @@
+             policy,
+         )?;
+ 
+-        if needs_language {
+-            // General language-table selection is a separate, not-yet-admitted
+-            // path. Do not construct a temporary Language or scan that table.
+-            if P::ADMITTED {
+-                return Ok(None);
+-            }
+-            if let Ok(prefix) = Language::from_str(prefix) {
+-                tags_from_language(&prefix, &mut languages);
+-            }
++        if needs_language && !prefix.is_empty() {
++            // Language already normalizes ASCII case and underscores when
++            // constructed. Its nonempty prefix needs no temporary allocation.
++            tags_from_language_with(prefix, &mut languages, policy)?;
+         }
+     }
+ 
+@@ -178,7 +171,7 @@
+     Ok(true)
+ }
+ 
+-fn find_private_prefix_with<P: ColdAdmission>(
++pub(crate) fn find_private_prefix_with<P: ColdAdmission>(
+     bytes: &[u8], prefix: &[u8], policy: &mut P,
+ ) -> Result<Option<usize>, P::Error> {
+     // Both needles are nonempty ASCII literals. A fixed word skip avoids
+@@ -208,6 +201,7 @@
+         policy.charge(ColdOperation::TableRead, 1, 0)?;
+         if bytes[i] == first {
+             policy.charge(ColdOperation::TableRead, prefix.len(), 0)?;
++            policy.charge(ColdOperation::TableRead, prefix.len(), 0)?;
+             if &bytes[i..i + prefix.len()] == prefix {
+                 return Ok(Some(i));
+             }
+@@ -217,7 +211,8 @@
+     Ok(None)
+ }
+ 
+-fn lang_cmp(s1: &str, s2: &str) -> core::cmp::Ordering {
++#[cfg(test)]
++fn lang_cmp(s1: &str, s2: &str) -> core::cmp::Ordering {
+     let da = s1.find('-').unwrap_or(s1.len());
+     let db = s2.find('-').unwrap_or(s2.len());
+     let n = core::cmp::max(da, db);
+@@ -226,7 +221,8 @@
+     s1[..ea].cmp(&s2[..eb])
+ }
+ 
+-fn tags_from_language(language: &Language, tags: &mut ThreeTags) {
++#[cfg(test)]
++fn tags_from_language(language: &Language, tags: &mut ThreeTags) {
+     let language = language.as_str();
+ 
+     // Check for matches of multiple subtags.
+@@ -283,7 +279,134 @@
+     }
+ }
+ 
+-fn all_tags_from_script(script: Option<Script>, tags: &mut ThreeTags) {
++fn lang_cmp_with<P: ColdAdmission>(
++    s1: &str, s2: &str, policy: &mut P,
++) -> Result<core::cmp::Ordering, P::Error> {
++    let da = find_private_prefix_with(s1.as_bytes(), b"-", policy)?.unwrap_or(s1.len());
++    let db = find_private_prefix_with(s2.as_bytes(), b"-", policy)?.unwrap_or(s2.len());
++    let n = core::cmp::max(da, db);
++    let ea = core::cmp::min(n, s1.len());
++    let eb = core::cmp::min(n, s2.len());
++    // Compare visits both byte ranges; no opaque binary_search closure.
++    policy.charge(ColdOperation::TableRead, ea, 0)?;
++    policy.charge(ColdOperation::TableRead, eb, 0)?;
++    Ok(s1.as_bytes()[..ea].cmp(&s2.as_bytes()[..eb]))
++}
++
++fn language_equal_with<P: ColdAdmission>(
++    a: &str, b: &str, policy: &mut P,
++) -> Result<bool, P::Error> {
++    policy.charge(ColdOperation::Planning, 2, 0)?;
++    if a.len() != b.len() {
++        return Ok(false);
++    }
++    policy.charge(ColdOperation::TableRead, a.len(), 0)?;
++    policy.charge(ColdOperation::TableRead, b.len(), 0)?;
++    Ok(a == b)
++}
++
++fn tags_from_language_with<P: ColdAdmission>(
++    language: &str, tags: &mut ThreeTags, policy: &mut P,
++) -> Result<(), P::Error> {
++    if super::tag_rules::tags_from_complex_language_with(language, tags, policy)? {
++        return Ok(());
++    }
++    let mut sublang = language;
++    if let Some(i) = find_private_prefix_with(language.as_bytes(), b"-", policy)? {
++        if language.len() >= 6 {
++            let remaining = &language[i + 1..];
++            let extlang = match find_private_prefix_with(remaining.as_bytes(), b"-", policy)? {
++                Some(idx) => idx == 3,
++                None => remaining.len() == 3,
++            };
++            if extlang {
++                policy.charge(ColdOperation::TableRead, 1, 0)?;
++                if language.as_bytes()[i + 1].is_ascii_alphabetic() {
++                    sublang = remaining;
++                }
++            }
++        }
++    }
++    use tag_table::OPEN_TYPE_LANGUAGES as LANGUAGES;
++    let mut start = 0;
++    let mut end = LANGUAGES.len();
++    let mut found = None;
++    while start < end {
++        let mid = start + (end - start) / 2;
++        policy.charge(ColdOperation::TableRead, 1, 0)?;
++        match lang_cmp_with(LANGUAGES[mid].language, sublang, policy)? {
++            core::cmp::Ordering::Less => start = mid + 1,
++            core::cmp::Ordering::Greater => end = mid,
++            core::cmp::Ordering::Equal => {
++                found = Some(mid);
++                break;
++            }
++        }
++    }
++    if let Some(mut idx) = found {
++        while idx != 0 {
++            policy.charge(ColdOperation::TableRead, 2, 0)?;
++            if !language_equal_with(
++                LANGUAGES[idx].language, LANGUAGES[idx - 1].language, policy,
++            )? {
++                break;
++            }
++            idx -= 1;
++        }
++        // Preserve the locked table's trailing-slot and inline-capacity limit.
++        let len = core::cmp::min(tags.left(), LANGUAGES.len() - idx - 1);
++        for i in 0..len {
++            policy.charge(ColdOperation::TableRead, 2, 0)?;
++            if !language_equal_with(
++                LANGUAGES[idx + i].language, LANGUAGES[idx].language, policy,
++            )? {
++                break;
++            }
++            policy.charge(ColdOperation::TableRead, 4, 0)?;
++            if LANGUAGES[idx + i].tag.is_null() || tags.is_full() {
++                break;
++            }
++            policy.charge(ColdOperation::TableRead, 4, 0)?;
++            policy.charge(ColdOperation::Initialize, 4 + 4, 0)?;
++            tags.push(LANGUAGES[idx + i].tag);
++        }
++        return Ok(());
++    }
++    if language.len() == 3 {
++        policy.charge(ColdOperation::TableRead, 3 + 4, 0)?;
++        // Lossy padding/copy, ASCII tag normalization and eventual cleanup.
++        policy.charge(ColdOperation::Initialize, 4 + 3 + 4 + 4 + 4, 0)?;
++        tags.push(hb_tag_t::from_bytes_lossy(language.as_bytes()).to_uppercase());
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod general_language_reference_tests {
++    use super::*;
++    use alloc::format;
++    use core::str::FromStr;
++
++    #[test]
++    fn all_primary_table_languages_and_extended_forms_match_locked_kernel() {
++        for entry in tag_table::OPEN_TYPE_LANGUAGES {
++            for suffix in ["", "-abc", "-hans", "-hant-mo", "-fonipa", "-x-private"] {
++                for input in [format!("{}{suffix}", entry.language),
++                    format!("und-{}{suffix}", entry.language)] {
++                    let language = Language::from_str(&input).unwrap();
++                    let mut expected = ThreeTags::new();
++                    tags_from_language(&language, &mut expected);
++                    let mut actual = ThreeTags::new();
++                    tags_from_language_with(language.as_str(), &mut actual, &mut OrdinaryCold)
++                        .unwrap();
++                    assert_eq!(actual, expected, "{input}");
++                }
++            }
++        }
++    }
++}
++
++fn all_tags_from_script(script: Option<Script>, tags: &mut ThreeTags) {
+     if let Some(script) = script {
+         if let Some(tag) = new_tag_from_script(script) {
+             // Script::Myanmar maps to 'mym2', but there is no 'mym3'.
+--- /dev/null
++++ b/src/hb/tag_rules.rs
+@@ -0,0 +1,392 @@
++// Copyright 2026 the Novadraw Contributors
++// SPDX-License-Identifier: MIT
++
++//! Ordered rules extracted from the locked generated language table.
++//! Ordinary and admitted callers evaluate the same rules and byte kernels.
++
++use super::face::cold_admission::{ColdAdmission, ColdOperation};
++use super::tag::find_private_prefix_with;
++use read_fonts::types::Tag;
++use smallvec::SmallVec;
++
++enum Condition {
++    Subtag(&'static str),
++    Exact(&'static str),
++    Language(&'static str),
++    Both(&'static str, &'static str),
++}
++
++struct Rule {
++    condition: Condition,
++    tags: &'static [&'static [u8; 4]],
++}
++
++macro_rules! condition {
++    (subtag $a:literal) => {
++        Condition::Subtag($a)
++    };
++    (exact $a:literal) => {
++        Condition::Exact($a)
++    };
++    (lang $a:literal) => {
++        Condition::Language($a)
++    };
++    (both $a:literal / $b:literal) => {
++        Condition::Both($a, $b)
++    };
++}
++
++macro_rules! rules {
++    ($($kind:ident $a:literal $(/ $b:literal)? => [$($tag:literal),+],)*) => {
++        &[$(Rule {
++            condition: condition!($kind $a $(/ $b)?),
++            tags: &[$($tag),+],
++        }),*]
++    };
++}
++
++const GLOBAL: &[Rule] = rules! {
++    subtag "-fonnapa" => [b"APPH"],
++    subtag "-polyton" => [b"PGR "],
++    subtag "-arevmda" => [b"HYE "],
++    subtag "-provenc" => [b"PRO "],
++    subtag "-fonipa" => [b"IPPH"],
++    subtag "-geok" => [b"KGE "],
++    subtag "-syre" => [b"SYRE"],
++    subtag "-syrj" => [b"SYRJ"],
++    subtag "-syrn" => [b"SYRN"],
++};
++const A: &[Rule] = rules! {
++    exact "rt-lojban" => [b"JBO "],
++};
++const C: &[Rule] = rules! {
++    lang "do-hant-hk" => [b"ZHH "],
++    lang "do-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "jy-hant-hk" => [b"ZHH "],
++    lang "jy-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "mn-hant-hk" => [b"ZHH "],
++    lang "mn-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "np-hant-hk" => [b"ZHH "],
++    lang "np-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "px-hant-hk" => [b"ZHH "],
++    lang "px-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "sp-hant-hk" => [b"ZHH "],
++    lang "sp-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "zh-hant-hk" => [b"ZHH "],
++    lang "zh-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "zo-hant-hk" => [b"ZHH "],
++    lang "zo-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "do-hans" => [b"ZHS "],
++    lang "do-hant" => [b"ZHT "],
++    lang "jy-hans" => [b"ZHS "],
++    lang "jy-hant" => [b"ZHT "],
++    lang "mn-hans" => [b"ZHS "],
++    lang "mn-hant" => [b"ZHT "],
++    lang "np-hans" => [b"ZHS "],
++    lang "np-hant" => [b"ZHT "],
++    lang "px-hans" => [b"ZHS "],
++    lang "px-hant" => [b"ZHT "],
++    lang "sp-hans" => [b"ZHS "],
++    lang "sp-hant" => [b"ZHT "],
++    lang "zh-hans" => [b"ZHS "],
++    lang "zh-hant" => [b"ZHT "],
++    lang "zo-hans" => [b"ZHS "],
++    lang "zo-hant" => [b"ZHT "],
++    both "do-" / "-hk" => [b"ZHH "],
++    both "do-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "do-" / "-tw" => [b"ZHT "],
++    both "jy-" / "-hk" => [b"ZHH "],
++    both "jy-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "jy-" / "-tw" => [b"ZHT "],
++    both "mn-" / "-hk" => [b"ZHH "],
++    both "mn-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "mn-" / "-tw" => [b"ZHT "],
++    both "np-" / "-hk" => [b"ZHH "],
++    both "np-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "np-" / "-tw" => [b"ZHT "],
++    both "px-" / "-hk" => [b"ZHH "],
++    both "px-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "px-" / "-tw" => [b"ZHT "],
++    both "sp-" / "-hk" => [b"ZHH "],
++    both "sp-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "sp-" / "-tw" => [b"ZHT "],
++    both "zh-" / "-hk" => [b"ZHH "],
++    both "zh-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "zh-" / "-tw" => [b"ZHT "],
++    both "zo-" / "-hk" => [b"ZHH "],
++    both "zo-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "zo-" / "-tw" => [b"ZHT "],
++};
++const G: &[Rule] = rules! {
++    lang "an-hant-hk" => [b"ZHH "],
++    lang "an-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "an-hans" => [b"ZHS "],
++    lang "an-hant" => [b"ZHT "],
++    lang "a-latg" => [b"IRT "],
++    both "an-" / "-hk" => [b"ZHH "],
++    both "an-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "an-" / "-tw" => [b"ZHT "],
++};
++const H: &[Rule] = rules! {
++    lang "ak-hant-hk" => [b"ZHH "],
++    lang "ak-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "nm-hant-hk" => [b"ZHH "],
++    lang "nm-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "sn-hant-hk" => [b"ZHH "],
++    lang "sn-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "ak-hans" => [b"ZHS "],
++    lang "ak-hant" => [b"ZHT "],
++    lang "nm-hans" => [b"ZHS "],
++    lang "nm-hant" => [b"ZHT "],
++    lang "sn-hans" => [b"ZHS "],
++    lang "sn-hant" => [b"ZHT "],
++    both "ak-" / "-hk" => [b"ZHH "],
++    both "ak-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "ak-" / "-tw" => [b"ZHT "],
++    both "nm-" / "-hk" => [b"ZHH "],
++    both "nm-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "nm-" / "-tw" => [b"ZHT "],
++    both "sn-" / "-hk" => [b"ZHH "],
++    both "sn-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "sn-" / "-tw" => [b"ZHT "],
++};
++const I: &[Rule] = rules! {
++    exact "-navajo" => [b"NAV ", b"ATH "],
++    exact "-hak" => [b"ZHS "],
++    exact "-lux" => [b"LTZ "],
++};
++const L: &[Rule] = rules! {
++    lang "uh-hant-hk" => [b"ZHH "],
++    lang "uh-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "uh-hans" => [b"ZHS "],
++    lang "uh-hant" => [b"ZHT "],
++    lang "zh-hans" => [b"ZHS "],
++    both "uh-" / "-hk" => [b"ZHH "],
++    both "uh-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "uh-" / "-tw" => [b"ZHT "],
++};
++const M: &[Rule] = rules! {
++    lang "np-hant-hk" => [b"ZHH "],
++    lang "np-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "np-hans" => [b"ZHS "],
++    lang "np-hant" => [b"ZHT "],
++    both "np-" / "-hk" => [b"ZHH "],
++    both "np-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "np-" / "-tw" => [b"ZHT "],
++    both "nw-" / "-th" => [b"MONT"],
++};
++const N: &[Rule] = rules! {
++    lang "an-hant-hk" => [b"ZHH "],
++    lang "an-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "an-hans" => [b"ZHS "],
++    lang "an-hant" => [b"ZHT "],
++    both "an-" / "-hk" => [b"ZHH "],
++    both "an-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "an-" / "-tw" => [b"ZHT "],
++    exact "o-bok" => [b"NOR "],
++    exact "o-nyn" => [b"NYN "],
++};
++const R: &[Rule] = rules! {
++    both "o-" / "-md" => [b"MOL ", b"ROM "],
++};
++const S: &[Rule] = rules! {
++    lang "jc-hant-hk" => [b"ZHH "],
++    lang "jc-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "jc-hans" => [b"ZHS "],
++    lang "jc-hant" => [b"ZHT "],
++    both "jc-" / "-hk" => [b"ZHH "],
++    both "jc-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "jc-" / "-tw" => [b"ZHT "],
++};
++const W: &[Rule] = rules! {
++    lang "uu-hant-hk" => [b"ZHH "],
++    lang "uu-hant-mo" => [b"ZHTM", b"ZHH "],
++    lang "uu-hans" => [b"ZHS "],
++    lang "uu-hant" => [b"ZHT "],
++    both "uu-" / "-hk" => [b"ZHH "],
++    both "uu-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "uu-" / "-tw" => [b"ZHT "],
++};
++const Y: &[Rule] = rules! {
++    lang "ue-hans" => [b"ZHS "],
++};
++const Z: &[Rule] = rules! {
++    lang "h-hant-hk" => [b"ZHH "],
++    lang "h-hant-mo" => [b"ZHTM", b"ZHH "],
++    exact "h-min-nan" => [b"ZHS "],
++    lang "h-hans" => [b"ZHS "],
++    lang "h-hant" => [b"ZHT "],
++    exact "h-min" => [b"ZHS "],
++    both "h-" / "-hk" => [b"ZHH "],
++    both "h-" / "-mo" => [b"ZHTM", b"ZHH "],
++    both "h-" / "-tw" => [b"ZHT "],
++};
++
++fn subtag_with<P: ColdAdmission>(
++    mut language: &[u8],
++    subtag: &[u8],
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    while let Some(i) = find_private_prefix_with(language, subtag, policy)? {
++        // Like match_indices, resume after the complete nonoverlapping match.
++        policy.charge(ColdOperation::TableRead, 1, 0)?;
++        if language
++            .get(i + subtag.len())
++            .is_none_or(|c| !c.is_ascii_alphanumeric())
++        {
++            return Ok(true);
++        }
++        language = &language[i + subtag.len()..];
++    }
++    Ok(false)
++}
++
++fn starts_with<P: ColdAdmission>(
++    language: &[u8],
++    spec: &[u8],
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    policy.charge(ColdOperation::Planning, 2, 0)?;
++    if language.len() < spec.len() {
++        return Ok(false);
++    }
++    policy.charge(ColdOperation::TableRead, spec.len(), 0)?;
++    policy.charge(ColdOperation::TableRead, spec.len(), 0)?;
++    Ok(&language[..spec.len()] == spec)
++}
++
++fn apply_with<P: ColdAdmission>(
++    rules: &[Rule],
++    language: &[u8],
++    suffix: &[u8],
++    tags: &mut SmallVec<[Tag; 3]>,
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    for rule in rules {
++        // Visit the rule, its discriminator and string views before matching.
++        policy.charge(ColdOperation::TableRead, 4, 0)?;
++        let matched = match rule.condition {
++            Condition::Subtag(spec) => subtag_with(language, spec.as_bytes(), policy)?,
++            Condition::Exact(spec) => {
++                policy.charge(ColdOperation::Planning, 2, 0)?;
++                suffix.len() == spec.len() && starts_with(suffix, spec.as_bytes(), policy)?
++            }
++            Condition::Language(spec) => {
++                if starts_with(suffix, spec.as_bytes(), policy)? {
++                    policy.charge(ColdOperation::TableRead, 1, 0)?;
++                    suffix.len() == spec.len() || suffix.get(spec.len()) == Some(&b'-')
++                } else {
++                    false
++                }
++            }
++            Condition::Both(prefix, subtag) => {
++                starts_with(suffix, prefix.as_bytes(), policy)?
++                    && subtag_with(language, subtag.as_bytes(), policy)?
++            }
++        };
++        if matched {
++            policy.charge(ColdOperation::Planning, 1, 0)?;
++            // Every rule produces one or two inline tags. No temporary tag
++            // slice is constructed and no heap growth can occur here.
++            for bytes in rule.tags {
++                policy.charge(ColdOperation::TableRead, 1 + 4, 0)?;
++                policy.charge(ColdOperation::Initialize, 4 + 4, 0)?;
++                tags.push(Tag::new(bytes));
++            }
++            return Ok(true);
++        }
++    }
++    Ok(false)
++}
++
++pub(crate) fn tags_from_complex_language_with<P: ColdAdmission>(
++    language: &str,
++    tags: &mut SmallVec<[Tag; 3]>,
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    let bytes = language.as_bytes();
++    if apply_with(GLOBAL, bytes, bytes, tags, policy)? {
++        return Ok(true);
++    }
++    policy.charge(ColdOperation::TableRead, 1, 0)?;
++    let Some(first) = bytes.first() else {
++        return Ok(false);
++    };
++    let rules = match first {
++        b'a' => A,
++        b'c' => C,
++        b'g' => G,
++        b'h' => H,
++        b'i' => I,
++        b'l' => L,
++        b'm' => M,
++        b'n' => N,
++        b'r' => R,
++        b's' => S,
++        b'w' => W,
++        b'y' => Y,
++        b'z' => Z,
++        _ => &[],
++    };
++    apply_with(rules, bytes, &bytes[1..], tags, policy)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::super::face::cold_admission::OrdinaryCold;
++    use super::*;
++    use alloc::{format, string::String, vec::Vec};
++
++    #[test]
++    fn every_locked_rule_matches_the_generated_reference() {
++        let groups = [
++            (b'?', GLOBAL),
++            (b'a', A),
++            (b'c', C),
++            (b'g', G),
++            (b'h', H),
++            (b'i', I),
++            (b'l', L),
++            (b'm', M),
++            (b'n', N),
++            (b'r', R),
++            (b's', S),
++            (b'w', W),
++            (b'y', Y),
++            (b'z', Z),
++        ];
++        for (first, rules) in groups {
++            for rule in rules {
++                let base = match rule.condition {
++                    Condition::Subtag(spec) => format!("und{spec}"),
++                    Condition::Exact(spec) | Condition::Language(spec) => {
++                        format!("{}{spec}", char::from(first))
++                    }
++                    Condition::Both(prefix, subtag) => {
++                        format!("{}{prefix}abc{subtag}", char::from(first))
++                    }
++                };
++                let mut cases: Vec<String> = Vec::new();
++                for suffix in ["", "-", "-abc", "a", "0", "é", "-fonipa", "-hant-mo"] {
++                    cases.push(format!("{base}{suffix}"));
++                }
++                for i in 0..base.len() {
++                    cases.push(String::from(&base[..i]));
++                }
++                for input in cases.into_iter().filter(|s| !s.is_empty()) {
++                    let mut expected = SmallVec::new();
++                    let found =
++                        super::super::tag_table::tags_from_complex_language(&input, &mut expected);
++                    let mut actual = SmallVec::new();
++                    assert_eq!(
++                        tags_from_complex_language_with(&input, &mut actual, &mut OrdinaryCold,)
++                            .unwrap(),
++                        found,
++                        "{input}"
++                    );
++                    assert_eq!(actual, expected, "{input}");
++                }
++            }
++        }
++    }
++}
+--- a/src/hb/tag_table.rs
++++ b/src/hb/tag_table.rs
+@@ -1672,7 +1672,8 @@
+     LangTag { language: "zzj", 	tag: Tag::new(b"ZHA ") }, // Zuojiang Zhuang -> Zhuang
+ ];
+ 
+-fn subtag_matches(language: &str, subtag: &str) -> bool {
++#[cfg(test)]
++fn subtag_matches(language: &str, subtag: &str) -> bool {
+     for (i, _) in language.match_indices(subtag) {
+         if let Some(c) = language.as_bytes().get(i + subtag.len()) {
+             if !c.is_ascii_alphanumeric() {
+@@ -1686,7 +1687,8 @@
+     false
+ }
+ 
+-fn lang_matches(language: &str, spec: &str) -> bool {
++#[cfg(test)]
++fn lang_matches(language: &str, spec: &str) -> bool {
+     if language.starts_with(spec) {
+         return language.len() == spec.len() || language.as_bytes().get(spec.len()) == Some(&b'-');
+     }
+@@ -1694,14 +1696,16 @@
+     false
+ }
+ 
+-fn strncmp(s1: &str, s2: &str, n: usize) -> bool {
++#[cfg(test)]
++fn strncmp(s1: &str, s2: &str, n: usize) -> bool {
+     let n1 = core::cmp::min(n, s1.len());
+     let n2 = core::cmp::min(n, s2.len());
+     s1[..n1] == s2[..n2]
+ }
+ 
+ /// Converts a multi-subtag BCP 47 language tag to language tags.
+-pub fn tags_from_complex_language(language: &str, tags: &mut smallvec::SmallVec<[Tag; 3]>) -> bool {
++#[cfg(test)]
++pub fn tags_from_complex_language(language: &str, tags: &mut smallvec::SmallVec<[Tag; 3]>) -> bool {
+     if subtag_matches(language, "-fonnapa") {
+         // Undetermined; North American Phonetic Alphabet
+         tags.push(Tag::new(b"APPH")); // Phonetic transcription—Americanist conventions

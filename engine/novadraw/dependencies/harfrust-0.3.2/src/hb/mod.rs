@@ -66,6 +66,7 @@ mod ot_shaper_vowel_constraints;
 pub(crate) mod set_digest;
 mod tables;
 mod tag;
+mod tag_rules;
 mod tag_table;
 mod text_parser;
 #[rustfmt::skip]

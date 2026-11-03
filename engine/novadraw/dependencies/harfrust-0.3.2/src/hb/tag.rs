@@ -1,9 +1,10 @@
-use core::str::FromStr;
-
 use smallvec::SmallVec;
 
 use super::common::TagExt;
 use super::{hb_tag_t, script, tag_table, Language, Script};
+use super::face::cold_admission::{ColdAdmission, ColdOperation};
+#[cfg(test)]
+use super::face::cold_admission::OrdinaryCold;
 
 type ThreeTags = SmallVec<[hb_tag_t; 3]>;
 
@@ -23,10 +24,21 @@ impl<A: smallvec::Array> SmallVecExt for SmallVec<A> {
 }
 
 /// Converts an `Script` and an `Language` to script and language tags.
+#[cfg(test)]
 pub fn tags_from_script_and_language(
     script: Option<Script>,
     language: Option<&Language>,
 ) -> (ThreeTags, ThreeTags) {
+    match tags_from_script_and_language_with(script, language, &mut OrdinaryCold) {
+        Ok(Some(tags)) => tags,
+        Ok(None) => unreachable!(),
+        Err(error) => match error {},
+    }
+}
+
+pub(crate) fn tags_from_script_and_language_with<P: ColdAdmission>(
+    script: Option<Script>, language: Option<&Language>, policy: &mut P,
+) -> Result<Option<(ThreeTags, ThreeTags)>, P::Error> {
     let mut needs_script = true;
     let mut scripts = SmallVec::new();
     let mut languages = SmallVec::new();
@@ -34,13 +46,21 @@ pub fn tags_from_script_and_language(
     let mut private_use_subtag = None;
     let mut prefix = "";
     if let Some(language) = language {
+        // as_str validates UTF-8. The stored byte count can be read without
+        // validation; charge that pass before entering the public getter.
+        policy.charge(ColdOperation::Planning, 1, 0)?;
+        policy.charge(ColdOperation::TableRead, language.byte_len(), 0)?;
         let language = language.as_str();
+        policy.charge(ColdOperation::TableRead, 2, 0)?;
         if language.starts_with("x-") {
             private_use_subtag = Some(language);
         } else {
             let bytes = language.as_bytes();
             let mut i = 1;
             while i < bytes.len() {
+                // Previous, next and current byte, with conditional reread
+                // for the x branch. Charge before each iteration.
+                policy.charge(ColdOperation::TableRead, 4, 0)?;
                 if bytes.get(i - 1) == Some(&b'-') && bytes.get(i + 1) == Some(&b'-') {
                     if bytes[i] == b'x' {
                         private_use_subtag = Some(&language[i..]);
@@ -62,52 +82,65 @@ pub fn tags_from_script_and_language(
             }
         }
 
-        needs_script = !parse_private_use_subtag(
+        needs_script = !parse_private_use_subtag_with(
             private_use_subtag,
             "-hbsc",
             u8::to_ascii_lowercase,
             &mut scripts,
-        );
+            policy,
+        )?;
 
-        let needs_language = !parse_private_use_subtag(
+        let needs_language = !parse_private_use_subtag_with(
             private_use_subtag,
             "-hbot",
             u8::to_ascii_uppercase,
             &mut languages,
-        );
+            policy,
+        )?;
 
-        if needs_language {
-            if let Ok(prefix) = Language::from_str(prefix) {
-                tags_from_language(&prefix, &mut languages);
-            }
+        if needs_language && !prefix.is_empty() {
+            // Language already normalizes ASCII case and underscores when
+            // constructed. Its nonempty prefix needs no temporary allocation.
+            tags_from_language_with(prefix, &mut languages, policy)?;
         }
     }
 
     if needs_script {
+        // Fixed-size script conversion produces at most three inline tags.
+        policy.charge(ColdOperation::TableRead, 4 + 4 + 4, 0)?;
+        policy.charge(ColdOperation::Initialize, 3 + 3, 0)?;
         all_tags_from_script(script, &mut scripts);
     }
 
-    (scripts, languages)
+    Ok(Some((scripts, languages)))
 }
 
-fn parse_private_use_subtag(
+fn parse_private_use_subtag_with<P: ColdAdmission>(
     private_use_subtag: Option<&str>,
     prefix: &str,
     normalize: fn(&u8) -> u8,
     tags: &mut ThreeTags,
-) -> bool {
+    policy: &mut P,
+) -> Result<bool, P::Error> {
     let Some(private_use_subtag) = private_use_subtag else {
-        return false;
+        return Ok(false);
     };
 
-    let private_use_subtag = match private_use_subtag.find(prefix) {
+    // Explicit bounded substring scan on both paths, avoiding an opaque str
+    // searcher. Reproduce find's earliest byte match for these ASCII needles.
+    let found = find_private_prefix_with(private_use_subtag.as_bytes(), prefix.as_bytes(), policy)?;
+    let private_use_subtag = match found {
         Some(idx) => &private_use_subtag[idx + prefix.len()..],
-        None => return false,
+        None => return Ok(false),
     };
 
     let mut tag = SmallVec::<[u8; 4]>::new();
-    for c in private_use_subtag.bytes().take(4) {
+    for i in 0..core::cmp::min(4, private_use_subtag.len()) {
+        policy.charge(ColdOperation::TableRead, 1, 0)?;
+        let c = private_use_subtag.as_bytes()[i];
         if c.is_ascii_alphanumeric() {
+            // Inline byte write and its eventual cleanup visit.
+            policy.charge(ColdOperation::Initialize, 2, 0)?;
             tag.push((normalize)(&c));
         } else {
             break;
@@ -115,21 +148,70 @@ fn parse_private_use_subtag(
     }
 
     if tag.is_empty() {
-        return false;
+        return Ok(false);
     }
 
+    // TagExt pads a four-byte stack array, copies the supplied bytes into it,
+    // then copies that array into Tag. Cover the temporary writes and cleanup,
+    // not only the input byte visits.
+    policy.charge(ColdOperation::TableRead, tag.len() + 4, 0)?;
+    policy.charge(ColdOperation::Initialize, 4 + tag.len() + 4, 0)?;
     let mut tag = hb_tag_t::from_bytes_lossy(tag.as_slice());
 
     // Some bits magic from HarfBuzz...
+    // Include repeated tag reads even on the conditional case below.
+    policy.charge(ColdOperation::TableRead, 4 + 4 + 4, 0)?;
     if tag.as_u32() & 0xDFDF_DFDF == hb_tag_t::default_script().as_u32() {
         tag = hb_tag_t::from_u32(tag.as_u32() ^ !0xDFDF_DFDF);
     }
 
+    policy.charge(ColdOperation::Initialize, 2, 0)?;
     tags.push(tag);
 
-    true
+    Ok(true)
 }
 
+pub(crate) fn find_private_prefix_with<P: ColdAdmission>(
+    bytes: &[u8], prefix: &[u8], policy: &mut P,
+) -> Result<Option<usize>, P::Error> {
+    // Both needles are nonempty ASCII literals. A fixed word skip avoids
+    // comparing a five-byte needle at every byte of a long private subtag.
+    const WORD_BYTES: usize = 8;
+    const BYTE_ONES: u64 = 0x0101_0101_0101_0101;
+    const BYTE_HIGH_BITS: u64 = 0x8080_8080_8080_8080;
+    policy.charge(ColdOperation::TableRead, 1, 0)?;
+    let first = prefix[0];
+    let repeated = u64::from(first) * BYTE_ONES;
+    let mut i = 0;
+    while bytes.len() - i >= prefix.len() {
+        if bytes.len() - i >= WORD_BYTES {
+            // Fixed byte copy into a stack word, including temporary writes
+            // and cleanup. No unproved string searcher or heap allocation.
+            policy.charge(ColdOperation::TableRead, WORD_BYTES, 0)?;
+            policy.charge(ColdOperation::Initialize, WORD_BYTES + WORD_BYTES, 0)?;
+            let word = u64::from_le_bytes(bytes[i..i + WORD_BYTES].try_into().unwrap());
+            let diff = word ^ repeated;
+            // The standard zero-byte predicate has no false negatives.
+            // Any possible match falls through to the exact scalar comparison.
+            if diff.wrapping_sub(BYTE_ONES) & !diff & BYTE_HIGH_BITS == 0 {
+                i += WORD_BYTES;
+                continue;
+            }
+        }
+        policy.charge(ColdOperation::TableRead, 1, 0)?;
+        if bytes[i] == first {
+            policy.charge(ColdOperation::TableRead, prefix.len(), 0)?;
+            policy.charge(ColdOperation::TableRead, prefix.len(), 0)?;
+            if &bytes[i..i + prefix.len()] == prefix {
+                return Ok(Some(i));
+            }
+        }
+        i += 1;
+    }
+    Ok(None)
+}
+
+#[cfg(test)]
 fn lang_cmp(s1: &str, s2: &str) -> core::cmp::Ordering {
     let da = s1.find('-').unwrap_or(s1.len());
     let db = s2.find('-').unwrap_or(s2.len());
@@ -139,6 +221,7 @@ fn lang_cmp(s1: &str, s2: &str) -> core::cmp::Ordering {
     s1[..ea].cmp(&s2[..eb])
 }
 
+#[cfg(test)]
 fn tags_from_language(language: &Language, tags: &mut ThreeTags) {
     let language = language.as_str();
 
@@ -193,6 +276,133 @@ fn tags_from_language(language: &Language, tags: &mut ThreeTags) {
 
     if language.len() == 3 {
         tags.push(hb_tag_t::from_bytes_lossy(language.as_bytes()).to_uppercase());
+    }
+}
+
+fn lang_cmp_with<P: ColdAdmission>(
+    s1: &str, s2: &str, policy: &mut P,
+) -> Result<core::cmp::Ordering, P::Error> {
+    let da = find_private_prefix_with(s1.as_bytes(), b"-", policy)?.unwrap_or(s1.len());
+    let db = find_private_prefix_with(s2.as_bytes(), b"-", policy)?.unwrap_or(s2.len());
+    let n = core::cmp::max(da, db);
+    let ea = core::cmp::min(n, s1.len());
+    let eb = core::cmp::min(n, s2.len());
+    // Compare visits both byte ranges; no opaque binary_search closure.
+    policy.charge(ColdOperation::TableRead, ea, 0)?;
+    policy.charge(ColdOperation::TableRead, eb, 0)?;
+    Ok(s1.as_bytes()[..ea].cmp(&s2.as_bytes()[..eb]))
+}
+
+fn language_equal_with<P: ColdAdmission>(
+    a: &str, b: &str, policy: &mut P,
+) -> Result<bool, P::Error> {
+    policy.charge(ColdOperation::Planning, 2, 0)?;
+    if a.len() != b.len() {
+        return Ok(false);
+    }
+    policy.charge(ColdOperation::TableRead, a.len(), 0)?;
+    policy.charge(ColdOperation::TableRead, b.len(), 0)?;
+    Ok(a == b)
+}
+
+fn tags_from_language_with<P: ColdAdmission>(
+    language: &str, tags: &mut ThreeTags, policy: &mut P,
+) -> Result<(), P::Error> {
+    if super::tag_rules::tags_from_complex_language_with(language, tags, policy)? {
+        return Ok(());
+    }
+    let mut sublang = language;
+    if let Some(i) = find_private_prefix_with(language.as_bytes(), b"-", policy)? {
+        if language.len() >= 6 {
+            let remaining = &language[i + 1..];
+            let extlang = match find_private_prefix_with(remaining.as_bytes(), b"-", policy)? {
+                Some(idx) => idx == 3,
+                None => remaining.len() == 3,
+            };
+            if extlang {
+                policy.charge(ColdOperation::TableRead, 1, 0)?;
+                if language.as_bytes()[i + 1].is_ascii_alphabetic() {
+                    sublang = remaining;
+                }
+            }
+        }
+    }
+    use tag_table::OPEN_TYPE_LANGUAGES as LANGUAGES;
+    let mut start = 0;
+    let mut end = LANGUAGES.len();
+    let mut found = None;
+    while start < end {
+        let mid = start + (end - start) / 2;
+        policy.charge(ColdOperation::TableRead, 1, 0)?;
+        match lang_cmp_with(LANGUAGES[mid].language, sublang, policy)? {
+            core::cmp::Ordering::Less => start = mid + 1,
+            core::cmp::Ordering::Greater => end = mid,
+            core::cmp::Ordering::Equal => {
+                found = Some(mid);
+                break;
+            }
+        }
+    }
+    if let Some(mut idx) = found {
+        while idx != 0 {
+            policy.charge(ColdOperation::TableRead, 2, 0)?;
+            if !language_equal_with(
+                LANGUAGES[idx].language, LANGUAGES[idx - 1].language, policy,
+            )? {
+                break;
+            }
+            idx -= 1;
+        }
+        // Preserve the locked table's trailing-slot and inline-capacity limit.
+        let len = core::cmp::min(tags.left(), LANGUAGES.len() - idx - 1);
+        for i in 0..len {
+            policy.charge(ColdOperation::TableRead, 2, 0)?;
+            if !language_equal_with(
+                LANGUAGES[idx + i].language, LANGUAGES[idx].language, policy,
+            )? {
+                break;
+            }
+            policy.charge(ColdOperation::TableRead, 4, 0)?;
+            if LANGUAGES[idx + i].tag.is_null() || tags.is_full() {
+                break;
+            }
+            policy.charge(ColdOperation::TableRead, 4, 0)?;
+            policy.charge(ColdOperation::Initialize, 4 + 4, 0)?;
+            tags.push(LANGUAGES[idx + i].tag);
+        }
+        return Ok(());
+    }
+    if language.len() == 3 {
+        policy.charge(ColdOperation::TableRead, 3 + 4, 0)?;
+        // Lossy padding/copy, ASCII tag normalization and eventual cleanup.
+        policy.charge(ColdOperation::Initialize, 4 + 3 + 4 + 4 + 4, 0)?;
+        tags.push(hb_tag_t::from_bytes_lossy(language.as_bytes()).to_uppercase());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod general_language_reference_tests {
+    use super::*;
+    use alloc::format;
+    use core::str::FromStr;
+
+    #[test]
+    fn all_primary_table_languages_and_extended_forms_match_locked_kernel() {
+        for entry in tag_table::OPEN_TYPE_LANGUAGES {
+            for suffix in ["", "-abc", "-hans", "-hant-mo", "-fonipa", "-x-private"] {
+                for input in [format!("{}{suffix}", entry.language),
+                    format!("und-{}{suffix}", entry.language)] {
+                    let language = Language::from_str(&input).unwrap();
+                    let mut expected = ThreeTags::new();
+                    tags_from_language(&language, &mut expected);
+                    let mut actual = ThreeTags::new();
+                    tags_from_language_with(language.as_str(), &mut actual, &mut OrdinaryCold)
+                        .unwrap();
+                    assert_eq!(actual, expected, "{input}");
+                }
+            }
+        }
     }
 }
 
@@ -262,6 +472,40 @@ mod tests {
     use super::*;
     use core::str::FromStr;
     use alloc::vec::Vec;
+
+    #[test]
+    fn private_prefix_word_skip_matches_every_boundary_and_rejects_before_read() {
+        use super::super::face::cold_admission::{AdmittedCold, ColdOperationError};
+        for len in 0..64 {
+            for fill in [b'a', b'-', 0, 0xff] {
+                for needle in [b"-hbot".as_slice(), b"-hbsc".as_slice()] {
+                    for position in 0..=len {
+                        let mut bytes = alloc::vec![fill; len];
+                        bytes.splice(position..position, needle.iter().copied());
+                        let expected = bytes.windows(needle.len()).position(|window| window == needle);
+                        let mut complete = Vec::new();
+                        let result = find_private_prefix_with(&bytes, needle, &mut AdmittedCold(|op, cost| {
+                            complete.push((op, cost));
+                            Ok::<_, usize>(())
+                        })).unwrap();
+                        assert_eq!(result, expected);
+                        // Exercise the first, middle and last operation in each
+                        // boundary case; public tests reject every full plan point.
+                        for reject in [0, complete.len() / 2, complete.len() - 1] {
+                            let mut prefix = Vec::new();
+                            let result = find_private_prefix_with(&bytes, needle, &mut AdmittedCold(|op, cost| {
+                                let index = prefix.len();
+                                prefix.push((op, cost));
+                                if index == reject { Err(index) } else { Ok(()) }
+                            }));
+                            assert!(matches!(result, Err(ColdOperationError::Admission(index)) if index == reject));
+                            assert_eq!(prefix, complete[..=reject]);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     fn new_tag_to_script(tag: hb_tag_t) -> Option<Script> {
         match &tag.to_be_bytes() {

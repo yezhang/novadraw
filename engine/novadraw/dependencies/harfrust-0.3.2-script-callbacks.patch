@@ -1,0 +1,583 @@
+--- a/src/hb/ot_map.rs
++++ b/src/hb/ot_map.rs
+@@ -7,7 +7,7 @@
+ use super::ot_layout::TableIndex;
+ use super::ot_shape_plan::hb_ot_shape_plan_t;
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, tag, Language, Script};
+-use super::face::cold_admission::{ColdAdmission, ColdOperation, OrdinaryCold};
++use super::face::cold_admission::{ColdAdmission, ColdOperation};
+ 
+ // TODO: Remove once MSRV is 1.80+
+ use core::mem::{size_of, size_of_val};
+@@ -261,23 +261,22 @@
+         self.chosen_script[table_index]
+     }
+ 
+-    #[inline]
+-    pub fn has_feature(&self, tag: hb_tag_t) -> bool {
++    pub(crate) fn has_feature_with<P: ColdAdmission>(
++        &self, tag: hb_tag_t, policy: &mut P,
++    ) -> Result<bool, P::Error> {
+         for (table_index, table) in self.face.layout_tables() {
++            policy.charge(ColdOperation::Planning, 1, 0)?;
+             if let Some(script_index) = self.script_index[table_index] {
+-                let found = match table.find_language_feature_with(
+-                    script_index, self.lang_index[table_index], tag, &mut OrdinaryCold,
+-                ) {
+-                    Ok(value) => value.is_some(),
+-                    Err(never) => match never {},
+-                };
++                let found = table.find_language_feature_with(
++                    script_index, self.lang_index[table_index], tag, policy,
++                )?.is_some();
+                 if found {
+-                    return true;
+-                }
+-            }
+-        }
+-
+-        false
++                    return Ok(true);
++                }
++            }
++        }
++
++        Ok(false)
+     }
+ 
+     #[inline]
+--- a/src/hb/ot_shape.rs
++++ b/src/hb/ot_shape.rs
+@@ -82,10 +82,11 @@
+             shaper = &DUMBER_SHAPER;
+         }
+ 
+-        policy.charge(ColdOperation::Planning, 6, 0)?;
++        policy.charge(ColdOperation::Planning, 7, 0)?;
+         if P::ADMITTED && (apply_morx || face.aat_tables.kern.is_some()
+-            || face.aat_tables.kerx.is_some() || shaper.collect_features.is_some()
+-            || shaper.override_features.is_some() || shaper.create_data.is_some()) {
++            || face.aat_tables.kerx.is_some()
++            || (shaper.cold_callbacks.is_none() && (shaper.collect_features.is_some()
++                || shaper.override_features.is_some() || shaper.create_data.is_some()))) {
+             return Ok(None);
+         }
+ 
+@@ -173,7 +174,10 @@
+         add!(hb_tag_t::new(b"Harf"), empty | F_GLOBAL, 1); // Considered required.
+         add!(hb_tag_t::new(b"HARF"), empty | F_GLOBAL, 1); // Considered discretionary.
+ 
+-        if let Some(func) = self.shaper.collect_features {
++        if let Some(callbacks) = self.shaper.cold_callbacks {
++            self.ot_map.is_simple = false;
++            callbacks.collect_with(self, policy)?;
++        } else if let Some(func) = self.shaper.collect_features {
+             self.ot_map.is_simple = false;
+             func(self);
+         }
+@@ -215,7 +219,9 @@
+             add!(feature.tag, flags, feature.value);
+         }
+ 
+-        if let Some(func) = self.shaper.override_features {
++        if let Some(callbacks) = self.shaper.cold_callbacks {
++            callbacks.override_with(self, policy)?;
++        } else if let Some(func) = self.shaper.override_features {
+             func(self);
+         }
+         Ok(())
+@@ -364,8 +370,10 @@
+             user_features,
+         };
+ 
+-        if let Some(func) = self.shaper.create_data {
+-            plan.data = Some(func(&plan));
++        if let Some(callbacks) = self.shaper.cold_callbacks {
++            plan.data = Some(callbacks.data_with(&plan, policy)?);
++        } else if let Some(func) = self.shaper.create_data {
++            plan.data = Some(ot_shape_plan::ShapePlanData::Ordinary(func(&plan)));
+         }
+ 
+         Ok(plan)
+--- a/src/hb/ot_shape_plan.rs
++++ b/src/hb/ot_shape_plan.rs
+@@ -8,6 +8,25 @@
+ use super::face::cold_admission::{self, AdmittedCold, ColdAdmission, ColdOperation, ColdOperationCost, ColdOperationError};
+ use alloc::vec::Vec;
+ use read_fonts::types::Tag;
++use super::face::cold_admission::HeapSlot;
++
++/// Safe fallible storage for proven fixed-script plan data. Other upstream
++/// callbacks retain their existing erased storage on the ordinary path only.
++pub(crate) enum ShapePlanData {
++    Ordinary(Box<dyn Any + Send + Sync>),
++    Arabic(HeapSlot<super::ot_shaper_arabic::arabic_shape_plan_t>),
++    Hangul(HeapSlot<super::ot_shaper_hangul::hangul_shape_plan_t>),
++}
++
++impl ShapePlanData {
++    fn as_any(&self) -> &(dyn Any + Send + Sync) {
++        match self {
++            Self::Ordinary(value) => value.as_ref(),
++            Self::Arabic(value) => &**value,
++            Self::Hangul(value) => &**value,
++        }
++    }
++}
+ 
+ use super::aat::map::*;
+ use super::ot_map::*;
+@@ -23,7 +42,7 @@
+     pub(crate) shaper: &'static hb_ot_shaper_t,
+     pub(crate) ot_map: hb_ot_map_t,
+     pub(crate) aat_map: AatMap,
+-    pub(crate) data: Option<Box<dyn Any + Send + Sync>>,
++    pub(crate) data: Option<ShapePlanData>,
+ 
+     pub(crate) frac_mask: hb_mask_t,
+     pub(crate) numr_mask: hb_mask_t,
+@@ -54,7 +73,8 @@
+     /// Builds a plan with operation admission before scanning or growing storage.
+     ///
+     /// Supports borrowed GSUB/GPOS queries and lookup collection, with no
+-    /// tracking tables or AAT/script-specific plan callbacks. General language
++    /// tracking tables or AAT callbacks. Arabic, Syriac and Hangul planning
++    /// callbacks are supported; other script callbacks can decline. General language
+     /// table selection and private-use `hbot` overrides are supported.
+     /// Unknown paths and invalid directions return `Ok(None)` before those
+     /// operations execute. This does not admit shaping or shaper configuration.
+@@ -101,7 +121,7 @@
+     }
+ 
+     pub(crate) fn data<T: 'static>(&self) -> &T {
+-        self.data.as_ref().unwrap().downcast_ref().unwrap()
++        self.data.as_ref().unwrap().as_any().downcast_ref().unwrap()
+     }
+ 
+     /// The direction of the text.
+--- a/src/hb/ot_shaper.rs
++++ b/src/hb/ot_shaper.rs
+@@ -42,6 +42,7 @@
+     fn(&hb_ot_shape_normalize_context_t, Codepoint, Codepoint) -> Option<Codepoint>;
+ 
+ pub const DEFAULT_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: None,
+     override_features: None,
+     create_data: None,
+@@ -58,6 +59,9 @@
+ };
+ 
+ pub struct hb_ot_shaper_t {
++    /// Proven planning kernels for the upstream fixed script dispatch table.
++    /// This does not describe text preprocessing or shaping admission.
++    pub cold_callbacks: Option<ColdCallbacks>,
+     /// Called during `shape_plan()`.
+     /// Shapers should use plan.map to add their features and callbacks.
+     pub collect_features: Option<fn(&mut hb_ot_shape_planner_t)>,
+@@ -111,6 +115,7 @@
+ // Same as default but no mark advance zeroing / fallback positioning.
+ // Dumbest shaper ever, basically.
+ pub const DUMBER_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: None,
+     override_features: None,
+     create_data: None,
+@@ -125,6 +130,49 @@
+     zero_width_marks: HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE,
+     fallback_position: false,
+ };
++
++#[derive(Clone, Copy)]
++pub enum ColdCallbacks {
++    Arabic,
++    Hangul,
++}
++
++impl ColdCallbacks {
++    pub(crate) fn collect_with<P: super::face::cold_admission::ColdAdmission>(
++        self, planner: &mut hb_ot_shape_planner_t, policy: &mut P,
++    ) -> Result<(), P::Error> {
++        match self {
++            Self::Arabic => super::ot_shaper_arabic::collect_features_with(planner, policy),
++            Self::Hangul => super::ot_shaper_hangul::collect_features_hangul_with(planner, policy),
++        }
++    }
++
++    pub(crate) fn override_with<P: super::face::cold_admission::ColdAdmission>(
++        self, planner: &mut hb_ot_shape_planner_t, policy: &mut P,
++    ) -> Result<(), P::Error> {
++        match self {
++            Self::Arabic => Ok(()),
++            Self::Hangul => super::ot_shaper_hangul::override_features_hangul_with(planner, policy),
++        }
++    }
++
++    pub(crate) fn data_with<P: super::face::cold_admission::ColdAdmission>(
++        self, plan: &hb_ot_shape_plan_t, policy: &mut P,
++    ) -> Result<super::ot_shape_plan::ShapePlanData, P::Error> {
++        use super::face::cold_admission::HeapSlot;
++        use super::ot_shape_plan::ShapePlanData;
++        match self {
++            Self::Arabic => {
++                let value = super::ot_shaper_arabic::data_create_arabic_with(plan, policy)?;
++                HeapSlot::new_with(value, policy).map(ShapePlanData::Arabic)
++            },
++            Self::Hangul => {
++                let value = super::ot_shaper_hangul::data_create_hangul_with(&plan.ot_map, policy)?;
++                HeapSlot::new_with(value, policy).map(ShapePlanData::Hangul)
++            },
++        }
++    }
++}
+ 
+ pub fn hb_ot_shape_complex_categorize(
+     script: Script,
+--- a/src/hb/ot_shaper_arabic.rs
++++ b/src/hb/ot_shaper_arabic.rs
+@@ -10,6 +10,8 @@
+ use super::ot_shaper::*;
+ use super::unicode::*;
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, script, GlyphInfo, Script};
++use super::face::cold_admission::{ColdAdmission, ColdOperation, OrdinaryCold};
++use super::ot_layout::TableIndex;
+ 
+ const HB_BUFFER_SCRATCH_FLAG_ARABIC_HAS_STCH: hb_buffer_scratch_flags_t =
+     HB_BUFFER_SCRATCH_FLAG_SHAPER0;
+@@ -185,7 +187,26 @@
+     false
+ }
+ 
+-fn collect_features(planner: &mut hb_ot_shape_planner_t) {
++pub(crate) fn collect_features(planner: &mut hb_ot_shape_planner_t) {
++    match collect_features_with(planner, &mut OrdinaryCold) {
++        Ok(()) => {},
++        Err(never) => match never {},
++    }
++}
++
++pub(crate) fn collect_features_with<P: ColdAdmission>(
++    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
++) -> Result<(), P::Error> {
++    macro_rules! enable {
++        ($tag:expr, $flags:expr) => {
++            planner.ot_map.add_feature_with(hb_tag_t::new($tag), $flags | F_GLOBAL, 1, policy)?
++        };
++    }
++    macro_rules! pause {
++        ($func:expr) => {
++            planner.ot_map.add_pause_with(TableIndex::GSUB, $func, policy)?
++        };
++    }
+     // We apply features according to the Arabic spec, with pauses
+     // in between most.
+     //
+@@ -207,58 +228,47 @@
+     // A pause after calt is required to make KFGQPC Uthmanic Script HAFS
+     // work correctly.  See https://github.com/harfbuzz/harfbuzz/issues/505
+ 
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"stch"), F_NONE, 1);
+-    planner.ot_map.add_gsub_pause(Some(record_stch));
+-
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"ccmp"), F_MANUAL_ZWJ, 1);
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"locl"), F_MANUAL_ZWJ, 1);
+-
+-    planner.ot_map.add_gsub_pause(None);
++    enable!(b"stch", F_NONE);
++    pause!(Some(record_stch));
++
++    enable!(b"ccmp", F_MANUAL_ZWJ);
++    enable!(b"locl", F_MANUAL_ZWJ);
++
++    pause!(None);
+ 
+     for feature in ARABIC_FEATURES {
++        // Feature visit, script test, tag byte read and two Syriac byte tests.
++        policy.charge(ColdOperation::Feature, 5, 0)?;
+         let has_fallback = planner.script == Some(script::ARABIC) && !feature_is_syriac(*feature);
+         let flags = if has_fallback { F_HAS_FALLBACK } else { F_NONE };
+         planner
+             .ot_map
+-            .add_feature(*feature, F_MANUAL_ZWJ | flags, 1);
+-        planner.ot_map.add_gsub_pause(None);
+-    }
+-    planner.ot_map.add_gsub_pause(Some(deallocate_buffer_var));
++            .add_feature_with(*feature, F_MANUAL_ZWJ | flags, 1, policy)?;
++        pause!(None);
++    }
++    pause!(Some(deallocate_buffer_var));
+ 
+     // Normally, Unicode says a ZWNJ means "don't ligate".  In Arabic script
+     // however, it says a ZWJ should also mean "don't ligate".  So we run
+     // the main ligating features as MANUAL_ZWJ.
+ 
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"rlig"), F_MANUAL_ZWJ | F_HAS_FALLBACK, 1);
+-
++    enable!(b"rlig", F_MANUAL_ZWJ | F_HAS_FALLBACK);
++
++    policy.charge(ColdOperation::Planning, 1, 0)?;
+     if planner.script == Some(script::ARABIC) {
+-        planner.ot_map.add_gsub_pause(Some(arabic_fallback_shape));
++        pause!(Some(arabic_fallback_shape));
+     }
+ 
+     // No pause after rclt.
+     // See 98460779bae19e4d64d29461ff154b3527bf8420
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"calt"), F_MANUAL_ZWJ, 1);
++    enable!(b"calt", F_MANUAL_ZWJ);
+     /* https://github.com/harfbuzz/harfbuzz/issues/1573 */
+-    if !planner.ot_map.has_feature(hb_tag_t::new(b"rclt")) {
+-        planner.ot_map.add_gsub_pause(None);
+-    }
+-
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"liga"), F_MANUAL_ZWJ, 1);
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"clig"), F_MANUAL_ZWJ, 1);
++    if !planner.ot_map.has_feature_with(hb_tag_t::new(b"rclt"), policy)? {
++        pause!(None);
++    }
++
++    enable!(b"liga", F_MANUAL_ZWJ);
++    enable!(b"clig", F_MANUAL_ZWJ);
+ 
+     // The spec includes 'cswh'.  Earlier versions of Windows
+     // used to enable this by default, but testing suggests
+@@ -270,9 +280,8 @@
+     // Test case: U+0643,U+0640,U+0631.
+ 
+     // planner.ot_map.enable_feature(feature::CONTEXTUAL_SWASH, F_MANUAL_ZWJ, 1);
+-    planner
+-        .ot_map
+-        .enable_feature(hb_tag_t::new(b"mset"), F_MANUAL_ZWJ, 1);
++    enable!(b"mset", F_MANUAL_ZWJ);
++    Ok(())
+ }
+ 
+ pub struct arabic_shape_plan_t {
+@@ -285,17 +294,30 @@
+ }
+ 
+ pub fn data_create_arabic(plan: &hb_ot_shape_plan_t) -> arabic_shape_plan_t {
++    match data_create_arabic_with(plan, &mut OrdinaryCold) {
++        Ok(value) => value,
++        Err(never) => match never {},
++    }
++}
++
++pub(crate) fn data_create_arabic_with<P: ColdAdmission>(
++    plan: &hb_ot_shape_plan_t, policy: &mut P,
++) -> Result<arabic_shape_plan_t, P::Error> {
++    plan.ot_map.charge_query(policy)?;
+     let has_stch = plan.ot_map.get_1_mask(hb_tag_t::new(b"stch")) != 0;
+ 
++    policy.charge(ColdOperation::Initialize, ARABIC_FEATURES.len() + 1, 0)?;
+     let mut mask_array = [0; ARABIC_FEATURES.len() + 1];
+     for i in 0..ARABIC_FEATURES.len() {
++        policy.charge(ColdOperation::Feature, 2, 0)?;
++        plan.ot_map.charge_query(policy)?;
+         mask_array[i] = plan.ot_map.get_1_mask(ARABIC_FEATURES[i]);
+     }
+ 
+-    arabic_shape_plan_t {
++    Ok(arabic_shape_plan_t {
+         mask_array,
+         has_stch,
+-    }
++    })
+ }
+ 
+ fn arabic_joining(buffer: &mut hb_buffer_t) {
+@@ -697,6 +719,7 @@
+ }
+ 
+ pub const ARABIC_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: Some(ColdCallbacks::Arabic),
+     collect_features: Some(collect_features),
+     override_features: None,
+     create_data: Some(|plan| Box::new(data_create_arabic(plan))),
+--- a/src/hb/ot_shaper_hangul.rs
++++ b/src/hb/ot_shaper_hangul.rs
+@@ -9,6 +9,7 @@
+ use super::*;
+ use crate::hb::unicode::Codepoint;
+ use crate::BufferFlags;
++use super::face::cold_admission::{ColdAdmission, ColdOperation, OrdinaryCold};
+ 
+ const LJMO: u8 = 1;
+ const VJMO: u8 = 2;
+@@ -24,38 +25,61 @@
+     );
+ }
+ 
+-fn collect_features_hangul(planner: &mut hb_ot_shape_planner_t) {
+-    planner
+-        .ot_map
+-        .add_feature(hb_tag_t::new(b"ljmo"), F_NONE, 1);
+-    planner
+-        .ot_map
+-        .add_feature(hb_tag_t::new(b"vjmo"), F_NONE, 1);
+-    planner
+-        .ot_map
+-        .add_feature(hb_tag_t::new(b"tjmo"), F_NONE, 1);
+-}
+-
+-fn override_features_hangul(planner: &mut hb_ot_shape_planner_t) {
++pub(crate) fn collect_features_hangul(planner: &mut hb_ot_shape_planner_t) {
++    match collect_features_hangul_with(planner, &mut OrdinaryCold) {
++        Ok(()) => {},
++        Err(never) => match never {},
++    }
++}
++
++pub(crate) fn collect_features_hangul_with<P: ColdAdmission>(
++    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
++) -> Result<(), P::Error> {
++    for tag in [b"ljmo", b"vjmo", b"tjmo"] {
++        policy.charge(ColdOperation::Feature, 1, 0)?;
++        planner.ot_map.add_feature_with(hb_tag_t::new(tag), F_NONE, 1, policy)?;
++    }
++    Ok(())
++}
++
++pub(crate) fn override_features_hangul(planner: &mut hb_ot_shape_planner_t) {
++    match override_features_hangul_with(planner, &mut OrdinaryCold) {
++        Ok(()) => {},
++        Err(never) => match never {},
++    }
++}
++
++pub(crate) fn override_features_hangul_with<P: ColdAdmission>(
++    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
++) -> Result<(), P::Error> {
+     // Uniscribe does not apply 'calt' for Hangul, and certain fonts
+     // (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
+     // in calt, which is not desirable.
+-    planner.ot_map.disable_feature(hb_tag_t::new(b"calt"));
+-}
+-
+-struct hangul_shape_plan_t {
++    planner.ot_map.add_feature_with(hb_tag_t::new(b"calt"), F_GLOBAL, 0, policy)
++}
++
++pub(crate) struct hangul_shape_plan_t {
+     mask_array: [hb_mask_t; 4],
+ }
+ 
+ fn data_create_hangul(map: &hb_ot_map_t) -> hangul_shape_plan_t {
+-    hangul_shape_plan_t {
+-        mask_array: [
+-            0,
+-            map.get_1_mask(hb_tag_t::new(b"ljmo")),
+-            map.get_1_mask(hb_tag_t::new(b"vjmo")),
+-            map.get_1_mask(hb_tag_t::new(b"tjmo")),
+-        ],
+-    }
++    match data_create_hangul_with(map, &mut OrdinaryCold) {
++        Ok(value) => value,
++        Err(never) => match never {},
++    }
++}
++
++pub(crate) fn data_create_hangul_with<P: ColdAdmission>(
++    map: &hb_ot_map_t, policy: &mut P,
++) -> Result<hangul_shape_plan_t, P::Error> {
++    policy.charge(ColdOperation::Initialize, 4, 0)?;
++    let mut mask_array = [0; 4];
++    for (index, tag) in [b"ljmo", b"vjmo", b"tjmo"].into_iter().enumerate() {
++        policy.charge(ColdOperation::Feature, 2, 0)?;
++        map.charge_query(policy)?;
++        mask_array[index + 1] = map.get_1_mask(hb_tag_t::new(tag));
++    }
++    Ok(hangul_shape_plan_t { mask_array })
+ }
+ 
+ const L_BASE: u32 = 0x1100;
+@@ -362,6 +386,7 @@
+ }
+ 
+ pub const HANGUL_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: Some(ColdCallbacks::Hangul),
+     collect_features: Some(collect_features_hangul),
+     override_features: Some(override_features_hangul),
+     create_data: Some(|plan| Box::new(data_create_hangul(&plan.ot_map))),
+--- a/src/hb/ot_shaper_hebrew.rs
++++ b/src/hb/ot_shaper_hebrew.rs
+@@ -7,6 +7,7 @@
+ use crate::hb::unicode::{combining_class, modified_combining_class};
+ 
+ pub const HEBREW_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: None,
+     override_features: None,
+     create_data: None,
+--- a/src/hb/ot_shaper_indic.rs
++++ b/src/hb/ot_shaper_indic.rs
+@@ -21,6 +21,7 @@
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, script, GlyphInfo, Script};
+ 
+ pub const INDIC_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: Some(collect_features),
+     override_features: Some(override_features),
+     create_data: Some(|plan| Box::new(IndicShapePlan::new(plan))),
+--- a/src/hb/ot_shaper_khmer.rs
++++ b/src/hb/ot_shaper_khmer.rs
+@@ -14,6 +14,7 @@
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, GlyphInfo};
+ 
+ pub const KHMER_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: Some(collect_features),
+     override_features: Some(override_features),
+     create_data: Some(|plan| Box::new(KhmerShapePlan::new(plan))),
+--- a/src/hb/ot_shaper_myanmar.rs
++++ b/src/hb/ot_shaper_myanmar.rs
+@@ -10,6 +10,7 @@
+ use crate::hb::ot_shaper_indic::ot_category_t::OT_VPre;
+ 
+ pub const MYANMAR_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: Some(collect_features),
+     override_features: None,
+     create_data: None,
+@@ -46,6 +47,7 @@
+ // Disable all auto processing.
+ // https://github.com/harfbuzz/harfbuzz/issues/1162
+ pub const MYANMAR_ZAWGYI_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: None,
+     override_features: None,
+     create_data: None,
+--- a/src/hb/ot_shaper_thai.rs
++++ b/src/hb/ot_shaper_thai.rs
+@@ -7,6 +7,7 @@
+ use super::{hb_font_t, script};
+ 
+ pub const THAI_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: None,
+     override_features: None,
+     create_data: None,
+--- a/src/hb/ot_shaper_use.rs
++++ b/src/hb/ot_shaper_use.rs
+@@ -16,6 +16,7 @@
+ use super::{hb_font_t, hb_mask_t, hb_tag_t, script, GlyphInfo, Script};
+ 
+ pub const UNIVERSAL_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
++    cold_callbacks: None,
+     collect_features: Some(collect_features),
+     override_features: None,
+     create_data: Some(|plan| Box::new(UniversalShapePlan::new(plan))),

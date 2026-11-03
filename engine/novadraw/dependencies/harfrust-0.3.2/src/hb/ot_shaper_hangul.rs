@@ -9,6 +9,7 @@ use super::ot_shaper::*;
 use super::*;
 use crate::hb::unicode::Codepoint;
 use crate::BufferFlags;
+use super::face::cold_admission::{ColdAdmission, ColdOperation, OrdinaryCold};
 
 const LJMO: u8 = 1;
 const VJMO: u8 = 2;
@@ -24,38 +25,61 @@ impl GlyphInfo {
     );
 }
 
-fn collect_features_hangul(planner: &mut hb_ot_shape_planner_t) {
-    planner
-        .ot_map
-        .add_feature(hb_tag_t::new(b"ljmo"), F_NONE, 1);
-    planner
-        .ot_map
-        .add_feature(hb_tag_t::new(b"vjmo"), F_NONE, 1);
-    planner
-        .ot_map
-        .add_feature(hb_tag_t::new(b"tjmo"), F_NONE, 1);
+pub(crate) fn collect_features_hangul(planner: &mut hb_ot_shape_planner_t) {
+    match collect_features_hangul_with(planner, &mut OrdinaryCold) {
+        Ok(()) => {},
+        Err(never) => match never {},
+    }
 }
 
-fn override_features_hangul(planner: &mut hb_ot_shape_planner_t) {
+pub(crate) fn collect_features_hangul_with<P: ColdAdmission>(
+    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    for tag in [b"ljmo", b"vjmo", b"tjmo"] {
+        policy.charge(ColdOperation::Feature, 1, 0)?;
+        planner.ot_map.add_feature_with(hb_tag_t::new(tag), F_NONE, 1, policy)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn override_features_hangul(planner: &mut hb_ot_shape_planner_t) {
+    match override_features_hangul_with(planner, &mut OrdinaryCold) {
+        Ok(()) => {},
+        Err(never) => match never {},
+    }
+}
+
+pub(crate) fn override_features_hangul_with<P: ColdAdmission>(
+    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
+) -> Result<(), P::Error> {
     // Uniscribe does not apply 'calt' for Hangul, and certain fonts
     // (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
     // in calt, which is not desirable.
-    planner.ot_map.disable_feature(hb_tag_t::new(b"calt"));
+    planner.ot_map.add_feature_with(hb_tag_t::new(b"calt"), F_GLOBAL, 0, policy)
 }
 
-struct hangul_shape_plan_t {
+pub(crate) struct hangul_shape_plan_t {
     mask_array: [hb_mask_t; 4],
 }
 
 fn data_create_hangul(map: &hb_ot_map_t) -> hangul_shape_plan_t {
-    hangul_shape_plan_t {
-        mask_array: [
-            0,
-            map.get_1_mask(hb_tag_t::new(b"ljmo")),
-            map.get_1_mask(hb_tag_t::new(b"vjmo")),
-            map.get_1_mask(hb_tag_t::new(b"tjmo")),
-        ],
+    match data_create_hangul_with(map, &mut OrdinaryCold) {
+        Ok(value) => value,
+        Err(never) => match never {},
     }
+}
+
+pub(crate) fn data_create_hangul_with<P: ColdAdmission>(
+    map: &hb_ot_map_t, policy: &mut P,
+) -> Result<hangul_shape_plan_t, P::Error> {
+    policy.charge(ColdOperation::Initialize, 4, 0)?;
+    let mut mask_array = [0; 4];
+    for (index, tag) in [b"ljmo", b"vjmo", b"tjmo"].into_iter().enumerate() {
+        policy.charge(ColdOperation::Feature, 2, 0)?;
+        map.charge_query(policy)?;
+        mask_array[index + 1] = map.get_1_mask(hb_tag_t::new(tag));
+    }
+    Ok(hangul_shape_plan_t { mask_array })
 }
 
 const L_BASE: u32 = 0x1100;
@@ -362,6 +386,7 @@ fn setup_masks_hangul(plan: &hb_ot_shape_plan_t, _: &hb_font_t, buffer: &mut hb_
 }
 
 pub const HANGUL_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: Some(ColdCallbacks::Hangul),
     collect_features: Some(collect_features_hangul),
     override_features: Some(override_features_hangul),
     create_data: Some(|plan| Box::new(data_create_hangul(&plan.ot_map))),

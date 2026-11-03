@@ -8,8 +8,10 @@ use super::ot_layout::*;
 use super::ot_shape_plan::hb_ot_shape_plan_t;
 use crate::Direction;
 
-pub fn position(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t) {
-    apply_layout_table(plan, face, buffer, face.ot_tables.gpos.as_ref());
+pub(crate) fn position_with<P: super::face::shape_admission::ShapeAdmission>(
+    plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    apply_layout_table_with(plan, face, buffer, face.ot_tables.gpos.as_ref(), policy)
 }
 
 pub mod attach_type {

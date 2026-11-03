@@ -14,6 +14,7 @@ use super::unicode::CharExt;
 use super::{hb_font_t, hb_mask_t, hb_tag_t, GlyphInfo};
 
 pub const KHMER_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: Some(collect_features),
     override_features: Some(override_features),
     create_data: Some(|plan| Box::new(KhmerShapePlan::new(plan))),

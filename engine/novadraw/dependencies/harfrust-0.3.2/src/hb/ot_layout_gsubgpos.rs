@@ -850,6 +850,9 @@ pub mod OT {
         pub(crate) context_matcher: matcher_t,
         pub(crate) match_positions_len: usize,
         pub(crate) match_positions: MatchPositions,
+        // Admission pre-reserves this for nonrecursive, length-preserving
+        // contextual leaves. Ordinary shaping retains its original clone.
+        pub(crate) saved_match_positions: Option<MatchPositions>,
     }
 
     impl<'a> hb_ot_apply_context_t<'a> {
@@ -879,6 +882,7 @@ pub mod OT {
                 context_matcher: matcher_t::default(),
                 match_positions_len: 0,
                 match_positions: MatchPositions::from_elem(0, 1),
+                saved_match_positions: None,
             }
         }
 
@@ -920,7 +924,17 @@ pub mod OT {
             let saved_index = self.lookup_index;
 
             self.match_positions.resize(self.match_positions_len, 0);
-            let saved_match_positions = self.match_positions.clone();
+            let reuse_saved = self.saved_match_positions.is_some();
+            let saved_match_positions = if let Some(mut saved) = self.saved_match_positions.take() {
+                // Preflight admits only leaves which cannot recurse or grow.
+                // Both arrays have capacity for the logical matching slice.
+                debug_assert!(saved.capacity() >= self.match_positions_len);
+                saved.resize(self.match_positions_len, 0);
+                saved.copy_from_slice(&self.match_positions);
+                saved
+            } else {
+                self.match_positions.clone()
+            };
             let saved_match_positions_len = self.match_positions_len;
 
             self.lookup_index = sub_lookup_index;
@@ -936,7 +950,10 @@ pub mod OT {
             self.lookup_props = saved_props;
             self.lookup_index = saved_index;
             self.update_matchers();
-            self.match_positions = saved_match_positions;
+            let previous = core::mem::replace(&mut self.match_positions, saved_match_positions);
+            if reuse_saved {
+                self.saved_match_positions = Some(previous);
+            }
             self.match_positions_len = saved_match_positions_len;
             self.nesting_level_left += 1;
             applied

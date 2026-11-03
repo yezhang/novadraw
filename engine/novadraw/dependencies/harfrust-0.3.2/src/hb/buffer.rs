@@ -15,7 +15,7 @@ use crate::{script, BufferClusterLevel, BufferFlags, Direction, Language, Script
 const CONTEXT_LENGTH: usize = 5;
 
 #[path = "buffer_admission.rs"]
-mod admission;
+pub(crate) mod admission;
 pub use admission::{BufferOperation, BufferOperationCost, BufferOperationError, BufferStorageField};
 
 pub mod glyph_flag {
@@ -674,60 +674,99 @@ impl hb_buffer_t {
     }
 
     pub fn reverse_range(&mut self, start: usize, end: usize) {
+        match self.reverse_range_with(start, end, &mut super::face::shape_admission::OrdinaryShape) {
+            Ok(()) => {}
+            Err(never) => match never {},
+        }
+    }
+
+    pub(crate) fn reverse_range_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self, start: usize, end: usize, policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_group(admission::GroupStep::Reverse { start, end }, self)?;
         if end - start < 2 {
-            return;
+            return Ok(());
         }
 
         self.info[start..end].reverse();
         if self.have_positions {
             self.pos[start..end].reverse();
         }
+        Ok(())
     }
 
-    pub fn reverse_groups<F>(&mut self, group: F, merge_clusters: bool)
-    where
-        F: Fn(&GlyphInfo, &GlyphInfo) -> bool,
-    {
+    // Only callers with a proven fixed stored-property predicate can admit
+    // this helper; the generic callback itself is not certified here.
+    pub(crate) fn reverse_groups_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        group: impl Fn(&GlyphInfo, &GlyphInfo) -> bool,
+        merge_clusters: bool,
+        policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_group(admission::GroupStep::Begin, self)?;
         if self.is_empty() {
-            return;
+            return Ok(());
         }
 
         let mut start = 0;
         let mut i = 1;
 
         while i < self.len {
+            policy.before_group(admission::GroupStep::Compare, self)?;
             if !group(&self.info[i - 1], &self.info[i]) {
                 if merge_clusters {
-                    self.merge_clusters(start, i);
+                    self.merge_clusters_with(start, i, policy)?;
                 }
 
-                self.reverse_range(start, i);
+                self.reverse_range_with(start, i, policy)?;
                 start = i;
             }
 
+            policy.before_group(admission::GroupStep::Advance, self)?;
             i += 1;
         }
 
         if merge_clusters {
-            self.merge_clusters(start, i);
+            self.merge_clusters_with(start, i, policy)?;
         }
 
-        self.reverse_range(start, i);
+        self.reverse_range_with(start, i, policy)?;
 
-        self.reverse();
+        self.reverse_range_with(0, self.len, policy)?;
+        Ok(())
     }
 
-    pub fn group_end<F>(&self, mut start: usize, group: F) -> usize
+    pub fn group_end<F>(&self, start: usize, group: F) -> usize
     where
         F: Fn(&GlyphInfo, &GlyphInfo) -> bool,
     {
+        match self.group_end_with(
+            start, group, &mut super::face::shape_admission::OrdinaryShape,
+        ) {
+            Ok(end) => end,
+            Err(never) => match never {},
+        }
+    }
+
+    pub(crate) fn group_end_with<P: super::face::shape_admission::ShapeAdmission>(
+        &self,
+        mut start: usize,
+        group: impl Fn(&GlyphInfo, &GlyphInfo) -> bool,
+        policy: &mut P,
+    ) -> Result<usize, P::Error> {
+        policy.before_group(admission::GroupStep::Begin, self)?;
         start += 1;
 
-        while start < self.len && group(&self.info[start - 1], &self.info[start]) {
+        while start < self.len {
+            policy.before_group(admission::GroupStep::Compare, self)?;
+            if !group(&self.info[start - 1], &self.info[start]) {
+                break;
+            }
+            policy.before_group(admission::GroupStep::Advance, self)?;
             start += 1;
         }
 
-        start
+        Ok(start)
     }
 
     #[inline]
@@ -764,6 +803,16 @@ impl hb_buffer_t {
     }
 
     pub fn sync(&mut self) -> bool {
+        self.sync_with(&mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
+    }
+
+    /// Shared output synchronization, including any unconsumed input suffix.
+    pub(crate) fn sync_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        policy: &mut P,
+    ) -> Result<bool, P::Error> {
+        policy.before_normalization_buffer(16, 0)?;
         debug_assert!(self.have_output);
         debug_assert!(self.idx <= self.len);
 
@@ -771,11 +820,12 @@ impl hb_buffer_t {
             self.have_output = false;
             self.out_len = 0;
             self.idx = 0;
-            return false;
+            return Ok(false);
         }
 
-        self.next_glyphs(self.len - self.idx);
+        self.next_glyphs_with(self.len - self.idx, policy)?;
 
+        policy.before_normalization_buffer(16, 0)?;
         if self.have_separate_output {
             // Swap info and pos buffers.
             let info: Vec<GlyphPosition> = bytemuck::cast_vec(core::mem::take(&mut self.info));
@@ -790,7 +840,7 @@ impl hb_buffer_t {
         self.have_output = false;
         self.out_len = 0;
         self.idx = 0;
-        true
+        Ok(true)
     }
 
     pub fn clear_output(&mut self) {
@@ -851,15 +901,27 @@ impl hb_buffer_t {
     }
 
     pub fn output_glyph(&mut self, glyph_index: u32) {
-        if !self.make_room_for(0, 1) {
-            return;
+        self.output_glyph_with(glyph_index, &mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
+    }
+
+    pub(crate) fn output_glyph_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        glyph_index: u32,
+        policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_normalization_buffer(8, 0)?;
+        if !self.make_room_for_with(0, 1, policy)? {
+            return Ok(());
         }
 
         if self.idx == self.len && self.out_len == 0 {
-            return;
+            return Ok(());
         }
 
         let out_len = self.out_len;
+        // Read one source, copy it, then write its codepoint.
+        policy.before_normalization_buffer(4, 3)?;
         if self.idx < self.len {
             self.set_out_info(out_len, self.info[self.idx]);
         } else {
@@ -870,15 +932,28 @@ impl hb_buffer_t {
         self.out_info_mut()[out_len].glyph_id = glyph_index;
 
         self.out_len += 1;
+        Ok(())
     }
 
     pub fn output_info(&mut self, glyph_info: GlyphInfo) {
-        if !self.make_room_for(0, 1) {
-            return;
+        self.output_info_with(glyph_info, &mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
+    }
+
+    pub(crate) fn output_info_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        glyph_info: GlyphInfo,
+        policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_normalization_buffer(8, 0)?;
+        if !self.make_room_for_with(0, 1, policy)? {
+            return Ok(());
         }
 
+        policy.before_normalization_buffer(4, 1)?;
         self.set_out_info(self.out_len, glyph_info);
         self.out_len += 1;
+        Ok(())
     }
 
     /// Copies glyph at idx to output but doesn't advance idx.
@@ -896,41 +971,45 @@ impl hb_buffer_t {
     /// If there's no output, just advance idx.
     #[inline(always)]
     pub fn next_glyph(&mut self) {
+        self.next_glyphs_with(1, &mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
+    }
+
+    /// Shared copy/advance kernel. The single-glyph wrapper follows the same
+    /// operation order as the original next_glyph.
+    pub(crate) fn next_glyphs_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        n: usize,
+        policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_normalization_buffer(8, 0)?;
         if self.have_output {
             if self.have_separate_output || self.out_len != self.idx {
-                if !self.ensure(self.out_len + 1) {
-                    return;
+                let size = policy.normalization_size(self.out_len, n)?;
+                if !policy.ensure_normalization_output(self, size)? {
+                    return Ok(());
                 }
 
-                let i = self.out_len;
-                self.out_info_mut()[i] = self.info[self.idx];
+                let visits = policy.normalization_size(n, n)?;
+                policy.before_normalization_buffer(n, visits)?;
+                for i in 0..n {
+                    self.set_out_info(self.out_len + i, self.info[self.idx + i]);
+                }
             }
 
-            self.out_len += 1;
+            self.out_len = policy.normalization_size(self.out_len, n)?;
         }
 
-        self.idx += 1;
+        self.idx = policy.normalization_size(self.idx, n)?;
+        Ok(())
     }
 
     /// Copies n glyphs at idx to output and advance idx.
     ///
     /// If there's no output, just advance idx.
     pub fn next_glyphs(&mut self, n: usize) {
-        if self.have_output {
-            if self.have_separate_output || self.out_len != self.idx {
-                if !self.ensure(self.out_len + n) {
-                    return;
-                }
-
-                for i in 0..n {
-                    self.set_out_info(self.out_len + i, self.info[self.idx + i]);
-                }
-            }
-
-            self.out_len += n;
-        }
-
-        self.idx += n;
+        self.next_glyphs_with(n, &mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
     }
 
     /// Advance idx without copying to output.
@@ -985,6 +1064,22 @@ impl hb_buffer_t {
         }
 
         self.merge_clusters_impl(start, end);
+    }
+
+    pub(crate) fn merge_clusters_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self, start: usize, end: usize, policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_group(admission::GroupStep::Merge { start, end }, self)?;
+        self.merge_clusters(start, end);
+        Ok(())
+    }
+
+    pub(crate) fn unsafe_to_break_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self, start: usize, end: usize, policy: &mut P,
+    ) -> Result<(), P::Error> {
+        policy.before_group(admission::GroupStep::Unsafe { start, end }, self)?;
+        self.unsafe_to_break(Some(start), Some(end));
+        Ok(())
     }
 
     fn merge_clusters_impl(&mut self, mut start: usize, mut end: usize) {
@@ -1370,20 +1465,35 @@ impl hb_buffer_t {
 
     #[must_use]
     fn make_room_for(&mut self, num_in: usize, num_out: usize) -> bool {
-        if !self.ensure(self.out_len + num_out) {
-            return false;
+        self.make_room_for_with(num_in, num_out, &mut super::face::shape_admission::OrdinaryShape)
+            .unwrap_or_else(|never| match never {})
+    }
+
+    fn make_room_for_with<P: super::face::shape_admission::ShapeAdmission>(
+        &mut self,
+        num_in: usize,
+        num_out: usize,
+        policy: &mut P,
+    ) -> Result<bool, P::Error> {
+        policy.before_normalization_buffer(16, 0)?;
+        let output_end = policy.normalization_size(self.out_len, num_out)?;
+        if !policy.ensure_normalization_output(self, output_end)? {
+            return Ok(false);
         }
 
-        if !self.have_separate_output && self.out_len + num_out > self.idx + num_in {
+        if !self.have_separate_output
+            && output_end > policy.normalization_size(self.idx, num_in)? {
             debug_assert!(self.have_output);
 
+            let visits = policy.normalization_size(self.out_len, self.out_len)?;
+            policy.before_normalization_buffer(self.out_len, visits)?;
             self.have_separate_output = true;
             for i in 0..self.out_len {
                 self.set_out_info(i, self.info[i]);
             }
         }
 
-        true
+        Ok(true)
     }
 
     fn shift_forward(&mut self, count: usize) -> bool {
@@ -1419,19 +1529,48 @@ impl hb_buffer_t {
     }
 
     pub fn sort(&mut self, start: usize, end: usize, cmp: impl Fn(&GlyphInfo, &GlyphInfo) -> bool) {
+        let result = self.sort_with(start, end, cmp, |_, _| {
+            Ok::<(), core::convert::Infallible>(())
+        });
+        match result {
+            Ok(()) => {}
+            Err(never) => match never {},
+        }
+    }
+
+    pub(crate) fn sort_with<E>(
+        &mut self,
+        start: usize,
+        end: usize,
+        cmp: impl Fn(&GlyphInfo, &GlyphInfo) -> bool,
+        mut before: impl FnMut(
+            admission::SortStep,
+            &Self,
+        ) -> Result<(), E>,
+    ) -> Result<(), E> {
+        use admission::SortStep;
+
+        before(SortStep::Begin, self)?;
         debug_assert!(!self.have_positions);
 
         for i in start + 1..end {
+            before(SortStep::Item, self)?;
             let mut j = i;
-            while j > start && cmp(&self.info[j - 1], &self.info[i]) {
+            while j > start {
+                before(SortStep::Compare, self)?;
+                if !cmp(&self.info[j - 1], &self.info[i]) {
+                    break;
+                }
                 j -= 1;
             }
 
+            before(SortStep::Destination, self)?;
             if i == j {
                 continue;
             }
 
             // Move item i to occupy place for item j, shift what's in between.
+            before(SortStep::Move { distance: i - j }, self)?;
             self.merge_clusters(j, i + 1);
 
             {
@@ -1443,6 +1582,7 @@ impl hb_buffer_t {
                 self.info[j] = t;
             }
         }
+        Ok(())
     }
 
     pub fn set_cluster(info: &mut GlyphInfo, cluster: u32, mask: hb_mask_t) {

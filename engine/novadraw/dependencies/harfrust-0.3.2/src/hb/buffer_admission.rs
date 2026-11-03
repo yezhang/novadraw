@@ -7,6 +7,173 @@ use super::{hb_buffer_t, UnicodeBuffer};
 use alloc::collections::TryReserveError;
 use core::fmt;
 
+/// Private insertion-sort checkpoints. Comparators read only stored fields.
+pub(crate) enum SortStep {
+    Begin,
+    Item,
+    Compare,
+    Destination,
+    Move { distance: usize },
+}
+
+/// Checkpoints for fixed stored-property grouping. These fees do not certify
+/// arbitrary user callbacks passed to the ordinary grouping helpers.
+pub(crate) enum GroupStep {
+    Begin,
+    Compare,
+    Advance,
+    Merge { start: usize, end: usize },
+    Unsafe { start: usize, end: usize },
+    Reverse { start: usize, end: usize },
+}
+
+pub(crate) fn admit_group_step<E>(
+    step: GroupStep,
+    buffer: &hb_buffer_t,
+    admit: &mut impl FnMut(
+        crate::hb::face::shape_admission::ShapeOperation,
+        crate::hb::face::shape_admission::ShapeOperationCost,
+    ) -> Result<(), E>,
+) -> Result<(), crate::hb::face::shape_admission::ShapeOperationError<E>> {
+    use crate::hb::face::shape_admission::{
+        ShapeOperation, ShapeOperationCost, ShapeOperationError,
+    };
+    let mut charge = |op, work| {
+        admit(
+            op,
+            ShapeOperationCost {
+                work,
+                allocation: 0,
+            },
+        )
+        .map_err(ShapeOperationError::Admission)
+    };
+    let product = |n: usize, factor| {
+        n.checked_mul(factor)
+            .ok_or(ShapeOperationError::CostOverflow)
+    };
+    match step {
+        GroupStep::Begin | GroupStep::Advance => charge(ShapeOperation::Planning, 4),
+        GroupStep::Compare => {
+            charge(ShapeOperation::Planning, 4)?;
+            // Two record references and one stored continuation field.
+            charge(ShapeOperation::Information, 3)
+        }
+        GroupStep::Merge { start, end } => {
+            charge(ShapeOperation::Planning, 2)?;
+            if end - start < 2 {
+                return Ok(());
+            }
+            // Same repeated minimum/extension/cluster-write bound as sort,
+            // without its insertion shifts. Output prefixes may be revisited.
+            let n = buffer
+                .len
+                .checked_add(buffer.out_len)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            let planning = product(n, 16)?
+                .checked_add(16)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            charge(ShapeOperation::Planning, planning)?;
+            charge(ShapeOperation::Information, product(n, 12)?)
+        }
+        GroupStep::Unsafe { start, end } => {
+            charge(ShapeOperation::Planning, 16)?;
+            let span = end.wrapping_sub(start);
+            // Preserve _set_glyph_flags' 255-element short circuit.
+            if !(2..=255).contains(&span) {
+                return Ok(());
+            }
+            // Local minimum scan, endpoint reads, then a repeated cluster
+            // predicate and mask read/write pass. Include terminal reads and
+            // both monotone traversal directions, independently per call.
+            let planning = product(span, 16)?
+                .checked_add(32)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            let records = product(span, 12)?
+                .checked_add(12)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            charge(ShapeOperation::Planning, planning)?;
+            charge(ShapeOperation::Information, records)
+        }
+        GroupStep::Reverse { start, end } => {
+            charge(ShapeOperation::Planning, 4)?;
+            let span = end - start;
+            if span < 2 {
+                return Ok(());
+            }
+            charge(ShapeOperation::Information, product(span, 2)?)?;
+            if buffer.have_positions {
+                charge(ShapeOperation::Positions, product(span, 2)?)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Admission for stored-property sorting, including every repeated cluster merge.
+/// This does not admit an arbitrary comparator, callback or shaping pipeline.
+pub(crate) fn admit_sort_step<E>(
+    step: SortStep,
+    buffer: &hb_buffer_t,
+    admit: &mut impl FnMut(
+        crate::hb::face::shape_admission::ShapeOperation,
+        crate::hb::face::shape_admission::ShapeOperationCost,
+    ) -> Result<(), E>,
+) -> Result<(), crate::hb::face::shape_admission::ShapeOperationError<E>> {
+    use crate::hb::face::shape_admission::{
+        ShapeOperation, ShapeOperationCost, ShapeOperationError,
+    };
+    let mut charge = |op, work| {
+        admit(
+            op,
+            ShapeOperationCost {
+                work,
+                allocation: 0,
+            },
+        )
+        .map_err(ShapeOperationError::Admission)
+    };
+    match step {
+        SortStep::Begin => charge(ShapeOperation::Planning, 2),
+        SortStep::Item => charge(ShapeOperation::Planning, 2),
+        SortStep::Compare => {
+            // Two records, two stored CCC fields, comparison and loop control.
+            charge(ShapeOperation::Planning, 4)?;
+            charge(ShapeOperation::Information, 4)
+        }
+        SortStep::Destination => charge(ShapeOperation::Planning, 2),
+        SortStep::Move { distance } => {
+            // A merge may extend over the whole live input and output. Its
+            // minimum/extension/unsafe/cluster-write passes revisit records.
+            // Pay this bound anew for EACH move, before merge_clusters.
+            const MERGE_RECORD_VISITS: usize = 12;
+            const MERGE_SCALAR_VISITS: usize = 16;
+            let records = buffer
+                .len
+                .checked_add(buffer.out_len)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            let merge = records
+                .checked_mul(MERGE_RECORD_VISITS)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            // Read temporary, read/write each shifted record, write temporary.
+            let shifts = distance
+                .checked_mul(2)
+                .and_then(|v| v.checked_add(2))
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            let work = merge
+                .checked_add(shifts)
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            let planning = records
+                .checked_mul(MERGE_SCALAR_VISITS)
+                .and_then(|v| v.checked_add(distance))
+                .and_then(|v| v.checked_add(MERGE_SCALAR_VISITS))
+                .ok_or(ShapeOperationError::CostOverflow)?;
+            charge(ShapeOperation::Planning, planning)?;
+            charge(ShapeOperation::Information, work)
+        }
+    }
+}
+
 /// An input operation about to execute.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BufferOperation {
@@ -92,7 +259,7 @@ fn charge<E>(
 }
 
 impl hb_buffer_t {
-    fn ensure_admitted<E>(
+    pub(crate) fn ensure_admitted<E>(
         &mut self,
         size: usize,
         admit: &mut impl FnMut(BufferOperation, BufferOperationCost) -> Result<(), E>,
@@ -425,5 +592,186 @@ mod tests {
         );
         buffer.add('y', 1);
         assert_eq!(buffer.len(), 2);
+    }
+
+    fn sorting_input(pattern: usize, level: u32, output: bool) -> UnicodeBuffer {
+        let mut buffer = UnicodeBuffer::new();
+        buffer.push_str("a\u{315}\u{300}\u{316}\u{315}\u{300}\u{316}b");
+        buffer.0.cluster_level = level;
+        for (i, info) in buffer.0.info[..buffer.0.len].iter_mut().enumerate() {
+            info.cluster = match pattern {
+                0 => i as u32,
+                1 => 7 - i as u32,
+                2 => 4,
+                _ => [4, 7, 7, 2, 2, 7, 7, 1][i],
+            };
+            let mut flags = 0;
+            info.init_unicode_props(&mut flags);
+        }
+        if output {
+            buffer.0.clear_output();
+            buffer.0.next_glyph();
+            // Create a separate output prefix. Its clusters can participate
+            // in repeated merges, even though the sorted range is input.
+            buffer.0.output_glyph('a' as u32);
+        }
+        buffer
+    }
+
+    fn sorting_state(buffer: &hb_buffer_t) -> (Vec<u8>, Vec<u8>, i32, bool) {
+        (
+            bytemuck::cast_slice(&buffer.info).to_vec(),
+            bytemuck::cast_slice(&buffer.pos).to_vec(),
+            buffer.max_ops,
+            buffer.successful,
+        )
+    }
+
+    // Frozen upstream insertion-sort logic: a test oracle, not an execution
+    // path. Preserve its merge ordering and comparator's original i index.
+    fn original_sort(buffer: &mut hb_buffer_t, start: usize, end: usize) {
+        for i in start + 1..end {
+            let mut j = i;
+            while j > start
+                && buffer.info[j - 1].modified_combining_class()
+                    > buffer.info[i].modified_combining_class()
+            {
+                j -= 1;
+            }
+            if i == j {
+                continue;
+            }
+            buffer.merge_clusters(j, i + 1);
+            let t = buffer.info[i];
+            for idx in (0..i - j).rev() {
+                buffer.info[idx + j + 1] = buffer.info[idx + j];
+            }
+            buffer.info[j] = t;
+        }
+    }
+
+    #[test]
+    fn sorting_shared_kernel_matches_original_with_repeated_merges() {
+        for pattern in 0..4 {
+            for level in 0..4 {
+                for output in [false, true] {
+                    let mut original = sorting_input(pattern, level, output);
+                    let mut admitted = sorting_input(pattern, level, output);
+                    original_sort(&mut original.0, 1, 7);
+                    let mut moves = 0;
+                    admitted
+                        .0
+                        .sort_with(
+                            1,
+                            7,
+                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
+                            |step, buffer| {
+                                moves += usize::from(matches!(step, SortStep::Move { .. }));
+                                admit_sort_step(step, buffer, &mut |_, cost| {
+                                    assert_eq!(cost.allocation, 0);
+                                    Ok::<_, Infallible>(())
+                                })
+                            },
+                        )
+                        .unwrap();
+                    assert!(moves > 1);
+                    assert_eq!(sorting_state(&original.0), sorting_state(&admitted.0));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sorting_rejects_before_each_comparison_merge_and_shift_and_can_clear() {
+        use crate::hb::face::shape_admission::ShapeOperationError;
+        for pattern in 0..4 {
+            for level in 0..4 {
+                for output in [false, true] {
+                    let mut complete = sorting_input(pattern, level, output);
+                    let mut checkpoints = Vec::new();
+                    complete
+                        .0
+                        .sort_with(
+                            1,
+                            7,
+                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
+                            |step, buffer| {
+                                admit_sort_step(step, buffer, &mut |op, cost| {
+                                    checkpoints.push((op, cost, sorting_state(buffer)));
+                                    Ok::<_, Infallible>(())
+                                })
+                            },
+                        )
+                        .unwrap();
+                    for reject in 0..checkpoints.len() {
+                        let mut buffer = sorting_input(pattern, level, output);
+                        let mut seen = 0;
+                        let result = buffer.0.sort_with(
+                            1,
+                            7,
+                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
+                            |step, buffer| {
+                                admit_sort_step(step, buffer, &mut |op, cost| {
+                                    assert_eq!(
+                                        (op, cost),
+                                        (checkpoints[seen].0, checkpoints[seen].1)
+                                    );
+                                    assert_eq!(sorting_state(buffer), checkpoints[seen].2);
+                                    let current = seen;
+                                    seen += 1;
+                                    if current == reject {
+                                        Err(current)
+                                    } else {
+                                        Ok(())
+                                    }
+                                })
+                            },
+                        );
+                        assert!(
+                            matches!(result, Err(ShapeOperationError::Admission(i)) if i == reject)
+                        );
+                        assert_eq!(seen, reject + 1);
+                        assert_eq!(sorting_state(&buffer.0), checkpoints[reject].2);
+                        assert_eq!(buffer.0.info.len(), buffer.0.pos.len());
+                        buffer.clear();
+                        buffer.push_str("again");
+                        assert_eq!(buffer.len(), 5);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sorting_move_cost_counts_full_live_input_and_output_on_every_call() {
+        use crate::hb::face::shape_admission::{ShapeOperation, ShapeOperationError};
+        let mut buffer = sorting_input(3, 0, true);
+        let mut costs = Vec::new();
+        for _ in 0..3 {
+            admit_sort_step(
+                SortStep::Move { distance: 5 },
+                &buffer.0,
+                &mut |op, cost| {
+                    costs.push((op, cost));
+                    Ok::<_, Infallible>(())
+                },
+            )
+            .unwrap();
+        }
+        assert_eq!(costs.len(), 6);
+        for pair in costs.chunks_exact(2) {
+            assert_eq!(pair[0].0, ShapeOperation::Planning);
+            assert_eq!(pair[0].1.work, (8 + 2) * 16 + 5 + 16);
+            assert_eq!(pair[1].0, ShapeOperation::Information);
+            assert_eq!(pair[1].1.work, (8 + 2) * 12 + 5 * 2 + 2);
+        }
+        buffer.0.len = usize::MAX;
+        let mut called = false;
+        let error = admit_sort_step(SortStep::Move { distance: 1 }, &buffer.0, &mut |_, _| {
+            called = true;
+            Ok::<_, Infallible>(())
+        });
+        assert!(matches!(error, Err(ShapeOperationError::CostOverflow)));
+        assert!(!called);
     }
 }

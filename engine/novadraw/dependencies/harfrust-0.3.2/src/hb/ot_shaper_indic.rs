@@ -21,6 +21,7 @@ use super::unicode::{hb_gc, CharExt};
 use super::{hb_font_t, hb_mask_t, hb_tag_t, script, GlyphInfo, Script};
 
 pub const INDIC_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: Some(collect_features),
     override_features: Some(override_features),
     create_data: Some(|plan| Box::new(IndicShapePlan::new(plan))),

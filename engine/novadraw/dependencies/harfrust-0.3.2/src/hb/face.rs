@@ -29,6 +29,10 @@ pub(crate) mod cold_admission;
 pub use cold_admission::{ColdLookupTable, ColdOperation, ColdOperationCost, ColdOperationError};
 use cold_admission::ColdAdmission;
 
+#[path = "shape_admission.rs"]
+pub(crate) mod shape_admission;
+pub use shape_admission::{ShapeOperation, ShapeOperationCost, ShapeOperationError};
+
 /// Data required for shaping with a single font.
 pub struct ShaperData {
     table_offsets: TableOffsets,

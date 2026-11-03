@@ -1,0 +1,179 @@
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -170,6 +170,7 @@
+     missing: bool,
+     queries: usize,
+     outputs: usize,
++    fallback_mappings: usize,
+ }
+ 
+ impl<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>> AdmittedShape<F> {
+@@ -270,10 +271,31 @@
+             current = a;
+         }
+         // Failed decomposition falls back using ORIGINAL Unicode properties.
+-        // Space and nonbreaking-hyphen fallback are separate unknown paths.
+         self.charge(ShapeOperation::Planning, 2)?;
+         self.charge(ShapeOperation::Unicode, 4)?;
+-        Ok(original != 0x2011 && original.general_category() != GeneralCategory::SPACE_SEPARATOR)
++        let space = original.general_category() == GeneralCategory::SPACE_SEPARATOR;
++        // space_fallback is a fixed scalar match, with no generated-table
++        // query or allocation. OGHAM SPACE MARK remains ordinary .notdef.
++        self.charge(ShapeOperation::Planning, 4)?;
++        let fallback = if space {
++            (original.space_fallback() != crate::hb::unicode::hb_unicode_funcs_t::NOT_SPACE)
++                .then_some(0x0020)
++        } else {
++            (original == 0x2011).then_some(0x2010)
++        };
++        if let Some(codepoint) = fallback {
++            // A failed canonical chain does not replace this repeated query.
++            // The original normalizer may then inspect buffer.invisible.
++            self.charge(ShapeOperation::Mapping, self.mapping_work)?;
++            self.charge(ShapeOperation::Planning, 2)?;
++            let _ = face.get_nominal_glyph(codepoint);
++            self.normalization.fallback_mappings = self
++                .normalization
++                .fallback_mappings
++                .checked_add(1)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++        }
++        Ok(true)
+     }
+ 
+     fn supports(
+@@ -1454,6 +1476,16 @@
+                     self.pass(ShapeOperation::Unicode, self.normalization.outputs, 4 + 1)?;
+                     self.pass(ShapeOperation::Information, self.normalization.outputs, 3)?;
+                     self.pass(ShapeOperation::Planning, self.normalization.outputs, 2)?;
++                    self.pass(
++                        ShapeOperation::Mapping,
++                        self.normalization.fallback_mappings,
++                        self.mapping_work,
++                    )?;
++                    // Fixed fallback match, invisible/result/scratch branches
++                    // and space-type state write. Ordinary execution still
++                    // decides whether SPACE or invisible actually exists.
++                    self.pass(ShapeOperation::Planning, n, 8)?;
++                    self.pass(ShapeOperation::Information, n, 3)?;
+                     // Length stays n. Initial admitted ensure already owns
+                     // two complete n-slot arrays; no additional growth.
+                 }
+@@ -1497,6 +1529,30 @@
+                 self.charge(ShapeOperation::Positions, count)?;
+                 // get(index) or last(): at most one metric record is read.
+                 self.charge(ShapeOperation::Metrics, count)?;
++                if ctx.buffer.scratch_flags
++                    & crate::hb::buffer::HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
++                    != 0
++                {
++                    // GSUB may have expanded the output: use the live n.
++                    // Each zip reads category, ligated and fallback type.
++                    self.pass(ShapeOperation::Information, n, 4)?;
++                    self.pass(ShapeOperation::Positions, n, 3)?;
++                    self.pass(ShapeOperation::Planning, n, 32)?;
++                    // FIGURE searches at most ten digits; PUNCTUATION at
++                    // most two characters. These are mutually exclusive
++                    // branches; their sum is a conservative per-record bound.
++                    let figure_work = self
++                        .mapping_work
++                        .checked_mul(10)
++                        .ok_or(ShapeOperationError::CostOverflow)?;
++                    let punctuation_work = self
++                        .mapping_work
++                        .checked_mul(2)
++                        .ok_or(ShapeOperationError::CostOverflow)?;
++                    self.pass(ShapeOperation::Mapping, n, figure_work)?;
++                    self.pass(ShapeOperation::Mapping, n, punctuation_work)?;
++                    self.pass(ShapeOperation::Metrics, n, 2)?;
++                }
+                 self.charge(ShapeOperation::Positions, n)?; // GPOS::position_start
+                 if ctx.plan.zero_marks {
+                     self.charge(ShapeOperation::Information, n)?;
+@@ -1554,7 +1610,7 @@
+     ///
+     /// Supports non-mark, non-ignorable singleton scalars without special
+     /// continuation/fraction state. Missing mappings support canonical
+-    /// one-to-one replacement or .notdef, excluding space/hyphen fallback.
++    /// one-to-one replacement, .notdef, space or nonbreaking-hyphen fallback.
+     /// LTR/RTL Latin/Han/Common/unknown or absent script, default
+     /// coordinates, global features, and layout-free fonts or selected GSUB
+     /// single, positive-length multiple or bounded-component ligature
+@@ -1646,6 +1702,77 @@
+ mod tests {
+     use super::*;
+     use alloc::vec::Vec;
++
++    #[test]
++    fn missing_spaces_use_original_properties_and_invisible_without_growth() {
++        for space_present in [false, true] {
++            // Format 6 omits SPACE when first==33. A format-0 glyph-zero
++            // entry is Some(0), and would defeat the invisible fallback.
++            let first: u16 = if space_present { 32 } else { 33 };
++            let count = 123 - first;
++            let mut cmap: Vec<u8> = [0u16, 1, 3, 1]
++                .into_iter()
++                .flat_map(u16::to_be_bytes)
++                .collect();
++            cmap.extend(12u32.to_be_bytes());
++            cmap.extend(
++                [6u16, 10 + 2 * count, 0, first, count]
++                    .into_iter()
++                    .flat_map(u16::to_be_bytes),
++            );
++            cmap.extend((first..123).flat_map(u16::to_be_bytes));
++            let mut bytes = Vec::from(&b"\0\x01\0\0\0\x01\0\0\0\0\0\0cmap\0\0\0\0\0\0\0\x1c"[..]);
++            bytes.extend((cmap.len() as u32).to_be_bytes());
++            bytes.extend(cmap);
++            let font = crate::FontRef::new(&bytes).unwrap();
++            let data = crate::ShaperData::new(&font);
++            let shaper = data.shaper(&font).build();
++            for invisible in [None, Some(read_fonts::types::GlyphId::new(66))] {
++                for text in [
++                    "\u{2007}",
++                    "\u{2008}",
++                    "\u{202f}",
++                    "\u{1680}",
++                    "\u{2000}\u{2001}\u{2011}",
++                ] {
++                    let plan = ShapePlan::new(&shaper, Direction::LeftToRight, None, None, &[]);
++                    let make = || {
++                        let mut buffer = UnicodeBuffer::new();
++                        buffer.push_str(text);
++                        buffer.set_direction(Direction::LeftToRight);
++                        buffer.0.invisible = invisible;
++                        buffer
++                    };
++                    let ordinary = shaper.shape_with_plan(&plan, make(), &[]);
++                    let admitted = shaper
++                        .try_shape_with_plan_admitted(&plan, &mut make(), &[], |_, _| {
++                            Ok::<_, ()>(())
++                        })
++                        .unwrap()
++                        .unwrap();
++                    assert_eq!(
++                        alloc::format!("{:?}", ordinary.glyph_infos()),
++                        alloc::format!("{:?}", admitted.glyph_infos())
++                    );
++                    assert_eq!(
++                        alloc::format!("{:?}", ordinary.glyph_positions()),
++                        alloc::format!("{:?}", admitted.glyph_positions())
++                    );
++                    assert_eq!(admitted.len(), text.chars().count());
++                    if text == "\u{2007}" {
++                        assert_eq!(
++                            admitted.glyph_infos()[0].glyph_id,
++                            if space_present {
++                                32
++                            } else {
++                                invisible.map_or(0, |g| g.to_u32())
++                            }
++                        );
++                    }
++                }
++            }
++        }
++    }
+ 
+     #[test]
+     fn frozen_singleton_decomposition_chains_are_acyclic() {

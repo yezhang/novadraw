@@ -8,6 +8,25 @@ use crate::ShaperInstance;
 use super::face::cold_admission::{self, AdmittedCold, ColdAdmission, ColdOperation, ColdOperationCost, ColdOperationError};
 use alloc::vec::Vec;
 use read_fonts::types::Tag;
+use super::face::cold_admission::HeapSlot;
+
+/// Safe fallible storage for proven fixed-script plan data. Other upstream
+/// callbacks retain their existing erased storage on the ordinary path only.
+pub(crate) enum ShapePlanData {
+    Ordinary(Box<dyn Any + Send + Sync>),
+    Arabic(HeapSlot<super::ot_shaper_arabic::arabic_shape_plan_t>),
+    Hangul(HeapSlot<super::ot_shaper_hangul::hangul_shape_plan_t>),
+}
+
+impl ShapePlanData {
+    fn as_any(&self) -> &(dyn Any + Send + Sync) {
+        match self {
+            Self::Ordinary(value) => value.as_ref(),
+            Self::Arabic(value) => &**value,
+            Self::Hangul(value) => &**value,
+        }
+    }
+}
 
 use super::aat::map::*;
 use super::ot_map::*;
@@ -23,7 +42,7 @@ pub struct hb_ot_shape_plan_t {
     pub(crate) shaper: &'static hb_ot_shaper_t,
     pub(crate) ot_map: hb_ot_map_t,
     pub(crate) aat_map: AatMap,
-    pub(crate) data: Option<Box<dyn Any + Send + Sync>>,
+    pub(crate) data: Option<ShapePlanData>,
 
     pub(crate) frac_mask: hb_mask_t,
     pub(crate) numr_mask: hb_mask_t,
@@ -53,8 +72,10 @@ pub struct hb_ot_shape_plan_t {
 impl hb_ot_shape_plan_t {
     /// Builds a plan with operation admission before scanning or growing storage.
     ///
-    /// Currently supports plans with no GSUB/GPOS tables, no language, no
-    /// tracking table, and no AAT or script-specific plan callbacks.
+    /// Supports borrowed GSUB/GPOS queries and lookup collection, with no
+    /// tracking tables or AAT callbacks. Arabic, Syriac and Hangul planning
+    /// callbacks are supported; other script callbacks can decline. General language
+    /// table selection and private-use `hbot` overrides are supported.
     /// Unknown paths and invalid directions return `Ok(None)` before those
     /// operations execute. This does not admit shaping or shaper configuration.
     pub fn try_new_admitted<E>(
@@ -100,7 +121,7 @@ impl hb_ot_shape_plan_t {
     }
 
     pub(crate) fn data<T: 'static>(&self) -> &T {
-        self.data.as_ref().unwrap().downcast_ref().unwrap()
+        self.data.as_ref().unwrap().as_any().downcast_ref().unwrap()
     }
 
     /// The direction of the text.

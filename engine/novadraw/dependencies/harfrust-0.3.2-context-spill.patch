@@ -1,0 +1,253 @@
+--- a/src/hb/ot_layout.rs
++++ b/src/hb/ot_layout.rs
+@@ -169,7 +169,8 @@
+     for (stage_index, stage) in plan.ot_map.stages(T::INDEX).iter().enumerate() {
+         if let Some(table) = table {
+             for lookup_map in plan.ot_map.stage_lookups(T::INDEX, stage_index) {
+-                policy.before_lookup(face, ctx.buffer, &mut ctx.match_positions, lookup_map.index)?;
++                policy.before_lookup(face, ctx.buffer, &mut ctx.match_positions,
++                    &mut ctx.saved_match_positions, lookup_map.index)?;
+                 let Some(lookup) = table.get_lookup(lookup_map.index) else {
+                     continue;
+                 };
+--- a/src/hb/ot_layout_gsubgpos.rs
++++ b/src/hb/ot_layout_gsubgpos.rs
+@@ -850,6 +850,9 @@
+         pub(crate) context_matcher: matcher_t,
+         pub(crate) match_positions_len: usize,
+         pub(crate) match_positions: MatchPositions,
++        // Admission pre-reserves this for nonrecursive, length-preserving
++        // contextual leaves. Ordinary shaping retains its original clone.
++        pub(crate) saved_match_positions: Option<MatchPositions>,
+     }
+ 
+     impl<'a> hb_ot_apply_context_t<'a> {
+@@ -879,6 +882,7 @@
+                 context_matcher: matcher_t::default(),
+                 match_positions_len: 0,
+                 match_positions: MatchPositions::from_elem(0, 1),
++                saved_match_positions: None,
+             }
+         }
+ 
+@@ -920,7 +924,17 @@
+             let saved_index = self.lookup_index;
+ 
+             self.match_positions.resize(self.match_positions_len, 0);
+-            let saved_match_positions = self.match_positions.clone();
++            let reuse_saved = self.saved_match_positions.is_some();
++            let saved_match_positions = if let Some(mut saved) = self.saved_match_positions.take() {
++                // Preflight admits only leaves which cannot recurse or grow.
++                // Both arrays have capacity for the logical matching slice.
++                debug_assert!(saved.capacity() >= self.match_positions_len);
++                saved.resize(self.match_positions_len, 0);
++                saved.copy_from_slice(&self.match_positions);
++                saved
++            } else {
++                self.match_positions.clone()
++            };
+             let saved_match_positions_len = self.match_positions_len;
+ 
+             self.lookup_index = sub_lookup_index;
+@@ -936,7 +950,10 @@
+             self.lookup_props = saved_props;
+             self.lookup_index = saved_index;
+             self.update_matchers();
+-            self.match_positions = saved_match_positions;
++            let previous = core::mem::replace(&mut self.match_positions, saved_match_positions);
++            if reuse_saved {
++                self.saved_match_positions = Some(previous);
++            }
+             self.match_positions_len = saved_match_positions_len;
+             self.nesting_level_left += 1;
+             applied
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -11,8 +11,8 @@
+ use crate::hb::ot_layout_gsubgpos::MatchPositions;
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
+ use crate::{
+-    script, BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
+-    UnicodeBuffer,
++    BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
++    UnicodeBuffer, script,
+ };
+ use alloc::{collections::TryReserveError, vec::Vec};
+ use core::{convert::Infallible, fmt};
+@@ -20,7 +20,7 @@
+     gsub::{LigatureSubstFormat1, MultipleSubstFormat1, SingleSubstFormat1, SingleSubstFormat2},
+     layout::{CoverageTable, SequenceContextFormat3},
+ };
+-use read_fonts::{types::Tag, FontData, FontRead};
++use read_fonts::{FontData, FontRead, types::Tag};
+ 
+ /// A shaping operation whose work is admitted before execution.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+@@ -123,6 +123,7 @@
+         face: &hb_font_t,
+         buffer: &mut hb_buffer_t,
+         positions: &mut MatchPositions,
++        saved_positions: &mut Option<MatchPositions>,
+         index: u16,
+     ) -> Result<(), Self::Error>;
+ }
+@@ -141,6 +142,7 @@
+         _: &hb_font_t,
+         _: &mut hb_buffer_t,
+         _: &mut MatchPositions,
++        _: &mut Option<MatchPositions>,
+         _: u16,
+     ) -> Result<(), Infallible> {
+         Ok(())
+@@ -257,6 +259,7 @@
+                         let mut factor = 1;
+                         let mut ligature_count = 1;
+                         let mut contextual = false;
++                        let mut context_count = 0;
+                         let mut changes_length = false;
+                         for subtable in &lookup.subtables {
+                             if !matches!(
+@@ -287,12 +290,15 @@
+                             }
+                             if subtable.kind == SubtableKind::ContextFormat3 {
+                                 contextual = true;
+-                                if self
+-                                    .context_plan(face, gsub.table.offset_data(), subtable.offset)?
+-                                    .is_none()
+-                                {
++                                let Some(context) = self.context_plan(
++                                    face,
++                                    gsub.table.offset_data(),
++                                    subtable.offset,
++                                )?
++                                else {
+                                     return Ok(false);
+-                                }
++                                };
++                                context_count = context_count.max(context.count);
+                             }
+                         }
+                         // move_to can rewind without shift_forward only while
+@@ -300,6 +306,12 @@
+                         // that invariant within this lookup; prior lookups
+                         // have already synchronized their output.
+                         if contextual && changes_length {
++                            return Ok(false);
++                        }
++                        // match_input also sums all but the first contextual
++                        // component even when the caller discards that sum.
++                        if context_count.saturating_sub(1) * component_bound > usize::from(u8::MAX)
++                        {
+                             return Ok(false);
+                         }
+                         // match_input and ligate_input sum in u8. Reject before
+@@ -451,11 +463,9 @@
+             return Ok(Some(ContextPlan::default()));
+         };
+         let count = table.coverages().len();
+-        // recurse clones only the logical matching slice. SmallVec::clone
+-        // constructs from_slice, so <= 8 stays inline even if a previous
+-        // lookup left the source with a heap allocation. Growing or recursive
+-        // leaves need their own fallible storage boundary, not this proof.
+-        if count == 0 || count > 8 {
++        // Larger contexts use a pre-reserved saved matching array. Growing or
++        // recursive leaves still require their own storage/error boundary.
++        if count == 0 || count > crate::hb::ot_layout::MAX_CONTEXT_LENGTH {
+             return Ok(None);
+         }
+         let mut plan = ContextPlan {
+@@ -528,11 +538,17 @@
+         n: usize,
+         plan: &ContextPlan,
+         positions: &mut MatchPositions,
++        saved_positions: &mut Option<MatchPositions>,
+     ) -> Result<(), ShapeOperationError<E>> {
+         self.matching_storage(positions, plan.count)?;
++        if plan.count > positions.inline_size() || saved_positions.is_some() {
++            self.matching_storage(
++                saved_positions.get_or_insert_with(MatchPositions::new),
++                plan.count,
++            )?;
++        }
+         // Matching visits adjacent records: zero flags and mapped ASCII
+-        // prohibit glyph skipping. Includes component checks without summing
+-        // more than seven four-bit component fields.
++        // prohibit glyph skipping. Preflight bounds the component sum.
+         self.pass(ShapeOperation::Information, n, plan.count * 6 + 2)?;
+         self.pass(ShapeOperation::TableRead, n, plan.table_work)?;
+         self.pass(ShapeOperation::TableRead, n, plan.records * 4)?;
+@@ -550,7 +566,8 @@
+             .ok_or(ShapeOperationError::CostOverflow)?;
+         self.pass(ShapeOperation::Information, n, information_work)?;
+         // Initialize match_input indices, convert to output indexing, clone
+-        // and restore the inline matching slice for each nested leaf.
++        // and restore the matching slice for each nested leaf. Heap-backed
++        // contexts copy into pre-reserved storage and swap it back.
+         self.pass(
+             ShapeOperation::Matching(BufferOperation::Append),
+             n,
+@@ -686,6 +703,7 @@
+         face: &hb_font_t,
+         buffer: &mut hb_buffer_t,
+         positions: &mut MatchPositions,
++        saved_positions: &mut Option<MatchPositions>,
+         index: u16,
+     ) -> Result<(), Self::Error> {
+         let Some(gsub) = face.ot_tables.gsub.as_ref() else {
+@@ -800,7 +818,7 @@
+                     let plan = self
+                         .context_plan(face, gsub.table.offset_data(), subtable.offset)?
+                         .expect("preflight checked immutable contextual lookup");
+-                    self.context_work(n, &plan, positions)?;
++                    self.context_work(n, &plan, positions, saved_positions)?;
+                     // All input coverage searches are included in context_work.
+                     None
+                 }
+@@ -809,8 +827,8 @@
+             self.charge(ShapeOperation::Features, n)?; // subtable attempts
+             self.charge(ShapeOperation::Information, n)?; // each subtable's cur(0)
+             self.pass(ShapeOperation::Cache, n, 3)?; // subtable digest
+-                                                     // Each attempt repeats its header/coverage reads and search. The
+-                                                     // delta or substitute-array access contributes one final read.
++            // Each attempt repeats its header/coverage reads and search. The
++            // delta or substitute-array access contributes one final read.
+             let search = coverage.as_ref().map_or(0, coverage_search_work);
+             self.pass(ShapeOperation::TableRead, n, 10 + search + 1)?;
+             if subtable.kind == SubtableKind::MultipleSubst1 {
+@@ -986,7 +1004,7 @@
+     /// Supports mapped ASCII, LTR Latin/Common/unknown script, default
+     /// coordinates, global features, and layout-free fonts or selected GSUB
+     /// single, positive-length multiple or bounded-component ligature
+-    /// substitutions, or inline Format 3 contexts calling only single
++    /// substitutions, or bounded Format 3 contexts calling only single
+     /// substitutions, with zero lookup flags.
+     /// Multiple lookup growth is checked against the existing buffer limit
+     /// before shaping, and both arrays are reserved before each lookup.
+@@ -1100,11 +1118,7 @@
+                 admit: |_, _| {
+                     let index = calls;
+                     calls += 1;
+-                    if index == reject {
+-                        Err(index)
+-                    } else {
+-                        Ok(())
+-                    }
++                    if index == reject { Err(index) } else { Ok(()) }
+                 },
+                 mapping_work: 0,
+             };
+@@ -1189,9 +1203,11 @@
+         assert_eq!(shaper.shape_with_plan(&plan, buffer, &[]).len(), 4);
+ 
+         let mut buffer = input();
+-        assert!(shaper
+-            .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
+-            .is_err());
++        assert!(
++            shaper
++                .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
++                .is_err()
++        );
+         assert_eq!(buffer.len(), 3);
+         assert_eq!(buffer.0.allocated_var_bits, 0);
+     }

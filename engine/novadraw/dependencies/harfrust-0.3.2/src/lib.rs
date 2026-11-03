@@ -30,6 +30,7 @@ pub use hb::face::{
 };
 pub use hb::face::{VariationOperation, VariationOperationError};
 pub use hb::face::{ColdLookupTable, ColdOperation, ColdOperationCost, ColdOperationError};
+pub use hb::face::{ShapeOperation, ShapeOperationCost, ShapeOperationError};
 pub use hb::ot_shape_plan::{hb_ot_shape_plan_t as ShapePlan, ShapePlanKey};
 
 /// Type alias for a normalized variation coordinate.

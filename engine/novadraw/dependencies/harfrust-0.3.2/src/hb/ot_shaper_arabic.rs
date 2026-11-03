@@ -10,6 +10,8 @@ use super::ot_shape_plan::hb_ot_shape_plan_t;
 use super::ot_shaper::*;
 use super::unicode::*;
 use super::{hb_font_t, hb_mask_t, hb_tag_t, script, GlyphInfo, Script};
+use super::face::cold_admission::{ColdAdmission, ColdOperation, OrdinaryCold};
+use super::ot_layout::TableIndex;
 
 const HB_BUFFER_SCRATCH_FLAG_ARABIC_HAS_STCH: hb_buffer_scratch_flags_t =
     HB_BUFFER_SCRATCH_FLAG_SHAPER0;
@@ -185,7 +187,26 @@ fn deallocate_buffer_var(_: &hb_ot_shape_plan_t, _: &hb_font_t, buffer: &mut hb_
     false
 }
 
-fn collect_features(planner: &mut hb_ot_shape_planner_t) {
+pub(crate) fn collect_features(planner: &mut hb_ot_shape_planner_t) {
+    match collect_features_with(planner, &mut OrdinaryCold) {
+        Ok(()) => {},
+        Err(never) => match never {},
+    }
+}
+
+pub(crate) fn collect_features_with<P: ColdAdmission>(
+    planner: &mut hb_ot_shape_planner_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    macro_rules! enable {
+        ($tag:expr, $flags:expr) => {
+            planner.ot_map.add_feature_with(hb_tag_t::new($tag), $flags | F_GLOBAL, 1, policy)?
+        };
+    }
+    macro_rules! pause {
+        ($func:expr) => {
+            planner.ot_map.add_pause_with(TableIndex::GSUB, $func, policy)?
+        };
+    }
     // We apply features according to the Arabic spec, with pauses
     // in between most.
     //
@@ -207,58 +228,47 @@ fn collect_features(planner: &mut hb_ot_shape_planner_t) {
     // A pause after calt is required to make KFGQPC Uthmanic Script HAFS
     // work correctly.  See https://github.com/harfbuzz/harfbuzz/issues/505
 
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"stch"), F_NONE, 1);
-    planner.ot_map.add_gsub_pause(Some(record_stch));
+    enable!(b"stch", F_NONE);
+    pause!(Some(record_stch));
 
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"ccmp"), F_MANUAL_ZWJ, 1);
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"locl"), F_MANUAL_ZWJ, 1);
+    enable!(b"ccmp", F_MANUAL_ZWJ);
+    enable!(b"locl", F_MANUAL_ZWJ);
 
-    planner.ot_map.add_gsub_pause(None);
+    pause!(None);
 
     for feature in ARABIC_FEATURES {
+        // Feature visit, script test, tag byte read and two Syriac byte tests.
+        policy.charge(ColdOperation::Feature, 5, 0)?;
         let has_fallback = planner.script == Some(script::ARABIC) && !feature_is_syriac(*feature);
         let flags = if has_fallback { F_HAS_FALLBACK } else { F_NONE };
         planner
             .ot_map
-            .add_feature(*feature, F_MANUAL_ZWJ | flags, 1);
-        planner.ot_map.add_gsub_pause(None);
+            .add_feature_with(*feature, F_MANUAL_ZWJ | flags, 1, policy)?;
+        pause!(None);
     }
-    planner.ot_map.add_gsub_pause(Some(deallocate_buffer_var));
+    pause!(Some(deallocate_buffer_var));
 
     // Normally, Unicode says a ZWNJ means "don't ligate".  In Arabic script
     // however, it says a ZWJ should also mean "don't ligate".  So we run
     // the main ligating features as MANUAL_ZWJ.
 
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"rlig"), F_MANUAL_ZWJ | F_HAS_FALLBACK, 1);
+    enable!(b"rlig", F_MANUAL_ZWJ | F_HAS_FALLBACK);
 
+    policy.charge(ColdOperation::Planning, 1, 0)?;
     if planner.script == Some(script::ARABIC) {
-        planner.ot_map.add_gsub_pause(Some(arabic_fallback_shape));
+        pause!(Some(arabic_fallback_shape));
     }
 
     // No pause after rclt.
     // See 98460779bae19e4d64d29461ff154b3527bf8420
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"calt"), F_MANUAL_ZWJ, 1);
+    enable!(b"calt", F_MANUAL_ZWJ);
     /* https://github.com/harfbuzz/harfbuzz/issues/1573 */
-    if !planner.ot_map.has_feature(hb_tag_t::new(b"rclt")) {
-        planner.ot_map.add_gsub_pause(None);
+    if !planner.ot_map.has_feature_with(hb_tag_t::new(b"rclt"), policy)? {
+        pause!(None);
     }
 
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"liga"), F_MANUAL_ZWJ, 1);
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"clig"), F_MANUAL_ZWJ, 1);
+    enable!(b"liga", F_MANUAL_ZWJ);
+    enable!(b"clig", F_MANUAL_ZWJ);
 
     // The spec includes 'cswh'.  Earlier versions of Windows
     // used to enable this by default, but testing suggests
@@ -270,9 +280,8 @@ fn collect_features(planner: &mut hb_ot_shape_planner_t) {
     // Test case: U+0643,U+0640,U+0631.
 
     // planner.ot_map.enable_feature(feature::CONTEXTUAL_SWASH, F_MANUAL_ZWJ, 1);
-    planner
-        .ot_map
-        .enable_feature(hb_tag_t::new(b"mset"), F_MANUAL_ZWJ, 1);
+    enable!(b"mset", F_MANUAL_ZWJ);
+    Ok(())
 }
 
 pub struct arabic_shape_plan_t {
@@ -285,17 +294,30 @@ pub struct arabic_shape_plan_t {
 }
 
 pub fn data_create_arabic(plan: &hb_ot_shape_plan_t) -> arabic_shape_plan_t {
+    match data_create_arabic_with(plan, &mut OrdinaryCold) {
+        Ok(value) => value,
+        Err(never) => match never {},
+    }
+}
+
+pub(crate) fn data_create_arabic_with<P: ColdAdmission>(
+    plan: &hb_ot_shape_plan_t, policy: &mut P,
+) -> Result<arabic_shape_plan_t, P::Error> {
+    plan.ot_map.charge_query(policy)?;
     let has_stch = plan.ot_map.get_1_mask(hb_tag_t::new(b"stch")) != 0;
 
+    policy.charge(ColdOperation::Initialize, ARABIC_FEATURES.len() + 1, 0)?;
     let mut mask_array = [0; ARABIC_FEATURES.len() + 1];
     for i in 0..ARABIC_FEATURES.len() {
+        policy.charge(ColdOperation::Feature, 2, 0)?;
+        plan.ot_map.charge_query(policy)?;
         mask_array[i] = plan.ot_map.get_1_mask(ARABIC_FEATURES[i]);
     }
 
-    arabic_shape_plan_t {
+    Ok(arabic_shape_plan_t {
         mask_array,
         has_stch,
-    }
+    })
 }
 
 fn arabic_joining(buffer: &mut hb_buffer_t) {
@@ -697,6 +719,7 @@ fn reorder_marks_arabic(
 }
 
 pub const ARABIC_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: Some(ColdCallbacks::Arabic),
     collect_features: Some(collect_features),
     override_features: None,
     create_data: Some(|plan| Box::new(data_create_arabic(plan))),

@@ -1,7 +1,6 @@
 use super::buffer::GlyphPropsFlags;
 use super::ot_layout::TableIndex;
-use super::{common::TagExt, set_digest::hb_set_digest_t};
-use crate::hb::hb_tag_t;
+use super::set_digest::hb_set_digest_t;
 use crate::hb::ot_layout_gsubgpos::MappingCache;
 use crate::hb::tables::TableOffsets;
 use alloc::vec::Vec;
@@ -26,6 +25,7 @@ pub mod contextual;
 pub mod gpos;
 pub mod gsub;
 pub mod lookup;
+mod query_admission;
 
 pub struct OtCache {
     pub gsub: LookupCache,
@@ -249,6 +249,41 @@ impl<'a> OtTables<'a> {
         self.gdef.classes.is_some()
     }
 
+    /// Bound a cache miss without querying or warming a glyph property.
+    /// Readers borrow existing ClassDef arrays and allocate no storage.
+    /// The caller must admit the borrowed headers before calling this helper.
+    pub(crate) fn glyph_properties_work(&self) -> usize {
+        fn class_work(class: &ClassDef) -> usize {
+            match class {
+                ClassDef::Format1(_) => 4, // start, array header and indexed value
+                ClassDef::Format2(table) => {
+                    let count = table.class_range_records().len();
+                    // Rust 1.96 binary_search_by: at most bit_length(n)+1
+                    // start reads, then selected start/end/class. Empty arrays
+                    // perform no comparisons. No ordering assumption is needed.
+                    let comparisons = if count == 0 {
+                        0
+                    } else {
+                        (usize::BITS - count.leading_zeros()) as usize + 1
+                    };
+                    comparisons + 4 // array header plus selected fields
+                }
+            }
+        }
+        // Cache get/set and scalar optional-class/branch accesses. A hit is
+        // also charged; no preflight query changes this miss upper bound.
+        let mut work = 2 + 6;
+        if let Some(classes) = self.gdef.classes.as_ref() {
+            work += class_work(classes);
+            // A class-3 miss may additionally query mark attachment classes.
+            // Absent glyph classes cannot enter that branch.
+            if let Some(mark_classes) = self.gdef.mark_classes.as_ref() {
+                work += class_work(mark_classes);
+            }
+        }
+        work
+    }
+
     pub fn glyph_class(&self, glyph_id: u32) -> u16 {
         self.gdef
             .classes
@@ -383,76 +418,6 @@ impl<'a> LayoutTable<'a> {
         .flatten()
     }
 
-    fn script(&self, index: u16) -> Option<Script<'a>> {
-        self.script_list()?
-            .get(index)
-            .ok()
-            .map(|script| script.element)
-    }
-
-    fn langsys_index(&self, script_index: u16, tag: hb_tag_t) -> Option<u16> {
-        let script = self.script(script_index)?;
-        script.lang_sys_index_for_tag(tag)
-    }
-
-    fn langsys(&self, script_index: u16, langsys_index: Option<u16>) -> Option<LangSys<'a>> {
-        let script = self.script(script_index)?;
-        if let Some(index) = langsys_index {
-            let record = script.lang_sys_records().get(index as usize)?;
-            record.lang_sys(script.offset_data()).ok()
-        } else {
-            script.default_lang_sys().transpose().ok().flatten()
-        }
-    }
-
-    pub(crate) fn feature(&self, index: u16) -> Option<Feature<'a>> {
-        self.feature_list()?
-            .get(index)
-            .ok()
-            .map(|feature| feature.element)
-    }
-
-    fn feature_tag(&self, index: u16) -> Option<hb_tag_t> {
-        self.feature_list()?
-            .get(index)
-            .ok()
-            .map(|feature| feature.tag)
-    }
-
-    pub(crate) fn feature_substitution(
-        &self,
-        variation_index: u32,
-        feature_index: u16,
-    ) -> Option<Feature<'a>> {
-        let feature_variations = self.feature_variations()?;
-        let record = feature_variations
-            .feature_variation_records()
-            .get(variation_index as usize)?;
-        let subst_table = record
-            .feature_table_substitution(feature_variations.offset_data())?
-            .ok()?;
-        let subst_records = subst_table.substitutions();
-        match subst_records.binary_search_by_key(&feature_index, |subst| subst.feature_index()) {
-            Ok(ix) => Some(
-                subst_records
-                    .get(ix)?
-                    .alternate_feature(subst_table.offset_data())
-                    .ok()?,
-            ),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn feature_index(&self, tag: hb_tag_t) -> Option<u16> {
-        let list = self.feature_list()?;
-        for (index, feature) in list.feature_records().iter().enumerate() {
-            if feature.feature_tag() == tag {
-                return Some(index as u16);
-            }
-        }
-        None
-    }
-
     pub(crate) fn lookup_count(&self) -> u16 {
         match self {
             Self::Gsub(gsub) => gsub
@@ -466,65 +431,6 @@ impl<'a> LayoutTable<'a> {
         }
     }
 
-    // hb_ot_layout_table_select_script
-    /// Returns true + index and tag of the first found script tag in the given GSUB or GPOS table
-    /// or false + index and tag if falling back to a default script.
-    pub(crate) fn select_script(&self, script_tags: &[hb_tag_t]) -> Option<(bool, u16, hb_tag_t)> {
-        let selected = self.script_list()?.select(script_tags)?;
-        Some((!selected.is_fallback, selected.index, selected.tag))
-    }
-
-    // hb_ot_layout_script_select_language
-    /// Returns the index of the first found language tag in the given GSUB or GPOS table,
-    /// underneath the specified script index.
-    pub(crate) fn select_script_language(
-        &self,
-        script_index: u16,
-        lang_tags: &[hb_tag_t],
-    ) -> Option<u16> {
-        for &tag in lang_tags {
-            if let Some(index) = self.langsys_index(script_index, tag) {
-                return Some(index);
-            }
-        }
-
-        // try finding 'dflt'
-        if let Some(index) = self.langsys_index(script_index, hb_tag_t::default_language()) {
-            return Some(index);
-        }
-
-        None
-    }
-
-    // hb_ot_layout_language_get_required_feature
-    /// Returns the index and tag of a required feature in the given GSUB or GPOS table,
-    /// underneath the specified script and language.
-    pub(crate) fn get_required_language_feature(
-        &self,
-        script_index: u16,
-        lang_index: Option<u16>,
-    ) -> Option<(u16, hb_tag_t)> {
-        let sys = self.langsys(script_index, lang_index)?;
-        let idx = sys.required_feature_index();
-        if idx == 0xFFFF {
-            return None;
-        }
-        let tag = self.feature_tag(idx)?;
-        Some((idx, tag))
-    }
-
-    // hb_ot_layout_language_find_feature
-    /// Returns the index of a given feature tag in the given GSUB or GPOS table,
-    /// underneath the specified script and language.
-    pub(crate) fn find_language_feature(
-        &self,
-        script_index: u16,
-        lang_index: Option<u16>,
-        feature_tag: hb_tag_t,
-    ) -> Option<u16> {
-        self.langsys(script_index, lang_index)?
-            .feature_index_for_tag(&self.feature_list()?, feature_tag)
-    }
 }
 
 fn coverage_index(coverage: Result<CoverageTable, ReadError>, gid: GlyphId) -> Option<u16> {

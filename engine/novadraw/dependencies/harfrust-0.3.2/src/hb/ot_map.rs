@@ -219,18 +219,12 @@ impl<'a> hb_ot_map_builder_t<'a> {
         policy: &mut P,
     ) -> Result<Option<Self>, P::Error> {
         policy.charge(ColdOperation::Planning, 3, 0)?;
-        if P::ADMITTED && (language.is_some()
-            || face.ot_tables.gsub.is_some() || face.ot_tables.gpos.is_some()) {
-            return Ok(None);
-        }
         // Fetch script/language indices for GSUB/GPOS.  We need these later to skip
         // features not available in either table and not waste precious bits for them.
-        // No tags can be consumed when there are no layout tables.
-        let tags = if !P::ADMITTED {
-            Some(tag::tags_from_script_and_language(script, language))
-        } else {
-            None
-        };
+        let Some((script_tags, lang_tags)) =
+            tag::tags_from_script_and_language_with(script, language, policy)? else {
+                return Ok(None);
+            };
 
         let mut found_script = [false; 2];
         let mut script_index = [None; 2];
@@ -238,13 +232,12 @@ impl<'a> hb_ot_map_builder_t<'a> {
         let mut lang_index = [None; 2];
 
         for (table_index, table) in face.layout_tables() {
-            let (script_tags, lang_tags) = tags.as_ref().unwrap();
-            if let Some((found, idx, tag)) = table.select_script(script_tags) {
+            if let Some((found, idx, tag)) = table.select_script_with(&script_tags, policy)? {
                 chosen_script[table_index] = Some(tag);
                 found_script[table_index] = found;
                 script_index[table_index] = Some(idx);
 
-                if let Some(idx) = table.select_script_language(idx, lang_tags) {
+                if let Some(idx) = table.select_script_language_with(idx, &lang_tags, policy)? {
                     lang_index[table_index] = Some(idx);
                 }
             }
@@ -268,20 +261,22 @@ impl<'a> hb_ot_map_builder_t<'a> {
         self.chosen_script[table_index]
     }
 
-    #[inline]
-    pub fn has_feature(&self, tag: hb_tag_t) -> bool {
+    pub(crate) fn has_feature_with<P: ColdAdmission>(
+        &self, tag: hb_tag_t, policy: &mut P,
+    ) -> Result<bool, P::Error> {
         for (table_index, table) in self.face.layout_tables() {
+            policy.charge(ColdOperation::Planning, 1, 0)?;
             if let Some(script_index) = self.script_index[table_index] {
-                if table
-                    .find_language_feature(script_index, self.lang_index[table_index], tag)
-                    .is_some()
-                {
-                    return true;
+                let found = table.find_language_feature_with(
+                    script_index, self.lang_index[table_index], tag, policy,
+                )?.is_some();
+                if found {
+                    return Ok(true);
                 }
             }
         }
 
-        false
+        Ok(false)
     }
 
     #[inline]
@@ -363,7 +358,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
         for (table_index, table) in self.face.layout_tables() {
             if let Some(script) = self.script_index[table_index] {
                 let lang = self.lang_index[table_index];
-                if let Some((idx, tag)) = table.get_required_language_feature(script, lang) {
+                if let Some((idx, tag)) = table.get_required_language_feature_with(script, lang, policy)? {
                     required_index[table_index] = Some(idx);
                     required_tag[table_index] = Some(tag);
                 }
@@ -429,7 +424,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
 
                 if let Some(script) = self.script_index[table_index] {
                     let lang = self.lang_index[table_index];
-                    if let Some(idx) = table.find_language_feature(script, lang, info.tag) {
+                    if let Some(idx) = table.find_language_feature_with(script, lang, info.tag, policy)? {
                         feature_index[table_index] = Some(idx);
                         found = true;
                     }
@@ -439,7 +434,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
             if !found && info.flags & F_GLOBAL_SEARCH != 0 {
                 // hb_ot_layout_table_find_feature
                 for (table_index, table) in self.face.layout_tables() {
-                    if let Some(idx) = table.feature_index(info.tag) {
+                    if let Some(idx) = table.feature_index_with(info.tag, policy)? {
                         feature_index[table_index] = Some(idx);
                         found = true;
                     }
@@ -548,7 +543,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
                 policy.charge(ColdOperation::Feature, 1, 0)?;
                 if let Some(feature_index) = required_feature_index[table_index] {
                     if required_feature_stage[table_index] == stage {
-                        self.add_lookups(
+                        self.add_lookups_with(
                             &mut map_lookups[table_index],
                             table_index,
                             feature_index,
@@ -558,7 +553,8 @@ impl<'a> hb_ot_map_builder_t<'a> {
                             true,
                             false,
                             false,
-                        );
+                            policy,
+                        )?;
                     }
                 }
 
@@ -566,7 +562,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
                     policy.charge(ColdOperation::Feature, 1, 0)?;
                     if let Some(feature_index) = feature.index[table_index] {
                         if feature.stage[table_index] == stage {
-                            self.add_lookups(
+                            self.add_lookups_with(
                                 &mut map_lookups[table_index],
                                 table_index,
                                 feature_index,
@@ -576,7 +572,8 @@ impl<'a> hb_ot_map_builder_t<'a> {
                                 feature.auto_zwj,
                                 feature.random,
                                 feature.per_syllable,
-                            );
+                                policy,
+                            )?;
                         }
                     }
                 }
@@ -590,6 +587,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
 
                     let mut j = last_lookup;
                     for i in j + 1..len {
+                        policy.charge(ColdOperation::Lookup, 4, 0)?;
                         if lookups[i].index != lookups[j].index {
                             j += 1;
                             lookups[j] = lookups[i];
@@ -624,7 +622,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
         Ok((map_lookups, map_stages))
     }
 
-    fn add_lookups(
+    fn add_lookups_with<P: ColdAdmission>(
         &self,
         lookups: &mut Vec<lookup_map_t>,
         table_index: TableIndex,
@@ -635,20 +633,30 @@ impl<'a> hb_ot_map_builder_t<'a> {
         auto_zwj: bool,
         random: bool,
         per_syllable: bool,
-    ) -> Option<()> {
-        let table = self.face.layout_table(table_index)?;
+        policy: &mut P,
+    ) -> Result<(), P::Error> {
+        let Some(table) = self.face.layout_table(table_index) else {
+            return Ok(());
+        };
 
-        let lookup_count = table.lookup_count();
+        let lookup_count = table.lookup_count_with(policy)?;
         let feature = match variation_index {
-            Some(idx) => table
-                .feature_substitution(idx, feature_index)
-                .or_else(|| table.feature(feature_index))?,
-            None => table.feature(feature_index)?,
+            Some(idx) => match table.feature_substitution_with(idx, feature_index, policy)? {
+                Some(feature) => Some(feature),
+                None => table.feature_with(feature_index, policy)?,
+            },
+            None => table.feature_with(feature_index, policy)?,
+        };
+        let Some(feature) = feature else {
+            return Ok(());
         };
 
         for index in feature.lookup_list_indices() {
+            policy.charge(ColdOperation::Lookup, 1, 0)?;
             let index = index.get();
             if index < lookup_count {
+                reserve_next(lookups, policy)?;
+                policy.charge(ColdOperation::Initialize, 2, 0)?;
                 lookups.push(lookup_map_t {
                     mask,
                     index,
@@ -660,7 +668,7 @@ impl<'a> hb_ot_map_builder_t<'a> {
             }
         }
 
-        Some(())
+        Ok(())
     }
 }
 

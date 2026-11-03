@@ -144,18 +144,21 @@ pub fn hb_ot_layout_substitute_start(face: &hb_font_t, buffer: &mut hb_buffer_t)
     _hb_ot_layout_set_glyph_props(face, buffer);
 }
 
-/// Applies the lookups in the given GSUB or GPOS table.
-pub fn apply_layout_table<T: LayoutTable>(
+/// Applies the lookups in the given GSUB or GPOS table with a shared policy.
+pub(crate) fn apply_layout_table_with<T: LayoutTable, P: super::face::shape_admission::ShapeAdmission>(
     plan: &hb_ot_shape_plan_t,
     face: &hb_font_t,
     buffer: &mut hb_buffer_t,
     table: Option<&T>,
-) {
+    policy: &mut P,
+) -> Result<(), P::Error> {
     let mut ctx = OT::hb_ot_apply_context_t::new(T::INDEX, face, buffer);
 
     for (stage_index, stage) in plan.ot_map.stages(T::INDEX).iter().enumerate() {
         if let Some(table) = table {
             for lookup_map in plan.ot_map.stage_lookups(T::INDEX, stage_index) {
+                policy.before_lookup(face, ctx.buffer, &mut ctx.match_positions,
+                    &mut ctx.saved_match_positions, T::INDEX, lookup_map.index)?;
                 let Some(lookup) = table.get_lookup(lookup_map.index) else {
                     continue;
                 };
@@ -180,6 +183,7 @@ pub fn apply_layout_table<T: LayoutTable>(
             }
         }
     }
+    Ok(())
 }
 
 fn apply_string<T: LayoutTable>(ctx: &mut OT::hb_ot_apply_context_t, lookup: &LookupInfo) {
@@ -580,13 +584,16 @@ pub(crate) fn _hb_grapheme_group_func(_: &GlyphInfo, b: &GlyphInfo) -> bool {
     b.is_continuation()
 }
 
-pub fn _hb_ot_layout_reverse_graphemes(buffer: &mut hb_buffer_t) {
+pub(crate) fn _hb_ot_layout_reverse_graphemes_with<
+    P: super::face::shape_admission::ShapeAdmission,
+>(buffer: &mut hb_buffer_t, policy: &mut P) -> Result<(), P::Error> {
     // MONOTONE_GRAPHEMES was already applied and is taken care of by _hb_grapheme_group_func.
     // So we just check for MONOTONE_CHARACTERS here.
-    buffer.reverse_groups(
+    buffer.reverse_groups_with(
         _hb_grapheme_group_func,
         buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-    );
+        policy,
+    )
 }
 
 impl GlyphInfo {

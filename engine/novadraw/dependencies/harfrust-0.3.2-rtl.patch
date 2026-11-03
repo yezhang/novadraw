@@ -1,0 +1,127 @@
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -10,6 +10,7 @@
+ use crate::hb::ot_layout::TableIndex;
+ use crate::hb::ot_layout_gsubgpos::MatchPositions;
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
++use crate::hb::unicode::CharExt;
+ use crate::{
+     BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
+     UnicodeBuffer, script,
+@@ -198,12 +199,13 @@
+         // This is an algorithm restriction, independent of font identity.
+         // ASCII never decomposes or creates grapheme continuations. Requiring
+         // mapped input also prevents the normalizer's missing-glyph fallback.
+-        if buffer.0.direction != Direction::LeftToRight
+-            || !matches!(
+-                buffer.0.script,
+-                None | Some(script::LATIN | script::COMMON | script::UNKNOWN)
+-            )
+-            || !face.coords().is_empty()
++        if !matches!(
++            buffer.0.direction,
++            Direction::LeftToRight | Direction::RightToLeft
++        ) || !matches!(
++            buffer.0.script,
++            None | Some(script::LATIN | script::COMMON | script::UNKNOWN)
++        ) || !face.coords().is_empty()
+             || !buffer.0.successful
+             || buffer.0.allocated_var_bits != 0
+             || plan.shaper.preprocess_text.is_some()
+@@ -428,6 +430,20 @@
+             if face.get_nominal_glyph(info.glyph_id).is_none() {
+                 return Ok(false);
+             }
++            if buffer.0.direction.is_backward() {
++                // mirrored() reads four generated-table elements for ASCII.
++                // Bound the result before asking the ASCII-only charmap.
++                self.charge(ShapeOperation::Unicode, 4)?;
++                if let Some(mirror) = info.as_codepoint().mirrored() {
++                    if mirror >= 0x80 {
++                        return Ok(false);
++                    }
++                    // A missing mirror is supported: rotate_chars retains
++                    // the already-mapped original and applies the rtlm mask.
++                    self.charge(ShapeOperation::Mapping, self.mapping_work)?;
++                    let _ = face.has_glyph(mirror);
++                }
++            }
+         }
+         Ok(true)
+     }
+@@ -1232,11 +1248,37 @@
+                 // _hb_ucd_gc has four fixed generated-table accesses.
+                 self.pass(ShapeOperation::Unicode, n, 4)?;
+             }
+-            Phase::DottedCircle | Phase::Clusters | Phase::Direction => {
++            Phase::DottedCircle | Phase::Clusters => {
+                 self.charge(ShapeOperation::Planning, 8)?;
++            }
++            Phase::Direction => {
++                self.charge(ShapeOperation::Planning, 8)?;
++                // Latin/Common/unknown have native LTR. None has Invalid
++                // native direction and leaves RTL for position_with to reverse.
++                if ctx.buffer.direction.is_backward() && ctx.buffer.script.is_some() {
++                    // ASCII continuation flags are unset: every group is a
++                    // singleton, even with identical cluster identities.
++                    self.pass(ShapeOperation::Information, n.saturating_sub(1), 2)?;
++                    // singleton reverse/merge only inspect scalar endpoints;
++                    // complete reverse reads and writes each logical record.
++                    self.pass(ShapeOperation::Planning, n, 4)?;
++                    if n > 1 {
++                        self.pass(ShapeOperation::Information, n, 2)?;
++                        if ctx.buffer.have_positions {
++                            self.pass(ShapeOperation::Positions, n, 2)?;
++                        }
++                    }
++                }
+             }
+             Phase::Substitute => {
+                 self.charge(ShapeOperation::Planning, 16)?;
++                if ctx.target_direction.is_backward() {
++                    self.pass(ShapeOperation::Information, n, 2)?;
++                    self.pass(ShapeOperation::Unicode, n, 4)?;
++                    // Prepay has_glyph for every possible mirrored character.
++                    // This is separate from the nominal normalizer query.
++                    self.pass(ShapeOperation::Mapping, n, self.mapping_work)?;
++                }
+                 // Normalizer scans to the end of the simple, mapped input,
+                 // then maps it. next_glyphs/sync do not copy or enlarge.
+                 self.charge(ShapeOperation::Information, n)?;
+@@ -1290,6 +1332,10 @@
+                     // MultipleSubst repeats their source cluster identity.
+                     self.charge(ShapeOperation::Information, n.saturating_sub(1))?;
+                 }
++                if ctx.buffer.direction.is_backward() && n > 1 {
++                    self.pass(ShapeOperation::Information, n, 2)?;
++                    self.pass(ShapeOperation::Positions, n, 2)?;
++                }
+             }
+             Phase::Postprocess => self.charge(ShapeOperation::Planning, 8)?,
+             Phase::Flags => {
+@@ -1316,7 +1362,7 @@
+ impl hb_font_t<'_> {
+     /// Shapes a proven horizontal path after operation admission.
+     ///
+-    /// Supports mapped ASCII, LTR Latin/Common/unknown script, default
++    /// Supports mapped ASCII, LTR/RTL Latin/Common/unknown or absent script, default
+     /// coordinates, global features, and layout-free fonts or selected GSUB
+     /// single, positive-length multiple or bounded-component ligature
+     /// substitutions, or bounded Format 3 contexts calling only single
+@@ -1365,6 +1411,7 @@
+             )
+             .ok_or(ShapeOperationError::CostOverflow)?;
+         policy.charge(ShapeOperation::Recovery, recovery_work)?;
++        let target_direction = buffer.0.direction;
+         buffer.0.enter();
+         let result = if buffer.len() > 0 {
+             shape_internal_with(
+@@ -1372,7 +1419,7 @@
+                     plan,
+                     face: self,
+                     buffer: &mut buffer.0,
+-                    target_direction: Direction::LeftToRight,
++                    target_direction,
+                     features,
+                 },
+                 &mut policy,

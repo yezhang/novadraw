@@ -10,6 +10,7 @@ use super::{hb_font_t, hb_tag_t, GlyphInfo};
 use crate::hb::ot_shaper_indic::ot_category_t::OT_VPre;
 
 pub const MYANMAR_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: Some(collect_features),
     override_features: None,
     create_data: None,
@@ -46,6 +47,7 @@ impl GlyphInfo {
 // Disable all auto processing.
 // https://github.com/harfbuzz/harfbuzz/issues/1162
 pub const MYANMAR_ZAWGYI_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: None,
     override_features: None,
     create_data: None,

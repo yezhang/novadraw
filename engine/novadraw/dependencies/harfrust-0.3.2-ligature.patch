@@ -1,0 +1,400 @@
+--- a/src/hb/ot_layout.rs
++++ b/src/hb/ot_layout.rs
+@@ -169,7 +169,7 @@
+     for (stage_index, stage) in plan.ot_map.stages(T::INDEX).iter().enumerate() {
+         if let Some(table) = table {
+             for lookup_map in plan.ot_map.stage_lookups(T::INDEX, stage_index) {
+-                policy.before_lookup(face, ctx.buffer, lookup_map.index)?;
++                policy.before_lookup(face, ctx.buffer, &mut ctx.match_positions, lookup_map.index)?;
+                 let Some(lookup) = table.get_lookup(lookup_map.index) else {
+                     continue;
+                 };
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -8,6 +8,7 @@
+ use crate::hb::buffer::hb_buffer_t;
+ use crate::hb::ot::lookup::SubtableKind;
+ use crate::hb::ot_layout::TableIndex;
++use crate::hb::ot_layout_gsubgpos::MatchPositions;
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
+ use crate::{
+     script, BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
+@@ -16,7 +17,7 @@
+ use alloc::{collections::TryReserveError, vec::Vec};
+ use core::{convert::Infallible, fmt};
+ use read_fonts::tables::{
+-    gsub::{MultipleSubstFormat1, SingleSubstFormat1, SingleSubstFormat2},
++    gsub::{LigatureSubstFormat1, MultipleSubstFormat1, SingleSubstFormat1, SingleSubstFormat2},
+     layout::CoverageTable,
+ };
+ use read_fonts::{types::Tag, FontData, FontRead};
+@@ -28,6 +29,8 @@
+     Cold(ColdOperation),
+     /// Plan, reserve and initialize the two shaping arrays before lookup growth.
+     Buffer(BufferOperation),
++    /// Reserve and initialize lookup matching positions, including inline spill.
++    Matching(BufferOperation),
+     /// Read substitution table fields or coverage search records.
+     TableRead,
+     /// Inspect scalar state or borrowed collection headers.
+@@ -119,6 +122,7 @@
+         &mut self,
+         face: &hb_font_t,
+         buffer: &mut hb_buffer_t,
++        positions: &mut MatchPositions,
+         index: u16,
+     ) -> Result<(), Self::Error>;
+ }
+@@ -136,6 +140,7 @@
+         &mut self,
+         _: &hb_font_t,
+         _: &mut hb_buffer_t,
++        _: &mut MatchPositions,
+         _: u16,
+     ) -> Result<(), Infallible> {
+         Ok(())
+@@ -224,6 +229,9 @@
+             }
+         }
+         let mut output_bound = buffer.len();
++        // No marks/GDEF exist on this path. Initially every glyph contributes
++        // one component; later ligatures store at most four component bits.
++        let mut component_bound = 1usize;
+         for table in TableIndex::iter() {
+             self.charge(ShapeOperation::Planning, 1)?;
+             let stages = plan.ot_map.stages(table);
+@@ -247,12 +255,14 @@
+                         }
+                         self.charge(ShapeOperation::Features, lookup.subtables.len())?;
+                         let mut factor = 1;
++                        let mut ligature_count = 1;
+                         for subtable in &lookup.subtables {
+                             if !matches!(
+                                 subtable.kind,
+                                 SubtableKind::SingleSubst1
+                                     | SubtableKind::SingleSubst2
+                                     | SubtableKind::MultipleSubst1
++                                    | SubtableKind::LigatureSubst1
+                             ) {
+                                 return Ok(false);
+                             }
+@@ -264,7 +274,22 @@
+                                 };
+                                 factor = factor.max(maximum);
+                             }
++                            if subtable.kind == SubtableKind::LigatureSubst1 {
++                                ligature_count = ligature_count.max(
++                                    self.ligature_plan(gsub.table.offset_data(), subtable.offset)?
++                                        .maximum,
++                                );
++                            }
+                         }
++                        // match_input and ligate_input sum in u8. Reject before
++                        // execution, rather than allowing a debug overflow or
++                        // release wrap. Single/multiple cannot increase this
++                        // bound, even when preserving earlier ligature props.
++                        let components = component_bound * ligature_count;
++                        if components > usize::from(u8::MAX) {
++                            return Ok(false);
++                        }
++                        component_bound = component_bound.max(components.min(15));
+                         if factor > 1 {
+                             // Mirror enter() without changing buffer settings.
+                             // Sequential lookups can expand an earlier result.
+@@ -347,6 +372,109 @@
+         }
+         Ok(Some(maximum))
+     }
++
++    fn ligature_plan(
++        &mut self,
++        data: FontData<'_>,
++        offset: u32,
++    ) -> Result<LigaturePlan, ShapeOperationError<E>> {
++        self.charge(ShapeOperation::Planning, 1)?;
++        self.charge(ShapeOperation::TableRead, 10)?;
++        let mut plan = LigaturePlan::default();
++        let Some(table) = data
++            .split_off(offset as usize)
++            .and_then(|data| LigatureSubstFormat1::read(data).ok())
++        else {
++            return Ok(plan);
++        };
++        let sets = table.ligature_sets();
++        for index in 0..sets.len() {
++            self.charge(ShapeOperation::TableRead, 4)?; // set offset/count
++            let Ok(set) = sets.get(index) else { continue };
++            let ligatures = set.ligatures();
++            for index in 0..ligatures.len() {
++                self.charge(ShapeOperation::TableRead, 6)?; // offset/glyph/count
++                plan.attempts = plan
++                    .attempts
++                    .checked_add(1)
++                    .ok_or(ShapeOperationError::CostOverflow)?;
++                let Ok(ligature) = ligatures.get(index) else {
++                    continue;
++                };
++                let count = ligature.component_glyph_ids().len() + 1;
++                // Larger patterns fail match_input before storage or iteration.
++                if count <= crate::hb::ot_layout::MAX_CONTEXT_LENGTH {
++                    plan.maximum = plan.maximum.max(count);
++                    plan.components = plan
++                        .components
++                        .checked_add(count - 1)
++                        .ok_or(ShapeOperationError::CostOverflow)?;
++                }
++            }
++        }
++        Ok(plan)
++    }
++
++    fn matching_storage(
++        &mut self,
++        positions: &mut MatchPositions,
++        count: usize,
++    ) -> Result<(), ShapeOperationError<E>> {
++        (self.admit)(
++            ShapeOperation::Matching(BufferOperation::Planning),
++            ShapeOperationCost {
++                work: 2,
++                allocation: 0,
++            },
++        )
++        .map_err(ShapeOperationError::Admission)?;
++        if count > positions.capacity() {
++            // Use Vec's fallible exact allocation to retain its original
++            // TryReserveError. count exceeds inline capacity, so from_vec
++            // transfers the allocation without an additional allocation.
++            (self.admit)(
++                ShapeOperation::Matching(BufferOperation::Storage),
++                ShapeOperationCost {
++                    work: positions.len() * 2,
++                    allocation: count,
++                },
++            )
++            .map_err(ShapeOperationError::Admission)?;
++            let mut values = Vec::new();
++            values
++                .try_reserve_exact(count)
++                .map_err(ShapeOperationError::Storage)?;
++            (self.admit)(
++                ShapeOperation::Matching(BufferOperation::Initialize),
++                ShapeOperationCost {
++                    work: count - positions.len(),
++                    allocation: 0,
++                },
++            )
++            .map_err(ShapeOperationError::Admission)?;
++            values.extend_from_slice(positions);
++            values.resize(count, 0);
++            *positions = MatchPositions::from_vec(values);
++        } else if count > positions.len() {
++            (self.admit)(
++                ShapeOperation::Matching(BufferOperation::Initialize),
++                ShapeOperationCost {
++                    work: count - positions.len(),
++                    allocation: 0,
++                },
++            )
++            .map_err(ShapeOperationError::Admission)?;
++            positions.resize(count, 0);
++        }
++        Ok(())
++    }
++}
++
++#[derive(Default)]
++struct LigaturePlan {
++    maximum: usize,
++    attempts: usize,
++    components: usize,
+ }
+ 
+ impl<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>> ColdAdmission
+@@ -402,6 +530,7 @@
+         &mut self,
+         face: &hb_font_t,
+         buffer: &mut hb_buffer_t,
++        positions: &mut MatchPositions,
+         index: u16,
+     ) -> Result<(), Self::Error> {
+         let Some(gsub) = face.ot_tables.gsub.as_ref() else {
+@@ -427,6 +556,8 @@
+         self.charge(ShapeOperation::Features, lookup.subtables.len())?;
+         let mut maximum = 1;
+         let mut multiple = false;
++        let mut matching = 0;
++        let mut ligature = false;
+         for subtable in &lookup.subtables {
+             self.charge(ShapeOperation::Planning, 1)?;
+             self.charge(ShapeOperation::TableRead, 10)?;
+@@ -452,6 +583,64 @@
+                         .ok()
+                         .and_then(|t| t.coverage().ok())
+                 }
++                SubtableKind::LigatureSubst1 => {
++                    ligature = true;
++                    let plan = self.ligature_plan(gsub.table.offset_data(), subtable.offset)?;
++                    matching = matching.max(plan.maximum);
++                    // All sets may be attempted at every input position.
++                    // Generated set offset/count and second-glyph fast-path
++                    // probe; three seconds-digest masks are read per probe.
++                    self.pass(ShapeOperation::TableRead, n, 4)?;
++                    self.pass(ShapeOperation::Information, n, 4)?;
++                    self.pass(ShapeOperation::Cache, n, 3)?;
++                    let attempts_work = plan
++                        .attempts
++                        .checked_mul(6)
++                        .ok_or(ShapeOperationError::CostOverflow)?;
++                    let component_work = plan
++                        .components
++                        .checked_mul(2)
++                        .ok_or(ShapeOperationError::CostOverflow)?;
++                    self.pass(ShapeOperation::TableRead, n, attempts_work)?;
++                    self.pass(ShapeOperation::TableRead, n, component_work)?;
++                    // Per attempt: reset/first record, matcher property/mask/
++                    // glyph checks, component properties and matching writes.
++                    self.pass(
++                        ShapeOperation::Information,
++                        n,
++                        plan.attempts
++                            .checked_mul(2)
++                            .ok_or(ShapeOperationError::CostOverflow)?,
++                    )?;
++                    self.pass(
++                        ShapeOperation::Information,
++                        n,
++                        plan.components
++                            .checked_mul(6)
++                            .ok_or(ShapeOperationError::CostOverflow)?,
++                    )?;
++                    self.pass(
++                        ShapeOperation::Matching(BufferOperation::Append),
++                        n,
++                        plan.components
++                            .checked_add(plan.attempts)
++                            .ok_or(ShapeOperationError::CostOverflow)?,
++                    )?;
++                    // Failed attempts flag a contiguous range; fast-path
++                    // mismatches can flag it once more. No ASCII glyph skips.
++                    self.pass(
++                        ShapeOperation::Information,
++                        n,
++                        component_work
++                            .checked_add(2)
++                            .ok_or(ShapeOperationError::CostOverflow)?,
++                    )?;
++                    // Full mapping cache can read and write its atomic slot.
++                    self.pass(ShapeOperation::Cache, n, 2)?;
++                    LigatureSubstFormat1::read(data)
++                        .ok()
++                        .and_then(|t| t.coverage().ok())
++                }
+                 _ => unreachable!("preflight rejected unsupported substitution"),
+             };
+             self.charge(ShapeOperation::Features, n)?; // subtable attempts
+@@ -467,6 +656,35 @@
+                 self.pass(ShapeOperation::TableRead, n, 4)?;
+                 self.pass(ShapeOperation::TableRead, n, maximum)?;
+             }
++        }
++        if ligature {
++            self.matching_storage(positions, matching)?;
++            // Successful matches can merge equal-cluster suffixes and an
++            // already-emitted prefix. A mixed lookup's multiple substitution
++            // can expand that prefix before a later ligature candidate.
++            // Upstream does not promise disjoint ranges across successes.
++            let span = n
++                .checked_mul(maximum)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            let scans = n
++                .checked_mul(span)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            self.charge(ShapeOperation::Information, scans)?; // minimum cluster
++            self.pass(ShapeOperation::Information, scans, 2)?; // suffix comparisons
++            self.pass(ShapeOperation::Information, scans, 4)?; // prefix read/set_cluster
++            self.pass(ShapeOperation::Information, scans, 2)?; // input set_cluster
++            self.pass(ShapeOperation::Information, scans, 3)?; // nonmonotone unsafe flags
++            self.pass(ShapeOperation::Information, scans, 3)?; // trailing ligature components
++            self.pass(
++                ShapeOperation::Matching(BufferOperation::Append),
++                n,
++                matching * 2,
++            )?;
++            self.pass(ShapeOperation::Information, n, matching * 4 + 12)?;
++            // A ligature only consumes records, but replacing it after an
++            // earlier contraction can copy the emitted prefix into pos.
++            self.pass(ShapeOperation::Information, n, 2)?;
++            self.pass(ShapeOperation::Information, n, 2)?;
+         }
+         if multiple {
+             let output = n
+@@ -595,7 +813,8 @@
+     ///
+     /// Supports mapped ASCII, LTR Latin/Common/unknown script, default
+     /// coordinates, global features, and layout-free fonts or selected GSUB
+-    /// single or positive-length multiple substitutions with zero lookup flags.
++    /// single, positive-length multiple or bounded-component ligature
++    /// substitutions with zero lookup flags.
+     /// Multiple lookup growth is checked against the existing buffer limit
+     /// before shaping, and both arrays are reserved before each lookup.
+     /// GDEF, GPOS and
+@@ -671,6 +890,58 @@
+ mod tests {
+     use super::*;
+     use alloc::vec::Vec;
++
++    #[test]
++    fn matching_storage_inline_spill_reuse_and_rejection() {
++        let mut positions = MatchPositions::from_elem(7, 1);
++        let mut costs = Vec::new();
++        let mut policy = AdmittedShape {
++            admit: |op, cost| {
++                costs.push((op, cost));
++                Ok::<_, ()>(())
++            },
++            mapping_work: 0,
++        };
++        policy.matching_storage(&mut positions, 8).unwrap();
++        assert!(!positions.spilled());
++        assert_eq!(positions[0], 7);
++        policy.matching_storage(&mut positions, 9).unwrap();
++        assert!(positions.spilled());
++        assert_eq!(positions.len(), 9);
++        assert_eq!(positions[0], 7);
++        policy.matching_storage(&mut positions, 9).unwrap();
++        assert_eq!(costs.iter().map(|(_, c)| c.allocation).sum::<usize>(), 9);
++        assert_eq!(
++            costs
++                .iter()
++                .find(|(op, _)| *op == ShapeOperation::Matching(BufferOperation::Storage))
++                .unwrap()
++                .1
++                .work,
++            16
++        );
++        for reject in 0..3 {
++            let mut positions = MatchPositions::from_elem(7, 1);
++            let mut calls = 0;
++            let mut policy = AdmittedShape {
++                admit: |_, _| {
++                    let index = calls;
++                    calls += 1;
++                    if index == reject {
++                        Err(index)
++                    } else {
++                        Ok(())
++                    }
++                },
++                mapping_work: 0,
++            };
++            assert!(matches!(policy.matching_storage(&mut positions, 9),
++                Err(ShapeOperationError::Admission(i)) if i == reject));
++            assert_eq!(positions.as_slice(), &[7]);
++            assert!(!positions.spilled());
++            assert_eq!(calls, reject + 1);
++        }
++    }
+ 
+     #[test]
+     fn cost_overflow_does_not_invoke_admission() {

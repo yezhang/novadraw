@@ -1,0 +1,392 @@
+--- a/src/hb/ot_layout.rs
++++ b/src/hb/ot_layout.rs
+@@ -144,19 +144,7 @@
+     _hb_ot_layout_set_glyph_props(face, buffer);
+ }
+ 
+-/// Applies the lookups in the given GSUB or GPOS table.
+-pub fn apply_layout_table<T: LayoutTable>(
+-    plan: &hb_ot_shape_plan_t,
+-    face: &hb_font_t,
+-    buffer: &mut hb_buffer_t,
+-    table: Option<&T>,
+-) {
+-    match apply_layout_table_with(plan, face, buffer, table, &mut super::face::shape_admission::OrdinaryShape) {
+-        Ok(()) => {},
+-        Err(error) => match error {},
+-    }
+-}
+-
++/// Applies the lookups in the given GSUB or GPOS table with a shared policy.
+ pub(crate) fn apply_layout_table_with<T: LayoutTable, P: super::face::shape_admission::ShapeAdmission>(
+     plan: &hb_ot_shape_plan_t,
+     face: &hb_font_t,
+@@ -170,7 +158,7 @@
+         if let Some(table) = table {
+             for lookup_map in plan.ot_map.stage_lookups(T::INDEX, stage_index) {
+                 policy.before_lookup(face, ctx.buffer, &mut ctx.match_positions,
+-                    &mut ctx.saved_match_positions, lookup_map.index)?;
++                    &mut ctx.saved_match_positions, T::INDEX, lookup_map.index)?;
+                 let Some(lookup) = table.get_lookup(lookup_map.index) else {
+                     continue;
+                 };
+--- a/src/hb/ot_layout_gpos_table.rs
++++ b/src/hb/ot_layout_gpos_table.rs
+@@ -8,8 +8,10 @@
+ use super::ot_shape_plan::hb_ot_shape_plan_t;
+ use crate::Direction;
+ 
+-pub fn position(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t) {
+-    apply_layout_table(plan, face, buffer, face.ot_tables.gpos.as_ref());
++pub(crate) fn position_with<P: super::face::shape_admission::ShapeAdmission>(
++    plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t, policy: &mut P,
++) -> Result<(), P::Error> {
++    apply_layout_table_with(plan, face, buffer, face.ot_tables.gpos.as_ref(), policy)
+ }
+ 
+ pub mod attach_type {
+--- a/src/hb/ot_shape.rs
++++ b/src/hb/ot_shape.rs
+@@ -423,7 +423,7 @@
+     policy.before(Phase::Substitute, ctx)?;
+     substitute_pre(ctx, policy)?;
+     policy.before(Phase::Position, ctx)?;
+-    position(ctx);
++    position_with(ctx, policy)?;
+     policy.before(Phase::Postprocess, ctx)?;
+     substitute_post(ctx);
+ 
+@@ -502,18 +502,19 @@
+     Ok(())
+ }
+ 
+-fn position(ctx: &mut hb_ot_shape_context_t) {
++fn position_with<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+     ctx.buffer.clear_positions();
+ 
+     position_default(ctx);
+ 
+-    position_complex(ctx);
++    position_complex_with(ctx, policy)?;
+ 
+     if ctx.buffer.direction.is_backward() {
+         ctx.buffer.reverse();
+     }
+ 
+     ctx.buffer.deallocate_gsubgpos_vars();
++    Ok(())
+ }
+ 
+ fn position_default(ctx: &mut hb_ot_shape_context_t) {
+@@ -538,7 +539,7 @@
+     }
+ }
+ 
+-fn position_complex(ctx: &mut hb_ot_shape_context_t) {
++fn position_complex_with<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+     // If the font has no GPOS and direction is forward, then when
+     // zeroing mark widths, we shift the mark with it, such that the
+     // mark is positioned hanging over the previous glyph.  When
+@@ -560,7 +561,7 @@
+         zero_mark_widths_by_gdef(ctx.buffer, adjust_offsets_when_zeroing);
+     }
+ 
+-    position_by_plan(ctx.plan, ctx.face, ctx.buffer);
++    position_by_plan_with(ctx.plan, ctx.face, ctx.buffer, policy)?;
+ 
+     if ctx.plan.zero_marks
+         && ctx.plan.shaper.zero_width_marks == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE
+@@ -581,11 +582,12 @@
+             adjust_offsets_when_zeroing,
+         );
+     }
+-}
+-
+-fn position_by_plan(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t) {
++    Ok(())
++}
++
++fn position_by_plan_with<P: ShapeAdmission>(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t, policy: &mut P) -> Result<(), P::Error> {
+     if plan.apply_gpos {
+-        ot_layout_gpos_table::position(plan, face, buffer);
++        ot_layout_gpos_table::position_with(plan, face, buffer, policy)?;
+     } else if plan.apply_kerx {
+         aat::layout::position(plan, face, buffer);
+     }
+@@ -598,6 +600,7 @@
+     if plan.apply_trak {
+         aat::layout::track(plan, face, buffer);
+     }
++    Ok(())
+ }
+ 
+ fn initialize_masks(ctx: &mut hb_ot_shape_context_t) {
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -11,16 +11,17 @@
+ use crate::hb::ot_layout_gsubgpos::MatchPositions;
+ use crate::hb::ot_shape::{hb_ot_shape_context_t, shape_internal_with};
+ use crate::{
+-    BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
+-    UnicodeBuffer, script,
++    script, BufferOperation, BufferOperationError, Direction, Feature, GlyphBuffer, ShapePlan,
++    UnicodeBuffer,
+ };
+ use alloc::{collections::TryReserveError, vec::Vec};
+ use core::{convert::Infallible, fmt};
+ use read_fonts::tables::{
++    gpos::{SinglePosFormat1, SinglePosFormat2, ValueFormat},
+     gsub::{LigatureSubstFormat1, MultipleSubstFormat1, SingleSubstFormat1, SingleSubstFormat2},
+     layout::{CoverageTable, SequenceContextFormat3},
+ };
+-use read_fonts::{FontData, FontRead, types::Tag};
++use read_fonts::{types::Tag, FontData, FontRead};
+ 
+ /// A shaping operation whose work is admitted before execution.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+@@ -31,7 +32,7 @@
+     Buffer(BufferOperation),
+     /// Reserve and initialize lookup matching positions, including inline spill.
+     Matching(BufferOperation),
+-    /// Read substitution table fields or coverage search records.
++    /// Read substitution/positioning table fields or coverage search records.
+     TableRead,
+     /// Inspect scalar state or borrowed collection headers.
+     Planning,
+@@ -124,6 +125,7 @@
+         buffer: &mut hb_buffer_t,
+         positions: &mut MatchPositions,
+         saved_positions: &mut Option<MatchPositions>,
++        table: TableIndex,
+         index: u16,
+     ) -> Result<(), Self::Error>;
+ }
+@@ -143,6 +145,7 @@
+         _: &mut hb_buffer_t,
+         _: &mut MatchPositions,
+         _: &mut Option<MatchPositions>,
++        _: TableIndex,
+         _: u16,
+     ) -> Result<(), Infallible> {
+         Ok(())
+@@ -212,7 +215,6 @@
+                 crate::hb::ot_shape_normalize::HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+                 | crate::hb::ot_shape_normalize::HB_OT_SHAPE_NORMALIZATION_MODE_AUTO
+                 | crate::hb::ot_shape_normalize::HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS)
+-            || plan.apply_gpos
+             || plan.apply_kern
+             || plan.apply_kerx
+             || plan.apply_morx
+@@ -220,11 +222,11 @@
+         {
+             return Ok(false);
+         }
+-        // No GDEF class helper, GPOS lookup, AAT data, or external callback
++        // No GDEF class helper, AAT data, or external callback
+         // can run on this slice. Directory searching is itself admitted.
+         self.charge(ShapeOperation::Planning, 1)?;
+         let directory_work = face.font.table_directory().table_records().len() + 3;
+-        for tag in [b"GDEF", b"GPOS", b"morx", b"kern", b"kerx", b"trak"] {
++        for tag in [b"GDEF", b"morx", b"kern", b"kerx", b"trak"] {
+             self.charge(ShapeOperation::Directory, directory_work)?;
+             if face.font.table_data(Tag::new(tag)).is_some() {
+                 return Ok(false);
+@@ -244,8 +246,43 @@
+                 }
+                 let lookups = plan.ot_map.stage_lookups(table, index);
+                 self.charge(ShapeOperation::Features, lookups.len())?;
+-                if table == TableIndex::GPOS && !lookups.is_empty() {
+-                    return Ok(false);
++                if table == TableIndex::GPOS {
++                    if let Some(gpos) = face.ot_tables.gpos.as_ref() {
++                        for map in lookups {
++                            let Some(lookup) =
++                                gpos.lookups.get_with(&gpos.table, map.index, self)?
++                            else {
++                                continue;
++                            };
++                            self.charge(ShapeOperation::Planning, 4)?;
++                            if lookup.is_subst || lookup.is_reverse() || lookup.props != 0 {
++                                return Ok(false);
++                            }
++                            self.charge(ShapeOperation::Features, lookup.subtables.len())?;
++                            for subtable in &lookup.subtables {
++                                if !matches!(
++                                    subtable.kind,
++                                    SubtableKind::SinglePos1 | SubtableKind::SinglePos2
++                                ) {
++                                    return Ok(false);
++                                }
++                                let Some((format, _)) = self.single_position_plan(
++                                    gpos.table.offset_data(),
++                                    subtable.offset,
++                                    subtable.kind,
++                                )?
++                                else {
++                                    continue;
++                                };
++                                // Scalar fields only: no device/variation lookup or
++                                // reserved format bit can enter the shared kernel.
++                                if format.bits() & !0x000f != 0 {
++                                    return Ok(false);
++                                }
++                            }
++                        }
++                    }
++                    continue;
+                 }
+                 if let Some(gsub) = face.ot_tables.gsub.as_ref() {
+                     for map in lookups {
+@@ -406,6 +443,74 @@
+         Ok(Some(maximum))
+     }
+ 
++    fn single_position_plan<'a>(
++        &mut self,
++        data: FontData<'a>,
++        offset: u32,
++        kind: SubtableKind,
++    ) -> Result<Option<(ValueFormat, Option<CoverageTable<'a>>)>, ShapeOperationError<E>> {
++        self.charge(ShapeOperation::Planning, 1)?;
++        // Generated shape, scalar format/count, offset and coverage headers.
++        // These readers borrow the value array; no value payload is scanned.
++        self.charge(ShapeOperation::TableRead, 12)?;
++        let Some(data) = data.split_off(offset as usize) else {
++            return Ok(None);
++        };
++        Ok(match kind {
++            SubtableKind::SinglePos1 => SinglePosFormat1::read(data)
++                .ok()
++                .map(|t| (t.value_format(), t.coverage().ok())),
++            SubtableKind::SinglePos2 => SinglePosFormat2::read(data)
++                .ok()
++                .map(|t| (t.value_format(), t.coverage().ok())),
++            _ => None,
++        })
++    }
++
++    fn before_position_lookup(
++        &mut self,
++        face: &hb_font_t,
++        buffer: &hb_buffer_t,
++        index: u16,
++    ) -> Result<(), ShapeOperationError<E>> {
++        let Some(gpos) = face.ot_tables.gpos.as_ref() else {
++            return Ok(());
++        };
++        let Some(lookup) = gpos.lookups.get_with(&gpos.table, index, self)? else {
++            return Ok(());
++        };
++        let n = buffer.len;
++        self.charge(ShapeOperation::Planning, 40)?;
++        self.charge(ShapeOperation::Cache, 6)?; // lookup/buffer digest intersection
++        self.charge(ShapeOperation::Information, n)?; // forward skip/mask/property scan
++        self.pass(ShapeOperation::Cache, n, 3)?; // lookup digest probe
++        self.charge(ShapeOperation::Information, n)?; // check_glyph_property
++        self.charge(ShapeOperation::Features, lookup.subtables.len())?;
++        for subtable in &lookup.subtables {
++            let Some((format, coverage)) = self.single_position_plan(
++                gpos.table.offset_data(),
++                subtable.offset,
++                subtable.kind,
++            )?
++            else {
++                continue;
++            };
++            self.charge(ShapeOperation::Features, n)?; // attempted subtables
++            self.pass(ShapeOperation::Information, n, 2)?; // subtable/apply cur(0)
++            self.pass(ShapeOperation::Cache, n, 3)?; // subtable digest
++            let search = coverage.as_ref().map_or(0, coverage_search_work);
++            let values = format.bits().count_ones() as usize;
++            // Header/offset/value format plus every possible scalar read.
++            // Horizontal Y_ADVANCE skips its value; counting it is conservative.
++            self.pass(ShapeOperation::TableRead, n, 12 + search + values)?;
++            // Borrowing the record, then read-modify-write of each scalar.
++            self.pass(ShapeOperation::Positions, n, 1 + values * 2)?;
++        }
++        // IN_PLACE keeps info/pos arrays and digest unchanged. SinglePos
++        // advances once per input glyph; no sync, attachments or allocation.
++        Ok(())
++    }
++
+     fn ligature_plan(
+         &mut self,
+         data: FontData<'_>,
+@@ -704,8 +809,12 @@
+         buffer: &mut hb_buffer_t,
+         positions: &mut MatchPositions,
+         saved_positions: &mut Option<MatchPositions>,
++        table: TableIndex,
+         index: u16,
+     ) -> Result<(), Self::Error> {
++        if table == TableIndex::GPOS {
++            return self.before_position_lookup(face, buffer, index);
++        }
+         let Some(gsub) = face.ot_tables.gsub.as_ref() else {
+             return Ok(());
+         };
+@@ -827,8 +936,8 @@
+             self.charge(ShapeOperation::Features, n)?; // subtable attempts
+             self.charge(ShapeOperation::Information, n)?; // each subtable's cur(0)
+             self.pass(ShapeOperation::Cache, n, 3)?; // subtable digest
+-            // Each attempt repeats its header/coverage reads and search. The
+-            // delta or substitute-array access contributes one final read.
++                                                     // Each attempt repeats its header/coverage reads and search. The
++                                                     // delta or substitute-array access contributes one final read.
+             let search = coverage.as_ref().map_or(0, coverage_search_work);
+             self.pass(ShapeOperation::TableRead, n, 10 + search + 1)?;
+             if subtable.kind == SubtableKind::MultipleSubst1 {
+@@ -955,6 +1064,10 @@
+             }
+             Phase::Position => {
+                 self.charge(ShapeOperation::Planning, 16)?;
++                self.charge(
++                    ShapeOperation::Features,
++                    ctx.plan.ot_map.stages(TableIndex::GPOS).len(),
++                )?;
+                 // clear_positions initializes the whole array, not just n.
+                 self.charge(ShapeOperation::Positions, ctx.buffer.pos.len())?;
+                 // populate_advance_widths also visits both complete arrays.
+@@ -1005,11 +1118,11 @@
+     /// coordinates, global features, and layout-free fonts or selected GSUB
+     /// single, positive-length multiple or bounded-component ligature
+     /// substitutions, or bounded Format 3 contexts calling only single
+-    /// substitutions, with zero lookup flags.
++    /// substitutions, and GPOS scalar single positioning, with zero lookup flags.
+     /// Multiple lookup growth is checked against the existing buffer limit
+     /// before shaping, and both arrays are reserved before each lookup.
+-    /// GDEF, GPOS and
+-    /// AAT tables remain unsupported. Lookup caches are separately admitted.
++    /// GDEF, other GPOS algorithms, device/variation positioning and AAT tables
++    /// remain unsupported. Lookup caches are separately admitted.
+     /// These structural restrictions apply to any font; there is no identity
+     /// whitelist. Complex scripts, absent nominal mappings and unknown lookups
+     /// return `Ok(None)` before shaping, preserving the logical input.
+@@ -1118,7 +1231,11 @@
+                 admit: |_, _| {
+                     let index = calls;
+                     calls += 1;
+-                    if index == reject { Err(index) } else { Ok(()) }
++                    if index == reject {
++                        Err(index)
++                    } else {
++                        Ok(())
++                    }
+                 },
+                 mapping_work: 0,
+             };
+@@ -1203,11 +1320,9 @@
+         assert_eq!(shaper.shape_with_plan(&plan, buffer, &[]).len(), 4);
+ 
+         let mut buffer = input();
+-        assert!(
+-            shaper
+-                .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
+-                .is_err()
+-        );
++        assert!(shaper
++            .try_shape_with_plan_admitted(&plan, &mut buffer, &[], |_, _| Err("preflight"))
++            .is_err());
+         assert_eq!(buffer.len(), 3);
+         assert_eq!(buffer.0.allocated_var_bits, 0);
+     }

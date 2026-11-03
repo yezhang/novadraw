@@ -18,6 +18,45 @@ pub struct Charmap<'a> {
 }
 
 impl<'a> Charmap<'a> {
+    pub(crate) fn general_mapping_work(&self) -> Option<usize> {
+        // Admission caller prepays the subtable/header inspection. Locked
+        // read-fonts 0.35 mapping readers borrow spans and never allocate.
+        // Symbol fallback adds at most a second map query, including its cache.
+        let (selected, subtable) = self.subtable.as_ref()?;
+        let work = match subtable {
+            CmapSubtable::Format0(_) => 1,
+            CmapSubtable::Format6(_) => 2, // first_code + glyph record
+            CmapSubtable::Format10(_) => 3, // start, count, glyph record
+            CmapSubtable::Format4(table) => {
+                let segments = usize::from(table.seg_count_x2()) / 2;
+                // Two record reads per binary-search step, then delta,
+                // range offset and optional glyph record. bit_length(n) is a safe
+                // comparison bound, independent of sorted/malformed data.
+                let steps = (usize::BITS - segments.leading_zeros()) as usize;
+                1 + 2 * steps + 3
+            }
+            CmapSubtable::Format12(table) => {
+                let steps = (usize::BITS - table.groups().len().leading_zeros()) as usize;
+                2 * steps + 2
+            }
+            CmapSubtable::Format13(table) => {
+                let steps = (usize::BITS - table.groups().len().leading_zeros()) as usize;
+                2 * steps + 2
+            }
+            _ => return None,
+        };
+        // One cache load, one potential store per query, plus the subtable
+        // match/selection metadata. Counts are bounded by u16/u32 table sizes.
+        let conversion = if selected.is_mac_roman {
+            // unicode_to_macroman scans this fixed table. A symbol fallback
+            // can map again, so each query covers conversion independently.
+            UNICODE_TO_MACROMAN.len()
+        } else {
+            0
+        };
+        Some((work + 4 + conversion) * if selected.is_symbol { 2 } else { 1 })
+    }
+
     pub(crate) fn new_with<P: ColdAdmission>(
         font: &FontRef<'a>, table_offsets: &TableOffsets, cache: &'a cache_t,
         policy: &mut P,

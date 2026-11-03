@@ -3,6 +3,7 @@ use core::{
     str::FromStr,
 };
 use smallvec::SmallVec;
+use alloc::vec::Vec;
 
 use read_fonts::types::Tag;
 
@@ -194,6 +195,33 @@ type SmallVecLanguage = SmallVec<[u8; 8]>;
 pub struct Language(SmallVecLanguage);
 
 impl Language {
+    pub(crate) fn byte_len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn clone_with<P: super::face::cold_admission::ColdAdmission>(
+        &self, policy: &mut P,
+    ) -> Result<Self, P::Error> {
+        use super::face::cold_admission::ColdOperation;
+        if !P::ADMITTED {
+            return Ok(self.clone());
+        }
+        policy.charge(ColdOperation::Planning, 1, 0)?;
+        let len = self.0.len();
+        if len <= 8 {
+            policy.charge(ColdOperation::Initialize, len, 0)?;
+            policy.charge(ColdOperation::Initialize, len, 0)?;
+            return Ok(Language(SmallVecLanguage::from_slice(&self.0)));
+        }
+        let mut bytes = Vec::new();
+        policy.reserve(&mut bytes, len)?;
+        policy.charge(ColdOperation::Initialize, len, 0)?;
+        policy.charge(ColdOperation::Initialize, len, 0)?;
+        bytes.extend_from_slice(&self.0);
+        // Capacity exceeds the inline array: transfer the Vec allocation.
+        Ok(Language(SmallVecLanguage::from_vec(bytes)))
+    }
+
     /// Returns the language as a string.
     #[inline]
     pub fn as_str(&self) -> &str {

@@ -1,0 +1,1424 @@
+--- a/src/hb/buffer.rs
++++ b/src/hb/buffer.rs
+@@ -15,7 +15,7 @@
+ const CONTEXT_LENGTH: usize = 5;
+ 
+ #[path = "buffer_admission.rs"]
+-mod admission;
++pub(crate) mod admission;
+ pub use admission::{BufferOperation, BufferOperationCost, BufferOperationError, BufferStorageField};
+ 
+ pub mod glyph_flag {
+@@ -851,15 +851,27 @@
+     }
+ 
+     pub fn output_glyph(&mut self, glyph_index: u32) {
+-        if !self.make_room_for(0, 1) {
+-            return;
++        self.output_glyph_with(glyph_index, &mut super::face::shape_admission::OrdinaryShape)
++            .unwrap_or_else(|never| match never {})
++    }
++
++    pub(crate) fn output_glyph_with<P: super::face::shape_admission::ShapeAdmission>(
++        &mut self,
++        glyph_index: u32,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        policy.before_normalization_buffer(8, 0)?;
++        if !self.make_room_for_with(0, 1, policy)? {
++            return Ok(());
+         }
+ 
+         if self.idx == self.len && self.out_len == 0 {
+-            return;
++            return Ok(());
+         }
+ 
+         let out_len = self.out_len;
++        // Read one source, copy it, then write its codepoint.
++        policy.before_normalization_buffer(4, 3)?;
+         if self.idx < self.len {
+             self.set_out_info(out_len, self.info[self.idx]);
+         } else {
+@@ -870,6 +882,7 @@
+         self.out_info_mut()[out_len].glyph_id = glyph_index;
+ 
+         self.out_len += 1;
++        Ok(())
+     }
+ 
+     pub fn output_info(&mut self, glyph_info: GlyphInfo) {
+@@ -896,41 +909,45 @@
+     /// If there's no output, just advance idx.
+     #[inline(always)]
+     pub fn next_glyph(&mut self) {
++        self.next_glyphs_with(1, &mut super::face::shape_admission::OrdinaryShape)
++            .unwrap_or_else(|never| match never {})
++    }
++
++    /// Shared copy/advance kernel. The single-glyph wrapper follows the same
++    /// operation order as the original next_glyph.
++    pub(crate) fn next_glyphs_with<P: super::face::shape_admission::ShapeAdmission>(
++        &mut self,
++        n: usize,
++        policy: &mut P,
++    ) -> Result<(), P::Error> {
++        policy.before_normalization_buffer(8, 0)?;
+         if self.have_output {
+             if self.have_separate_output || self.out_len != self.idx {
+-                if !self.ensure(self.out_len + 1) {
+-                    return;
++                let size = policy.normalization_size(self.out_len, n)?;
++                if !policy.ensure_normalization_output(self, size)? {
++                    return Ok(());
+                 }
+ 
+-                let i = self.out_len;
+-                self.out_info_mut()[i] = self.info[self.idx];
+-            }
+-
+-            self.out_len += 1;
+-        }
+-
+-        self.idx += 1;
++                let visits = policy.normalization_size(n, n)?;
++                policy.before_normalization_buffer(n, visits)?;
++                for i in 0..n {
++                    self.set_out_info(self.out_len + i, self.info[self.idx + i]);
++                }
++            }
++
++            self.out_len = policy.normalization_size(self.out_len, n)?;
++        }
++
++        self.idx = policy.normalization_size(self.idx, n)?;
++        Ok(())
+     }
+ 
+     /// Copies n glyphs at idx to output and advance idx.
+     ///
+     /// If there's no output, just advance idx.
+     pub fn next_glyphs(&mut self, n: usize) {
+-        if self.have_output {
+-            if self.have_separate_output || self.out_len != self.idx {
+-                if !self.ensure(self.out_len + n) {
+-                    return;
+-                }
+-
+-                for i in 0..n {
+-                    self.set_out_info(self.out_len + i, self.info[self.idx + i]);
+-                }
+-            }
+-
+-            self.out_len += n;
+-        }
+-
+-        self.idx += n;
++        self.next_glyphs_with(n, &mut super::face::shape_admission::OrdinaryShape)
++            .unwrap_or_else(|never| match never {})
+     }
+ 
+     /// Advance idx without copying to output.
+@@ -1370,20 +1387,35 @@
+ 
+     #[must_use]
+     fn make_room_for(&mut self, num_in: usize, num_out: usize) -> bool {
+-        if !self.ensure(self.out_len + num_out) {
+-            return false;
+-        }
+-
+-        if !self.have_separate_output && self.out_len + num_out > self.idx + num_in {
++        self.make_room_for_with(num_in, num_out, &mut super::face::shape_admission::OrdinaryShape)
++            .unwrap_or_else(|never| match never {})
++    }
++
++    fn make_room_for_with<P: super::face::shape_admission::ShapeAdmission>(
++        &mut self,
++        num_in: usize,
++        num_out: usize,
++        policy: &mut P,
++    ) -> Result<bool, P::Error> {
++        policy.before_normalization_buffer(16, 0)?;
++        let output_end = policy.normalization_size(self.out_len, num_out)?;
++        if !policy.ensure_normalization_output(self, output_end)? {
++            return Ok(false);
++        }
++
++        if !self.have_separate_output
++            && output_end > policy.normalization_size(self.idx, num_in)? {
+             debug_assert!(self.have_output);
+ 
++            let visits = policy.normalization_size(self.out_len, self.out_len)?;
++            policy.before_normalization_buffer(self.out_len, visits)?;
+             self.have_separate_output = true;
+             for i in 0..self.out_len {
+                 self.set_out_info(i, self.info[i]);
+             }
+         }
+ 
+-        true
++        Ok(true)
+     }
+ 
+     fn shift_forward(&mut self, count: usize) -> bool {
+@@ -1419,19 +1451,48 @@
+     }
+ 
+     pub fn sort(&mut self, start: usize, end: usize, cmp: impl Fn(&GlyphInfo, &GlyphInfo) -> bool) {
++        let result = self.sort_with(start, end, cmp, |_, _| {
++            Ok::<(), core::convert::Infallible>(())
++        });
++        match result {
++            Ok(()) => {}
++            Err(never) => match never {},
++        }
++    }
++
++    pub(crate) fn sort_with<E>(
++        &mut self,
++        start: usize,
++        end: usize,
++        cmp: impl Fn(&GlyphInfo, &GlyphInfo) -> bool,
++        mut before: impl FnMut(
++            admission::SortStep,
++            &Self,
++        ) -> Result<(), E>,
++    ) -> Result<(), E> {
++        use admission::SortStep;
++
++        before(SortStep::Begin, self)?;
+         debug_assert!(!self.have_positions);
+ 
+         for i in start + 1..end {
++            before(SortStep::Item, self)?;
+             let mut j = i;
+-            while j > start && cmp(&self.info[j - 1], &self.info[i]) {
++            while j > start {
++                before(SortStep::Compare, self)?;
++                if !cmp(&self.info[j - 1], &self.info[i]) {
++                    break;
++                }
+                 j -= 1;
+             }
+ 
++            before(SortStep::Destination, self)?;
+             if i == j {
+                 continue;
+             }
+ 
+             // Move item i to occupy place for item j, shift what's in between.
++            before(SortStep::Move { distance: i - j }, self)?;
+             self.merge_clusters(j, i + 1);
+ 
+             {
+@@ -1443,6 +1504,7 @@
+                 self.info[j] = t;
+             }
+         }
++        Ok(())
+     }
+ 
+     pub fn set_cluster(info: &mut GlyphInfo, cluster: u32, mask: hb_mask_t) {
+--- a/src/hb/buffer_admission.rs
++++ b/src/hb/buffer_admission.rs
+@@ -6,6 +6,79 @@
+ use super::{hb_buffer_t, UnicodeBuffer};
+ use alloc::collections::TryReserveError;
+ use core::fmt;
++
++/// Private insertion-sort checkpoints. Comparators read only stored fields.
++pub(crate) enum SortStep {
++    Begin,
++    Item,
++    Compare,
++    Destination,
++    Move { distance: usize },
++}
++
++/// Admission for stored-property sorting, including every repeated cluster merge.
++/// This does not admit an arbitrary comparator, callback or shaping pipeline.
++pub(crate) fn admit_sort_step<E>(
++    step: SortStep,
++    buffer: &hb_buffer_t,
++    admit: &mut impl FnMut(
++        crate::hb::face::shape_admission::ShapeOperation,
++        crate::hb::face::shape_admission::ShapeOperationCost,
++    ) -> Result<(), E>,
++) -> Result<(), crate::hb::face::shape_admission::ShapeOperationError<E>> {
++    use crate::hb::face::shape_admission::{
++        ShapeOperation, ShapeOperationCost, ShapeOperationError,
++    };
++    let mut charge = |op, work| {
++        admit(
++            op,
++            ShapeOperationCost {
++                work,
++                allocation: 0,
++            },
++        )
++        .map_err(ShapeOperationError::Admission)
++    };
++    match step {
++        SortStep::Begin => charge(ShapeOperation::Planning, 2),
++        SortStep::Item => charge(ShapeOperation::Planning, 2),
++        SortStep::Compare => {
++            // Two records, two stored CCC fields, comparison and loop control.
++            charge(ShapeOperation::Planning, 4)?;
++            charge(ShapeOperation::Information, 4)
++        }
++        SortStep::Destination => charge(ShapeOperation::Planning, 2),
++        SortStep::Move { distance } => {
++            // A merge may extend over the whole live input and output. Its
++            // minimum/extension/unsafe/cluster-write passes revisit records.
++            // Pay this bound anew for EACH move, before merge_clusters.
++            const MERGE_RECORD_VISITS: usize = 12;
++            const MERGE_SCALAR_VISITS: usize = 16;
++            let records = buffer
++                .len
++                .checked_add(buffer.out_len)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            let merge = records
++                .checked_mul(MERGE_RECORD_VISITS)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            // Read temporary, read/write each shifted record, write temporary.
++            let shifts = distance
++                .checked_mul(2)
++                .and_then(|v| v.checked_add(2))
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            let work = merge
++                .checked_add(shifts)
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            let planning = records
++                .checked_mul(MERGE_SCALAR_VISITS)
++                .and_then(|v| v.checked_add(distance))
++                .and_then(|v| v.checked_add(MERGE_SCALAR_VISITS))
++                .ok_or(ShapeOperationError::CostOverflow)?;
++            charge(ShapeOperation::Planning, planning)?;
++            charge(ShapeOperation::Information, work)
++        }
++    }
++}
+ 
+ /// An input operation about to execute.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+@@ -426,4 +499,185 @@
+         buffer.add('y', 1);
+         assert_eq!(buffer.len(), 2);
+     }
+-}
++
++    fn sorting_input(pattern: usize, level: u32, output: bool) -> UnicodeBuffer {
++        let mut buffer = UnicodeBuffer::new();
++        buffer.push_str("a\u{315}\u{300}\u{316}\u{315}\u{300}\u{316}b");
++        buffer.0.cluster_level = level;
++        for (i, info) in buffer.0.info[..buffer.0.len].iter_mut().enumerate() {
++            info.cluster = match pattern {
++                0 => i as u32,
++                1 => 7 - i as u32,
++                2 => 4,
++                _ => [4, 7, 7, 2, 2, 7, 7, 1][i],
++            };
++            let mut flags = 0;
++            info.init_unicode_props(&mut flags);
++        }
++        if output {
++            buffer.0.clear_output();
++            buffer.0.next_glyph();
++            // Create a separate output prefix. Its clusters can participate
++            // in repeated merges, even though the sorted range is input.
++            buffer.0.output_glyph('a' as u32);
++        }
++        buffer
++    }
++
++    fn sorting_state(buffer: &hb_buffer_t) -> (Vec<u8>, Vec<u8>, i32, bool) {
++        (
++            bytemuck::cast_slice(&buffer.info).to_vec(),
++            bytemuck::cast_slice(&buffer.pos).to_vec(),
++            buffer.max_ops,
++            buffer.successful,
++        )
++    }
++
++    // Frozen upstream insertion-sort logic: a test oracle, not an execution
++    // path. Preserve its merge ordering and comparator's original i index.
++    fn original_sort(buffer: &mut hb_buffer_t, start: usize, end: usize) {
++        for i in start + 1..end {
++            let mut j = i;
++            while j > start
++                && buffer.info[j - 1].modified_combining_class()
++                    > buffer.info[i].modified_combining_class()
++            {
++                j -= 1;
++            }
++            if i == j {
++                continue;
++            }
++            buffer.merge_clusters(j, i + 1);
++            let t = buffer.info[i];
++            for idx in (0..i - j).rev() {
++                buffer.info[idx + j + 1] = buffer.info[idx + j];
++            }
++            buffer.info[j] = t;
++        }
++    }
++
++    #[test]
++    fn sorting_shared_kernel_matches_original_with_repeated_merges() {
++        for pattern in 0..4 {
++            for level in 0..4 {
++                for output in [false, true] {
++                    let mut original = sorting_input(pattern, level, output);
++                    let mut admitted = sorting_input(pattern, level, output);
++                    original_sort(&mut original.0, 1, 7);
++                    let mut moves = 0;
++                    admitted
++                        .0
++                        .sort_with(
++                            1,
++                            7,
++                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
++                            |step, buffer| {
++                                moves += usize::from(matches!(step, SortStep::Move { .. }));
++                                admit_sort_step(step, buffer, &mut |_, cost| {
++                                    assert_eq!(cost.allocation, 0);
++                                    Ok::<_, Infallible>(())
++                                })
++                            },
++                        )
++                        .unwrap();
++                    assert!(moves > 1);
++                    assert_eq!(sorting_state(&original.0), sorting_state(&admitted.0));
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn sorting_rejects_before_each_comparison_merge_and_shift_and_can_clear() {
++        use crate::hb::face::shape_admission::ShapeOperationError;
++        for pattern in 0..4 {
++            for level in 0..4 {
++                for output in [false, true] {
++                    let mut complete = sorting_input(pattern, level, output);
++                    let mut checkpoints = Vec::new();
++                    complete
++                        .0
++                        .sort_with(
++                            1,
++                            7,
++                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
++                            |step, buffer| {
++                                admit_sort_step(step, buffer, &mut |op, cost| {
++                                    checkpoints.push((op, cost, sorting_state(buffer)));
++                                    Ok::<_, Infallible>(())
++                                })
++                            },
++                        )
++                        .unwrap();
++                    for reject in 0..checkpoints.len() {
++                        let mut buffer = sorting_input(pattern, level, output);
++                        let mut seen = 0;
++                        let result = buffer.0.sort_with(
++                            1,
++                            7,
++                            |a, b| a.modified_combining_class() > b.modified_combining_class(),
++                            |step, buffer| {
++                                admit_sort_step(step, buffer, &mut |op, cost| {
++                                    assert_eq!(
++                                        (op, cost),
++                                        (checkpoints[seen].0, checkpoints[seen].1)
++                                    );
++                                    assert_eq!(sorting_state(buffer), checkpoints[seen].2);
++                                    let current = seen;
++                                    seen += 1;
++                                    if current == reject {
++                                        Err(current)
++                                    } else {
++                                        Ok(())
++                                    }
++                                })
++                            },
++                        );
++                        assert!(
++                            matches!(result, Err(ShapeOperationError::Admission(i)) if i == reject)
++                        );
++                        assert_eq!(seen, reject + 1);
++                        assert_eq!(sorting_state(&buffer.0), checkpoints[reject].2);
++                        assert_eq!(buffer.0.info.len(), buffer.0.pos.len());
++                        buffer.clear();
++                        buffer.push_str("again");
++                        assert_eq!(buffer.len(), 5);
++                    }
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn sorting_move_cost_counts_full_live_input_and_output_on_every_call() {
++        use crate::hb::face::shape_admission::{ShapeOperation, ShapeOperationError};
++        let mut buffer = sorting_input(3, 0, true);
++        let mut costs = Vec::new();
++        for _ in 0..3 {
++            admit_sort_step(
++                SortStep::Move { distance: 5 },
++                &buffer.0,
++                &mut |op, cost| {
++                    costs.push((op, cost));
++                    Ok::<_, Infallible>(())
++                },
++            )
++            .unwrap();
++        }
++        assert_eq!(costs.len(), 6);
++        for pair in costs.chunks_exact(2) {
++            assert_eq!(pair[0].0, ShapeOperation::Planning);
++            assert_eq!(pair[0].1.work, (8 + 2) * 16 + 5 + 16);
++            assert_eq!(pair[1].0, ShapeOperation::Information);
++            assert_eq!(pair[1].1.work, (8 + 2) * 12 + 5 * 2 + 2);
++        }
++        buffer.0.len = usize::MAX;
++        let mut called = false;
++        let error = admit_sort_step(SortStep::Move { distance: 1 }, &buffer.0, &mut |_, _| {
++            called = true;
++            Ok::<_, Infallible>(())
++        });
++        assert!(matches!(error, Err(ShapeOperationError::CostOverflow)));
++        assert!(!called);
++    }
++}
+--- /dev/null
++++ b/src/hb/normalization_kernel_tests.rs
+@@ -0,0 +1,236 @@
++// Copyright 2026 the Novadraw Contributors
++// SPDX-License-Identifier: MIT
++
++//! Internal normalization only; this does not admit marks through public shaping.
++use super::*;
++use crate::hb::ot_shape_normalize::_hb_ot_shape_normalize_with;
++
++fn font(case: usize) -> Vec<u8> {
++    let mut mappings = Vec::new();
++    for (i, ch) in [
++        'A', 'a', 'b', '\u{300}', '\u{301}', '\u{30a}', '\u{315}', '\u{316}', 'Å', 'é', 'ǻ',
++        '\u{344}', 'Ä',
++    ]
++    .into_iter()
++    .enumerate()
++    {
++        if case == 2 && i >= 3 || case == 0 && i >= 8 {
++            continue;
++        }
++        mappings.push((ch as u32, (i + 1) as u32));
++    }
++    mappings.sort_unstable();
++    let mut cmap: Vec<u8> = [0u16, 1, 3, 10]
++        .into_iter()
++        .flat_map(u16::to_be_bytes)
++        .collect();
++    cmap.extend(12u32.to_be_bytes());
++    cmap.extend([12u16, 0].into_iter().flat_map(u16::to_be_bytes));
++    cmap.extend((16 + 12 * mappings.len() as u32).to_be_bytes());
++    cmap.extend(0u32.to_be_bytes());
++    cmap.extend((mappings.len() as u32).to_be_bytes());
++    for (ch, glyph) in mappings {
++        for value in [ch, ch, glyph] {
++            cmap.extend(value.to_be_bytes());
++        }
++    }
++    let mut bytes = Vec::from(&b"\0\x01\0\0\0\x01\0\0\0\0\0\0cmap\0\0\0\0\0\0\0\x1c"[..]);
++    bytes.extend((cmap.len() as u32).to_be_bytes());
++    bytes.extend(cmap);
++    bytes
++}
++
++fn input(text: &str, level: u32, spare: bool) -> UnicodeBuffer {
++    let mut buffer = UnicodeBuffer::new();
++    if spare {
++        buffer
++            .try_reserve_admitted(128, |_, _| Ok::<_, ()>(()))
++            .unwrap();
++    }
++    buffer
++        .try_push_str_admitted(text, |_, _| Ok::<_, ()>(()))
++        .unwrap();
++    buffer.set_direction(Direction::LeftToRight);
++    buffer.0.allocate_unicode_vars();
++    buffer
++        .0
++        .allocate_var(crate::GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
++    buffer.0.cluster_level = level;
++    for (i, info) in buffer.0.info[..buffer.0.len].iter_mut().enumerate() {
++        info.cluster = [7, 2, 2, 7][i % 4];
++        info.init_unicode_props(&mut buffer.0.scratch_flags);
++    }
++    buffer
++}
++
++fn policy<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>>(
++    admit: F,
++    shaper: &hb_font_t,
++) -> AdmittedShape<F> {
++    AdmittedShape {
++        admit,
++        mapping_work: shaper.charmap.general_mapping_work().unwrap(),
++        non_ascii: 0,
++        special_scalars: 0,
++        normalization: SingletonNormalization::default(),
++        glyph_properties_work: 0,
++        has_glyph_classes: false,
++    }
++}
++
++fn result(buffer: &hb_buffer_t) -> (Vec<u8>, usize, u32, i32, bool) {
++    (
++        bytemuck::cast_slice(&buffer.info[..buffer.len]).to_vec(),
++        buffer.len,
++        buffer.scratch_flags,
++        buffer.max_ops,
++        buffer.successful,
++    )
++}
++
++#[test]
++fn normalization_internal_growth_sort_and_compose_match_ordinary() {
++    for case in 0..3 {
++        let bytes = font(case);
++        let font = crate::FontRef::new(&bytes).unwrap();
++        let data = crate::ShaperData::new(&font);
++        let shaper = data.shaper(&font).build();
++        let plan = ShapePlan::new(&shaper, Direction::LeftToRight, None, None, &[]);
++        for text in [
++            "ÅÅ",
++            "éaǻ",
++            "A\u{30a}",
++            "a\u{301}",
++            "a\u{315}\u{300}\u{316}\u{315}\u{300}\u{316}",
++            "\u{344}a",
++            "a\u{301}\u{301}",
++            "a\u{300}b",
++        ] {
++            for level in 0..4 {
++                for spare in [false, true] {
++                    let mut ordinary = input(text, level, spare);
++                    let mut admitted = input(text, level, spare);
++                    _hb_ot_shape_normalize_with(
++                        &plan,
++                        &mut ordinary.0,
++                        &shaper,
++                        &mut OrdinaryShape,
++                    )
++                    .unwrap();
++                    let mut allocations = 0;
++                    let mut budget = policy(
++                        |_, cost| {
++                            allocations += cost.allocation;
++                            Ok::<_, ()>(())
++                        },
++                        &shaper,
++                    );
++                    _hb_ot_shape_normalize_with(&plan, &mut admitted.0, &shaper, &mut budget)
++                        .unwrap();
++                    assert_eq!(
++                        result(&ordinary.0),
++                        result(&admitted.0),
++                        "{case}/{text}/{level}/{spare}"
++                    );
++                    assert_eq!(admitted.0.info.len(), admitted.0.pos.len());
++                    if spare {
++                        assert_eq!(allocations, 0);
++                    } else if case == 0 && text == "ÅÅ" {
++                        assert_eq!(admitted.len(), 4);
++                        assert!(allocations >= 2 * 4);
++                    }
++                }
++            }
++        }
++    }
++}
++
++#[test]
++fn normalization_internal_each_rejection_stops_before_next_operation_and_retains_storage() {
++    for case in 0..2 {
++        let bytes = font(case);
++        let font = crate::FontRef::new(&bytes).unwrap();
++        let data = crate::ShaperData::new(&font);
++        let shaper = data.shaper(&font).build();
++        let plan = ShapePlan::new(&shaper, Direction::LeftToRight, None, None, &[]);
++        for text in ["ÅÅ", "A\u{30a}", "a\u{315}\u{300}\u{316}\u{301}"] {
++            for level in 0..4 {
++                let mut completed = input(text, level, false);
++                let mut checkpoints = Vec::new();
++                _hb_ot_shape_normalize_with(
++                    &plan,
++                    &mut completed.0,
++                    &shaper,
++                    &mut policy(
++                        |op, cost| {
++                            checkpoints.push((op, cost));
++                            Ok::<_, ()>(())
++                        },
++                        &shaper,
++                    ),
++                )
++                .unwrap();
++                for reject in 0..checkpoints.len() {
++                    let mut buffer = input(text, level, false);
++                    let mut seen = 0;
++                    let failed = _hb_ot_shape_normalize_with(
++                        &plan,
++                        &mut buffer.0,
++                        &shaper,
++                        &mut policy(
++                            |op, cost| {
++                                assert_eq!((op, cost), checkpoints[seen]);
++                                let current = seen;
++                                seen += 1;
++                                if current == reject {
++                                    Err(current)
++                                } else {
++                                    Ok(())
++                                }
++                            },
++                            &shaper,
++                        ),
++                    );
++                    assert!(
++                        matches!(failed, Err(ShapeOperationError::Admission(i)) if i == reject)
++                    );
++                    assert_eq!(seen, reject + 1);
++                    assert_eq!(buffer.0.info.len(), buffer.0.pos.len());
++                    let capacities = (buffer.0.info.capacity(), buffer.0.pos.capacity());
++                    // Mirror the owning shaping API's error recovery.
++                    buffer.0.allocated_var_bits = 0;
++                    buffer.clear();
++                    assert_eq!(buffer.0.allocated_var_bits, 0);
++                    assert_eq!(
++                        capacities,
++                        (buffer.0.info.capacity(), buffer.0.pos.capacity())
++                    );
++                    buffer.push_str("Ab");
++                    buffer.set_direction(Direction::LeftToRight);
++                    let glyphs = shaper.shape_with_plan(&plan, buffer, &[]);
++                    assert_eq!(glyphs.len(), 2);
++                }
++            }
++        }
++    }
++}
++
++#[test]
++fn normalization_internal_growth_limit_rejects_before_array_publication() {
++    let bytes = font(0);
++    let font = crate::FontRef::new(&bytes).unwrap();
++    let data = crate::ShaperData::new(&font);
++    let shaper = data.shaper(&font).build();
++    let plan = ShapePlan::new(&shaper, Direction::LeftToRight, None, None, &[]);
++    let mut buffer = input("ÅÅ", 0, false);
++    buffer.0.max_len = 2;
++    let failed = _hb_ot_shape_normalize_with(
++        &plan,
++        &mut buffer.0,
++        &shaper,
++        &mut policy(|_, _| Ok::<_, ()>(()), &shaper),
++    );
++    assert!(matches!(failed, Err(ShapeOperationError::LengthLimit)));
++    assert_eq!(buffer.0.info.len(), 2);
++    assert_eq!(buffer.0.pos.len(), 2);
++}
+--- a/src/hb/ot_shape.rs
++++ b/src/hb/ot_shape.rs
+@@ -437,7 +437,7 @@
+ }
+ 
+ fn substitute_pre<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+-    hb_ot_substitute_default(ctx);
++    hb_ot_substitute_default(ctx, policy)?;
+ 
+     ctx.buffer.allocate_gsubgpos_vars();
+ 
+@@ -462,14 +462,18 @@
+     }
+ }
+ 
+-fn hb_ot_substitute_default(ctx: &mut hb_ot_shape_context_t) {
++fn hb_ot_substitute_default<P: ShapeAdmission>(
++    ctx: &mut hb_ot_shape_context_t,
++    policy: &mut P,
++) -> Result<(), P::Error> {
+     rotate_chars(ctx);
+ 
+     ctx.buffer
+         .allocate_var(GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
+ 
+-    ot_shape_normalize::_hb_ot_shape_normalize(ctx.plan, ctx.buffer, ctx.face);
+-
++    ot_shape_normalize::_hb_ot_shape_normalize_with(ctx.plan, ctx.buffer, ctx.face, policy)?;
++
++    policy.before(Phase::Normalized, ctx)?;
+     setup_masks(ctx);
+ 
+     // This is unfortunate to go here, but necessary...
+@@ -483,6 +487,7 @@
+ 
+     ctx.buffer
+         .deallocate_var(GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
++    Ok(())
+ }
+ 
+ fn hb_ot_substitute_plan<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+--- a/src/hb/ot_shape_normalize.rs
++++ b/src/hb/ot_shape_normalize.rs
+@@ -5,6 +5,7 @@
+ use super::ot_shape_plan::hb_ot_shape_plan_t;
+ use super::ot_shaper::{ComposeFn, DecomposeFn, MAX_COMBINING_MARKS};
+ use super::unicode::{hb_unicode_funcs_t, CharExt};
++use super::face::shape_admission::ShapeAdmission;
+ 
+ impl GlyphInfo {
+     declare_buffer_var!(
+@@ -110,19 +111,35 @@
+     }
+ }
+ 
+-fn output_char(buffer: &mut hb_buffer_t, unichar: u32, glyph: u32) {
++fn output_char<P: ShapeAdmission>(
++    buffer: &mut hb_buffer_t,
++    unichar: u32,
++    glyph: u32,
++    policy: &mut P,
++) -> Result<(), P::Error> {
+     // This is very confusing indeed.
+-    buffer.cur_mut(0).set_normalizer_glyph_index(glyph);
+-    buffer.output_glyph(unichar);
++    policy.before_normalization_buffer(4, 1)?;
++    buffer.cur_mut(0).set_normalizer_glyph_index(glyph);
++    buffer.output_glyph_with(unichar, policy)?;
+     // TODO: should be _hb_glyph_info_set_unicode_props (&buffer->prev(), buffer);
++    // GC: four generated entries; DI: one; CCC: four plus remap.
++    // All branches are paid before init, without querying GC to plan fees.
++    policy.before_normalization_unicode(4 + 1 + 4 + 1)?;
++    policy.before_normalization_buffer(24, 3)?;
+     let mut flags = buffer.scratch_flags;
+     buffer.prev_mut().init_unicode_props(&mut flags);
+     buffer.scratch_flags = flags;
+-}
+-
+-fn next_char(buffer: &mut hb_buffer_t, glyph: u32) {
++    Ok(())
++}
++
++fn next_char<P: ShapeAdmission>(
++    buffer: &mut hb_buffer_t,
++    glyph: u32,
++    policy: &mut P,
++) -> Result<(), P::Error> {
++    policy.before_normalization_buffer(4, 1)?;
+     buffer.cur_mut(0).set_normalizer_glyph_index(glyph);
+-    buffer.next_glyph();
++    buffer.next_glyphs_with(1, policy)
+ }
+ 
+ fn skip_char(buffer: &mut hb_buffer_t) {
+@@ -130,75 +147,94 @@
+ }
+ 
+ /// Returns 0 if didn't decompose, number of resulting characters otherwise.
+-fn decompose(ctx: &mut hb_ot_shape_normalize_context_t, shortest: bool, ab: Codepoint) -> u32 {
++fn decompose<P: ShapeAdmission>(
++    ctx: &mut hb_ot_shape_normalize_context_t,
++    shortest: bool,
++    ab: Codepoint,
++    policy: &mut P,
++) -> Result<u32, P::Error> {
++    // Fixed Hangul arithmetic or generated decomposition index + payload.
++    // Unknown shaper callbacks remain rejected by public preflight.
++    policy.before_normalization_buffer(32, 0)?;
++    policy.before_normalization_unicode(4)?;
+     let Some((a, b)) = (ctx.decompose)(ctx, ab) else {
+-        return 0;
++        return Ok(0);
+     };
+ 
+-    let a_glyph = ctx.face.get_nominal_glyph(a);
++    policy.before_normalization_mapping()?;
++    let a_glyph = ctx.face.get_nominal_glyph(a);
+     let b_glyph = if b != 0 {
++        policy.before_normalization_mapping()?;
+         match ctx.face.get_nominal_glyph(b) {
+             Some(glyph_id) => Some(glyph_id),
+-            None => return 0,
++            None => return Ok(0),
+         }
+     } else {
+         None
+     };
+ 
+     if !shortest || a_glyph.is_none() {
+-        let ret = decompose(ctx, shortest, a);
++        let ret = decompose(ctx, shortest, a, policy)?;
+         if ret != 0 {
+             if let Some(b_glyph) = b_glyph {
+-                output_char(ctx.buffer, b, u32::from(b_glyph));
+-                return ret + 1;
+-            }
+-            return ret;
++                output_char(ctx.buffer, b, u32::from(b_glyph), policy)?;
++                let ret = policy.normalization_size(ret as usize, 1)?;
++                return Ok(ret as u32);
++            }
++            return Ok(ret);
+         }
+     }
+ 
+     if let Some(a_glyph) = a_glyph {
+         // Output a and b.
+-        output_char(ctx.buffer, a, u32::from(a_glyph));
++        output_char(ctx.buffer, a, u32::from(a_glyph), policy)?;
+         if let Some(b_glyph) = b_glyph {
+-            output_char(ctx.buffer, b, u32::from(b_glyph));
+-            return 2;
+-        }
+-        return 1;
+-    }
+-
+-    0
+-}
+-
+-fn decompose_current_character(ctx: &mut hb_ot_shape_normalize_context_t, shortest: bool) {
++            output_char(ctx.buffer, b, u32::from(b_glyph), policy)?;
++            return Ok(2);
++        }
++        return Ok(1);
++    }
++
++    Ok(0)
++}
++
++fn decompose_current_character<P: ShapeAdmission>(
++    ctx: &mut hb_ot_shape_normalize_context_t,
++    shortest: bool,
++    policy: &mut P,
++) -> Result<(), P::Error> {
++    policy.before_normalization_buffer(20, 1)?;
+     let u = ctx.buffer.cur(0).as_codepoint();
++    policy.before_normalization_mapping()?;
+     let glyph = ctx.face.get_nominal_glyph(u);
+ 
+     // TODO: different to harfbuzz, sync
+     if !shortest || glyph.is_none() {
+-        if decompose(ctx, shortest, u) > 0 {
++        if decompose(ctx, shortest, u, policy)? > 0 {
+             skip_char(ctx.buffer);
+-            return;
++            return Ok(());
+         }
+     }
+ 
+     // TODO: different to harfbuzz, sync
+     if let Some(glyph) = glyph {
+-        next_char(ctx.buffer, u32::from(glyph));
+-        return;
++        return next_char(ctx.buffer, u32::from(glyph), policy);
+     }
+ 
+     if ctx.buffer.cur(0).is_unicode_space() {
++        policy.before_normalization_buffer(16, 1)?;
+         let space_type = u.space_fallback();
+         if space_type != hb_unicode_funcs_t::NOT_SPACE {
++            policy.before_normalization_mapping()?;
+             let space_glyph = ctx.face.get_nominal_glyph(0x0020).or(ctx.buffer.invisible);
+ 
+             if let Some(space_glyph) = space_glyph {
+                 ctx.buffer
+                     .cur_mut(0)
+                     .set_unicode_space_fallback_type(space_type);
+-                next_char(ctx.buffer, u32::from(space_glyph));
++                next_char(ctx.buffer, u32::from(space_glyph), policy)?;
+                 ctx.buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK;
+-                return;
++                return Ok(());
+             }
+         }
+     }
+@@ -206,14 +242,14 @@
+     // U+2011 is the only sensible character that is a no-break version of another character
+     // and not a space.  The space ones are handled already.  Handle this lone one.
+     if u == 0x2011 {
++        policy.before_normalization_mapping()?;
+         if let Some(other_glyph) = ctx.face.get_nominal_glyph(0x2010) {
+-            next_char(ctx.buffer, u32::from(other_glyph));
+-            return;
++            return next_char(ctx.buffer, u32::from(other_glyph), policy);
+         }
+     }
+ 
+     // Insert a .notdef glyph if decomposition failed.
+-    next_char(ctx.buffer, 0);
++    next_char(ctx.buffer, 0, policy)
+ }
+ 
+ fn handle_variation_selector_cluster(
+@@ -270,23 +306,27 @@
+     }
+ }
+ 
+-fn decompose_multi_char_cluster(
++fn decompose_multi_char_cluster<P: ShapeAdmission>(
+     ctx: &mut hb_ot_shape_normalize_context_t,
+     end: usize,
+     short_circuit: bool,
+-) {
++    policy: &mut P,
++) -> Result<(), P::Error> {
++    policy.before_normalization_buffer(20, 0)?;
+     let mut i = ctx.buffer.idx;
+     while i < end && ctx.buffer.successful {
++        policy.before_normalization_buffer(8, 1)?;
+         if ctx.buffer.info[i].as_codepoint().is_variation_selector() {
+             handle_variation_selector_cluster(ctx, end, short_circuit);
+-            return;
++            return Ok(());
+         }
+         i += 1;
+     }
+ 
+     while ctx.buffer.idx < end && ctx.buffer.successful {
+-        decompose_current_character(ctx, short_circuit);
+-    }
++        decompose_current_character(ctx, short_circuit, policy)?;
++    }
++    Ok(())
+ }
+ 
+ fn compare_combining_class(pa: &GlyphInfo, pb: &GlyphInfo) -> bool {
+@@ -295,13 +335,45 @@
+     a > b
+ }
+ 
+-pub fn _hb_ot_shape_normalize(
++fn is_mark_at<P: ShapeAdmission>(
++    buffer: &hb_buffer_t,
++    index: usize,
++    policy: &mut P,
++) -> Result<bool, P::Error> {
++    policy.before_normalization_buffer(4, 1)?;
++    Ok(buffer.info[index].is_unicode_mark())
++}
++
++fn combining_class_at<P: ShapeAdmission>(
++    buffer: &hb_buffer_t,
++    index: usize,
++    policy: &mut P,
++) -> Result<u8, P::Error> {
++    policy.before_normalization_buffer(4, 1)?;
++    Ok(buffer.info[index].modified_combining_class())
++}
++
++fn composition_table_visits(a: Codepoint, b: Codepoint) -> usize {
++    use super::ucd_table::ucd::{_hb_ucd_dm2_u32_map, _hb_ucd_dm2_u64_map};
++    let count = if (a & 0xFFFF_F800) == 0 && (b & 0xFFFF_FF80) == 0x0300 {
++        _hb_ucd_dm2_u32_map.len()
++    } else {
++        _hb_ucd_dm2_u64_map.len()
++    };
++    // Locked Rust 1.96 binary_search_by bound: bit_length(n) + 1
++    // comparisons, then at most one result payload read. Hangul is cheaper.
++    (usize::BITS - count.leading_zeros()) as usize + 2
++}
++
++pub(crate) fn _hb_ot_shape_normalize_with<P: super::face::shape_admission::ShapeAdmission>(
+     plan: &hb_ot_shape_plan_t,
+     buffer: &mut hb_buffer_t,
+     face: &hb_font_t,
+-) {
++    policy: &mut P,
++) -> Result<(), P::Error> {
++    policy.before_normalization_buffer(64, 0)?;
+     if buffer.is_empty() {
+-        return;
++        return Ok(());
+     }
+ 
+     buffer.assert_unicode_vars();
+@@ -346,8 +418,9 @@
+         let count = buffer.len;
+         buffer.idx = 0;
+         loop {
++            policy.before_normalization_buffer(16, 0)?;
+             let mut end = buffer.idx + 1;
+-            while end < count && !buffer.info[end].is_unicode_mark() {
++            while end < count && !is_mark_at(buffer, end, policy)? {
+                 end += 1;
+             }
+ 
+@@ -361,6 +434,8 @@
+                 let len = end - buffer.idx;
+                 let mut done = 0;
+                 while done < len {
++                    policy.before_normalization_buffer(8, 2)?;
++                    policy.before_normalization_mapping()?;
+                     let cur = buffer.cur_mut(done);
+                     cur.set_normalizer_glyph_index(match face.get_nominal_glyph(cur.glyph_id) {
+                         Some(glyph_id) => u32::from(glyph_id),
+@@ -368,11 +443,11 @@
+                     });
+                     done += 1;
+                 }
+-                buffer.next_glyphs(done);
++                buffer.next_glyphs_with(done, policy)?;
+             }
+ 
+             while buffer.idx < end && buffer.successful {
+-                decompose_current_character(&mut ctx, might_short_circuit);
++                decompose_current_character(&mut ctx, might_short_circuit, policy)?;
+                 buffer = &mut ctx.buffer;
+             }
+ 
+@@ -384,12 +459,12 @@
+ 
+             // Find all the marks now.
+             end = buffer.idx + 1;
+-            while end < count && buffer.info[end].is_unicode_mark() {
++            while end < count && is_mark_at(buffer, end, policy)? {
+                 end += 1;
+             }
+ 
+             // idx to end is one non-simple cluster.
+-            decompose_multi_char_cluster(&mut ctx, end, always_short_circuit);
++            decompose_multi_char_cluster(&mut ctx, end, always_short_circuit, policy)?;
+             buffer = &mut ctx.buffer;
+ 
+             if buffer.idx >= count || !buffer.successful {
+@@ -397,7 +472,8 @@
+             }
+         }
+ 
+-        buffer.sync();
++        policy.before_normalization_buffer(16, 0)?;
++        buffer.sync();
+     }
+ 
+     // Second round, reorder (inplace)
+@@ -405,19 +481,21 @@
+         let count = buffer.len;
+         let mut i = 0;
+         while i < count {
+-            if buffer.info[i].modified_combining_class() == 0 {
++            if combining_class_at(buffer, i, policy)? == 0 {
+                 i += 1;
+                 continue;
+             }
+ 
+             let mut end = i + 1;
+-            while end < count && buffer.info[end].modified_combining_class() != 0 {
++            while end < count && combining_class_at(buffer, end, policy)? != 0 {
+                 end += 1;
+             }
+ 
+             // We are going to do a O(n^2).  Only do this if the sequence is short.
+             if end - i <= MAX_COMBINING_MARKS {
+-                buffer.sort(i, end, compare_combining_class);
++                buffer.sort_with(i, end, compare_combining_class, |step, buffer| {
++                    policy.before_normalization_sort(step, buffer)
++                })?;
+ 
+                 if let Some(reorder_marks) = ctx.plan.shaper.reorder_marks {
+                     reorder_marks(ctx.plan, buffer, i, end);
+@@ -432,6 +510,7 @@
+         // If it did NOT, then make it skippable.
+         // https://github.com/harfbuzz/harfbuzz/issues/554
+         for i in 1..buffer.len.saturating_sub(1) {
++            policy.before_normalization_buffer(16, 4)?;
+             if buffer.info[i].glyph_id == 0x034F
+             /* CGJ */
+             {
+@@ -456,8 +535,9 @@
+         let count = buffer.len;
+         let mut starter = 0;
+         buffer.clear_output();
+-        buffer.next_glyph();
++        buffer.next_glyphs_with(1, policy)?;
+         while buffer.idx < count && buffer.successful {
++            policy.before_normalization_buffer(32, 4)?;
+             // We don't try to compose a non-mark character with it's preceding starter.
+             // This is both an optimization to avoid trying to compose every two neighboring
+             // glyphs in most scripts AND a desired feature for Hangul.  Apparently Hangul
+@@ -471,20 +551,32 @@
+             {
+                 let a = buffer.out_info()[starter].as_codepoint();
+                 let b = cur.as_codepoint();
++                policy.before_normalization_buffer(64, 0)?;
++                policy.before_normalization_unicode(composition_table_visits(a, b))?;
+                 if let Some(composed) = (ctx.compose)(&ctx, a, b) {
++                    policy.before_normalization_mapping()?;
+                     if let Some(glyph_id) = face.get_nominal_glyph(composed) {
+                         // Copy to out-buffer.
+                         buffer = &mut ctx.buffer;
+-                        buffer.next_glyph();
++                        buffer.next_glyphs_with(1, policy)?;
+                         if !buffer.successful {
+-                            return;
++                            return Ok(());
+                         }
+ 
+                         // Merge and remove the second composable.
++                        // As with insertion-sort merges, EACH composition
++                        // can scan live input and already produced output.
++                        let records = policy.normalization_size(buffer.len, buffer.out_len)?;
++                        for _ in 0..16 {
++                            policy.before_normalization_buffer(records, records)?;
++                        }
++                        policy.before_normalization_buffer(32, 2)?;
+                         buffer.merge_out_clusters(starter, buffer.out_len);
+                         buffer.out_len -= 1;
+ 
+                         // Modify starter and carry on.
++                        policy.before_normalization_unicode(4 + 1 + 4 + 1)?;
++                        policy.before_normalization_buffer(24, 3)?;
+                         let mut flags = buffer.scratch_flags;
+                         let info = &mut buffer.out_info_mut()[starter];
+                         info.glyph_id = composed;
+@@ -499,13 +591,15 @@
+ 
+             // Blocked, or doesn't compose.
+             buffer = &mut ctx.buffer;
+-            buffer.next_glyph();
++            buffer.next_glyphs_with(1, policy)?;
+ 
+             if buffer.prev().modified_combining_class() == 0 {
+                 starter = buffer.out_len - 1;
+             }
+         }
+ 
+-        buffer.sync();
+-    }
+-}
++        policy.before_normalization_buffer(16, 0)?;
++        buffer.sync();
++    }
++    Ok(())
++}
+--- a/src/hb/shape_admission.rs
++++ b/src/hb/shape_admission.rs
+@@ -114,6 +114,7 @@
+     Clusters,
+     Direction,
+     Substitute,
++    Normalized,
+     Position,
+     Postprocess,
+     Flags,
+@@ -122,6 +123,24 @@
+ pub(crate) trait ShapeAdmission {
+     type Error;
+     fn before(&mut self, phase: Phase, ctx: &hb_ot_shape_context_t) -> Result<(), Self::Error>;
++    fn before_normalization_sort(
++        &mut self,
++        step: crate::hb::buffer::admission::SortStep,
++        buffer: &hb_buffer_t,
++    ) -> Result<(), Self::Error>;
++    fn before_normalization_buffer(
++        &mut self,
++        scalar_visits: usize,
++        record_visits: usize,
++    ) -> Result<(), Self::Error>;
++    fn normalization_size(&mut self, base: usize, count: usize) -> Result<usize, Self::Error>;
++    fn before_normalization_mapping(&mut self) -> Result<(), Self::Error>;
++    fn before_normalization_unicode(&mut self, visits: usize) -> Result<(), Self::Error>;
++    fn ensure_normalization_output(
++        &mut self,
++        buffer: &mut hb_buffer_t,
++        size: usize,
++    ) -> Result<bool, Self::Error>;
+     fn before_lookup(
+         &mut self,
+         face: &hb_font_t,
+@@ -140,6 +159,38 @@
+     #[inline]
+     fn before(&mut self, _: Phase, _: &hb_ot_shape_context_t) -> Result<(), Infallible> {
+         Ok(())
++    }
++    #[inline]
++    fn before_normalization_sort(
++        &mut self,
++        _: crate::hb::buffer::admission::SortStep,
++        _: &hb_buffer_t,
++    ) -> Result<(), Infallible> {
++        Ok(())
++    }
++    #[inline]
++    fn before_normalization_buffer(&mut self, _: usize, _: usize) -> Result<(), Infallible> {
++        Ok(())
++    }
++    #[inline]
++    fn normalization_size(&mut self, base: usize, count: usize) -> Result<usize, Infallible> {
++        Ok(base + count)
++    }
++    #[inline]
++    fn before_normalization_mapping(&mut self) -> Result<(), Infallible> {
++        Ok(())
++    }
++    #[inline]
++    fn before_normalization_unicode(&mut self, _: usize) -> Result<(), Infallible> {
++        Ok(())
++    }
++    #[inline]
++    fn ensure_normalization_output(
++        &mut self,
++        buffer: &mut hb_buffer_t,
++        size: usize,
++    ) -> Result<bool, Infallible> {
++        Ok(buffer.ensure(size))
+     }
+     #[inline]
+     fn before_lookup(
+@@ -346,6 +397,7 @@
+             || plan.shaper.setup_masks.is_some()
+             || plan.shaper.decompose.is_some()
+             || plan.shaper.compose.is_some()
++            || plan.shaper.reorder_marks.is_some()
+             || !matches!(plan.shaper.normalization_preference,
+                 crate::hb::ot_shape_normalize::HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+                 | crate::hb::ot_shape_normalize::HB_OT_SHAPE_NORMALIZATION_MODE_AUTO
+@@ -1164,6 +1216,56 @@
+     for AdmittedShape<F>
+ {
+     type Error = ShapeOperationError<E>;
++    fn before_normalization_sort(
++        &mut self,
++        step: crate::hb::buffer::admission::SortStep,
++        buffer: &hb_buffer_t,
++    ) -> Result<(), Self::Error> {
++        crate::hb::buffer::admission::admit_sort_step(step, buffer, &mut self.admit)
++    }
++    fn before_normalization_buffer(
++        &mut self,
++        scalar_visits: usize,
++        record_visits: usize,
++    ) -> Result<(), Self::Error> {
++        self.charge(ShapeOperation::Planning, scalar_visits)?;
++        self.charge(ShapeOperation::Information, record_visits)
++    }
++    fn normalization_size(&mut self, base: usize, count: usize) -> Result<usize, Self::Error> {
++        base.checked_add(count)
++            .ok_or(ShapeOperationError::CostOverflow)
++    }
++    fn before_normalization_mapping(&mut self) -> Result<(), Self::Error> {
++        self.charge(ShapeOperation::Mapping, self.mapping_work)
++    }
++    fn before_normalization_unicode(&mut self, visits: usize) -> Result<(), Self::Error> {
++        self.charge(ShapeOperation::Unicode, visits)
++    }
++    fn ensure_normalization_output(
++        &mut self,
++        buffer: &mut hb_buffer_t,
++        size: usize,
++    ) -> Result<bool, Self::Error> {
++        buffer
++            .ensure_admitted(size, &mut |op, cost| {
++                (self.admit)(
++                    ShapeOperation::Buffer(op),
++                    ShapeOperationCost {
++                        work: cost.work,
++                        allocation: cost.allocation,
++                    },
++                )
++            })
++            .map_err(|error| match error {
++                BufferOperationError::Admission(source) => ShapeOperationError::Admission(source),
++                BufferOperationError::Storage { source, .. } => {
++                    ShapeOperationError::Storage(source)
++                }
++                BufferOperationError::CostOverflow => ShapeOperationError::CostOverflow,
++                BufferOperationError::LengthLimit => ShapeOperationError::LengthLimit,
++            })?;
++        Ok(true)
++    }
+ 
+     fn before_lookup(
+         &mut self,
+@@ -1460,64 +1562,13 @@
+                     // This is separate from the nominal normalizer query.
+                     self.pass(ShapeOperation::Mapping, n, self.mapping_work)?;
+                 }
+-                // Without original marks, all_simple stays true even after
+-                // singleton replacement; reorder/recompose never run.
+-                self.charge(ShapeOperation::Information, n)?;
+-                self.pass(ShapeOperation::Mapping, n, self.mapping_work)?;
+-                self.charge(ShapeOperation::Information, n)?;
+-                if self.normalization.missing {
+-                    // The first miss is mapped by both short circuit and
+-                    // decompose_current_character. Later inputs map once.
+-                    self.charge(ShapeOperation::Mapping, self.mapping_work)?;
+-                    self.pass(ShapeOperation::Unicode, self.normalization.queries, 4)?;
+-                    // Each decomposition may map a. Counting the terminal
+-                    // None query too is a conservative one-query bound.
+-                    self.pass(
+-                        ShapeOperation::Mapping,
+-                        self.normalization.queries,
+-                        self.mapping_work,
+-                    )?;
+-                    // The query bound above pays a; a terminal b-miss
+-                    // independently maps b and checks its Option result.
+-                    self.pass(
+-                        ShapeOperation::Mapping,
+-                        self.normalization.terminal_b_misses,
+-                        self.mapping_work,
+-                    )?;
+-                    self.pass(
+-                        ShapeOperation::Planning,
+-                        self.normalization.terminal_b_misses,
+-                        2,
+-                    )?;
+-                    // Unicode decomposition scalar branches (12), wrapper
+-                    // entry/unwind, shortest and result branches (8).
+-                    self.pass(ShapeOperation::Planning, self.normalization.queries, 12 + 8)?;
+-                    // Per input: cur/next/skip headers (4), output/ensure
+-                    // headers (5), output state (4), fallback branches (2).
+-                    self.pass(ShapeOperation::Planning, n, 4 + 5 + 4 + 2)?;
+-                    // Current scalar reads, normalizer index writes, and
+-                    // singleton read/write copies. Prefix is copied at most
+-                    // once on separate-output switch; suffix at most once.
+-                    self.pass(ShapeOperation::Information, n, 2 + 1 + 2)?;
+-                    self.pass(ShapeOperation::Information, n, 2 + 2)?;
+-                    // output_char uses init_unicode_props, not the full
+-                    // set_unicode_props special branch. GC (4) and DI (1).
+-                    self.pass(ShapeOperation::Unicode, self.normalization.outputs, 4 + 1)?;
+-                    self.pass(ShapeOperation::Information, self.normalization.outputs, 3)?;
+-                    self.pass(ShapeOperation::Planning, self.normalization.outputs, 2)?;
+-                    self.pass(
+-                        ShapeOperation::Mapping,
+-                        self.normalization.fallback_mappings,
+-                        self.mapping_work,
+-                    )?;
+-                    // Fixed fallback match, invisible/result/scratch branches
+-                    // and space-type state write. Ordinary execution still
+-                    // decides whether SPACE or invisible actually exists.
+-                    self.pass(ShapeOperation::Planning, n, 8)?;
+-                    self.pass(ShapeOperation::Information, n, 3)?;
+-                    // Length stays n. Initial admitted ensure already owns
+-                    // two complete n-slot arrays; no additional growth.
+-                }
++                // Normalization now admits its actual operations in the
++                // shared kernel. Do not also prepay singleton estimates.
++            }
++            Phase::Normalized => {
++                // These passes execute AFTER normalization; use its live
++                // length and the current fully initialized array lengths.
++                self.charge(ShapeOperation::Planning, 16)?;
+                 self.charge(ShapeOperation::Features, ctx.features.len())?;
+                 if ctx.plan.fallback_mark_positioning {
+                     self.charge(ShapeOperation::Information, n)?;
+@@ -1726,6 +1777,10 @@
+         Ok(Some(GlyphBuffer(result.0)))
+     }
+ }
++
++#[cfg(test)]
++#[path = "normalization_kernel_tests.rs"]
++mod normalization_kernel_tests;
+ 
+ #[cfg(test)]
+ mod tests {

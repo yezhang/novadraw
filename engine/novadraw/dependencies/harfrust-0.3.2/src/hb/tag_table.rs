@@ -1672,6 +1672,7 @@ pub(crate) static OPEN_TYPE_LANGUAGES: &[LangTag] = &[
     LangTag { language: "zzj", 	tag: Tag::new(b"ZHA ") }, // Zuojiang Zhuang -> Zhuang
 ];
 
+#[cfg(test)]
 fn subtag_matches(language: &str, subtag: &str) -> bool {
     for (i, _) in language.match_indices(subtag) {
         if let Some(c) = language.as_bytes().get(i + subtag.len()) {
@@ -1686,6 +1687,7 @@ fn subtag_matches(language: &str, subtag: &str) -> bool {
     false
 }
 
+#[cfg(test)]
 fn lang_matches(language: &str, spec: &str) -> bool {
     if language.starts_with(spec) {
         return language.len() == spec.len() || language.as_bytes().get(spec.len()) == Some(&b'-');
@@ -1694,6 +1696,7 @@ fn lang_matches(language: &str, spec: &str) -> bool {
     false
 }
 
+#[cfg(test)]
 fn strncmp(s1: &str, s2: &str, n: usize) -> bool {
     let n1 = core::cmp::min(n, s1.len());
     let n2 = core::cmp::min(n, s2.len());
@@ -1701,6 +1704,7 @@ fn strncmp(s1: &str, s2: &str, n: usize) -> bool {
 }
 
 /// Converts a multi-subtag BCP 47 language tag to language tags.
+#[cfg(test)]
 pub fn tags_from_complex_language(language: &str, tags: &mut smallvec::SmallVec<[Tag; 3]>) -> bool {
     if subtag_matches(language, "-fonnapa") {
         // Undetermined; North American Phonetic Alphabet

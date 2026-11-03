@@ -23,6 +23,7 @@ use crate::{Direction, Feature, Language, Script};
 use core::ptr;
 use read_fonts::TableProvider;
 use super::face::cold_admission::{self, ColdAdmission, ColdOperation, OrdinaryCold};
+use super::face::shape_admission::{OrdinaryShape, Phase, ShapeAdmission};
 
 pub struct hb_ot_shape_planner_t<'a> {
     pub face: &'a hb_font_t<'a>,
@@ -82,10 +83,11 @@ impl<'a> hb_ot_shape_planner_t<'a> {
             shaper = &DUMBER_SHAPER;
         }
 
-        policy.charge(ColdOperation::Planning, 6, 0)?;
+        policy.charge(ColdOperation::Planning, 7, 0)?;
         if P::ADMITTED && (apply_morx || face.aat_tables.kern.is_some()
-            || face.aat_tables.kerx.is_some() || shaper.collect_features.is_some()
-            || shaper.override_features.is_some() || shaper.create_data.is_some()) {
+            || face.aat_tables.kerx.is_some()
+            || (shaper.cold_callbacks.is_none() && (shaper.collect_features.is_some()
+                || shaper.override_features.is_some() || shaper.create_data.is_some()))) {
             return Ok(None);
         }
 
@@ -93,7 +95,7 @@ impl<'a> hb_ot_shape_planner_t<'a> {
             face,
             direction,
             script,
-            language: language.cloned(),
+            language: language.map(|value| value.clone_with(policy)).transpose()?,
             ot_map,
             aat_map,
             apply_morx,
@@ -173,7 +175,10 @@ impl<'a> hb_ot_shape_planner_t<'a> {
         add!(hb_tag_t::new(b"Harf"), empty | F_GLOBAL, 1); // Considered required.
         add!(hb_tag_t::new(b"HARF"), empty | F_GLOBAL, 1); // Considered discretionary.
 
-        if let Some(func) = self.shaper.collect_features {
+        if let Some(callbacks) = self.shaper.cold_callbacks {
+            self.ot_map.is_simple = false;
+            callbacks.collect_with(self, policy)?;
+        } else if let Some(func) = self.shaper.collect_features {
             self.ot_map.is_simple = false;
             func(self);
         }
@@ -215,7 +220,9 @@ impl<'a> hb_ot_shape_planner_t<'a> {
             add!(feature.tag, flags, feature.value);
         }
 
-        if let Some(func) = self.shaper.override_features {
+        if let Some(callbacks) = self.shaper.cold_callbacks {
+            callbacks.override_with(self, policy)?;
+        } else if let Some(func) = self.shaper.override_features {
             func(self);
         }
         Ok(())
@@ -364,8 +371,10 @@ impl<'a> hb_ot_shape_planner_t<'a> {
             user_features,
         };
 
-        if let Some(func) = self.shaper.create_data {
-            plan.data = Some(func(&plan));
+        if let Some(callbacks) = self.shaper.cold_callbacks {
+            plan.data = Some(callbacks.data_with(&plan, policy)?);
+        } else if let Some(func) = self.shaper.create_data {
+            plan.data = Some(ot_shape_plan::ShapePlanData::Ordinary(func(&plan)));
         }
 
         Ok(plan)
@@ -383,41 +392,61 @@ pub struct hb_ot_shape_context_t<'a> {
 
 // Pull it all together!
 pub fn shape_internal(ctx: &mut hb_ot_shape_context_t) {
+    match shape_internal_with(ctx, &mut OrdinaryShape) {
+        Ok(()) => {},
+        Err(error) => match error {},
+    }
+}
+
+pub(crate) fn shape_internal_with<P: ShapeAdmission>(
+    ctx: &mut hb_ot_shape_context_t, policy: &mut P,
+) -> Result<(), P::Error> {
     ctx.buffer.allocate_unicode_vars();
 
+    policy.before(Phase::Masks, ctx)?;
     initialize_masks(ctx);
+    policy.before(Phase::Unicode, ctx)?;
     set_unicode_props(ctx.buffer);
-    insert_dotted_circle(ctx.buffer, ctx.face);
+    policy.before(Phase::DottedCircle, ctx)?;
+    insert_dotted_circle_with(ctx.buffer, ctx.face, policy)?;
 
-    form_clusters(ctx.buffer);
+    policy.before(Phase::Clusters, ctx)?;
+    form_clusters_with(ctx.buffer, policy)?;
 
-    ensure_native_direction(ctx.buffer);
+    policy.before(Phase::Direction, ctx)?;
+    ensure_native_direction_with(ctx.buffer, policy)?;
 
     if let Some(func) = ctx.plan.shaper.preprocess_text {
         func(ctx.plan, ctx.face, ctx.buffer);
     }
 
-    substitute_pre(ctx);
-    position(ctx);
+    policy.before(Phase::Substitute, ctx)?;
+    substitute_pre(ctx, policy)?;
+    policy.before(Phase::Position, ctx)?;
+    position_with(ctx, policy)?;
+    policy.before(Phase::Postprocess, ctx)?;
     substitute_post(ctx);
 
+    policy.before(Phase::Flags, ctx)?;
     propagate_flags(ctx.buffer);
 
     ctx.buffer.deallocate_unicode_vars();
 
     ctx.buffer.direction = ctx.target_direction;
+    Ok(())
 }
 
-fn substitute_pre(ctx: &mut hb_ot_shape_context_t) {
-    hb_ot_substitute_default(ctx);
+fn substitute_pre<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
+    hb_ot_substitute_default(ctx, policy)?;
 
     ctx.buffer.allocate_gsubgpos_vars();
 
-    hb_ot_substitute_plan(ctx);
+    hb_ot_substitute_plan(ctx, policy)?;
 
     if ctx.plan.apply_morx && ctx.plan.apply_gpos {
         aat::layout::remove_deleted_glyphs(ctx.buffer);
     }
+    Ok(())
 }
 
 fn substitute_post(ctx: &mut hb_ot_shape_context_t) {
@@ -433,14 +462,18 @@ fn substitute_post(ctx: &mut hb_ot_shape_context_t) {
     }
 }
 
-fn hb_ot_substitute_default(ctx: &mut hb_ot_shape_context_t) {
+fn hb_ot_substitute_default<P: ShapeAdmission>(
+    ctx: &mut hb_ot_shape_context_t,
+    policy: &mut P,
+) -> Result<(), P::Error> {
     rotate_chars(ctx);
 
     ctx.buffer
         .allocate_var(GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
 
-    ot_shape_normalize::_hb_ot_shape_normalize(ctx.plan, ctx.buffer, ctx.face);
+    ot_shape_normalize::_hb_ot_shape_normalize_with(ctx.plan, ctx.buffer, ctx.face, policy)?;
 
+    policy.before(Phase::Normalized, ctx)?;
     setup_masks(ctx);
 
     // This is unfortunate to go here, but necessary...
@@ -454,9 +487,10 @@ fn hb_ot_substitute_default(ctx: &mut hb_ot_shape_context_t) {
 
     ctx.buffer
         .deallocate_var(GlyphInfo::NORMALIZER_GLYPH_INDEX_VAR);
+    Ok(())
 }
 
-fn hb_ot_substitute_plan(ctx: &mut hb_ot_shape_context_t) {
+fn hb_ot_substitute_plan<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
     hb_ot_layout_substitute_start(ctx.face, ctx.buffer);
 
     if ctx.plan.fallback_glyph_classes {
@@ -468,22 +502,24 @@ fn hb_ot_substitute_plan(ctx: &mut hb_ot_shape_context_t) {
         ctx.buffer.update_digest();
     } else {
         ctx.buffer.update_digest();
-        ot_layout_gsub_table::substitute(ctx.plan, ctx.face, ctx.buffer);
+        ot_layout_gsub_table::substitute(ctx.plan, ctx.face, ctx.buffer, policy)?;
     }
+    Ok(())
 }
 
-fn position(ctx: &mut hb_ot_shape_context_t) {
+fn position_with<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
     ctx.buffer.clear_positions();
 
     position_default(ctx);
 
-    position_complex(ctx);
+    position_complex_with(ctx, policy)?;
 
     if ctx.buffer.direction.is_backward() {
         ctx.buffer.reverse();
     }
 
     ctx.buffer.deallocate_gsubgpos_vars();
+    Ok(())
 }
 
 fn position_default(ctx: &mut hb_ot_shape_context_t) {
@@ -508,7 +544,7 @@ fn position_default(ctx: &mut hb_ot_shape_context_t) {
     }
 }
 
-fn position_complex(ctx: &mut hb_ot_shape_context_t) {
+fn position_complex_with<P: ShapeAdmission>(ctx: &mut hb_ot_shape_context_t, policy: &mut P) -> Result<(), P::Error> {
     // If the font has no GPOS and direction is forward, then when
     // zeroing mark widths, we shift the mark with it, such that the
     // mark is positioned hanging over the previous glyph.  When
@@ -530,7 +566,7 @@ fn position_complex(ctx: &mut hb_ot_shape_context_t) {
         zero_mark_widths_by_gdef(ctx.buffer, adjust_offsets_when_zeroing);
     }
 
-    position_by_plan(ctx.plan, ctx.face, ctx.buffer);
+    position_by_plan_with(ctx.plan, ctx.face, ctx.buffer, policy)?;
 
     if ctx.plan.zero_marks
         && ctx.plan.shaper.zero_width_marks == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE
@@ -551,11 +587,12 @@ fn position_complex(ctx: &mut hb_ot_shape_context_t) {
             adjust_offsets_when_zeroing,
         );
     }
+    Ok(())
 }
 
-fn position_by_plan(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t) {
+fn position_by_plan_with<P: ShapeAdmission>(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb_buffer_t, policy: &mut P) -> Result<(), P::Error> {
     if plan.apply_gpos {
-        ot_layout_gpos_table::position(plan, face, buffer);
+        ot_layout_gpos_table::position_with(plan, face, buffer, policy)?;
     } else if plan.apply_kerx {
         aat::layout::position(plan, face, buffer);
     }
@@ -568,6 +605,7 @@ fn position_by_plan(plan: &hb_ot_shape_plan_t, face: &hb_font_t, buffer: &mut hb
     if plan.apply_trak {
         aat::layout::track(plan, face, buffer);
     }
+    Ok(())
 }
 
 fn initialize_masks(ctx: &mut hb_ot_shape_context_t) {
@@ -747,15 +785,23 @@ fn set_unicode_props(buffer: &mut hb_buffer_t) {
     }
 }
 
-fn insert_dotted_circle(buffer: &mut hb_buffer_t, face: &hb_font_t) {
+pub(crate) fn insert_dotted_circle_with<P: ShapeAdmission>(
+    buffer: &mut hb_buffer_t, face: &hb_font_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    // Four flag/context predicates and the stored first-record mark category.
+    policy.before_normalization_buffer(8, 1)?;
     if !buffer
         .flags
         .contains(BufferFlags::DO_NOT_INSERT_DOTTED_CIRCLE)
         && buffer.flags.contains(BufferFlags::BEGINNING_OF_TEXT)
         && buffer.context_len[0] == 0
         && buffer.info[0].is_unicode_mark()
-        && face.has_glyph(0x25CC)
     {
+        policy.before_normalization_mapping()?;
+        if !face.has_glyph(0x25CC) {
+            return Ok(());
+        }
+        policy.before_normalization_buffer(8, 2)?;
         let mut info = GlyphInfo {
             glyph_id: 0x25CC,
             mask: buffer.cur(0).mask,
@@ -763,26 +809,45 @@ fn insert_dotted_circle(buffer: &mut hb_buffer_t, face: &hb_font_t) {
             ..GlyphInfo::default()
         };
 
+        // U+25CC is non-ASCII So, not a mark or default-ignorable:
+        // four category table reads and one default-ignorable table read.
+        policy.before_normalization_unicode(5)?;
+        policy.before_normalization_buffer(8, 2)?;
         info.init_unicode_props(&mut buffer.scratch_flags);
         buffer.clear_output();
-        buffer.output_info(info);
-        buffer.sync();
+        buffer.output_info_with(info, policy)?;
+        buffer.sync_with(policy)?;
     }
+    Ok(())
 }
 
-fn form_clusters(buffer: &mut hb_buffer_t) {
+pub(crate) fn form_clusters_with<P: ShapeAdmission>(
+    buffer: &mut hb_buffer_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    policy.before_normalization_buffer(8, 0)?;
     if buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_CONTINUATIONS != 0 {
-        if BufferClusterLevel::new(buffer.cluster_level).is_graphemes() {
-            foreach_grapheme!(buffer, start, end, { buffer.merge_clusters(start, end) });
-        } else {
-            foreach_grapheme!(buffer, start, end, {
-                buffer.unsafe_to_break(Some(start), Some(end));
-            });
+        let count = buffer.len;
+        let mut start = 0;
+        let mut end = if count > 0 {
+            buffer.group_end_with(0, _hb_grapheme_group_func, policy)?
+        } else { 0 };
+        while start < count {
+            if BufferClusterLevel::new(buffer.cluster_level).is_graphemes() {
+                buffer.merge_clusters_with(start, end, policy)?;
+            } else {
+                buffer.unsafe_to_break_with(start, end, policy)?;
+            }
+            start = end;
+            end = buffer.group_end_with(start, _hb_grapheme_group_func, policy)?;
         }
     }
+    Ok(())
 }
 
-fn ensure_native_direction(buffer: &mut hb_buffer_t) {
+pub(crate) fn ensure_native_direction_with<P: ShapeAdmission>(
+    buffer: &mut hb_buffer_t, policy: &mut P,
+) -> Result<(), P::Error> {
+    policy.before_normalization_buffer(16, 0)?;
     let dir = buffer.direction;
     let mut hor = buffer
         .script
@@ -811,6 +876,7 @@ fn ensure_native_direction(buffer: &mut hb_buffer_t) {
         let mut found_letter = false;
         let mut found_ri = false;
         for info in &buffer.info {
+            policy.before_normalization_buffer(8, 3)?;
             let gc = info.general_category();
             if gc == GeneralCategory::DECIMAL_NUMBER {
                 found_number = true;
@@ -833,9 +899,10 @@ fn ensure_native_direction(buffer: &mut hb_buffer_t) {
     if (dir.is_horizontal() && dir != hor && hor != Direction::Invalid)
         || (dir.is_vertical() && dir != Direction::TopToBottom)
     {
-        _hb_ot_layout_reverse_graphemes(buffer);
+        _hb_ot_layout_reverse_graphemes_with(buffer, policy)?;
         buffer.direction = buffer.direction.reverse();
     }
+    Ok(())
 }
 
 fn rotate_chars(ctx: &mut hb_ot_shape_context_t) {

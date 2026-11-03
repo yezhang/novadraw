@@ -7,6 +7,7 @@ use crate::hb::unicode::Codepoint;
 use crate::hb::unicode::{combining_class, modified_combining_class};
 
 pub const HEBREW_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: None,
     override_features: None,
     create_data: None,

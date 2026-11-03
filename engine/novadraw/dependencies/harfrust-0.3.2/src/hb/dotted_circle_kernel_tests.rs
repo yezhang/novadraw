@@ -1,0 +1,266 @@
+// Copyright 2026 the Novadraw Contributors
+// SPDX-License-Identifier: MIT
+
+//! Internal output/continuation preparation; public marks remain unsupported.
+use super::*;
+use crate::hb::ot_shape::insert_dotted_circle_with;
+use crate::{BufferFlags, GlyphInfo};
+
+fn font(circle: bool) -> Vec<u8> {
+    let mut mappings = Vec::from([(0x41u32, 1u32), (0x301, 2)]);
+    if circle {
+        mappings.push((0x25cc, 3));
+    }
+    let mut cmap: Vec<u8> = [0u16, 1, 3, 10]
+        .into_iter()
+        .flat_map(u16::to_be_bytes)
+        .collect();
+    cmap.extend(12u32.to_be_bytes());
+    cmap.extend([12u16, 0].into_iter().flat_map(u16::to_be_bytes));
+    cmap.extend((16 + 12 * mappings.len() as u32).to_be_bytes());
+    cmap.extend(0u32.to_be_bytes());
+    cmap.extend((mappings.len() as u32).to_be_bytes());
+    for (ch, glyph) in mappings {
+        for value in [ch, ch, glyph] {
+            cmap.extend(value.to_be_bytes());
+        }
+    }
+    let mut bytes = Vec::from(&b"\0\x01\0\0\0\x01\0\0\0\0\0\0cmap\0\0\0\0\0\0\0\x1c"[..]);
+    bytes.extend((cmap.len() as u32).to_be_bytes());
+    bytes.extend(cmap);
+    bytes
+}
+
+fn input(text: &str, flags: BufferFlags, context: bool, spare: bool) -> UnicodeBuffer {
+    let mut buffer = UnicodeBuffer::new();
+    if spare {
+        buffer
+            .try_reserve_admitted(128, |_, _| Ok::<_, ()>(()))
+            .unwrap();
+    }
+    buffer
+        .try_push_str_admitted(text, |_, _| Ok::<_, ()>(()))
+        .unwrap();
+    buffer.set_direction(Direction::LeftToRight);
+    buffer.set_flags(flags);
+    if context {
+        buffer.0.context_len[0] = 1;
+    }
+    buffer.0.allocate_unicode_vars();
+    for (i, info) in buffer.0.info[..buffer.0.len].iter_mut().enumerate() {
+        info.cluster = [7, 2, 7, 2][i % 4];
+        info.mask = 0x1357;
+        info.init_unicode_props(&mut buffer.0.scratch_flags);
+    }
+    buffer
+}
+
+fn policy<E, F: FnMut(ShapeOperation, ShapeOperationCost) -> Result<(), E>>(
+    admit: F,
+    shaper: &hb_font_t,
+) -> AdmittedShape<F> {
+    AdmittedShape {
+        admit,
+        mapping_work: shaper.charmap.general_mapping_work().unwrap(),
+        non_ascii: 0,
+        special_scalars: 0,
+        normalization: SingletonNormalization::default(),
+        glyph_properties_work: 0,
+        has_glyph_classes: false,
+    }
+}
+
+fn result(buffer: &hb_buffer_t) -> (Vec<u8>, usize, u32, i32, bool, bool, usize, usize) {
+    (
+        bytemuck::cast_slice(&buffer.info[..buffer.len]).to_vec(),
+        buffer.len,
+        buffer.scratch_flags,
+        buffer.max_ops,
+        buffer.successful,
+        buffer.have_output,
+        buffer.idx,
+        buffer.out_len,
+    )
+}
+
+#[test]
+fn dotted_circle_internal_flag_context_mapping_and_full_suffix_copy() {
+    for circle in [false, true] {
+        let bytes = font(circle);
+        let font = crate::FontRef::new(&bytes).unwrap();
+        let data = crate::ShaperData::new(&font);
+        let shaper = data.shaper(&font).build();
+        for flags in [
+            BufferFlags::empty(),
+            BufferFlags::BEGINNING_OF_TEXT,
+            BufferFlags::DO_NOT_INSERT_DOTTED_CIRCLE,
+            BufferFlags::BEGINNING_OF_TEXT | BufferFlags::DO_NOT_INSERT_DOTTED_CIRCLE,
+        ] {
+            for context in [false, true] {
+                for spare in [false, true] {
+                    for text in ["A", "\u{301}", "\u{301}A\u{301}A"] {
+                        let mut ordinary = input(text, flags, context, spare);
+                        let mut admitted = input(text, flags, context, spare);
+                        let original = result(&ordinary.0).0;
+                        insert_dotted_circle_with(&mut ordinary.0, &shaper, &mut OrdinaryShape)
+                            .unwrap();
+                        let mut slots = 0;
+                        insert_dotted_circle_with(
+                            &mut admitted.0,
+                            &shaper,
+                            &mut policy(
+                                |_, cost| {
+                                    slots += cost.allocation;
+                                    Ok::<_, ()>(())
+                                },
+                                &shaper,
+                            ),
+                        )
+                        .unwrap();
+                        assert_eq!(result(&ordinary.0), result(&admitted.0));
+                        let inserts = circle
+                            && flags.contains(BufferFlags::BEGINNING_OF_TEXT)
+                            && !flags.contains(BufferFlags::DO_NOT_INSERT_DOTTED_CIRCLE)
+                            && !context
+                            && text.starts_with('\u{301}');
+                        assert_eq!(admitted.len(), text.chars().count() + usize::from(inserts));
+                        if inserts {
+                            assert_eq!(admitted.0.info[0].glyph_id, 0x25cc);
+                            assert_eq!(admitted.0.info[0].cluster, 7);
+                            assert_eq!(admitted.0.info[0].mask, 0x1357);
+                            assert_eq!(
+                                bytemuck::cast_slice::<GlyphInfo, u8>(
+                                    &admitted.0.info[1..admitted.0.len]
+                                ),
+                                original
+                            );
+                            if !spare {
+                                assert_eq!(slots, 2 * admitted.len());
+                            }
+                        }
+                        if spare || !inserts {
+                            assert_eq!(slots, 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn dotted_circle_internal_each_rejection_retains_reusable_storage() {
+    let bytes = font(true);
+    let font = crate::FontRef::new(&bytes).unwrap();
+    let data = crate::ShaperData::new(&font);
+    let shaper = data.shaper(&font).build();
+    let plan = ShapePlan::new(&shaper, Direction::LeftToRight, None, None, &[]);
+    for spare in [false, true] {
+        let mut complete = input(
+            "\u{301}A\u{301}A",
+            BufferFlags::BEGINNING_OF_TEXT,
+            false,
+            spare,
+        );
+        let mut checkpoints = Vec::new();
+        insert_dotted_circle_with(
+            &mut complete.0,
+            &shaper,
+            &mut policy(
+                |op, cost| {
+                    checkpoints.push((op, cost));
+                    Ok::<_, ()>(())
+                },
+                &shaper,
+            ),
+        )
+        .unwrap();
+        // The remaining FOUR input records must be copied (read+write),
+        // rather than using the normalizer's fully-consumed-input proof.
+        assert!(checkpoints.contains(&(
+            ShapeOperation::Information,
+            ShapeOperationCost {
+                work: 8,
+                allocation: 0,
+            }
+        )));
+        for reject in 0..checkpoints.len() {
+            let mut buffer = input(
+                "\u{301}A\u{301}A",
+                BufferFlags::BEGINNING_OF_TEXT,
+                false,
+                spare,
+            );
+            let mut seen = 0;
+            let failed = insert_dotted_circle_with(
+                &mut buffer.0,
+                &shaper,
+                &mut policy(
+                    |op, cost| {
+                        assert_eq!((op, cost), checkpoints[seen]);
+                        let current = seen;
+                        seen += 1;
+                        if current == reject {
+                            Err(current)
+                        } else {
+                            Ok(())
+                        }
+                    },
+                    &shaper,
+                ),
+            );
+            assert!(matches!(failed, Err(ShapeOperationError::Admission(i)) if i == reject));
+            assert_eq!(seen, reject + 1);
+            let capacity = (buffer.0.info.capacity(), buffer.0.pos.capacity());
+            buffer.0.allocated_var_bits = 0;
+            buffer.clear();
+            assert_eq!(
+                capacity,
+                (buffer.0.info.capacity(), buffer.0.pos.capacity())
+            );
+            buffer.push_str("AA");
+            buffer.set_direction(Direction::LeftToRight);
+            assert_eq!(shaper.shape_with_plan(&plan, buffer, &[]).len(), 2);
+        }
+    }
+}
+
+#[test]
+fn dotted_circle_internal_growth_limit_and_failed_sync_preserve_ordinary_order() {
+    let bytes = font(true);
+    let font = crate::FontRef::new(&bytes).unwrap();
+    let data = crate::ShaperData::new(&font);
+    let shaper = data.shaper(&font).build();
+    let mut buffer = input("\u{301}A", BufferFlags::BEGINNING_OF_TEXT, false, false);
+    buffer.0.max_len = 2;
+    let failed = insert_dotted_circle_with(
+        &mut buffer.0,
+        &shaper,
+        &mut policy(|_, _| Ok::<_, ()>(()), &shaper),
+    );
+    assert!(matches!(failed, Err(ShapeOperationError::LengthLimit)));
+    assert_eq!(buffer.0.len, 2);
+    assert_eq!(buffer.0.info.len(), 2);
+    assert_eq!(buffer.0.pos.len(), 2);
+
+    let mut buffer = input("A", BufferFlags::empty(), false, false);
+    buffer.0.clear_output();
+    buffer.0.successful = false;
+    let original = result(&buffer.0).0;
+    let mut ops = Vec::new();
+    assert!(!buffer
+        .0
+        .sync_with(&mut policy(
+            |op, cost| {
+                ops.push((op, cost));
+                Ok::<_, ()>(())
+            },
+            &shaper,
+        ))
+        .unwrap());
+    assert_eq!(result(&buffer.0).0, original);
+    assert_eq!(ops.len(), 2); // Planning, Information(0), without suffix work.
+    assert_eq!(buffer.0.out_len, 0);
+    assert_eq!(buffer.0.idx, 0);
+    assert!(!buffer.0.have_output);
+}

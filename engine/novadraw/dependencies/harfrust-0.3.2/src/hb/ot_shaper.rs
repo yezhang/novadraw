@@ -42,6 +42,7 @@ pub type ComposeFn =
     fn(&hb_ot_shape_normalize_context_t, Codepoint, Codepoint) -> Option<Codepoint>;
 
 pub const DEFAULT_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: None,
     override_features: None,
     create_data: None,
@@ -58,6 +59,9 @@ pub const DEFAULT_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
 };
 
 pub struct hb_ot_shaper_t {
+    /// Proven planning kernels for the upstream fixed script dispatch table.
+    /// This does not describe text preprocessing or shaping admission.
+    pub cold_callbacks: Option<ColdCallbacks>,
     /// Called during `shape_plan()`.
     /// Shapers should use plan.map to add their features and callbacks.
     pub collect_features: Option<fn(&mut hb_ot_shape_planner_t)>,
@@ -111,6 +115,7 @@ pub struct hb_ot_shaper_t {
 // Same as default but no mark advance zeroing / fallback positioning.
 // Dumbest shaper ever, basically.
 pub const DUMBER_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
+    cold_callbacks: None,
     collect_features: None,
     override_features: None,
     create_data: None,
@@ -125,6 +130,49 @@ pub const DUMBER_SHAPER: hb_ot_shaper_t = hb_ot_shaper_t {
     zero_width_marks: HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE,
     fallback_position: false,
 };
+
+#[derive(Clone, Copy)]
+pub enum ColdCallbacks {
+    Arabic,
+    Hangul,
+}
+
+impl ColdCallbacks {
+    pub(crate) fn collect_with<P: super::face::cold_admission::ColdAdmission>(
+        self, planner: &mut hb_ot_shape_planner_t, policy: &mut P,
+    ) -> Result<(), P::Error> {
+        match self {
+            Self::Arabic => super::ot_shaper_arabic::collect_features_with(planner, policy),
+            Self::Hangul => super::ot_shaper_hangul::collect_features_hangul_with(planner, policy),
+        }
+    }
+
+    pub(crate) fn override_with<P: super::face::cold_admission::ColdAdmission>(
+        self, planner: &mut hb_ot_shape_planner_t, policy: &mut P,
+    ) -> Result<(), P::Error> {
+        match self {
+            Self::Arabic => Ok(()),
+            Self::Hangul => super::ot_shaper_hangul::override_features_hangul_with(planner, policy),
+        }
+    }
+
+    pub(crate) fn data_with<P: super::face::cold_admission::ColdAdmission>(
+        self, plan: &hb_ot_shape_plan_t, policy: &mut P,
+    ) -> Result<super::ot_shape_plan::ShapePlanData, P::Error> {
+        use super::face::cold_admission::HeapSlot;
+        use super::ot_shape_plan::ShapePlanData;
+        match self {
+            Self::Arabic => {
+                let value = super::ot_shaper_arabic::data_create_arabic_with(plan, policy)?;
+                HeapSlot::new_with(value, policy).map(ShapePlanData::Arabic)
+            },
+            Self::Hangul => {
+                let value = super::ot_shaper_hangul::data_create_hangul_with(&plan.ot_map, policy)?;
+                HeapSlot::new_with(value, policy).map(ShapePlanData::Hangul)
+            },
+        }
+    }
+}
 
 pub fn hb_ot_shape_complex_categorize(
     script: Script,
