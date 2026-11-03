@@ -565,3 +565,116 @@ fn inherited_paint_only_style_invalidates_prepared_subtree() {
         Color::RED
     );
 }
+
+#[derive(Default)]
+struct CrossOwnerMutation {
+    armed: bool,
+    first: Option<Arc<AtomicU64>>,
+}
+
+struct CrossOwnerProvider {
+    revision: Arc<AtomicU64>,
+    mutation: Arc<Mutex<CrossOwnerMutation>>,
+}
+
+impl Figure for CrossOwnerProvider {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 10.0, 10.0)
+    }
+    fn name(&self) -> &'static str {
+        "CrossOwnerProvider"
+    }
+    fn register_capabilities(
+        &self,
+        output: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        output.register(PREPARATION, PreparationCapability::of::<Self>())
+    }
+}
+
+impl FigurePreparation for CrossOwnerProvider {
+    fn revision(&self) -> u64 {
+        self.revision.load(Ordering::Relaxed)
+    }
+    fn prepare(
+        &self,
+        _: &mut MeasureContext<'_>,
+        _: Rectangle,
+    ) -> Result<FigurePresentation, TextError> {
+        let mut mutation = self.mutation.lock().unwrap();
+        if mutation.armed {
+            if let Some(first) = mutation.first.take() {
+                first.fetch_add(1, Ordering::Relaxed);
+                mutation.armed = false;
+            } else {
+                mutation.first = Some(self.revision.clone());
+            }
+        }
+        Ok(presentation(10.0, 10.0).with_data(Arc::new(self.revision())))
+    }
+}
+
+#[test]
+fn later_owner_invalidates_earlier_prefix_without_partial_publication() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(
+            novadraw::figure::RectangleFigure::new(0.0, 0.0, 120.0, 80.0).unwrap(),
+        ))
+        .unwrap();
+    let mutation = Arc::new(Mutex::new(CrossOwnerMutation::default()));
+    let revisions = [Arc::new(AtomicU64::new(1)), Arc::new(AtomicU64::new(1))];
+    let owners = revisions.each_ref().map(|revision| {
+        tree.builder()
+            .add_child(
+                root,
+                Box::new(CrossOwnerProvider {
+                    revision: revision.clone(),
+                    mutation: mutation.clone(),
+                }),
+            )
+            .unwrap()
+    });
+    let mut runtime = Runtime::new(tree);
+    assert!(frame(&mut runtime));
+    let old = owners.map(|owner| {
+        runtime
+            .tree()
+            .prepared_presentation(owner)
+            .unwrap()
+            .unwrap()
+            .clone()
+    });
+    for revision in &revisions {
+        revision.store(2, Ordering::Relaxed);
+    }
+    mutation.lock().unwrap().armed = true;
+    assert!(!frame(&mut runtime));
+    for (owner, old) in owners.into_iter().zip(&old) {
+        assert_eq!(
+            *runtime
+                .tree()
+                .prepared_presentation(owner)
+                .unwrap()
+                .unwrap()
+                .data::<u64>()
+                .unwrap(),
+            1
+        );
+        assert_eq!(*old.data::<u64>().unwrap(), 1);
+    }
+    assert!(frame(&mut runtime));
+    for (owner, revision) in owners.into_iter().zip(&revisions) {
+        assert_eq!(
+            *runtime
+                .tree()
+                .prepared_presentation(owner)
+                .unwrap()
+                .unwrap()
+                .data::<u64>()
+                .unwrap(),
+            revision.load(Ordering::Relaxed)
+        );
+    }
+}

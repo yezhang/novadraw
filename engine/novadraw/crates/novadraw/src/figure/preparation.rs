@@ -20,6 +20,7 @@ pub use measurement::{
 };
 pub(crate) use routing::RequiredRouteGroup;
 pub use routing::{PreparationRouteError, PreparationRouteErrorKind};
+pub(crate) use scene::PreparationInputs;
 pub(crate) use scene::scene_error;
 pub use scene::{PreparationScene, PreparedScene};
 pub(crate) use source::{PreparationSource, PreparationSourceNode};

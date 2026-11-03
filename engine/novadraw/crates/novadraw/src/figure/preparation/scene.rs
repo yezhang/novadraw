@@ -38,6 +38,91 @@ struct RevisionBase {
     providers: Vec<FigureId>,
 }
 
+struct RootInputs {
+    members: Rc<HashSet<FigureId>>,
+    revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
+    source: RefCell<Option<SourceInputs>>,
+}
+
+struct SourceInputs {
+    prefix: super::PreparationSource,
+    providers: Vec<usize>,
+}
+
+/// Cache authority is the immutable tree/style borrow, never the budget's lifetime.
+pub(crate) struct PreparationInputs<'a> {
+    tree: &'a FigureTree,
+    styles: &'a HashMap<FigureId, ResolvedStyle>,
+    budget: super::PreparationBudgetHandle,
+    roots: RefCell<HashMap<FigureId, Rc<RootInputs>>>,
+    fonts: Rc<RefCell<HashSet<crate::text::FontDescriptor>>>,
+}
+
+impl<'a> PreparationInputs<'a> {
+    pub(crate) fn new(
+        tree: &'a FigureTree,
+        styles: &'a HashMap<FigureId, ResolvedStyle>,
+        budget: super::PreparationBudgetHandle,
+    ) -> Result<Rc<Self>, TextError> {
+        budget.allocate("preparation input cache", 2)?;
+        Ok(Rc::new(Self {
+            tree,
+            styles,
+            budget,
+            roots: RefCell::new(HashMap::new()),
+            fonts: Rc::new(RefCell::new(HashSet::new())),
+        }))
+    }
+
+    pub(crate) fn scene(
+        self: &Rc<Self>,
+        root: FigureId,
+    ) -> Result<PreparationScene<'a>, TextError> {
+        self.budget.consume("preparation input query", 1)?;
+        let mut roots = self.roots.borrow_mut();
+        let inputs = if let Some(inputs) = roots.get(&root) {
+            inputs.clone()
+        } else {
+            // Root entry, membership, revision slots and source cache precede allocation.
+            self.budget.allocate("preparation root inputs", 4)?;
+            let mut members = HashSet::new();
+            self.budget.allocate("preparation subtree", 1)?;
+            let mut pending = vec![root];
+            while let Some(id) = pending.pop() {
+                self.budget.allocate("preparation subtree", 1)?;
+                members.insert(id);
+                if let Ok(node) = self.tree.node(id) {
+                    self.budget
+                        .allocate("preparation subtree", node.children.len() as u64)?;
+                    pending.extend(node.children.iter().copied());
+                }
+            }
+            let inputs = Rc::new(RootInputs {
+                members: Rc::new(members),
+                revision_bases: Rc::new(RefCell::new([None, None])),
+                source: RefCell::new(None),
+            });
+            roots.insert(root, inputs.clone());
+            inputs
+        };
+        Ok(PreparationScene {
+            tree: self.tree,
+            root,
+            styles: self.styles,
+            members: inputs.members.clone(),
+            measurement_path: Rc::new(RefCell::new(Vec::new())),
+            observations: Rc::new(RefCell::new(ObservationLog::default())),
+            measurements: Rc::new(RefCell::new(Vec::new())),
+            measurement_constraints: None,
+            revision_bases: inputs.revision_bases.clone(),
+            parsed_fonts: self.fonts.clone(),
+            inputs: self.clone(),
+            root_inputs: inputs,
+            budget: self.budget.clone(),
+        })
+    }
+}
+
 impl ObservationLog {
     fn push(&mut self, observation: crate::connection::DependencyObservation) {
         self.subjects.insert(observation.subject.clone());
@@ -63,6 +148,8 @@ pub struct PreparationScene<'a> {
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
     parsed_fonts: Rc<RefCell<HashSet<crate::text::FontDescriptor>>>,
+    inputs: Rc<PreparationInputs<'a>>,
+    root_inputs: Rc<RootInputs>,
     budget: super::PreparationBudgetHandle,
 }
 
@@ -87,30 +174,7 @@ impl<'a> PreparationScene<'a> {
         styles: &'a HashMap<FigureId, ResolvedStyle>,
         budget: super::PreparationBudgetHandle,
     ) -> Result<Self, TextError> {
-        let mut members = HashSet::new();
-        budget.allocate("preparation subtree", 1)?;
-        let mut pending = vec![root];
-        while let Some(id) = pending.pop() {
-            budget.allocate("preparation subtree", 1)?;
-            members.insert(id);
-            if let Ok(node) = tree.node(id) {
-                budget.allocate("preparation subtree", node.children.len() as u64)?;
-                pending.extend(node.children.iter().copied());
-            }
-        }
-        Ok(Self {
-            tree,
-            root,
-            styles,
-            members: Rc::new(members),
-            measurement_path: Rc::new(RefCell::new(Vec::new())),
-            observations: Rc::new(RefCell::new(ObservationLog::default())),
-            measurements: Rc::new(RefCell::new(Vec::new())),
-            measurement_constraints: None,
-            revision_bases: Rc::new(RefCell::new([None, None])),
-            parsed_fonts: Rc::new(RefCell::new(HashSet::new())),
-            budget,
-        })
+        PreparationInputs::new(tree, styles, budget)?.scene(root)
     }
 
     /// Shares this stabilization's accounting with an external producer or solver.
@@ -141,7 +205,8 @@ impl<'a> PreparationScene<'a> {
         outer: MeasureConstraints,
         content: MeasureConstraints,
     ) -> Result<PreparationScene<'a>, TextError> {
-        let mut scene = Self::with_budget(self.tree, root, self.styles, self.budget.clone())?;
+        self.check(root)?;
+        let mut scene = self.inputs.scene(root)?;
         scene.measurement_path = self.measurement_path.clone();
         scene.observations = self.observations.clone();
         scene.measurements = self.measurements.clone();
@@ -255,6 +320,8 @@ impl<'a> PreparationScene<'a> {
             measurement_constraints: self.measurement_constraints,
             revision_bases: self.revision_bases.clone(),
             parsed_fonts: self.parsed_fonts.clone(),
+            inputs: self.inputs.clone(),
+            root_inputs: self.root_inputs.clone(),
             budget: self.budget.clone(),
         };
         measured_scene.observe(crate::connection::DependencySubject::FigureMeasurementSource(id));
@@ -596,7 +663,50 @@ impl<'a> PreparationScene<'a> {
     }
 
     pub(crate) fn source_prefix(&self) -> Result<super::PreparationSource, TextError> {
+        self.budget.consume("preparation source query", 1)?;
+        let mut cached = self.root_inputs.source.borrow_mut();
+        if cached.is_none() {
+            *cached = Some(self.build_source_inputs()?);
+            return Ok(cached.as_ref().expect("initialized source").prefix.clone());
+        }
+        let inputs = cached.as_mut().expect("initialized source");
+        let mut changed = None;
+        // Only provider revisions are mutable in this borrow. Keep exact comparison and
+        // reread every provider, even when an earlier revision has already changed.
+        for &index in &inputs.providers {
+            self.budget
+                .consume("preparation source provider revision", 1)?;
+            let source = &inputs.prefix.0[index];
+            let provider = self
+                .tree
+                .node(source.id)
+                .map_err(scene_error)?
+                .preparation()
+                .expect("immutable capability set")
+                .revision();
+            if source.provider != Some(provider) {
+                if changed.is_none() {
+                    for node in inputs.prefix.0.iter() {
+                        self.budget.allocate(
+                            "preparation source replacement",
+                            1 + node.resources.len() as u64 + node.children.len() as u64,
+                        )?;
+                    }
+                    changed = Some(inputs.prefix.0.to_vec());
+                }
+                changed.as_mut().expect("replacement prefix")[index].provider = Some(provider);
+            }
+        }
+        self.budget.check()?;
+        if let Some(prefix) = changed {
+            inputs.prefix = super::PreparationSource(prefix.into());
+        }
+        Ok(inputs.prefix.clone())
+    }
+
+    fn build_source_inputs(&self) -> Result<SourceInputs, TextError> {
         let mut prefix = Vec::new();
+        let mut providers = Vec::new();
         let mut pending = vec![self.root];
         while let Some(id) = pending.pop() {
             let node = self.tree.node(id).map_err(scene_error)?;
@@ -606,6 +716,10 @@ impl<'a> PreparationScene<'a> {
             )?;
             let bounds = node.source_bounds;
             let insets = node.insets();
+            if node.preparation().is_some() {
+                self.budget.allocate("preparation source providers", 1)?;
+                providers.push(prefix.len());
+            }
             prefix.push(super::PreparationSourceNode {
                 id,
                 component: node.component_revision,
@@ -631,7 +745,10 @@ impl<'a> PreparationScene<'a> {
             });
             pending.extend(node.children.iter().rev().copied());
         }
-        Ok(super::PreparationSource(prefix.into()))
+        Ok(SourceInputs {
+            prefix: super::PreparationSource(prefix.into()),
+            providers,
+        })
     }
 
     /// Input revision includes structure, component state, styles and measurement generation.
@@ -982,6 +1099,126 @@ mod tests {
         ) -> Result<FigurePresentation, TextError> {
             Err(TextError::InvalidPreparedScene("revision-only test".into()))
         }
+    }
+
+    #[test]
+    fn shared_inputs_reuse_roots_without_widening_measurement_scope() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let child = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 20.0).unwrap()),
+            )
+            .unwrap();
+        let sibling = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 40.0).unwrap()),
+            )
+            .unwrap();
+        let styles = [root, child, sibling]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let parent = PreparationScene::new(&tree, root, &styles).unwrap();
+        let outer = MeasureConstraints::UNBOUNDED;
+        let narrow = parent.for_measurement(child, outer, outer).unwrap();
+        let first = narrow.revision().unwrap();
+        narrow.parsed_font(child).unwrap();
+        let before = parent.budget.used();
+        let repeated = parent.for_measurement(child, outer, outer).unwrap();
+        assert_eq!(repeated.revision().unwrap(), first);
+        repeated.parsed_font(child).unwrap();
+        assert_eq!(parent.budget.used().allocation, before.allocation);
+        assert!(Rc::ptr_eq(&narrow.members, &repeated.members));
+        assert!(Rc::ptr_eq(&parent.parsed_fonts, &repeated.parsed_fonts));
+        assert!(narrow.check(root).is_err());
+        assert!(narrow.check(sibling).is_err());
+        assert!(narrow.for_measurement(sibling, outer, outer).is_err());
+        assert_eq!(narrow.parent(child).unwrap(), None);
+        assert_eq!(narrow.measurement_constraints(), Some((outer, outer)));
+        // Independent owner scenes share inputs, never measurement results or observations.
+        let owner = parent.inputs.scene(child).unwrap();
+        assert!(Rc::ptr_eq(&owner.members, &narrow.members));
+        assert!(!Rc::ptr_eq(&owner.measurements, &narrow.measurements));
+        assert!(!Rc::ptr_eq(&owner.observations, &narrow.observations));
+        assert_ne!(parent.revision().unwrap(), first);
+    }
+
+    #[test]
+    fn shared_source_prefix_rechecks_providers_and_preserves_old_values() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicU64, Ordering},
+        };
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let revision = Arc::new(AtomicU64::new(1));
+        let child = tree
+            .builder()
+            .add_child(root, Box::new(RevisionProvider(revision.clone())))
+            .unwrap();
+        let styles = [root, child]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let first = scene.source_prefix().unwrap();
+        let first_revision = scene.revision().unwrap();
+        let before = scene.budget.used();
+        let validation = scene.inputs.scene(root).unwrap();
+        let again = validation.source_prefix().unwrap();
+        assert!(Arc::ptr_eq(&first.0, &again.0));
+        assert_eq!(first_revision, validation.revision().unwrap());
+        let after = scene.budget.used();
+        assert_eq!(after.allocation, before.allocation);
+        // One root lookup, one prefix lookup and two external provider revision reads.
+        assert_eq!(after.work - before.work, 4);
+        revision.store(2, Ordering::Relaxed);
+        let changed = validation.source_prefix().unwrap();
+        assert!(first != changed);
+        assert_eq!(first.0[1].provider, Some(1));
+        assert_eq!(changed.0[1].provider, Some(2));
+        assert_ne!(first_revision, validation.revision().unwrap());
+        assert!(scene.budget.consume("force exhaustion", u64::MAX).is_err());
+        assert!(validation.source_prefix().is_err());
+        assert!(scene.inputs.scene(root).is_err());
+        // Retry gets a new scope and does not inherit a poisoned or stale input cache.
+        let fresh = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(fresh.source_prefix().unwrap() == changed);
+    }
+
+    #[test]
+    fn failed_input_build_never_installs_a_partial_root() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let styles = HashMap::new();
+        let budget = super::super::PreparationBudgetHandle::new(
+            super::super::PreparationBudget::new(100, 7),
+        );
+        let inputs = PreparationInputs::new(&tree, &styles, budget.clone()).unwrap();
+        assert!(inputs.scene(root).is_err());
+        assert!(inputs.roots.borrow().is_empty());
+        assert!(budget.check().is_err());
+        assert!(inputs.scene(root).is_err());
     }
 
     #[test]

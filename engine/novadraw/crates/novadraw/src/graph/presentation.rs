@@ -138,7 +138,6 @@ impl FigureTree {
     ) -> Result<bool, TextError> {
         let _refresh_timing = budget.time("prepare-refresh");
         let inputs_timing = budget.time("prepare-inputs");
-        use crate::figure::PreparationScene;
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
         self.synchronize_preparation_text_revision(text.revision());
         if !self
@@ -160,6 +159,8 @@ impl FigureTree {
             .into_iter()
             .collect::<std::collections::HashMap<_, _>>();
         let mut candidates = Vec::new();
+        let inputs =
+            crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
         drop(inputs_timing);
         for id in figures {
             let signature_timing = budget.time("prepare-signature");
@@ -167,7 +168,7 @@ impl FigureTree {
             let node = &self.blocks[id];
             let preparation = node.preparation().expect("capability selected");
             let bounds = node.client_area();
-            let scene = PreparationScene::with_budget(self, id, &styles, budget.clone())?;
+            let scene = inputs.scene(id)?;
             let source = scene.source_prefix()?;
             let key = PreparationKey {
                 component: scene.revision()?,
@@ -222,7 +223,7 @@ impl FigureTree {
                     ));
                 }
             }
-            let scene = PreparationScene::with_budget(self, *id, &styles, budget.clone())?;
+            let scene = inputs.scene(*id)?;
             if scene.revision()? != key.component
                 || scene.source_prefix()? != *source
                 || text.revision() != key.text
@@ -288,6 +289,8 @@ impl FigureTree {
         }
         budget.check()?;
         drop(batch_timing);
+        // Release immutable input authority before publishing any layout effects.
+        drop(inputs);
         let _publication_timing = budget.time("prepare-publication");
         let mut metrics_changed = false;
         // No tree changes occur until every candidate and its layout output has been checked.
