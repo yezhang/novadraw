@@ -47,3 +47,39 @@ path = "src/plan_cost.rs"
 [[bin]]
 name = "configuration-cost"
 path = "src/configuration_cost.rs"
+
+[[bin]]
+name = "plan-layout-cost"
+path = "src/plan_layout_cost.rs"
+
+[[bin]]
+name = "private-language-cost"
+path = "src/private_language_cost.rs"
+
+[[bin]]
+name = "general-language-cost"
+path = "src/general_language_cost.rs"
+
+[[bin]]
+name = "script-callbacks-cost"
+path = "src/script_callbacks_cost.rs"
+
+[[bin]]
+name = "shape-cost"
+path = "src/shape_cost.rs"
+
+[[bin]]
+name = "single-cost"
+path = "src/single_cost.rs"
+
+[[bin]]
+name = "multiple-cost"
+path = "src/multiple_cost.rs"
+
+[[bin]]
+name = "ligature-cost"
+path = "src/ligature_cost.rs"
+
+[[bin]]
+name = "context-cost"
+path = "src/context_cost.rs"

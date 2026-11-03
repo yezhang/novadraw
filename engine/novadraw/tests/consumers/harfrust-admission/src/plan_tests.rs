@@ -4,8 +4,8 @@
 mod fixtures;
 
 use harfrust::{
-    ColdOperation, ColdOperationError, Direction, Feature, FontRef, Language, ShapePlan,
-    ShapePlanKey, ShaperData, UnicodeBuffer, script,
+    ColdOperation, ColdOperationError, Direction, Feature, FontRef, ShapePlan, ShapePlanKey,
+    ShaperData, UnicodeBuffer, script,
 };
 use std::{error::Error, fmt, str::FromStr};
 
@@ -172,19 +172,12 @@ fn every_plan_rejection_preserves_source_and_identical_retry_trace() {
 
 #[test]
 fn unknown_paths_decline_before_feature_storage_and_budget_rejection_wins() {
-    let language = Language::from_str("en-US-x-hbsc-latn").unwrap();
     for (bytes, direction, script, language) in [
         (fixtures::sfnt(&[], true), Direction::Invalid, None, None),
         (
             fixtures::sfnt(&[], true),
             Direction::LeftToRight,
-            None,
-            Some(&language),
-        ),
-        (
-            fixtures::sfnt(&[], true),
-            Direction::LeftToRight,
-            Some(script::ARABIC),
+            Some(script::KHMER),
             None,
         ),
         (
@@ -197,12 +190,6 @@ fn unknown_paths_decline_before_feature_storage_and_budget_rejection_wins() {
             fixtures::sfnt(&[(*b"trak", &[0xff; 100])], false),
             Direction::LeftToRight,
             None,
-            None,
-        ),
-        (
-            include_bytes!("../../../../assets/fonts/InterVariable.ttf").to_vec(),
-            Direction::LeftToRight,
-            Some(script::LATIN),
             None,
         ),
     ] {

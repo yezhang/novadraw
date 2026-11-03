@@ -9,11 +9,47 @@ mod variation_tests;
 #[cfg(test)]
 mod cold_tests;
 #[cfg(test)]
+mod configuration_tests;
+#[cfg(test)]
 mod lookup_tests;
+#[cfg(test)]
+mod plan_layout_tests;
 #[cfg(test)]
 mod plan_tests;
 #[cfg(test)]
-mod configuration_tests;
+mod private_language_tests;
+
+#[cfg(test)]
+mod script_callback_tests;
+
+#[cfg(test)]
+mod context_tests;
+#[cfg(test)]
+mod decomposition_miss_tests;
+#[cfg(test)]
+mod gdef_tests;
+#[cfg(test)]
+mod general_scalar_tests;
+#[cfg(test)]
+mod gpos_pair_tests;
+#[cfg(test)]
+mod gpos_single_tests;
+#[cfg(test)]
+mod ligature_tests;
+#[cfg(test)]
+mod multiple_tests;
+#[cfg(test)]
+mod normalization_tests;
+#[cfg(test)]
+mod rtl_tests;
+#[cfg(test)]
+mod shape_tests;
+#[cfg(test)]
+mod simple_unicode_tests;
+#[cfg(test)]
+mod single_tests;
+#[cfg(test)]
+mod space_tests;
 
 #[cfg(test)]
 mod tests {
