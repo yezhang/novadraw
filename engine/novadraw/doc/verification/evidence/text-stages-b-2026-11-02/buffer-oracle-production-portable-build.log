@@ -1,3 +1,0 @@
-[1m[92m   Compiling[0m harfrust v0.3.2 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-buffer/lib-production)
-[1m[92m   Compiling[0m buffer-oracle v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-buffer/oracle-production)
-[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 5.12s

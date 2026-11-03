@@ -43,6 +43,9 @@ dependencies/                   - 经批准的生产第三方依赖补丁，不�
 工具留在根 `examples/`。完整应用保留独立 workspace package，不将 GUI 依赖
 加入 Core／Editor 的 `dev-dependencies`；全仓库入口见 [样例导航](examples/README.md)。
 原始证据和独立报告整体迁移时核对 SHA-256，内部历史路径不作改写。
+文本性能验证的日志、样本、收据和生成快照属于本地中间产物，统一放在
+`target/verification/text-*/`，不纳入 Git。`doc` 只保留报告和本地产物指引；
+迁移时核对 SHA-256，冻结收据中的历史路径不作改写。
 
 `winit-canvas` 使用 winit 类型与可选 WGPU，不属于 backend-neutral Core。
 Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，

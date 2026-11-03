@@ -1,4 +1,0 @@
-[1m[92m     Locking[0m 13 packages to latest Rust 1.96.0 compatible versions
-[1m[92m   Compiling[0m harfrust v0.3.2 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-variation/run-vdoiu1pd/lib-original)
-[1m[92m   Compiling[0m buffer-oracle v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-variation/run-vdoiu1pd/oracle-original)
-[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 20.68s

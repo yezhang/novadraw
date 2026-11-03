@@ -1,4 +1,0 @@
-[1m[92m    Checking[0m swash v0.2.6
-[1m[92m    Checking[0m parley v0.7.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-stages-b/parley-0.7.0)
-[1m[92m    Checking[0m novadraw-parley-storage-candidate v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/tests/consumers/parley-storage)
-[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 3.64s

@@ -1,5 +1,8 @@
 # Build outputs
 target/
+# Text verification intermediates belong in target/verification.
+doc/verification/evidence/text-*/*
+!doc/verification/evidence/text-*/README.md
 examples/integration/web-validation/dist/
 **/*.profraw
 doc/verification/evidence/**/*_probe

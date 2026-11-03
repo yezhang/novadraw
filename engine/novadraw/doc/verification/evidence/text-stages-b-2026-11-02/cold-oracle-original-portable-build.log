@@ -1,5 +1,0 @@
-[1m[92m   Compiling[0m font-types v0.10.1
-[1m[92m   Compiling[0m read-fonts v0.35.0
-[1m[92m   Compiling[0m harfrust v0.3.2 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-cold/run-4d1cymse/lib-original)
-[1m[92m   Compiling[0m buffer-oracle v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/novadraw/target/text-harfrust-cold/run-4d1cymse/oracle-original)
-[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 7.90s

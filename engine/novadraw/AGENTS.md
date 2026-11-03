@@ -56,6 +56,8 @@
   `examples/`。完整应用保留独立 Cargo package，导航见 `examples/README.md`。
 - 历史证据：`doc/verification/evidence/`；独立字体比较报告及原始 GPU demos：
   `doc/reference/fonts/reports/`。内部历史路径与原始字节保持不变。
+- 文本性能验证中间产物（日志、样本、收据、生成快照）放在
+  `target/verification/text-*/`，不纳入 Git；`doc` 只保留报告和本地产物指引。
 - 项目文档总入口：`doc/00-index.md`
 - 文档知识归属、替代与原始证据保护：`doc/knowledge-maintenance.md`
 - 完整项目规则：`CLAUDE.md`
