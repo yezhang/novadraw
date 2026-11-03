@@ -48,7 +48,7 @@ allocation 是集合容量槽，不是字节。精确预留使用 Global
 
 证据目录为 [text-stages-b](../evidence/text-stages-b-2026-11-02/README.md)，
 原始来源和补丁重放见
-[buffer receipt](../evidence/text-stages-b-2026-11-02/buffer-verification.json)。
+buffer receipt（`target/verification/text-stages-b-2026-11-02/buffer-verification.json`）。
 
 | 范围 | 结果与分母 |
 |---|---|
@@ -70,7 +70,7 @@ allocation 是集合容量槽，不是字节。精确预留使用 Global
 预期成功／拒绝和逐样本费用；每组样本编号均完整。
 环境为 macOS 14.7.8 arm64、Rust 1.96.0 release，
 输入为 41984 字节、25600 个字符。汇总与二进制／源码散列见
-[采样 receipt](../evidence/text-stages-b-2026-11-02/buffer-cost-summary.json)。
+采样 receipt（`target/verification/text-stages-b-2026-11-02/buffer-cost-summary.json`）。
 
 | 输入路径 | 冷 buffer P95（μs） | 复用容量 P95（μs） |
 |---|---:|---:|

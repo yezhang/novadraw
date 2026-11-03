@@ -34,9 +34,10 @@ B 的阶段适配器、操作前计费和退出门禁仍未完成；C／D 未开
 
 实际产物：
 
-- [完整依赖补丁](../evidence/text-stages-b-2026-11-02/parley-0.7.0-storage.patch)
-- [可直接阅读的新增模块](../evidence/text-stages-b-2026-11-02/layout_storage.rs)
-- [来源、源码保持与验证 receipt](../evidence/text-stages-b-2026-11-02/verification.json)
+- [完整依赖补丁](../../../dependencies/parley-0.7.0-storage.patch)
+- [可直接阅读的新增模块](../../../dependencies/parley-0.7.0/src/layout/storage.rs)
+- 本地来源、源码保持与验证 receipt：
+  `target/verification/text-stages-b-2026-11-02/verification.json`
 - [隔离消费者及运行说明](../../../tests/consumers/parley-storage/README.md)
 - [准备脚本](../../../tools/scripts/prepare_parley_storage_candidate.py)与[复核脚本](../../../tools/scripts/check_parley_storage_candidate.py)
 
@@ -165,8 +166,8 @@ Novadraw 公共签名继续不暴露 Parley 存储类型，默认完整布局行
 - release 性能驱动构建及 5 次原始 fixture 扩展 smoke 通过；
   纯滚动每次新增 layout 为 0，resize 每次仍调用 6 次 layout，
   原生 glyph 保持 51,233，未作统计提速结论。
-  [原始样本](../evidence/text-stages-b-2026-11-02/production-perf-smoke.ndjson)及
-  [分母核对](../evidence/text-stages-b-2026-11-02/production-perf-smoke-receipt.json)保留。
+  本地原始样本 `target/verification/text-stages-b-2026-11-02/production-perf-smoke.ndjson`
+  及分母核对 `target/verification/text-stages-b-2026-11-02/production-perf-smoke-receipt.json` 保留。
 - 后续 5 个会话的正式 CPU 采样完成：1,000 个同进程新建 Runtime 样本、
   200 个冷进程样本全部分母核对通过，失败为空。
   纯滚动新增布局仍为 0，resize 仍为 6；原始样本、环境及散列核对已保存。

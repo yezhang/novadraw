@@ -52,10 +52,9 @@ cargo build -p draw2d-official-examples --release --bin textflow-perf
 
 Rust 1.99 的严格 lib Clippy 被既有 `svg.rs` 的 chunks lint 和 UpdateManager
 两项 drain lint 阻断，未修改这些独立代码，也不宣称该工具链严格检查通过。
-日志见[契约](../evidence/text-cache-2026-11-02/contracts.log)、
-[公开回归](../evidence/text-cache-2026-11-02/regressions.log)、
-[Rust 1.96 Clippy](../evidence/text-cache-2026-11-02/clippy-1.96.log)、
-[Wasm](../evidence/text-cache-2026-11-02/wasm-check.log)。
+日志保存在本地 `target/verification/text-cache-2026-11-02/`，不纳入 Git：
+`contracts.log` 为契约测试，`regressions.log` 为公开回归，
+`clippy-1.96.log` 为 Rust 1.96 Clippy，`wasm-check.log` 为 Wasm 检查。
 
 ## 原 Large 的匹配对照
 
@@ -73,7 +72,7 @@ Rust 1.99 的严格 lib Clippy 被既有 `svg.rs` 的 chunks lint 和 UpdateMana
 
 下表是三个会话各自 P95 的中位数，单位 ms。
 “查找累计”包含该操作内所有段落请求，不是单次 cache lookup 的延迟。
-完整会话分布见[收据](../evidence/text-cache-2026-11-02/performance-summary.json)。
+完整会话分布见本地收据 `target/verification/text-cache-2026-11-02/performance-summary.json`。
 
 | 阶段 | 优化前 | 优化后 |
 |---|---:|---:|
@@ -95,7 +94,7 @@ Rust 1.99 的严格 lib Clippy 被既有 `svg.rs` 的 chunks lint 和 UpdateMana
 没有 GPU、surface present、input-to-present 或生产关闭诊断的数据。
 
 原始六份 JSONL、脚本、构建日志、源码前后快照与补丁保存在
-[证据目录](../evidence/text-cache-2026-11-02/performance-summary.json)。
+本地 `target/verification/text-cache-2026-11-02/performance-summary.json`。
 基线 Core 文件来自 `1148c012`；性能消费者在变更前后从同一工作区冻结，
 二进制散列在收据中。本片没有构建或比较产物体积。
 

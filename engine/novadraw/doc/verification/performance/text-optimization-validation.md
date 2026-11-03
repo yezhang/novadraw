@@ -156,10 +156,11 @@ RUSTUP_TOOLCHAIN=1.96.0 python3 tools/scripts/textflow_performance.py \
 稳定查询的 P95 低于 4 ms。仍须在匹配环境下复测，不能据此关闭整体验收。
 本轮只有一个版本，也未启用 ADR-059 宽度复用，不报告提速比例。
 
-证据包括[分位数汇总](../evidence/text-stages-b-2026-11-02/production-perf-summary.json)、
-[全部原始样本](../evidence/text-stages-b-2026-11-02/production-perf-samples.ndjson.gz)、
-[分母和文件散列核对](../evidence/text-stages-b-2026-11-02/production-perf-receipt.json)及
-[构建／负载记录](../evidence/text-stages-b-2026-11-02/production-perf-manifest.json)。
+本地中间产物位于 `target/verification/text-stages-b-2026-11-02/`，不纳入 Git。
+其中 `production-perf-summary.json` 保存分位数汇总，
+`production-perf-samples.ndjson.gz` 保存全部原始样本，
+`production-perf-receipt.json` 保存分母和文件散列核对，
+`production-perf-manifest.json` 保存构建／负载记录。
 冻结二进制、源码 patch 和未跟踪源码归档保留在本地
 `/tmp/novadraw-text-validation-20261102-original/`，未作为长期源码归档提交。
 

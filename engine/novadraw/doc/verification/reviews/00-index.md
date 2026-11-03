@@ -22,6 +22,18 @@
 
 | 日期 | 报告 |
 |---|---|
+| 2026-11-03 | [ADR-059 B1：分解后第二字符缺字准入](text-stages-b1-decomposition-miss-2026-11-03.md) |
+| 2026-11-03 | [ADR-059 B1：共享规范化内核准入与普通输出／成本验证](text-stages-b1-normalizer-kernel-2026-11-03.md) |
+| 2026-11-03 | [ADR-059 B1：dotted-circle 输出与同步准入及最终验证](text-stages-b1-dotted-circle-kernel-2026-11-03.md) |
+| 2026-11-03 | [ADR-059 B1：grapheme 合并与反向分组准入、输出与成本记录](text-stages-b1-grapheme-kernel-2026-11-03.md) |
+| 2026-11-02 | [ADR-059 B1：ASCII 从右向左塑形准入](text-stages-b1-rtl-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：已映射 Unicode 字母与空格准入](text-stages-b1-simple-unicode-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：GDEF 字形分类与属性查询准入](text-stages-b1-gdef-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：已映射一般字符的属性准入](text-stages-b1-general-scalar-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：缺字与一对一规范化准入](text-stages-b1-singleton-normalization-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：缺字空格与不换行连字符准入](text-stages-b1-space-fallback-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：GPOS 配对定位准入](text-stages-b1-gpos-pair-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：GPOS 单字形定位准入](text-stages-b1-gpos-single-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B1：Harfrust 输入 buffer 准入（冷构造与 shaping 待完成）](text-stages-b1-buffer-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B1：规范化坐标与条件选择准入](text-stages-b1-instance-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B1：用户坐标归一化准入（avar2 与冷构造待完成）](text-stages-b1-variation-2026-11-02.md) |
@@ -29,6 +41,9 @@
 | 2026-11-02 | [ADR-059 B1：LookupInfo 与子表缓存准入（AAT／计划／shaping 待完成）](text-stages-b1-lookup-cache-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B1：空 AAT 缓存的表头准入（非空 AAT／计划／shaping 待完成）](text-stages-b1-aat-headers-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B1：无布局表的 ShapePlan 集合与排序准入](text-stages-b1-plan-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：Shaper 借用字体表与坐标扫描配置准入](text-stages-b1-configuration-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：GSUB／GPOS 查询、变体 feature 与 lookup 收集准入](text-stages-b1-plan-layout-2026-11-02.md) |
+| 2026-11-02 | [ADR-059 B1：私有语言标签的扫描与计划存储准入](text-stages-b1-private-language-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B：候选断行准入与上游普通入口对照（分析与适配未完成）](text-stages-b-line-breaking-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B：模板复制与对齐的操作前准入](text-stages-b-operations-2026-11-02.md) |
 | 2026-11-02 | [ADR-059 B：Parley 只读存储补丁已获批接入（适配未完成）](text-stages-b-storage-patch-2026-11-02.md) |
@@ -220,6 +235,42 @@
 | 2026-09-15 | [G5.5 Viewport Auto-expose](g5-viewport-autoexpose-behavior-2026-09-15.md) |
 | 2026-09-15 | [Connection 扩展边界整改](connection-extensibility-correction-2026-09-15.md) |
 | 2026-09-16 | [Draw2D / GEF 语义审计整改状态](draw2d-gef-semantic-remediation-2026-09-16.md) |
+
+- [B1 通用语言映射准入](text-stages-b1-general-language-2026-11-02.md)：
+  有序规则、主语言表与逐操作拒绝；脚本回调及实际 shaping 继续实施。
+- [B1 脚本专用规划回调准入](text-stages-b1-script-callbacks-2026-11-02.md)：
+  Arabic／Syriac／Hangul 共享回调、可失败存储与上游完整输出对照；
+  实际 shaping 和 buffer 恢复继续实施。
+- [B1 非扩张塑形准入与 buffer 恢复](text-stages-b1-shaping-2026-11-02.md)：
+  LTR ASCII 实际 pipeline、逐点拒绝恢复与初始化数组成本；
+  复杂 shaping 和 Parley 编排继续实施。
+- [B1 单字形替换操作前准入](text-stages-b1-single-substitution-2026-11-02.md)：
+  GSUB SingleSubst、完整 lookup 冷缓存与实际访问计费；
+  上游四配置完整输出、拒绝恢复和冷／热成本已验证。
+- [B1 多字形替换增长与访问准入](text-stages-b1-multiple-substitution-2026-11-02.md)：
+  sequence 长度、双数组增长和前缀复制准入；
+  八矩阵四配置、拒绝恢复、成本与 Core／Wasm 定向门禁通过。
+- [B1 连字匹配存储与重复访问准入](text-stages-b1-ligature-substitution-2026-11-02.md)：
+  匹配位置 inline／spill、组件求和边界及重复 cluster 扫描；
+  九矩阵四配置、拒绝恢复、成本及 Core／Wasm 定向门禁通过。
+- [B1 上下文匹配、移动与嵌套单字形替换准入](text-stages-b1-context-substitution-2026-11-02.md)：
+  十矩阵四配置完整输出、各 203 项依赖与 60 项消费者通过；
+  成本及 Core／Wasm 定向门禁通过，B1 与默认启用未关闭。
+- [B1 上下文匹配位置的堆存储与备份准入](text-stages-b1-context-spill-2026-11-02.md)：
+  零 flags 单字形叶子的 Format 3 范围扩展至 64，匹配与备份先准入；
+  完整输出、定向消费者、成本与跨目标门禁通过，B1 与默认启用保持未关闭。
+- [B1 GPOS 单字形定位准入](text-stages-b1-gpos-single-2026-11-02.md)：
+  零 flags 标量值、前置替换扩容与精确拒绝恢复；
+  十二矩阵四配置、消费者、成本和跨目标门禁通过，默认启用保持未关闭。
+- [B1 GPOS 配对定位准入](text-stages-b1-gpos-pair-2026-11-02.md)：
+  两种 PairPos 的查表、class、安全标记与矩阵边界先准入；
+  原始格式保留位反例补齐，十三矩阵四配置、消费者、成本与跨目标门禁通过；
+  B1 和默认启用保持未关闭。
+
+- [B1 ASCII 从右向左塑形准入](text-stages-b1-rtl-2026-11-02.md)：
+  保存目标方向，原生方向反转、镜像查询和最终反转先计费；
+  十四矩阵四配置、消费者、成本与跨目标门禁通过，
+  B1 与默认启用保持未关闭。
 
 完整语义审计的固定基线见
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)，

@@ -70,7 +70,7 @@ null condition-set 是通用匹配。这里保持原始语义，没有把格式�
 
 原始证据位于 [B 证据目录](../evidence/text-stages-b-2026-11-02/README.md)；
 增量重放和输出散列见
-[instance receipt](../evidence/text-stages-b-2026-11-02/instance-verification.json)。
+instance receipt（`target/verification/text-stages-b-2026-11-02/instance-verification.json`）。
 
 | 范围 | 结果与分母 |
 |---|---|
@@ -93,7 +93,7 @@ null condition-set 是通用匹配。这里保持原始语义，没有把格式�
 成功候选释放位于计时之外；拒绝包含函数内部的候选清理。
 回调只累计本地费用，没有执行 Core 会话预算。
 散列、逐组费用和时间分布见
-[成本 receipt](../evidence/text-stages-b-2026-11-02/instance-cost-summary.json)。
+成本 receipt（`target/verification/text-stages-b-2026-11-02/instance-cost-summary.json`）。
 采样同时存在其他构建负载，计时粒度也接近这些小对象的构造耗时；
 结果只供检查本地开销，不代表环境受控的延迟结论或 Core 宽度复用收益。
 

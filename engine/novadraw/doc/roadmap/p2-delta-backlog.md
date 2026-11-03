@@ -1490,6 +1490,233 @@ feature、重复项合并、无堆临时数组的排序、集合增长和最终 
 唯一文字 Execute 继续 B1 的布局表计划、配置、buffer 恢复与 shaping；
 B1、B2–B4、C／D 和默认启用仍未关闭。
 
+随后已实现 [B1 Shaper 配置准入](../verification/reviews/text-stages-b1-configuration-2026-11-02.md)：
+字体映射、指标、OT／AAT 表头与坐标扫描共用配置内核；借用配置零新增堆容量，
+未知 AAT count 在可变长 reader 前返回未支持。
+四组原始／生产 Native／portable 各 39,744 份观察一致，
+外部测试各 32 项、私有测试各 197 项通过；16,000 个配置成本样本已保存。
+唯一文字 Execute 继续 B1 的布局表计划、buffer 恢复与实际 shaping；
+B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已实现 [B1 GSUB／GPOS 计划查询与 lookup 收集准入](../verification/reviews/text-stages-b1-plan-layout-2026-11-02.md)：
+script、LangSys、必选 feature、变体替换、lookup 展开及去重共用内核；
+字体表 header 与重复访问在执行前计费，有效索引增长前 fallible 预留。
+原始／生产 Native／portable 的既有 39,744 与新增 50,688 份普通观察分别一致，
+外部测试各 34 项、私有测试各 197 项通过；Native／Wasm、Clippy 定向门禁通过。
+16,000 个准入模式成本样本及 24,000 个原始／生产普通路径样本已保存；
+GPOS／中文普通路径中位数的小幅成本增量保留，不声明零开销或 Core 性能通过。
+唯一文字 Execute 继续 B1 的语言、脚本专用计划回调、buffer 恢复与实际 shaping；
+B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已接入 [B1 私有语言标签准入](../verification/reviews/text-stages-b1-private-language-2026-11-02.md)：
+`hbot` 扫描和计划 Language 的 inline／spill 存储先准入；
+通用语言映射仍在未知操作前返回未支持。普通入口的长前缀搜索回退已定位，
+采用固定字宽跳过无候选区间，重新核对原始输出与匹配成本。
+唯一文字 Execute 继续 B1 的通用语言、脚本计划回调、实际 shaping 和 buffer 恢复；
+B1、B2–B4、C／D 和默认启用仍未关闭，子片状态见验证记录。
+
+随后已实现 [B1 通用语言映射准入](../verification/reviews/text-stages-b1-general-language-2026-11-02.md)：
+主语言表、扩展语言及 148 条复合规则共用逐操作准入内核，
+保留条件、规则和输出顺序；省去已规范化前缀的临时 Language。
+唯一文字 Execute 继续 B1 的脚本计划回调、实际 shaping 和 buffer 恢复；
+有序规则、全部主语言条目、四类输出矩阵及逐点拒绝均通过定向核验；
+B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已实现 [B1 脚本规划回调准入](../verification/reviews/text-stages-b1-script-callbacks-2026-11-02.md)：
+Arabic／Syriac／Hangul 的 feature、pause、字体查询、mask 与规划数据存储先准入，
+普通和准入路径共用内核；专用 Syriac 合成夹具及逐点拒绝通过定向核验。
+十二份补丁重放、五类完整输出矩阵的四配置对照、Native／portable 消费者及
+Core Native／Wasm check 通过；唯一文字 Execute 继续 B1 的
+实际 shaping 和 buffer 恢复；B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已接入 [B1 非扩张塑形准入与 buffer 恢复](../verification/reviews/text-stages-b1-shaping-2026-11-02.md)：
+无布局表的 LTR ASCII 走共享实际塑形 pipeline，重复映射和完整初始化数组访问
+在执行前计费；未知路径保留输入，中断路径恢复变量位、上限和可用容量。
+16,000 个四模式成本样本与 24,000 个原始／生产普通路径样本完成；
+六矩阵四配置完整输出、Native／portable 私有与消费者测试、
+Core Native／Wasm 串行补验及文档门禁通过；首次磁盘空间不足日志保留。
+唯一文字 Execute 继续 B1 的复杂 shaping；B1、B2–B4、C／D 和默认启用仍未关闭。
+
+随后已完成 [B1 单字形替换准入](../verification/reviews/text-stages-b1-single-substitution-2026-11-02.md)：
+零 flags 的 GSUB SingleSubst format 1／2 走共享 lookup 内核，
+冷缓存与实际 lookup 前计费覆盖 coverage 搜索、未命中子表和重复 glyph 读取。
+七矩阵四配置完整输出、Native／portable 各 202 项私有与 46 项外部测试、
+Core Native／Wasm check、16,000 个准入成本和 24,000 个普通对照样本完成。
+最后费用复核补正 digest 相交的双数组访问，重放与消费者补验已通过；
+16,000 个准入成本与 24,000 个普通对照样本已补验通过，
+Native／portable Clippy、Core Native／Wasm check 与 portable Wasm 构建通过。
+补正前的完整输出与采样证据另存，验证工具改用固定 Cargo 包身份和串行低调试构建。
+随后已完成
+[B1 多字形替换准入](../verification/reviews/text-stages-b1-multiple-substitution-2026-11-02.md)：
+正长度 MultipleSubst 的实际 sequence 长度、全计划增长上界、
+双数组扩容／初始化和输出复制在执行前准入。
+十四份前序补丁保持；八矩阵四配置共 964,032 份完整观察一致，
+Native／portable 各 202 项私有与 51 项消费者测试通过。
+32,000 个准入成本、24,000 个普通对照样本、Core Native／Wasm check、
+portable Wasm 构建与消费者严格 Clippy 通过；
+第三方库直接 Clippy 与冻结前片均保留六项既有诊断，新增诊断为零。
+完整输出无损 gzip 保存，原始字节散列和分母核对通过；Wasm 未执行测试。
+随后已接入
+[B1 连字替换准入](../verification/reviews/text-stages-b1-ligature-substitution-2026-11-02.md)：
+组件求和检查、匹配位置 inline／spill 及重复访问在执行前准入；
+九矩阵四配置共 1,102,272 份完整观察一致，
+Native／portable 各 203 项依赖与 56 项消费者测试通过。
+混合 lookup 输出前缀扩张及尾部组件的费用已补正；
+48,000 个准入成本、36,000 个普通对照样本、Core Native／Wasm check、
+portable Wasm 构建与消费者严格 Clippy 通过。
+库 Clippy 的六项诊断与冻结前片一致，新增诊断为零；Wasm 未执行测试。
+当前唯一文字 Execute 继续 B1 的上下文／递归替换与后续复杂 shaping。
+B1、B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 上下文替换准入](../verification/reviews/text-stages-b1-context-substitution-2026-11-02.md)：
+Format 3 匹配一至八位置，只调用零 flags 单字形叶子，
+克隆、移动、嵌套 lookup 和重复访问均在执行前计费。
+十矩阵四配置共 1,194,432 份完整观察一致，
+Native／portable 各 203 项依赖与 60 项消费者测试通过；
+32,000 个准入成本、24,000 个普通对照样本与 Core Native／Wasm 定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1；B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 上下文堆存储准入](../verification/reviews/text-stages-b1-context-spill-2026-11-02.md)：
+Format 3 支持范围扩展至 64 位置，单字形嵌套记录复用匹配与备份数组，
+两份数组均在 lookup 前准入并预留；此前连字后的组件求和在 shaping 前检查。
+十一矩阵四配置共 1,209,792 份完整观察一致，依赖测试各 203 项通过；
+Native／portable 各 64 项消费者、32,000 个准入成本、
+24,000 个普通对照样本与 Core／Wasm 定向门禁通过；
+库 Clippy 与前十七片六项既有诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1；B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 GPOS 单字形定位准入](../verification/reviews/text-stages-b1-gpos-single-2026-11-02.md)：
+零 flags 的 SinglePos format 1／2 标量定位进入共享策略，
+查表与 position 读写在 lookup 前收费，前置替换扩容继续独立计费。
+十二矩阵四配置共 1,357,248 份完整观察一致；
+Native／portable 各 203 项依赖与 67 项消费者、
+32,000 个准入成本、24,000 个普通对照样本与 Core／Wasm 定向门禁通过。
+库 Clippy 与前十八片六项既有诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1 的其余 GPOS 与复杂 shaping；
+B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 GPOS 配对定位准入](../verification/reviews/text-stages-b1-gpos-pair-2026-11-02.md)：
+零 flags 的 PairPos format 1／2 标量定位进入共享策略，
+pair-set／class 查询与安全标记先收费，非法 class 在矩阵寻址前未支持。
+SinglePos 同步修复解码时丢弃保留位导致的检查缺口。
+二十份补丁精确重放；十三矩阵四配置共 1,504,704 份完整观察一致。
+Native／portable 各 203 项依赖与 71 项消费者、
+64,000 个准入成本、48,000 个普通对照样本与 Core／Wasm 定向门禁通过。
+库 Clippy 与前十九片六项既有诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1，下一片先补齐 ASCII RTL 的镜像与反转准入；
+规范化、复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 ASCII RTL 准入](../verification/reviews/text-stages-b1-rtl-2026-11-02.md)：
+真实目标方向在 pipeline 前保存，原生反转、镜像查询与最终反转先计费；
+镜像缺字可用已映射原字符，未知操作仍提前未支持。
+二十一份补丁精确重放；十四矩阵四配置共 1,619,904 份完整观察一致。
+Native／portable 各 203 项依赖与 75 项消费者、
+64,000 个准入成本、48,000 个普通对照样本与 Core／Wasm 定向门禁通过。
+库 Clippy 与前二十片六项既有诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1，下一片补齐已映射非 mark Unicode 的通用映射和属性检查；
+完整规范化、复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
+
+随后已接入
+[B1 简单 Unicode 准入](../verification/reviews/text-stages-b1-simple-unicode-2026-11-02.md)：
+已映射的 Ll／Lu／Lt／Lo／Zs 字符与 Han 默认 shaper 进入共享内核，
+六种 cmap reader、MacRoman／Symbol 及重复属性查询先计费。
+二十二份补丁精确重放；十五矩阵四配置共 3,831,744 份完整观察一致。
+Native／portable 各 203 项依赖与 81 项消费者测试通过。
+192,000 条准入成本、144,000 条普通对照样本与跨目标定向门禁通过。
+库 Clippy 与前二十一片六项既有诊断一致，Wasm 未执行测试。
+唯一文字 Execute 继续 B1 的 GDEF 属性查询；完整规范化、复杂 shaping、
+B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 GDEF 属性准入](../verification/reviews/text-stages-b1-gdef-2026-11-02.md)
+已接入初始字形、GSUB 输出及上下文叶子的分类查询，
+并覆盖字体 mark 的 advance 清零和 offset 调整。
+二十三份补丁精确重放；十六矩阵四配置共 4,274,112 份完整观察一致。
+Native／portable 各 203 项依赖与 86 项消费者测试通过。
+192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
+该片之后继续 B1 的一般字符与规范化边界；
+复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 一般字符准入](../verification/reviews/text-stages-b1-general-scalar-2026-11-02.md)
+已补齐已映射标点、数字、符号和单独 emoji 的属性判断，
+支付非提前返回分支的额外访问，并验证缺失镜像与逐点拒绝恢复。
+二十四份补丁精确重放；十七矩阵四配置共 4,569,024 份完整观察一致。
+Native／portable 各 203 项依赖与 90 项消费者测试通过。
+192,000 条准入成本、144,000 条普通对照与跨目标定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
+该片之后继续 B1 的缺字与规范化边界；
+复杂 shaping、B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 一对一规范化准入](../verification/reviews/text-stages-b1-singleton-normalization-2026-11-02.md)
+已补齐缺字 `.notdef` 与 canonical one-to-one 分解，
+支付重复查询、输出切换及前缀／后续复制费用，逐点拒绝恢复通过。
+二十五份补丁精确重放；十八矩阵四配置共 5,453,760 份完整观察一致，
+全部重新执行。Native／portable 各 204 项依赖内部测试与 94 项消费者测试通过。
+192,000 条准入成本、144,000 条普通对照和跨目标定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 未执行测试。
+该片之后继续 B1 的空格／不换行连字符 fallback，
+完整规范化与复杂 shaping；B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 空格与不换行连字符回退](../verification/reviews/text-stages-b1-space-fallback-2026-11-02.md)
+已补齐原始字符回退、重复映射及 GSUB 后实际长度的空格定位费用。
+二十六份补丁精确重放；十九矩阵四配置共 5,945,280 份完整观察一致，
+全部重新执行；内部 invisible 普通参考另有 160 份一致观察。
+Native／portable 各 205 项依赖内部测试与 98 项消费者测试、
+192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 只构建未执行。
+当前唯一文字 Execute 继续 B1 的完整规范化与复杂 shaping；
+B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 分解后第二字符缺字](../verification/reviews/text-stages-b1-decomposition-miss-2026-11-03.md)
+已覆盖 a、b 独立查询、终止后按原始字符回退及逐点拒绝恢复；
+b 命中仍在未覆盖操作前返回未支持。
+二十七份补丁精确重放；二十矩阵四配置共 6,338,496 份完整观察一致。
+旧矩阵原始版本 38 份配置逐字节核对后复用，其余配置重新执行。
+Native／portable 各 205 项依赖内部测试与 102 项消费者测试、
+192,000 条准入成本、144,000 条普通对照和十三项定向门禁通过；
+库 Clippy 与冻结前片六项诊断一致，Wasm 只构建未执行。
+当前唯一文字 Execute 继续完整规范化与复杂 shaping；
+B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 共享规范化内核](../verification/reviews/text-stages-b1-normalizer-kernel-2026-11-03.md)
+已接入分解、排序、重组、输出增长及规范化后实际长度的准入。
+二十八份补丁精确重放；二十一矩阵四配置共 8,796,096 份完整观察一致。
+Native／portable 各 211 项依赖内部测试与 102 项消费者测试通过。
+192,000 条准入成本、两组各 144,000 条普通对照及十四项定向门禁通过。
+格式修正的源码证明、普通输出字节复核与最终源码成本重采通过；
+库 Clippy 新增诊断为零，Wasm 只构建未执行。公共组合输入尚未开放。
+当前唯一文字 Execute 继续 B1，B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 dotted-circle 输出与同步](../verification/reviews/text-stages-b1-dotted-circle-kernel-2026-11-03.md)
+已接入圆圈判定、映射、输出及未消费后缀复制的操作前准入。
+二十九份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致。
+Native／portable 各 214 项内部测试与 102 项消费者测试通过。
+192,000 条准入和三组共 576,000 条普通成本样本、十一项边界检查通过；
+七份采样前 Clippy 收据与十九份原始采样文件复核通过。
+库 Clippy 新增诊断为零，Wasm 只构建未执行。公共组合输入尚未开放。
+当前唯一文字 Execute 继续 grapheme 合并、反向分组与 mark 定位；
+B1、B2–B4、C／D 和默认启用保持未关闭。
+
+[B1 grapheme 合并与反向分组](../verification/reviews/text-stages-b1-grapheme-kernel-2026-11-03.md)
+共享内核、逐点拒绝、完整普通输出对照与跨目标检查通过，成本记录完成。
+三十份补丁精确重放；二十二矩阵四配置共 10,786,752 份完整观察一致，
+原版 44 份配置经核对后复用，生产 44 份配置重新执行。
+Native 与 portable 各 218 项内部测试、102 项消费者测试通过；
+Core 长文本布局、绘制、共享 glyph 与阶段协议定向回归 32 项通过。
+768,000 条成本样本、七份采样前 Clippy 收据及十九份原始采样文件核对完成；
+十一项边界检查通过，库 Clippy 新增诊断为零，Wasm 只构建未执行。
+普通路径个别配置 P95 比值达到 3.409，外部负载未受控，不能证明没有性能回退，
+不将成本记录完成记为 16 ms／4 ms 或默认配置性能通过。
+该结果不代表公共组合输入或 Flow 阶段适配已经启用。
+当前唯一文字 Execute 继续 mark 属性与定位，
+B1、B2–B4、C／D 和默认启用保持未关闭。
+
 | 切片 | 状态 | 当前证据 |
 |---|---|---|
 | LT-00 | `in_progress` | 第四轮完成四组匹配构建对照，每组每版 1000 次热样本、200 个新进程及 5 次 RSS，标准场景失败为 0；新增工厂的源提交 receipt 与逐样本阶段核算通过；另完成优化版混排 resize 的 1000 次热样本和 200 个新进程，无失败；原 Large 本轮另补齐 1300 次独立源版本观测，正式样本和阶段核算通过；first-ready、生产 GPU/present 与 Web 体积仍缺证据 |

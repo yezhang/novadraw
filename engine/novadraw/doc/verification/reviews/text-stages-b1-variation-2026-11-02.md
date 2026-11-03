@@ -68,7 +68,7 @@ avar2 的 `compute_float_delta` 有 delta-set／region 重复扫描，
 
 ## 已完成验证
 
-来源与对照见 [variation receipt](../evidence/text-stages-b-2026-11-02/variation-verification.json)。
+来源与对照见 variation receipt（`target/verification/text-stages-b-2026-11-02/variation-verification.json`）。
 冻结 buffer 和 instance 补丁按顺序重放后，仅改 lib、face 两个入口，
 新增 `variation_admission.rs`；其余 73 个源码文件逐字节保持。
 新增增量补丁重放精确恢复当前生产源码，不重写前两份证据。
@@ -88,7 +88,7 @@ avar2 的 `compute_float_delta` 有 delta-set／region 重复扫描，
 普通／准入／最后准入点拒绝逐样本轮换。成功实例释放在计时之外，
 拒绝计时包含内部清理，回调只累计本地费用。
 分母、源码／二进制散列和实际费用见
-[成本 receipt](../evidence/text-stages-b-2026-11-02/variation-cost-summary.json)。
+成本 receipt（`target/verification/text-stages-b-2026-11-02/variation-cost-summary.json`）。
 
 | 场景 | 普通 P95（µs） | 准入 P95（µs） | 最后点拒绝 P95（µs） |
 |---|---:|---:|---:|

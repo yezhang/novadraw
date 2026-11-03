@@ -74,7 +74,7 @@ AAT 表仍在其变长 reader 之前返回 `Ok(None)`。
 
 ## 验证结果
 
-[lookup receipt](../evidence/text-stages-b-2026-11-02/lookup-verification.json)
+lookup receipt（`target/verification/text-stages-b-2026-11-02/lookup-verification.json`）
 按 buffer → instance → variation → cold 四份冻结补丁重放，
 再应用本片增量。10 个源码文件改动，其他 67 个源码文件逐字节保持，
 补丁重放精确恢复生产源码。
@@ -101,7 +101,7 @@ AAT 表仍在其变长 reader 之前返回 `Ok(None)`。
 只采样每个字体的 GSUB lookup 0，不代表整个字体 lookup 集合。
 基线使用同一准入内核的空回调；不是普通 shaping API 基线。
 原始样本、费用与分母见
-[成本 receipt](../evidence/text-stages-b-2026-11-02/lookup-cost-summary.json)。
+成本 receipt（`target/verification/text-stages-b-2026-11-02/lookup-cost-summary.json`）。
 
 | 场景 | 冷空回调 P95（µs） | 冷计数回调 P95（µs） | 热计数回调 P95（µs） | 最后点拒绝 P95（µs） |
 |---|---:|---:|---:|---:|

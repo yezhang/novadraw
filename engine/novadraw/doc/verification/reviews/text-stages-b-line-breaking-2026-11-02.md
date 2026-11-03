@@ -89,9 +89,9 @@ cargo +1.96.0 test -p novadraw --test p2_parley_operations_contract
 ```
 
 源码、补丁及检查结果见
-[断行 receipt](../evidence/text-stages-b-2026-11-02/line-verification.json)；
+断行 receipt（`target/verification/text-stages-b-2026-11-02/line-verification.json`）；
 上游对照详情见
-[oracle receipt](../evidence/text-stages-b-2026-11-02/line-oracle-receipt.json)。
+oracle receipt（`target/verification/text-stages-b-2026-11-02/line-oracle-receipt.json`）。
 新增[断行补丁](../../../dependencies/parley-0.7.0-line-breaking.patch)
 在只读存储与复制／对齐补丁之后应用；旧补丁和原始证据保持。
 

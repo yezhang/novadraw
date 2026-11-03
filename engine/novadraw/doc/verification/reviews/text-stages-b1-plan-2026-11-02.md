@@ -61,7 +61,7 @@ feature 合并、重复遍历和每个 mask 查询分别计费。
 
 ## 验证与成本
 
-[plan receipt](../evidence/text-stages-b-2026-11-02/plan-verification.json)
+plan receipt（`target/verification/text-stages-b-2026-11-02/plan-verification.json`）
 重放前六份冻结补丁，再追加 `harfrust-0.3.2-plan.patch`。
 本片修改四个既有源码文件，其他 74 个源码文件逐字节保持；
 重放结果精确恢复生产源码，并在测试结束后再核对一次。
@@ -80,7 +80,7 @@ feature 合并、重复遍历和每个 mask 查询分别计费。
 240 对 shaping 输出；shaping 本身仍使用普通入口。
 因此这些结果不能解释为任意字体下的完整 shaping 准入。
 
-[成本 receipt](../evidence/text-stages-b-2026-11-02/plan-cost-summary.json)
+成本 receipt（`target/verification/text-stages-b-2026-11-02/plan-cost-summary.json`）
 记录无布局表字体、0／4／6／72 项用户 feature 的四组 fresh plan。
 普通入口、准入空回调、计数回调和最后点拒绝各采样 1,000 次，
 每组预热 100 次，模式逐样本轮换，共 16,000 个有效样本。

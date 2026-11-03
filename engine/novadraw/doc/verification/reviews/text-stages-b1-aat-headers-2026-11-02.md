@@ -50,7 +50,7 @@ kern 子表缓存也会构造 glyph 集合和堆上的 class cache。
 
 ## 验证与来源
 
-[AAT receipt](../evidence/text-stages-b-2026-11-02/aat-verification.json)
+AAT receipt（`target/verification/text-stages-b-2026-11-02/aat-verification.json`）
 依次重放 buffer、instance、variation、cold、lookup 五份冻结补丁，
 再追加 `harfrust-0.3.2-aat-headers.patch`。
 两个既有源码文件改动，新增一个模块；其他 75 个源码文件逐字节保持。
@@ -76,7 +76,7 @@ shaping 使用普通入口，这些结果不代表 shaping 已受准入。
 成功释放在计时之外，拒绝包含候选清理。
 四种计数路径的新增 heap allocation 均为零；费用包含整个冷构造，
 不是只计上述表头读取。
-原始样本和分母见 [成本 receipt](../evidence/text-stages-b-2026-11-02/aat-cost-summary.json)。
+原始样本和分母见成本 receipt（`target/verification/text-stages-b-2026-11-02/aat-cost-summary.json`）。
 
 | 空表头 | 普通 P95（µs） | 准入空回调 P95（µs） | 准入计数 P95（µs） | 最后点拒绝 P95（µs） |
 |---|---:|---:|---:|---:|

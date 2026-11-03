@@ -106,7 +106,7 @@ cargo +1.96.0 clippy -p novadraw --test p2_parley_operations_contract -- -D warn
 ```
 
 来源、实际源码及散列见
-[操作验证 receipt](../evidence/text-stages-b-2026-11-02/operations-verification.json)。
+操作验证 receipt（`target/verification/text-stages-b-2026-11-02/operations-verification.json`）。
 [操作补丁](../../../dependencies/parley-0.7.0-operations.patch)
 在已经接受的存储补丁之后应用；旧存储补丁及历史验证证据保留。
 原始 Rust 与许可证仅 `layout/mod.rs` 有模块接入改动；

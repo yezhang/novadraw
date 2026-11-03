@@ -34,7 +34,7 @@ ADR-059 要求分析过程中的扫描和集合增长在发生前准入，
 Parley 路径以 `dependencies/parley-0.7.0/src/` 为起点；
 其余路径以对应 registry package 的 `src/` 为起点。
 依赖版本、归档散列和源码一致性见
-[源码 receipt](../../verification/evidence/text-stages-b-2026-11-02/analysis-dependency-source.json)。
+本地源码 receipt（`target/verification/text-stages-b-2026-11-02/analysis-dependency-source.json`）。
 
 | 顺序 | 入口与已确认事实 | 所需依据或拒绝通道 |
 |---|---|---|

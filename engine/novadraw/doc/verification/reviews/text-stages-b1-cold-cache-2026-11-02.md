@@ -69,7 +69,7 @@ read-fonts 及其他传递依赖保持未改。
 
 ## 已完成验证
 
-[cold receipt](../evidence/text-stages-b-2026-11-02/cold-verification.json)
+cold receipt（`target/verification/text-stages-b-2026-11-02/cold-verification.json`）
 按 buffer → instance → variation 三份冻结补丁重放后生成本片增量。
 8 个既有源码文件有改动，新增 `cold_admission.rs`；
 其余 68 个源码文件逐字节保持，包括原始换行。
@@ -91,7 +91,7 @@ read-fonts 及其他传递依赖保持未改。
 普通／准入／最后点拒绝按样本轮换。
 成功候选释放在计时之外，拒绝计时包含内部清理。
 分母、源码／二进制散列和逻辑费用见
-[cost receipt](../evidence/text-stages-b-2026-11-02/cold-cost-summary.json)。
+cost receipt（`target/verification/text-stages-b-2026-11-02/cold-cost-summary.json`）。
 
 | 场景 | 普通 P95（µs） | 准入 P95（µs） | 最后点拒绝 P95（µs） |
 |---|---:|---:|---:|
