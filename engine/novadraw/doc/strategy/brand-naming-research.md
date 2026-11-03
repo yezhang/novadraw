@@ -28,27 +28,19 @@
 
 ## 2. 当前结论
 
-`Novadraw` 的问题主要是品牌记忆度和定位宽度，而不是搜索唯一性：
+经过前期的多轮筛选与双端可用性验证，目前已正式确立了框架与产品的双品牌架构：
 
-- `Nova` 与 `Draw` 都是高频通用词，组合后容易被理解为普通绘图应用；
-- `Draw` 强调绘制动作，不能完整表达 Figure、Layout、Connection、Event、
-  Animation、Editor 和多后端共同组成的框架；
-- 名称含义直观、拼写简单，且当前没有发现强势的同名 Rust 图形框架；
-- 现有代码、crate、文档和验证证据已经广泛使用该名称，迁移具有实际成本。
+1. **底层引擎 (Engine)**：**Tenonix**
+   - 寓意物理上的精密连接（Tenon/榫卯）与底层基础设施的硬核感（-ix 后缀）。
+   - 覆盖范围：Core, Editor, Inspector, Platform, Backend。
+2. **上层产品 (Studio)**：**Semaloom**
+   - 寓意 AI 时代的“语义编织”（Semantic + Loom）。
+   - 覆盖范围：DSL 分层、AI Agent 协同、QSR 交互与最终用户体验。
 
-因此，当前不应为了“听起来更新”而替换名称。新名称必须在品牌独特性、范围承载力、
-发音、搜索占用和生态扩展方面显著优于 `Novadraw`，才能证明迁移合理。
+此方案完美呼应了仓库明确“框架与产品双层边界”的约束。后续将制定正式的重命名与迁移计划。
 
-阶段性建议分为两条路线：
+> 注：下文保留的是 2026-10-19 及之前的阶段性研究记录。
 
-1. **低成本优化**：保留 `novadraw` 技术标识，展示名称统一为 `NovaDraw`，配合稳定的
-   产品描述与视觉识别。
-2. **战略性重命名**：为整个 Core、Editor、Inspector、Text 和 backend 生态选择一个
-   可独占的原创母品牌，再制定一次性迁移计划。
-
-2026-10-19 的补充研究提出第三条候选语义路线：把品牌认知从“执行绘制动作”推进到
-“把意图变成可共同操作的视觉结构”。该路线当前以 `Semaloom` 作为领先语义候选，
-但尚未完成听写、商标和域名核验，不改变上述阶段性建议。
 
 ## 3. 当前品牌评估
 
@@ -199,20 +191,20 @@ fallback、shaping、glyph 定位、测量和轮廓准备，该意象可以表�
 
 ## 7. 品牌架构建议
 
-无论最终母品牌为何，技术名称应保持可发现性：
+技术名称应保持可发现性，并严格遵循 Tenonix (Engine) 的母品牌前缀：
 
 ```text
-<Brand>
-├── <brand>                 # Core
-├── <brand>-editor
-├── <brand>-inspector
-├── <brand>-backend-vello
-├── <brand>-platform-winit
-└── <brand>-platform-web
+Tenonix
+├── tenonix                 # Core
+├── tenonix-editor
+├── tenonix-inspector
+├── tenonix-backend-vello
+├── tenonix-platform-winit
+└── tenonix-platform-web
 ```
 
 文字、动画、布局等 Core 能力优先作为描述性模块，而不是拆成只有隐喻名称的公开
-crate。品牌可以富有意象，API 与包名仍应直接表达职责。
+crate。产品层则统一使用 Semaloom 品牌。
 
 ## 8. 重命名决策门槛
 
@@ -242,6 +234,13 @@ crate。品牌可以富有意象，API 与包名仍应直接表达职责。
 商标核验”的顺序推进，不在讨论早期锁定单一名称。
 
 ## 10. 调研记录
+
+### 2026-11-03
+
+- 确认 `Tenon` (榫卯)、`Weft` (纬线)、`Rhizome` (根茎) 等常见硬核意象单词在 npm/crates.io 已被占用。
+- 确认 `Semaloom` (语义织布机)、`Synaptex`、`Nodeweft`、`Tenonix` 等新造词在 npm 和 crates.io 均完全可用。
+- 正式决策：采用双品牌架构。底层引擎采用 **Tenonix**，上层产品（Studio）采用 **Semaloom**，以明确框架与产品的边界，同时兼顾底层精密基础设施的硬核感与上层 AI-native 创作体验的语义性。
+- 后续将安排相应的代码库重命名与文档迁移。
 
 ### 2026-10-19
 
