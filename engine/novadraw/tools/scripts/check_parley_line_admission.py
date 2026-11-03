@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tarfile
+from check_harfrust_buffer_admission import artifact_output
 
 REPO = Path(__file__).resolve().parents[2]
 SOURCE = REPO / "tests/consumers/parley-storage/src/line_oracle.rs"
@@ -27,7 +28,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--archive", type=Path, required=True)
     args = parser.parse_args()
-    output = args.output.resolve()
+    output = artifact_output(args.output)
     output.mkdir(parents=True, exist_ok=True)
     archive = args.archive.resolve()
     if digest(archive) != ARCHIVE_SHA256:

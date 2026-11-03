@@ -6,6 +6,7 @@ import hashlib
 import json
 import platform
 from pathlib import Path
+from check_harfrust_buffer_admission import artifact_output
 import subprocess
 
 REPO = Path(__file__).resolve().parents[2]
@@ -21,6 +22,7 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    args.output = artifact_output(args.output)
     groups = defaultdict(list)
     rows = [json.loads(line) for line in args.samples.read_text().splitlines()]
     if len(rows) != 6000:

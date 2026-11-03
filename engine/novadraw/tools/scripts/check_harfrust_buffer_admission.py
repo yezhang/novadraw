@@ -23,6 +23,32 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def artifact_output(path):
+    """Reject doc, tracked or non-ignored paths before writing text artifacts."""
+    output = path.resolve()
+    if output.is_relative_to(REPO / "doc"):
+        raise SystemExit(
+            "Text artifacts do not belong in doc; "
+            "use --output target/verification/text-stages-b-2026-11-02"
+        )
+    if output.is_relative_to(REPO):
+        relative = output.relative_to(REPO).as_posix()
+        ignored = subprocess.run(
+            ["git", "check-ignore", "--quiet", "--", relative],
+            cwd=REPO, check=False,
+        )
+        tracked = subprocess.run(
+            ["git", "ls-files", "--", relative],
+            cwd=REPO, check=True, capture_output=True, text=True,
+        )
+        if ignored.returncode != 0 or tracked.stdout:
+            raise SystemExit(
+                "Text artifacts require an ignored local directory; "
+                "use --output target/verification/text-stages-b-2026-11-02"
+            )
+    return output
+
+
 def run(command, log, env, cwd=None):
     with log.open("wb") as output:
         subprocess.run(command, check=True, env=env, cwd=cwd,
@@ -68,7 +94,7 @@ def main():
     archive = args.archive.resolve()
     if sha(archive.read_bytes()) != ARCHIVE_SHA:
         raise SystemExit("Harfrust archive checksum mismatch")
-    output = args.output.resolve()
+    output = artifact_output(args.output)
     output.mkdir(parents=True, exist_ok=True)
     root = REPO / "target/text-harfrust-buffer"
     baseline = root / "original"

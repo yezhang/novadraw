@@ -6,6 +6,7 @@ import json
 import math
 from collections import defaultdict
 from pathlib import Path
+from check_harfrust_buffer_admission import artifact_output
 
 
 def digest(path):
@@ -18,6 +19,7 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    args.output = artifact_output(args.output)
     groups = defaultdict(list)
     modes = ["cold_noop", "cold_counted", "warm_noop", "warm_counted", "reject_last"]
     for line in args.samples.read_text().splitlines():

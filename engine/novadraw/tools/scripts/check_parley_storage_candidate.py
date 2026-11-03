@@ -7,7 +7,7 @@ from pathlib import Path
 import tarfile
 
 REPO = Path(__file__).resolve().parents[2]
-EVIDENCE = REPO / "doc/verification/evidence/text-stages-b-2026-11-02"
+EVIDENCE = REPO / "target/verification/text-stages-b-2026-11-02"
 CHECKSUM = "ada5338c3a9794af7342e6f765b6e78740db37378aced034d7bf72c96b94ed94"
 
 

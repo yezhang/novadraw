@@ -26,7 +26,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--target-dir", type=Path, required=True)
     args = parser.parse_args()
-    output = args.output.resolve()
+    output = harness.artifact_output(args.output)
     archive = output / "harfrust-0.3.2.crate"
     if harness.sha(archive.read_bytes()) != harness.ARCHIVE_SHA:
         raise SystemExit("Original archive checksum mismatch")
