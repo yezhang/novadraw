@@ -45,6 +45,17 @@
       "open": {
         "type": "terminal"
       }
+    },
+    {
+      "id": "textflow-large-macos",
+      "name": "TextFlowLarge 性能研究（macOS）",
+      "command": "python3 tools/scripts/run_textflow_large_macos.py --toolchain 1.96.0 --clt --target-dir /tmp/novadraw-text-stage-target -- --replay --cycles 2 --timing --gpu-wait --screenshot --output target/verification/textflow-large-app/native-final",
+      "cwd": ".",
+      "background": true,
+      "source": "agent",
+      "open": {
+        "type": "terminal"
+      }
     }
   ]
 }

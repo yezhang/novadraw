@@ -1,0 +1,130 @@
+mod native;
+mod research;
+
+use anyhow::{Context, Result, bail};
+use research::{Journal, Operation, Research, surface};
+use serde_json::json;
+use std::path::PathBuf;
+
+#[derive(Clone)]
+pub struct Config {
+    headless: bool,
+    replay: bool,
+    cycles: usize,
+    timing: bool,
+    requests: bool,
+    gpu_wait: bool,
+    exit_after_replay: bool,
+    screenshot: bool,
+    output: PathBuf,
+}
+
+impl Config {
+    fn parse() -> Result<Option<Self>> {
+        let mut config = Self {
+            headless: false,
+            replay: false,
+            cycles: 1,
+            timing: false,
+            requests: false,
+            gpu_wait: false,
+            exit_after_replay: false,
+            screenshot: false,
+            output: "target/verification/textflow-large-app".into(),
+        };
+        let mut args = std::env::args().skip(1);
+        while let Some(arg) = args.next() {
+            match arg.as_str() {
+                "--headless" => config.headless = true,
+                "--replay" => config.replay = true,
+                "--timing" => config.timing = true,
+                "--requests" => {
+                    config.requests = true;
+                    config.timing = true;
+                }
+                "--gpu-wait" => config.gpu_wait = true,
+                "--exit-after-replay" => {
+                    config.exit_after_replay = true;
+                    config.replay = true;
+                }
+                "--screenshot" => config.screenshot = true,
+                "--cycles" => {
+                    config.cycles = args.next().context("--cycles needs a count")?.parse()?;
+                    config.replay = true;
+                }
+                "--output" => {
+                    config.output = args.next().context("--output needs a directory")?.into()
+                }
+                "--help" | "-h" => {
+                    println!(
+                        "TextFlowLarge research\n\
+                        --headless --replay --cycles N --timing --requests\n\
+                        --gpu-wait --exit-after-replay --screenshot --output DIRECTORY\n\
+                        F1 reset / F2 append Z / F3 scroll 100 / F4 resize / F5 stabilize\n\
+                        F6 replay / F7 export / F8 timing / Escape close"
+                    );
+                    return Ok(None);
+                }
+                _ => bail!("unknown argument: {arg}"),
+            }
+        }
+        anyhow::ensure!(
+            (1..=10_000).contains(&config.cycles),
+            "cycles must be between 1 and 10000"
+        );
+        anyhow::ensure!(
+            !config.headless || (!config.gpu_wait && !config.screenshot),
+            "--gpu-wait and --screenshot require a native window"
+        );
+        Ok(Some(config))
+    }
+}
+
+fn main() -> Result<()> {
+    let Some(config) = Config::parse()? else {
+        return Ok(());
+    };
+    if config.headless {
+        run_headless(config)
+    } else {
+        native::run(config)
+    }
+}
+
+fn run_headless(config: Config) -> Result<()> {
+    let mut journal = Journal::new(&config);
+    let mut research = Research::new(config.timing, config.requests);
+    let mut renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
+    let mut scene = novadraw_backend_vello::scene::Scene::new();
+    let result = (|| {
+        let operations = if config.replay {
+            research::replay(config.cycles)
+        } else {
+            vec![Operation::Reset]
+        };
+        for operation in operations {
+            if matches!(operation, Operation::Reset) {
+                if research.has_operations() {
+                    let path = journal.export(&config.output)?;
+                    println!("TextFlowLarge export: {}", path.display());
+                }
+                renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
+            }
+            research.apply(operation, &mut journal)?;
+            let mut backend = renderer.bind(&mut scene);
+            research.render(
+                &mut backend,
+                surface(research.width),
+                "cpu_recorded",
+                &mut journal,
+            )?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = &result {
+        journal.push(json!({"kind":"failure", "phase":"headless", "error":format!("{error:#}")}));
+    }
+    let path = journal.export(&config.output)?;
+    println!("TextFlowLarge export: {}", path.display());
+    result
+}

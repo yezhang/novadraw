@@ -1,5 +1,22 @@
 # Native 应用启动说明
 
+## textflow-large-macos
+
+入口由 [run.json](run.json) 的 `textflow-large-macos` action 管理，
+使用[TextFlowLarge 启动脚本](../../tools/scripts/run_textflow_large_macos.py)。
+需要 macOS、Python 3、已安装的 Rust 1.96.0、Command Line Tools 和可用的 macOS SDK。
+当前 action 复用已有 `/tmp/novadraw-text-stage-target` 构建缓存；`--clt` 使用既有
+ARM64 文本验证构建配置，并通过 xcrun 查询 SDK。普通开发可省略这些本机验证选项，
+按[应用 README](../../crates/novadraw/examples/native/textflow-large-app/README.md)运行。
+
+2026-11-03 已用该命令构建并通过 LaunchServices 打开确切 bundle。
+最终两轮回放包含 26 个成功帧和 26 次成功 GPU queue wait，原文、追加、滚动及
+八次宽度变化均已记录，导出零丢弃。首帧两次 Skipped 保留在原始记录中；
+Native 重试在不同窗口事件间推进，等待成功呈现后才继续回放。
+原生进程保留运行；GPU retained target 已查看，不能当作桌面截图或屏幕延迟证据。
+人工鼠标、功能键、跨显示器 DPI 和平台可访问性未验收，详见
+[研究应用验收](../../doc/verification/reviews/textflow-large-app-implementation-2026-11-03.md)。
+
 ## gef-shapes-macos
 
 入口由 [run.json](run.json) 的 `gef-shapes-macos` action 管理，

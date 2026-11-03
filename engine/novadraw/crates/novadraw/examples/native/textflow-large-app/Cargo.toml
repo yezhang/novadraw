@@ -1,0 +1,14 @@
+[package]
+name = "textflow-large-app"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+draw2d-official-examples = { path = "../draw2d-official-examples" }
+novadraw = { path = "../../..", default-features = false }
+novadraw-backend-vello = { path = "../../../../novadraw-backend-vello", features = ["native"] }
+novadraw-platform-winit = { path = "../../../../novadraw-platform-winit" }
+winit.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

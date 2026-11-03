@@ -6,6 +6,9 @@ mod examples;
 pub mod inherit_background;
 pub mod inherit_background_host;
 
+/// Shared original Large fixture for focused text performance research.
+pub use examples::text_flow_large_example;
+
 /// Runs fixed-time Tree animation evidence on a native Vello device.
 pub fn verify_tree_animation(window: std::sync::Arc<winit::window::Window>) {
     examples::tree_animation::verify_native(window);
