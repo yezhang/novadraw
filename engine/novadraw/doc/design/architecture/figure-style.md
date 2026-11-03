@@ -92,7 +92,7 @@ ResolvedStyle 使用相同领域值。原始标量和文本先受检，再组装
 安装有效样式继续返回 RuntimeMutationError，以报告身份、fault 和发布失败。
 
 布局方向独立于段落方向和 AffineTransform，契约见
-[ADR-048](../../adr/adr-048-inherited-layout-direction.md)。
+[布局方向](inherited-layout-direction.md)。
 LayoutSceneQuery、EventSceneQuery 和 Flow 的冻结样式使用同一解析结果。
 
 ## 6. 验证

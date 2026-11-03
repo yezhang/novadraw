@@ -1,20 +1,23 @@
-# ADR-053：嵌入式 Vello Scene 输出目标
+# 嵌入式 Vello Scene 输出目标
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Vello backend；Core/Editor 协议不变，宿主负责最终合成。
+原 ADR-053 的批准范围保持，包边界沿用 ADR-023。
 
 ## 状态与范围
 
 2026-10-28，依据用户批准的
-[GEF 对等样例方案](../design/editor/gef-official-examples-parity-proposal.md)实施首个前置切片。
+[GEF 对等样例方案](../editor/gef-official-examples-parity-proposal.md)实施首个前置切片。
 本 ADR 细化方案 A 的 backend 出口，不授权改动第三方 UI 框架或 Core 渲染主循环。
 Scene 输出切片已实施，验证结果见
-[首批记录](../verification/reviews/gef-scene-target-implementation-2026-10-28.md)；
-整体 UI 接入状态仍由 [P2 backlog](../roadmap/p2-delta-backlog.md)维护。
+[首批记录](../../verification/reviews/gef-scene-target-implementation-2026-10-28.md)；
+整体 UI 接入状态仍由 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
 `api_semantics`：`paint.protocol`、`frame.submission`、`resource.lifecycle`、
 `coordinate.conversion`、`clipping.strategy`。
 
-## 决策
+## Scene 输出契约
 
 在具体 Vello backend 中增加 `scene::VelloSceneRenderer` 与 scoped `SceneBackend`。
 调用者持有画布局部 Vello Scene；backend 不创建窗口、Device、Queue、renderer 或 timer，

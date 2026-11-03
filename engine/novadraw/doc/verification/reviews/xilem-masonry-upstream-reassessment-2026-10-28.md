@@ -134,7 +134,7 @@ Widget / View 需保留 session 身份、历史、capture / cancel 与 teardown 
 ## 可复核来源
 
 - [原兼容副本记录（保留原文）](../evidence/masonry-vendor-baseline-2026-10-28.txt)
-- [现有 Scene 输出边界](../../adr/adr-053-embedded-vello-scene-target.md)
+- [现有 Scene 输出边界](../../design/rendering/embedded-vello-scene-target.md)
 - [原生首帧与 resize 既有证据](masonry-native-first-frame-followup-2026-10-28.md)
 - 上游源码固定基线：`66c8893f12232b9d5cdf4296f773aa3dc07ee776`；
   本地路径 `/Users/bytedance/Documents/code/GitHub/xilem`，重点文件：

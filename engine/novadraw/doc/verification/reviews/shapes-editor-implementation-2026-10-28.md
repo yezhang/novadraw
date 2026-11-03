@@ -12,7 +12,7 @@
 Editor 新增 `CreationTemplate<A>`、CreationTool、MarqueeTool、typed drop、
 批量受检 selection 和应用命令/保存点入口。内置与外部能力使用同一 typed
 identity、RequestProtocol、policy registry 和 CommandStack，不新增业务枚举。
-契约见 [ADR-054](../../adr/adr-054-template-creation-and-marquee.md)。
+契约见 [模板与框选（原 ADR-054）](../../design/editor/template-creation-and-marquee.md)。
 
 Masonry 增加 typed 模板源、稳定 action 去重、应用键盘回调、滚轮/中键平移和
 auto-expose 调度。预览保留在 widget/session，不因 pointer move 重建外层 UI；

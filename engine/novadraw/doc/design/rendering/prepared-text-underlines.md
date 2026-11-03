@@ -1,12 +1,14 @@
-# ADR-050：按实际字体准备下划线
+# 按实际字体准备下划线
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core Text/Graphics；PathExample 是消费者。原 ADR-050 的接受效力保持。
 
 状态：Accepted，2026-10-27 用户批准通用下划线实施。
 
 `api_semantics`：`text.flow`、`text.interaction`、`paint.protocol`、`damage.repaint`。
 
-## 决策
+## 准备与绘制契约
 
 首个切片提供 `text::TextUnderline` 逻辑范围及颜色，
 `MeasureContext::prepare_underlines` 将其与 StyledTextLayout 结合。

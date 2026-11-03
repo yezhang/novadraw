@@ -6,11 +6,12 @@
 backend 与 platform 分别承担字形输出和呈现验收。
 设计状态：LT-00～LT-03 复核通过。整体性能验收尚未关闭。
 
-用户已批准首批实施，当前契约增量见 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)，
+用户已批准首批实施，当前契约增量见 [精确复用设计](exact-flow-layout-reuse.md)，
 状态与证据见[实施记录](../../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
 LT-04～LT-09 保持独立评审，本方案的性能目标与平台呈现验收尚未通过。
 
-本页负责完整目标、精确／渐进模式和预算原则；共享 IR 与调度候选见
+本页负责长期目标、精确／渐进模式和候选预算原则；已接受共享 IR 由精确复用专题负责，
+已接受阶段绑定由[阶段协议](staged-text-width-reuse.md)负责。调度候选见
 [滚动／resize 专题](long-text-scroll-resize-optimization-proposal.md)，
 技术组合见[性能路线](text-performance-strategy.md)。
 最新成本与限制见[优化验证](../../verification/performance/text-optimization-validation.md)，
@@ -71,7 +72,7 @@ debug 场景曾并行运行，不能与顺序 release 场景计算严格加速�
 这些是优化候选，实施前用分阶段计时与计数确定实际顺序。
 不能因为字体文件较大就判定它主导了本次等待，也不能用 GPU 加速代替 CPU 成本分析。
 
-## 核心决策
+## 候选设计原则
 
 | 设计决定 | 采用方式 | 理由 |
 |---|---|---|
@@ -177,6 +178,11 @@ Rope 或 piece tree 可由 provider/模型自行采用，Core 接收共享只读
 首屏时间可通过范围 provider 改善，全文解析时间不会成为常数。
 
 ## 布局与失效模型
+
+本节是后续细粒度模型，不覆盖已接受合同。当前完整缓存比较完整 request，
+阶段分析仅去掉 max_width，仍保留颜色、inline 尺寸等其他字段；
+贡献组装尚无跨场景纯度/revision 合同。以下 paint-only、尺寸分离及局部编辑
+只有经独立评审与等价证明后才能启用。
 
 布局划分为贡献捕获、shaping、换行、段落片段生成和页面位置组合。
 既有完整 styled layout 引擎可继续一次完成中间各步。
@@ -775,124 +781,10 @@ M1 Pro、release、原 Large 字体与尺寸的验收目标候选，尚未实测
 
 ## 基准协议与统计口径
 
-LT-00 必须先交付可执行基准驱动及数据 manifest，再评价上述 p95 目标。
-本节固定驱动合同。首批已建立 `textflow-perf` 和 `text.long-layout`，
-实际命令见 [Verification](../../../tests/README.md)；
-suite 在 `tools/xtask/src/main.rs` 登记，完整统计由独立脚本执行。
-当前 CPU 驱动的未覆盖场景和验收限制见实施记录；原临时探针不作为唯一复现工具。
-LT-00 完成前保留“待采证”，不以原有三次样本确认任何分位数目标通过。
-
-每次运行冻结如下 manifest；对比两版本时只允许待测实现差异，
-其余输入/参数一致，差异和不可匹配项单独报告：
-
-| 类别 | 必须冻结的字段 |
-|---|---|
-| 源码基线 | 完整 commit SHA、工作树 diff/未跟踪源码清单及内容 SHA-256、Cargo.lock 和基准驱动版本 |
-| 构建 | rustc/cargo、target triple、profile、features、优化/debug/lto/codegen 设置、相关环境和依赖版本 |
-| 字体 | 实际文件内容 SHA-256、face index、描述符/字号/变体、注册与 fallback 顺序及状态 |
-| 输入 | fixture 内容/hash、字节/段落/来源/节点数量、style 与 border/inline 配置、每轮变更 |
-| 布局与显示 | 明确逻辑宽高及有效 client width、border/insets、wrap/方向、初始 origin、DPI、transform、surface 像素尺寸 |
-| 运行环境 | OS/设备、CPU/GPU/后端与 capability、显示刷新率、供电/后台负载、worker 配置和预算 |
-| 采样计划 | 场景类别、预热/样本数、独立会话、随机种子及执行顺序、超时和失败定义、统计方法 |
-
-不从样例初始 bounds 推断最终布局宽度；基准必须读出并记录实际
-width-tracking viewport/client constraint。字体来源及内容缺失时该样本不能成为可比基线。
-dirty 工作树的 patch 和未跟踪源码以可恢复内容随 manifest 保存；
-只记录分支名或一个 HEAD SHA 不足以复现。
-
-驱动提供 cold-process、fresh-runtime、warm-layout、source-append、
-scroll、resize 和 render/present 场景选择，并输出机器可读原始样本。
-每个 case 固定事件序列和重复输入；append 每轮从同一基准文本追加同一个字符，
-在计时外重建/恢复场景并验证基准快照，不让文本长度随样本数增长。
-对缓存冷/热的重置或预热显式记录，不用一次 Reset 同时冒充所有缓存条件。
-字体/GPU 未就绪、已有 GPU 的场景切换、旧宽度缓存及淘汰场景分别编号。
-
-计时使用同一进程单调时钟，原始值保存整数纳秒；
-跨进程或 OS 输入时间戳需有受检对齐方式，不能减去不同时间基准的值。
-
-| 指标 | 起点 → 终点 |
-|---|---|
-| 进程冷启动 | launcher 发起进程 → 收到带请求/帧身份的首次就绪或实际呈现证据；两种终点分别报告 |
-| 工厂构造 | 调用原 fixture 工厂前 → Runtime 返回 |
-| 首次精确稳定布局 | 首次稳定化调用前 → 当前完整稳定快照返回，不含先前构造 |
-| 输入分发 | 投递固定事件前 → 分发/入队调用返回，不假定源 mutation 已提交 |
-| 源提交 | 请求准入后 → 对应 mutation receipt/已提交事实生成；与分发时间分别记录 |
-| 派生更新 | 已提交源事实进入待处理工作 → 相应 layout/包络/索引完成稳定发布 |
-| 同步原报告端到端追加 | 事件投递前 → 本次稳定查询返回；保留这个兼容口径用于基线比较 |
-| 可见查询与 IR | 进入已稳定快照的绘制录制前 → 受检录制/帧准备完成；发布开销另计 |
-| backend/GPU | 后端消费帧 → 编码/上传/提交/可用完成证据，各阶段分开 |
-| 输入到呈现 | 固定输入投递 → 与该输入关联的新内容实际呈现，不能用 prepare 返回或 GPU fence 代替 |
-
-deferred mutation 可能直到后续驱动才提交，探针必须用 request/revision/receipt 关联，
-不能把 dispatch 返回当作源已提交。稳定查询、独立录制和 surface 提交分别采样，
-不消费另一场景的 damage 或在途状态作为预热。
-系统不能提供实际呈现证据时填写 unavailable 并说明原因，
-只评价已取得证据的 CPU/GPU 阶段，不以帧率或提交完成补造显示延迟。
-同步 CPU 预算使用前台实际计算/准备阶段的累计耗时，
-排队、worker 执行和等待分别记时，端到端更新仍包含全部等待。
-计数/tracing 的启用模式和开销随 manifest 固定；对比版本使用相同采样模式，
-不将带完整 tracing 的版本与关闭 tracing 的版本直接比较。
-
-统计计划是未来采样规则，不是已经获得的样本：
-
-- 冷启动每个待验收 case 至少 200 个独立新进程，分布于 5 个独立运行会话；
-  构建不进入计时，进程缓存/OS 字体或文件缓存状态逐项记录。
-- 热布局、append、scroll、resize 每个 case 运行 5 个独立会话，
-  每会话先做 20 次不计入结果的预热，再采 200 次，合计 1000 个有效样本目标。
-  对比版本用相同协议并交错执行，避免全部旧版先跑、全部新版后跑。
-- 同一会话内保持顺序和场景条件；GPU 呈现按帧身份关联。
-  严重重叠的并发进程单列压力测试，不混入单实例验收分布。
-- 按耗时排序，p 分位取第 `ceil(p × n)` 个样本，p50/p95/p99 使用同一规则。
-  分别报告每会话、合并样本、最大值和实际 n，不把会话 p95 的平均值称为总 p95。
-- 所有失败、超时、预算拒绝及未取得呈现证据的轮次保留原记录并单列计数，
-  不删除离群值或把失败填零。任一支持范围内失败未解释/处理，不能仅用成功样本宣布通过。
-  未达到采样计划的结果标为未完成；较大 case 若成本过高，
-  必须先修订并冻结协议，不能事后因结果不利减少样本或替换口径。
-
-每个会话的 p95 都需满足该 case 的冻结目标，确定性工作量门槛与行为反例同时通过，
-才可关闭对应性能验收。p99 为同口径描述值，有限样本不构成任意尾延迟上界；
-额外置信区间方法如需使用，必须先在 manifest 固定算法、抽样单位与种子。
-
-原始 NDJSON/CSV 样本、环境与输入 manifest、构建/执行退出码、
-汇总程序版本和统计输出在 LT-00 中保存到稳定的 evidence 目录，
-suite 只编排真实驱动，不复制汇总数据来代替执行。
-汇总器从原始样本重算分位数和阶段关联，校验样本数、baseline identity 和单位；
-禁止只保存摘要而删除失败轮次。
-重新测得的当前版本与 10 月 26 日成本可能因工作树或环境不同而有差异，
-须解释并保留两份证据，不覆盖原报告数据。
-
-| 输入组 | 数据构造与目的 |
-|---|---|
-| 官方原样例 | 保持 40 段、501 来源与受限键入，复现既有基线 |
-| 段落数增长 | 相同官方内容按 10 倍/100 倍扩展，验证局部更新与索引成本 |
-| 单个巨段 | 相同总量合成单段及继续增长，验证 cluster、复制与任务粒度 |
-| 无换行长行 | NoWrap、横向滚动、LTR/RTL，验证横向可见查询 |
-| 文档视图 | 1 MiB/10 MiB 文本及百万逻辑行，测 provider、内存与首屏 |
-| 语义压力 | CJK/Arabic/Hebrew、ligature、emoji/组合字符、混合字号与字体 fallback |
-| 图文混排 | 深层 block、跨段边框、margin、真实 inline Figure 和 route 依赖 |
-
-这些是未来测试输入，不能作为已经测得的数据。
-每组记录数据字节、段落、来源/节点、style spans、行、glyph 和可见范围；
-区别新进程冷启动、已有 GPU 切换、热缓存、缓存淘汰、字体未就绪和 worker 传输。
-独立记录 DPI 1/2、窄/宽 viewport、Native/Web 与 glyph/outline 路径。
-
-计时覆盖读取与字体、贡献捕获、shaping、换行、索引、验证、发布、IR、
-backend 编码/上传、GPU、实际呈现和输入延迟。
-计数覆盖缓存命中/淘汰、计算输入字节、段落重算、fragment 检查、
-复制字节、真实 geometry writes、revision 扫描、候选丢弃及 worker 副本。
-记录 p50/p95/p99、最大连续 UI 阻塞、峰值内存及预算触发原因。
-热路径只收集计数/tracing，离开采样阶段后汇总，不逐帧打印。
-
-正确性使用未优化精确路径作为相同版本、字体、宽度下的对照。
-比较测量、行断点、glyph/source 映射、caret/selection 和真实 Figure placement；
-Native/Vello 验证 Full/Partial、滚动旧区清理及截图像素。
-渐进覆盖最终补全后与精确结果一致；测试强制乱序完成、删除目标、
-字体替换、快速 resize、任务取消、暂停恢复、预算超限和 device reset。
-
-可执行标准命令由 `tools/xtask/src/main.rs` 与验证入口维护。
-获批实施时登记实际 suite，设计阶段不注册空 suite 或声称尚不存在的命令通过。
-单算法反例用 unit/integration tests，跨平台、feature、示例、产物和性能采证使用 suite。
-纯文档只检查 docs 与 diff，不替代算法或 GPU 验收。
+LT-00 的可恢复基线、计时边界、采样分母、分位计算、失败保留及正确性对照由
+[长文本基准协议](../../verification/plans/long-text-benchmark-protocol.md)统一维护。
+当前结果见[优化验证](../../verification/performance/text-optimization-validation.md)；
+方法存在不代表 p95、平台呈现或候选设计已经验收。
 
 ## 实施切片与依赖
 

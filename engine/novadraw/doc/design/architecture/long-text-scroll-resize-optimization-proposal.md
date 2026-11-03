@@ -126,36 +126,14 @@ flowchart LR
 
 ## 滚动的共享 IR
 
-引入不可变 glyph 缓冲与受检范围视图。
-缓冲保存 glyph 数据及相关变量坐标；范围视图只引用已经校验的片段。
-共享合同贯穿布局、Recorder、submission 构造和 backend 消费。
-各阶段持有 lease，命令保存范围、原点与绘制状态；
-`draw_glyph_runs` 的 run clone 与 `to_submission_for_session` 的 commands clone
-均不得重新复制 glyph 或 normalized_coords 数组。
-backend 编码可能需要转换或复制，其字节数和分配另行记录，不宣称全链路零复制。
+已接受的 GlyphBuffer/GlyphRange、范围验证、Recorder/submission 共享、
+旧 lease 与 backing 计费统一由
+[精确复用专题](exact-flow-layout-reuse.md#滚动共享-ir-的最小增量合同)负责。
+共享缓冲不等于原生可见裁剪，也不免除字体、session 与提交检查。
 
-构造入口仍能接收 owned 数据，统一完成字体、数值和范围校验。
-共享视图必须保证范围合法、来源资产一致，不能依赖悬空借用或可变外部数组。
-范围拆分保持字体实例、变量坐标、原点与原有绘制顺序。
-这项先保持当前字形输出分母，单独验证复制、分配和录制时间的变化；
-不把共享缓冲成功称为可见裁剪成功。
-
-旧帧和旧布局在缓存淘汰后仍可保留缓冲；实际资源仍按 backend session 同步。
-共享数据不免除字体资源、绘制输入和提交版本检查。
-公开 IR 类型变化需要最小 ADR、迁移说明和 Native/Web API 边界核验；
-外部构造器与外部 backend 必须使用同一模型。
-
-同帧重复资源检查可以按完整字体实例去重，
-键包含资源身份与当前版本、face 和变量坐标等全部相关输入。
-只复用本帧已经验证的结果；字体、session 或依赖变化立即失效。
-裁剪掉字形不能丢弃仍应保留的布局、资源或发布依赖。
-
-范围视图可能钉住远大于可见片段的 backing buffer。
-内存按真实唯一 allocation 记录，分别列出视图引用字节、backing 字节、
-缓存预算、当前帧和旧 lease 的实际留存。
-重叠范围不重复计算同一 backing allocation，也不只按视图长度计费。
-淘汰仅释放缓存持有的引用，不能强制释放外部消费者仍持有的合法 lease。
-缓冲粒度与拆分策略待实施评估，保留峰值留存和长期旧快照反例。
+同帧资源验证可按完整字体实例、资源版本、face 与变量坐标去重，
+仅复用本帧已验证结果；字体、session 或依赖变化失效。
+裁剪不能丢弃布局、资源和发布依赖。
 
 ## 滚动的原生可见输出
 
@@ -232,44 +210,18 @@ H、C、G、V 同时计入摘要访问、候选及设备检查工作量，查询
 
 ## resize 的宽度复用
 
-文字引擎通过统一可选能力声明分析／shaping 与行布局是否可以分离。
-拟议资产关系为：
+可选能力、完整分析投影、实例绑定、字节准入、失败与完整回退统一由
+[阶段协议](staged-text-width-reuse.md)负责。本轮已接受合同保留除 max_width 外
+全部受检输入，包含 inline 尺寸、颜色和方向；不能采用旧候选的更细粒度失效表
+推断这些字段可以移出分析 key。
 
-`不可变段落分析与 shaping 资产 → 当前宽度的行布局 → 完整受检 Flow 快照`
-
-分析资产绑定文本、script/bidi、字体实例与 fallback、语言、features、
-变量坐标和 inline 结构等全部相关输入。
-引擎证明单纯宽度变化不影响这些输出后，复用分析资产，
-重新计算换行、对齐、baseline、来源几何与 inline placements。
-新完整快照统一拥有当前来源映射、依赖和交互 revision。
-未知引擎继续完整布局，宽度仍进入其完整 request key。
-
-默认 Parley 的最小可行性候选采用
-[不可变分析模板与独立 Layout](long-text-incremental-layout-proposal.md#默认宽度复用候选与成本协议)：
-保留模板，每个宽度复制到独立 Layout，重新换行、对齐并导出完整结果。
-Parley 0.7.0 的 Layout／LayoutData clone 会复制 run、cluster、glyph、
-变量坐标和行结果等 Vec，不能将这条候选描述为零复制。
-分别测量模板生成与复制、换行扫描、对齐、位置导出、来源几何、
-交互构建、校验和发布；失败前已完成的工作同样计入。
-若复制和导出占主要预算，再独立评估更深的资产拆分或上游支持；
-本轮不提供默认适配已可交付或能达到 16 ms 的结论。
-不得让多个已发布快照共同修改同一个 Parley Layout；
-第三方内部类型和状态不穿透 backend-neutral 公共契约。
-每个新宽度仍可能扫描全部 cluster，本项不承诺换行成为常数成本。
-宽度往返使用同输入的新鲜完整布局作 oracle，单独验证重复
-`break_all_lines`／`align` 的状态恢复，再扩展到 alignment 切换和真实 inline 反馈。
-
-先验证无真实内嵌 Figure 的原 Large，再扩展到真实图文混排。
-inline 新增、删除和移动进入分析／shaping 重验；
-纯尺寸与 baseline 改变只在引擎声明可分离时复用。
-真实 Figure 测量及其依赖继续读取，反馈改变贡献结构时升级失效范围。
-同一次稳定化中重复的相同受检 request 可以复用，
-不能由此推断可跨场景缓存完整 contributor 测量。
-
-本项不依赖跨编辑的局部 shaping 或检查点恢复。
-LTI-R01／R02 继续约束对应后续路径；Parley 的 `revert`
-不能直接当作持久检查点 export／restore。
-证明和算法细节由增量排版专题维护。
+默认 Parley 的模板复制、断行、导出与交互成本必须分别记录；
+新宽度可能扫描全部 cluster，不承诺常数成本或零复制。
+同输入的新鲜完整布局是宽度往返对照，真实 inline 测量与依赖仍须重读。
+当前生产接入及暂停边界见
+[文字阶段状态](../../verification/reviews/text-stages-status.md)。
+跨编辑 checkpoint、paint-only 分离及更细粒度 inline 复用仍是
+[增量候选](long-text-incremental-layout-proposal.md)，没有因阶段合同接受而获准。
 
 ## resize 的合并与几何消费边界
 

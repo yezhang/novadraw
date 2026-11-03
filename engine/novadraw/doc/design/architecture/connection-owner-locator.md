@@ -1,12 +1,14 @@
-# ADR-039：连接标签的 owner 方位定位
+# 连接标签的 owner 方位定位
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core Connection；UML 是消费者。原 ADR-039 的接受效力保持。
 
 ## 状态
 
 已接受（2026-10-21），用户批准按草案实施；Core 与官方 UML 消费者已实现并通过最终门禁。
 属于官方示例 K03，关联语义身份 `connection.locator`。
-本决策补充[连接契约](../design/architecture/connection-routing.md)的 child placement；
+本设计补充[连接契约](connection-routing.md)的 child placement；
 EndpointLocator 的既有切线/法线行为保持原契约。
 
 ## 问题与源码证据
@@ -32,7 +34,7 @@ EndpointLocator 的既有切线/法线行为保持原契约。
 侧边定位与曲线方向不同。owner 方位决定标签向哪一侧伸出；斜率影响沿连接方向的
 纵向偏移。只向现有 point 加切线和法线距离无法表达标签的最终边界。
 
-## 拟采用的开放输入
+## 开放输入
 
 在 `connection` 领域新增只读 `LocatorInput`，包含：
 
@@ -136,11 +138,8 @@ Decoration 继续从 route point/reference 准备旋转几何，不强制对其�
 四侧算法采用 Rust 表驱动 fixture，不生成 Java 基线。
 功能落地后才更新 catalog 与 `connection.locator` 的完成状态。
 
-## 下一步
+## 证据入口
 
-已完成统一输入与输出、兼容适配、owner 边界的 tracked 查询和本地方位计算；
-6 项独立契约测试覆盖矩阵中的纯算法、外部策略、变换和生命周期，既有连接回归保持通过。
-UML 的 5 项测试包含官方 u=8/v=4 placement 与动态文字测量，macOS Native 截图已人工核验。
-整数 fixture 保留连续 f64 结果，半像素居中差异按本决策报告。
-最终 workspace 测试 1,144 项通过、1 项忽略，workspace Clippy、定向测试 Clippy、
-格式检查、文档检查与 `git diff --check` 通过；Obstruction visibility 路由随后独立推进。
+实现与验收状态由 [P2 backlog](../../roadmap/p2-delta-backlog.md)及其验证记录维护。
+原接受记录、测试计数与 Native 核验事实从
+[原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。

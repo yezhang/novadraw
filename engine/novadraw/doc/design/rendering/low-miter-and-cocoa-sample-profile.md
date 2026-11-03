@@ -1,18 +1,23 @@
-# ADR-049：低 miter 与样例零宽映射
+# 低 miter 与样例零宽映射
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core StrokeStyle 与后端轮廓；Cocoa profile 只属于官方样例适配。
+原 ADR-049 的接受效力及对 ADR-024/047 限制的修订保持。
 
 状态：Accepted，2026-10-27 用户批准能力补充方案。
 
 `api_semantics`：`graphics.context`、`paint.protocol`、`damage.repaint`。
 
-## 决策
+## 低 miter 契约
 
 StrokeStyle 接受有限非负 miter limit，保留原始值。负数、NaN 和无穷大拒绝，
 失败不改变 Graphics 或 Figure 状态。`effective_join()` 在 Miter 且 limit 小于 1
 时返回 Bevel；其他 join 保持原值。普通和 AA OFF 后端使用此规则，
 visual bounds 与 damage 使用相同扩张。缓存、通知和诊断保存原始参数。
 不修改递归渲染主循环。
+
+## 样例 Cocoa profile
 
 Core 逻辑宽度 0 仍不绘制。ShapeStyles 明确采用 Cocoa profile：
 原始宽度 0 映射为 1 逻辑单位；零宽标准 dash 分别使用

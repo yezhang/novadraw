@@ -39,7 +39,7 @@ UI 重绘、面板缩放和纹理重建不得重建编辑会话；输入只按�
 2026-10-28 用户指令：“好的，记录这个方案，然后开始实施”。
 本次采用 Shapes 作为首个完整编辑样例，以 Masonry 自定义 Widget 包装为 Xilem
 View；Digraph 仍保留独立只读分母。当前先完成 Scene 输出的后端前置切片，
-契约见 [ADR-053](../../adr/adr-053-embedded-vello-scene-target.md)。
+契约见 [Vello Scene 目标](../rendering/embedded-vello-scene-target.md)。
 
 Editor 补充清单为专用 CreationTool、MarqueeTool、typed 模板拖放创建，以及供
 工具栏、大纲和属性面板消费的稳定查询与变化通知。现有 G1–G5 的模型、命令、

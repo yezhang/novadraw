@@ -97,7 +97,7 @@ owner border 和复杂布局边界继续推进。
 K03 首批修复普通 Locator child 使用旧 bounds 尺寸的问题，改为统一受检 preferred
 measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并可恢复，
 外部 Figure 与内置图元共用路径。2026-10-21 已按
-[ADR-039](../../adr/adr-039-owner-aware-connection-locator.md)接入 owner quadrant、
+[owner 标签定位](../../design/architecture/connection-owner-locator.md)接入 owner quadrant、
 child-size 输入与开放 child bounds placement，官方 UML 使用 ConnectionEndpointLocator，
 既有 EndpointLocator 切线偏移保持不变。Obstruction 已按
 [ADR-040](../../adr/adr-040-group-route-solving.md)实现组求解与 visibility/shared corner，
@@ -113,7 +113,7 @@ Rust 契约覆盖尺寸变化、重置、不变值、测量失败后的自动恢
 UMLClassDiagram 覆盖只修改连接文字且类和路由不动时的重新测量与居中。
 
 2026-10-21 K04 的通用 ScrollBar 按
-[ADR-041](../../adr/adr-041-composable-scrollbar.md)接入 Zoom 和 ScrollPane。
+[ScrollBar 设计](../../design/architecture/scrollbar-and-figure-activity.md)接入 Zoom 和 ScrollPane。
 五个普通 Figure 部件、custom thumb minimum、RangeModel 替换、横纵布局、
 250ms/40ms 连发与取消通过外部 Rust 契约；Zoom 原公式及 Native 截图通过。
 Path/MultiLineLabel 的消费者待 K05/K08，不关闭 K04 整批。

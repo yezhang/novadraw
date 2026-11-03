@@ -17,7 +17,7 @@
    push/restore/pop/reset。空路径是空裁剪，不是 no-op。
 3. custom dash/offset 使用逻辑长度；可配置 miter 同时进入绘制与实际 visual bounds，
    Runtime 受控 mutation 原子更新新旧 damage。
-   [ADR-049](adr-049-low-miter-and-cocoa-sample-profile.md)将 miter 受检范围扩展为
+   [低 miter 设计](../design/rendering/low-miter-and-cocoa-sample-profile.md)将 miter 受检范围扩展为
    有限非负值，低于 1 时使用有效 Bevel join，原始值保持不变。
 4. Render IR 根据实际内容要求多项能力；Runtime 发布前与 backend 接收前均预检。
    非法 Graphics 输入使用独立结构化结果，不部分接受 session、资源或像素。

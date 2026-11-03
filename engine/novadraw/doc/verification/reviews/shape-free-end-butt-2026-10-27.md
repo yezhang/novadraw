@@ -4,7 +4,7 @@
 
 状态：实现与最终自动门禁完成；macOS Native 样例及 GPU 像素复核通过。
 
-契约：[ADR-052](../../adr/adr-052-independent-corners-and-edge-borders.md) 的自由端修订。
+契约：[逐角与分边描边（原 ADR-052）](../../design/architecture/independent-corners-and-edge-borders.md) 的自由端修订。
 
 ## 行为
 

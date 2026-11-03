@@ -1,13 +1,15 @@
-# ADR-048：继承的布局方向与文字片段定位
+# 继承的布局方向与文字片段定位
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core Figure、Text 与 ScrollPane。原 ADR-048 的接受效力保持。
 
 状态：Accepted，2026-10-27 用户批准官方样例能力补充方案。
 
 `api_semantics`：`figure.properties`、`text.flow`、`text.interaction`、
 `viewport.scroll_zoom`、`damage.repaint`。
 
-## 决策
+## 运行契约
 
 `figure::LayoutDirection::{LeftToRight,RightToLeft}` 属于普通 FigureStyle，
 未设置时继承，根默认 LeftToRight。构造、子树描述和 Runtime scoped style mutation

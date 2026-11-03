@@ -15,13 +15,18 @@ Viewport 协作。
 | 5 | [g5-connection-bendpoint.md](g5-connection-bendpoint.md) | 折点约束与 self-loop |
 | 6 | [g5-viewport-autoexpose.md](g5-viewport-autoexpose.md) | 缩放反馈与双轴 auto-expose |
 | 7 | [p2-direct-text-edit.md](p2-direct-text-edit.md) | TextFlow 交互几何、直接编辑与 IME |
+| 8 | [viewer-edit-session-and-drive.md](viewer-edit-session-and-drive.md) | 模型编辑会话、CommandStack 与宿主权限 |
+| 9 | [tool-request-handle-protocol.md](tool-request-handle-protocol.md) | typed 请求/策略/工具/Handle 的注册与失败 |
+| 10 | [template-creation-and-marquee.md](template-creation-and-marquee.md) | 模板、拖放、创建预览与框选 |
+| 11 | [container-editing-protocol.md](container-editing-protocol.md) | 容器资格、父域映射、受检计划与事务 |
+| 12 | [incremental-failure-isolation.md](incremental-failure-isolation.md) | Part/Connection/Overlay 的失败清理与恢复 |
 
 机制分析（解释现行契约，不替代规范）：
 
 - [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
   公开容器移动、父域创建/drop、统一资格、XY/Ordered 消费和受检事务；
   [实施验证](../../verification/reviews/adr-055-implementation-2026-10-29.md)列出平台剩余范围。
-- [ADR-054：类型化模板创建与框选](../../adr/adr-054-template-creation-and-marquee.md)：
+- [类型化模板创建与框选](template-creation-and-marquee.md)：
   创建工具与模板拖放共享的开放请求、框选查询、应用保存点和连接装饰所有权。
 - [revision 的作用与边界](revision-semantics.md)：模型发布、Viewer 同步进度、交互版本与撤销历史。
 

@@ -11,7 +11,7 @@
 
 ## 方向上下文
 
-[ADR-048](../../adr/adr-048-inherited-layout-direction.md)已落地：
+[布局方向设计（原 ADR-048）](../../design/architecture/inherited-layout-direction.md)已落地：
 普通 FigureStyle 保存可继承的 LayoutDirection，Builder、子树描述和 scoped
 Runtime mutation 共用原样式协议；属性通知使用类型化身份。
 LayoutSceneQuery、EventSceneQuery 与 Flow 的冻结样式提供同一解析结果。
@@ -44,7 +44,7 @@ Core `--lib` 与新增契约 target 的严格 Clippy 已通过。
 
 ## 低 miter 与 Cocoa profile
 
-[ADR-049](../../adr/adr-049-low-miter-and-cocoa-sample-profile.md)已接入受检 StrokeStyle、
+[低 miter/profile（原 ADR-049）](../../design/rendering/low-miter-and-cocoa-sample-profile.md)已接入受检 StrokeStyle、
 普通 Vello 与 AA OFF 路径。原始 limit 保留；低于 1 的 Miter 使用有效 Bevel join，
 visual outset、Figure bounds 和旧新 damage 消费同一扩张。
 既有命中采用中心线与 tolerance，不新增未经验证的尖角命中承诺。
@@ -58,7 +58,7 @@ Core 零逻辑宽度仍不绘制；ShapeStyles 显式映射为 Cocoa profile 的
 
 ## 通用下划线
 
-[ADR-050](../../adr/adr-050-prepared-text-underlines.md)已接入 MeasureContext 与
+[字体下划线（原 ADR-050）](../../design/rendering/prepared-text-underlines.md)已接入 MeasureContext 与
 公开 Graphics。实际 glyph run 的 face/revision/index、variation 和 size
 决定 FontMetrics，StyledGlyphRun 保存实际 baseline 和 advance bounds。
 每个逻辑范围查询一次选择几何，按行合并区间，再与实际 run 相交；

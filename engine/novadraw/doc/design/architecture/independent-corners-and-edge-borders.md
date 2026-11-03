@@ -1,6 +1,8 @@
-# ADR-052：逐角圆角与矩形分边描边
+# 逐角圆角与矩形分边描边
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core Shape/Border；后端复用既有覆盖准备。原 ADR-052 的接受效力保持。
 
 状态：`accepted`（2026-10-27 用户批准实施）
 
@@ -37,11 +39,10 @@ GPU 验证确认：单独 AA 填充各分区会使半透明交界变淡。混合
 
 圆角矩形、多边形和三角形使用相同轮廓来源绘制与命中；命中不受颜色或边开关
 影响。子节点 clipping 策略不随圆角自动改变。已有 uniform 圆角路径保留兼容。
-`RectangleBorder` 的新 builder 返回 `RectangleShapeBorder`，保留旧 struct literal
-兼容性；insets 与画出的边仍分别配置。
-
-2026-10-29 的 [ADR-056](adr-056-detached-input-invariants.md)替换上述 struct literal
-兼容边界：S08-B 改为私有受检配置和 Result 构造。逐角、分边与区域填充语义保持。
+`RectangleBorder` 使用私有受检配置与 Result 构造，builder 返回
+`RectangleShapeBorder`；insets 与画出的边分别配置。构造边界由
+[ADR-056](../../adr/adr-056-detached-input-invariants.md)及
+[输入不变量](detached-input-invariants.md)负责。
 
 ## 更新与扩展
 
@@ -61,8 +62,7 @@ validation 只写派生轮廓缓存，不把拉伸后的 NodeState bounds 写回
 
 矩形轮廓与边框固定四个区域；多边形输出及存储为 O(n)，有圆角时 simple-polygon
 预检为 O(n²)，仅在输入变化时执行。复用现有 Path 与 Kurbo 内部几何，不新增
-依赖、字体或图片。测量稳定轮廓访问与构建成本，并用同配置 release 产物比较
-体积；源码行数不作为包体积证据。
+依赖、字体或图片。测量稳定轮廓访问与构建成本；体积分析仅在用户明确要求时执行。
 自由端路径根据解析后的边启用 mask 派生；几何对象只保留最近一种 mask 的
 不可变路径缓存。颜色变化不重建该路径，mask 变化时替换缓存，原有已借出的 Arc
 保持有效。缓存为对象所有，不使用全局状态，不预建全部 16 种组合。

@@ -5,7 +5,7 @@
 2026-10-28。授权：“好的，记录这个方案，然后开始实施”及“继续实施吧”。
 契约：[GEF 对等方案](../../design/editor/gef-official-examples-parity-proposal.md)、
 [画布接入](../../design/editor/masonry-xilem-canvas-integration.md)、
-[ADR-053 Scene 目标](../../adr/adr-053-embedded-vello-scene-target.md)。
+[Scene 目标（原 ADR-053）](../../design/rendering/embedded-vello-scene-target.md)。
 这是实际消费者的阶段记录，完整 Widget bridge 和官方 Shapes 保持未完成。
 
 ## 实施

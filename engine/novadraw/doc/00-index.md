@@ -5,6 +5,9 @@
 先按要解决的问题选择入口。本文只负责导航；契约、决策、执行状态和历史证据各有
 独立真源，文档规则见 [知识维护](knowledge-maintenance.md)。
 
+ADR 只维护架构选择，具体协议进入 design，采样方法进入 verification/plans；
+原编号和本次拆分关系见[分类记录](archive/adr-classification-2026-11-03.md)。
+
 ## 从任务进入
 
 | 任务 | 阅读顺序 |

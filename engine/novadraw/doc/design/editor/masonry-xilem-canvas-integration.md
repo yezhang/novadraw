@@ -4,7 +4,7 @@
 
 2026-10-28，按用户批准的
 [GEF 对等样例方案](gef-official-examples-parity-proposal.md)继续实施。
-本切片保持 [ADR-053](../../adr/adr-053-embedded-vello-scene-target.md)的完整帧发布与宿主
+本切片保持 [Vello Scene 目标](../rendering/embedded-vello-scene-target.md)的完整帧发布与宿主
 所有权边界。迁移后由独立 imaging RenderBackend 输出 recording，不交换 Vello Scene。
 不修改 Core、Editor 所有权或第三方参考源码。
 

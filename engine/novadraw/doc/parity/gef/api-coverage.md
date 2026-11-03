@@ -114,7 +114,7 @@ Native/Web adapter 通过带 session identity 的 host lease 桥接 IME。Viewer
 外部消费者使用独立 RequestProtocol、payload、policy 和 template，验证同一错误、
 命令与历史通道；框选覆盖替换、追加、切换、取消和外部身份拒绝。
 Shapes 的 Native harness 验证实际模板 capture、message/rebuild 和 GPU 合成。
-契约见 [ADR-054](../../adr/adr-054-template-creation-and-marquee.md)，
+契约见 [模板与框选](../../design/editor/template-creation-and-marquee.md)，
 证据见 [Shapes 验证](../../verification/reviews/shapes-editor-implementation-2026-10-28.md)。
 应用 JSON schema、Outline 控件和模板 Palette 不改变 document/tree.viewer/palette
 family 的既定引擎边界。

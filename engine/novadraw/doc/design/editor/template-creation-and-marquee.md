@@ -1,6 +1,9 @@
-# ADR-054：类型化模板创建与框选
+# 类型化模板创建与框选
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Editor Tool/Request；文件保存、快捷键与 Masonry 适配属于应用。
+原 ADR-054 的接受效力保持，开放分派边界沿用 ADR-034。
 
 状态：Accepted。2026-10-28，依据已批准的 GEF 官方样例对等方案和用户继续完成
 Shapes 的授权。实施状态只在 P2 backlog 维护。
@@ -14,8 +17,9 @@ Shapes 的授权。实施状态只在 P2 backlog 维护。
 
 创建预览不改变模型。释放主键提交一次命令，取消、失焦和换工具清理预览。
 成功后回到 SelectionTool。点击使用默认尺寸，拖动使用规范化矩形；应用策略负责
-最小尺寸和合法性。当前创建工具的坐标域为 model contents，嵌套容器的父域转换
-不属于 Shapes 的需求，扩展模板不得把 contents 坐标假定为任意父节点坐标。
+最小尺寸和合法性。默认创建坐标域为 model contents；嵌套容器使用
+[容器编辑协议](container-editing-protocol.md)中的独立父域输入，
+扩展模板不得把 contents 坐标假定为任意父节点坐标。
 
 MarqueeTool 在 surface 域判断完全包含的节点，按 containment 顺序提交选择。
 Shift 追加，Control/Meta 切换，普通框选替换。取消保留原选择。连接和 contents
@@ -55,4 +59,4 @@ Editor integration consumer 另定义独立 Request marker、payload、policy �
 验证工具与 drop 共享全部派发、错误与事务通道。Marquee 的测试从消费者侧使用
 公开 ToolContext/Viewer 查询与 selection 接口。
 具体通过情况与命令记录见
-[Shapes 验证报告](../verification/reviews/shapes-editor-implementation-2026-10-28.md)。
+[Shapes 验证报告](../../verification/reviews/shapes-editor-implementation-2026-10-28.md)。

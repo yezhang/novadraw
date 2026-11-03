@@ -99,7 +99,7 @@ Ok(measurement) 或 Ok(size) 是否成功。现有
 
 位置：ADR-038 第 5/6 节的 ADR-018 同步说明及实施章节。
 
-当前 [public-api-contract.md](../../design/architecture/public-api-contract.md#L121-L131)
+当前 [public-api-contract.md](../../design/architecture/public-api-contract.md#4-命名单位与失败)
 仍规定坐标 Option 保留 ADR-018 合同；parity ledger 也记录旧 Option 签名。
 草案只具名同步 ADR-018，未把当前公共 API SSOT、坐标规范和阶段错误说明列为
 实施必检入口。
@@ -134,7 +134,7 @@ S07-DR01/02 写入 ADR 与逐项验证矩阵后复核；DR03/04 补入明确的�
 ADR-038 与验证矩阵已完成修订 1，逐项处理 S07-DR01–DR04。求逆的 None 限定为
 数学奇异；测量 owner 校验选中分支及最终投影后才返回成功或填缓存；Route 指纹
 允许观察主体缺失；接受后的 SSOT 同步清单已冻结。对应关系见
-[ADR 修订记录](../../adr/adr-038-query-identity-and-failure-semantics.md#修订记录)。
+[分类前 ADR 原稿](../../archive/adr-classification-2026-11-03.md)。
 
 本段记录修订完成，不改变首轮评审结论。修订 1 尚待复核，新增行为用例尚未执行，
 来源审计 ID 保持开放。

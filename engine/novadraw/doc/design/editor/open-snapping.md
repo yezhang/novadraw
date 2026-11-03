@@ -5,7 +5,14 @@
 能力归属：Editor（`novadraw-editor`）。
 策略、候选、会话与编辑反馈属于 Editor；Core 提供既有坐标与绘制依赖。
 平台输入及应用模型／Guide 持久化按各自 owner 验收。
-完整职责表见 [ADR-058 的分层归属](../../adr/adr-058-open-editor-snapping.md#分层归属)。
+架构选择见 [ADR-058](../../adr/adr-058-open-editor-snapping.md)，具体职责如下。
+
+| owner | 状态与验收 |
+|---|---|
+| Editor | 策略注册、手势、候选、仲裁、版本失效、Tool/Overlay 与成本 |
+| Core | 既有 Figure、命中、坐标、Runtime 与绘制；新增 Core delta 单列 |
+| Host | 原生输入、DPI、capture 与取消事件 |
+| 应用 | Grid/Guide、业务资格、模型命令与 attachment 持久化 |
 
 规范效力：修订 2 已接受，2026-11-02。
 [ADR-058](../../adr/adr-058-open-editor-snapping.md)定义决策与分层。

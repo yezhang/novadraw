@@ -1,6 +1,8 @@
-# ADR-041：通用 ScrollBar 与 Figure 活动调度
+# 通用 ScrollBar 与 Figure 活动调度
 
-类型：`architecture-decision`
+类型：`normative-design`
+
+能力归属：Core Widget 与活动调度；ScrollPane、Zoom 是消费者。原 ADR-041 的接受效力保持。
 
 ## 状态
 
@@ -51,13 +53,7 @@ Zoom 删除示例私有 ScrollBar，ScrollPane 复用同一组件。
 测试覆盖横纵布局、非零 minimum、短轨道、模型外部变更、拖动、按住连发、
 release/exit/隐藏/禁用/删除、替换失败保留原部件、模型替换后的旧通知隔离。
 
-## 交付与主线
-
-先完成通用契约和外部失败反例，再实现 Core 与两个消费者；
-运行定向测试、Native Zoom 截图与最终 workspace 门禁。
-完成后在 P2 backlog 记录 K04 切片结果，再按依赖返回 K05 文字流能力。
-
-## 实施边界
+## 部件与模型接口
 
 `ScrollBarFigure::into_subtree` 返回五个部件的描述身份；构造期可用 `with_part`
 提供任意 Figure，运行期沿 `replace_child_subtree` 原子替换，并保留 typed
@@ -71,7 +67,6 @@ ScrollPane 只提交 viewport 通知与 damage。
 外部程序直接修改模型后，需要请求帧或推进 Runtime。
 活动时钟由既有 animation facade 驱动，与动画表现状态分离。
 
-已通过独立 `p2_scroll_bar` 的九项契约、`m8_viewport_contract` 的 26 项回归
-和 Zoom 两项交互测试。Native Zoom 截图确认五部件布局与 Label thumb。
-K04 的 Path/MultiLineLabel 消费者仍依赖后续 K05/K08，不据此关闭整批。
-最终 workspace fmt、Clippy 与 test 通过：1,164 项通过、1 项忽略。
+验证入口为 `p2_scroll_bar`、`m8_viewport_contract` 与 Zoom 交互测试。
+当前消费者状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)，
+原计数与截图事实从 [原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。

@@ -2,7 +2,7 @@
 
 类型：`implementation-verification`
 
-契约：[ADR-052](../../adr/adr-052-independent-corners-and-edge-borders.md)。
+契约：[逐角与分边描边（原 ADR-052）](../../design/architecture/independent-corners-and-edge-borders.md)。
 本记录对应 2026-10-27 的共享工作区，包含其他正在进行的长文本与官方样例改动。
 状态：Core 实现与自动验证完成；实际平台像素支持范围见下文。
 

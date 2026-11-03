@@ -2,7 +2,7 @@
 
 类型：`implementation-verification`
 
-日期：2026-10-28。契约：[ADR-053](../../adr/adr-053-embedded-vello-scene-target.md)。
+日期：2026-10-28。契约：[Scene 目标（原 ADR-053）](../../design/rendering/embedded-vello-scene-target.md)。
 授权来源：用户要求“好的，记录这个方案，然后开始实施”。
 本记录只关闭 Scene backend 的首个前置切片，不关闭完整 GEF 样例或 UI 接入。
 

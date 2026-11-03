@@ -13,11 +13,11 @@ Editor 和官方样例分别列出依赖与验收边界。
 |---|---|---|---|
 | 状态栈、路径、变换、clip、gradient、dash | [graphics](../../../crates/novadraw/src/graphics/context.rs)、[StrokeStyle](../../../crates/novadraw/src/render/stroke.rs) | [Graphics 证据](p2-g01-graphics-evidence.md) | Core／Vello 已实现；P2-G01 surface 验收未闭合 |
 | 逐操作图形和文字抗锯齿 | `Graphics::set_antialias`／`set_text_antialias`、`RenderCapability::PerOperationAntialias` | [AA 实施](per-operation-antialias-implementation-2026-10-26.md) | AA-1～4 已实现和验证，完整上游栅格及平台边界保留 |
-| 低 miter、零宽 profile | `StrokeStyle::effective_join`、样例 Cocoa 映射 | [ADR-049](../../adr/adr-049-low-miter-and-cocoa-sample-profile.md) | 低 miter 已实现；Core 逻辑零宽不绘制，通用设备 hairline 未实现 |
+| 低 miter、零宽 profile | `StrokeStyle::effective_join`、样例 Cocoa 映射 | [低 miter/profile](../../design/rendering/low-miter-and-cocoa-sample-profile.md) | 低 miter 已实现；Core 逻辑零宽不绘制，通用设备 hairline 未实现 |
 | 继承排版方向、结构化文字流 | [flow](../../../crates/novadraw/src/figure/flow/mod.rs)、[styled text](../../../crates/novadraw/src/text/styled.rs) | [方向及文字增量](official-example-core-increment-2026-10-27.md) | nested inline／block、真实 Figure、bidi、caret／selection 已实现 |
 | 跨字体／跨行下划线 | [PreparedTextUnderlines](../../../crates/novadraw/src/text/underline.rs)、`prepare_underlines`／`fill_underlines` | 同上、`text.underlines` | 实际字体、字号、baseline 与逻辑范围统一准备，Path 已消费 |
 | owner-aware Locator 与路由 | [connection](../../../crates/novadraw/src/connection/mod.rs) | [K03 计划与记录](../plans/draw2d-official-examples-core-plan.md) | 端点／标签、visibility／组路由已实现；P2-C03 跨 viewport 未实施 |
-| ScrollBar 与共享 range | [scroll_bar](../../../crates/novadraw/src/container/scroll_bar.rs) | [ADR-041](../../adr/adr-041-composable-scrollbar.md) | 五部件、横纵向、range、repeat／取消已实现；完整 widget family 仍 deferred |
+| ScrollBar 与共享 range | [scroll_bar](../../../crates/novadraw/src/container/scroll_bar.rs) | [ScrollBar](../../design/architecture/scrollbar-and-figure-activity.md) | 五部件、横纵向、range、repeat／取消已实现；完整 widget family 仍 deferred |
 | 图布局与 Tree 动画 | [graph](../../../crates/novadraw/src/layout/graph/mod.rs)、[animation](../../../crates/novadraw/src/animation/mod.rs) | ADR-043／046、[Tree 实施](tree-layout-presentation-implementation-2026-10-26.md) | Directed／Compound 与 Tree 批次完成；M01-D 仍待平台采证 |
 | 共享场景与背景 | [scene](../../../crates/novadraw/src/scene.rs)、Runtime Host background | ADR-044／045、K07-1～6 | Thumbnail、透明 Canvas 已实现及 Native 验证；跨平台背景／DPI 仍待验收 |
 | 精确文字缓存与共享 IR | [FlowLayoutService](../../../crates/novadraw/src/figure/flow/snapshot.rs)、共享 GlyphBuffer／GlyphRange | [长文本首批](long-text-scroll-resize-implementation-2026-10-28.md) | 段落、来源索引与共享存储已落地；性能目标和默认原生字形剪枝未闭合 |

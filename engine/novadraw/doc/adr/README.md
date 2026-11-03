@@ -4,7 +4,10 @@
 
 ## 什么是 ADR
 
-ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录项目中重要的设计决策及其上下文。
+ADR 记录影响长期边界的选择：问题、采用的方案、替代方案为何不采用及承担的代价。
+公开 API、算法、参数公式和组件组合由 design 正文负责；实现状态由 roadmap 负责。
+分类规则见[知识维护](../knowledge-maintenance.md#adr-与具体设计分开维护)，
+逐篇判断和原稿见[分类记录](../archive/adr-classification-2026-11-03.md)。
 
 ## ADR 列表
 
@@ -56,27 +59,35 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [036](adr-036-context-phase-authority-projection.md) | Context 阶段权限投影与 Query 命名 | 已接受，已验证 | 2026-10-13 |
 | [037](adr-037-editor-incremental-failure-isolation.md) | Editor 增量投影失败隔离 | 已接受，按矩阵修订 2 验证 | 2026-10-15 |
 | [038](adr-038-query-identity-and-failure-semantics.md) | 查询身份、合法缺失与失败传播 | 已接受，修订 1 | 2026-10-16 |
-| [039](adr-039-owner-aware-connection-locator.md) | 连接标签的 owner 方位定位 | 已接受，已实现并验证 | 2026-10-21 |
 | [040](adr-040-group-route-solving.md) | 连接组的统一路由求解 | 已接受，已实现并验证 | 2026-10-21 |
-| [041](adr-041-composable-scrollbar.md) | 通用 ScrollBar 与 Figure 活动调度 | 已接受，已实现并验证 | 2026-10-21 |
 | [042](adr-042-structured-flow-layout.md) | 结构化文字流与内嵌 Figure | 已接受，实施中 | 2026-10-21 |
 | [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 已接受，修订 1，实施中 | 2026-10-22 |
 | [044](adr-044-shared-scene-capture-and-view.md) | 共享场景捕获、资源闭包与只读视图 | 已接受 | 2026-10-23 |
 | [045](adr-045-host-background-submission.md) | 宿主背景统一帧提交 | 已接受 | 2026-10-23 |
 | [046](adr-046-sampled-geometry-and-animation-reservations.md) | 表现几何与动画容量预留 | 已接受 | 2026-10-24 |
 | [047](adr-047-per-operation-antialias.md) | 逐操作抗锯齿与受预算约束的覆盖准备 | 已接受 | 2026-10-26 |
-| [048](adr-048-inherited-layout-direction.md) | 继承式布局方向 | 已接受 | 2026-10-27 |
-| [049](adr-049-low-miter-and-cocoa-sample-profile.md) | 低 miter 与 Cocoa 样例轮廓 | 已接受 | 2026-10-27 |
-| [050](adr-050-prepared-text-underlines.md) | 准备后的字体下划线 | 已接受 | 2026-10-27 |
 | [051](adr-051-exact-flow-layout-reuse.md) | 精确文字流布局复用 | 已接受 | 2026-10-27 |
-| [052](adr-052-independent-corners-and-edge-borders.md) | 逐角圆角与矩形分边描边 | 已接受 | 2026-10-27 |
-| [053](adr-053-embedded-vello-scene-target.md) | 嵌入式 Vello Scene 输出目标 | 按用户批准方向实施 | 2026-10-28 |
-| [054](adr-054-template-creation-and-marquee.md) | 类型化模板创建与框选 | 按已批准样例方向实施 | 2026-10-28 |
 | [055](adr-055-container-editing-protocol.md) | 容器编辑与父坐标协议 | 已接受，修订 2 | 2026-10-29 |
 | [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 已接受 | 2026-10-29 |
 | [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 已接受，修订 3 | 2026-10-30 |
 | [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 已接受，修订 2 | 2026-11-02 |
 | [059](adr-059-staged-text-width-reuse.md) | 可选分阶段文字引擎与宽度复用 | 已接受，修订 2 | 2026-11-02 |
+
+## 已迁入设计的原编号
+
+这些正文是具体协议或策略，保留原批准效力；编号不重排、不复用。
+混合文档的决策仍在上表，具体行为由其关联设计负责。
+
+| 原编号 | 当前正文 |
+|---|---|
+| 039 | [owner 标签定位](../design/architecture/connection-owner-locator.md) |
+| 041 | [ScrollBar 与 Figure 活动](../design/architecture/scrollbar-and-figure-activity.md) |
+| 048 | [继承布局方向](../design/architecture/inherited-layout-direction.md) |
+| 049 | [低 miter 与 Cocoa profile](../design/rendering/low-miter-and-cocoa-sample-profile.md) |
+| 050 | [字体下划线](../design/rendering/prepared-text-underlines.md) |
+| 052 | [逐角与分边描边](../design/architecture/independent-corners-and-edge-borders.md) |
+| 053 | [Vello Scene 目标](../design/rendering/embedded-vello-scene-target.md) |
+| 054 | [模板与框选](../design/editor/template-creation-and-marquee.md) |
 
 ## 现行与历史隔离
 
@@ -91,9 +102,13 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 ```markdown
 # ADR-XXX: [标题]
 
+类型：`architecture-decision`
+
+能力归属：[Core／Editor／其他 owner，跨层逐项区分]
+
 ## 状态
 
-[提议/已通过/已废弃/已替换]
+[提议／已接受／已替换，日期与修订；不在此维护实施流水]
 
 ## 背景
 
@@ -103,23 +118,20 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 
 [描述选择的方案]
 
-## 后果
+## 替代与代价
 
-### 正面
-- ...
+[替代方案为何不采用，接受什么成本和限制]
 
-### 负面
-- ...
+## 关联设计
 
-## 参考
-- ...
+[完整输入输出、状态、算法、失败、扩展及成本的 design 正文链接]
 
-## 日期
-YYYY-MM-DD
+[外部消费者与验证入口；接受不等于实现完成]
 ```
 
 ## 创建新的 ADR
 
-1. 在 `doc/adr/` 目录创建新文件，命名格式：`adr-XXX-标题.md`
-2. 使用上述模板填写内容
-3. 更新本 README.md 添加条目
+1. 先确认是架构选择；具体方案直接进入对应 design 专题。
+2. 在 `doc/adr/` 创建决策，命名格式：`adr-XXX-标题.md`，不复用迁出编号。
+3. 使用模板，引用具体设计，避免复制协议。
+4. 更新本索引及所属设计入口。

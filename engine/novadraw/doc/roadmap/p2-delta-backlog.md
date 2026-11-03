@@ -285,7 +285,7 @@ P99 上升；13 次贡献组装及 520 请求／514 命中的分母未变。
 
 ## P2-F03：逐角圆角与矩形分边描边
 
-状态：`complete`。Core Shape／Border；[ADR-052](../adr/adr-052-independent-corners-and-edge-borders.md)、
+状态：`complete`。Core Shape／Border；[逐角与分边描边](../design/architecture/independent-corners-and-edge-borders.md)、
 [实现验证](../verification/reviews/independent-shape-corners-2026-10-27.md)和
 [自由端续验](../verification/reviews/shape-free-end-butt-2026-10-27.md)。
 逐角和逐边使用统一绘制、包络与外部消费者合同。
