@@ -9,6 +9,7 @@
 
 | 专题 | 当前结论与证据 |
 |---|---|
+| 文档内容质量 | [一致性与质量分析](documentation-content-quality-2026-11-03.md)：Q01–Q03 的坐标、执行清单与公开调用已修正；Q04–Q08 的旧条款同步、正文去重及 owner 问题待处理；原报告保留分析基线 |
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md) |
 | 阶段文字引擎 | [ADR-059 与 B1 验证状态](text-stages-status.md)：范围、最新分母、未完成边界及原稿入口 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |

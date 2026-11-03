@@ -135,8 +135,10 @@ pub struct NodeState {
 | `size_override` | 用户显式 preferred/minimum/maximum 设置 |
 | `style` | 本地样式覆盖；未设置项沿父链继承 |
 | `local_transform` | layout 后应用于当前节点的二维视觉变换 |
-| `child_transform` | content domain 到 children domain 的二维变换 |
+| `child_transform` | 从 child-content 域向 node-local 域映射的二维变换部分；完整映射先应用该变换，再叠加 insets 平移 |
 | `visual_effect` | 可选的合成期 2D/投影视觉效果 |
+
+映射方向与组合顺序以[坐标专题的边变换公式](../coordinates/coordinate-system.md#3-边变换)为准。
 
 `selected` 不属于 Draw2D Figure 核心状态。选择属于编辑器/viewer 层，除非未来有明确
 的引擎级选择协议，否则不进入 NodeState。

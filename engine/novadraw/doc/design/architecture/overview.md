@@ -30,7 +30,7 @@ Novadraw 继承 Draw2D 的行为语义和概念关系，不复制 Java 的对象
 | Figure 树决定所有权和 Z-order | `FigureTree` 统一维护拓扑和有序 children |
 | bounds 是几何协议入口 | `NodeState.bounds` 是布局、命中和 damage 的共同真源 |
 | client area 由 bounds 和 insets 推导 | 统一盒模型供布局、绘制和命中下降使用 |
-| 父子坐标转换是双向协议 | 每条树边共享同一可逆 2D 变换 |
+| 父子坐标转换是双向协议 | 所有消费者共享同一正向 2D 边变换；逆向查询受检，数学奇异时返回合法缺失 |
 | paint 使用受控模板 | 默认 self、children、border；Runtime 保证阶段和状态隔离 |
 | LayoutManager 是容器策略 | 每个容器拥有独立 `LayoutState` |
 | Validation 先于 Damage Repair | `UpdateManager` 执行不可颠倒的两阶段事务 |

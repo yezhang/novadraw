@@ -120,9 +120,10 @@ Novadraw 分发以下 OFL-1.1 内置字体，但 Runtime 启动时不自动注�
 - Noto Sans Arabic：阿拉伯文 shaping 及 RTL 混排 fallback。
 
 字体文件、许可证和校验值位于 `assets/fonts/`。应用必须通过
-`Runtime::register_builtin_font` 显式选择需要的字体；这会同时更新 ResourceRegistry
-和 TextLayoutEngine。未注册字体不得通过系统字体隐式成功。Figure 可以继续从父级
-继承字体描述，因此通常只需在应用根节点或主题层指定一次。
+`runtime.resources().register_builtin_font(...)` 显式选择需要的字体。
+注册由 [RuntimeResources](runtime-subsystem-facade.md#2-子系统-facade-是无状态短借用窗口)
+负责，同时更新 ResourceRegistry 和 TextLayoutEngine。未注册字体不得通过系统字体
+隐式成功。Figure 可以继续从父级继承字体描述，因此通常只需在应用根节点或主题层指定一次。
 
 ## 5. TextLayout
 

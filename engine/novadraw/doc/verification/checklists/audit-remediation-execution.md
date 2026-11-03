@@ -4,6 +4,8 @@
 
 日期：2026-10-09
 
+更新：2026-11-03。能力归属：文档治理；Core、Editor、Inspector 与平台验收按各自证据维护。
+
 状态：`active`
 
 ## 1. 用途与边界
@@ -31,29 +33,27 @@
 1. 同一根因只保留一个执行批次，旧 ID 作为来源映射；
 2. 新审计覆盖旧审计的当前判断，但不改写旧报告；
 3. 功能缺口、架构缺陷、性能证据和平台资格分开管理；
-4. 同一时刻最多一个审计整改批次处于 `in_progress`；
+4. 同一时刻最多一个审计整改批次进入 Execute；多个 `in_progress` 可以表示各项仍待交付证据；
 5. 实施中发现的新问题先进入 hold，不隐式扩大当前批次。
 
 ## 2. 当前执行队列
 
-| 顺序 | 批次 | 优先级 | 当前状态 | 合并的审计发现 | 设计入口 |
-|---|---|---|---|---|---|
-| 1 | P2-S02 显式领域导入与 Root 收口 | P0 | `complete` | R02、API-F07、API-08、A04、B05、TC-13 follow-up | [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) |
-| 2 | P2-S03 Runtime 子系统 Facade | P0 | `complete` | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
-| 3 | P2-S04 Editor 开放协议 | P0 | `complete` | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
-| 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
-| 5 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | `complete` | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
-| 6 | P2-S07 查询身份与失败语义 | P1 | `complete` | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md)，ADR-038 已实现 |
-| 7 | P2-S08 Detached 输入不变量 | P0 | `complete` | R03、TC-03、API-F04、API-10 | [ADR-056](../../adr/adr-056-detached-input-invariants.md)已实施；A／B／C／D 完成，见[关闭记录](../reviews/p2-s08-d-completion-2026-10-29.md) |
-| 8 | P2-S09 服务失败与 Inspector | P1 | `in_progress` | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | 2026-10-30 用户接受 [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)；[S09-A](../reviews/p2-s09-a-implementation-2026-10-30.md)已完成，下一片为 Observations／Inspector；整批来源项尚未关闭 |
+当前顺序、交付状态与恢复条件只在 [P2 backlog](../../roadmap/p2-delta-backlog.md#当前推进顺序)
+维护。下表保留审计发现与批次的对应关系，行顺序不代表下一步执行指令。
 
-执行顺序默认按表推进。只有依赖、用户优先级或新的 P0 正确性证据发生变化时才调整；
-调整必须先更新 Backlog。
+| 批次 | 审计优先级 | 合并的审计发现 | 契约与证据入口 |
+|---|---|---|---|
+| P2-S02 显式领域导入与 Root 收口 | P0 | R02、API-F07、API-08、A04、B05、TC-13 follow-up | [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) |
+| P2-S03 Runtime 子系统 Facade | P0 | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
+| P2-S04 Editor 开放协议 | P0 | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
+| P2-S05 深层布局/presentation 收敛 | P0 | UML F-01 | [完成记录](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
+| P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
+| P2-S07 查询身份与失败语义 | P1 | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md) |
+| P2-S08 Detached 输入不变量 | P0 | R03、TC-03、API-F04、API-10 | [关闭记录](../reviews/p2-s08-d-completion-2026-10-29.md) |
+| P2-S09 服务失败与 Inspector | P1 | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)；各切片证据与未关闭要求见 §10 |
 
-本表为 Backlog 的执行映射；G01/M01/GA-2/GA-3 的 `in_progress` 表示仍待交付证据，
-不表示它们与本表同时 Execute。S06 已于 2026-10-15 按矩阵修订 2 完成，
-S07／S08 已完成；S09 修订 3 已接受，S09-A 已完成，下一片为 S09-B。
-本轮校准记录见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)。
+`in_progress` 表示交付仍有缺项，不表示正在 Execute；单链限制检查实际执行批次数。
+历史校准见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)，不从其旧顺序恢复当前队列。
 
 ## 3. P2-S02：显式领域导入与 Root 收口
 
@@ -245,33 +245,39 @@ S07／S08 已完成；S09 修订 3 已接受，S09-A 已完成，下一片为 S0
 - [x] [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)收口本批服务的 fault、mutation、check 与 idempotence 语义；2026-10-30 已接受，
   身份/查询规范引用 S07，不重复改造所有 getter。
 - [x] AnimationMut 的 fault 与 `Ok(false)` 幂等未变化分离；S09-A 已完成私有入口、帧传播与消费者验收。
-- [ ] Inspector 锁 poison 返回结构化 fault，不再返回空集合或静默跳过。
-- [ ] Inspector attach 明确订阅所有者、注销与 observer fault 的可观测路径；
-  优先复用 Observations token，仅在无法满足生命周期时增加 guard。
-- [ ] 盘点 S03 迁移后的残余注册入口；有失败可能的注册保留一个 fallible 入口，
-  删除 panic alias，不按名称批量删除不同语义的 `try_*`。
-- [ ] Command/Policy/extension 的错误链可追溯，不仅保存 String/label；
-  领域分类与 source 保留，panic payload 的诊断策略单独定义。
-- [ ] fault injection 覆盖 Animation、Inspector、registration 和 extension panic。
-- [ ] 与 P2-S03 Runtime facade 的 Observations/Connections 边界一致。
+- [x] [S09-B](../reviews/p2-s09-b-implementation-2026-10-30.md)验证 Inspector 锁 poison 的
+  结构化 fault、首 fault 与 observer self-remove，不返回空集合或静默跳过。
+- [x] S09-B 验证 fallible attach、不可 Clone／Copy 的订阅 token、foreign detach 重试、
+  显式注销与宿主重建基线；Drop 不操作 Runtime。
+- [x] [S09-C](../reviews/p2-s09-c-implementation-2026-11-02.md)将 Connections 注册合为
+  fallible 入口，删除同语义 `try_register_*` 别名；不按名称删除不同语义入口。
+- [x] [S09-D](../reviews/p2-s09-d-implementation-2026-11-02.md)实现并定向验证
+  Command／Policy／extension 的 owned Error source、分类与操作位置，以及文本／非文本 panic 诊断。
+- [x] 各片定向证据覆盖 Animation、Inspector、registration 和 extension panic；
+  Native 行为与 Wasm 编译的覆盖范围按各片记录区分。
+- [x] S09-B／C 的公开消费者与 API 门禁验证 Observations／Connections 的 facade 边界。
+- [ ] S09-D 最新 Wasm、release 成本及 workspace／架构／docs／extensions 最终门禁补验；
+  原失败记录保留，未通过前不关闭整批。
+- [ ] Inspector 整批最大容量成本要求验收；S09-B 的容量 64／4096 证据不能替代。
 - [ ] completion record 按实际覆盖关闭 TC-10/R07/API-F08/API-F10，
   回填 API-F09 残余 register alias，不把已完成 CommandStack check/has 重新列为缺口。
 
 ## 11. 审计派生的能力 Backlog
 
-这些是已确认能力缺口，不等于当前实现缺陷。状态继续以 P2 Backlog 为准。
+本表保留审计派生能力的来源与验收映射，已完成项不再作为待实施缺口。
+交付状态和实施顺序以 [P2 backlog](../../roadmap/p2-delta-backlog.md#长期能力分母批次)为准。
 
-| Delta | 状态 | 审计来源 | 剩余验收 |
-|---|---|---|---|
-| P2-G01 Graphics extension | `in_progress` | GOAL-CAP、Graphics 审计 | 定位 present suite 首帧 Skipped，闭合 Native surface partial repair 证据 |
-| P2-M01 Animation/Presentation | `in_progress` | Animation 架构审计 | M01-D 平台/视觉发布证据 |
-| P2-L01 Directed/Compound layout | `not_started` | GOAL-CAP、UML F-02 | 独立图模型、确定性输出、外部算法 consumer |
-| P2-C03 跨 viewport connection | `not_started` | 能力分母、UML 未覆盖边界 | common viewport、clip、damage、hit-test |
-| P2-A01 平台 accessibility | `not_started` | GA-3/GOAL-PORT | Web action/focus、Native AT provider |
-| P2-T03 fragment style | `deferred` | UML F-03 | measurement/paint/interaction 同一 snapshot |
-| P2-W01 widgets | `deferred` | 能力分母 | repeat scheduler、radio/checkbox/slider |
-| P2-O01 output target | `deferred` | 能力分母 | printing/export、scale/clip/text/image 等价 |
-| P2-LC01 live unmount/mount | `deferred` | 生命周期审计 | 真实 consumer、ID/资源/退出路径 |
+| Delta | 审计来源 | 验收要求或已有证据 |
+|---|---|---|
+| P2-G01 Graphics extension | GOAL-CAP、Graphics 审计 | Native surface partial repair 剩余证据见 Backlog |
+| P2-M01 Animation/Presentation | Animation 架构审计 | M01-D 平台/视觉发布证据 |
+| P2-L01 Directed/Compound layout | GOAL-CAP、UML F-02 | 独立图模型、确定性输出、外部算法 consumer 已验收；[完成依据](../../roadmap/p2-delta-backlog.md#长期能力分母批次) |
+| P2-C03 跨 viewport connection | 能力分母、UML 未覆盖边界 | common viewport、clip、damage、hit-test |
+| P2-A01 平台 accessibility | GA-3/GOAL-PORT | Web action/focus、Native AT provider |
+| P2-T03 fragment style | UML F-03 | structured flow 与同源 measurement/paint/interaction 已验收；[完成依据](../../roadmap/p2-delta-backlog.md#长期能力分母批次) |
+| P2-W01 widgets | 能力分母 | repeat scheduler、radio/checkbox/slider |
+| P2-O01 output target | 能力分母 | printing/export、scale/clip/text/image 等价 |
+| P2-LC01 live unmount/mount | 生命周期审计 | 真实 consumer、ID/资源/退出路径 |
 
 ## 12. 发布准备证据
 
@@ -368,4 +374,4 @@ FigureUpdateEffect 越权与整批末项拒绝的预检整改已由 `b6a34b1`/`e
   例外）；不因每个小补丁重复运行 workspace 门禁。
 - [ ] 新建 completion record。
 - [ ] 回填原审计 ID、Backlog 状态和文档索引。
-- [ ] 下一 batch 才可进入 `in_progress`。
+- [ ] 本 batch 退出 Execute 后，下一 batch 才可进入 Execute；待采证项可保留 `in_progress`。
