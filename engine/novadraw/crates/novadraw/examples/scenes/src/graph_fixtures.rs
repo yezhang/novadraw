@@ -119,16 +119,17 @@ impl<'a> FixtureBuilder<'a> {
         first: &[Option<usize>],
         pairs: &[usize],
     ) -> Result<Vec<Option<usize>>, GraphLayoutError> {
-        let count = pairs.chunks_exact(2).map(|pair| pair[1]).max().unwrap_or(0) + 1;
+        let pairs = pairs.as_chunks::<2>().0;
+        let count = pairs.iter().map(|pair| pair[1]).max().unwrap_or(0) + 1;
         let mut second = vec![None; count];
         // Upstream creates nodes during edge insertion, then adds nodes sorted by row number.
         // Preallocate in row-number order to reproduce the public NodeList identity order.
         for (index, node) in second.iter_mut().enumerate().skip(1) {
-            if pairs.chunks_exact(2).any(|pair| pair[1] == index) {
+            if pairs.iter().any(|pair| pair[1] == index) {
                 *node = Some(self.node(&format!("node{index}"), 78.0)?);
             }
         }
-        for pair in pairs.chunks_exact(2) {
+        for pair in pairs {
             self.edge(
                 first[pair[0]].expect("source fixture row"),
                 second[pair[1]].expect("target fixture row"),
