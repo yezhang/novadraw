@@ -36,6 +36,13 @@ SDK 埋点的开销尚未单独测量；所有耗时是带观测的 debug 墙钟
 文字引擎的 14 个区间位于名为 `main` 的线程；没有调度或 CPU 采样数据。
 进程名称字段为空，身份与配置沿用业务记录，不能虚构线程或进程名称。
 
+本轮官方查询成功完成后，写入最终分析数据时遇到磁盘空间不足；
+随后检查发现原 `target/verification/textflow-large-app/` 目录已不在原路径。
+本文保留已成功查询的数字和 SQL；没有重新采集或补造结果。
+复跑需先找回原 trace，T2 的原 SHA-256 为
+`9ee2bc5c8e766c8bf950334e9e742a64539314bf3e1d803b6daba14a3d0d0ead`。
+未判断目录消失的原因，也未执行缓存或 trace 清理。
+
 自身耗时为 slice 时长扣除其直接子区间时长。本 trace 的阶段同步嵌套，
 没有跨 track 子区间或负值；分类求和与根区间总和相等。
 因此以下分类不会把 Flow、文字引擎和外层稳定化重复相加。
@@ -152,10 +159,9 @@ Core IR 录制和校验分别累计 134.64 ms、127.03 ms。
 
 ## 查询与复核
 
-新查询、分类集合、逐操作子阶段及覆盖检查保存在
-[本轮分析数据](../../../target/verification/textflow-large-app/perfetto-text-focus-2026-11-04-data.json)。
-该文件为用户可复核的分析导出，放在忽略的验证目录；查询辅助脚本在 `/tmp`。
-数据中包含实际执行过的 setup 和全部 SQL，官方 Unix 会话已关闭。
+查询结果和分类集合保留在本文，查询辅助脚本在
+`/tmp/novadraw-perfetto-text-focus-20261104.py`。
+独立 JSON 导出未能完成保留，不将它列为可交付文件。官方 Unix 会话已关闭。
 
 关键文字引擎查询如下：
 
@@ -179,6 +185,25 @@ FROM slice s LEFT JOIN children c ON c.parent_id=s.id;
 
 SELECT sum(dur)/1e6 AS root_ms
 FROM slice WHERE parent_id IS NULL AND dur>0;
+
+SELECT CASE
+  WHEN name IN (
+    'flow-visit','flow-dispatch','flow-resolve','flow-handler',
+    'flow-contributor','flow-text','flow-text-append','flow-source-map',
+    'flow-block','flow-children'
+  ) THEN 'flow_assembly'
+  WHEN name IN ('prepare-signature','prepare-batch-validation')
+    THEN 'preparation_checks'
+  WHEN name='host-backend-submit' THEN 'backend_submit'
+  WHEN name='text-analysis-shaping' THEN 'analysis_shaping'
+  WHEN name IN (
+    'ir-record','ir-validate','submission-retention-resources','submission-build'
+  ) THEN 'ir_submission'
+  WHEN name GLOB 'text-*' THEN 'other_text_engine'
+  ELSE 'other'
+END AS group_name, sum(self_ns)/1e6 AS self_ms
+FROM text_perf_self WHERE dur>0
+GROUP BY group_name ORDER BY self_ms DESC;
 ```
 
 各分类自身耗时求和为 7513.176672 ms，与根区间之和相等，未舍入值差为零。
