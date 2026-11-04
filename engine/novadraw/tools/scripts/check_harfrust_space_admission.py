@@ -68,7 +68,7 @@ def main():
         h.manifest(package, lib, original / "Cargo.toml")
         for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
             log = output / f"space-invisible-{owner}-{profile}.log"
-            h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path", str(package / "Cargo.toml"),
+            h.run(["cargo", "test", "--offline", "--manifest-path", str(package / "Cargo.toml"),
                 "--lib", *flags, "space_private_oracle::ordinary_invisible_reference",
                 "--", "--nocapture", "--test-threads=1"], log, env)
             rows = []
@@ -86,12 +86,12 @@ def main():
     consumer, private = {}, {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         log = output / f"space-private-{profile}.log"
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
             str(build / "lib-production/Cargo.toml"), "--lib", *flags], log, env)
         private[profile] = h.sha(log.read_bytes())
         log = output / f"space-consumer-{profile}.log"
         consumer_flags = [] if profile == "native" else ["--no-default-features", "--features", "portable"]
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
             str(h.REPO / "tests/consumers/harfrust-admission/Cargo.toml"), "--lib", *consumer_flags], log, env)
         consumer[profile] = h.sha(log.read_bytes())
     expected = {key.split("/")[0]: count for key, count in prior["observations_per_configuration"].items()}
@@ -113,7 +113,7 @@ def main():
                     manifest.write_text(manifest.read_text().replace(
                         "path = " + json.dumps(str(build / f"lib-{owner}")) + " }",
                         "path = " + json.dumps(str(build / f"lib-{owner}")) + ", default-features = false }"))
-                h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
+                h.run(["cargo", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
                     output / f"space-{oracle}-{owner}-{profile}-build.log", env)
                 key = f"{oracle}/{owner}/{profile}"
                 signatures[key], counts[key] = observe(args.target_dir.resolve() / "debug/oracle",

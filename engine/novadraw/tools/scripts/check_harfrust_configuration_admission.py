@@ -98,7 +98,7 @@ def main():
                     "path = " + json.dumps(str(lib_package)) + " }",
                     "path = " + json.dumps(str(lib_package)) + ", default-features = false }",
                 ))
-            harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+            harness.run(["cargo", "build", "--offline", "--manifest-path",
                          str(manifest), "--bin", "oracle"],
                         output / f"configuration-oracle-{name}-{profile}-build.log", env)
             log = output / f"configuration-oracle-{name}-{profile}.log"
@@ -110,12 +110,12 @@ def main():
     private, consumer = {}, {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         log = output / f"configuration-private-{profile}.log"
-        harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        harness.run(["cargo", "test", "--offline", "--manifest-path",
                      str(root / "lib-production/Cargo.toml"), "--lib", *flags], log, env)
         private[profile] = harness.sha(log.read_bytes())
         log = output / f"configuration-consumer-{profile}.log"
         consumer_flags = flags + (["--features", "portable"] if profile == "portable" else [])
-        harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        harness.run(["cargo", "test", "--offline", "--manifest-path",
                      str(harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"),
                      "--lib", *consumer_flags], log, env)
         consumer[profile] = harness.sha(log.read_bytes())

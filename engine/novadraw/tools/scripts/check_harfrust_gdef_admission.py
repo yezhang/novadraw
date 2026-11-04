@@ -71,7 +71,7 @@ def main():
         lib = build / f"lib-{owner}"
         h.manifest(lib, library / "src/lib.rs", original / "Cargo.toml")
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
             str(build / "lib-production/Cargo.toml"), "--lib", *flags],
             output / f"gdef-private-{profile}.log", env)
     for owner in ["original", "production"]:
@@ -101,7 +101,7 @@ def main():
                     manifest.write_text(manifest.read_text().replace(
                         "path = " + json.dumps(str(lib)) + " }",
                         "path = " + json.dumps(str(lib)) + ", default-features = false }"))
-                h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
+                h.run(["cargo", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
                     output / f"gdef-{oracle}-{owner}-{profile}-build.log", env)
                 signatures[key], counts[key] = observe(args.target_dir.resolve() / "debug/oracle",
                     observed, env)
@@ -118,7 +118,7 @@ def main():
     consumer, private = {}, {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features", "--features", "portable"])]:
         log = output / f"gdef-consumer-{profile}.log"
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
             str(h.REPO / "tests/consumers/harfrust-admission/Cargo.toml"), "--lib", *flags], log, env)
         consumer[profile] = h.sha(log.read_bytes())
         private[profile] = h.sha((output / f"gdef-private-{profile}.log").read_bytes())

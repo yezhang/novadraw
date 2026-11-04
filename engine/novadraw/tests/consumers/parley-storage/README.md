@@ -10,12 +10,12 @@
 消费者直接使用 `dependencies/parley-0.7.0`，不需要先准备隔离副本：
 
 ```bash
-cargo +1.96.0 test --locked \
+cargo test --locked \
   --manifest-path tests/consumers/parley-storage/Cargo.toml --lib
-cargo +1.96.0 test --locked \
+cargo test --locked \
   --manifest-path tests/consumers/parley-storage/Cargo.toml \
   --no-default-features --features portable --lib
-cargo +1.96.0 build --locked \
+cargo build --locked \
   --manifest-path tests/consumers/parley-storage/Cargo.toml \
   --no-default-features --features portable \
   --target wasm32-unknown-unknown --lib
@@ -54,7 +54,7 @@ python3 tools/scripts/check_parley_line_admission.py \
 ```bash
 python3 tools/scripts/prepare_parley_storage_candidate.py \
   --archive /path/to/parley-0.7.0.crate
-cargo +1.96.0 test \
+cargo test \
   --manifest-path target/text-stages-b/parley-0.7.0/Cargo.toml \
   --no-default-features --features std,storage-candidate-tests \
   --lib layout::storage::tests

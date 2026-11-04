@@ -53,7 +53,7 @@ def main():
         harness.manifest(lib, library / "src/lib.rs", original / "Cargo.toml")
         package = build_root / f"cost-{name}"
         harness.manifest(package, lib, original / "Cargo.toml", binary=True)
-        harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+        harness.run(["cargo", "build", "--offline", "--manifest-path",
                      str(package / "Cargo.toml"), "--release", "--bin", "oracle"],
                     output / f"{kind}-ordinary-{name}-build.log", env)
         binary = root / f"cost-{name}.bin"

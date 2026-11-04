@@ -646,7 +646,10 @@ impl UpdateManager {
     /// 对应 draw2d: performValidation 中对 invalidFigures 的 drain。
     /// FigureTree 使用此方法获取需要验证的块列表。
     pub fn drain_invalid_figures(&mut self) -> Vec<FigureId> {
-        self.invalid_figures.drain(..).collect()
+        // Keep queue capacity for the next validation batch.
+        let mut invalid_figures = Vec::with_capacity(self.invalid_figures.len());
+        invalid_figures.append(&mut self.invalid_figures);
+        invalid_figures
     }
 
     /// 清空脏区域和更新标记

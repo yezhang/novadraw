@@ -60,7 +60,7 @@ FR-02 的[内部归因与诊断扰动](../reviews/flow-assembly-attribution-2026
 在仓库根目录运行：
 
 ```bash
-cargo +1.96.0 test -p novadraw \
+cargo test -p novadraw \
   --test long_text_layout_contract \
   --test long_text_paint_contract \
   --test shared_glyph_storage_contract
@@ -73,8 +73,8 @@ cargo +1.96.0 test -p novadraw \
 阶段协议和存储补丁另有独立入口：
 
 ```bash
-cargo +1.96.0 test -p novadraw --test p2_text_stages
-cargo +1.96.0 test \
+cargo test -p novadraw --test p2_text_stages
+cargo test \
   --manifest-path tests/consumers/parley-storage/Cargo.toml --lib
 ```
 
@@ -83,10 +83,10 @@ cargo +1.96.0 test \
 它们属于契约验证，不测实际 Flow 宽度复用的收益。
 
 有本机 GPU、需要检查整套长文本像素和消费者时，可改用
-`cargo +1.96.0 xtask verify text.long-layout`。
+`cargo xtask verify text.long-layout`。
 该 suite 已包含文字契约、Full／Partial GPU 对照、release 构建和 CPU smoke，
 不必紧接着重复其中相同的测试。子命令使用默认 Cargo 工具链；
-如需统一 1.96.0，可为该命令设置 `RUSTUP_TOOLCHAIN=1.96.0`。
+如需临时统一工具链，可按本机策略设置 `RUSTUP_TOOLCHAIN`。
 
 ## 再测当前成本
 
@@ -94,7 +94,7 @@ cargo +1.96.0 test \
 如果指定了独立构建目录，二进制位于该目录的 `release/` 下。
 
 ```bash
-cargo +1.96.0 build --locked --release \
+cargo build --locked --release \
   -p draw2d-official-examples --bin textflow-perf
 target/release/textflow-perf 5 extended
 ```
@@ -126,9 +126,9 @@ target/release/textflow-perf 5 extended
 以下目录必须是新目录；再次采样时换一个名字，避免混入上次结果。
 
 ```bash
-RUSTUP_TOOLCHAIN=1.96.0 python3 tools/scripts/textflow_performance.py \
+python3 tools/scripts/textflow_performance.py \
   freeze /tmp/novadraw-text-check-original
-RUSTUP_TOOLCHAIN=1.96.0 python3 tools/scripts/textflow_performance.py \
+python3 tools/scripts/textflow_performance.py \
   run /tmp/novadraw-text-check-original --extended \
   --sessions 5 --samples 200 --warmup 20 --cold-per-session 40
 ```
@@ -156,7 +156,7 @@ NoWrap 长行和带真实 inline Figure 的混排。
 在两个独立 Cargo target 中冻结二进制，再交替运行：
 
 ```bash
-RUSTUP_TOOLCHAIN=1.96.0 python3 tools/scripts/textflow_performance.py \
+python3 tools/scripts/textflow_performance.py \
   compare /tmp/novadraw-text-comparison \
   --baseline /path/to/frozen-baseline \
   --optimized /path/to/frozen-current --extended

@@ -26,7 +26,7 @@ def main():
     h.manifest(package, h.REPO / "target/text-harfrust-decomposition-miss-build/lib-production",
                h.PRODUCTION / "Cargo.toml", binary=True)
     env = text_admission_build.environment(target, args.linker)
-    h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+    h.run(["cargo", "build", "--offline", "--manifest-path",
            str(package / "Cargo.toml"), "--release", "--bin", "oracle"],
           output / "decomposition-miss-cost-build.log", env)
     raw = output / "decomposition-miss-cost.ndjson"

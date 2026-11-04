@@ -105,7 +105,7 @@ def main():
                     "path = " + json.dumps(str(lib_package)) + ", default-features = false }",
                 )
                 path.write_text(text)
-            harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+            harness.run(["cargo", "build", "--offline", "--manifest-path",
                          str(path), "--bin", "oracle"],
                         output / f"cold-oracle-{name}-{profile}-build.log", env)
             log = output / f"cold-oracle-{name}-{profile}.log"
@@ -117,7 +117,7 @@ def main():
     private_signatures = {}
     for profile, options in [("native", []), ("portable", ["--no-default-features"])]:
         log = output / f"cold-private-{profile}.log"
-        harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        harness.run(["cargo", "test", "--offline", "--manifest-path",
                      str(private / "Cargo.toml"), "--lib", *options], log, env)
         private_signatures[profile] = harness.sha(log.read_bytes())
     consumer = REPO / "tests/consumers/harfrust-admission/Cargo.toml"
@@ -126,7 +126,7 @@ def main():
         ("native", []), ("portable", ["--no-default-features", "--features", "portable"]),
     ]:
         log = output / f"cold-consumer-{profile}.log"
-        harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        harness.run(["cargo", "test", "--offline", "--manifest-path",
                      str(consumer), "--lib", *options], log, env)
         external_signatures[profile] = harness.sha(log.read_bytes())
     receipt = {

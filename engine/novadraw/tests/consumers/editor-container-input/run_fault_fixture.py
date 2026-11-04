@@ -42,7 +42,7 @@ def main():
     print(f"Isolated source copy: {copy}", flush=True)
     subprocess.run(
         [
-            "cargo", "+1.96.0", "test", "--manifest-path", str(copy / "Cargo.toml"),
+            "cargo", "test", "--manifest-path", str(copy / "Cargo.toml"),
             "-p", "novadraw-editor", "--test", "p2_e03_container_editing_contract",
             "e03_real_revision_exhaustion_blocks_both_tools_before_command_build",
             "--", "--exact", "--nocapture",

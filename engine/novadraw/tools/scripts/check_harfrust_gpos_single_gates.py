@@ -65,7 +65,7 @@ def main():
     wasm = text_admission_build.environment(args.wasm_target_dir.resolve(), "clang")
     wasm.pop("RUSTFLAGS", None)
     consumer = harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"
-    cargo, checks = ["cargo", "+1.96.0"], {}
+    cargo, checks = ["cargo"], {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         collected = {}
         for owner, manifest in [("baseline", package / "Cargo.toml"), ("production", build / "lib-production/Cargo.toml")]:

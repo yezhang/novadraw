@@ -14,10 +14,10 @@ def environment(target: Path, linker: str):
     env["CC"] = "/Library/Developer/CommandLineTools/usr/bin/clang"
     env["CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"] = env["CC"]
     if linker == "rust-lld":
-        rustc = Path(subprocess.check_output(
-            ["rustup", "which", "--toolchain", "1.96.0", "rustc"], text=True,
+        sysroot = Path(subprocess.check_output(
+            ["rustc", "--print", "sysroot"], text=True,
         ).strip())
-        lld = rustc.parent.parent / "lib/rustlib/aarch64-apple-darwin/bin/rust-lld"
+        lld = sysroot / "lib/rustlib/aarch64-apple-darwin/bin/rust-lld"
         if not lld.is_file():
             raise RuntimeError(f"Rust Darwin linker missing: {lld}")
         env["CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"] = str(lld)

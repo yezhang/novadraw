@@ -166,13 +166,13 @@ def main():
                                 ', default-features = false }') if flags else text
             path.write_text(text)
             build = output / f"buffer-oracle-{name}-{profile}-build.log"
-            run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+            run(["cargo", "build", "--offline", "--manifest-path",
                  str(path), "--bin", "oracle"], build, env)
             log = output / f"buffer-oracle-{name}-{profile}.log"
             run([str(args.target_dir.resolve() / "debug/oracle")], log, env)
             results[f"{name}-{profile}"] = sha(log.read_bytes())
             if name == "production":
-                run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+                run(["cargo", "test", "--offline", "--manifest-path",
                      str(lib_package / "Cargo.toml"), "--lib",
                      "buffer::admission::tests", *flags],
                     output / f"buffer-private-{profile}.log", env)

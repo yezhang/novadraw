@@ -105,7 +105,7 @@ def main():
                     manifest.write_text(manifest.read_text().replace(
                         "path = " + json.dumps(str(lib)) + " }",
                         "path = " + json.dumps(str(lib)) + ", default-features = false }"))
-                harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+                harness.run(["cargo", "build", "--offline", "--manifest-path",
                              str(manifest), "--bin", "oracle"],
                             output / f"ligature-{oracle}-{name}-{profile}-build.log", env)
                 key = f"{oracle}/{name}/{profile}"
@@ -115,7 +115,7 @@ def main():
                     raise SystemExit(f"Wrong observation count: {key}/{counts[key]}")
         if name == "production":
             for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
-                harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+                harness.run(["cargo", "test", "--offline", "--manifest-path",
                              str(lib / "Cargo.toml"), "--lib", *flags],
                             output / f"ligature-private-{profile}.log", env)
     for oracle in expected:
@@ -128,7 +128,7 @@ def main():
     consumer = {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features", "--features", "portable"])]:
         log = output / f"ligature-consumer-{profile}.log"
-        harness.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        harness.run(["cargo", "test", "--offline", "--manifest-path",
                      str(harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"),
                      "--lib", *flags], log, env)
         consumer[profile] = harness.sha(log.read_bytes())

@@ -31,7 +31,7 @@ def main():
         h.manifest(lib, library / "src/lib.rs", original / "Cargo.toml")
         package = base / f"cost-{owner}"
         h.manifest(package, lib, original / "Cargo.toml", binary=True)
-        h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+        h.run(["cargo", "build", "--offline", "--manifest-path",
                str(package / "Cargo.toml"), "--release", "--bin", "oracle"],
               output / f"decomposition-miss-ordinary-{owner}-build.log", env)
         binary = root / f"cost-{owner}.bin"

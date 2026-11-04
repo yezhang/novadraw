@@ -111,7 +111,7 @@ def main():
     wasm.pop("RUSTFLAGS", None)
     consumer = harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"
     dependency = harness.REPO / "target/text-harfrust-multiple-build/lib-production/Cargo.toml"
-    cargo = ["cargo", "+1.96.0"]
+    cargo = ["cargo"]
     baseline = lint_baseline(output, verified["prior_patches"])
     receipts = {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:

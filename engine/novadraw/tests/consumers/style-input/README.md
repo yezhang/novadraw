@@ -5,9 +5,9 @@
 字体 token、第三方 Figure 的继承与更新，以及 Graphics 的测量和绘制。
 
 ```bash
-rustup run 1.96.0 cargo test --manifest-path tests/consumers/style-input/Cargo.toml --lib
-rustup run 1.96.0 cargo test --manifest-path tests/consumers/style-input/Cargo.toml --lib --no-default-features
-rustup run 1.96.0 cargo run --release --manifest-path tests/consumers/style-input/Cargo.toml
+cargo test --manifest-path tests/consumers/style-input/Cargo.toml --lib
+cargo test --manifest-path tests/consumers/style-input/Cargo.toml --lib --no-default-features
+cargo run --release --manifest-path tests/consumers/style-input/Cargo.toml
 rustup run stable cargo build --release --lib --target wasm32-unknown-unknown --manifest-path tests/consumers/style-input/Cargo.toml
 ```
 

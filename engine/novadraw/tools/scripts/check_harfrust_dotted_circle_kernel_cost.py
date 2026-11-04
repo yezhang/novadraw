@@ -52,12 +52,12 @@ def main():
             h.manifest(package, build / f"lib-{owner}", h.PRODUCTION / "Cargo.toml", binary=True)
             packages[key] = package
             log = output / f"{PREFIX}-{key}-cost-clippy.log"
-            h.run(["cargo", "+1.96.0", "clippy", "--offline", "--manifest-path",
+            h.run(["cargo", "clippy", "--offline", "--manifest-path",
                    str(package / "Cargo.toml"), "--bin", "oracle", "--", "-D", "warnings"], log, env)
             lint[key] = h.sha(log.read_bytes())
     # All seven cost programs are checked before the first timed sample.
     for key, package in packages.items():
-        h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+        h.run(["cargo", "build", "--offline", "--manifest-path",
                str(package / "Cargo.toml"), "--release", "--bin", "oracle"],
               output / f"{PREFIX}-{key}-cost-build.log", env)
         binary = base / f"{key}.bin"

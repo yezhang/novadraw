@@ -71,7 +71,7 @@ def main():
                 if profile == "portable":
                     manifest.write_text(manifest.read_text().replace("path = " + json.dumps(str(lib)) + " }",
                         "path = " + json.dumps(str(lib)) + ", default-features = false }"))
-                h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
+                h.run(["cargo", "build", "--offline", "--manifest-path", str(manifest), "--bin", "oracle"],
                     output / f"gpos-pair-{oracle}-{owner}-{profile}-build.log", env)
                 key = f"{oracle}/{owner}/{profile}"
                 signatures[key], counts[key] = observe(args.target_dir.resolve() / "debug/oracle",
@@ -80,7 +80,7 @@ def main():
                     raise SystemExit(f"Wrong observation count: {key}/{counts[key]}")
         if owner == "production":
             for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
-                h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path", str(lib / "Cargo.toml"),
+                h.run(["cargo", "test", "--offline", "--manifest-path", str(lib / "Cargo.toml"),
                     "--lib", *flags], output / f"gpos-pair-private-{profile}.log", env)
     for oracle in expected:
         selected = {v for k, v in signatures.items() if k.startswith(oracle + "/")}
@@ -91,7 +91,7 @@ def main():
     consumer, private = {}, {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features", "--features", "portable"])]:
         log = output / f"gpos-pair-consumer-{profile}.log"
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
             str(h.REPO / "tests/consumers/harfrust-admission/Cargo.toml"), "--lib", *flags], log, env)
         consumer[profile] = h.sha(log.read_bytes())
         private[profile] = h.sha((output / f"gpos-pair-private-{profile}.log").read_bytes())

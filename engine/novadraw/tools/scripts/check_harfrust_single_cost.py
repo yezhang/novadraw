@@ -19,7 +19,7 @@ def main():
     target = args.target_dir.resolve()
     env = text_admission_build.environment(target, args.linker)
     manifest = harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"
-    harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+    harness.run(["cargo", "build", "--offline", "--manifest-path",
                  str(manifest), "--release", "--bin", "single-cost"],
                 output / "single-cost-build.log", env)
     raw = output / "single-cost.ndjson"

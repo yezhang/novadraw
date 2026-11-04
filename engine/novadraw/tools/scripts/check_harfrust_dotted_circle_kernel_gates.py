@@ -89,7 +89,7 @@ def main():
     native = text_admission_build.environment(args.target_dir.resolve(), args.linker)
     wasm = text_admission_build.environment(args.wasm_target_dir.resolve(), "clang")
     wasm.pop("RUSTFLAGS", None)
-    cargo, checks = ["cargo", "+1.96.0"], {}
+    cargo, checks = ["cargo"], {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         signatures = {}
         for owner, package in [("baseline", baseline), ("production", build / "lib-production")]:

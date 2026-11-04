@@ -116,7 +116,7 @@ def main():
                     "path = " + json.dumps(str(lib_package)) + ", default-features = false }",
                 )
                 path.write_text(text)
-            harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+            harness.run(["cargo", "build", "--offline", "--manifest-path",
                          str(path), "--bin", "oracle"],
                         output / f"instance-oracle-{name}-{profile}-build.log", env)
             log = output / f"instance-oracle-{name}-{profile}.log"

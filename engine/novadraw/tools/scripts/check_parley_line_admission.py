@@ -63,7 +63,7 @@ def main():
             output / f"line-oracle-{name}-build.log"
         ).open("wb") as stderr:
             subprocess.run(
-                ["cargo", "+1.96.0", "run", "--offline",
+                ["cargo", "run", "--offline",
                  "--manifest-path", str(manifest), "--bin", "oracle"],
                 check=True, env=env, stdout=stdout, stderr=stderr,
             )
@@ -82,7 +82,7 @@ def main():
     shutil.copy2(REPO / "tests/consumers/parley-storage/Cargo.lock", private / "Cargo.lock")
     with (output / "line-private.log").open("wb") as log:
         subprocess.run(
-            ["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+            ["cargo", "test", "--offline", "--manifest-path",
              str(manifest), "--lib", "admission_tests"],
             check=True, env=env, stdout=log, stderr=subprocess.STDOUT,
         )

@@ -60,7 +60,7 @@ def main():
         "scope": "input buffer only; no shaping, Core budget or width reuse",
         "sampling": "sequential six groups; cold includes previous empty buffer release",
         "environment": {"platform": platform.platform(), "machine": platform.machine(),
-                        "rustc": subprocess.check_output(["rustc", "+1.96.0", "-V"], text=True).strip()},
+                        "rustc": subprocess.check_output(["rustc", "-V"], text=True).strip()},
         "samples_sha256": digest(args.samples), "binary_sha256": digest(args.binary),
         "source_sha256": digest(REPO / "tests/consumers/harfrust-admission/src/cost.rs"),
         "samples": len(rows), "unexpected_results": 0, "groups": summaries,

@@ -19,7 +19,7 @@
 真实 inline 测量在 FlowPlan 组装之后，独立记录前缀排版与 Figure 测量，不计入贡献组装。
 诊断不重读 provider、不改变预算、错误或发布结果，不在热路径打印日志。
 
-先构建当前实现的 coarse baseline，再构建细阶段诊断版本，采用相同 Rust 1.96.0、
+先构建当前实现的 coarse baseline，再构建细阶段诊断版本，采用相同 Rust 工具链、
 release、锁文件、字体与驱动。两版均执行 timing-on／timing-off，交替采样；
 这比较的是诊断扰动，不是生产优化收益。原始日志、冻结源码与收据放在
 `target/verification/flow-assembly-2026-11-03/`，不纳入 Git。
@@ -128,9 +128,9 @@ release、锁文件、字体与驱动。两版均执行 timing-on／timing-off�
 现有 target 已包含公开消费者及边框／inline／失败反例：
 
 ```bash
-cargo +1.96.0 test -p novadraw --test long_text_layout_contract
-cargo +1.96.0 test -p novadraw --test p2_t03_structured_flow_contract
-cargo +1.96.0 test -p novadraw --test p2_t03_external_flow_engine
+cargo test -p novadraw --test long_text_layout_contract
+cargo test -p novadraw --test p2_t03_structured_flow_contract
+cargo test -p novadraw --test p2_t03_external_flow_engine
 ```
 
 计时守恒检查由采样器逐 sample 执行，关闭路径不得发出 Runtime 阶段。

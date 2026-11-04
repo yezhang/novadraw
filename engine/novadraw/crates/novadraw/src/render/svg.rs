@@ -119,7 +119,7 @@ impl SvgImageSource {
             &mut pixmap.as_mut(),
         );
         let mut pixels = pixmap.take();
-        for pixel in pixels.chunks_exact_mut(4) {
+        for pixel in pixels.as_chunks_mut::<4>().0 {
             let alpha = u32::from(pixel[3]);
             if alpha == 0 || alpha == 255 {
                 continue;

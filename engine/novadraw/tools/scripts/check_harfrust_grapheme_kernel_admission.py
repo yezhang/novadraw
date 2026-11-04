@@ -77,12 +77,12 @@ def main():
     private, consumer = {}, {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         log = output / f"{PREFIX}-private-{profile}.log"
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
                str(build / "lib-production/Cargo.toml"), "--lib", *flags], log, env)
         private[profile] = h.sha(log.read_bytes())
         log = output / f"{PREFIX}-consumer-{profile}.log"
         flags = [] if profile == "native" else ["--no-default-features", "--features", "portable"]
-        h.run(["cargo", "+1.96.0", "test", "--offline", "--manifest-path",
+        h.run(["cargo", "test", "--offline", "--manifest-path",
                str(h.REPO / "tests/consumers/harfrust-admission/Cargo.toml"), "--lib", *flags],
               log, env)
         consumer[profile] = h.sha(log.read_bytes())
@@ -107,7 +107,7 @@ def main():
                     "path = " + json.dumps(str(build / f"lib-{owner}"))
                     + ", default-features = false }",
                 ))
-            h.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+            h.run(["cargo", "build", "--offline", "--manifest-path",
                    str(manifest), "--bin", "oracle"],
                   output / f"{PREFIX}-{oracle}-{owner}-{profile}-build.log", env)
             signatures[key], counts[key] = observe(

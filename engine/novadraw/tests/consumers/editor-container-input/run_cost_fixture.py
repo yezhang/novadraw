@@ -215,7 +215,7 @@ def main():
     env = os.environ.copy()
     env["CARGO_TARGET_DIR"] = str(args.target_dir.resolve())
     command = [
-        "cargo", "+1.96.0", "test", "--manifest-path", str(isolated / "Cargo.toml"),
+        "cargo", "test", "--manifest-path", str(isolated / "Cargo.toml"),
         "-p", "novadraw-editor", "--release", "--test", "p2_e03_container_editing_contract",
         "container_scaling_samples_include_multiple_parents_and_large_source_subtrees",
         "--", "--exact", "--ignored", "--nocapture", "--test-threads=1",

@@ -314,7 +314,10 @@ impl NotificationQueue {
     }
 
     pub fn drain(&mut self) -> Vec<NotificationEffect> {
-        self.effects.drain(..).collect()
+        // Keep queue capacity for the next notification batch.
+        let mut effects = Vec::with_capacity(self.effects.len());
+        effects.append(&mut self.effects);
+        effects
     }
 }
 

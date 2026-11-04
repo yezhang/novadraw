@@ -26,7 +26,7 @@ def main():
     package = harness.REPO / "target/text-harfrust-gpos-single-cost"
     harness.SOURCE = source
     harness.manifest(package, library, harness.PRODUCTION / "Cargo.toml", binary=True)
-    harness.run(["cargo", "+1.96.0", "build", "--offline", "--manifest-path",
+    harness.run(["cargo", "build", "--offline", "--manifest-path",
                  str(package / "Cargo.toml"), "--release", "--bin", "oracle"],
                 output / "gpos-single-cost-build.log", env)
     raw = output / "gpos-single-cost.ndjson"

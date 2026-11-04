@@ -63,7 +63,7 @@ def main():
     wasm.pop("RUSTFLAGS", None)
     consumer = harness.REPO / "tests/consumers/harfrust-admission/Cargo.toml"
     dependency = harness.REPO / "target/text-harfrust-ligature-build/lib-production/Cargo.toml"
-    cargo, receipts = ["cargo", "+1.96.0"], {}
+    cargo, receipts = ["cargo"], {}
     for profile, flags in [("native", []), ("portable", ["--no-default-features"])]:
         collected = {}
         for owner, manifest in [("baseline", package / "Cargo.toml"), ("production", dependency)]:
