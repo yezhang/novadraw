@@ -13,7 +13,7 @@ use perfetto_sdk::{
         track_event::track_event_config::TrackEventConfig,
     },
     tracing_session::TracingSession,
-    track_event::{EventContext, TrackEvent, TrackEventDebugArg, TrackEventType},
+    track_event::{EventContext, ScopeGuard, TrackEvent, TrackEventDebugArg, TrackEventType},
 };
 use serde_json::Value;
 use std::{
@@ -24,7 +24,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-const TRACE_BUFFER_KB: u32 = 128 * 1024;
+const TRACE_BUFFER_KB: u32 = 256 * 1024;
+const PRODUCER_SHMEM_KB: u32 = 32 * 1024;
 const INCREMENTAL_CLEAR_MS: u32 = 1000;
 const FILE_ATTEMPTS: usize = 8;
 
@@ -32,6 +33,12 @@ perfetto_sdk::track_event_categories! {
     pub mod perfetto_te_ns {
         ("novadraw.host", "Research operations and backend acknowledgements", []),
     }
+}
+
+pub struct HostScope {
+    _guard: Option<ScopeGuard<fn()>>,
+    _name: Option<std::ffi::CString>,
+    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
 }
 
 /// Host-owned SDK session; retained export bytes are already encoded by Perfetto.
@@ -54,10 +61,12 @@ impl TraceSession {
                 Producer::init(
                     ProducerInitArgsBuilder::new()
                         .backends(Backends::IN_PROCESS)
+                        .shmem_size_hint_kb(PRODUCER_SHMEM_KB)
                         .build(),
                 );
                 TrackEvent::init();
                 novadraw::text::register_perfetto_categories()?;
+                novadraw_backend_vello::register_perfetto_categories()?;
                 perfetto_te_ns::register().map_err(|e| e.to_string())
             })
             .as_ref()
@@ -74,7 +83,11 @@ impl TraceSession {
                 "git":env!("RESEARCH_GIT"),"dirty":env!("RESEARCH_DIRTY"),
                 "requests":config.requests,"headless":config.headless,
                 "cycles":config.cycles,"replay":config.replay,"gpu_wait":config.gpu_wait,
-                "buffer_kb":TRACE_BUFFER_KB,"requested_damage":"full"}),
+                "buffer_kb":TRACE_BUFFER_KB,"producer_shmem_kb":PRODUCER_SHMEM_KB,
+                "requested_damage":if config.natural_damage {"natural"} else {"full"},
+                "scroll_replay":config.scroll_replay,"text_raster_cache":config.text_raster_cache,
+                "raster_validation":config.raster_validation,"coarse_trace":config.coarse_trace,
+                "offscreen_gpu":config.offscreen_gpu}),
         };
         trace.start()?;
         Ok(trace)
@@ -100,7 +113,13 @@ impl TraceSession {
                 d.set_track_event_config(|c: &mut TrackEventConfig| {
                     c.set_disabled_categories("*");
                     c.set_enabled_categories("novadraw.host");
-                    c.set_enabled_categories("novadraw.phase");
+                    if self.metadata["coarse_trace"] != true {
+                        c.set_enabled_categories("novadraw.phase");
+                    }
+                    c.set_enabled_categories("novadraw.backend");
+                    if self.requests {
+                        c.set_enabled_categories("novadraw.glyph");
+                    }
                     if self.requests {
                         c.set_enabled_categories("novadraw.request");
                     }
@@ -154,8 +173,24 @@ impl TraceSession {
         );
     }
 
-    pub fn scope(&self, name: &'static str) -> novadraw::text::TextLayoutTimingScope {
-        novadraw::text::TextLayoutDiagnostics::default().time(name)
+    pub fn scope(&self, name: &'static str) -> HostScope {
+        let mut owned_name = None;
+        let guard = if self.enabled && self.running {
+            let name = std::ffi::CString::new(name).expect("static scope name");
+            perfetto_sdk::track_event!("novadraw.host", TrackEventType::SliceBegin(name.as_ptr()));
+            owned_name = Some(name);
+            Some(ScopeGuard::new(
+                (|| perfetto_sdk::track_event!("novadraw.host", TrackEventType::SliceEnd))
+                    as fn(),
+            ))
+        } else {
+            None
+        };
+        HostScope {
+            _guard: guard,
+            _name: owned_name,
+            _thread: Default::default(),
+        }
     }
 
     pub fn export(&mut self, directory: &Path) -> Result<PathBuf> {

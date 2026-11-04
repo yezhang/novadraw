@@ -282,6 +282,10 @@ FR02-DR01～DR06，下一步复核声明证明发布链、共享内容、留存�
 合同未接受，生产矩阵未执行，不删布局反馈轮次或跳过外部重读。
 独立 TextFlowLarge 应用已实现，自动 CPU／Native
 两轮回放通过；人工交互、DPI、IME、AT 和屏幕呈现未验收。
+2026-11-04 用户授权[纯滚动纹理复用实验](../design/rendering/text-scroll-raster-reuse.md)：
+后端默认关闭、完整命令比较与有限纹理块；[匹配 GPU 离屏采样、失效与 43 帧像素对照](../verification/reviews/textflow-scroll-raster-experiment-2026-11-04.md)
+已完成，热块复用有效；冷块成本、字形边缘差异及真实窗口呈现仍待验收。
+该隔离实验不代表 FR-02 接受、贡献复用完成或 LT-03 生产门禁关闭。
 最新证据和测量限制统一见[文字优化验证](../verification/performance/text-optimization-validation.md)；
 阶段边界见[文字阶段验证状态](../verification/reviews/text-stages-status.md)。
 产物体积只按用户明确请求比较，不作为日常功能门禁。

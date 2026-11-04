@@ -15,6 +15,32 @@ pub const HEIGHT: f64 = 500.0;
 pub const SCROLL_STEP: f64 = 100.0;
 const RESIZE_STEP: f64 = 50.0;
 const FRAME_RETRIES: usize = 8;
+const SCROLL_REPLAY_STEP: f64 = 40.0;
+const SCROLL_REPLAY_PAIRS: usize = 12;
+const RASTER_VALIDATION_STEPS: usize = 16;
+const RASTER_VALIDATION_STEP: f64 = 200.0;
+
+pub fn raster_validation() -> Vec<Operation> {
+    let mut result = vec![
+        Operation::Reset,
+        Operation::Stable,
+        Operation::FullDamage(false),
+    ];
+    for delta in [RASTER_VALIDATION_STEP, -RASTER_VALIDATION_STEP] {
+        result.extend((0..RASTER_VALIDATION_STEPS).map(|_| Operation::Scroll(delta)));
+    }
+    result.extend([
+        Operation::Append,
+        Operation::Scroll(SCROLL_REPLAY_STEP),
+        Operation::Scroll(-SCROLL_REPLAY_STEP),
+        Operation::Resize(NARROW_WIDTH),
+        Operation::Scroll(SCROLL_REPLAY_STEP),
+        Operation::Resize(INITIAL_WIDTH),
+        Operation::Reset,
+        Operation::Stable,
+    ]);
+    result
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
@@ -23,6 +49,39 @@ pub enum Operation {
     Scroll(f64),
     Resize(f64),
     Stable,
+    Wheel(f64),
+    Pointer,
+    FullDamage(bool),
+}
+
+pub fn scroll_replay(cycles: usize, natural_only: bool) -> Vec<Operation> {
+    let mut result = vec![Operation::Reset, Operation::Stable];
+    let modes: &[bool] = if natural_only {
+        &[false]
+    } else {
+        &[true, false]
+    };
+    for &full in modes {
+        result.push(Operation::FullDamage(full));
+        for _ in 0..cycles {
+            for _ in 0..SCROLL_REPLAY_PAIRS {
+                result.extend([
+                    Operation::Scroll(SCROLL_REPLAY_STEP),
+                    Operation::Scroll(-SCROLL_REPLAY_STEP),
+                ]);
+            }
+            for _ in 0..SCROLL_REPLAY_PAIRS {
+                result.extend([
+                    Operation::Wheel(-SCROLL_REPLAY_STEP),
+                    Operation::Wheel(SCROLL_REPLAY_STEP),
+                ]);
+            }
+            for _ in 0..SCROLL_REPLAY_PAIRS {
+                result.extend([Operation::Pointer, Operation::Stable]);
+            }
+        }
+    }
+    result
 }
 
 pub fn replay(cycles: usize) -> Vec<Operation> {
@@ -63,6 +122,7 @@ pub struct Research {
     pub runtime: Runtime,
     pub width: f64,
     pub capture_enabled: bool,
+    pub full_redraw: bool,
     operation_id: u64,
     cycle: u64,
     viewport: Option<FigureId>,
@@ -78,6 +138,7 @@ impl Research {
             runtime: draw2d_official_examples::text_flow_large_example(),
             width: INITIAL_WIDTH,
             capture_enabled,
+            full_redraw: true,
             operation_id: 0,
             cycle: 0,
             viewport: None,
@@ -87,17 +148,20 @@ impl Research {
     pub fn apply(&mut self, operation: Operation, trace: &mut TraceSession) -> Result<()> {
         self.operation_id += 1;
         let _operation = trace.scope("host-operation");
+        let before_y = self.viewport_y();
         let mut result = {
             let _mutation = trace.scope("host-mutation");
             self.mutate(operation)
         }
         .and_then(|()| {
+            let _query = trace.scope("host-stabilize-query");
             self.runtime
                 .frames()
                 .stabilize_for_query()
                 .map_err(anyhow::Error::from)
         });
         let snapshot = if result.is_ok() {
+            let _snapshot = trace.scope("host-snapshot-summary");
             match self.snapshot_summary() {
                 Ok(snapshot) => snapshot,
                 Err(error) => {
@@ -111,7 +175,8 @@ impl Research {
         trace.push(
             json!({"kind":"operation","operation_id":self.operation_id,"cycle":self.cycle,
             "operation":format!("{operation:?}"),"succeeded":result.is_ok(),
-            "error":result.as_ref().err().map(|e|format!("{e:#}")),"snapshot":snapshot}),
+            "error":result.as_ref().err().map(|e|format!("{e:#}")),"snapshot":snapshot,
+            "viewport_before_y":before_y,"viewport_after_y":self.viewport_y(),"full_redraw":self.full_redraw}),
         );
         result
     }
@@ -146,9 +211,19 @@ impl Research {
                     .resize_logical_viewport(width, HEIGHT)?;
                 self.width = width;
             }
-            Operation::Stable => {}
+            Operation::Stable | Operation::Wheel(_) | Operation::Pointer => {}
+            Operation::FullDamage(full) => self.full_redraw = full,
         }
         Ok(())
+    }
+
+    pub fn viewport_y(&mut self) -> Option<f64> {
+        let id = self.viewport?;
+        self.runtime
+            .viewports()
+            .handle(id)
+            .ok()
+            .map(|h| h.view_location().y())
     }
 
     fn find_flow(&self) -> Result<&FlowSnapshot> {
@@ -229,12 +304,19 @@ impl Research {
         trace: &mut TraceSession,
     ) -> Result<bool> {
         let _frame = trace.scope("host-frame");
-        self.runtime.frames().request_full_redraw();
+        if self.full_redraw {
+            self.runtime.frames().request_full_redraw();
+        }
         let prepared = self
             .runtime
             .frames()
             .prepare_submission(surface, backend.capabilities());
         let FramePreparation::Ready(frame) = prepared else {
+            if !self.full_redraw && matches!(prepared, FramePreparation::Idle) {
+                trace.push(json!({"kind":"frame","operation_id":self.operation_id,
+                    "attempt":attempt,"outcome":"no_damage","commands":0,"recorded_glyphs":0}));
+                return Ok(true);
+            }
             trace.push(
                 json!({"kind":"frame_failure","operation_id":self.operation_id,
                 "attempt":attempt,"error":format!("{prepared:?}")}),
@@ -261,6 +343,8 @@ impl Research {
         trace.push(json!({"kind":"frame","operation_id":self.operation_id,"attempt":attempt,
             "session_id":format!("{:?}",frame.session_id),"frame_id":format!("{:?}",frame.frame_id),
             "commands":frame.commands.len(),"recorded_glyphs":glyphs,
+            "damage":format!("{:?}",frame.damage.mode()),"damage_regions":frame.damage.regions().len(),
+            "damage_union":format!("{:?}",frame.damage.union()),"surface":format!("{surface:?}"),
             "outcome":if matches!(&completion, Ok(SubmissionAcknowledgement::Presented)) { outcome } else { "not_presented" },
             "result":format!("{result:?}"),"acknowledgement":completion.as_ref().ok().map(|a|format!("{a:?}")),
             "completion_error":completion.as_ref().err().map(ToString::to_string)}));

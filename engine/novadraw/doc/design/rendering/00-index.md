@@ -26,6 +26,9 @@
 候选研究：[DisplayList](display-list-protocol.md)，包含探索顺序和晋级门禁，
 不作为现行渲染流程的前提。
 
+[纯滚动的文字栅格复用实验](text-scroll-raster-reuse.md)使用默认关闭的后端缓存，
+验证内容坐标纹理块复用；不改变 Core 的布局与提交合同。
+
 [设备 hairline](device-hairline-proposal.md)尚待独立评审，样例零宽映射不构成其授权。
 
 已批准增量：[逐图形抗锯齿](shape-antialias-proposal.md)，按 ADR-047 实施 K08 的 OFF

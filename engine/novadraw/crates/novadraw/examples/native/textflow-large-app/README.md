@@ -12,9 +12,46 @@ cargo run -p textflow-large-app -- --headless --replay --cycles 1 --trace
 cargo run -p textflow-large-app -- --headless --replay --trace --requests
 ```
 
-默认不采集，`--trace` 开启 `novadraw.phase` 和 `novadraw.host`；
-`--requests` 额外开启 `novadraw.request`，按需格式化完整 Flow 请求与来源版本。
+默认不采集，`--trace` 开启 `novadraw.phase`、`novadraw.host` 和
+`novadraw.backend`；`--requests` 额外开启 `novadraw.request` 与逐 run 的
+`novadraw.glyph`，按需格式化完整 Flow 请求与来源版本。
 默认构建的 Core 不链接 SDK，本应用显式启用 Native `perfetto` feature。
+
+滚动专项采集：
+
+```sh
+python3 tools/scripts/run_textflow_large_macos.py --release -- --scroll-replay --cycles 2 --trace --exit-after-replay --output target/verification/textflow-scroll
+```
+
+`--scroll-replay` 在同一个 Runtime 和窗口中先预热，再依次采集 full redraw
+和自然 damage。每组每轮包含 24 次直接 viewport 滚动、24 次经 Winit adapter
+的固定像素滚轮输入，以及 12 次固定指针移动和 12 次 Stable。
+滚动 delta 为正负 40 逻辑像素配对，不包含追加文本或 resize。
+`--natural-damage` 可仅采自然 damage；普通模式仍保留原 full redraw 行为。
+自然 damage 的 Idle 单独记为 `no_damage`，不伪装为呈现成功。
+固定输入不是 OS 输入延迟；GPU 调用区间也不等于 GPU 执行时间。
+手动滚轮使用相同打点，记录来源、phase、delta、实际位移及关联 operation。
+本轮数字、有效 trace、SQL 和整改建议见
+[滚动诊断](../../../../../doc/verification/reviews/textflow-scroll-perfetto-2026-11-04.md)。
+
+纹理复用实验使用 `--text-raster-cache`，默认关闭。仅缓存符合条件的文字绘制范围，
+按内容坐标保存 512 设备像素高的块，原始纹理驻留预算为 16 MiB；
+内容、样式、字体或宽度变化使缓存失效，不合格输入走原路径。
+设计和限制见[实验方案](../../../../../doc/design/rendering/text-scroll-raster-reuse.md)，
+采样与像素差异见[实验结果](../../../../../doc/verification/reviews/textflow-scroll-raster-experiment-2026-11-04.md)。
+`--coarse-trace` 保留宿主与后端阶段，关闭细粒度 Core 阶段，用于匹配成本对照。
+
+```sh
+python3 tools/scripts/run_textflow_large_macos.py --release --clt --target-dir /tmp/novadraw-text-stage-target -- --scroll-replay --natural-damage --text-raster-cache --coarse-trace --exit-after-replay --output target/verification/textflow-scroll/raster
+```
+
+`--offscreen-gpu` 使用已有 GPU target 提交路径，跳过窗口 drawable 获取和呈现；
+即使锁屏仍可采样，但结果不能代表窗口呈现或实际 FPS。
+`--raster-validation` 对连续下滚／回滚、追加、变宽和重置保存逐帧 GPU 图片，
+与关闭缓存的同序列比较。该选项包含同步读回，只用于正确性检查。
+
+启动脚本默认使用当前环境的 Rust 工具链；`--toolchain` 仅用于主动指定覆盖，
+常规启动不固定为历史采样使用的 Rust 1.96.0。
 
 | 按键 | 操作 |
 |------|------|
@@ -38,7 +75,8 @@ macOS 功能键可能需要同时按 Fn。
 trace 写入忽略的 `target/verification/textflow-large-app/`，
 `--output DIRECTORY` 可指定目录。重建、回放结束和关闭时导出；
 文件不覆盖，写入失败保留 SDK 编码字节以便重试。
-SDK 使用 128 MiB 环形缓冲，每秒刷新增量字符串状态。
+SDK 使用 256 MiB 环形缓冲和 32 MiB producer 共享内存，
+每秒刷新增量字符串状态。两者分别应对整次采集容量和突发写入。
 长时间采集或完整请求仍可能超出容量：必须检查 Perfetto 的 trace health，
 存在数据丢失时不能据此计算完整调用次数。
 

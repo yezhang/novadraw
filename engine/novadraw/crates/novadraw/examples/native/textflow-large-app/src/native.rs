@@ -24,7 +24,7 @@ use std::{
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{ElementState, WindowEvent},
+    event::{DeviceId, ElementState, MouseScrollDelta, TouchPhase, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowId},
@@ -33,6 +33,30 @@ use winit::{
 const GPU_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 const RESIZE_TIMEOUT: Duration = Duration::from_secs(5);
 const NATIVE_FRAME_ATTEMPTS: usize = 8;
+
+struct ResearchBackend<'a> {
+    renderer: &'a mut VelloRenderer,
+    offscreen: bool,
+}
+
+impl novadraw::render::RenderBackend for ResearchBackend<'_> {
+    fn capabilities(&self) -> novadraw::render::BackendCapabilities {
+        novadraw::render::RenderBackend::capabilities(self.renderer)
+    }
+    fn submit(
+        &mut self,
+        submission: &novadraw::render::RenderSubmission,
+    ) -> novadraw::render::RenderResult {
+        if self.offscreen {
+            self.renderer.render_for_screenshot(submission)
+        } else {
+            novadraw::render::RenderBackend::submit(self.renderer, submission)
+        }
+    }
+    fn resize(&mut self, width: u32, height: u32, scale: f64) {
+        novadraw::render::RenderBackend::resize(self.renderer, width, height, scale);
+    }
+}
 
 pub fn run(config: Config) -> Result<()> {
     let mut app = NativeApp::new(config)?;
@@ -73,6 +97,7 @@ struct NativeApp {
     replay_active: bool,
     replay_finished: bool,
     screenshot_taken: bool,
+    screenshot_sequence: usize,
     pointer: WinitPointerAdapter,
     gestures: WinitGestureAdapter,
     position: Option<Point>,
@@ -84,11 +109,19 @@ struct NativeApp {
 impl NativeApp {
     fn new(config: Config) -> Result<Self> {
         let replay_active = config.replay;
+        let mut research = Research::new(config.trace);
+        research.full_redraw = !config.natural_damage;
         Ok(Self {
             trace: TraceSession::new(&config)?,
-            research: Research::new(config.trace),
+            research,
             queue: if config.replay {
-                replay(config.cycles).into()
+                if config.raster_validation {
+                    crate::research::raster_validation().into()
+                } else if config.scroll_replay {
+                    crate::research::scroll_replay(config.cycles, config.natural_damage).into()
+                } else {
+                    replay(config.cycles).into()
+                }
             } else {
                 [Operation::Reset].into()
             },
@@ -102,6 +135,7 @@ impl NativeApp {
             replay_active,
             replay_finished: false,
             screenshot_taken: false,
+            screenshot_sequence: 0,
             pointer: WinitPointerAdapter::new(),
             gestures: WinitGestureAdapter::default(),
             position: None,
@@ -174,6 +208,43 @@ impl NativeApp {
         let Some(operation) = self.queue.pop_front() else {
             return Ok(());
         };
+        if let Operation::Wheel(delta) = operation {
+            let scale = self
+                .host
+                .as_ref()
+                .context("window missing")?
+                .window()
+                .scale_factor();
+            return self.input_event(
+                WindowEvent::MouseWheel {
+                    device_id: DeviceId::dummy(),
+                    delta: MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition::new(
+                        0.0,
+                        delta * scale,
+                    )),
+                    phase: TouchPhase::Moved,
+                },
+                operation,
+            );
+        }
+        if matches!(operation, Operation::Pointer) {
+            let scale = self
+                .host
+                .as_ref()
+                .context("window missing")?
+                .window()
+                .scale_factor();
+            return self.input_event(
+                WindowEvent::CursorMoved {
+                    device_id: DeviceId::dummy(),
+                    position: winit::dpi::PhysicalPosition::new(
+                        self.research.width * scale / 2.0,
+                        HEIGHT * scale / 2.0,
+                    ),
+                },
+                operation,
+            );
+        }
         let host = self.host.as_ref().context("window missing")?;
         let width = match operation {
             Operation::Reset => Some(INITIAL_WIDTH),
@@ -236,6 +307,7 @@ impl NativeApp {
     }
 
     fn draw(&mut self) -> Result<()> {
+        let _draw = self.trace.scope("host-redraw-callback");
         if self.waiting_resize.is_some() {
             return Ok(());
         }
@@ -243,9 +315,16 @@ impl NativeApp {
         let renderer = self.renderer.as_mut().context("renderer missing")?;
         host.window().pre_present_notify();
         let presented = self.research.render_attempt(
-            renderer,
+            &mut ResearchBackend {
+                renderer,
+                offscreen: self.config.offscreen_gpu,
+            },
             host.surface_info(),
-            "native_backend_presented",
+            if self.config.offscreen_gpu {
+                "gpu_offscreen_published"
+            } else {
+                "native_backend_presented"
+            },
             self.frame_attempts,
             &mut self.trace,
         )?;
@@ -260,6 +339,16 @@ impl NativeApp {
             return Ok(());
         }
         self.frame_attempts = 0;
+        let cache = renderer.text_raster_statistics();
+        self.research.note(
+            "text_raster_cache",
+            json!({
+                "enabled":self.config.text_raster_cache, "eligible":cache.eligible,
+                "hits":cache.hits,"misses":cache.misses,"resident_bytes":cache.resident_bytes,
+                "encoded_glyphs":cache.encoded_glyphs
+            }),
+            &mut self.trace,
+        );
         if self.config.gpu_wait {
             let _wait = self.trace.scope("host-gpu-queue-wait");
             let result = renderer.wait_for_gpu_idle(GPU_WAIT_TIMEOUT);
@@ -270,13 +359,20 @@ impl NativeApp {
             );
             result?;
         }
-        if self.config.screenshot && !self.screenshot_taken {
+        if self.config.screenshot && (!self.screenshot_taken || self.config.raster_validation) {
             std::fs::create_dir_all(&self.config.output)?;
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_nanos();
-            let path = self.config.output.join(format!("native-{timestamp}.png"));
+            let path = if self.config.raster_validation {
+                self.config
+                    .output
+                    .join(format!("frame-{:04}.png", self.screenshot_sequence))
+            } else {
+                self.config.output.join(format!("native-{timestamp}.png"))
+            };
             renderer.screenshot(&path)?;
+            self.screenshot_sequence += 1;
             self.research.note(
                 "screenshot",
                 json!({"path":path,"source":"retained GPU target; not desktop capture"}),
@@ -292,7 +388,13 @@ impl NativeApp {
         Ok(())
     }
 
-    fn input_event(&mut self, event: WindowEvent) -> Result<()> {
+    fn input_event(&mut self, event: WindowEvent, operation: Operation) -> Result<()> {
+        let input_kind = match &event {
+            WindowEvent::MouseWheel { .. } => "wheel",
+            WindowEvent::CursorMoved { .. } => "pointer",
+            _ => "other",
+        };
+        let before_y = self.research.viewport_y();
         let host = self.host.as_ref().context("window missing")?;
         let scale = host.window().scale_factor();
         let _dispatch = self.trace.scope("host-input-dispatch");
@@ -327,6 +429,12 @@ impl NativeApp {
                 delta,
                 phase,
             } => {
+                self.research.note_pending(
+                    "wheel_input",
+                    json!({"delta":format!("{delta:?}"),"phase":format!("{phase:?}"),
+                        "source":if self.replay_active {"fixed_winit_replay"} else {"os"}}),
+                    &mut self.trace,
+                );
                 self.pointer.reset();
                 let position = self
                     .position
@@ -412,12 +520,14 @@ impl NativeApp {
             }
             _ => return Ok(()),
         }
+        let after_y = self.research.viewport_y();
         self.research.note_pending(
             "input_dispatch",
-            json!({"dispatched":true}),
+            json!({"dispatched":true,"input_kind":input_kind,"viewport_before_y":before_y,
+                "viewport_after_y":after_y}),
             &mut self.trace,
         );
-        self.perform(Operation::Stable)
+        self.perform(operation)
     }
 
     fn event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) -> Result<()> {
@@ -435,7 +545,9 @@ impl NativeApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if !self.occluded && (self.frame_pending || !self.replay_active) {
+                if (!self.occluded || self.config.offscreen_gpu)
+                    && (self.frame_pending || !self.replay_active)
+                {
                     self.draw()?;
                 }
             }
@@ -499,10 +611,10 @@ impl NativeApp {
                         self.enqueue(operation);
                     }
                 } else if !self.replay_active {
-                    self.input_event(event)?;
+                    self.input_event(event, Operation::Stable)?;
                 }
             }
-            _ if !self.replay_active => self.input_event(event)?,
+            _ if !self.replay_active => self.input_event(event, Operation::Stable)?,
             _ => {}
         }
         Ok(())
@@ -526,6 +638,10 @@ impl ApplicationHandler for NativeApp {
             }
             let host = self.host.as_ref().unwrap();
             self.renderer = Some(VelloRenderer::new(host.window_arc(), host.surface_info())?);
+            self.renderer
+                .as_mut()
+                .expect("renderer created")
+                .set_text_raster_cache_enabled(self.config.text_raster_cache);
             self.research.runtime.frames().reset_backend_session()?;
             let adapter = self.renderer.as_ref().unwrap().adapter_info();
             self.trace.push(
@@ -569,7 +685,7 @@ impl ApplicationHandler for NativeApp {
             if self.renderer.is_none() {
                 return Ok(());
             }
-            if self.occluded {
+            if self.occluded && !self.config.offscreen_gpu {
                 event_loop.set_control_flow(ControlFlow::Wait);
                 return Ok(());
             }

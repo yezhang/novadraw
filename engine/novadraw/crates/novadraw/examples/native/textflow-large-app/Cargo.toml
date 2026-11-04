@@ -8,7 +8,7 @@ publish = false
 draw2d-official-examples = { path = "../draw2d-official-examples" }
 novadraw = { path = "../../..", default-features = false, features = ["perfetto"] }
 perfetto-sdk = "1.2.1"
-novadraw-backend-vello = { path = "../../../../novadraw-backend-vello", features = ["native"] }
+novadraw-backend-vello = { path = "../../../../novadraw-backend-vello", features = ["native", "perfetto"] }
 novadraw-platform-winit = { path = "../../../../novadraw-platform-winit" }
 winit.workspace = true
 serde_json.workspace = true

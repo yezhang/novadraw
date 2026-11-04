@@ -8,7 +8,12 @@ mod antialias_frame;
 mod antialias_stroke;
 #[cfg(test)]
 mod antialias_tests;
+mod diagnostics;
 mod glyph_outline;
+mod text_raster;
+#[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+pub use diagnostics::register as register_perfetto_categories;
+pub use text_raster::TextRasterStatistics;
 pub mod scene;
 pub mod texture;
 pub use antialias::{AntialiasConfig, AntialiasWorkLimits};
@@ -507,6 +512,7 @@ fn append_glyph_run(
     transform: &Affine2D,
     scale_factor: f64,
 ) {
+    let _glyph = diagnostics::glyph_scope();
     if run.glyphs.is_empty() {
         return;
     }
@@ -638,6 +644,17 @@ impl SceneEncoder {
         scale: f64,
         prepared: antialias_frame::PreparedFrame,
     ) {
+        self.encode_with_raster(commands, clip, scale, prepared, None);
+    }
+
+    fn encode_with_raster(
+        &mut self,
+        commands: &[RenderCommand],
+        clip: Rectangle,
+        scale: f64,
+        prepared: antialias_frame::PreparedFrame,
+        raster: Option<&text_raster::Composite>,
+    ) {
         let draws = prepared.publish(self);
         let mut prepared = draws.iter().peekable();
         self.scale_factor = scale;
@@ -649,6 +666,24 @@ impl SceneEncoder {
             geometry: ClipGeometry::Rectangle(clip),
         });
         for (index, command) in commands.iter().enumerate() {
+            if let Some(raster) = raster
+                && raster.range.contains(&index)
+                && matches!(
+                    command.kind,
+                    novadraw::render::RenderCommandKind::DrawGlyphRun { .. }
+                        | novadraw::render::RenderCommandKind::FillRect { .. }
+                )
+            {
+                if index == raster.range.start {
+                    for (image, position) in &raster.tiles {
+                        self.scene.draw_image(
+                            image,
+                            vello::kurbo::Affine::translate((position[0], position[1])),
+                        );
+                    }
+                }
+                continue;
+            }
             if prepared
                 .peek()
                 .is_some_and(|(command_index, _)| *command_index == index)
@@ -743,9 +778,64 @@ pub struct VelloRenderer {
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
     scratch_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
+    text_raster_enabled: bool,
+    text_raster_cache: text_raster::Cache,
 }
 
 impl VelloRenderer {
+    /// Enables a conservative, bounded text tile experiment. Disabled by default.
+    pub fn set_text_raster_cache_enabled(&mut self, enabled: bool) {
+        if let Some(renderer) = self.renderers[self.surface.dev_id].as_mut() {
+            self.text_raster_cache.clear(renderer);
+        }
+        self.text_raster_enabled = enabled;
+    }
+
+    /// Last submission's experiment counters; GPU execution time is not measured.
+    pub fn text_raster_statistics(&self) -> TextRasterStatistics {
+        TextRasterStatistics {
+            encoded_glyphs: self.encoder.scene.encoding().resources.glyphs.len(),
+            ..self.text_raster_cache.statistics
+        }
+    }
+
+    fn prepare_text_raster(
+        &mut self,
+        submission: &novadraw::render::RenderSubmission,
+        width: u32,
+        height: u32,
+    ) -> Result<Option<text_raster::Composite>, RenderFailure> {
+        if !self.text_raster_enabled {
+            return Ok(None);
+        }
+        let _scope = diagnostics::scope(c"backend-text-raster-check");
+        let device = &self.render_context.devices[self.surface.dev_id];
+        let renderer = self.renderers[self.surface.dev_id]
+            .as_mut()
+            .ok_or_else(|| {
+                RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "Vello renderer is unavailable",
+                ))
+            })?;
+        if let Some(candidate) = text_raster::candidate(
+            &submission.commands,
+            self.scale_factor,
+            width,
+            height,
+            submission.session_id,
+        ) {
+            self.text_raster_cache.prepare(
+                candidate,
+                &mut self.encoder,
+                renderer,
+                &device.device,
+                &device.queue,
+            )
+        } else {
+            self.text_raster_cache.clear(renderer);
+            Ok(None)
+        }
+    }
     /// Configures finite OFF preparation budgets; clears completed coverage caches.
     pub fn set_antialias_config(&mut self, config: AntialiasConfig) {
         self.encoder.antialias_config = config;
@@ -830,6 +920,8 @@ impl VelloRenderer {
             gpu_failure,
             retained_texture: None,
             scratch_texture: None,
+            text_raster_enabled: false,
+            text_raster_cache: text_raster::Cache::default(),
         })
     }
 
@@ -1574,6 +1666,7 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderResult {
+        let validation = diagnostics::scope(c"backend-validation");
         submission.validate_composition(self.capabilities())?;
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
@@ -1590,13 +1683,19 @@ impl RenderBackend for VelloRenderer {
         ) {
             return Err(RenderFailure::InvalidInput(error));
         }
+        drop(validation);
+        let aa = diagnostics::scope(c"backend-aa-prepare");
         let Some(prepared) = self.prepare_antialias(submission)? else {
             return Ok(RenderDisposition::Retry);
         };
+        drop(aa);
+        let resources = diagnostics::scope(c"backend-resources");
         self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
             return Ok(RenderDisposition::Retry);
         }
+        drop(resources);
+        let resize = diagnostics::scope(c"backend-resize");
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1608,6 +1707,8 @@ impl RenderBackend for VelloRenderer {
         if self.surface_suspended {
             return Ok(RenderDisposition::Skipped);
         }
+        drop(resize);
+        let damage = diagnostics::scope(c"backend-damage");
         let commands = &submission.commands;
 
         let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
@@ -1621,17 +1722,29 @@ impl RenderBackend for VelloRenderer {
             return Ok(RenderDisposition::Skipped);
         };
 
-        self.encoder
-            .encode(commands, clip_rect, self.scale_factor, prepared);
-
+        drop(damage);
+        let raster = self.prepare_text_raster(submission, width, height)?;
+        let encode = diagnostics::scope(c"backend-encode");
+        self.encoder.encode_with_raster(
+            commands,
+            clip_rect,
+            self.scale_factor,
+            prepared,
+            raster.as_ref(),
+        );
+        drop(encode);
+        let textures = diagnostics::scope(c"backend-textures");
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
+        drop(textures);
 
         #[cfg(all(target_os = "macos", feature = "native"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, true);
         }
+        let acquire = diagnostics::scope(c"backend-surface-acquire");
         let surface_status = self.surface.surface.get_current_texture();
+        drop(acquire);
         let (surface_texture, reconfigure_after_present) = match surface_status {
             vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
             vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
@@ -1668,6 +1781,7 @@ impl RenderBackend for VelloRenderer {
                 "Vello renderer is unavailable",
             )));
         };
+        let render = diagnostics::scope(c"backend-vello-render");
         if let Err(error) = renderer.render_to_texture(
             &device_handle.device,
             &device_handle.queue,
@@ -1686,6 +1800,7 @@ impl RenderBackend for VelloRenderer {
             }
             return Err(render_failure_from_vello(error));
         }
+        drop(render);
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             #[cfg(all(target_os = "macos", feature = "native"))]
             if is_resize_frame {
@@ -1705,6 +1820,7 @@ impl RenderBackend for VelloRenderer {
             .expect("retained texture presence was validated")
             .0;
 
+        let blit = diagnostics::scope(c"backend-blit-encode");
         let mut encoder =
             device_handle
                 .device
@@ -1767,8 +1883,13 @@ impl RenderBackend for VelloRenderer {
                 [width, height],
             );
         }
+        drop(blit);
+        let queue = diagnostics::scope(c"backend-queue-submit");
         device_handle.queue.submit([encoder.finish()]);
+        drop(queue);
+        let present = diagnostics::scope(c"backend-present");
         surface_texture.present();
+        drop(present);
         #[cfg(all(target_os = "macos", feature = "native"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, false);
@@ -1791,6 +1912,7 @@ impl VelloRenderer {
         &mut self,
         submission: &novadraw::render::RenderSubmission,
     ) -> RenderResult {
+        let validation = diagnostics::scope(c"backend-validation");
         submission.validate_composition(self.capabilities())?;
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
@@ -1807,13 +1929,19 @@ impl VelloRenderer {
         ) {
             return Err(RenderFailure::InvalidInput(error));
         }
+        drop(validation);
+        let aa = diagnostics::scope(c"backend-aa-prepare");
         let Some(prepared) = self.prepare_antialias(submission)? else {
             return Ok(RenderDisposition::Retry);
         };
+        drop(aa);
+        let resources = diagnostics::scope(c"backend-resources");
         self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
             return Ok(RenderDisposition::Retry);
         }
+        drop(resources);
+        let resize = diagnostics::scope(c"backend-resize");
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1823,6 +1951,7 @@ impl VelloRenderer {
         if self.surface_suspended {
             return Ok(RenderDisposition::Skipped);
         }
+        drop(resize);
 
         let (width, height) = self.current_surface_size();
         let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
@@ -1834,8 +1963,16 @@ impl VelloRenderer {
         else {
             return Ok(RenderDisposition::Skipped);
         };
-        self.encoder
-            .encode(&submission.commands, clip_rect, self.scale_factor, prepared);
+        let raster = self.prepare_text_raster(submission, width, height)?;
+        let encode = diagnostics::scope(c"backend-encode");
+        self.encoder.encode_with_raster(
+            &submission.commands,
+            clip_rect,
+            self.scale_factor,
+            prepared,
+            raster.as_ref(),
+        );
+        drop(encode);
 
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
@@ -1862,6 +1999,7 @@ impl VelloRenderer {
                 "Vello renderer is unavailable",
             )));
         };
+        let render = diagnostics::scope(c"backend-vello-render");
         if let Err(error) = renderer.render_to_texture(
             &device_handle.device,
             &device_handle.queue,
@@ -1876,6 +2014,7 @@ impl VelloRenderer {
         ) {
             return Err(render_failure_from_vello(error));
         }
+        drop(render);
         if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
             return Err(failure);
         }

@@ -14,6 +14,7 @@ def main():
         raise SystemExit("This launcher requires macOS.")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--toolchain")
+    parser.add_argument("--release", action="store_true")
     parser.add_argument("--target-dir", type=Path)
     parser.add_argument("--clt", action="store_true",
                         help="Use the existing ARM64 text-build CLT compiler configuration")
@@ -33,12 +34,13 @@ def main():
                        "CARGO_PROFILE_DEV_DEBUG": "0", "CARGO_PROFILE_TEST_DEBUG": "0"}.items():
         env.setdefault(key, value)
     cargo = ["cargo", *([f"+{args.toolchain}"] if args.toolchain else [])]
-    subprocess.run([*cargo, "build", "--locked", "-p", "textflow-large-app"],
+    subprocess.run([*cargo, "build", "--locked", "-p", "textflow-large-app",
+                    *(["--release"] if args.release else [])],
                    cwd=project, env=env, check=True)
     bundle = target / "TextFlowLarge.app"
     executable_dir = bundle / "Contents" / "MacOS"
     executable_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(target / "debug" / "textflow-large-app", executable_dir / "textflow-large-app")
+    shutil.copy2(target / ("release" if args.release else "debug") / "textflow-large-app", executable_dir / "textflow-large-app")
     with (bundle / "Contents" / "Info.plist").open("wb") as output:
         plistlib.dump({
             "CFBundleIdentifier": "org.novadraw.textflow-large-research",

@@ -189,8 +189,9 @@ curl -fsSL https://get.perfetto.dev/agents-install |
 本轮使用官方 Trace Processor 的持久 Unix socket 会话，多条 SQL 复用同一次加载；
 分析后会话均已关闭。临时查询辅助文件放在 `/tmp`，没有新增生产采集工具。
 原 trace 未修改。完整查询、121 个操作与 31 个帧的归因结果保存于
-[本地分析数据](../../../target/verification/textflow-large-app/perfetto-diagnosis-2026-11-04-data.json)，
-该数据文件位于忽略的验证目录，不纳入版本控制。
+`target/verification/textflow-large-app/perfetto-diagnosis-2026-11-04-data.json`，
+该数据文件位于忽略的验证目录，不纳入版本控制；2026-11-04 后续检查时本地文件
+已不存在，因此保留产物路径说明，不作为可点击的现存证据。
 以下 SQL 可在 CLI 或 Perfetto UI 中复核关键结论：
 
 ```sql

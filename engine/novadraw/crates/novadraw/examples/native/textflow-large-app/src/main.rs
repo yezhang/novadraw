@@ -17,6 +17,12 @@ pub struct Config {
     gpu_wait: bool,
     exit_after_replay: bool,
     screenshot: bool,
+    scroll_replay: bool,
+    natural_damage: bool,
+    text_raster_cache: bool,
+    raster_validation: bool,
+    coarse_trace: bool,
+    offscreen_gpu: bool,
     output: PathBuf,
 }
 
@@ -31,6 +37,12 @@ impl Config {
             gpu_wait: false,
             exit_after_replay: false,
             screenshot: false,
+            scroll_replay: false,
+            natural_damage: false,
+            text_raster_cache: false,
+            raster_validation: false,
+            coarse_trace: false,
+            offscreen_gpu: false,
             output: "target/verification/textflow-large-app".into(),
         };
         let mut args = std::env::args().skip(1);
@@ -39,6 +51,22 @@ impl Config {
                 "--headless" => config.headless = true,
                 "--replay" => config.replay = true,
                 "--trace" => config.trace = true,
+                "--scroll-replay" => {
+                    config.scroll_replay = true;
+                    config.replay = true;
+                }
+                "--natural-damage" => config.natural_damage = true,
+                "--text-raster-cache" => config.text_raster_cache = true,
+                "--offscreen-gpu" => config.offscreen_gpu = true,
+                "--raster-validation" => {
+                    config.raster_validation = true;
+                    config.replay = true;
+                    config.screenshot = true;
+                }
+                "--coarse-trace" => {
+                    config.coarse_trace = true;
+                    config.trace = true;
+                }
                 "--requests" => {
                     config.requests = true;
                     config.trace = true;
@@ -61,6 +89,8 @@ impl Config {
                         "TextFlowLarge research\n\
                         --headless --replay --cycles N --trace --requests\n\
                         --gpu-wait --exit-after-replay --screenshot --output DIRECTORY\n\
+                        --scroll-replay --natural-damage --text-raster-cache\n\
+                        --raster-validation --coarse-trace --offscreen-gpu\n\
                         F1 reset / F2 append Z / F3 scroll 100 / F4 resize / F5 stabilize\n\
                         F6 replay / F7 export / F8 capture / Escape close"
                     );
@@ -69,6 +99,14 @@ impl Config {
                 _ => bail!("unknown argument: {arg}"),
             }
         }
+        anyhow::ensure!(
+            !config.headless
+                || (!config.offscreen_gpu
+                    && !config.scroll_replay
+                    && !config.text_raster_cache
+                    && !config.raster_validation),
+            "scroll and raster experiments require a native window"
+        );
         anyhow::ensure!(
             (1..=10_000).contains(&config.cycles),
             "cycles must be between 1 and 10000"
@@ -95,6 +133,7 @@ fn main() -> Result<()> {
 fn run_headless(config: Config) -> Result<()> {
     let mut trace = TraceSession::new(&config)?;
     let mut research = Research::new(config.trace);
+    research.full_redraw = !config.natural_damage;
     let mut renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
     let mut scene = novadraw_backend_vello::scene::Scene::new();
     let result = (|| {
