@@ -49,7 +49,7 @@
     {
       "id": "textflow-large-macos",
       "name": "TextFlowLarge 性能研究（macOS）",
-      "command": "python3 tools/scripts/run_textflow_large_macos.py --toolchain 1.96.0 --clt --target-dir /tmp/novadraw-text-stage-target -- --replay --cycles 2 --timing --gpu-wait --screenshot --output target/verification/textflow-large-app/native-final",
+      "command": "python3 tools/scripts/run_textflow_large_macos.py --release --clt --target-dir /tmp/novadraw-text-stage-target -- --text-raster-cache --natural-damage --output target/verification/textflow-raster-interactive",
       "cwd": ".",
       "background": true,
       "source": "agent",

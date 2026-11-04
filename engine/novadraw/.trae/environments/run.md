@@ -4,12 +4,44 @@
 
 入口由 [run.json](run.json) 的 `textflow-large-macos` action 管理，
 使用[TextFlowLarge 启动脚本](../../tools/scripts/run_textflow_large_macos.py)。
-需要 macOS、Python 3、已安装的 Rust 1.96.0、Command Line Tools 和可用的 macOS SDK。
+需要 macOS、Python 3、支持项目 Rust 2024 Edition 的当前默认 Rust 工具链、
+Command Line Tools 和可用的 macOS SDK。启动入口不再传入固定的 `--toolchain`；
+脚本直接调用当前环境的 `cargo`，不会强制选择 Rust 1.96.0。
 当前 action 复用已有 `/tmp/novadraw-text-stage-target` 构建缓存；`--clt` 使用既有
 ARM64 文本验证构建配置，并通过 xcrun 查询 SDK。普通开发可省略这些本机验证选项，
 按[应用 README](../../crates/novadraw/examples/native/textflow-large-app/README.md)运行。
 
-2026-11-03 已用该命令构建并通过 LaunchServices 打开确切 bundle。
+2026-11-04 当前 action 改为 release 交互窗口，显式开启 `--text-raster-cache` 与
+`--natural-damage`，默认不采集 tracing、不自动回放或退出。
+此前通过原启动脚本和 LaunchServices 启动了本 checkout 的 bundle，
+进程参数已确认包含两个开关且没有 `--trace`；窗口打开步骤已执行，
+人工连续滚动与屏幕呈现流畅度未由工具核验。应用保留运行，不为保存配置重复启动。
+用户随后要求移除固定工具链选择；已更新入口和当前示例，历史采样的工具链记录保持原样。
+移除固定版本时没有重启；后续已使用默认工具链重新构建并通过修复后的打包步骤启动。
+
+同日遇到 `RBSRequestErrorDomain Code=5`／`NSPOSIXErrorDomain Code=162`。
+系统日志为 `load code signature error 2`；旧实例仍运行，打包脚本却使用 `copy2`
+原地覆盖了同一个 executable inode。脚本现先复制到同目录临时文件，再用
+`os.replace` 发布新 inode，避免覆盖正在运行的 Mach-O 及沿用旧签名缓存。
+复制失败保留旧文件，临时文件按作用域清理；不关闭系统安全检查、不添加强制重签名。
+修复后同一默认工具链命令通过 LaunchServices 启动，新进程持续运行；
+旧实例未强制终止。两个发布测试覆盖旧文件句柄、inode／权限和复制失败保护，
+入口为 `python3 tools/scripts/test_run_textflow_large_macos.py`。
+额外的 `codesign --verify` 调用因工具退出 133 未取得完整结果，不作为通过证据；
+实际启动与人工交互仍分开记录。
+
+纹理复用仍为实验策略，该入口显式启用，不改变 backend 的默认关闭状态。
+冷块仍处理完整文字，上游 Flow 组装与字形边缘差异尚未整改；不能据热块结果
+承诺持续滚动流畅。方案、配对离屏成本及限制见
+[纹理复用实验](../../doc/verification/reviews/textflow-scroll-raster-experiment-2026-11-04.md)。
+需诊断时按[应用 README](../../crates/novadraw/examples/native/textflow-large-app/README.md)
+使用 `--coarse-trace`；完整 `--trace` 会开启细 Core 阶段，不能用其流畅度代表无采集运行。
+
+前版 action 是 release 滚动专项采集，开启 `--trace`，不包含纹理缓存开关，
+完成 full／自然 damage 回放后自动退出；其证据保留在
+[滚动诊断](../../doc/verification/reviews/textflow-scroll-perfetto-2026-11-04.md)。
+
+历史证据：2026-11-03 使用当时命令构建并通过 LaunchServices 打开确切 bundle。
 最终两轮回放包含 26 个成功帧和 26 次成功 GPU queue wait，原文、追加、滚动及
 八次宽度变化均已记录，导出零丢弃。首帧两次 Skipped 保留在原始记录中；
 Native 重试在不同窗口事件间推进，等待成功呈现后才继续回放。

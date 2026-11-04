@@ -6,7 +6,21 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import tempfile
 from text_admission_build import environment
+
+
+def publish_executable(source: Path, destination: Path):
+    """Replace the executable inode without modifying a running image in place."""
+    descriptor, staged_name = tempfile.mkstemp(
+        prefix=f".{destination.name}-", dir=destination.parent)
+    os.close(descriptor)
+    staged = Path(staged_name)
+    try:
+        shutil.copy2(source, staged)
+        os.replace(staged, destination)
+    finally:
+        staged.unlink(missing_ok=True)
 
 
 def main():
@@ -40,7 +54,9 @@ def main():
     bundle = target / "TextFlowLarge.app"
     executable_dir = bundle / "Contents" / "MacOS"
     executable_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(target / ("release" if args.release else "debug") / "textflow-large-app", executable_dir / "textflow-large-app")
+    publish_executable(
+        target / ("release" if args.release else "debug") / "textflow-large-app",
+        executable_dir / "textflow-large-app")
     with (bundle / "Contents" / "Info.plist").open("wb") as output:
         plistlib.dump({
             "CFBundleIdentifier": "org.novadraw.textflow-large-research",
