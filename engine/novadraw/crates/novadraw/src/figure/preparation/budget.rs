@@ -56,7 +56,7 @@ struct Accounting {
 pub struct PreparationBudgetHandle {
     limit: PreparationBudget,
     accounting: Arc<Mutex<Accounting>>,
-    timing: crate::runtime::timing::TimingRecorder,
+    diagnostics: crate::text::TextLayoutDiagnostics,
 }
 
 impl PreparationBudgetHandle {
@@ -67,21 +67,24 @@ impl PreparationBudgetHandle {
                 used: PreparationBudget::new(0, 0),
                 failure: None,
             })),
-            timing: crate::runtime::timing::TimingRecorder::default(),
+            diagnostics: crate::text::TextLayoutDiagnostics::default(),
         }
     }
 
-    pub(crate) fn with_timing(mut self, timing: crate::runtime::timing::TimingRecorder) -> Self {
-        self.timing = timing;
+    pub(crate) fn with_diagnostics(
+        mut self,
+        diagnostics: crate::text::TextLayoutDiagnostics,
+    ) -> Self {
+        self.diagnostics = diagnostics;
         self
     }
 
-    pub(crate) fn time(&self, stage: &'static str) -> crate::runtime::timing::TimingScope {
-        self.timing.start(stage)
+    pub(crate) fn time(&self, stage: &'static str) -> crate::text::TextLayoutTimingScope {
+        self.diagnostics.time(stage)
     }
 
     pub(crate) fn text_diagnostics(&self) -> crate::text::TextLayoutDiagnostics {
-        crate::text::TextLayoutDiagnostics(self.timing.clone())
+        self.diagnostics.clone()
     }
 
     pub fn limit(&self) -> PreparationBudget {

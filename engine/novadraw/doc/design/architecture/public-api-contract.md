@@ -12,6 +12,11 @@
 本文是公共 API 的当前规范入口。本文定义角色、权限和
 组合规则，不冻结全部 Rust 签名；具体方法由领域规范和公开 API snapshot 维护。
 
+Native 可选 `perfetto` feature 仅接入官方 SDK 的 CPU 埋点。
+Core 不持有采集会话、聚合器或请求缓冲，宿主初始化 producer 并注册 category，
+默认及 Web 构建不链接原生 SDK。领域签名不暴露 SDK 类型；
+独立文字引擎使用相同阶段入口，详见[观测合同](perfetto-observation.md)。
+
 ## 1. 模块、所有者与发布包
 
 模块表达领域职责，对象表达状态所有权，package 表达依赖与发布边界。

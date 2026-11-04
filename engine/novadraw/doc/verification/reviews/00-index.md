@@ -11,6 +11,7 @@
 |---|---|
 | 文档内容质量 | [DQ01–DQ08 修订记录](documentation-quality-completion-2026-11-04.md)：确定问题已修正，FR-02 基线缺失及引用候选保留限制；[本轮分析](documentation-quality-follow-up-2026-11-04.md)与[前轮分析](documentation-content-quality-2026-11-03.md)保留原发现，Q07 的 ADR 压缩与本轮两组 design 去重已完成 |
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md)、[FR-02 内部归因与诊断扰动](flow-assembly-attribution-2026-11-03.md) |
+| Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |
 | FR-02 复用合同评审 | [草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)：六项已回应，待复核；未接受、未进入生产实施；[基线核对](fr02-review-baseline-2026-11-04.md)明确可核对草案与合同／矩阵的缺失范围 |
 | 阶段文字引擎 | [ADR-059 与 B1 验证状态](text-stages-status.md)：范围、最新分母、未完成边界及原稿入口 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |

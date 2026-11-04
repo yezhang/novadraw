@@ -1,8 +1,9 @@
 mod native;
 mod research;
+mod trace;
 
 use anyhow::{Context, Result, bail};
-use research::{Journal, Operation, Research, surface};
+use research::{Operation, Research, TraceSession, surface};
 use serde_json::json;
 use std::path::PathBuf;
 
@@ -11,7 +12,7 @@ pub struct Config {
     headless: bool,
     replay: bool,
     cycles: usize,
-    timing: bool,
+    trace: bool,
     requests: bool,
     gpu_wait: bool,
     exit_after_replay: bool,
@@ -25,7 +26,7 @@ impl Config {
             headless: false,
             replay: false,
             cycles: 1,
-            timing: false,
+            trace: false,
             requests: false,
             gpu_wait: false,
             exit_after_replay: false,
@@ -37,10 +38,10 @@ impl Config {
             match arg.as_str() {
                 "--headless" => config.headless = true,
                 "--replay" => config.replay = true,
-                "--timing" => config.timing = true,
+                "--trace" => config.trace = true,
                 "--requests" => {
                     config.requests = true;
-                    config.timing = true;
+                    config.trace = true;
                 }
                 "--gpu-wait" => config.gpu_wait = true,
                 "--exit-after-replay" => {
@@ -58,10 +59,10 @@ impl Config {
                 "--help" | "-h" => {
                     println!(
                         "TextFlowLarge research\n\
-                        --headless --replay --cycles N --timing --requests\n\
+                        --headless --replay --cycles N --trace --requests\n\
                         --gpu-wait --exit-after-replay --screenshot --output DIRECTORY\n\
                         F1 reset / F2 append Z / F3 scroll 100 / F4 resize / F5 stabilize\n\
-                        F6 replay / F7 export / F8 timing / Escape close"
+                        F6 replay / F7 export / F8 capture / Escape close"
                     );
                     return Ok(None);
                 }
@@ -92,8 +93,8 @@ fn main() -> Result<()> {
 }
 
 fn run_headless(config: Config) -> Result<()> {
-    let mut journal = Journal::new(&config);
-    let mut research = Research::new(config.timing, config.requests);
+    let mut trace = TraceSession::new(&config)?;
+    let mut research = Research::new(config.trace);
     let mut renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
     let mut scene = novadraw_backend_vello::scene::Scene::new();
     let result = (|| {
@@ -104,27 +105,29 @@ fn run_headless(config: Config) -> Result<()> {
         };
         for operation in operations {
             if matches!(operation, Operation::Reset) {
-                if research.has_operations() {
-                    let path = journal.export(&config.output)?;
+                if research.has_operations() && trace.has_records() {
+                    let path = trace.export(&config.output)?;
                     println!("TextFlowLarge export: {}", path.display());
                 }
                 renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
             }
-            research.apply(operation, &mut journal)?;
+            research.apply(operation, &mut trace)?;
             let mut backend = renderer.bind(&mut scene);
             research.render(
                 &mut backend,
                 surface(research.width),
                 "cpu_recorded",
-                &mut journal,
+                &mut trace,
             )?;
         }
         Ok(())
     })();
     if let Err(error) = &result {
-        journal.push(json!({"kind":"failure", "phase":"headless", "error":format!("{error:#}")}));
+        trace.push(json!({"kind":"failure", "phase":"headless", "error":format!("{error:#}")}));
     }
-    let path = journal.export(&config.output)?;
-    println!("TextFlowLarge export: {}", path.display());
+    if trace.has_records() {
+        let path = trace.export(&config.output)?;
+        println!("TextFlowLarge export: {}", path.display());
+    }
     result
 }

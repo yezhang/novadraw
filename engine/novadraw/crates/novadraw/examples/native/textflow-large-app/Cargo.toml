@@ -6,7 +6,8 @@ publish = false
 
 [dependencies]
 draw2d-official-examples = { path = "../draw2d-official-examples" }
-novadraw = { path = "../../..", default-features = false }
+novadraw = { path = "../../..", default-features = false, features = ["perfetto"] }
+perfetto-sdk = "1.2.1"
 novadraw-backend-vello = { path = "../../../../novadraw-backend-vello", features = ["native"] }
 novadraw-platform-winit = { path = "../../../../novadraw-platform-winit" }
 winit.workspace = true

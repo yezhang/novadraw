@@ -689,7 +689,6 @@ module.runtime struct RuntimeFrames
 module.runtime struct RuntimeInput
 module.runtime struct RuntimeLayers
 module.runtime struct RuntimeObservations
-module.runtime struct RuntimePhaseTiming
 module.runtime struct RuntimeResources
 module.runtime struct RuntimeText
 module.runtime struct RuntimeTooltip
@@ -741,6 +740,7 @@ module.text enum TextAffinity
 module.text enum TextError
 module.text enum TextInteractionError
 module.text enum TextMovement
+module.text fn register_perfetto_categories
 module.text mod outline
 module.text mod shaping
 module.text struct CaretGeometry

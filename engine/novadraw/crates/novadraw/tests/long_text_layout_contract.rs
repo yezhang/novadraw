@@ -243,20 +243,13 @@ fn snapshot(runtime: &Runtime, page: novadraw::tree::FigureId) -> Arc<FlowSnapsh
 }
 
 #[test]
-fn external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts() {
+fn external_runtime_instrumentation_preserves_exact_layout_and_failed_snapshot() {
     let (mut plain, plain_page, _, plain_calls) = fixture(true);
     let (mut timed, timed_page, _, timed_calls) = fixture(true);
-    timed.frames().set_timing_enabled(true);
     plain.frames().stabilize_for_query().unwrap();
+    #[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+    let capture = perfetto_support::Capture::new();
     timed.frames().stabilize_for_query().unwrap();
-    assert!(plain.frames().take_timings().is_empty());
-    assert!(
-        plain
-            .frames()
-            .take_flow_layout_observations()
-            .records
-            .is_empty()
-    );
     let left = snapshot(&plain, plain_page);
     let right = snapshot(&timed, timed_page);
     assert_eq!(left.size, right.size);
@@ -281,76 +274,62 @@ fn external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts() {
             assert_eq!(a.glyphs, b.glyphs);
         }
     }
-    let timings = timed.frames().take_timings();
-    let observations = timed.frames().take_flow_layout_observations();
-    assert_eq!(observations.dropped, 0);
-    assert_eq!(
-        observations.records.iter().filter(|r| !r.cache_hit).count(),
-        timed_calls.load(Ordering::Relaxed)
-    );
-    assert!(
-        observations
-            .records
-            .iter()
-            .all(|r| r.succeeded && r.engine_identity.is_some())
-    );
-    for paragraph in &right.paragraphs {
-        assert!(
-            observations
-                .records
-                .iter()
-                .any(|r| *r.request == *paragraph.layout.request())
-        );
-    }
-    assert!(
-        timed
-            .frames()
-            .take_flow_layout_observations()
-            .records
-            .is_empty()
-    );
-    let total = timings
-        .iter()
-        .find(|entry| entry.stage == "stable-query")
-        .unwrap();
-    assert_eq!(total.calls, 1);
-    for stage in [
-        "flow-visit",
-        "flow-dispatch",
-        "flow-contributor",
-        "flow-handler",
-        "flow-text",
-        "flow-source-map",
-        "flow-block",
-        "flow-children",
-    ] {
-        assert!(
-            timings
-                .iter()
-                .any(|entry| entry.stage == stage && entry.calls > 0)
-        );
-    }
-    assert_eq!(
-        total.inclusive_ns,
-        timings.iter().map(|entry| entry.exclusive_ns).sum::<u128>()
-    );
-    assert!(timed.frames().take_timings().is_empty());
     timed
         .frames()
         .set_preparation_budget(novadraw::figure::PreparationBudget::new(0, 0));
     assert!(timed.frames().stabilize_for_query().is_err());
     assert!(Arc::ptr_eq(&right, &snapshot(&timed, timed_page)));
-    assert!(
-        timed
-            .frames()
-            .take_timings()
-            .iter()
-            .any(|entry| entry.stage == "stabilization")
-    );
-    timed.frames().set_timing_enabled(false);
-    assert!(timed.frames().stabilize_for_query().is_err());
-    assert!(timed.frames().take_timings().is_empty());
+    #[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+    {
+        plain.frames().request_full_redraw();
+        plain.frames().stabilize_for_query().unwrap();
+        let trace = capture.finish();
+        trace.assert_balanced();
+        for stage in [
+            "stable-query",
+            "flow-visit",
+            "flow-dispatch",
+            "flow-contributor",
+            "flow-handler",
+            "flow-text",
+            "flow-source-map",
+            "flow-block",
+            "flow-children",
+        ] {
+            assert!(trace.contains(stage), "missing {stage}");
+        }
+        assert!(
+            trace.contains(
+                &timed
+                    .tree()
+                    .contents()
+                    .unwrap()
+                    .namespace()
+                    .as_uuid()
+                    .to_string()
+            )
+        );
+        assert!(
+            trace.contains(
+                &plain
+                    .tree()
+                    .contents()
+                    .unwrap()
+                    .namespace()
+                    .as_uuid()
+                    .to_string()
+            )
+        );
+        assert!(trace.contains("request="));
+        for paragraph in &right.paragraphs {
+            assert!(trace.contains(&format!("{:?}", paragraph.layout.request())));
+        }
+    }
 }
+
+#[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+#[path = "support/perfetto.rs"]
+mod perfetto_support;
 
 #[test]
 fn external_engine_reuses_unchanged_paragraphs_and_retains_old_geometry() {

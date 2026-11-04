@@ -31,7 +31,7 @@ impl Runtime {
     /// Hosts use this boundary when overlay geometry must be rebuilt from the latest layout
     /// before the next renderer submission is frozen.
     pub(crate) fn stabilize_for_query(&mut self) -> Result<(), FramePreparationError> {
-        let _timing = self.timing.start("stable-query");
+        let _timing = self.diagnostics.time("stable-query");
         if self.faulted {
             return Err(FramePreparationError::Faulted);
         }
@@ -513,7 +513,7 @@ impl Runtime {
         self.last_stabilization_error = None;
         let preparation_budget =
             crate::figure::PreparationBudgetHandle::new(self.preparation_budget)
-                .with_timing(self.timing.clone());
+                .with_diagnostics(self.diagnostics.clone());
 
         let mut work = DerivedWorkSet::default();
         let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
@@ -672,9 +672,9 @@ impl Runtime {
     }
 
     pub(super) fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
-        let _timing = self.timing.start("stabilization");
+        let _timing = self.diagnostics.time("stabilization");
         self.poll_activities();
-        let checkpoint_timing = self.timing.start("checkpoint-capture");
+        let checkpoint_timing = self.diagnostics.time("checkpoint-capture");
         // Commit source activities before opening the unpublished derived transaction.
         let mut prefix = if self.tree.begin_derived_preparation() {
             Some(self.updates.preparation_checkpoint())
@@ -687,7 +687,7 @@ impl Runtime {
         drop(checkpoint_timing);
         match self.stabilize(prefix.as_mut()) {
             Ok(()) => {
-                let _timing = self.timing.start("checkpoint-publish");
+                let _timing = self.diagnostics.time("checkpoint-publish");
                 self.tree
                     .finish_derived_preparation(true)
                     .map_err(|error| {
@@ -765,7 +765,7 @@ impl Runtime {
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
     ) -> FramePreparation {
-        let _timing = self.timing.start("prepare-submission");
+        let _timing = self.diagnostics.time("prepare-submission");
         if self.faulted {
             return FramePreparation::Error(FramePreparationError::Faulted);
         }
@@ -877,7 +877,7 @@ impl Runtime {
         let coverage_outset = capabilities
             .filled_path_coverage_outset_pixels
             .map(|pixels| f64::from(pixels) / surface.scale_factor);
-        let recording_timing = self.timing.start("ir-record");
+        let recording_timing = self.diagnostics.time("ir-record");
         let mut canvas = if self.updates.is_update_queued() {
             self.tree.perform_update_with_paint_coverage(
                 &mut self.updates,
@@ -921,7 +921,7 @@ impl Runtime {
             }
         }
         drop(recording_timing);
-        let validation_timing = self.timing.start("ir-validate");
+        let validation_timing = self.diagnostics.time("ir-validate");
         if let Err(error) = canvas.validate_recording(&self.resources) {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::Graphics(error));
@@ -941,7 +941,7 @@ impl Runtime {
         }
         drop(validation_timing);
 
-        let resources_timing = self.timing.start("submission-retention-resources");
+        let resources_timing = self.diagnostics.time("submission-retention-resources");
         // Acquire independent ownership before consuming a frame identity or resource prefix.
         // Capacity failure leaves the current sample, active owners, and recovery prefix intact.
         let retention = match self.animations.retain_submission(presentation.as_ref()) {
@@ -965,7 +965,7 @@ impl Runtime {
             ResourceSync::Delta(self.resources.take_delta())
         };
         drop(resources_timing);
-        let submission_timing = self.timing.start("submission-build");
+        let submission_timing = self.diagnostics.time("submission-build");
         let mut submission = canvas.to_submission_for_session(
             surface,
             resources.clone(),

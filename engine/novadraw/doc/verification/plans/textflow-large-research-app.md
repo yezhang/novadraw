@@ -7,6 +7,11 @@ Core、Vello backend 与 Winit adapter 提供既有协议，本片不新增引�
 状态：2026-11-03 已实现，定向测试、无窗口及 Native 自动回放通过；
 人工交互未验收。结果见
 [实施与验证](../reviews/textflow-large-app-implementation-2026-11-03.md)。
+2026-11-04 观测链路已按用户授权改用官方 Perfetto SDK；
+本页第一版行为及测量描述是旧版基线，JSONL、Runtime timing 和 drain API 已删除。
+当前行为、会话导出与验证以
+[Perfetto 合同](../../design/architecture/perfetto-observation.md)及
+[应用 README](../../../crates/novadraw/examples/native/textflow-large-app/README.md)为准。
 `api_semantics`：消费既有 `text.flow`、`text.interaction`、
 `viewport.scroll_zoom`、`notification.layout_update`。
 

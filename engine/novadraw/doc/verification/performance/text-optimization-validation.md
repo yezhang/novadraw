@@ -5,6 +5,12 @@
 更新：2026-11-03。能力归属：Core 文字布局、Flow 缓存与 Render IR；
 官方样例提供消费者和性能驱动，窗口呈现由平台／后端另行验证。
 
+工具更新（2026-11-04）：自研计时器、Python 采样器及 `textflow-perf` 已删除。
+当前入口为[官方 Perfetto SDK 研究应用](../../../crates/novadraw/examples/native/textflow-large-app/README.md)，
+采集合同见[Perfetto 接入](../../design/architecture/perfetto-observation.md)。
+下文成本数据与旧命令保留用于冻结版本追溯，旧命令不能在当前主线执行；
+SDK trace 不能直接与旧采样器结果混算性能提升。
+
 当前可以验证完整布局缓存、段落复用、共享 glyph 与来源几何。
 ADR-059 A 的阶段协议已完成，B 的只读存储补丁已批准接入，
 Parley 阶段适配及 Flow 宽度复用仍未实现。

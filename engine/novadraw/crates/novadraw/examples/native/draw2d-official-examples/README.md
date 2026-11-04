@@ -202,8 +202,9 @@ TextFlowLargeExample 的精确布局共享与段落复用已接入，性能证�
 
 ```sh
 cargo xtask verify text.long-layout
-target/release/textflow-perf 1 extended
+cargo run -p textflow-large-app --release -- --headless --replay --trace
 ```
 
-性能驱动调用原样例工厂，每轮独立 Runtime，固定向第一文字来源追加 Z。
-额外模式记录滚动、resize 和 CPU 帧准备；窗口呈现另行采证。
+研究应用调用原样例工厂，使用官方 Perfetto SDK 导出 `.pftrace`；
+操作包括固定追加 Z、滚动、resize 和 CPU 帧准备。旧 `textflow-perf` 已删除，
+使用方法见[研究应用](../textflow-large-app/README.md)，窗口呈现另行采证。

@@ -372,7 +372,7 @@ pub struct Runtime {
     background: crate::host::BackgroundState,
     last_stabilization_error: Option<FramePreparationError>,
     preparation_budget: crate::figure::PreparationBudget,
-    timing: crate::runtime::timing::TimingRecorder,
+    diagnostics: crate::text::TextLayoutDiagnostics,
     faulted: bool,
 }
 
@@ -679,7 +679,9 @@ impl Runtime {
             background: crate::host::BackgroundState::default(),
             last_stabilization_error: None,
             preparation_budget: crate::figure::PreparationBudget::default(),
-            timing: crate::runtime::timing::TimingRecorder::default(),
+            diagnostics: crate::text::TextLayoutDiagnostics {
+                namespace: Some(namespace),
+            },
             faulted: false,
         };
         for (id, resources) in dependencies {

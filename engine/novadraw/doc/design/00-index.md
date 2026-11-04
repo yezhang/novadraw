@@ -17,6 +17,7 @@
 | [输入手势](input/scroll-zoom-gesture-contract.md) | Scroll/Zoom 分发、固定 session target 与 fallback |
 | [渲染专题](rendering/00-index.md) | 更新、Graphics、文字及图像 |
 | [动画专题](animation/00-index.md) | 计划、触发、表现平面、领域集成 |
+| [Perfetto 观测](architecture/perfetto-observation.md) | Core SDK 埋点、Native 会话、trace 验证与采集边界 |
 | [Editor 架构](editor/00-index.md) | 模型、命令、投影、连接编辑及 IME |
 
 ## 核心设计

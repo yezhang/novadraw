@@ -1,7 +1,7 @@
 use crate::{
     Config,
     research::{
-        HEIGHT, INITIAL_WIDTH, Journal, NARROW_WIDTH, Operation, Research, SCROLL_STEP, replay,
+        HEIGHT, INITIAL_WIDTH, NARROW_WIDTH, Operation, Research, SCROLL_STEP, TraceSession, replay,
     },
 };
 use anyhow::{Context, Result, bail};
@@ -35,11 +35,11 @@ const RESIZE_TIMEOUT: Duration = Duration::from_secs(5);
 const NATIVE_FRAME_ATTEMPTS: usize = 8;
 
 pub fn run(config: Config) -> Result<()> {
-    let mut app = NativeApp::new(config);
+    let mut app = NativeApp::new(config)?;
     let event_loop = match EventLoop::new() {
         Ok(event_loop) => event_loop,
         Err(error) => {
-            app.journal
+            app.trace
                 .push(json!({"kind":"failure","phase":"event_loop","error":error.to_string()}));
             app.export()?;
             return Err(error.into());
@@ -47,7 +47,7 @@ pub fn run(config: Config) -> Result<()> {
     };
     let result = event_loop.run_app(&mut app);
     if let Err(error) = &result {
-        app.journal
+        app.trace
             .push(json!({"kind":"failure","phase":"event_loop_run","error":error.to_string()}));
     }
     // Also flush if the event loop terminates without a CloseRequested event.
@@ -61,7 +61,7 @@ pub fn run(config: Config) -> Result<()> {
 
 struct NativeApp {
     config: Config,
-    journal: Journal,
+    trace: TraceSession,
     research: Research,
     host: Option<WinitPlatformHost>,
     renderer: Option<VelloRenderer>,
@@ -82,11 +82,11 @@ struct NativeApp {
 }
 
 impl NativeApp {
-    fn new(config: Config) -> Self {
+    fn new(config: Config) -> Result<Self> {
         let replay_active = config.replay;
-        Self {
-            journal: Journal::new(&config),
-            research: Research::new(config.timing, config.requests),
+        Ok(Self {
+            trace: TraceSession::new(&config)?,
+            research: Research::new(config.trace),
             queue: if config.replay {
                 replay(config.cycles).into()
             } else {
@@ -108,11 +108,11 @@ impl NativeApp {
             modifiers: KeyModifiers::default(),
             clock: Instant::now(),
             failure: None,
-        }
+        })
     }
 
     fn fail(&mut self, event_loop: &ActiveEventLoop, error: anyhow::Error) {
-        self.journal
+        self.trace
             .push(json!({"kind":"failure","phase":"native","error":format!("{error:#}")}));
         self.failure = Some(format!("{error:#}"));
         if let Err(error) = self.export() {
@@ -122,10 +122,10 @@ impl NativeApp {
     }
 
     fn export(&mut self) -> Result<()> {
-        if !self.journal.has_records() {
+        if !self.trace.has_records() {
             return Ok(());
         }
-        let path = self.journal.export(&self.config.output)?;
+        let path = self.trace.export(&self.config.output)?;
         println!("TextFlowLarge export: {}", path.display());
         Ok(())
     }
@@ -152,7 +152,7 @@ impl NativeApp {
             self.gestures.cancel_all();
             self.position = None;
         }
-        self.research.apply(operation, &mut self.journal)?;
+        self.research.apply(operation, &mut self.trace)?;
         self.frame_pending = true;
         self.frame_attempts = 0;
         self.sync_effects();
@@ -204,7 +204,7 @@ impl NativeApp {
         let scale = host.window().scale_factor();
         let width = f64::from(size.width) / scale;
         let height = f64::from(size.height) / scale;
-        if let Some((operation, started)) = self.waiting_resize {
+        if let Some((operation, _started)) = self.waiting_resize {
             let expected = match operation {
                 Operation::Resize(w) => w,
                 _ => INITIAL_WIDTH,
@@ -212,9 +212,8 @@ impl NativeApp {
             if (width - expected).abs() <= 1.0 / scale && (height - HEIGHT).abs() <= 1.0 / scale {
                 self.research.note_pending(
                     "window_resize_ack",
-                    json!({"elapsed_ns":started.elapsed().as_nanos(),
-                        "requested_width":expected,"actual_width":width,"actual_height":height}),
-                    &mut self.journal,
+                    json!({"requested_width":expected,"actual_width":width,"actual_height":height}),
+                    &mut self.trace,
                 );
                 self.waiting_resize = None;
                 self.perform(operation)?;
@@ -229,7 +228,7 @@ impl NativeApp {
             self.research.note_pending(
                 "window_resize",
                 json!({"width":width,"height":height}),
-                &mut self.journal,
+                &mut self.trace,
             );
             self.perform(Operation::Stable)?;
         }
@@ -248,7 +247,7 @@ impl NativeApp {
             host.surface_info(),
             "native_backend_presented",
             self.frame_attempts,
-            &mut self.journal,
+            &mut self.trace,
         )?;
         self.frame_attempts += 1;
         if !presented {
@@ -262,14 +261,12 @@ impl NativeApp {
         }
         self.frame_attempts = 0;
         if self.config.gpu_wait {
-            let start = Instant::now();
+            let _wait = self.trace.scope("host-gpu-queue-wait");
             let result = renderer.wait_for_gpu_idle(GPU_WAIT_TIMEOUT);
-            let elapsed = start.elapsed().as_nanos();
             self.research.note(
                 "gpu_queue_wait",
-                json!({"elapsed_ns":elapsed,
-                "succeeded":result.is_ok(),"error":result.as_ref().err().map(ToString::to_string)}),
-                &mut self.journal,
+                json!({"succeeded":result.is_ok(),"error":result.as_ref().err().map(ToString::to_string)}),
+                &mut self.trace,
             );
             result?;
         }
@@ -283,14 +280,14 @@ impl NativeApp {
             self.research.note(
                 "screenshot",
                 json!({"path":path,"source":"retained GPU target; not desktop capture"}),
-                &mut self.journal,
+                &mut self.trace,
             );
             self.screenshot_taken = true;
         }
         self.frame_pending = false;
         host.window().set_title(&format!(
             "TextFlowLarge · {} · F1 Reset  F2 Z  F3 Scroll  F4 Resize  F6 Replay  F7 Export  F8 Timing",
-            if self.research.timing { "timing on" } else { "timing off" }));
+            if self.research.capture_enabled { "capture on" } else { "capture off" }));
         self.sync_effects();
         Ok(())
     }
@@ -298,7 +295,7 @@ impl NativeApp {
     fn input_event(&mut self, event: WindowEvent) -> Result<()> {
         let host = self.host.as_ref().context("window missing")?;
         let scale = host.window().scale_factor();
-        let start = Instant::now();
+        let _dispatch = self.trace.scope("host-input-dispatch");
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 let point = Point::new(position.x / scale, position.y / scale);
@@ -415,11 +412,10 @@ impl NativeApp {
             }
             _ => return Ok(()),
         }
-        let elapsed = start.elapsed().as_nanos();
         self.research.note_pending(
             "input_dispatch",
-            json!({"elapsed_ns":elapsed}),
-            &mut self.journal,
+            json!({"dispatched":true}),
+            &mut self.trace,
         );
         self.perform(Operation::Stable)
     }
@@ -478,15 +474,16 @@ impl NativeApp {
                         return Ok(());
                     }
                     PhysicalKey::Code(KeyCode::F8) => {
-                        self.research.timing = !self.research.timing;
-                        self.research
-                            .runtime
-                            .frames()
-                            .set_timing_enabled(self.research.timing);
+                        let enabled = !self.research.capture_enabled;
+                        if enabled && self.trace.has_records() {
+                            self.export()?;
+                        }
+                        self.trace.set_enabled(enabled)?;
+                        self.research.capture_enabled = enabled;
                         self.research.note(
-                            "timing_switch",
-                            json!({"enabled":self.research.timing}),
-                            &mut self.journal,
+                            "capture_switch",
+                            json!({"enabled":self.research.capture_enabled}),
+                            &mut self.trace,
                         );
                         return Ok(());
                     }
@@ -531,7 +528,7 @@ impl ApplicationHandler for NativeApp {
             self.renderer = Some(VelloRenderer::new(host.window_arc(), host.surface_info())?);
             self.research.runtime.frames().reset_backend_session()?;
             let adapter = self.renderer.as_ref().unwrap().adapter_info();
-            self.journal.push(
+            self.trace.push(
                 json!({"kind":"adapter","name":adapter.name,"vendor":adapter.vendor,
                 "device":adapter.device,"device_type":adapter.device_type,"backend":adapter.backend,
                 "driver":adapter.driver,"driver_info":adapter.driver_info}),
@@ -593,7 +590,7 @@ impl ApplicationHandler for NativeApp {
             {
                 self.replay_finished = true;
                 self.replay_active = false;
-                self.journal
+                self.trace
                     .push(json!({"kind":"replay_complete","cycles":self.config.cycles}));
                 self.export()?;
                 if self.config.exit_after_replay {

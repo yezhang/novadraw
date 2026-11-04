@@ -8,7 +8,10 @@ platform 实际呈现；不同 owner 的证据分别报告。
 本页承接长文本方案 LT-00 的采样方法，不新增性能目标或实施授权。
 当前结果与不足见[优化验证](../performance/text-optimization-validation.md)；
 命令入口见[tests/README.md](../../../tests/README.md)，
-`textflow-perf`、`text.long-layout` 由 xtask 编排真实驱动。
+`text.long-layout` 由 xtask 编排 Core 契约测试和 Perfetto 研究宿主。
+2026-11-04 起自研采样器及 `textflow-perf` 已删除，当前采集与丢失检查按
+[Perfetto 合同](../../design/architecture/perfetto-observation.md)执行；
+本页的冻结要求继续用于历史证据与后续匹配比较。
 
 ## 可恢复基线
 

@@ -18,7 +18,6 @@ use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
     sync::{Arc, Mutex},
-    time::Instant,
 };
 
 type CachedFlow = (
@@ -113,65 +112,31 @@ impl FlowWork {
         call: FlowLayoutCall<'_, '_>,
     ) -> Result<(usize, StyledTextLayout), crate::text::TextError> {
         let diagnostics = call.scene.budget().text_diagnostics();
-        let diagnostic_start = diagnostics.0.is_enabled().then(Instant::now);
         let engine_revision = context.revision();
         let engine_identity = context.cache_identity();
         let build = self.statistics.builds;
-        let observe = |cache_hit, succeeded, elapsed_ns| {
-            diagnostics
-                .0
-                .observe_layout(|| super::FlowLayoutObservation {
-                    root: call.scene.root(),
-                    owner: call.owner,
-                    build,
-                    scene_revision: call.scene_revision,
-                    sources: call
-                        .sources
-                        .iter()
-                        .map(|source| {
-                            (
-                                source.source,
-                                call.scene.diagnostic_component_revision(source.source),
-                            )
-                        })
-                        .collect(),
-                    phase: match call.purpose {
-                        FlowBuildPurpose::Measure => "measure",
-                        FlowBuildPurpose::Prepare => "prepare",
-                    },
-                    inline_prefix: call.inline_prefix,
-                    engine_identity,
-                    engine_revision,
-                    elapsed_ns,
-                    request: Arc::new(request.clone()),
-                    cache_hit,
-                    succeeded,
-                });
+        let observe = |cache_hit: bool, succeeded: bool| {
+            diagnostics.request(|| format!(
+                "root={:?} owner={:?} build={} scene_revision={} sources={:?} phase={} inline_prefix={:?} engine_identity={:?} engine_revision={} cache_hit={} succeeded={} request={:?}",
+                call.scene.root(), call.owner, build, call.scene_revision,
+                call.sources.iter().map(|source| (source.source, call.scene.diagnostic_component_revision(source.source))).collect::<Vec<_>>(),
+                match call.purpose { FlowBuildPurpose::Measure => "measure", FlowBuildPurpose::Prepare => "prepare" },
+                call.inline_prefix, engine_identity, engine_revision, cache_hit, succeeded, request,
+            ));
         };
         let lookup = diagnostics.time("flow-paragraph-lookup");
         if let Some(index) = self.cached_paragraph(engine_identity, engine_revision, request) {
             drop(lookup);
-            observe(
-                true,
-                true,
-                diagnostic_start.map_or(0, |start| start.elapsed().as_nanos()),
-            );
+            observe(true, true);
             self.statistics.paragraph_hits += 1;
             return Ok((index, self.paragraphs[index].layout.clone()));
         }
         drop(lookup);
         let engine_timing = diagnostics.time("flow-engine-layout");
-        let start = diagnostics.0.is_enabled().then(Instant::now);
         let result = context.layout_styled_with_diagnostics(request, &diagnostics);
         drop(engine_timing);
-        let engine_ns = start.map_or(0, |start| start.elapsed().as_nanos());
-        observe(
-            false,
-            result.is_ok(),
-            diagnostic_start.map_or(0, |start| start.elapsed().as_nanos()),
-        );
+        observe(false, result.is_ok());
         self.statistics.styled_layout_calls += 1;
-        self.statistics.styled_layout_ns += engine_ns;
         let layout = result?;
         let index = self.cache_paragraph(ParagraphAsset {
             engine_identity,
@@ -185,7 +150,7 @@ impl FlowWork {
     }
 }
 
-/// Cumulative work for one instance-owned service. Timings require Runtime diagnostics enabled.
+/// Deterministic cumulative work for one instance-owned service.
 /// These counters describe CPU layout work, never GPU completion or presentation.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FlowWorkStatistics {
@@ -193,10 +158,6 @@ pub struct FlowWorkStatistics {
     pub styled_layout_calls: u64,
     pub paragraph_hits: u64,
     pub source_geometry_calls: u64,
-    pub contribution_ns: u128,
-    pub styled_layout_ns: u128,
-    pub source_geometry_ns: u128,
-    pub build_ns: u128,
 }
 
 fn flow_revision(
@@ -651,8 +612,6 @@ fn build_flow(
     work: &mut FlowWork,
 ) -> Result<FlowBuildOutput, FlowError> {
     let _timing = scene.budget().time("flow-build");
-    let timing_enabled = scene.budget().text_diagnostics().0.is_enabled();
-    let build_start = timing_enabled.then(Instant::now);
     work.statistics.builds += 1;
     let allocate = |entries: usize| {
         scene
@@ -665,7 +624,6 @@ fn build_flow(
             })
     };
     let contribution_timing = scene.budget().time("flow-contribution");
-    let contribution_start = timing_enabled.then(Instant::now);
     let assembly = {
         let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
             let _border = scene.budget().time("flow-border");
@@ -687,8 +645,6 @@ fn build_flow(
         assembly.visit(scene.root())?;
         assembly.finish()
     };
-    work.statistics.contribution_ns +=
-        contribution_start.map_or(0, |start| start.elapsed().as_nanos());
     drop(contribution_timing);
     allocate(
         assembly
@@ -1061,7 +1017,6 @@ fn build_flow(
         let index = snapshot.paragraphs.len();
         let first_fragment = snapshot.fragments.len();
         let geometry_timing = scene.budget().time("flow-source-geometry");
-        let geometry_start = timing_enabled.then(Instant::now);
         for source in &p.sources {
             let range = TextRange::new(
                 TextPosition::new(source.range.start, TextAffinity::Downstream),
@@ -1097,8 +1052,6 @@ fn build_flow(
                 }
             }
         }
-        work.statistics.source_geometry_ns +=
-            geometry_start.map_or(0, |start| start.elapsed().as_nanos());
         drop(geometry_timing);
         for placement in layout.inline_placements() {
             let source = &p.boxes[placement.id as usize];
@@ -1221,7 +1174,6 @@ fn build_flow(
     }
     snapshot.size.height = (y - bounds.y + assembly.trailing_margin).max(0.0);
     if purpose == FlowBuildPurpose::Measure {
-        work.statistics.build_ns += build_start.map_or(0, |start| start.elapsed().as_nanos());
         return Ok(FlowBuildOutput::Measurement(snapshot.size));
     }
     for block in &assembly.blocks {
@@ -1317,7 +1269,6 @@ fn build_flow(
         })
         .reduce(|a, b| a.union(b));
     snapshot.paint_index = EnvelopeIndex::from_envelopes(&envelopes);
-    work.statistics.build_ns += build_start.map_or(0, |start| start.elapsed().as_nanos());
     snapshot.statistics = work.statistics;
     Ok(FlowBuildOutput::Snapshot(
         Arc::new(snapshot),

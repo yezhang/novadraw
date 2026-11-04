@@ -2,6 +2,15 @@
 
 `novadraw` is the platform-independent Core crate for the 2D Figure runtime.
 
+Native CPU instrumentation is available through the optional `perfetto` feature.
+The host initializes the official Perfetto SDK producer and TrackEvent, then calls
+`novadraw::text::register_perfetto_categories()`. Enable `novadraw.phase` for CPU
+slices and `novadraw.request` for complete Flow request diagnostics. The SDK owns
+timestamps, buffers and encoding; Runtime exposes no timing collector or drain API.
+Default and Web builds do not link the native SDK. See
+[the integration contract](../../doc/design/architecture/perfetto-observation.md)
+and the [research host](examples/native/textflow-large-app/README.md).
+
 ## Start With Domain Imports
 
 ```rust

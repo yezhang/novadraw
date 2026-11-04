@@ -95,20 +95,14 @@ const SUITES: &[Suite] = &[
             Step {
                 program: "cargo",
                 args: &[
-                    "build",
-                    "--release",
+                    "run",
                     "-p",
-                    "draw2d-official-examples",
-                    "--bin",
-                    "textflow-perf",
-                ],
-            },
-            Step {
-                program: "python3",
-                args: &[
-                    "tools/scripts/textflow_performance.py",
-                    "smoke",
-                    "target/verification/long-text/smoke",
+                    "textflow-large-app",
+                    "--",
+                    "--headless",
+                    "--trace",
+                    "--output",
+                    "target/verification/textflow-large-app/smoke",
                 ],
             },
         ],

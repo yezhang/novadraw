@@ -22,6 +22,7 @@ ADR 只维护架构选择，具体协议进入 design，采样方法进入 verif
 | 核对 Draw2D/GEF 行为 | [参考分析](reference/00-index.md) → [源码审计基线](verification/reference/00-index.md) → [语义账本](parity/00-index.md) |
 | 确定下一批工作 | [P2 backlog](roadmap/p2-delta-backlog.md#当前推进顺序) → [整改执行清单](verification/checklists/audit-remediation-execution.md) |
 | 验证实现 | [可执行 suite](../tests/README.md) → [人工手册](verification/manual/00-index.md) → [历史核验](verification/reviews/00-index.md) |
+| 采集性能时间线 | [Perfetto 接入](design/architecture/perfetto-observation.md) → [研究应用](../crates/novadraw/examples/native/textflow-large-app/README.md) |
 | 评估产品或迁移 | [产品策略](strategy/00-index.md)、[Java/Rust 迁移](migration/00-index.md) |
 
 ## 知识归属

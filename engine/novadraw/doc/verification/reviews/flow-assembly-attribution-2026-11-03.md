@@ -41,7 +41,12 @@ prefix 的 engine 子阶段有独立计时，不能把 inclusive 与子阶段相
 | resolve／contributor／handler | [开放分发路径](../../../crates/novadraw/src/figure/flow/protocol.rs) |
 | visit／children／block／text／source-map | [统一组装器](../../../crates/novadraw/src/figure/flow/assembly.rs) |
 | border／inline 与 FlowPlan 前后关系 | [构建与布局](../../../crates/novadraw/src/figure/flow/snapshot.rs) |
-| inclusive／exclusive、关闭和 scope 结束 | [实例计时器](../../../crates/novadraw/src/runtime/timing.rs) |
+| inclusive／exclusive、关闭和 scope 结束 | 历史实例计时器：`72077f53` 的 `engine/novadraw/crates/novadraw/src/runtime/timing.rs` |
+
+2026-11-04 起该计时器已删除，原源码可用
+`git show 72077f53:engine/novadraw/crates/novadraw/src/runtime/timing.rs` 查阅。
+当前采集按[Perfetto 合同](../../design/architecture/perfetto-observation.md)执行，
+本报告的旧版归因数据和结论保留。
 
 ## 构建、分母与证据
 

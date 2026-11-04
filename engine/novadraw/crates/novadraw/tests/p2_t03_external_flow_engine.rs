@@ -213,7 +213,8 @@ fn independent_engine_drives_flow_mapping_paint_hit_caret_and_selection() {
         .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .unwrap();
-    runtime.frames().set_timing_enabled(true);
+    #[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+    let capture = perfetto_support::Capture::new();
     let _ = support::record_full_submission(&mut runtime);
     let s = runtime
         .tree()
@@ -244,59 +245,44 @@ fn independent_engine_drives_flow_mapping_paint_hit_caret_and_selection() {
     );
     assert_eq!(s.paragraphs[0].layout.layout().glyph_runs().len(), 2);
     let old_request = s.paragraphs[0].layout.request().clone();
-    let observations = runtime.frames().take_flow_layout_observations();
-    assert_eq!(observations.dropped, 0);
-    assert!(!observations.records.is_empty());
-    assert!(observations.records.iter().all(|record| {
-        *record.request == old_request
-            && record.engine_identity.is_none()
-            && !record.cache_hit
-            && record.succeeded
-            && record.sources.contains(&(b, 0))
-    }));
-    assert!(
-        runtime
-            .frames()
-            .take_flow_layout_observations()
-            .records
-            .is_empty()
-    );
-    assert!(
-        runtime
-            .frames()
-            .take_timings()
-            .iter()
-            .any(|entry| { entry.stage == "external-ascii-layout" && entry.calls > 0 })
-    );
     let receipt = runtime
         .figure(b)
         .unwrap()
         .update_component(SetStructuredFlowText("中文".into()))
         .unwrap();
     assert!(runtime.frames().stabilize_for_query().is_err());
-    let failed = runtime.frames().take_flow_layout_observations();
-    assert_eq!(failed.dropped, 0);
-    assert!(failed.records.iter().any(|record| {
-        !record.succeeded
-            && !record.cache_hit
-            && record.request.text() == "first 中文"
-            && record.sources.contains(&(b, receipt.revision))
-            && record.elapsed_ns > 0
-    }));
-    assert!(
+    assert_eq!(
         runtime
-            .frames()
-            .take_timings()
-            .iter()
-            .any(|entry| { entry.stage == "external-ascii-layout" && entry.calls > 0 })
+            .tree()
+            .prepared_presentation(page)
+            .unwrap()
+            .unwrap()
+            .data::<FlowSnapshot>()
+            .unwrap()
+            .paragraphs[0]
+            .layout
+            .request(),
+        &old_request
     );
-    runtime.frames().set_timing_enabled(false);
-    assert!(runtime.frames().stabilize_for_query().is_err());
-    assert!(
-        runtime
-            .frames()
-            .take_flow_layout_observations()
-            .records
-            .is_empty()
-    );
+    #[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+    {
+        let trace = capture.finish();
+        trace.assert_balanced();
+        for value in [
+            "external-ascii-layout",
+            "engine_identity=None",
+            "cache_hit=false",
+            "succeeded=false",
+            "first 中文",
+        ] {
+            assert!(trace.contains(value), "missing {value}");
+        }
+        assert!(trace.contains(&format!("{:?}", (b, receipt.revision))));
+    }
+    #[cfg(not(all(feature = "perfetto", not(target_arch = "wasm32"))))]
+    let _ = receipt;
 }
+
+#[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+#[path = "support/perfetto.rs"]
+mod perfetto_support;

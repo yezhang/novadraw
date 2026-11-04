@@ -23,6 +23,14 @@ Editor、Inspector 单向依赖 Core；Vello backend、Winit／Web adapter 独�
 不为内部层保留兼容转发包。3D 保留独立扩展边界，真实消费者出现前不建空 crate。
 示例与工具不构成公开包。
 
+Perfetto tracing 也遵循该边界：Core 只在显式 `perfetto` feature 下写入 CPU
+阶段事件；Native 宿主持有 SDK producer、采集会话、`.pftrace` 导出和文件策略。
+`perfetto-sdk`、Trace Processor、Perfetto UI、官方 Perfetto Agent skill 和第三方
+MCP wrapper 都属于可选观测工具链，不进入 Core 默认依赖、公开路径或生产 API。
+trace 分析优先使用官方 Trace Processor 和 Perfetto UI；Agent 辅助可安装官方
+Perfetto skill 复用 CLI 查询。`perfetto-mcp-rs` 等社区 MCP 需要单独完成本地验收后
+才能进入工具配置；官方 `server stdio` 协议不能直接当作 MCP server。
+
 ## 替代与代价
 
 维持多个无独立消费者的内部 crate 会扩大 API 与版本维护面；
@@ -34,7 +42,11 @@ module 收口仍须保护内部职责，不能形成第二套公共别名。
 
 [目录与包](../design/architecture/directory-structure.md)、
 [公共 API](../design/architecture/public-api-contract.md)、
-[第三方依赖](../design/architecture/third-party-dependency-boundaries.md)。
+[第三方依赖](../design/architecture/third-party-dependency-boundaries.md)、
+[Perfetto 观测](../design/architecture/perfetto-observation.md)。
+
+trace 诊断和配套工具记录见
+[TextFlowLarge Perfetto trace 诊断](../verification/reviews/perfetto-trace-diagnosis-2026-11-04.md)。
 
 原批准范围和修订依据见[原稿 023](../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md.txt)；
 其他原编号与当前入口见[归并记录](../archive/adr-consolidation-2026-11-03.md)。

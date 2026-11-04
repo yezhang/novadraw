@@ -35,6 +35,8 @@ pub use styled::{
 mod system;
 pub use system::{MeasureContext, TextSystem};
 mod diagnostics;
+#[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
+pub use diagnostics::register_perfetto_categories;
 pub use diagnostics::{TextLayoutDiagnostics, TextLayoutTimingScope};
 mod underline;
 pub use underline::{PreparedTextUnderlines, TextUnderline, TextUnderlineFragment};

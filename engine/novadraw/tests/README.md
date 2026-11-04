@@ -113,68 +113,20 @@ cargo build --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --re
 `container-cost` 只控制测量消费者是否调用容器能力，不是 Editor feature。
 覆盖边界和结果见[容器编辑实施记录](../doc/verification/reviews/adr-055-implementation-2026-10-29.md)。
 
-长文本完整采样使用直接命令，smoke 不代替统计验收：
-第一次验证当前优化时，先看[文字优化验证指南](../doc/verification/performance/text-optimization-validation.md)，
-区分已接入的完整布局优化、ADR-059 协议与尚未实现的 Flow 宽度复用。
+长文本 CPU 观测使用官方 Perfetto SDK，smoke 不代替统计验收：
 
 ```bash
-python3 tools/scripts/textflow_performance.py compare target/verification/long-text/comparison
-python3 tools/scripts/textflow_performance.py summarize target/verification/long-text/comparison/baseline
-python3 tools/scripts/textflow_performance.py summarize target/verification/long-text/comparison/optimized
-python3 tools/scripts/textflow_performance.py memory target/verification/long-text/comparison
-python3 tools/scripts/textflow_performance.py freeze target/verification/long-text/extended
-python3 tools/scripts/textflow_performance.py run target/verification/long-text/extended --cold-per-session 0 --extended
-target/release/textflow-perf 1 extended
+cargo test -p novadraw --features perfetto --test long_text_layout_contract --test p2_t03_external_flow_engine --test p2_t03_structured_flow_contract
+cargo run -p textflow-large-app --release -- --headless --replay --trace --requests
 ```
 
-`compare` 使用先前冻结的 `target/verification/long-text/baseline`，
-交错运行两版本，每版本 5 个会话、每会话 20 次预热、200 次 fresh Runtime
-与 40 个新进程。目录必须尚不存在，以保留每次原始证据。
-`memory` 保留每版本 5 个交替新进程的 macOS 峰值 RSS。
-`extended` 额外记录公开 viewport 滚动、resize 和 CPU 帧录制，
-默认 5 个会话、每会话 20 次预热及 200 个样本，并按会话汇总。
-冻结的旧版驱动没有这些场景，扩展采样只描述当前成本。
-驱动不创建窗口或 GPU，呈现始终为 `unavailable`。
-
-默认二进制路径遵循 `CARGO_TARGET_DIR`，也可通过 `--binary` 显式指定。
-从源码归档恢复的目录没有 Git metadata 时，`smoke` 留存完整源码归档、
-实际 Cargo.lock、字体与二进制散列；在 Git checkout 中仍留存 dirty patch。
-显式的 `freeze --source-directory <恢复目录>` 可使用同一归档模式。
-
-后续两版冻结驱动都支持扩展场景时，可用
-`compare <新目录> --baseline <上一版冻结目录> --extended` 交替比较。
-脚本先保留两版预检输出，缺少扩展记录或场景分母不符时停止，
-避免把未运行的滚动、resize 当作有效样本。最初的优化前基线不支持此模式。
-
-两份完整源码已冻结时，使用 `--optimized` 指定第二份二进制与 manifest。
-脚本核对二进制和源码归档散列，要求两份二进制不同、驱动与输入相同。
-重新构建两版时使用独立 Cargo target，并从源码归档恢复 Cargo.lock，
-通过 `--locked` 构建；恢复材料以归档为准。
-本轮已验证的冻结目录可用于重新采样，输出必须另建：
-
-```bash
-python3 tools/scripts/textflow_performance.py compare target/verification/long-text/phase4/repeat-original --baseline target/verification/long-text/phase4/baseline --optimized target/verification/long-text/phase4/optimized --extended
-python3 tools/scripts/textflow_performance.py compare target/verification/long-text/phase4/repeat-paragraph --baseline target/verification/long-text/phase4/baseline --optimized target/verification/long-text/phase4/optimized --workload paragraph
-python3 tools/scripts/textflow_performance.py memory target/verification/long-text/phase4/repeat-paragraph --workload paragraph
-```
-
-`--workload` 还支持 `line` 和 `mixed`，内存采样使用相同参数。
-三种新增工厂分别为单个长段落、NoWrap 长行和含真实 Figure 的混排；
-其源提交由 receipt 验证。阶段记录区分总耗时与自身耗时，
-每个样本核对初始和追加阶段的自身耗时之和。
-第四轮基线在混排缩窄到 386 时触发默认准备预算拒绝，
-测量输出分离后的优化版预检成功；两版预算配置相同。
-这项 resize 使用优化版单独采样，保留基线失败诊断，不计算前后耗时比。
-标准宽度的成功分布与 resize 结果分别留存。
-优化版已完成 1000 次热样本和 200 个新进程的重复 resize，失败为 0。
-重新采样时先复制冻结目录到不存在的新路径，再运行同一采样器：
-
-```bash
-cp -R target/verification/long-text/phase4/optimized target/verification/long-text/phase4/repeat-mixed-resize
-python3 tools/scripts/textflow_performance.py run target/verification/long-text/phase4/repeat-mixed-resize --extended --workload mixed
-```
-
-本轮详细结果和限制见[长文本实施记录](../doc/verification/reviews/long-text-performance-implementation-2026-10-27.md)。
+trace 由 Perfetto UI／Trace Processor 分析，先检查采集丢失，再比较相同场景、
+工具链、构建、预算和采集配置。方法见[Perfetto 接入](../doc/design/architecture/perfetto-observation.md)
+和[研究应用](../crates/novadraw/examples/native/textflow-large-app/README.md)。
+默认关闭采集；完整请求可能明显增加成本。SDK 的真实 trace 验证覆盖外部引擎、
+失败返回、Runtime 身份和开启／关闭采集的布局等价。
+旧 Python 采样器与 `textflow-perf` 已删除，冻结报告及原始数据仍按
+[长文本实施记录](../doc/verification/reviews/long-text-performance-implementation-2026-10-27.md)追溯。
 
 ## 常规门禁
 
