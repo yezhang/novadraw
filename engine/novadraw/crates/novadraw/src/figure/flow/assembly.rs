@@ -163,6 +163,7 @@ impl<'a> FlowAssembly<'a> {
         }
     }
     pub fn visit(&mut self, source: FigureId) -> Result<(), FlowError> {
+        let _visit = self.scene.budget().time("flow-visit");
         self.allocate(4)?;
         if self.stack.last().copied() != self.scene.parent(source)? {
             return Err(FlowError::InvalidStructure);
@@ -186,6 +187,7 @@ impl<'a> FlowAssembly<'a> {
         result
     }
     pub fn children(&mut self, source: FigureId) -> Result<(), FlowError> {
+        let _children = self.scene.budget().time("flow-children");
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
@@ -219,6 +221,8 @@ impl<'a> FlowAssembly<'a> {
         text: &str,
         style: TextStyle,
     ) -> Result<(), FlowError> {
+        let scene = self.scene;
+        let _text = scene.budget().time("flow-text");
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
@@ -227,13 +231,21 @@ impl<'a> FlowAssembly<'a> {
                 .saturating_add(self.stack.len())
                 .saturating_add(4),
         )?;
-        let ancestors = self.stack.clone();
-        let source_offset = *self.source_offsets.entry(source).or_default();
-        self.source_offsets
-            .insert(source, source_offset + text.len());
+        let (ancestors, source_offset) = {
+            let _source = self.scene.budget().time("flow-source-map");
+            let ancestors = self.stack.clone();
+            let source_offset = *self.source_offsets.entry(source).or_default();
+            self.source_offsets
+                .insert(source, source_offset + text.len());
+            (ancestors, source_offset)
+        };
         let paragraph = self.paragraph(style.clone());
         let start = paragraph.text.len();
-        paragraph.text.push_str(text);
+        {
+            let _append = scene.budget().time("flow-text-append");
+            paragraph.text.push_str(text);
+        }
+        let _source = scene.budget().time("flow-source-map");
         if !text.is_empty() {
             paragraph.spans.push(TextStyleSpan {
                 range: start..paragraph.text.len(),
@@ -255,6 +267,7 @@ impl<'a> FlowAssembly<'a> {
         child: FigureId,
         style: TextStyle,
     ) -> Result<(), FlowError> {
+        let _box = self.scene.budget().time("flow-box-intent");
         if self.stack.last() != Some(&source) || self.scene.parent(child)? != Some(source) {
             return Err(FlowError::InvalidStructure);
         }
@@ -275,6 +288,7 @@ impl<'a> FlowAssembly<'a> {
         source: FigureId,
         border: Arc<dyn super::FlowFragmentBorder>,
     ) -> Result<(), FlowError> {
+        let _decorate = self.scene.budget().time("flow-decorate");
         if self.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
@@ -289,6 +303,7 @@ impl<'a> FlowAssembly<'a> {
     }
     /// Block handlers use this same scope API, including third-party block contributors.
     pub fn block(&mut self, source: FigureId, mut style: FlowBlockStyle) -> Result<(), FlowError> {
+        let _block = self.scene.budget().time("flow-block");
         self.allocate(2)?;
         style.validate()?;
         if self.stack.last() != Some(&source) {

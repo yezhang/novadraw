@@ -314,6 +314,22 @@ fn external_runtime_timing_preserves_exact_layout_and_drains_failed_attempts() {
         .find(|entry| entry.stage == "stable-query")
         .unwrap();
     assert_eq!(total.calls, 1);
+    for stage in [
+        "flow-visit",
+        "flow-dispatch",
+        "flow-contributor",
+        "flow-handler",
+        "flow-text",
+        "flow-source-map",
+        "flow-block",
+        "flow-children",
+    ] {
+        assert!(
+            timings
+                .iter()
+                .any(|entry| entry.stage == stage && entry.calls > 0)
+        );
+    }
     assert_eq!(
         total.inclusive_ns,
         timings.iter().map(|entry| entry.exclusive_ns).sum::<u128>()

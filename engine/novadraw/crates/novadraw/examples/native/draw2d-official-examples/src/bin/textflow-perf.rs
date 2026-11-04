@@ -101,6 +101,9 @@ fn main() {
     let extended = std::env::args().nth(2).is_some_and(|arg| arg == "extended");
     let workload = std::env::args().nth(3).unwrap_or_else(|| "original".into());
     let requests = std::env::args().nth(4).is_some_and(|arg| arg == "requests");
+    let timing = std::env::args()
+        .nth(4)
+        .is_none_or(|arg| arg != "timing-off");
     let samples: usize = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "1".into())
@@ -119,7 +122,7 @@ fn main() {
             let (runtime, source, text) = workloads::make(&workload);
             (runtime, Some((source, text)))
         };
-        runtime.frames().set_timing_enabled(true);
+        runtime.frames().set_timing_enabled(timing);
         let construct_ns = start.elapsed().as_nanos();
         let start = Instant::now();
         if let Err(error) = runtime.frames().stabilize_for_query() {

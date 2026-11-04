@@ -693,6 +693,7 @@ impl FlowFragmentBorder for ExternalBorder {
 #[test]
 fn external_fragment_border_reserves_first_last_boxes_and_keeps_old_snapshot_on_failure() {
     let (mut runtime, page) = fixture(130.0);
+    runtime.frames().set_timing_enabled(true);
     let painted = Arc::new(Mutex::new(Vec::new()));
     let invalid = Arc::new(AtomicBool::new(false));
     let group = add(
@@ -717,6 +718,14 @@ fn external_fragment_border_reserves_first_last_boxes_and_keeps_old_snapshot_on_
     assert_eq!(borders.first().unwrap().leading_box.unwrap().width, 10.0);
     assert_eq!(borders.last().unwrap().trailing_box.unwrap().width, 12.0);
     assert_eq!(painted.lock().unwrap().len(), borders.len());
+    let timings = runtime.frames().take_timings();
+    for stage in ["flow-border", "flow-border-renderer", "flow-border-metrics"] {
+        assert!(
+            timings
+                .iter()
+                .any(|entry| entry.stage == stage && entry.calls > 0)
+        );
+    }
     let old_bounds = runtime.tree().node(group).unwrap().bounds();
     invalid.store(true, Ordering::Relaxed);
     runtime
@@ -731,6 +740,13 @@ fn external_fragment_border_reserves_first_last_boxes_and_keeps_old_snapshot_on_
     assert!(support::prepare_next_submission(&mut runtime).is_none());
     assert_eq!(runtime.tree().node(group).unwrap().bounds(), old_bounds);
     assert_eq!(snapshot(&runtime, page).revision, s.revision);
+    let failed_timings = runtime.frames().take_timings();
+    assert!(
+        failed_timings
+            .iter()
+            .any(|entry| entry.stage == "flow-border-metrics")
+    );
+    assert!(runtime.frames().take_timings().is_empty());
 }
 
 #[test]

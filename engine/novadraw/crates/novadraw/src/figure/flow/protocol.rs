@@ -165,22 +165,30 @@ impl FlowContributionRegistry {
         scene: &PreparationScene<'_>,
         output: &mut FlowAssembly<'_>,
     ) -> Result<(), FlowError> {
-        let capability = scene
-            .capability(source, FLOW)?
-            .ok_or(FlowError::MissingContributor(source))?;
-        let contributor = capability
-            .resolve(scene.figure(source)?)
-            .ok_or(FlowError::MissingContributor(source))?;
+        let _dispatch = scene.budget().time("flow-dispatch");
+        let contributor = {
+            let _resolve = scene.budget().time("flow-resolve");
+            let capability = scene
+                .capability(source, FLOW)?
+                .ok_or(FlowError::MissingContributor(source))?;
+            capability
+                .resolve(scene.figure(source)?)
+                .ok_or(FlowError::MissingContributor(source))?
+        };
         let context = FlowContributionContext { source, scene };
         let mut sink = FlowContributionSink {
             entries: Vec::new(),
         };
-        contributor.contribute(&context, &mut sink)?;
+        {
+            let _contributor = scene.budget().time("flow-contributor");
+            contributor.contribute(&context, &mut sink)?;
+        }
         for (id, name, payload) in sink.entries {
             let handler = self
                 .handlers
                 .get(&id)
                 .ok_or(FlowError::UnknownContribution(name))?;
+            let _handler = scene.budget().time("flow-handler");
             handler(payload.as_ref(), &context, output)?;
         }
         Ok(())

@@ -668,12 +668,19 @@ fn build_flow(
     let contribution_start = timing_enabled.then(Instant::now);
     let assembly = {
         let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
+            let _border = scene.budget().time("flow-border");
             let resolved = scene.style(source)?;
             let style =
                 crate::text::TextStyle::new(scene.parsed_font(source)?, resolved.foreground);
             context.set_font(style.font().clone());
-            let renderer = border.prepare_renderer(context, &style)?.unwrap_or(border);
-            let metrics = renderer.metrics(context, &style)?.validate()?;
+            let renderer = {
+                let _renderer = scene.budget().time("flow-border-renderer");
+                border.prepare_renderer(context, &style)?.unwrap_or(border)
+            };
+            let metrics = {
+                let _metrics = scene.budget().time("flow-border-metrics");
+                renderer.metrics(context, &style)?.validate()?
+            };
             Ok((metrics, renderer))
         };
         let mut assembly = FlowAssembly::new(scene, registry, &mut measure_border);
@@ -859,6 +866,7 @@ fn build_flow(
                 continue;
             }
             let child = source.child.ok_or(FlowError::InvalidStructure)?;
+            let inline_prefix_timing = scene.budget().time("flow-inline-prefix");
             // Shape the prefix through the same engine to find the current line's remaining width.
             let prefix = &p.text[..source.offset];
             let prefix_spans = p
@@ -905,6 +913,8 @@ fn build_flow(
                 .last()
                 .map_or(0.0, |line| f64::from(line.advance));
             let remaining = width.map(|width| (width - occupied).max(0.0));
+            drop(inline_prefix_timing);
+            let _inline_measure = scene.budget().time("flow-inline-measure");
             let mut measurement = scene
                 .measure_figure(
                     context,
