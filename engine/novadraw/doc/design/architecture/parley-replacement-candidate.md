@@ -7,7 +7,7 @@
 
 当前决定：用户明确要求暂时保留 Parley，把直接依赖底层文本库的分析保存为未来
 技术方案候选。本文仅记录替代路径与评估条件，尚未批准替换实施，
-不改变 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md) 的既有授权与契约。
+不改变 [可选阶段文字协议](staged-text-width-reuse.md) 的既有授权与契约。
 执行队列仍由 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
 ## 候选要解决的问题

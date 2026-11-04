@@ -19,7 +19,7 @@ Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失
 
 | owner／工作 | 当前状态 | 下一步与恢复条件 |
 |---|---|---|
-| Core 长文本 | FR-01 已实现并完成定向与匹配采样；整体延迟未达标。ADR-059 B1 扩张暂停 | 优先设计 FR-02 贡献组装复用合同，生产 Execute 尚未启动；恢复 B1 前明确端到端收益及推进顺序 |
+| Core 长文本 | FR-01 已实现并完成定向与匹配采样；[FR-02 内部归因](../verification/reviews/flow-assembly-attribution-2026-11-03.md)完成，[合同修订 1](../verification/reviews/adr-060-revision-1-response-2026-11-03.md)已回应六项评审，待复核。细诊断扰动及关闭路径尾延迟变化保留，整体延迟未达标，ADR-059 B1 扩张暂停 | 复核 [复用合同](../design/architecture/flow-assembly-reuse.md)与[验收矩阵](../verification/plans/flow-assembly-reuse.md)，ADR 未接受，生产复用 Execute 尚未启动；诊断关闭路径无回退仍需受控证据，恢复 B1 前明确端到端收益及推进顺序 |
 | Editor E04 | 移动、创建／drop、单源 resize 已通过定向验证；E04-C／D 未关闭 | 补组合矩阵、完整事件成本和平台输入；校验成本整改提案待评审 |
 | Editor E03 | 开放容器协议、自动行为及部分 Native／Web 输入已验证 | 补 Native 系统 DnD、跨显示器 DPI、完整 Native 组合和内部工作量 |
 | 跨包 S09 | A／B／C 已完成，D 已实现并通过定向验证，整批未关闭 | 补 S09-D 最新 Wasm、成本及最终门禁；保留磁盘不足导致的失败证据 |
@@ -197,12 +197,12 @@ D 的 Native／Web 关键帧、组合场景和实际 runner 预算待验。
 ### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
 
 状态：`complete`。语义范围由[路由专题](../design/architecture/connection-routing.md)
-和[ADR-005](../adr/adr-005-connection-routing-contract.md)定义。
+和[连接路由](../design/architecture/connection-routing.md)定义。
 
 ### P2-C02: 障碍感知 Shortest-path Router
 
 状态：`complete`。采用 Draw2D 障碍感知路由语义；后续组求解按
-[ADR-040](../adr/adr-040-group-route-solving.md)细化。高级 self-loop 产品策略另列。
+[连接组求解](../design/architecture/group-route-solving.md)细化。高级 self-loop 产品策略另列。
 
 ## Figures
 
@@ -258,8 +258,8 @@ cancel 不写历史；Native／Web 输入 bridge 和人工复验已完成。
 能力归属：Core Text／Flow／Runtime；backend 负责字形覆盖和合成，
 platform 负责真实输入与呈现，研究应用只提供消费者。
 当前设计由[总方案](../design/architecture/long-text-performance-proposal.md)、
-[ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)和
-[ADR-059](../adr/adr-059-staged-text-width-reuse.md)分别维护。
+[精确 Flow 复用](../design/architecture/exact-flow-layout-reuse.md)和
+[可选阶段文字协议](../design/architecture/staged-text-width-reuse.md)分别维护。
 
 | 切片 | 状态 | 已实现与剩余范围 |
 |---|---|---|
@@ -276,8 +276,11 @@ resize 批次验证 P95 为 2.458 → 1.537 ms，整体 resize P95 为 37.236 �
 P99 上升；13 次贡献组装及 520 请求／514 命中的分母未变。
 支持局部复用有效，不支持稳定尾延迟已改善。
 
-下一步 FR-02 先拆分组装成本，再冻结 contributor／registry／绑定状态的版本合同，
-不删布局反馈轮次或跳过外部重读。独立 TextFlowLarge 应用已实现，自动 CPU／Native
+FR-02 已完成组装内部归因、30 项定向回归和 3200 个正式样本；细诊断的阶段占比
+不能当作无诊断生产成本，关闭路径尾延迟变化尚未解释。ADR-060 修订 1 已回应
+FR02-DR01～DR06，下一步复核声明证明发布链、共享内容、留存容量与阶段门禁；
+合同未接受，生产矩阵未执行，不删布局反馈轮次或跳过外部重读。
+独立 TextFlowLarge 应用已实现，自动 CPU／Native
 两轮回放通过；人工交互、DPI、IME、AT 和屏幕呈现未验收。
 最新证据和测量限制统一见[文字优化验证](../verification/performance/text-optimization-validation.md)；
 阶段边界见[文字阶段验证状态](../verification/reviews/text-stages-status.md)。

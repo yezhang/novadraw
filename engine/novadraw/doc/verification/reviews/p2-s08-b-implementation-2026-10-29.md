@@ -2,7 +2,7 @@
 
 类型：`implementation-verification`
 
-本记录对应 [ADR-056](../../adr/adr-056-detached-input-invariants.md)的 S08-B。
+本记录对应 [ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)的 S08-B。
 Border 构造、builder、Margin 配置与描边复用已实现，公共消费者与本切片验收通过。
 S08 的执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 Detached Figure、动态指标准入和整批关闭仍归 S08-C／D。

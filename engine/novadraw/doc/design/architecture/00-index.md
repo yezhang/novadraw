@@ -18,6 +18,8 @@
 | [runtime-subsystem-facade.md](runtime-subsystem-facade.md) | 无状态 facade、领域调用表与统一 Figure mutation |
 | [context-phase-authority.md](context-phase-authority.md) | Context 阶段权限、Query/Effects 与能力授权 |
 | [query-identity-and-failure.md](query-identity-and-failure.md) | 查询身份、合法缺失、坐标和测量失败 |
+| [engine-value-contract.md](engine-value-contract.md) | 受检 Color、几何词汇、圆弧与可执行命令 |
+| [third-party-dependency-boundaries.md](third-party-dependency-boundaries.md) | 中立签名、私有算法、interop 与依赖检查 |
 
 ## 核心协议
 
@@ -34,6 +36,8 @@
 | [resource-lifecycle.md](resource-lifecycle.md) | 资源因果与 Backend Session |
 | [resource-loading-and-request-tokens.md](resource-loading-and-request-tokens.md) | 平台 provider、纯解码与异步完成仲裁 |
 | [figure-inspector.md](figure-inspector.md) | 稳定场景与提交后事件诊断 |
+| [notification-subscription-lifecycle.md](notification-subscription-lifecycle.md) | 订阅 scope、FIFO、自注销与历史事实 |
+| [typed-property-identity.md](typed-property-identity.md) | 类型化属性源、异构 journal 与行为匹配 |
 | [service-failure-and-inspector-lifecycle.md](service-failure-and-inspector-lifecycle.md) | 修订 3：Core 服务/观测、Inspector 本地故障/恢复、Editor 扩展 source |
 | [component-update.md](component-update.md) | 第三方组件 typed update 规范 |
 
@@ -56,10 +60,11 @@
 | [structured-flow-layout.md](structured-flow-layout.md) | 结构化贡献、段落 shaping、inline 与交互快照 |
 | [inherited-layout-direction.md](inherited-layout-direction.md) | Figure 方向继承、文字片段位置与 ScrollPane |
 | [exact-flow-layout-reuse.md](exact-flow-layout-reuse.md) | 精确缓存、共享 glyph 与滚动 IR |
+| [flow-assembly-reuse.md](flow-assembly-reuse.md) | FR-02 修订 1：贡献复用、共享内容、证明发布链与留存容量；待复核 |
 | [staged-text-width-reuse.md](staged-text-width-reuse.md) | 可选阶段、调用绑定、资产登记、计费与完整回退 |
 | [text-performance-strategy.md](text-performance-strategy.md) | 顶尖性能路线：精确增量、宽度复用、可见绘制、共享资产与调度；隔离实验完成，生产接入合同 ADR-059 已接受 |
 | [parley-replacement-candidate.md](parley-replacement-candidate.md) | 未来技术候选：当前保留 Parley，记录 Core 直接编排底层文本库的职责、取舍与重新评估条件；替换尚未授权 |
-| [ADR-059 修订 2](../../adr/adr-059-staged-text-width-reuse.md) | 已接受、已批准实施：先查询有效资产再判断新增准入，复合失败和原始 source 保留；阶段绑定、账本及启用门禁不变 |
+| [可选阶段文字协议 修订 2](staged-text-width-reuse.md) | 已接受、已批准实施：先查询有效资产再判断新增准入，复合失败和原始 source 保留；阶段绑定、账本及启用门禁不变 |
 | [text-analysis-admission-proposal.md](text-analysis-admission-proposal.md) | 限定依赖补丁已获准：ADR-059 B 的字体查询、冷 shaping 与导出计费；B1 扩张暂停，未完成范围见专题验证状态 |
 | [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
 | [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 已批准的滚动／resize 方案，观测与共享 IR 首片已落地；原生覆盖、宽度复用和调度仍按各自合同取证 |

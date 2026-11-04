@@ -14,7 +14,7 @@
 | [公共 API 综合提案](original/doc/design/architecture/public-api-experience-proposal.md.txt) | [公共 API 契约](../../design/architecture/public-api-contract.md)、领域设计与 ADR-031/033/035 |
 | [2026-09-15 语义迁移提案](original/doc/migration/draw2d-gef-semantic-migration-plan-2026-09-15.md.txt) | [迁移方法](../../migration/java-rust/migration-guide.md)、parity 和 P2 backlog |
 | [Editor 实施计划](original/doc/roadmap/editor/implementation-plan.md.txt) | [Editor 状态](../../roadmap/editor/00-index.md)、阶段核验；拆分判据进入目录规范 |
-| [ADR-021 原文](original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) | [ADR-021 替代指引](../../adr/adr-021-public-facade-and-feature-boundary.md) |
+| [ADR-021 原文](original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) | [ADR-021 替代指引](../adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) |
 | [DisplayList 探索计划](original/doc/design/rendering/displaylist-implementation-plan.md.txt) | [候选协议与探索门禁](../../design/rendering/display-list-protocol.md) |
 | [迁移教程](original/doc/migration/java-rust/migration-guide.md.txt) | [语义迁移方法](../../migration/java-rust/migration-guide.md) |
 | [OO 映射](original/doc/migration/java-rust/oo-mapping.md.txt) | [语言特性对照](../../migration/java-rust/oo-mapping.md) |

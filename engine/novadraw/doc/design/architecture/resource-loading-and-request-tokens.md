@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Platform provider、Core 纯解码与发布仲裁。
-边界选择见 [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md)。
+边界选择见 [原编号 030 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-030-resource-provider-and-request-token-boundary.md.txt)。
 
 状态：`accepted`
 
@@ -143,3 +143,9 @@ fault 检查。
 - 延续 ADR-017 的结构化失败合同；
 - 延续 ADR-023 的 Core/platform package 边界；
 - 关闭临时概念设计审计 TC-11 与 API-F09 的资源边界部分。
+
+## 选择依据（原编号 030）
+
+provider 提供平台 bytes，解码和 registry 发布分层。最新 request token 仲裁完成结果，不把 loader 线程池放进 Core。
+
+原批准范围、修订与历史判断见[原稿 030](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-030-resource-provider-and-request-token-boundary.md.txt)。

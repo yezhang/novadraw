@@ -1,137 +1,62 @@
-# 架构决策记录 (ADR)
+# 长期架构决策
 
 类型：`documentation-index`
 
-## 什么是 ADR
+本目录保留 10 项对长期边界有实质影响的选择。
+ADR 解释为什么采用某种所有权、依赖、身份或发布模型，以及拒绝的替代和代价；
+完整协议、算法、参数、组件组合与平台适配由 [design](../design/00-index.md)负责，
+执行状态由 [roadmap](../roadmap/00-index.md)负责。
 
-ADR 记录影响长期边界的选择：问题、采用的方案、替代方案为何不采用及承担的代价。
-公开 API、算法、参数公式和组件组合由 design 正文负责；实现状态由 roadmap 负责。
-分类规则见[知识维护](../knowledge-maintenance.md#adr-与具体设计分开维护)，
-逐篇判断和原稿见[分类记录](../archive/adr-classification-2026-11-03.md)。
+## 现行决策
 
-## ADR 列表
-
-2026-09-10 已完成 001-013 的设计审计。Draw2D Core 当前修订裁决：
-[ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md)。
-Draw2D Core 1.0 之后的 Editor 框架边界由
-[ADR-015](adr-015-editor-framework-boundary.md) 接受；
-[审计与逐项处置](../verification/reviews/adr-audit-2026-09-10.md)；
-[历史快照入口](../archive/adr-audit-2026-09-10/README.md)。
-001-012 保留合理主线并同步修订正文；新契约不等于代码已实现。
-
-| 编号 | 标题 | 状态 | 日期 |
-|------|------|------|------|
-| [001](adr-001-webgpu-rust-stack.md) | 使用 Rust + WebGPU 实现图形框架 | 已通过 | 2025-01-13 |
-| [002](adr-002-notification-effect-queue.md) | 采用 Draw2D 语义分层与 Zed 式 effect queue 的通知机制 | 已通过 | 2026-05-06 |
-| [003](adr-003-rust-runtime-and-geometry-boundaries.md) | Rust Runtime 所有权与二维几何边界 | 已通过 | 2026-08-30 |
-| [004](adr-004-layer-and-freeform-contract.md) | Layer 与 Freeform 范围契约 | 已通过 | 2026-09-04 |
-| [005](adr-005-connection-routing-contract.md) | Connection 路由与依赖状态边界 | 已通过 | 2026-09-06 |
-| [006](adr-006-reusable-shape-border-contract.md) | Reusable Shape 与 Border 产品化边界 | 已通过 | 2026-09-07 |
-| [007](adr-007-parley-text-layout.md) | 可替换文本布局与后端无关 Glyph IR | 已通过 | 2026-09-07 |
-| [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 已通过 | 2026-09-08 |
-| [009](adr-009-runtime-dynamic-mutation-contract.md) | Runtime 动态 Mutation 事务 | 已通过 | 2026-09-08 |
-| [010](adr-010-runtime-listener-lifecycle.md) | Runtime Listener 生命周期 | 已通过 | 2026-09-08 |
-| [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 已通过 | 2026-09-09 |
-| [012](adr-012-resource-causality-and-backend-session.md) | 资源因果日志与 Backend Session | 已通过 | 2026-09-09 |
-| [013](adr-013-figure-lifecycle-and-runtime-identity.md) | Figure 生命周期与 Runtime 身份域 | 已被 014 替换 | 2026-09-09 |
-| [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 扩展协议、生命周期与稳定发布边界修订 | 已接受，已验证 | 2026-09-10 |
-| [015](adr-015-editor-framework-boundary.md) | 独立 Editor 框架边界 | 已接受 | 2026-09-13 |
-| [016](adr-016-figure-inspector-observability.md) | FigureInspector 可观测性边界 | 已接受 | 2026-09-22 |
-| [017](adr-017-core-public-api-boundary.md) | Core 公开 API 边界与失败契约 | 已接受 | 2026-09-24 |
-| [018](adr-018-runtime-driving-and-measurement-api.md) | Runtime 驱动与结构化测量 API | 已接受 | 2026-09-24 |
-| [019](adr-019-composable-api-and-scoped-editors.md) | 可组装 API 与 Scoped Editor | 已接受，已验证 | 2026-09-28 |
-| [020](adr-020-engine-value-and-render-contract.md) | 引擎基础值与公开渲染契约 | 已接受，已验证 | 2026-09-28 |
-| [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 已由 023/031/035 承接，原位置保留指引 | 2026-09-28 |
-| [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 部分由 023 替代 | 2026-09-29 |
-| [023](adr-023-crate-consolidation-and-extension-boundaries.md) | Crate 收口与扩展边界 | 已接受，已验证 | 2026-09-29 |
-| [024](adr-024-graphics-paint-stroke-and-clipping.md) | Graphics Paint、Stroke 与路径裁剪 | 已接受 | 2026-10-02 |
-| [025](adr-025-unified-graphics-and-glyph-preparation.md) | 统一 Graphics API 与 Glyph 预处理边界 | 已接受，已实现 | 2026-10-05 |
-| [026](adr-026-animation-and-presentation-plane.md) | 动画正交模型与 Presentation Plane | 已接受，实施中 | 2026-10-06 |
-| [027](adr-027-open-figure-capability-registry.md) | 开放的 Figure Capability Registry | 已接受，已验证 | 2026-10-08 |
-| [028](adr-028-typed-property-identity.md) | 类型化属性身份与异构通知日志 | 已接受，已验证 | 2026-10-08 |
-| [029](adr-029-structured-render-backend-failure.md) | 结构化 RenderBackend 失败与恢复确认 | 已接受，已验证 | 2026-10-08 |
-| [030](adr-030-resource-provider-and-request-token-boundary.md) | ResourceProvider 与资源请求 Token 边界 | 已接受，已验证 | 2026-10-09 |
-| [031](adr-031-graphics-recording-and-publication-boundary.md) | Graphics 录制与帧出版边界 | 已接受，已验证 | 2026-10-09 |
-| [032](adr-032-viewer-edit-session-and-drive-boundary.md) | Viewer 编辑会话与宿主驱动边界 | 已接受，已验证 | 2026-10-09 |
-| [033](adr-033-runtime-subsystem-facade.md) | Runtime 子系统 Facade 与统一 Figure Mutation | 已接受，已验证 | 2026-10-12 |
-| [034](adr-034-editor-tool-request-handle-protocol.md) | Editor Tool / Request / Handle 统一开放协议 | 已接受，已验证 | 2026-10-12 |
-| [035](adr-035-explicit-domain-imports-and-root-boundary.md) | 显式领域导入与 Crate Root 收口 | 已接受，已验证 | 2026-10-09 |
-| [036](adr-036-context-phase-authority-projection.md) | Context 阶段权限投影与 Query 命名 | 已接受，已验证 | 2026-10-13 |
-| [037](adr-037-editor-incremental-failure-isolation.md) | Editor 增量投影失败隔离 | 已接受，按矩阵修订 2 验证 | 2026-10-15 |
-| [038](adr-038-query-identity-and-failure-semantics.md) | 查询身份、合法缺失与失败传播 | 已接受，修订 1 | 2026-10-16 |
-| [040](adr-040-group-route-solving.md) | 连接组的统一路由求解 | 已接受，已实现并验证 | 2026-10-21 |
-| [042](adr-042-structured-flow-layout.md) | 结构化文字流与内嵌 Figure | 已接受，实施中 | 2026-10-21 |
-| [043](adr-043-directed-compound-graph-layout.md) | 有向图布局的独立模型、开放求解器与 Figure 投影 | 已接受，修订 1，实施中 | 2026-10-22 |
-| [044](adr-044-shared-scene-capture-and-view.md) | 共享场景捕获、资源闭包与只读视图 | 已接受 | 2026-10-23 |
-| [045](adr-045-host-background-submission.md) | 宿主背景统一帧提交 | 已接受 | 2026-10-23 |
-| [046](adr-046-sampled-geometry-and-animation-reservations.md) | 表现几何与动画容量预留 | 已接受 | 2026-10-24 |
-| [047](adr-047-per-operation-antialias.md) | 逐操作抗锯齿与受预算约束的覆盖准备 | 已接受 | 2026-10-26 |
-| [051](adr-051-exact-flow-layout-reuse.md) | 精确文字流布局复用 | 已接受 | 2026-10-27 |
-| [055](adr-055-container-editing-protocol.md) | 容器编辑与父坐标协议 | 已接受，修订 2 | 2026-10-29 |
-| [056](adr-056-detached-input-invariants.md) | Detached 输入不变量 | 已接受 | 2026-10-29 |
-| [057](adr-057-service-failure-and-inspector-lifecycle.md) | 服务失败与 Inspector 订阅生命周期 | 已接受，修订 3 | 2026-10-30 |
-| [058](adr-058-open-editor-snapping.md) | Editor 开放吸附协议 | 已接受，修订 2 | 2026-11-02 |
-| [059](adr-059-staged-text-width-reuse.md) | 可选分阶段文字引擎与宽度复用 | 已接受，修订 2 | 2026-11-02 |
-
-## 已迁入设计的原编号
-
-这些正文是具体协议或策略，保留原批准效力；编号不重排、不复用。
-混合文档的决策仍在上表，具体行为由其关联设计负责。
-
-| 原编号 | 当前正文 |
+| 编号 | 长期边界 |
 |---|---|
-| 039 | [owner 标签定位](../design/architecture/connection-owner-locator.md) |
-| 041 | [ScrollBar 与 Figure 活动](../design/architecture/scrollbar-and-figure-activity.md) |
-| 048 | [继承布局方向](../design/architecture/inherited-layout-direction.md) |
-| 049 | [低 miter 与 Cocoa profile](../design/rendering/low-miter-and-cocoa-sample-profile.md) |
-| 050 | [字体下划线](../design/rendering/prepared-text-underlines.md) |
-| 052 | [逐角与分边描边](../design/architecture/independent-corners-and-edge-borders.md) |
-| 053 | [Vello Scene 目标](../design/rendering/embedded-vello-scene-target.md) |
-| 054 | [模板与框选](../design/editor/template-creation-and-marquee.md) |
+| [001](adr-001-webgpu-rust-stack.md) | Rust 与 WebGPU 技术栈 |
+| [003](adr-003-rust-runtime-and-geometry-boundaries.md) | Runtime 所有权与二维坐标边界 |
+| [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 分层原子性、生命周期与稳定发布 |
+| [015](adr-015-editor-framework-boundary.md) | Core、Editor 与应用模型边界 |
+| [023](adr-023-crate-consolidation-and-extension-boundaries.md) | 发布包、公共路径与第三方依赖边界 |
+| [025](adr-025-unified-graphics-and-glyph-preparation.md) | 图文协议、独立录制与后端预处理边界 |
+| [026](adr-026-animation-and-presentation-plane.md) | 源状态与动画表现分离 |
+| [027](adr-027-open-figure-capability-registry.md) | 类型化身份与统一开放扩展模型 |
+| [038](adr-038-query-identity-and-failure-semantics.md) | 身份、合法缺失与领域失败分离 |
+| [044](adr-044-shared-scene-capture-and-view.md) | 可变场景所有权与不可变跨 Runtime 捕获 |
 
-## 现行与历史隔离
+这些正文归并已有批准，未重新授予实现授权。52 篇原稿、迁出编号和专题去向见
+[归并记录](../archive/adr-consolidation-2026-11-03.md)；此前迁出的 8 篇见
+[前次分类](../archive/adr-classification-2026-11-03.md)。
+编号不重排、不复用，不为迁出方案保留空壳。
 
-本目录正文只包含现行决策或替代指引。失效全文移至 `doc/archive/`，不在当前正文
-保留“历史候选仍可选”的叙述。追溯旧方案时显式进入归档，不默认检索归档。
-“已通过”表示设计效力；实现与验收状态只以 roadmap/verification 为准。
-表中既有“已验证/实施中”是决策接受时的记录，当前增量状态从
-[P2 backlog](../roadmap/p2-delta-backlog.md)查阅，不在本索引重复更新。
+## 新决策门槛
+
+普通方案先进入 design，可以独立接受；评审通过不要求补 ADR。
+新增或修改 API、能力、性能策略和篇幅本身均不构成 ADR 理由。
+只有无法由既有长期边界表达、确实改变权威／依赖／身份／发布模型的选择，
+才单列 ADR。具体规则见[知识维护](../knowledge-maintenance.md#adr-与具体设计分开维护)。
 
 ## ADR 模板
 
 ```markdown
-# ADR-XXX: [标题]
+# ADR-XXX：[长期边界选择]
 
 类型：`architecture-decision`
 
-能力归属：[Core／Editor／其他 owner，跨层逐项区分]
+能力归属：[Core／Editor／backend／platform／应用，跨层逐项区分]
+状态：[提议／已接受／已替代；日期与修订]
 
-## 状态
+## 问题
 
-[提议／已接受／已替换，日期与修订；不在此维护实施流水]
-
-## 背景
-
-[描述问题和上下文]
+[需要作出的长期选择，不罗列实施缺口]
 
 ## 决策
 
-[描述选择的方案]
+[权威、所有权、依赖、身份或发布边界]
 
 ## 替代与代价
 
-[替代方案为何不采用，接受什么成本和限制]
+[替代为何不采用，承担什么成本和限制]
 
 ## 关联设计
 
-[完整输入输出、状态、算法、失败、扩展及成本的 design 正文链接]
-
-[外部消费者与验证入口；接受不等于实现完成]
+[完整协议与验证入口；接受不等于实现完成]
 ```
-
-## 创建新的 ADR
-
-1. 先确认是架构选择；具体方案直接进入对应 design 专题。
-2. 在 `doc/adr/` 创建决策，命名格式：`adr-XXX-标题.md`，不复用迁出编号。
-3. 使用模板，引用具体设计，避免复制协议。
-4. 更新本索引及所属设计入口。

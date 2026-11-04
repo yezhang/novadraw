@@ -21,7 +21,7 @@ delta 映射、inline 依赖和完整成本口径。设计响应不代表意见�
 
 本提案细化[长文本方案修订 2](long-text-performance-proposal.md)的后续方向，
 不替代其整体等待、预算准入和精确／渐进模式合同。
-已接受的行为以 ADR-042、ADR-051、[ADR-059](../../adr/adr-059-staged-text-width-reuse.md)
+已接受的行为以 ADR-042、ADR-051、[可选阶段文字协议](staged-text-width-reuse.md)
 和[文字布局规范](text-layout.md)为准；本页的局部编辑及检查点候选未获准实施。
 修订 3 从需求、第四轮测量与外部源码推导，未重新扫描 Novadraw Rust 实现；
 修订 4 定向读取当前默认适配与 Parley 0.7.0，运行隔离宽度复用实验。
@@ -243,7 +243,7 @@ Parley 0.7.0 的 `Layout` 持有 `LayoutData`，两者使用派生 Clone；
 
 这一结果支持先接入受预算约束的 clone 候选，再按完整分母评估更深共享。
 首片的具体输入、API、typed registry、lease 与失败预算由
-[已接受的 ADR-059 修订 2](../../adr/adr-059-staged-text-width-reuse.md)负责。
+[已接受的 可选阶段文字协议 修订 2](staged-text-width-reuse.md)负责。
 首片只从完整分析请求中去掉宽度，其他字段仍保留；
 颜色、alignment、wrap、方向及 inline 度量进一步分离继续作为后续候选。
 本轮确认 Parley 0.7.0 不公开完整私有数组容量，

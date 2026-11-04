@@ -12,7 +12,7 @@
 范围：官方示例计划 K07；参考契约为 Draw2D，不扫描 Novadraw Rust 实现推导目标架构。
 本文件提出两个独立决策：共享场景捕获与视图、宿主背景统一合成。两者复用不可变资源
 闭包，分别验收，已由 [ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)和
-[ADR-045](../../adr/adr-045-host-background-submission.md)接受。
+[原编号 045 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-045-host-background-submission.md.txt)接受。
 与现行 ADR 的增量关系见
 [与现行提交协议的关系](#与现行提交协议的关系)。
 
@@ -67,7 +67,7 @@ source Runtime 独占 Figure 树和 attached-state mutation authority。overview
 
 ## 与现行提交协议的关系
 
-[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md) 第 3、4 节
+[录制与帧出版](../rendering/graphics-recording-and-publication.md) 第 3、4 节
 目前将 `runtime.frames().prepare_submission(...)` 定义为唯一公开帧准备出口，
 禁止 Runtime 返回未提交的内部命令容器。本修订明确提出一个受限例外：
 独立 scene capture 只输出通过校验的 `SceneSnapshot`，不返回内部 recorder、
@@ -334,7 +334,7 @@ derived output 准入失败丢弃整个候选输出、保留 dirty work，不回
 Host 的背景提供者输出候选 `HostBackgroundSnapshot`，包含背景 identity/generation、
 request generation、revision、宿主覆盖区域、宿主到 Canvas 的变换与不可变资源闭包。
 provider 在 Host 运行，Core 接收受检完成结果，不持有平台 I/O 或轮询 future；
-遵循 [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md)的边界。
+遵循 [资源加载与请求 Token](resource-loading-and-request-tokens.md)的边界。
 背景适配能力使用 typed key + payload trait + registry；默认与外部实现使用同一
 候选完成入口、资源闭包和错误通道。
 
@@ -400,3 +400,9 @@ backend 完整消费与 InheritBackground 验收。Thumbnail 通过不能替代�
 每个决策实施前分别补 ADR、API 账本、外部消费者、书籍与验证入口。
 执行队列仍只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护，
 本页不建立第二份执行状态表。两个决策均已实施；各平台支持范围以切片证据为准。
+
+## 选择依据（原编号 045）
+
+宿主背景与 canvas 按顺序冻结到同一 submission；Host 不维护第二条图形管线。背景配置和捕获安装仍各有明确 owner。
+
+原批准范围、修订与历史判断见[原稿 045](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-045-host-background-submission.md.txt)。

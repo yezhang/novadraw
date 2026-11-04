@@ -10,7 +10,7 @@
 
 规范候选：
 
-- [ADR-026](../../adr/adr-026-animation-and-presentation-plane.md)
+- [ADR-026](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-026-animation-and-presentation-plane.md.txt)
 - [Animation / Presentation Plane](../../design/animation/animation-system.md)
 - [Animation 公开 API 合同](../../design/animation/public-api-contract.md)
 - [Animation 领域能力集成矩阵](../../design/animation/capability-integration.md)

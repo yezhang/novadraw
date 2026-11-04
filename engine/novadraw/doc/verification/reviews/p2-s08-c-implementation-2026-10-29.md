@@ -3,7 +3,7 @@
 类型：`implementation-verification`
 
 状态：已完成；2026-10-29。准入、几何入口、消费者迁移与回归门禁已通过。
-整批渲染与成本关闭归 S08-D。决策见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)，
+整批渲染与成本关闭归 S08-D。决策见 [ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)，
 用例归属见[验证矩阵](../plans/p2-s08-detached-input-invariants.md)。
 
 ## 已实现的边界

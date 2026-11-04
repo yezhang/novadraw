@@ -23,7 +23,7 @@ Viewport 协作。
 
 机制分析（解释现行契约，不替代规范）：
 
-- [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
+- [容器编辑：容器编辑与父坐标协议](container-editing-protocol.md)：
   公开容器移动、父域创建/drop、统一资格、XY/Ordered 消费和受检事务；
   [实施验证](../../verification/reviews/adr-055-implementation-2026-10-29.md)列出平台剩余范围。
 - [类型化模板创建与框选](template-creation-and-marquee.md)：
@@ -50,7 +50,7 @@ Editor／GEF 框架能力补充（分批评审与实施）：
 
 - [开放吸附校验成本整改提案](snapping-validation-cost-proposal.md)：E04 正式采样后的
   私有流式校验、容量复用与减少完整扫描的证明条件；待评审，不授权 Core 改动。
-- [ADR-058：Editor 开放吸附协议](../../adr/adr-058-open-editor-snapping.md)：
+- [Editor 开放吸附：Editor 开放吸附协议](open-snapping.md)：
   修订 2 已接受，E04-A 实施中；[专题](open-snapping.md)定义 typed 策略、受检特征、
   自由度与反馈／提交，退出条件见[矩阵](../../verification/plans/editor-open-snapping.md)。
   [依赖与评审结论](../../verification/reviews/open-snapping-review-status.md)
@@ -59,13 +59,13 @@ Editor／GEF 框架能力补充（分批评审与实施）：
   逐轮回应退出当前阅读路径，原稿从专题状态的归档入口追溯。
 - [Editor／GEF 框架能力补充方案](core-capability-increment.md)：容器、吸附、键盘、
   多视图和可选编辑策略的分批范围。
-- [ADR-055：容器编辑与父坐标协议](../../adr/adr-055-container-editing-protocol.md)：
+- [容器编辑：容器编辑与父坐标协议](container-editing-protocol.md)：
   首批开放计划、父域映射、换父事务与身份恢复；
   [验证矩阵](../../verification/plans/editor-container-editing.md)。
 
 已接受的失败隔离契约：
 
-- [ADR-037：增量视图失败隔离与 Overlay 批量校验](../../adr/adr-037-editor-incremental-failure-isolation.md)；
+- [Editor 增量失败隔离：增量视图失败隔离与 Overlay 批量校验](incremental-failure-isolation.md)；
 - [P2-S06 验证矩阵](../../verification/plans/p2-s06-incremental-failure-isolation.md)。
 
 相关入口：

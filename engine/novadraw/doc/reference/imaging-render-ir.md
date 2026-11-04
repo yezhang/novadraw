@@ -115,7 +115,7 @@ Novadraw 已有自己的进程内绘图中间表示。`RenderCommand` /
 [录制与资源保留](../../crates/novadraw/src/render/recorder.rs)、
 [帧提交](../../crates/novadraw/src/render/submission.rs)、
 [后端接口](../../crates/novadraw/src/render/traits.rs)。
-当前规范见 [ADR-031](../adr/adr-031-graphics-recording-and-publication-boundary.md)。
+当前规范见 [录制与帧出版](../design/rendering/graphics-recording-and-publication.md)。
 
 当前接入顺序如下。两份 IR 在不同边界各司其职，转换由平台 adapter 承担：
 

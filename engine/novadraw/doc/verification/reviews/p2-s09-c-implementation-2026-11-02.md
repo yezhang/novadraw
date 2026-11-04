@@ -4,7 +4,7 @@
 
 能力归属：Core Connections。Editor、示例和基准仅迁移调用方。
 状态：实现、消费者、workspace 与 API 门禁完成；2026-11-02。
-目标合同见 [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，
+目标合同见 [ADR-057 修订 3](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)，
 执行队列见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
 ## 问题与改动

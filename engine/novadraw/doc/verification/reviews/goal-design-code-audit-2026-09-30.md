@@ -152,7 +152,7 @@ FAIL；优先覆盖输入符号、DPI、surface 恢复、文本输入与 accessi
 
 优先级：高。证据：独立编译确认。
 
-[ADR-021](../../adr/adr-021-public-facade-and-feature-boundary.md) 的 facade 分层由
+[ADR-021](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) 的 facade 分层由
 ADR-023 保留；[Core README](../../../crates/novadraw/README.md#L36-L40) 也声明低层类型
 不可从根层导入。但 [lib.rs](../../../crates/novadraw/src/lib.rs#L93-L142) 仍导出
 FigureNode、NodeState、UpdateManager、EventDispatcher、PendingMutations、

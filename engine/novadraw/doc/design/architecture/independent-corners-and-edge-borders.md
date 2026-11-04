@@ -41,7 +41,7 @@ GPU 验证确认：单独 AA 填充各分区会使半透明交界变淡。混合
 影响。子节点 clipping 策略不随圆角自动改变。已有 uniform 圆角路径保留兼容。
 `RectangleBorder` 使用私有受检配置与 Result 构造，builder 返回
 `RectangleShapeBorder`；insets 与画出的边分别配置。构造边界由
-[ADR-056](../../adr/adr-056-detached-input-invariants.md)及
+[Detached 输入不变量](detached-input-invariants.md)及
 [输入不变量](detached-input-invariants.md)负责。
 
 ## 更新与扩展

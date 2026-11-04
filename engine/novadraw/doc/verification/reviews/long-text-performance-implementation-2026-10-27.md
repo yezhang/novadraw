@@ -6,7 +6,7 @@
 
 本记录只覆盖用户批准的 LT-00～LT-03。
 设计依据为[修订 2 复核](long-text-performance-revision-2-review-2026-10-27.md)，
-契约增量为 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)。
+契约增量为 [ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)。
 原始分析与两轮评审保持不变。
 
 ## 原始样例的 CPU 对比

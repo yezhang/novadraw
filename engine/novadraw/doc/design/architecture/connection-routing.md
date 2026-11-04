@@ -5,8 +5,8 @@
 状态：`approved`
 
 本文定义 M9 的规范架构，由
-[`ADR-005`](../../adr/adr-005-connection-routing-contract.md) 接受，并由
-[`ADR-008`](../../adr/adr-008-m9-contract-recovery.md) 细化 shared Manhattan scope
+[`ADR-005`](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-005-connection-routing-contract.md.txt) 接受，并由
+[`ADR-008`](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-008-m9-contract-recovery.md.txt) 细化 shared Manhattan scope
 与 Core 1.0 viewport topology。各分批只有在实现与验证完成后才视为已交付。
 
 ## 1. 目标与边界
@@ -24,7 +24,7 @@ M9 不提供 GEF EditPart、EditPolicy、Tool、Request、Command、selection、
 `ShortestPathConnectionRouter` 分别由 P2-C01、P2-C02 在本契约上增量交付，不改变
 M9 已完成状态。
 
-[ADR-040](../../adr/adr-040-group-route-solving.md)补充完整组求解：
+[连接组求解](group-route-solving.md)补充完整组求解：
 Router 通过 `prepares_group_endpoints` 选择 Runtime 端点准备，
 `solve_group(RouteGroupInput)` 返回可选的 `RouteGroupOutput`；
 默认 None 沿既有逐条 route。完整输出必须按输入顺序对应同一 ConnectionId 与 metadata，
@@ -697,3 +697,15 @@ M9.1 不以截图为完成门禁。
 13. [owner 标签定位](connection-owner-locator.md)补充普通 child 的
     LocatorInput 与 ChildLocatorPlacement、owner 边界依赖和受检 bounds override；
     ConnectionEndpointLocator 承载官方 owner-side 语义，既有 EndpointLocator 保持切线偏移。
+
+## 选择依据（原编号 005）
+
+Anchor／Router 只读计算，Runtime 跟踪实际读取并原子发布整组结果。失败批次清空旧表现，保留恢复依赖，不发布部分路线。
+
+原批准范围、修订与历史判断见[原稿 005](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-005-connection-routing-contract.md.txt)。
+
+## 选择依据（原编号 008）
+
+Manhattan 共享范围由 RouterId 与 routing domain 确定，Fan 再区分无向 AnchorGroupKey 对。reservation 按完整连接组重建；视口链严格匹配，ownerless 连接不承诺视口可见性。
+
+原批准范围、修订与历史判断见[原稿 008](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-008-m9-contract-recovery.md.txt)。

@@ -6,7 +6,7 @@
 
 状态：`complete`，按用户接受的验证矩阵修订 2 关闭 R06/TC-08。
 
-目标契约：[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
+目标契约：[ADR-037](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)。
 关闭依据：[验证矩阵修订 2](../plans/p2-s06-incremental-failure-isolation.md)，
 用户已接受[组合证据与 Native 宿主验收范围](p2-s06-remaining-evidence-review-2026-10-15.md)。
 过程证据及失败日志索引见[实施证据](p2-s06-implementation-evidence-2026-10-15.md)。

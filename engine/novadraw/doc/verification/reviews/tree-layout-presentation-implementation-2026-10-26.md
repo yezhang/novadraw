@@ -7,7 +7,7 @@
 状态：T-1 至 T-4 退出验证通过；窗口 surface present 独立保留未通过。
 
 对象：[修订 3](../../design/animation/tree-layout-presentation-proposal.md)与
-[ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)。
+[ADR-046](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-046-sampled-geometry-and-animation-reservations.md.txt)。
 本文记录实现证据，不改写前三轮设计评审的原始判断。
 
 ## 实现边界

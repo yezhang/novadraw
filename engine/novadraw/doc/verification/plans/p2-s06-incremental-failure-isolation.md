@@ -9,7 +9,7 @@
 修订：2，2026-10-15 用户接受组合证据及 Native GPU 队列宿主关闭范围。
 修订 1 的行为契约不变；修订 2 只调整下述证据方式和平台验收范围。
 
-目标契约：[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
+目标契约：[Editor 增量失败隔离](../../design/editor/incremental-failure-isolation.md)。
 本页是已接受的实施矩阵；执行结果须以独立证据记录为准。
 基线缺口见[机制必要性复核](../reviews/p2-s06-mechanism-necessity-2026-10-14.md)。
 

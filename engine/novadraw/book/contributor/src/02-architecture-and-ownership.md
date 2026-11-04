@@ -20,8 +20,8 @@ Core 不反向依赖它们。应用在 composition root 组装所需 crate。
 
 修改公开边界前先核验：
 
-- [`ADR-021：公开 Facade 与 Feature 边界`](../../../doc/adr/adr-021-public-facade-and-feature-boundary.md)
-- [`ADR-022：第三方类型与渲染依赖边界`](../../../doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md)
+- [`已替代 Facade 记录：公开 Facade 与 Feature 边界`](../../../doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt)
+- [`第三方类型与依赖规范：第三方类型与渲染依赖边界`](../../../doc/design/architecture/third-party-dependency-boundaries.md)
 - [`ADR-023：Crate 收口与扩展边界`](../../../doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md)
 
 ## 2.2 权威状态只能有一个所有者

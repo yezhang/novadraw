@@ -39,7 +39,7 @@ surface/device 配置、提交和恢复。组合根衔接二者。Core 只接受
 ## 2. 唯一领域路径与对象角色
 
 Core root 只公开领域模块，不提供库级 prelude 或类型平铺重导出，见
-[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)。
+[原编号 035 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。
 
 | 规范路径示例 | 角色 |
 |---|---|
@@ -110,7 +110,7 @@ owner freeze causal prefix
 Query 是短生命周期只读借用；Snapshot 是可保存的 owned revision；Output 是待校验完整
 候选；Effects 是 callback 后按因果顺序提交的意图。Context 和 Query 不返回 Runtime、
 FigureTree、FigureNode 或同步 mutation closure。完整决策见
-[ADR-036](../../adr/adr-036-context-phase-authority-projection.md)。
+[阶段权限投影](context-phase-authority.md)。
 
 ## 4. 命名、单位与失败
 
@@ -136,7 +136,7 @@ Point 表示位置，Vec2 表示位移，Dimension 表示尺寸，Rectangle 表�
 | frame/backend | 保留 Idle/Suspended/AwaitingCompletion/Error 和完整确认/恢复分类 |
 | 扩展 panic | 进入 fault 边界；不声称回滚私有 interior mutation 或外部副作用 |
 
-[ADR-056](../../adr/adr-056-detached-input-invariants.md) 的样式边界使用
+[Detached 输入不变量](detached-input-invariants.md) 的样式边界使用
 `graphics::Opacity` 与 `text::FontDescriptor`，原始输入在构造时受检。
 `Graphics::set_opacity` 安装同一个 Opacity；动画通道也消费此值，旧
 `animation::Opacity` 路径退出。GraphicsInputError 保留非有限／越界原因，
@@ -146,7 +146,7 @@ Detached Figure 的原始 bounds、stroke、corner 和平移入口返回领域 R
 Bounded::set_bounds 也执行相同检查。BorderedFigure::replace_border 使用
 `figure::border::BorderCandidate`；它将共享 Border 和当次基础指标一起捕获，
 Runtime prepare 与 commit 消费同一候选。owner 指标、动态外部输出和挂载关系仍由
-各自的发布前检查负责，见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)。
+各自的发布前检查负责，见 [Detached 输入不变量](detached-input-invariants.md)。
 
 查询的目标合同以 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
 为准。P2-S07 的布局测量、五个坐标入口和 Route 身份切片已经迁移 Result；
@@ -202,4 +202,28 @@ owned 表示值具有自己的所有者和转交边界，不依赖外部借用�
 scoped facade 的有效范围受一次 Runtime 借用限制。它只持有受限权限，
 不能比 Runtime 活得更久，不能保存第二份树或更新队列；获取及 Drop 都不提交操作。
 借用结束后状态仍归 Runtime。具体组件提交顺序见
-[组件更新协议](component-update.md)，生命周期见 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)。
+[组件更新协议](component-update.md)，生命周期见 [原编号 019 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)。
+
+## 选择依据（原编号 017）
+
+Builder 拥有 pre-Runtime 树写权限，但不垄断 owned 值的独立构造。attached 状态统一受检提交，领域错误不能由公开验证伪入口掩盖；旧 concrete facade 不恢复。
+
+原批准范围、修订与历史判断见[原稿 017](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-017-core-public-api-boundary.md.txt)。
+
+## 选择依据（原编号 018）
+
+生产帧出口是 frames.prepare／complete，FigureTree 不驱动更新队列。测量使用结构化约束；preferred 返回尺寸及 baseline，minimum 返回 Dimension，不使用 -1 sentinel。坐标失败按查询专题解释。
+
+原批准范围、修订与历史判断见[原稿 018](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-018-runtime-driving-and-measurement-api.md.txt)。
+
+## 选择依据（原编号 019）
+
+detached、build、attached、query 和 drive 的权限分别定义。scoped facade 只是短借用，获取和 Drop 不提交；多个调用不自动组成可回滚事务。
+
+原批准范围、修订与历史判断见[原稿 019](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)。
+
+## 选择依据（原编号 035）
+
+Core root 只公开领域模块，不提供库级 prelude 或重复类型重导出。应用可以组织自己的 local prelude；API snapshot 必须反映真实公开路径。
+
+原批准范围、修订与历史判断见[原稿 035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。

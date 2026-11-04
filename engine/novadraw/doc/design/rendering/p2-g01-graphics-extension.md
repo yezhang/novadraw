@@ -5,7 +5,7 @@
 日期：2026-10-02
 
 规范效力：已接受，依据
-[ADR-024](../../adr/adr-024-graphics-paint-stroke-and-clipping.md)。
+[原编号 024 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-024-graphics-paint-stroke-and-clipping.md.txt)。
 规范效力不表示 API 已实现；交付状态唯一入口为
 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
@@ -32,7 +32,7 @@
 不增加 package、全局服务、任意 shader/plugin trait 或序列化 ABI。Runtime 继续拥有
 提交权威；本项不修改递归 traversal、Figure 树坐标协议或 child clipping strategy。
 
-逐操作抗锯齿由后续 [ADR-047](../../adr/adr-047-per-operation-antialias.md)定义：
+逐操作抗锯齿由后续 [逐操作抗锯齿](shape-antialias-proposal.md)定义：
 图形和文字分别记录 `AntialiasMode`，提示随状态栈恢复，在 draw payload 中冻结。
 OFF 使用二值几何覆盖，paint/clip alpha 保留原语义；不改变本契约的零宽度与 miter
 边界。后端实施和验收状态见 P2 backlog。
@@ -291,10 +291,16 @@ GPU 场景不提供对目标设备像素进行读改写的 XOR 契约。Differen
 
 ## 12. 关联规范
 
-- [ADR-020：基础值与 Render IR](../../adr/adr-020-engine-value-and-render-contract.md)
-- [ADR-021：公开分层](../../adr/adr-021-public-facade-and-feature-boundary.md)
-- [ADR-022：第三方类型边界](../../adr/adr-022-third-party-type-and-render-dependency-boundary.md)
+- [引擎基础值：基础值与 Render IR](../architecture/engine-value-contract.md)
+- [已替代 Facade 记录：公开分层](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt)
+- [第三方类型与依赖规范：第三方类型边界](../architecture/third-party-dependency-boundaries.md)
 - [Reusable Shape/Border](../architecture/reusable-shape-border.md)
 - [Connection routing](../architecture/connection-routing.md)
 - [图像源区域](image-source-rectangle.md)
 - [语义账本](../../parity/draw2d/api-coverage.md)
+
+## 选择依据（原编号 024）
+
+Paint／Stroke 使用受检值，能力在录制前检查；path clip 与调用时 transform 一起冻结。低 miter 的有限非负值可合法产生 Bevel，设备 XOR 反馈由 retained 绘制表达。
+
+原批准范围、修订与历史判断见[原稿 024](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-024-graphics-paint-stroke-and-clipping.md.txt)。

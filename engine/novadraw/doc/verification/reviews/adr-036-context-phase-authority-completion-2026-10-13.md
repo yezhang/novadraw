@@ -8,7 +8,7 @@
 
 ## 结论
 
-[ADR-036](../../adr/adr-036-context-phase-authority-projection.md) 已完成第一批迁移并通过
+[ADR-036](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-036-context-phase-authority-projection.md.txt) 已完成第一批迁移并通过
 全部门禁。Runtime 继续作为唯一 owner；扩展 callback 只取得阶段化 query、service 和
 effect/output 权限，不取得 Runtime、FigureTree、FigureNode 或同步 mutation closure。
 

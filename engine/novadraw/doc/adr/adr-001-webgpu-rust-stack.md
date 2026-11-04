@@ -1,46 +1,34 @@
-# ADR-001: 使用 Rust + WebGPU 实现图形框架
+# ADR-001：Rust 与 WebGPU 技术栈
 
 类型：`architecture-decision`
 
-## 状态
+能力归属：Core 技术栈；backend／platform 管理具体渲染与宿主实现。
 
-已通过
+状态：已接受，2025-01-13；2026-09-10 校准，文本选型以关联设计为准。
+本次压缩归并仅调整知识表达，不新增架构授权；实现状态以 roadmap／verification 为准。
 
-2026-09-10 校准：文本选型已由 ADR-007 替代。原选型完整保存在
-[历史快照](../archive/adr-audit-2026-09-10/original/doc/adr/adr-001-webgpu-rust-stack.md.txt)。
+## 问题
 
-## 背景
-
-项目目标是在 WebGPU 平台上实现一个高性能图形框架，参考 Eclipse Draw2D/GEF 的设计理念。需要选择合适的技术栈来实现跨平台渲染能力。
+跨 Native、Web 与 Headless 的图形框架需要一致的核心语言和可移植 GPU 路径，
+同时允许替换平台宿主与文字服务。
 
 ## 决策
 
-- **渲染后端**: 使用 vello (WebGPU)
-- **窗口/事件**: Native adapter 使用 winit；引擎接口不依赖 winit
-- **文本布局**: 使用 Parley 默认 adapter，边界遵循 ADR-007
-- **文本渲染**: 后端消费 Novadraw Glyph IR，默认由 Vello 绘制
-- **主要语言**: Rust
+采用 Rust；默认 GPU renderer 使用 Vello／WebGPU。Native 默认由 Winit adapter
+适配输入与窗口，Core 不依赖 Winit。Parley 是默认可替换文字 adapter；
+布局与字体轮廓不受默认 renderer 选型绑定。
 
-## 后果
+## 替代与代价
 
-### 正面
+Rust 所有权与 WebGPU 的跨平台后端适合统一 Core；以单个平台原生图形 API
+作为核心合同会把平台限制带入消费者。默认选型不意味着后端唯一或保证各浏览器能力。
+代价是 GPU／浏览器能力仍需分别验证，默认第三方库升级需要独立适配。
 
-- WebGPU 提供高性能 GPU 渲染能力
-- Rust 提供内存安全和并发安全
-- vello 支持 GPU 加速渲染
-- 便于后续扩展到其他平台（Metal, Vulkan, DirectX）
+## 关联设计
 
-### 负面
+[文字布局](../design/architecture/text-layout.md)、
+[图文整合](../design/rendering/text-graphics-integration.md)；
+包依赖边界见 [ADR-023](adr-023-crate-consolidation-and-extension-boundaries.md)。
 
-- WebGPU 目前浏览器支持有限
-- 平台能力与浏览器支持需分别验证，winit 不成为引擎公共 API
-
-## 参考
-
-- vello: <https://github.com/linebender/vello>
-- winit: <https://github.com/rust-windowing/winit>
-- [ADR-007](adr-007-parley-text-layout.md)
-
-## 日期
-
-2025-01-13
+原批准范围和修订依据见[原稿 001](../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-001-webgpu-rust-stack.md.txt)；
+其他原编号与当前入口见[归并记录](../archive/adr-consolidation-2026-11-03.md)。

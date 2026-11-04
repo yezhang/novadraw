@@ -1,0 +1,2482 @@
+{
+  ".claude/skills/analyzing-gef-code/SKILL.md": {
+    "bytes": 3749,
+    "sha256": "9c279ac6ee8de130c531ad4c5b5efdbfe88054bef62072495cbb0fa618223543"
+  },
+  ".claude/skills/analyzing-swt-code/SKILL.md": {
+    "bytes": 6456,
+    "sha256": "781605b3797b71f07e127e163b9dec703a34bf6d583e379f6746417d44dedc00"
+  },
+  ".claude/skills/analyzing-xilem-code/SKILL.md": {
+    "bytes": 2188,
+    "sha256": "76a8b0818cb8a34fb1c29e30940e60c301e0c43d1ab1df639e8ec9751b5b71cb"
+  },
+  ".claude/skills/capture-interruption/SKILL.md": {
+    "bytes": 1219,
+    "sha256": "283e53e2e3a930c39bb926e710e6cf44fbb5becf9df9984068d236710a085e4a"
+  },
+  ".claude/skills/code-review/SKILL.md": {
+    "bytes": 2027,
+    "sha256": "0dbb18add593b466f60327671b5d93edef2a0b063c0d0c98f640f31f30dac833"
+  },
+  ".claude/skills/discover-architecture-deltas/SKILL.md": {
+    "bytes": 5025,
+    "sha256": "acc9e04bb6d45cded5fc338b431f437d94791a90a311e199b4823a9dd06f9b3f"
+  },
+  ".claude/skills/execute-architecture-delta/SKILL.md": {
+    "bytes": 1237,
+    "sha256": "3529c3f5dd863b72d5e10e0a3003a98c927e06faa90b49b5d5e4e9d03456f355"
+  },
+  ".claude/skills/novadraw-impl/SKILL.md": {
+    "bytes": 3619,
+    "sha256": "2e54b1073bc2e1e42548d76fb7607fda0b2363e9586b2d196a2f2e892b84fff6"
+  },
+  ".claude/skills/resume-architecture-work/SKILL.md": {
+    "bytes": 1893,
+    "sha256": "d0925cf1d4b84663727c820506a13918dd93524d29e7355fff18443813645903"
+  },
+  ".claude/skills/review-delta-backlog/SKILL.md": {
+    "bytes": 2072,
+    "sha256": "d0b88d9e39d360d8e8b4edf0d79c983aae439c0fdc66abd34e9471e6aa515f81"
+  },
+  ".trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md": {
+    "bytes": 15573,
+    "sha256": "3d1a43e38293eaecc5284b34d628a58e9ab10ab296ce5b10806be510049691c2"
+  },
+  ".trae/deepwiki/Figure 场景图体系/内置图形组件库.md": {
+    "bytes": 11001,
+    "sha256": "332743aa8f39ddce34a4d6caccddd61a68b4bf0491c895303d3adaf16ec00126"
+  },
+  ".trae/deepwiki/Figure 场景图体系/坐标系统与盒子模型.md": {
+    "bytes": 13749,
+    "sha256": "ec1bb7fc883aa49b6cb48ad4200518edd0e6943851712397ebd10054977d5081"
+  },
+  ".trae/deepwiki/Figure 场景图体系.md": {
+    "bytes": 15934,
+    "sha256": "99d3a1c415174f557addf604fb5cfa79c6b23fb45646c643c607d92caaf502e3"
+  },
+  ".trae/deepwiki/Java 到 Rust 迁移指南.md": {
+    "bytes": 12047,
+    "sha256": "35ff69045f4de1ce8f5d2ba6d11122066e6323e85fac33ad0e6c8776575f3358"
+  },
+  ".trae/deepwiki/响应式设计与事件系统/事件分发系统.md": {
+    "bytes": 13509,
+    "sha256": "ec5e2086a355cea1b42603d94f140959f26e32412c884e2e01d7c01c0b718086"
+  },
+  ".trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md": {
+    "bytes": 13645,
+    "sha256": "2032673470e8e2e7ac037e8385a3435700b896d92b3085439f1347e2334ebea4"
+  },
+  ".trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md": {
+    "bytes": 14639,
+    "sha256": "409a9a718e830728eae9ef9006517590c0e272212c7f4f071735406da8712c2a"
+  },
+  ".trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md": {
+    "bytes": 15458,
+    "sha256": "e4369fcded79c83cdf58a3f3cf6987a25e37098e21997acb39810eed37c72d97"
+  },
+  ".trae/deepwiki/响应式设计与事件系统.md": {
+    "bytes": 13302,
+    "sha256": "d0c2484cda804d003ca97eb8a78b7e949e2864e8dc2d7ebf891399d2daa3fea8"
+  },
+  ".trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md": {
+    "bytes": 13080,
+    "sha256": "22384e0d8f38ce71888299ddd240f2e4746cfaeb60c0f71d3aa35bfee0a89493"
+  },
+  ".trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md": {
+    "bytes": 9095,
+    "sha256": "3544505fb725a14b8c6afa2e93fe9c9a348047ba58e3858c2093844cc0507f51"
+  },
+  ".trae/deepwiki/布局引擎与边框系统/常用布局器实现.md": {
+    "bytes": 18171,
+    "sha256": "9e6a25b226ef8bda92343b11e290ecdfa5a7e18203155a9d78f1b1ed8e43a84c"
+  },
+  ".trae/deepwiki/布局引擎与边框系统/边框装饰系统.md": {
+    "bytes": 9284,
+    "sha256": "be595e69999ef385703553fc4828896cf45a96ff3cc95b6b8c799b3e4906a501"
+  },
+  ".trae/deepwiki/布局引擎与边框系统.md": {
+    "bytes": 12668,
+    "sha256": "ac371931737f0e7675175b6c6fb9d30778491083ec57791c067e36c0400c8985"
+  },
+  ".trae/deepwiki/快速上手指南/环境配置与依赖安装.md": {
+    "bytes": 12417,
+    "sha256": "3ebd8bc5f8c9a51ea87ca9320ac2bcda43b8a051d7b9904793ded03428ae6496"
+  },
+  ".trae/deepwiki/快速上手指南/编写首个 Figure 应用.md": {
+    "bytes": 21023,
+    "sha256": "5bfc9f3353c3d51035e4c5411aa8ed692f525c5b84c51bc50cecb184879de273"
+  },
+  ".trae/deepwiki/快速上手指南/运行演示程序.md": {
+    "bytes": 17162,
+    "sha256": "240d7f4f74adec3f6f1dcc318c66c70c2c8773a6d3595f10dae715828f6fe43e"
+  },
+  ".trae/deepwiki/快速上手指南.md": {
+    "bytes": 11722,
+    "sha256": "bb563b0c439441b67bef351a7fd3154c6e0a5002bf7efdfe6335905c6e503f1b"
+  },
+  ".trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md": {
+    "bytes": 10355,
+    "sha256": "dd30e4233574ae4efcdae37aa3a612441a5b832d8e936484596ccb2cef0fb838"
+  },
+  ".trae/deepwiki/架构决策与开发流程/架构决策记录.md": {
+    "bytes": 14642,
+    "sha256": "248d31c2e749c3b1ee57d5dda3d102ce257dbb4784fdb36a32ea1ce087dd604b"
+  },
+  ".trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md": {
+    "bytes": 15010,
+    "sha256": "cb00759cbb83da4f95fc1d21044bbd1c5fb1aaabd842f001853195575c6bebcb"
+  },
+  ".trae/deepwiki/架构决策与开发流程.md": {
+    "bytes": 12636,
+    "sha256": "d66da2a4b898f1c6e84343f9876e7ee77d46303f337720b7efae8939ae2ab91b"
+  },
+  ".trae/deepwiki/核心几何与数学基础/几何基元与变换.md": {
+    "bytes": 10052,
+    "sha256": "7591aac26694718408b00d932e5593afbd06bb248abe8d160a41441f2ba845fb"
+  },
+  ".trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md": {
+    "bytes": 11624,
+    "sha256": "45a70e5ae319b1e574a7fea7bea736eeb2502ac2947b09a15d9e73aa7754e482"
+  },
+  ".trae/deepwiki/核心几何与数学基础/数学运算工具.md": {
+    "bytes": 11911,
+    "sha256": "f6f2039720130c3d14587dc84b6a71cb43c036278623e1db8a04190f11246652"
+  },
+  ".trae/deepwiki/核心几何与数学基础.md": {
+    "bytes": 14525,
+    "sha256": "3ad9918170196b2970a1c8f4cbc5212eb7da5b283998a3c700f9fafe642f5778"
+  },
+  ".trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md": {
+    "bytes": 13729,
+    "sha256": "04a86b655185ba3cc6a6fb22806a91a63cb7a25b480ff79baa3d05ad7f2f8900"
+  },
+  ".trae/deepwiki/渲染管线与损伤修复/更新管理器：UpdateManager 的设计与流水线.md": {
+    "bytes": 19376,
+    "sha256": "a1b1b1cd8cc12e3b04bb4cc69b9777fa57c3b03f2cb638aaf09ca5aa8d7cab34"
+  },
+  ".trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md": {
+    "bytes": 10097,
+    "sha256": "31421bc9f8e92d90e34a5bb7ad74439296940fe5d4f1fab6f527772eac3e093a"
+  },
+  ".trae/deepwiki/渲染管线与损伤修复/渲染命令与上下文：RenderContext 与 DisplayList.md": {
+    "bytes": 12515,
+    "sha256": "de19ffaec60adfe21883846b150723beee7a5443878039df1ff0066a21c9db39"
+  },
+  ".trae/deepwiki/渲染管线与损伤修复.md": {
+    "bytes": 10643,
+    "sha256": "38731b1c69cf927373ada8eee69ee244fc4d59364505ec51348642e61d153c27"
+  },
+  ".trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md": {
+    "bytes": 14878,
+    "sha256": "b559d414c91ea0d252599a11d4ba3a3b53ac6531a73b092cc35178a723b40741"
+  },
+  ".trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md": {
+    "bytes": 9956,
+    "sha256": "0d0f2b5c161f91243113b9c56ca10a15a557afffdaaffd8bef0f086d13b8043c"
+  },
+  ".trae/deepwiki/演示应用案例分析/应用开发框架与工具集.md": {
+    "bytes": 9399,
+    "sha256": "86e325f59e87fea6c54c89d790f369b80e23ef7232bdbdb0cc6440085f2647e3"
+  },
+  ".trae/deepwiki/演示应用案例分析.md": {
+    "bytes": 12168,
+    "sha256": "59feba3782e3c0657ac0e000dc6be259e38ed385b210371d37ac07e54f3ac262"
+  },
+  ".trae/deepwiki/项目概览与设计哲学/核心设计公理.md": {
+    "bytes": 11760,
+    "sha256": "fb190dcac67c7a13ed714ab9ae454524cccaf9d2df2924f47499b24121fa81d8"
+  },
+  ".trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md": {
+    "bytes": 2899,
+    "sha256": "d2d55fb28aeca4aa50e072f59112c0aabc9214fef6d68f4213960b100cd69c7c"
+  },
+  ".trae/deepwiki/项目概览与设计哲学/项目愿景与起源.md": {
+    "bytes": 18710,
+    "sha256": "4af7c31c7d99c3f82e5de936b7f191667175d59ffd29c82888844164256d3cae"
+  },
+  ".trae/deepwiki/项目概览与设计哲学.md": {
+    "bytes": 10540,
+    "sha256": "0ac0e97baa3864a9899dbfbfcd5357bf145530ddf2bc3584d78e5f13700c9f5e"
+  },
+  ".trae/documents/按特性提交计划.md": {
+    "bytes": 4656,
+    "sha256": "c67a592d19e9a02935369774160a5d0f3ebb75027d314bb797613e122e459709"
+  },
+  ".trae/environments/run.md": {
+    "bytes": 5447,
+    "sha256": "452f429d7c37a9ac972639c13e4be07d18055172cf52d925c0a457de752efbac"
+  },
+  ".trae/skills/haohao-shuohua/README.en.md": {
+    "bytes": 3715,
+    "sha256": "d7cad75810cf284dd7693cb320db2de3a99a0e18443dd6be9db6289e1da8b84d"
+  },
+  ".trae/skills/haohao-shuohua/README.md": {
+    "bytes": 40423,
+    "sha256": "244ad4aae87858f219a404f145a4f036e4b32df4ec647180122f1515a62053e5"
+  },
+  ".trae/skills/haohao-shuohua/SKILL.md": {
+    "bytes": 43157,
+    "sha256": "83dfef32cbc65ccd1eb6d7b677a1e8046e10f290c5405d2b2b0628d1836cb76a"
+  },
+  ".trae/skills/haohao-shuohua/references/before-after-worktext.md": {
+    "bytes": 8846,
+    "sha256": "0572ac8b69eb013b7a1426e6283f4e8d0eeea1845cd73d29f02f564df3b604f2"
+  },
+  ".trae/skills/haohao-shuohua/references/chinese-four-principles.md": {
+    "bytes": 7166,
+    "sha256": "efe4d74a538c3d2224b9e142dd06324bed5d7c77820b8467a3b9ce6c22ac26ba"
+  },
+  ".trae/skills/haohao-shuohua/references/protected-spans.md": {
+    "bytes": 4725,
+    "sha256": "0359f72bf9e74311102ec7e7281de2d820f4b5550cca6cc76f8172ece801cb49"
+  },
+  ".trae/skills/haohao-shuohua/references/quick-scan-regex.md": {
+    "bytes": 6368,
+    "sha256": "d7b567817fcdc3ea3d27f33d90d97df1ce2136acb409528ac136bd9fef3dca7e"
+  },
+  ".trae/skills/haohao-shuohua/references/rhythm-check.md": {
+    "bytes": 7664,
+    "sha256": "82e37459e6467581c1f1fe6ae8fb0b3d623e4228677651eba77c8cc7b81d8603"
+  },
+  ".trae/skills/haohao-shuohua/references/symptom-dictionary.md": {
+    "bytes": 17536,
+    "sha256": "24170c0430b16261f77a49d8eb3d0ab6fb8d336f8345077af98c798531028fd7"
+  },
+  ".trae/skills/haohao-shuohua/references/word-coining-checklist.md": {
+    "bytes": 6112,
+    "sha256": "ee88f1ecac1db813b583f7db850341b5a257fe3a0196e0e953025900a09813fc"
+  },
+  ".trae/skills/haohao-shuohua/references/workflow.md": {
+    "bytes": 8810,
+    "sha256": "d581f05bfd1f848f518db0f43a79206b7c15366d733534c6c27f4cd7ef22036c"
+  },
+  ".trae/skills/technical-writing-clarity/SKILL.md": {
+    "bytes": 8536,
+    "sha256": "f7ef04dbfd39e4bbd2857c56004fd848dfa9b87d0320e17a3b7720f06349cfc3"
+  },
+  ".trae/skills/technical-writing-clarity/references/audit-examples.md": {
+    "bytes": 6127,
+    "sha256": "778ebc2bff32049e5f0a55b11117a982f02fe43cc083d1f106f8eac93d191564"
+  },
+  ".trae/skills/technical-writing-clarity/references/sources.md": {
+    "bytes": 2960,
+    "sha256": "0a42bd555124cbd256b6a363c61cb09815aefad83c7b1b8b9b44a16da83746e3"
+  },
+  "AGENTS.md": {
+    "bytes": 18202,
+    "sha256": "989ea2342ebd09ec8e1ff1a2e20c584bd3a5e7f29ffe67a0a8ac34e0b147e45c"
+  },
+  "CLAUDE.md": {
+    "bytes": 31476,
+    "sha256": "08953c1122cf20058fc747f30899cd67266422f99392bceb1f2670882a1060de"
+  },
+  "README.md": {
+    "bytes": 2867,
+    "sha256": "f28c8d7a868f783bd406d83f6b9622e02863e99e635e74bb4950c2bfe374aea1"
+  },
+  "assets/fonts/README.md": {
+    "bytes": 1597,
+    "sha256": "a3c5db3a6265f85046a0715c469863a75cecec061aade61e4c019685e715b1f4"
+  },
+  "benchmarks/README.md": {
+    "bytes": 549,
+    "sha256": "b3ba327d6fbad2ed40d1e069152ca200863eccbf128a55971d13d05e530c688d"
+  },
+  "book/README.md": {
+    "bytes": 1891,
+    "sha256": "623a2824b5ea71e0bc85ab892e386485fb6993d7e3d2a0f86fc62cd014f8cfc4"
+  },
+  "book/WRITING_PROFILE.md": {
+    "bytes": 21573,
+    "sha256": "2d07ef9e01b80ba3ebf61e649d3c00cf83bfc9a4051a80e29807a4c7f4965327"
+  },
+  "book/contributor/src/01-contribution-workflow.md": {
+    "bytes": 2975,
+    "sha256": "6caa8f67ca2e6e279c61082bf1f8d6c7ff449449acc9f1793697ce343f27130b"
+  },
+  "book/contributor/src/02-architecture-and-ownership.md": {
+    "bytes": 3552,
+    "sha256": "f31d9b1e06f676916421117f3c5629c789a63a4ae34036ee339ec547e7b66d28"
+  },
+  "book/contributor/src/03-runtime-and-frame.md": {
+    "bytes": 6555,
+    "sha256": "d92f2855403cacad4c71e79c066d9bdffdf170d0c6eb48ca44810aeaaf478a49"
+  },
+  "book/contributor/src/04-figure-and-capability.md": {
+    "bytes": 3322,
+    "sha256": "7bd93c6dd1e861c22b7dd4b5d6e16fd620cad6eaa7b19f8f5c499d74edf01a41"
+  },
+  "book/contributor/src/05-editor-internals.md": {
+    "bytes": 3100,
+    "sha256": "b16a6f68937ae8c4c786510c724bddbe431a889d7d69759fc12bc67f1ae3638d"
+  },
+  "book/contributor/src/06-platform-and-backend.md": {
+    "bytes": 3135,
+    "sha256": "33ebceb97c180f7dd9f33dd5df4d3d7b892a0ec177b37c5130bd79b1bcdd1640"
+  },
+  "book/contributor/src/07-verification-and-review.md": {
+    "bytes": 3000,
+    "sha256": "905a20c274c1902ee4559db853e5bef4c5caf528ad638489b10b954fc4f6a534"
+  },
+  "book/contributor/src/OUTLINE.md": {
+    "bytes": 2251,
+    "sha256": "4cdb370748fbc0a7fdd277ec699c9fc72ab1d4329e07f908b0a8dc163affbf2e"
+  },
+  "book/contributor/src/README.md": {
+    "bytes": 3601,
+    "sha256": "5acdc685d99cd78d39ca11deebfcfbb136206253026419824f88f96da3f5d329"
+  },
+  "book/contributor/src/SUMMARY.md": {
+    "bytes": 723,
+    "sha256": "259ec36051a1ece6fbd2b98541f56b5344725a4ea0e7afdcfca4b612c59b9563"
+  },
+  "book/contributor/src/UPDATE_PROMPT.md": {
+    "bytes": 3938,
+    "sha256": "00aa6e29e8a5704356241f13bf5178056ab82b99ea5e1775cb587257ba872141"
+  },
+  "book/contributor/src/appendix-code-and-spec-map.md": {
+    "bytes": 3528,
+    "sha256": "34f00d0a5ecdc68eb4e42a578290580650201d1c86446eb7412c9569f756316c"
+  },
+  "book/doc/README.md": {
+    "bytes": 784,
+    "sha256": "8742a6e0547a0260afd4156795f5b97acb1ebfda1df499729b1206fe390fa778"
+  },
+  "book/doc/frame-submission-terminology-migration-plan.md": {
+    "bytes": 16189,
+    "sha256": "85c74af3b6eb0d9d2c3de3e7f175240ad3e2e55598fea3ebb5414d2a5fb216a9"
+  },
+  "book/doc/presentation-state-terminology-audit.md": {
+    "bytes": 17365,
+    "sha256": "dcd8df51a4c95fa6a7eb122cbcf6a82002247a03b260723df8e767ab6b0fa987"
+  },
+  "book/doc/projection-terminology-migration-plan.md": {
+    "bytes": 11560,
+    "sha256": "d2e342bfb80f63febb894bd04f1918ef640c18b80baecfd20e720d9bc56cc217"
+  },
+  "book/doc/scene-state-terminology-migration-plan.md": {
+    "bytes": 15043,
+    "sha256": "33d90e06d46a1cf0cd2c4c8afb46bc3d76b42edf0d842e04009fc59f69c74652"
+  },
+  "book/doc/zz-internals-concept-gap-audit-2026-10-20.md": {
+    "bytes": 18701,
+    "sha256": "48d1bf52f8e0643caa654d80be88f63e0d9ae2cc9148a4bf4daeb6a8448da1b3"
+  },
+  "book/internals/src/01-graphical-framework.md": {
+    "bytes": 18799,
+    "sha256": "fc3ab082a2a73d4bb0b8c18763b65dba7494b607cee2b576fc89e97d1b9a4060"
+  },
+  "book/internals/src/02-state-identity-ownership.md": {
+    "bytes": 15376,
+    "sha256": "077f80a8a372c4dd29b6f89af1efbb9132872188b8fcd45e45d0f989541b58dc"
+  },
+  "book/internals/src/03-pipeline-and-extension.md": {
+    "bytes": 15525,
+    "sha256": "abca452ef5fee81d1d20cf602874d63e9d9cc59ca8b03c045862b393d139a5a9"
+  },
+  "book/internals/src/04-figure-tree.md": {
+    "bytes": 14482,
+    "sha256": "87e17b55d834c33f3688337ac7064cfc18c9dd1423e325f5febc37eda0454bc8"
+  },
+  "book/internals/src/05-geometry-and-coordinates.md": {
+    "bytes": 15622,
+    "sha256": "a34469a7d800df80d505dea1c220b7075caaf77ce9372cc7d1f4b49f056055cd"
+  },
+  "book/internals/src/06-layout-and-stabilization.md": {
+    "bytes": 20811,
+    "sha256": "78d22e789ee3d3705ba1b0edce8dcae2bbd096de5ab299dc86637c039a06a6e0"
+  },
+  "book/internals/src/07-text-layout-and-glyphs.md": {
+    "bytes": 18684,
+    "sha256": "a8e9e0b34490ed8e5524f06812adfc12dab1d346f9da1745ea9eac94001c6275"
+  },
+  "book/internals/src/08-rendering-and-frame.md": {
+    "bytes": 29366,
+    "sha256": "2a5eccccff5be81e71902987b8d9d829feadd2cc78fd85fe5cd4152b33bc9d6a"
+  },
+  "book/internals/src/09-animation-and-presentation.md": {
+    "bytes": 32241,
+    "sha256": "2afbc0075195aac480a3c435fee66b6fa35e331ebb45587425f0636a88fe61ca"
+  },
+  "book/internals/src/10-input-and-interaction.md": {
+    "bytes": 14293,
+    "sha256": "450250b4f18abddf0048b213ec7147c100f859013ce6e2aa3eeb83663a35fb4e"
+  },
+  "book/internals/src/11-layers-viewport-connections.md": {
+    "bytes": 19563,
+    "sha256": "7ec543372c5d2fe8f703abe80943c33935f8d9a3b18dc20f2a730c8a78204f9c"
+  },
+  "book/internals/src/12-model-view-derivation.md": {
+    "bytes": 21782,
+    "sha256": "b5a589cfd965167a69dd2099a232d034fb639e7636dbcc1e590f6bd331551f71"
+  },
+  "book/internals/src/13-editing-protocol.md": {
+    "bytes": 23964,
+    "sha256": "609c3716e7065a9714dec7dbea4a0d6a5b0ede7f6d0cc50d1bc3561b6eb1ab5e"
+  },
+  "book/internals/src/14-capability-model.md": {
+    "bytes": 17103,
+    "sha256": "71b7eb4689d32c04faac9ab37e4accf5aa2f44a6aae2d0aa9a191c2e1668e9ba"
+  },
+  "book/internals/src/15-correctness-and-evolution.md": {
+    "bytes": 16888,
+    "sha256": "f0ad91a050b7629553abfdca79e840d8aa2c2439f4f65d6055be92bc4dfc60c8"
+  },
+  "book/internals/src/OUTLINE.md": {
+    "bytes": 11144,
+    "sha256": "a3bde158c176a0e6aca4d09baffa6e4724d018f77f8df1089d593f2fe1ff4216"
+  },
+  "book/internals/src/README.md": {
+    "bytes": 8292,
+    "sha256": "e2f7533841289c49e1d51a15d558d1cbf839530049904750583b8c970092323e"
+  },
+  "book/internals/src/SUMMARY.md": {
+    "bytes": 1373,
+    "sha256": "64059ffd49d0fcb94ccd2187b598c7f7f122844f6784c32d3494d1671bbe7d58"
+  },
+  "book/internals/src/UPDATE_PROMPT.md": {
+    "bytes": 4225,
+    "sha256": "4362e93f1debcf71d7cd70920bb0ae6622a6e15fdbde7ed3ea7a32c1b3e9f02e"
+  },
+  "book/internals/src/appendix-concept-map.md": {
+    "bytes": 17959,
+    "sha256": "e93120b51e27091bf536cb2027365c4231cd868063441e156705890fb6588784"
+  },
+  "book/internals/src/appendix-editor-revision.md": {
+    "bytes": 7039,
+    "sha256": "a5088b67e5b6e58c03742f922efbff6785e821fdd10d9ad6255c57d0edf01add"
+  },
+  "book/user/src/00-first-application.md": {
+    "bytes": 11401,
+    "sha256": "c0a4d5c6d925032edf5fd00f9946179ab7dd92e607db4bdc3d65c17be90b7a48"
+  },
+  "book/user/src/01-system-model.md": {
+    "bytes": 24386,
+    "sha256": "712a80650c425dd923f90e1efd354c19a72f41eb3b521eed3ca9c6d100c9217d"
+  },
+  "book/user/src/02-geometry-and-coordinates.md": {
+    "bytes": 10815,
+    "sha256": "15588c3aed6d9c5a42cc8d339d10daa0db928ab9da713567a5ff8c8706d31780"
+  },
+  "book/user/src/03-figure-tree-and-rendering.md": {
+    "bytes": 12487,
+    "sha256": "61015170862b36129ef9f672d51087f52976f3175e904dee217ff186e8f67c89"
+  },
+  "book/user/src/04-layout-update-and-frame.md": {
+    "bytes": 23313,
+    "sha256": "2f16a85e434436a4102c6e8d8e8c96b0cca76fd49aeb5bbb6471157a39b7c3d6"
+  },
+  "book/user/src/05-input-and-interaction.md": {
+    "bytes": 24210,
+    "sha256": "73d17ffba8fdafdbda6686863e9db5724e0ef799f4b6238661cff4540a475f8a"
+  },
+  "book/user/src/06-layers-and-viewport.md": {
+    "bytes": 11706,
+    "sha256": "d4f7c7e7d53b82098004b69c088375899c5b60efc32ef89258b017be2a0dcb18"
+  },
+  "book/user/src/07-connections.md": {
+    "bytes": 12324,
+    "sha256": "479fe05e731d610b3a026c3f6e4d03125b492fe5101e75098d21db3b4292d034"
+  },
+  "book/user/src/08-editor-framework.md": {
+    "bytes": 29206,
+    "sha256": "9fe25f23d73e3d35e5b102cc9840bad04d19969d38afd87c36e97f780a45022f"
+  },
+  "book/user/src/09-verification-and-extension.md": {
+    "bytes": 10163,
+    "sha256": "a79ee7b9fc5e63fa48f020db171446cbe25ff86f3fac413676e4d683dab6456e"
+  },
+  "book/user/src/OUTLINE.md": {
+    "bytes": 7111,
+    "sha256": "f24c4f461c7c0e7a6b9e5b8c0cd2a4a895cf849883e2b2b9e28f46c52f56369b"
+  },
+  "book/user/src/README.md": {
+    "bytes": 6618,
+    "sha256": "392d2b36900cfdcbd477f7c7a60e082796fc9e4df3b61c08706a2d4786d593a9"
+  },
+  "book/user/src/SUMMARY.md": {
+    "bytes": 1191,
+    "sha256": "daa87d70b81a2c193360ab26fcb0babcca4966c261117a9b06e7ab5f1e141be7"
+  },
+  "book/user/src/UPDATE_PROMPT.md": {
+    "bytes": 14190,
+    "sha256": "7601ed6181a6544e4d17faac42acf0c13392ac32257ae8e0e341a7ceef1b47c3"
+  },
+  "book/user/src/appendix-glossary-and-map.md": {
+    "bytes": 17764,
+    "sha256": "3e6b272f5b6944e1e94ce8027b3abc62290cddc99b0f3fdfa794c79e31c25b43"
+  },
+  "book/user/src/appendix-vello-glyph-rendering.md": {
+    "bytes": 9022,
+    "sha256": "93b20161b76dd917b23e9c123bf8a0b968d3ebda479e6ba27a035c1c7bf79989"
+  },
+  "crates/novadraw/README.md": {
+    "bytes": 4674,
+    "sha256": "70e976540130a0de4960a6233f4a01bfa08916eb22c48f78f6a7208bfe9a39c9"
+  },
+  "crates/novadraw/examples/native/advanced-figures-app/README.md": {
+    "bytes": 1220,
+    "sha256": "a0f7436c28ffd1a10cc7f151068fd792700dc34b20a743b583f4d214d5c15b4c"
+  },
+  "crates/novadraw/examples/native/animation-app/README.md": {
+    "bytes": 2892,
+    "sha256": "ec3a6d61b4d64e7416eb8df3778c159edf17528fed2b275d8ee46c05f08333c1"
+  },
+  "crates/novadraw/examples/native/border-app/README.md": {
+    "bytes": 1372,
+    "sha256": "17dfffabbff908a420a5da81d51520055310279143e82f6d891e7f8de0ce1106"
+  },
+  "crates/novadraw/examples/native/clip-app/README.md": {
+    "bytes": 1419,
+    "sha256": "9af0c6c78baf3ca564413c93271143a91407468dc2e590211dee4222b0a0d333"
+  },
+  "crates/novadraw/examples/native/composite-shapes-app/README.md": {
+    "bytes": 1760,
+    "sha256": "86e7d4eb224532595bd493c5dfb6d57ede29a7adeb25e8f8c97d9784b79ee019"
+  },
+  "crates/novadraw/examples/native/connections-demo/README.md": {
+    "bytes": 1357,
+    "sha256": "a3c86be9753d810db7f343b43295e67fe717d1441d4a859a4ad0a267f27d9766"
+  },
+  "crates/novadraw/examples/native/draw2d-official-examples/README.md": {
+    "bytes": 13055,
+    "sha256": "014f57a0bb5ac3c54cd9408462a1cf92048dff1035faf47a9605b89ab655f7dc"
+  },
+  "crates/novadraw/examples/native/draw2d-official-examples/assets/NOTICE.md": {
+    "bytes": 1416,
+    "sha256": "c4a38d9b35644448d326b81057bc26e8867b61c7d13d33a5d585a5f01a889484"
+  },
+  "crates/novadraw/examples/native/draw2d-official-examples/assets/scrollpane/README.md": {
+    "bytes": 384,
+    "sha256": "9beb54737b07e5f1a023144dc89d1af2f5ee58b8e7acabbd704b19736625ec74"
+  },
+  "crates/novadraw/examples/native/event-app/README.md": {
+    "bytes": 1599,
+    "sha256": "b0ab3c941520300dd0baac35dbaeedcaaff538ad2353b680dde908ba4adfb1ad"
+  },
+  "crates/novadraw/examples/native/layout-app/README.md": {
+    "bytes": 1725,
+    "sha256": "4f3d9de894ef6b580088b6a3eabbe995ea2de089998d3110d97168b8c05fec10"
+  },
+  "crates/novadraw/examples/native/scroll-pane-demo/README.md": {
+    "bytes": 1253,
+    "sha256": "ac4496a272a6b6a738cc415c5d9f03aa0d2eafe0ffcdb89ae0e18eb08fa9c2a7"
+  },
+  "crates/novadraw/examples/native/shape-app/README.md": {
+    "bytes": 647,
+    "sha256": "d2d23417a73fc88a3ea0192b81c43382b92394c5979a4f5e4e6ab8cc274a2699"
+  },
+  "crates/novadraw/examples/native/text-app/README.md": {
+    "bytes": 1102,
+    "sha256": "a479f3167a17e25864eb471ef0b9aab8851c7c02d6a3e1665d87d274bf2acd11"
+  },
+  "crates/novadraw/examples/native/textflow-large-app/README.md": {
+    "bytes": 4582,
+    "sha256": "962b4679bd5bdb76bf1f91d602b6415720b66458acc1f93a9269c77a10dd4834"
+  },
+  "crates/novadraw/examples/native/transform-app/README.md": {
+    "bytes": 967,
+    "sha256": "a9b9ce86dab1285aab1d52b20c0adcc678e27808d879b2169e3d7ff530b2c914"
+  },
+  "crates/novadraw/examples/native/uml-demo/README.md": {
+    "bytes": 912,
+    "sha256": "cbdcedb8fbd60d907cf6d2c19e879fe9baff0c0623a4b2276b047942302454c9"
+  },
+  "crates/novadraw/examples/native/viewport-app/README.md": {
+    "bytes": 1622,
+    "sha256": "f2e348caaa186c10817d48ef1dedc69ffd39845e711720787de8e24ae213d283"
+  },
+  "crates/novadraw/examples/native/widgets-app/README.md": {
+    "bytes": 394,
+    "sha256": "d3221da29b0af868a8d435641af03a2ce397fb47a3dcb02766e039f99f5b89c1"
+  },
+  "crates/novadraw/examples/scenes/assets/README.md": {
+    "bytes": 1071,
+    "sha256": "313eef853ad00391a0ced05e74285883d1d0d18ddce282c5a92122cdf96efa61"
+  },
+  "crates/novadraw-editor/examples/native/gef-editor-demo/README.md": {
+    "bytes": 6243,
+    "sha256": "826916d75cc9350c0cdd2dc150bb434cd19f430807fb1fa474bc337c09da4bf9"
+  },
+  "crates/novadraw-editor/examples/native/gef-logic-demo/README.md": {
+    "bytes": 2949,
+    "sha256": "ffc7db70f3a0a97871b60f6d75bd4e601f530ee233691e24333a5e2c26b32d2c"
+  },
+  "crates/novadraw-platform-masonry/README.md": {
+    "bytes": 2385,
+    "sha256": "c83ac03d19ea98d0398f320f0d438ce2cca0b328d572f52e53287e8cd299f596"
+  },
+  "crates/novadraw-platform-winit/README.md": {
+    "bytes": 5419,
+    "sha256": "bc680fbd43800fbe5fe7458e39882c7a3222815d35084a3b0d7cb829a269ec01"
+  },
+  "crates/winit-canvas/README.md": {
+    "bytes": 8699,
+    "sha256": "e3daa4bd985eb160cace61e7b731fcbbeeb309eacd1066b5acea85c356741e64"
+  },
+  "crates/winit-canvas/implementation.md": {
+    "bytes": 8870,
+    "sha256": "47b68e439d7e9fa266a82eac1988a2ee18e22c0f65b09dc7f0adf1475f262861"
+  },
+  "doc/00-index.md": {
+    "bytes": 3640,
+    "sha256": "d821c07d67b298442d6d24f379f946a280f80fa90499dad2623447af86fa1d8d"
+  },
+  "doc/adr/README.md": {
+    "bytes": 10020,
+    "sha256": "3993282e01d2160e61beb7242a1613b0babf313c3437eb9cdabb3eed0bb58037"
+  },
+  "doc/adr/adr-001-webgpu-rust-stack.md": {
+    "bytes": 1298,
+    "sha256": "a92693c090d1c5c1a1f5a3430d679a4af42f2dc2fb820645802fb219db9dd6c9"
+  },
+  "doc/adr/adr-002-notification-effect-queue.md": {
+    "bytes": 2843,
+    "sha256": "b439356fb38c88357e725011f2357cfaf39dbe89a2ab851eb8c2fa7f9da815de"
+  },
+  "doc/adr/adr-003-rust-runtime-and-geometry-boundaries.md": {
+    "bytes": 4974,
+    "sha256": "11d8d4c188108b3a321d5628544305a35f1e87ac4b5116d25f04a29538793abe"
+  },
+  "doc/adr/adr-004-layer-and-freeform-contract.md": {
+    "bytes": 4292,
+    "sha256": "0dc24584aaa66e6567d93157b66425115be14d69f5c52a318074fef2f508cb2a"
+  },
+  "doc/adr/adr-005-connection-routing-contract.md": {
+    "bytes": 7004,
+    "sha256": "f82643e113541e24f7bc1897cf32779edebab01bdc9cfb9b860d41eaba316477"
+  },
+  "doc/adr/adr-006-reusable-shape-border-contract.md": {
+    "bytes": 5912,
+    "sha256": "b28a659610ef6cb08580e0d8396b01fbe4147b92d08d2b3c2132f883fcf3799a"
+  },
+  "doc/adr/adr-007-parley-text-layout.md": {
+    "bytes": 6637,
+    "sha256": "6e1a88031ac849f1955805f3aa9d4410068e18d6ef035c35ab8dd326f92f5fae"
+  },
+  "doc/adr/adr-008-m9-contract-recovery.md": {
+    "bytes": 7998,
+    "sha256": "e508e872e68debca1386dc051a40b7f298bf237f2b02a55d516f13ccee07cd6f"
+  },
+  "doc/adr/adr-009-runtime-dynamic-mutation-contract.md": {
+    "bytes": 1303,
+    "sha256": "0a4157497a5a8326237a3d73040b95473947ec9c8be1563e20a2371c9be64fe1"
+  },
+  "doc/adr/adr-010-runtime-listener-lifecycle.md": {
+    "bytes": 6797,
+    "sha256": "adc6503e97a31bb738341d1dc42222231742cccdc8f462955231ef3e9f2845a3"
+  },
+  "doc/adr/adr-011-derived-state-convergence.md": {
+    "bytes": 7203,
+    "sha256": "93fbe60f4f59930b90a34d9bf74dac29aeac0921fe684a0aa08aa3924dab8526"
+  },
+  "doc/adr/adr-012-resource-causality-and-backend-session.md": {
+    "bytes": 7529,
+    "sha256": "55e54d66133c7795d1516d6ed31d7c92b80ffd9c67aa0b02d2713472ded8e2af"
+  },
+  "doc/adr/adr-013-figure-lifecycle-and-runtime-identity.md": {
+    "bytes": 763,
+    "sha256": "5649ef7a091486b8ab1a80281ef5da217019788cadb596e571c0e2455a613d32"
+  },
+  "doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md": {
+    "bytes": 9976,
+    "sha256": "1b8621f2cab28d2300e253c53a6af1215a2fa0e3270637d194abbd163820aed5"
+  },
+  "doc/adr/adr-015-editor-framework-boundary.md": {
+    "bytes": 5224,
+    "sha256": "f4d5bf7d777eeb32eccb8d71af73581f867fbc99ed45ba5e910966e30f822be6"
+  },
+  "doc/adr/adr-016-figure-inspector-observability.md": {
+    "bytes": 3250,
+    "sha256": "b1939b34c5dd76e3b5035e5d3dd0d52fe5e7ae68995cdf0b918ffc81634ba21f"
+  },
+  "doc/adr/adr-017-core-public-api-boundary.md": {
+    "bytes": 7051,
+    "sha256": "1953384262574515e43d179477b78544d7dca7a37304d70cd296fe4089acdea8"
+  },
+  "doc/adr/adr-018-runtime-driving-and-measurement-api.md": {
+    "bytes": 6078,
+    "sha256": "4d079e240406d3d56c60dab9256820b176130197af66bf44d9dee3cf4cf0a5e5"
+  },
+  "doc/adr/adr-019-composable-api-and-scoped-editors.md": {
+    "bytes": 7117,
+    "sha256": "ddf9ad0014e7bf93e6a56564244e175253582e619c1c07f6d6a8ee47e841733c"
+  },
+  "doc/adr/adr-020-engine-value-and-render-contract.md": {
+    "bytes": 6806,
+    "sha256": "5c19777efac902ead51a3be6a420fd8f1a1f4351a81ad35b672490c58447f73f"
+  },
+  "doc/adr/adr-021-public-facade-and-feature-boundary.md": {
+    "bytes": 1196,
+    "sha256": "8ffea4ee0d63d53e3ca26111aff8f9d11f835547cbe82d219f788a97e1630348"
+  },
+  "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md": {
+    "bytes": 5095,
+    "sha256": "2f08d95d0198a137e7bf2e12b650f43a8c592b9e9c0352fd0b9af782e16ea110"
+  },
+  "doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md": {
+    "bytes": 7516,
+    "sha256": "87cb4818f5b437e1b18e7cdc1b09523e2bfa2c05c0ef12187108a22030e8d014"
+  },
+  "doc/adr/adr-024-graphics-paint-stroke-and-clipping.md": {
+    "bytes": 2366,
+    "sha256": "4548523e2a130cce077e46fd17f970981a9a2b7cb9bef171a08608fa2cb6d955"
+  },
+  "doc/adr/adr-025-unified-graphics-and-glyph-preparation.md": {
+    "bytes": 4460,
+    "sha256": "52e3499bbefacf5f327693f8923dda317f702ae56e8888249abff105be97a08f"
+  },
+  "doc/adr/adr-026-animation-and-presentation-plane.md": {
+    "bytes": 6403,
+    "sha256": "0a5a7072bf5c160c45959d5d81390f23abb89a87512e323f047a436dff17e002"
+  },
+  "doc/adr/adr-027-open-figure-capability-registry.md": {
+    "bytes": 7893,
+    "sha256": "a4d4298f3d7943810e47e5475a3ca33048388bcd27e5b2b41238c6f828a9e3f0"
+  },
+  "doc/adr/adr-028-typed-property-identity.md": {
+    "bytes": 3489,
+    "sha256": "8478b140b7a9f7f2e2d3abb211ae11da1145139917ce29fb406924cc7e4238dc"
+  },
+  "doc/adr/adr-029-structured-render-backend-failure.md": {
+    "bytes": 1052,
+    "sha256": "047d90ad2476b647901bcf538837a37c5b0aad0ee464048589d3bcf41e12b3f6"
+  },
+  "doc/adr/adr-030-resource-provider-and-request-token-boundary.md": {
+    "bytes": 1083,
+    "sha256": "f25d6505d69ad50fd2956d75ff7cc22db1b0741126c0e200c51d77337a8cf77d"
+  },
+  "doc/adr/adr-031-graphics-recording-and-publication-boundary.md": {
+    "bytes": 1083,
+    "sha256": "4f5176e25263f4510c151f71fd2f4e062f35836cff948e36e4ef6eff573db67f"
+  },
+  "doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md": {
+    "bytes": 979,
+    "sha256": "768f43482539089bb9088b3f5b4ce8a6e65ff2504d9a0fd573a1760d452b5a19"
+  },
+  "doc/adr/adr-033-runtime-subsystem-facade.md": {
+    "bytes": 1105,
+    "sha256": "b7f2a391c3e71f524baee38f8b1d6514a763602c0b1d32c2cf4bc706c3c0e223"
+  },
+  "doc/adr/adr-034-editor-tool-request-handle-protocol.md": {
+    "bytes": 1066,
+    "sha256": "d0f651e72c4dcd1b6145bda413c1467e226c748d7f352e3edf5242393e39a402"
+  },
+  "doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md": {
+    "bytes": 8868,
+    "sha256": "73cbf7a3715c96947e58e1eba46f7986c7d3085faac7f5d58047cee65b733878"
+  },
+  "doc/adr/adr-036-context-phase-authority-projection.md": {
+    "bytes": 1058,
+    "sha256": "44541dae8f2b11aa2caadaf1789e45afa09d3adb834d5d38f60e51d492dd8d70"
+  },
+  "doc/adr/adr-037-editor-incremental-failure-isolation.md": {
+    "bytes": 1144,
+    "sha256": "c44bf8d8b597e3236025fa87f322615819609e47ce972913d37b6346c985da5b"
+  },
+  "doc/adr/adr-038-query-identity-and-failure-semantics.md": {
+    "bytes": 999,
+    "sha256": "54ebbc033c614a07fb7c7fa460bd141260ddbc6eb7eb32d59c4b7008d191446d"
+  },
+  "doc/adr/adr-040-group-route-solving.md": {
+    "bytes": 1076,
+    "sha256": "b634712f2163f94380bba7ff0e2e375d13846e71d35312b5b143e00c2ef3c677"
+  },
+  "doc/adr/adr-042-structured-flow-layout.md": {
+    "bytes": 1008,
+    "sha256": "941c909688d4520757bfcd199d592d11a441aae2212bb42b69368fbf7d082e68"
+  },
+  "doc/adr/adr-043-directed-compound-graph-layout.md": {
+    "bytes": 1155,
+    "sha256": "5cc8ca915a156145a8d5c0e10e374e978af605fae230246bfb94a688624bcdda"
+  },
+  "doc/adr/adr-044-shared-scene-capture-and-view.md": {
+    "bytes": 1331,
+    "sha256": "a21273f6b0b9430ca95dd7cec6744acfefecda24706ff4f1918b5e719e23eb88"
+  },
+  "doc/adr/adr-045-host-background-submission.md": {
+    "bytes": 1125,
+    "sha256": "6f1aa9588baf62619c6945ac69876f027984e85f2941b27a0dc4abbaa7d2571e"
+  },
+  "doc/adr/adr-046-sampled-geometry-and-animation-reservations.md": {
+    "bytes": 1187,
+    "sha256": "4308d7cc8fabcf4579f745ef9dd8ad330676fd54e977562c9f80e4efac1cf099"
+  },
+  "doc/adr/adr-047-per-operation-antialias.md": {
+    "bytes": 1208,
+    "sha256": "964e08e37ad3d366ee55c7b3d9dfa8a41d14acc84cc34694615698d9b3a69603"
+  },
+  "doc/adr/adr-051-exact-flow-layout-reuse.md": {
+    "bytes": 1085,
+    "sha256": "bb81d20822e3a6279504dbc08f27076fc8b6a2a951771b4dc6aa2b99a52e9a65"
+  },
+  "doc/adr/adr-055-container-editing-protocol.md": {
+    "bytes": 1198,
+    "sha256": "53be59b2b711f7a9a69ed8ee4092be1cf90cd0ea797b00dec91055d43dbe72d4"
+  },
+  "doc/adr/adr-056-detached-input-invariants.md": {
+    "bytes": 6176,
+    "sha256": "d80ec3daba422ce5d5a7478587f15abecd9061a4e4fd8c1bfc14f726622db8e5"
+  },
+  "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+    "bytes": 1277,
+    "sha256": "29095bc559274cc9eb0121f5c980e19201380da95fad94abf37d88904603b1c6"
+  },
+  "doc/adr/adr-058-open-editor-snapping.md": {
+    "bytes": 1660,
+    "sha256": "15c9950532a647d28e7c43fb5ecb6d78e451cf493f797a9565214349e45103e5"
+  },
+  "doc/adr/adr-059-staged-text-width-reuse.md": {
+    "bytes": 1609,
+    "sha256": "713e58f57dfd54dcf58cce631f5f715b7b9dd5f576a6a48d3a608ad39b94ad43"
+  },
+  "doc/adr/adr-060-flow-assembly-reuse.md": {
+    "bytes": 5573,
+    "sha256": "c33ceb2b0262a5fcbddd90ab3488eaf19c8d5f07f8656ab7fdaab1b573e6f4a0"
+  },
+  "doc/archive/00-index.md": {
+    "bytes": 1553,
+    "sha256": "d2b5683cfbf8f4504f8db9cdafd8ba974a2c4395c09cb61cfa76488eb0e053b5"
+  },
+  "doc/archive/adr-audit-2026-09-10/README.md": {
+    "bytes": 1800,
+    "sha256": "abbc81ba8e9ac2235e7e05f65a0e832e6d5c21b79e9af28fd6a7e63c67776f9c"
+  },
+  "doc/archive/adr-classification-2026-11-03.md": {
+    "bytes": 10061,
+    "sha256": "29e46aa96bc1479c1b68cce47db480df2c162eeda5182c742952d41200e9e046"
+  },
+  "doc/archive/architecture-legacy.md": {
+    "bytes": 36400,
+    "sha256": "0749888a4ca475ce7791e4c339d004dee1e2f620eded83e9b165f2c33d978014"
+  },
+  "doc/archive/architecture-refactor-plan.md": {
+    "bytes": 22911,
+    "sha256": "0be402e60883fd16128b4ad1d52db5bb5b24183559a177fc74faa43403907f36"
+  },
+  "doc/archive/bounds-migration-plan.md": {
+    "bytes": 10978,
+    "sha256": "9d9ec151b59bb70638a685a6d303ef96077df008b11748274a7ad9ced146747d"
+  },
+  "doc/archive/core-completion-and-draw2d-migration-plan.md": {
+    "bytes": 62427,
+    "sha256": "88805af20b3f91584c855d97639abb518fb5dcb6b755907814e26d1f1dabcff0"
+  },
+  "doc/archive/knowledge-maintenance-2026-11-03.md": {
+    "bytes": 2269,
+    "sha256": "05ad940ec1888a9386d9b3fa2ad4f4fd4c34c43bb1311fd50a87fccb4286c5cb"
+  },
+  "doc/archive/knowledge-revision-2026-10-19/README.md": {
+    "bytes": 3023,
+    "sha256": "bdfca4873e315ff9a061eee44130b1c0b62357c8ede5c288bab6190778570507"
+  },
+  "doc/archive/legacy-execution-checklist.md": {
+    "bytes": 10029,
+    "sha256": "ec7b8c5e12a618dabd8b3849f2f6fa9a71ff891f07e17404f04a184258422218"
+  },
+  "doc/archive/m8-m9-contract-plan.md": {
+    "bytes": 5721,
+    "sha256": "3c7ac7acd2fba816e9cbf8f4406c5c43a022d868df2d2f7fd011c057f3bb2513"
+  },
+  "doc/archive/r8-execution-plan.md": {
+    "bytes": 7993,
+    "sha256": "a3a03b38a221fd95e9b39fba1e00e569ed4d1b035b004df74316bc934c9aa98a"
+  },
+  "doc/archive/r9-ablation-simplification-plan.md": {
+    "bytes": 6247,
+    "sha256": "5df0189782f73d5aa7aa273d7fd036cc28abe809aaa92dffc2188349ac7b3dd3"
+  },
+  "doc/archive/render-iterative-poc.md": {
+    "bytes": 1498,
+    "sha256": "9f2ea8a6288d5adeb279172beea433068b804b1162cbe2b524c1d3d0847290f2"
+  },
+  "doc/archive/trampoline-rendering.md": {
+    "bytes": 23645,
+    "sha256": "6c8bc86e598058c37fbc0d963a3b29b993f11d1a3aa102f5d2179a2592899b70"
+  },
+  "doc/design/00-index.md": {
+    "bytes": 1899,
+    "sha256": "7e7a6f51e9a68f51b794130ba218c5b1b5d58c51a8e3c68c5efb850b94809c0b"
+  },
+  "doc/design/animation/00-index.md": {
+    "bytes": 1399,
+    "sha256": "2f129e2f8135491942bbc247884f258a8b2fececbc77b19e1b4259d0129ffa87"
+  },
+  "doc/design/animation/animation-system.md": {
+    "bytes": 16073,
+    "sha256": "d252f53efd69702c6a7b803f1c6c11bda019eebdd2d377c80fe2cdedf1cdc685"
+  },
+  "doc/design/animation/behavior-trigger-contract.md": {
+    "bytes": 7894,
+    "sha256": "7fa50a0e9b0416481cf9e7e11c426c749bd03e26780020547eae3851584e95d9"
+  },
+  "doc/design/animation/capability-integration.md": {
+    "bytes": 16789,
+    "sha256": "fd98342b789726b4d79b3ce64e6c1a9c29f21a460a3e162f3e82368e6e27c674"
+  },
+  "doc/design/animation/public-api-contract.md": {
+    "bytes": 14178,
+    "sha256": "500384016b040ac8e3801ddda6eb6eb37bee10089e029c7a358a4e46b90adddc"
+  },
+  "doc/design/animation/tree-layout-presentation-proposal.md": {
+    "bytes": 36555,
+    "sha256": "33b48d19fddf9fb3e38413a678aac8f7c2df665e1fe585cb0f122d924609c3ef"
+  },
+  "doc/design/architecture/00-index.md": {
+    "bytes": 7359,
+    "sha256": "3bf6a31b58182bc82bd45c622b132f4aa2067a0085d0acdf6e2fdf8fa8c86817"
+  },
+  "doc/design/architecture/basic-widgets.md": {
+    "bytes": 4673,
+    "sha256": "fc73265659936e79a9d98353672603de17331cd40a2b25b39b3cb853d5ccb2b6"
+  },
+  "doc/design/architecture/component-update.md": {
+    "bytes": 8834,
+    "sha256": "8ac42f7c9c094439489590a8610f38e0af7c5a0589d19a858fa24bc4bb240a26"
+  },
+  "doc/design/architecture/connection-owner-locator.md": {
+    "bytes": 8089,
+    "sha256": "722e12381794435422f7ec22f5440de9cb51c612837e738b5675ffbe040c47da"
+  },
+  "doc/design/architecture/connection-routing.md": {
+    "bytes": 31186,
+    "sha256": "489c8ae1692274703bc11f392681a7157c691f60697816f0bbaddf73c84e3a00"
+  },
+  "doc/design/architecture/context-phase-authority.md": {
+    "bytes": 14609,
+    "sha256": "b1e018b3840bf05d2e736f91226837dda15ea212292353a5a4498e54a33ff784"
+  },
+  "doc/design/architecture/deep-layout-presentation-convergence.md": {
+    "bytes": 7341,
+    "sha256": "602ddbb766618350649e3e909797f0d535bfa199165cce95d8602eaec5bb5372"
+  },
+  "doc/design/architecture/derived-state-convergence.md": {
+    "bytes": 17351,
+    "sha256": "88ac5dbc3448f891880914ddb570d91394bf35a5d9f5bd932559c3de4485a40b"
+  },
+  "doc/design/architecture/detached-input-invariants.md": {
+    "bytes": 19570,
+    "sha256": "2c18fa6d64bcff834b953c8ee43917d4ef226d6b274182bf7d808ef8d6f869d7"
+  },
+  "doc/design/architecture/directed-compound-graph-layout.md": {
+    "bytes": 27560,
+    "sha256": "2d627ace9e2688bdcfa03ce0c3eb134a4191d2ff985a86319a590ee0616e6529"
+  },
+  "doc/design/architecture/directory-structure.md": {
+    "bytes": 7426,
+    "sha256": "de5abf2cb2285b045684b248a4072af84af481d954e5ca5d485d6b7136024255"
+  },
+  "doc/design/architecture/dynamic-architecture.md": {
+    "bytes": 15451,
+    "sha256": "3b8edf1c2448c4badbc68c0db2b68a47300e1f46cc639c264e3f186aa08844d5"
+  },
+  "doc/design/architecture/exact-flow-layout-reuse.md": {
+    "bytes": 10091,
+    "sha256": "3f94069011a2f954be1bc4a323c7420d997384049ad8583491f61e4c536c296a"
+  },
+  "doc/design/architecture/figure-capability-model.md": {
+    "bytes": 20525,
+    "sha256": "d7b5995f11a1649294f80f663e56bb74a5d5c7fcf5c304449267af0b54df076b"
+  },
+  "doc/design/architecture/figure-inspector.md": {
+    "bytes": 9529,
+    "sha256": "49f4bc8df922b0ccd1d55032d3d25475f0432345139f474b935f9cdfffdfcd3d"
+  },
+  "doc/design/architecture/figure-lifecycle.md": {
+    "bytes": 7142,
+    "sha256": "6e25bc9af3907820fb1d7324446c2b019a93f5b32c69998a17960dd3b6454e39"
+  },
+  "doc/design/architecture/figure-style.md": {
+    "bytes": 4645,
+    "sha256": "c400fd45df21ffcf3060995ac5ab33349853f054982f83d1d3ce8297a8c79138"
+  },
+  "doc/design/architecture/flow-assembly-reuse.md": {
+    "bytes": 28021,
+    "sha256": "1535edcbe7b927f6adfaf100ab788cbbec1c6c2b7e5e1315c14b2ceccc4a2c4d"
+  },
+  "doc/design/architecture/graph-projection-preparation.md": {
+    "bytes": 31442,
+    "sha256": "de6ba42322c2d21efeed43f5562019ed71599e58067972b89eaf0782dfe2d6e9"
+  },
+  "doc/design/architecture/group-route-solving.md": {
+    "bytes": 11520,
+    "sha256": "134c04c4ad932a0de685dd7da05422ae4032b431f256b3d8975f703e51edd186"
+  },
+  "doc/design/architecture/independent-corners-and-edge-borders.md": {
+    "bytes": 5323,
+    "sha256": "89c3088c821ba7cf7b58c6452928d7d75135270c78af9fcae74ef09a443e8dd7"
+  },
+  "doc/design/architecture/inherited-layout-direction.md": {
+    "bytes": 2711,
+    "sha256": "d81e913bf78f8291315dd0080080ae98f7134d9eb29ddd5ebd294c5633725194"
+  },
+  "doc/design/architecture/layer-and-freeform.md": {
+    "bytes": 32757,
+    "sha256": "605ee8da1525898492575367efb0a051e6d3d6772eb1a0bf0b955dafc6a4ace3"
+  },
+  "doc/design/architecture/long-text-incremental-layout-proposal.md": {
+    "bytes": 41038,
+    "sha256": "1ee2944567f755852025ba4b8eb64f7fa6571e757c72fbf76a3a75e176931b53"
+  },
+  "doc/design/architecture/long-text-native-coverage-boundary.md": {
+    "bytes": 9955,
+    "sha256": "60ec37947c22c384658eda2577403f5166c67aafcebd159b27fdac6888ff243b"
+  },
+  "doc/design/architecture/long-text-performance-proposal.md": {
+    "bytes": 57937,
+    "sha256": "42becef84a6a5d887e5192b08d5ccfa31178632314744ba257bdd316c5e6244e"
+  },
+  "doc/design/architecture/long-text-scroll-resize-optimization-proposal.md": {
+    "bytes": 24431,
+    "sha256": "82557504ce4a6a800e78668bec909226e8a15ee09fc57eb82219a6fdcf0fbc83"
+  },
+  "doc/design/architecture/official-example-border-output-increment.md": {
+    "bytes": 2891,
+    "sha256": "438b0cb04b9a5a20e151dbf538988b20a3aa5442126fa27e7fabb18fb8dff926"
+  },
+  "doc/design/architecture/official-example-capability-increment-2026-10-26.md": {
+    "bytes": 3870,
+    "sha256": "337b12e2ec5c49d3c97688ed855867cbbd038e43d5d9f651eb61ffbfb77037e9"
+  },
+  "doc/design/architecture/overview.md": {
+    "bytes": 15842,
+    "sha256": "6393ca8e6ea5b21b6d6ed95bfda5528deb713ecb9ac74a79a2f9c344e9db792c"
+  },
+  "doc/design/architecture/parley-replacement-candidate.md": {
+    "bytes": 6157,
+    "sha256": "e234290a7f3e417c3780100d80ba88b8f1c3a30e3b0cbb0df5803a6812971ae0"
+  },
+  "doc/design/architecture/public-api-contract.md": {
+    "bytes": 13740,
+    "sha256": "0b9efb13a326f3630e48b82bbebb5cf928168e800e88b6a44eaebf13e3913b64"
+  },
+  "doc/design/architecture/query-identity-and-failure.md": {
+    "bytes": 18744,
+    "sha256": "86478d88de814810bf88c2679c1ad8a580fbb0fe1fca38ffcf0b8f401c4a630f"
+  },
+  "doc/design/architecture/resource-lifecycle.md": {
+    "bytes": 12538,
+    "sha256": "e57e079fea08f7b6a5d593deb15e370054ab28fa6b0efeb88f8d76f1c2367cdc"
+  },
+  "doc/design/architecture/resource-loading-and-request-tokens.md": {
+    "bytes": 5300,
+    "sha256": "72606c83a2806fa5d22a726105d046e8250d38c00cd256f21dff4bee524f59b6"
+  },
+  "doc/design/architecture/reusable-shape-border.md": {
+    "bytes": 20004,
+    "sha256": "57b0e82b324672505bceee1b1172c651eb6dce3ec34fd1b5530651eb7f47edcb"
+  },
+  "doc/design/architecture/runtime-mutation-and-subtree-admission.md": {
+    "bytes": 22677,
+    "sha256": "fde78bbf420c5b45b421e17e0f9fdc2c54cc9d460e9218b14343c1b68d151473"
+  },
+  "doc/design/architecture/runtime-ownership-and-module-boundaries.md": {
+    "bytes": 6245,
+    "sha256": "6a30bd912b544330183b9371a0310fbf6adac924bf0b1655fe4937909fa4bd11"
+  },
+  "doc/design/architecture/runtime-subsystem-facade.md": {
+    "bytes": 10882,
+    "sha256": "12ef07f8be8e7da7b1801d5c9bb7bac2fe00107946e1e6aa2c6b088fb25b2c03"
+  },
+  "doc/design/architecture/scrollbar-and-figure-activity.md": {
+    "bytes": 4223,
+    "sha256": "8fc68a40b2fc174f3ffad0664665ea04e8dcd00de8245ba6fc63ab27329019ce"
+  },
+  "doc/design/architecture/service-failure-and-inspector-lifecycle.md": {
+    "bytes": 26797,
+    "sha256": "51d36012cd5029a048040fef931c97332cf31e44221066c6c67ed76b9c627afb"
+  },
+  "doc/design/architecture/shared-scene-view-background-proposal.md": {
+    "bytes": 30799,
+    "sha256": "c361729fc99fae027588485f7e9efdf069a54f173cd5679ae0af85b51cbb7cf1"
+  },
+  "doc/design/architecture/staged-text-width-reuse.md": {
+    "bytes": 33699,
+    "sha256": "556842a540b3e672cb4556cd312b6c5c1f672bc7ec21175138b228c4a2339c37"
+  },
+  "doc/design/architecture/static-architecture.md": {
+    "bytes": 15038,
+    "sha256": "d85e1327476ccaaf4f59a5f29b4504873d425352c548f1392e2735036663a696"
+  },
+  "doc/design/architecture/structured-flow-layout.md": {
+    "bytes": 14065,
+    "sha256": "381a4c54eac7b745420ff1ed2103bc67876a4e91567f04e66e060c6280505a5d"
+  },
+  "doc/design/architecture/text-analysis-admission-proposal.md": {
+    "bytes": 12281,
+    "sha256": "739269d76582e5065b9c671c912d6bc27fb94798b6ee0e10336f3d9820c7db14"
+  },
+  "doc/design/architecture/text-layout.md": {
+    "bytes": 17240,
+    "sha256": "79567524a52538644f06c018b1b754f805e94d1b024ca85779f465888c93d0df"
+  },
+  "doc/design/architecture/text-performance-strategy.md": {
+    "bytes": 8085,
+    "sha256": "d0bc58281aada89ebff694de61de7226e8e4ee4a3a8e4d3b75a41f1f8f98dd70"
+  },
+  "doc/design/architecture/tooltip-accessibility.md": {
+    "bytes": 14759,
+    "sha256": "080f93b72884fb5d657a93bd6f18ddb668fc4df334eb5d02021f18d3b98ea182"
+  },
+  "doc/design/architecture/tree-search-and-focus.md": {
+    "bytes": 11687,
+    "sha256": "0aea5f1d4e62946cbaf85665e499472403938402596dbcd491422bd5d8f4f41e"
+  },
+  "doc/design/coordinates/coordinate-system.md": {
+    "bytes": 13060,
+    "sha256": "500ddb6fd16003f526d505d369c1a7cf238de6ea53e4950f13ba3944da886b0b"
+  },
+  "doc/design/editor/00-index.md": {
+    "bytes": 5456,
+    "sha256": "48d0138d32e9f4156bf51e5d0cf45312c7753603b5719bb336a74b478bdd6dcf"
+  },
+  "doc/design/editor/architecture.md": {
+    "bytes": 16297,
+    "sha256": "363d6035d4ec09d812abe230a5e9ca15fe9eabd4f59bd0a3b2ac7a12d337f44b"
+  },
+  "doc/design/editor/container-editing-protocol.md": {
+    "bytes": 30167,
+    "sha256": "c1c97b0df6b34c29c6226e0d7a6f1ce3941ea50ebae8db9229c9906535594606"
+  },
+  "doc/design/editor/core-capability-increment.md": {
+    "bytes": 6526,
+    "sha256": "49dcef79674da772088a7a0138e0995f983a05a469da01ce8d8706e8b3149d69"
+  },
+  "doc/design/editor/egui-docking-deferred-plan.md": {
+    "bytes": 5733,
+    "sha256": "e9ce2809fd177c9ff4aa841f0ef79ca60fca0d0a955e7ce257abd3e9412e73e7"
+  },
+  "doc/design/editor/g5-connection-bendpoint.md": {
+    "bytes": 4581,
+    "sha256": "5b5ecb4793eef77ede207e94b7dfb1d7b50cf6117c0ae1fd062c66665a60fa21"
+  },
+  "doc/design/editor/g5-connection-creation.md": {
+    "bytes": 6902,
+    "sha256": "3f378c6ce4c25c6f327f6f2b5003c0c50ac43bbeb77faf61f381c86b7417c902"
+  },
+  "doc/design/editor/g5-connection-projection.md": {
+    "bytes": 14103,
+    "sha256": "c82441019f2c1dba9e67c00323839972c7a5a89e8d91842ed945296be145c312"
+  },
+  "doc/design/editor/g5-connection-reconnect.md": {
+    "bytes": 5197,
+    "sha256": "c4b30dc377d47adb9edabc9282b151779a3e577a58887fbc972f10a7cd672283"
+  },
+  "doc/design/editor/g5-viewport-autoexpose.md": {
+    "bytes": 7096,
+    "sha256": "7befdf85c4ccc202e50ddbcd4670f535b64aba09743ff11dd4c9941e6c0fe951"
+  },
+  "doc/design/editor/gef-editor-demo-workflow-hierarchy.md": {
+    "bytes": 5665,
+    "sha256": "b72e9aff4787eff1b38f5a076f33cef2d64e4246535fac7d3cd706625f10c8bb"
+  },
+  "doc/design/editor/gef-logic-first-slice.md": {
+    "bytes": 4805,
+    "sha256": "2843e42ff2ef486ef7bdaffae9c57a3b8aacf1cfe2b5cc4b57603b8ad49db212"
+  },
+  "doc/design/editor/gef-official-examples-parity-proposal.md": {
+    "bytes": 40581,
+    "sha256": "51198b4f9788e935438b57b8bd233c8586d887c4c55eb5928c184b1dc19a584a"
+  },
+  "doc/design/editor/incremental-failure-isolation.md": {
+    "bytes": 21139,
+    "sha256": "0c963a7e3413999515df419c635886c0c13e5e7d902bd26b47f6d126e6b9f791"
+  },
+  "doc/design/editor/masonry-xilem-canvas-integration.md": {
+    "bytes": 5046,
+    "sha256": "a04ce7b6355281fb28a54aa76acb74bb8955950e152906833dd4dc42893c7bda"
+  },
+  "doc/design/editor/open-snapping.md": {
+    "bytes": 25845,
+    "sha256": "4102eb45887cf248550b4ad92e3f4f43ad5c2c1d41c49597034439d0e99037f5"
+  },
+  "doc/design/editor/p2-direct-text-edit.md": {
+    "bytes": 16320,
+    "sha256": "85eb287b8986aaed23ff8133ac50c9f9ab0e267db8da9b800f1bd1f25206c461"
+  },
+  "doc/design/editor/revision-semantics.md": {
+    "bytes": 10058,
+    "sha256": "8825698ce548644edeb2a09ae3d2973a7bc3703427dfce22923bb893df61e8e0"
+  },
+  "doc/design/editor/snapping-validation-cost-proposal.md": {
+    "bytes": 5151,
+    "sha256": "57ea9febad05ac7f1f47940cec407e6a513a5f2a95be242c4b3eaa72ef12c978"
+  },
+  "doc/design/editor/template-creation-and-marquee.md": {
+    "bytes": 3869,
+    "sha256": "1bf2c6ae382c4c3cfb5e268c24107cdcca5b19671dad5036fa3f57779289ed78"
+  },
+  "doc/design/editor/tool-request-handle-protocol.md": {
+    "bytes": 12430,
+    "sha256": "c4378ad8c4afcf1da3d36ac1ede273001b9218bfab1c3b3844a1047b81d80fe1"
+  },
+  "doc/design/editor/viewer-edit-session-and-drive.md": {
+    "bytes": 9631,
+    "sha256": "b867872b46cc54ce87f853b779115babc94fae84915fbfc7b70eb3251c6368ec"
+  },
+  "doc/design/input/scroll-zoom-gesture-contract.md": {
+    "bytes": 5003,
+    "sha256": "884bec30310c88ea80a91366693187a4b6b29965db8f831479f424cf2cbd1e5e"
+  },
+  "doc/design/rendering/00-index.md": {
+    "bytes": 3170,
+    "sha256": "75d77e07368fca180e56c3b8275d6a645e130fbca90acd39b383fa997b846441"
+  },
+  "doc/design/rendering/backend-failure-and-recovery.md": {
+    "bytes": 5749,
+    "sha256": "77aab47810161e03212081be41f01c9fe112c9a486570e1da05e45742457ff30"
+  },
+  "doc/design/rendering/device-hairline-proposal.md": {
+    "bytes": 1548,
+    "sha256": "78172f5a3bb05ede1e753f04a6ed388aa6e66916e96069c972a97acaac5fb410"
+  },
+  "doc/design/rendering/display-list-protocol.md": {
+    "bytes": 7720,
+    "sha256": "1fcb767b43c80747c7b2f7452a9972031cb6b01db91d96cf18ae6b3f5184a388"
+  },
+  "doc/design/rendering/embedded-vello-scene-target.md": {
+    "bytes": 3312,
+    "sha256": "00f41e58818e888ae66e44b00873877b5b95abff5aff5b7a4d56bf148b85adc6"
+  },
+  "doc/design/rendering/graphics-recording-and-publication.md": {
+    "bytes": 6545,
+    "sha256": "89169eed9db8ddeee19386741323d3fc8865489b949396ef873d87bf12cf0fb2"
+  },
+  "doc/design/rendering/image-source-rectangle.md": {
+    "bytes": 3483,
+    "sha256": "27c319129cf875501c1fda2460f7cc55f61e30752b89cfc91c16f89dfb633c5d"
+  },
+  "doc/design/rendering/low-miter-and-cocoa-sample-profile.md": {
+    "bytes": 1839,
+    "sha256": "baff2f8bf367c2a5b6a9214c48008e92b7fbb3717baa8d446e81bbbe47bd3999"
+  },
+  "doc/design/rendering/p2-g01-graphics-extension.md": {
+    "bytes": 18461,
+    "sha256": "071d3522da028dcc468f32c1047522c8fe53d44edacf39b943449c653604f257"
+  },
+  "doc/design/rendering/prepared-text-underlines.md": {
+    "bytes": 2573,
+    "sha256": "e1bcef3f5d2ebdf528ee5793116deb73149abc6d002fe648e46ddd9324647791"
+  },
+  "doc/design/rendering/shape-antialias-proposal.md": {
+    "bytes": 12676,
+    "sha256": "0c5310ddb90b46ca9ed4121accc388b290ff9aa372aadaf09e06e385ecb30cd0"
+  },
+  "doc/design/rendering/svg-raster-density.md": {
+    "bytes": 4363,
+    "sha256": "8556b234dc22b80e795911d6572d57f60b2ee1aaee484bb548954ad4089d646f"
+  },
+  "doc/design/rendering/text-graphics-integration.md": {
+    "bytes": 29268,
+    "sha256": "0d1b4873f80d336552419154dd4f4561374e4af6057f3483319245c82b00841e"
+  },
+  "doc/design/rendering/update-manager.md": {
+    "bytes": 12042,
+    "sha256": "07b4a7bdc5495ec21b11100e40972f4a284838600e0fc1433bc083de2898791f"
+  },
+  "doc/knowledge-maintenance.md": {
+    "bytes": 6815,
+    "sha256": "34b3e97db60ca4596b4566e5e2258ee4152ebf656f6d760ca1dc72b5adc72fb1"
+  },
+  "doc/migration/00-index.md": {
+    "bytes": 716,
+    "sha256": "8e500a3bea053f38af4acd7ef8eb76f0b0da51416585b8c66d0c64ea04dd2ecb"
+  },
+  "doc/migration/java-rust/migration-guide.md": {
+    "bytes": 4382,
+    "sha256": "b2a5a050344f6e5709b367eb42d8d58f37fd8942d587cbe4a03ff64cd406b6d0"
+  },
+  "doc/migration/java-rust/oo-mapping.md": {
+    "bytes": 13214,
+    "sha256": "7acd86af86a480683fdf56e6fc9f138db27cef730dd8c37bf322ab9b79adacce"
+  },
+  "doc/parity/00-index.md": {
+    "bytes": 938,
+    "sha256": "02f26640421b1aa25f383a5e750cf3f8b8b1f35c99596d81cd736ed948e6d291"
+  },
+  "doc/parity/draw2d/api-coverage.md": {
+    "bytes": 86593,
+    "sha256": "5481745a199d917124b89b19327664b7db89e222e855b40b2995c3d117fe2313"
+  },
+  "doc/parity/draw2d/notification-mapping.md": {
+    "bytes": 15737,
+    "sha256": "60f328e11a3b2bc7bd4c17e5aa34692b13a150a5babe8e98ca5d6bf1b309c5db"
+  },
+  "doc/parity/gef/api-coverage.md": {
+    "bytes": 11709,
+    "sha256": "10d4ec9d95abb5f5e3e51e9185e32938713261c3ed3670af9c51e6d909ae9141"
+  },
+  "doc/reference/00-index.md": {
+    "bytes": 2299,
+    "sha256": "d8105aba8c2dd6241b558a71b206034a842c16701bb8c5f8088bd3ef4c53b279"
+  },
+  "doc/reference/draw2d/00-index.md": {
+    "bytes": 1354,
+    "sha256": "104367b077f6b5a89de9a8afd1dce6d1ed2e335c55cf4cc0aa75c364b115dab4"
+  },
+  "doc/reference/draw2d/architecture/design-axioms.md": {
+    "bytes": 21234,
+    "sha256": "1aa35bad9c29140ec130b1313248608b5bc84d4e5b39cf8cd53b18ad6d9518bd"
+  },
+  "doc/reference/draw2d/architecture/history.md": {
+    "bytes": 4539,
+    "sha256": "dfd7fb3f71376fe1e70f8e09c55311d280be653a6238e6527fe3110ffbd067cb"
+  },
+  "doc/reference/draw2d/figure/animation.md": {
+    "bytes": 4718,
+    "sha256": "22a549546aa36e5184249d9c4a8c667425978c5b8d1d2ae5bf055a760c8c089d"
+  },
+  "doc/reference/draw2d/figure/bounds.md": {
+    "bytes": 3172,
+    "sha256": "e4396560a040cdcb0e640255a2bebea9d2cc2df496d3832ea43a3945c1c9f3dc"
+  },
+  "doc/reference/draw2d/figure/box-model.md": {
+    "bytes": 24533,
+    "sha256": "c2bb2b5faa96b26761bb1041f8ed8eee39e2c3e913e225e4cf2f1fefcce87666"
+  },
+  "doc/reference/draw2d/figure/connection-routing.md": {
+    "bytes": 9772,
+    "sha256": "4dfb4b4af4c61c391cd31ebf70763039d32492a8ae7983bf618a9fd4c7ddb1c1"
+  },
+  "doc/reference/draw2d/figure/core-concepts.md": {
+    "bytes": 2654,
+    "sha256": "f5f1f46b7e60680d774fcc46d7bf907c6e4e8b4c83358cec43d15acd7ce38efe"
+  },
+  "doc/reference/draw2d/figure/figure-implementation.md": {
+    "bytes": 14990,
+    "sha256": "82bb356e6d254dead902a764fa3a38dea533933aba3d3490f29e307a533cccdd"
+  },
+  "doc/reference/draw2d/figure/ifigure-interface.md": {
+    "bytes": 11533,
+    "sha256": "79504ec21deb35c3980ef84addc22a749559f03bd36b5104404f5eb856c923b5"
+  },
+  "doc/reference/draw2d/figure/layout-constraints.md": {
+    "bytes": 11523,
+    "sha256": "43af1521724630bc7a1a106536c09403180c4bb24f4ef6792b0e0133668a564a"
+  },
+  "doc/reference/draw2d/figure/reusable-shape-border.md": {
+    "bytes": 8661,
+    "sha256": "fa506f567c696c3b3219c282bb50687f58bfbd49482bdfd9eb016d0ddecc7f9c"
+  },
+  "doc/reference/draw2d/figure/scalable-zoom.md": {
+    "bytes": 3409,
+    "sha256": "f47231c23cbdef332495ffce5092238d7047afaea2564def3f97697422cf6577"
+  },
+  "doc/reference/draw2d/figure/text-label.md": {
+    "bytes": 3420,
+    "sha256": "3c4c8e28928dbe8089e862c2d6d48c97a4edb74c529776b6a77806202e7a83c2"
+  },
+  "doc/reference/draw2d/figure/tree-coordinates.md": {
+    "bytes": 11348,
+    "sha256": "008e69d7aa4b6288aecad9b98d382ff9eb70c93557dd0b5587a94c7e638e8751"
+  },
+  "doc/reference/draw2d/figure/tree-operations.md": {
+    "bytes": 20304,
+    "sha256": "98a3007f23aebfd7ec7e676b7b228b1c6f137aedf19ec55ddeff44149d8c516d"
+  },
+  "doc/reference/draw2d/rendering/clip.md": {
+    "bytes": 8786,
+    "sha256": "21d50681bf57c6c61ef34515747155c811b4c25b8d0af4d2620701a64f38a85d"
+  },
+  "doc/reference/draw2d/rendering/graphics-api.md": {
+    "bytes": 14384,
+    "sha256": "c38bb1c37475aa0e05ff49e967c0650686e0c76c6d912b846c2bcd1a97b870da"
+  },
+  "doc/reference/draw2d/rendering/update-manager.md": {
+    "bytes": 7560,
+    "sha256": "dc7a4d69f5009192216b7275dd9f50aceecf2e68463b2ffabcbaaa9fee5d8322"
+  },
+  "doc/reference/fonts/glyph-outline-storage-conventions.md": {
+    "bytes": 18139,
+    "sha256": "454bd237cd8b81f27a4c53923c72dac5b586959f2582a2b0d427917fadf0e243"
+  },
+  "doc/reference/fonts/glyph-rendering-and-color-emoji.md": {
+    "bytes": 19577,
+    "sha256": "f8660060fccd4b475c3ee5fafe1f78aba378ffdb931c6ee9e843572724549e50"
+  },
+  "doc/reference/fonts/reports/00-index.md": {
+    "bytes": 583,
+    "sha256": "fb8a3e8e97836ec1cc4cebbd4902d89becf830721db7502561acf7f49b73e117"
+  },
+  "doc/reference/fonts/reports/font-rendering-comparison-2026-10-23/assets/gpu/README.md": {
+    "bytes": 3169,
+    "sha256": "fca93412ce2a85dcadb4e0bb705a79745633330ba6c81454a3c328a2cfaa98cd"
+  },
+  "doc/reference/fonts/text-rendering-pipeline.md": {
+    "bytes": 39179,
+    "sha256": "1752d3de8be15f67e063304a12f994864f402a606ed9b9a7705ba592e698c3e1"
+  },
+  "doc/reference/gef/00-index.md": {
+    "bytes": 931,
+    "sha256": "e2fdbdb7580b2183621efc1c7c9de3052105a3eec030d56b31060d6c5074e2d7"
+  },
+  "doc/reference/gef/connection-editing.md": {
+    "bytes": 5658,
+    "sha256": "2577a52ab71a3948f0d76b57f9ab647028a1cf905ae571bd7c39ace15c7140a0"
+  },
+  "doc/reference/gef/core-principles.md": {
+    "bytes": 11477,
+    "sha256": "0e433204301d5aae164701e411af4d5fa27a49dd2bf976225d7d7e954095dd92"
+  },
+  "doc/reference/gef/direct-editing.md": {
+    "bytes": 4755,
+    "sha256": "79bc43078f0df7350270d799286255ed5974ebc9b8fb76080ff1cffde43fde57"
+  },
+  "doc/reference/gef/official-examples-analysis.md": {
+    "bytes": 70554,
+    "sha256": "459457c1592341a2dea6cfd90652d206598644dc418a83721607a74c94aa1297"
+  },
+  "doc/reference/graphite/00-index.md": {
+    "bytes": 1602,
+    "sha256": "a51e99ad4721864da7aa007673c113c4e48a013ee4ff5f3c962020705900ba75"
+  },
+  "doc/reference/imaging-render-ir.md": {
+    "bytes": 14087,
+    "sha256": "70079109ee43fa9ed290b45695bc8bb81c79486e769fd92a8cb7a45a0828b162"
+  },
+  "doc/reference/lapce-text-engine.md": {
+    "bytes": 11689,
+    "sha256": "411c6995c21f53ded5cdfa2cc942d9cc8211a6c5992c15c42521b39920785e00"
+  },
+  "doc/reference/swt/gc-macos.md": {
+    "bytes": 8674,
+    "sha256": "a39f0d4371cdc86387b4c7266c0ae4f23139388b8b1c5464b2da8fe3d9b208f6"
+  },
+  "doc/reference/text-layout-performance-2026-11-02.md": {
+    "bytes": 10464,
+    "sha256": "b47442672fbe6162f8fef162701a583a12bb690c1fb8bbcc46c7d01abeeb36a1"
+  },
+  "doc/reference/writing/00-index.md": {
+    "bytes": 225,
+    "sha256": "6265abe91137917690fc2a2bfeeab35ba0f634ca5373b596671d960d91a648bb"
+  },
+  "doc/reference/writing/controlled-technical-chinese-spec-draft.md": {
+    "bytes": 29822,
+    "sha256": "cdf76457e750daf1db6b4c16cfc0dec664b54405cc4bfaaf06a04fc248042a2c"
+  },
+  "doc/reference/xi-editor/00-index.md": {
+    "bytes": 2441,
+    "sha256": "c4981efe520e82d2afccde901d5ab5a20411fe62c835c24026b6e9b7c2fc4845"
+  },
+  "doc/reference/zed/reactive-design.md": {
+    "bytes": 10658,
+    "sha256": "cef1e76df73017013d5a9af7110af4a484bc3395ce1265356793f090e34f25a2"
+  },
+  "doc/roadmap/00-index.md": {
+    "bytes": 8284,
+    "sha256": "127c86f6f24bdfec6d2c152491cf3db7cb17009858ff9edae4fc61fbdde0f505"
+  },
+  "doc/roadmap/demo-matrix.md": {
+    "bytes": 8793,
+    "sha256": "e2b86605dfe36f94bcf70da7b05fe338fbaa2c2648208a3919bb7ba6c982aaf9"
+  },
+  "doc/roadmap/draw2d-capability-enrichment-plan-2026-10-05.md": {
+    "bytes": 6756,
+    "sha256": "9f078fceda724132f62127d7cae45ce04c9af7b4a5648ac5f1f5c3384b753429"
+  },
+  "doc/roadmap/editor/00-index.md": {
+    "bytes": 4890,
+    "sha256": "e5c80f8b457a9d7fafc9b7ac34d92bc7cd11fd07aa7273f81e0734b7bc5624aa"
+  },
+  "doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md": {
+    "bytes": 16736,
+    "sha256": "932fb1f784760fd4b31b72326cedb9570271faba873aa1689d00e2a009862d82"
+  },
+  "doc/roadmap/p2-delta-backlog.md": {
+    "bytes": 20106,
+    "sha256": "45b7c0db4bf63270c66fad54aa8a8534b3bec55e9d91c090147ca5eb61fa5878"
+  },
+  "doc/roadmap/platform-support-matrix.md": {
+    "bytes": 3930,
+    "sha256": "f06aa95a1058574d2506bebacc6e493209d90c9b48d09d228ac5c46db56a4532"
+  },
+  "doc/roadmap/product-deliverables.md": {
+    "bytes": 11559,
+    "sha256": "504ccfce3e049b443a745c6eb6e67f44f2e7e5dfab0fe41d8c1b535b71eaf090"
+  },
+  "doc/strategy/00-index.md": {
+    "bytes": 1834,
+    "sha256": "67afe374435d53156128556ed9bdfcb27dcb9073fb3169ed3032646e3fb95214"
+  },
+  "doc/strategy/ai-era-relationship-editor-research.md": {
+    "bytes": 14787,
+    "sha256": "416756d2ab0d5ee1c0375f78de4f35bb1faa1772bac46b4963d96bede1c03fa0"
+  },
+  "doc/strategy/ai-graphical-editor-generator.md": {
+    "bytes": 22593,
+    "sha256": "b6e1f875bbbd78cfa5deefe776fa478518edac4c30f50398a1dec029fc78c8b3"
+  },
+  "doc/strategy/brand-naming-human-mark-making-research.md": {
+    "bytes": 12454,
+    "sha256": "bfbaaef5436185f21e6b9c48f751c003d4afb80e1f83cc807dbd922b265fed69"
+  },
+  "doc/strategy/brand-naming-research.md": {
+    "bytes": 11136,
+    "sha256": "f140c98596a0e41acef41818a1cda6c40dcf0afb029dc66f6589f1ff9019301f"
+  },
+  "doc/strategy/commercial-value-analysis.md": {
+    "bytes": 26831,
+    "sha256": "087f9b891eb2cca078fce78cf91f71f840cd273dcb0f1dc8406e401b1645c85e"
+  },
+  "doc/strategy/html-in-canvas-api-evaluation-2026-10-09.md": {
+    "bytes": 16147,
+    "sha256": "330d8ab77328833ced663fedf9b5ebbb8b69afa2f37fcb9bae94de881afc853b"
+  },
+  "doc/strategy/readme-hero-design-brief.md": {
+    "bytes": 6676,
+    "sha256": "a5a505b6b970af661adb2ddf8c02712468a647fd413f392d71e6e71372d5ff6f"
+  },
+  "doc/verification/00-index.md": {
+    "bytes": 2055,
+    "sha256": "445dcf843a850b970a4d2c39ef7a73857fbdc503c668b2d648e44f76076237a5"
+  },
+  "doc/verification/audit-remediation-workflow.md": {
+    "bytes": 10268,
+    "sha256": "92eaaa0a0f218b6ce54ae51bb71817ee1d9b444f0ae01d8bd1841844f27d3f95"
+  },
+  "doc/verification/checklists/audit-remediation-execution.md": {
+    "bytes": 23626,
+    "sha256": "2200649a786f435fd4ac682da75d17882558a2161ef7ec28d6bb04a1a20f4985"
+  },
+  "doc/verification/checklists/rendering-pipeline.md": {
+    "bytes": 10233,
+    "sha256": "6ea19a0e8f16a19369b1b3d6a2dd50dc1af151a20dc95801445d9d9aad56111c"
+  },
+  "doc/verification/manual/00-index.md": {
+    "bytes": 1075,
+    "sha256": "dfdd089118bf21ce723a73aa14dad3998fa0546537e144a2aaaa7becfd5000e8"
+  },
+  "doc/verification/manual/advanced-figures.md": {
+    "bytes": 2903,
+    "sha256": "2ba8e51d575ab1f23300f0f800f7a2a7d14463a5baec987b26b959488535beeb"
+  },
+  "doc/verification/manual/core-pipeline.md": {
+    "bytes": 14703,
+    "sha256": "3b104591d00c7eca21b415fb1ebbe6aa1d6e80adb83586fa22992b1061304845"
+  },
+  "doc/verification/manual/d1-figure-style.md": {
+    "bytes": 1266,
+    "sha256": "fcd411f96efa7ad478bbcb42e0a08427ae077ff6483c4a96042dc80994fb9556"
+  },
+  "doc/verification/manual/d1-focus-traversal.md": {
+    "bytes": 6689,
+    "sha256": "1ea22f30dcaa5dbc33a21d9fd3dd6c350372bb2fb5c9d6f063071a659a153692"
+  },
+  "doc/verification/manual/d3-m9-contract-recovery.md": {
+    "bytes": 1177,
+    "sha256": "da4b167cfbe72a099cf61698a02a6c450ee7f8400465dd241579e0b3fe95a59b"
+  },
+  "doc/verification/manual/g3-selection-targeting.md": {
+    "bytes": 2275,
+    "sha256": "8cb7758559ac9c0c18efdc1edaddf7e29f7a25a7756962a61b5e2342778981f6"
+  },
+  "doc/verification/manual/g4-editing-loop.md": {
+    "bytes": 2698,
+    "sha256": "92f5cea778e5224751818420ef9c93f881a8135023fe20f41e99cf84e69a6351"
+  },
+  "doc/verification/manual/g5-connection-bendpoint.md": {
+    "bytes": 2327,
+    "sha256": "fe24b3d665b0a4a926bc6fc1414508ea9fd9fddb81b32bfce33d8457b6de1b1a"
+  },
+  "doc/verification/manual/g5-connection-creation.md": {
+    "bytes": 3675,
+    "sha256": "a2830dd072e2a20760f6a0aacb94b27b749d1893a801450ca4f5580fdb13e5e3"
+  },
+  "doc/verification/manual/g5-connection-reconnect.md": {
+    "bytes": 2999,
+    "sha256": "80a1f88d2545e4f008984a4e350afb9274a29764543a80a83c26e6301ad99f01"
+  },
+  "doc/verification/manual/g5-viewport-autoexpose.md": {
+    "bytes": 6792,
+    "sha256": "2154d541008ee02e5b5fb0ddf907937c7ae0b8d9315774f002341033d334cdf5"
+  },
+  "doc/verification/manual/m10-tooltip-accessibility.md": {
+    "bytes": 3456,
+    "sha256": "d94386ae4adcd1cb0dd59bf65d05a0774bbdb8833829f57b07299a8113665b88"
+  },
+  "doc/verification/manual/m10-widgets.md": {
+    "bytes": 612,
+    "sha256": "ec7494f789dc856271b2f2e21448205927b6633af273d5df0d0a187eab25f0ad"
+  },
+  "doc/verification/manual/m8-viewport.md": {
+    "bytes": 5951,
+    "sha256": "ebcdc92dea7f58ff75c4f5f465f9fb1a16101fdb5c3d5bd5e737833d6e256bcb"
+  },
+  "doc/verification/manual/p2-direct-text-edit.md": {
+    "bytes": 5609,
+    "sha256": "e8e40cddf4083aa3447200f76ee5e1f21d045d308924cc51ab93a89dc870b3a7"
+  },
+  "doc/verification/manual/platform-release.md": {
+    "bytes": 2842,
+    "sha256": "75da73ae1d4b73ebeaac536c41c565131f931494e4e85f541b8c431c2300952f"
+  },
+  "doc/verification/manual/web-platform.md": {
+    "bytes": 6581,
+    "sha256": "17538f4cbdd8b9ffda4065101475975f355374bef4a8aff5924432516795d948"
+  },
+  "doc/verification/performance/00-index.md": {
+    "bytes": 1152,
+    "sha256": "727f47f610d884bf7c5063efd4c80f49389f2a4f52c52e19d4a43e39fae4c319"
+  },
+  "doc/verification/performance/ga2-draw2d-comparison-2026-10-01.md": {
+    "bytes": 4555,
+    "sha256": "7f8a4abba57ecb57d74b17455fc72c26331e122772400dcfb545dd6241e18eb5"
+  },
+  "doc/verification/performance/ga2-methodology.md": {
+    "bytes": 7920,
+    "sha256": "30caa1fc6f78578809858bce6a5369dcc4d5516b1dd6f6c6d5cc3a31b22b0b11"
+  },
+  "doc/verification/performance/ga2-native-vello-2026-10-01.md": {
+    "bytes": 4593,
+    "sha256": "8f365a8194f89dc0daa93401cf8d19651bf6144a90ba289068f6e5ee99e31b0c"
+  },
+  "doc/verification/performance/ga2-novadraw-cpu-2026-10-01.md": {
+    "bytes": 5358,
+    "sha256": "aa1b61c8f980c861e70bcbe7942560f958137dc55972ed01294b89badcf6ccac"
+  },
+  "doc/verification/performance/ga2-webgpu-browser-2026-10-01.md": {
+    "bytes": 2932,
+    "sha256": "4c45ba68d7f4b465119d20a0506b5763906adcc6d1933bbbc4658488e3fc10da"
+  },
+  "doc/verification/performance/r8-baseline-2026-09-02.md": {
+    "bytes": 4931,
+    "sha256": "7d0fb7c1d43469f852f0995669687a7fe19c6e9a68c23fa7c34f7e89e7fd1319"
+  },
+  "doc/verification/performance/text-optimization-validation.md": {
+    "bytes": 11537,
+    "sha256": "43cf6a3f335824c31bfd635c4c0a20477a400673e59844508c2e18f56fb60fae"
+  },
+  "doc/verification/plans/00-index.md": {
+    "bytes": 2841,
+    "sha256": "7aea2a514d6bca5fb278ef20568d07cc08ad9fe09867e2dd9deab70d6d456731"
+  },
+  "doc/verification/plans/draw2d-egui-panel.md": {
+    "bytes": 3141,
+    "sha256": "54542bb106b495f8867f99afe405437213c6e54aece56701ecccef5a278f520c"
+  },
+  "doc/verification/plans/draw2d-official-examples-core-plan.md": {
+    "bytes": 14553,
+    "sha256": "3ea884f5671300b9e2fbbd7755b9205fd2344d5c625538ac481e6f31c268d893"
+  },
+  "doc/verification/plans/draw2d-official-examples-next-slices-2026-10-23.md": {
+    "bytes": 5930,
+    "sha256": "8486a26c8e19e8c4d6ee5aea6cec41a9926aa5cbb71daf679d2378adbc54d314"
+  },
+  "doc/verification/plans/draw2d-official-examples-remaining-contracts.md": {
+    "bytes": 23112,
+    "sha256": "f387633c2a591c67dc2a98622850a8156f6b272150fe7da4862cd24d86a63e73"
+  },
+  "doc/verification/plans/editor-container-editing.md": {
+    "bytes": 7498,
+    "sha256": "a21241369e43b6f9a10820d65f79573a419e2e037a488566f709fcb949090bb5"
+  },
+  "doc/verification/plans/editor-open-snapping.md": {
+    "bytes": 9552,
+    "sha256": "ba7e9124967981d7b4bcba9b95bd1eeb544859fdfbc33441d941f24c07003938"
+  },
+  "doc/verification/plans/flow-assembly-reuse.md": {
+    "bytes": 13991,
+    "sha256": "9fe6a36db2a6e3be16cb9b7525eb7bbe065956b28f93db7fb915fa050de97168"
+  },
+  "doc/verification/plans/long-text-benchmark-protocol.md": {
+    "bytes": 5673,
+    "sha256": "7af5e425a797293565de002f7da5ab34938e0b4e2f810f7f115a521980c47940"
+  },
+  "doc/verification/plans/p2-s06-incremental-failure-isolation.md": {
+    "bytes": 12045,
+    "sha256": "12eee84f12a572c986138e490d3d9f2ccf2ee41f0e8d902f7d8ae2f877329efb"
+  },
+  "doc/verification/plans/p2-s07-query-identity-and-failure-semantics.md": {
+    "bytes": 16081,
+    "sha256": "4906d48c47ab50e946f6e6e81222467496532482d93c72c8b8a7a048287bbd0b"
+  },
+  "doc/verification/plans/p2-s08-detached-input-invariants.md": {
+    "bytes": 8804,
+    "sha256": "5268cbba5763712d9e6621b76e1da93a6553fee08077db89f337acb81a1dd06b"
+  },
+  "doc/verification/plans/p2-s09-service-failure.md": {
+    "bytes": 8783,
+    "sha256": "e1241b0f8d89fa47bdc20e026ce18f38e3826d5d38072d959119be2f7c3a0e77"
+  },
+  "doc/verification/plans/p2-text-direct-edit.md": {
+    "bytes": 8218,
+    "sha256": "f24702f1292533b3cebe49de613ef304d7c29dc8fe61db75d3c9c8027d445df8"
+  },
+  "doc/verification/plans/textflow-large-research-app.md": {
+    "bytes": 4422,
+    "sha256": "335f8950c34f51bb1d70e210db8450ddd26a8bd03d72bff85148b9134b7a30cc"
+  },
+  "doc/verification/plans/xtask-command-simplification-2026-10-16.md": {
+    "bytes": 7077,
+    "sha256": "77bf6148bed5672a8a263eb2d3df886c4f1dda0e0ba91349f7c17a01c2459b5c"
+  },
+  "doc/verification/reference/00-index.md": {
+    "bytes": 532,
+    "sha256": "f2e999a1dfe21270addeb0a76cbf29e3d518b49d385fe5d47202a62c5fd17332"
+  },
+  "doc/verification/reference/draw2d-gef-semantic-baseline-2026-09-16.md": {
+    "bytes": 6113,
+    "sha256": "85b9036add38f81b9c2b10fc79c113a1211ad14d2164c0925e0e0bcc191f4b36"
+  },
+  "doc/verification/reference/draw2d-source-audit.md": {
+    "bytes": 5499,
+    "sha256": "d6baebd35f4746544b92bb3fa7e9c445413227ed5cf91ded90c9f066878ac1ca"
+  },
+  "doc/verification/reviews/00-index.md": {
+    "bytes": 3380,
+    "sha256": "26494d60637c0ff5475d16a5497cd74427dafc3a91ab8687bcd52ff60009ebd1"
+  },
+  "doc/verification/reviews/adr-036-context-phase-authority-completion-2026-10-13.md": {
+    "bytes": 3357,
+    "sha256": "ad9bb95b5b0aa09b363a994d8fedd86dde1040d9949cb95fdcd850c979edd742"
+  },
+  "doc/verification/reviews/adr-037-draft-review-2026-10-14.md": {
+    "bytes": 7866,
+    "sha256": "1dcffd5cfe7df763dfb4125361b841459c24132abb674c3c956cbda4e8a5ed22"
+  },
+  "doc/verification/reviews/adr-037-revision-1-review-2026-10-15.md": {
+    "bytes": 2062,
+    "sha256": "162222ddd8fe21c3fc0822e74eb3f5a2dd9929110e870acd6f76e16b96a8f3c6"
+  },
+  "doc/verification/reviews/adr-038-draft-review-2026-10-15.md": {
+    "bytes": 7689,
+    "sha256": "f4799fc23055f4aa6802174fc058ec8c35e404d0a44e8ada2b9bf7569078c522"
+  },
+  "doc/verification/reviews/adr-038-revision-1-review-2026-10-16.md": {
+    "bytes": 2575,
+    "sha256": "fd479b52b73a3ee0d76fda951bfd193c578cd5d37a1e8661db6327fc9ebee13d"
+  },
+  "doc/verification/reviews/adr-043-draft-review-2026-10-22.md": {
+    "bytes": 9016,
+    "sha256": "dd5a2edcddb3e8d7fcb6f5d2c9d7c435dcf6d7d010533393fd0f962bfd422daf"
+  },
+  "doc/verification/reviews/adr-055-followup-2026-10-29.md": {
+    "bytes": 7648,
+    "sha256": "8c043fec8d23806a873f888fac20642ad0e8ea4de338860856dcde12cbf92e69"
+  },
+  "doc/verification/reviews/adr-055-implementation-2026-10-29.md": {
+    "bytes": 11824,
+    "sha256": "7dea5f185ea43753d63138db1a35042c4a450ae54c072bef6ee3c916a59e983d"
+  },
+  "doc/verification/reviews/adr-056-design-review-2026-10-29.md": {
+    "bytes": 6541,
+    "sha256": "613002881c871af697b2da6d2ccbda965b89a817892ad1c82be138b5223a1e38"
+  },
+  "doc/verification/reviews/adr-060-draft-review-2026-11-03.md": {
+    "bytes": 10729,
+    "sha256": "05449ce8ce9934bdf0bcce2ad04e7f29cf25e66b2479d02cd00c47b2203b86b9"
+  },
+  "doc/verification/reviews/adr-060-revision-1-response-2026-11-03.md": {
+    "bytes": 3825,
+    "sha256": "fb0bceeca496811a71d6cfe1a53bec62ad209db86e3383b5b8482ee45681b496"
+  },
+  "doc/verification/reviews/adr-audit-2026-09-10.md": {
+    "bytes": 11388,
+    "sha256": "2584f99fb3f259c72057c42e07d84e0fc29afe86cefe5081e23459612da23585"
+  },
+  "doc/verification/reviews/adr014-d4.4-increment-2026-09-10.md": {
+    "bytes": 5279,
+    "sha256": "d33906ba88ea18f99bc1fdc13946a8de9fa234812a5783223ba20cbb8c7cbe48"
+  },
+  "doc/verification/reviews/adr014-d4.5-performance-2026-09-10.md": {
+    "bytes": 3108,
+    "sha256": "5ced30d9c74b51aeeb9a28774f198c9c5f779ace7870c1858ff54daf7c416c34"
+  },
+  "doc/verification/reviews/adr014-d4.6-completion-2026-09-10.md": {
+    "bytes": 3560,
+    "sha256": "a64baf9a1c47af86b2fbc5df1b013d4513a0138db9fb85ba56cb45ba6d2c29b3"
+  },
+  "doc/verification/reviews/adr014-implementation-gate-2026-09-10.md": {
+    "bytes": 5896,
+    "sha256": "31307313f4554200ec4dd54241b90a2865cee4c7cbcd8b0580041b763c5a5b29"
+  },
+  "doc/verification/reviews/api-architecture-review-2026-10-09.md": {
+    "bytes": 18079,
+    "sha256": "e7063ded97926fa3b4e37cf506486a2bcb3eb04cbe85c0e75defc5798dd59411"
+  },
+  "doc/verification/reviews/architecture-sustainability-review-2026-09-08.md": {
+    "bytes": 32361,
+    "sha256": "5a1d5552c47dff8f4d3ecf024791d86e94d7fa0b27abd54c3eb7af2bd80f6b9f"
+  },
+  "doc/verification/reviews/bounded-rich-text-proposal-assessment-2026-11-03.md": {
+    "bytes": 18179,
+    "sha256": "86e181dda0c4a943187ecf7f0014fdba50dd35a09d71de2045dfb4741752d7df"
+  },
+  "doc/verification/reviews/code-quality-review-2026-10-26.md": {
+    "bytes": 17466,
+    "sha256": "64cd90eaa49bdab7495c1665a183237ccd357c08e6a748d2417e5c344e687162"
+  },
+  "doc/verification/reviews/connection-extensibility-correction-2026-09-15.md": {
+    "bytes": 3027,
+    "sha256": "c361931f8dfd4fb7cdbcdb33411a07df8ceef38039ec30427b402f6663b22099"
+  },
+  "doc/verification/reviews/core-capability-status-2026-11-02.md": {
+    "bytes": 5144,
+    "sha256": "83d8415beba9598ee9c48927fdd98653bd91d5ae557d190b450399e8683504a3"
+  },
+  "doc/verification/reviews/core-color-text-input-2026-10-29.md": {
+    "bytes": 3216,
+    "sha256": "99bddad721b6065fb71568e844a042735bbeecaab4496ebc9850e39b005966c5"
+  },
+  "doc/verification/reviews/core-pipeline-2026-08-23.md": {
+    "bytes": 6154,
+    "sha256": "28b736e8b1a0914e0525540790b0eda313b9f73eec999b445d7ee6e744b7e83b"
+  },
+  "doc/verification/reviews/core-public-api-audit-2026-09-22.md": {
+    "bytes": 26040,
+    "sha256": "9fd481027d70aef7ab649c44faa4ee78b40af6b2647a3b2544dd8c55cb69c3e7"
+  },
+  "doc/verification/reviews/crate-boundary-audit-2026-09-29.md": {
+    "bytes": 9318,
+    "sha256": "7d6ef58887197e12a2cd33674fbe65d48f56cbd71f3e6d47408495654f792a41"
+  },
+  "doc/verification/reviews/d3-runtime-listener-2026-09-08.md": {
+    "bytes": 1924,
+    "sha256": "5fe26bd14451669c2d3ee2e71c5909ce183c17f1ec6e30d4cbf6c4c4986985f3"
+  },
+  "doc/verification/reviews/d3-runtime-mutation-2026-09-08.md": {
+    "bytes": 2637,
+    "sha256": "a6939941beb73e6ccbf6e52f0339879f75d726a5add578c552cff6ab7d37fbb5"
+  },
+  "doc/verification/reviews/d4-audit-calibration-2026-09-09.md": {
+    "bytes": 2496,
+    "sha256": "6c1e1ae622fecdb922d359b56e23344821c08cf22ae90e1ae97a8004fa449194"
+  },
+  "doc/verification/reviews/d4-derived-state-convergence-2026-09-09.md": {
+    "bytes": 2003,
+    "sha256": "5cb26ce983df7e1aaebdbbb153ca0c7cead8f81ddb28d0a4e0807b2caf065df3"
+  },
+  "doc/verification/reviews/d4-resource-causality-and-backend-session-2026-09-09.md": {
+    "bytes": 2188,
+    "sha256": "61972735cc4f1ea3e660db3866d0cd4a2f2f5c88f6dc00e8ed737a11cd9568d6"
+  },
+  "doc/verification/reviews/design-code-audit-2026-08-29.md": {
+    "bytes": 4915,
+    "sha256": "89cacea1a4d27c6eced9054e98c45f276ea18cc1d29bb03d91f886d775b59c8f"
+  },
+  "doc/verification/reviews/document-writing-audit-2026-10-29.md": {
+    "bytes": 30353,
+    "sha256": "1bb5f7bce2a9ef067b0b5bca77a255d3947d868541486671987fb5290fe0f292"
+  },
+  "doc/verification/reviews/documentation-content-quality-2026-11-03.md": {
+    "bytes": 11383,
+    "sha256": "150001d715c125b09ded38b954afd59a0d10735501a7861924f3dc4564b98715"
+  },
+  "doc/verification/reviews/documentation-knowledge-revision-2026-10-19.md": {
+    "bytes": 5983,
+    "sha256": "e00092f8d39ecc553dd4c55e3293119c37ec67df7d58f523afec9950faa88210"
+  },
+  "doc/verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md": {
+    "bytes": 6126,
+    "sha256": "86810765eca59d2738504d76c8ba5c62496d766af215bb3cac7912064204389b"
+  },
+  "doc/verification/reviews/draw2d-core-capability-audit-2026-09-08.md": {
+    "bytes": 9861,
+    "sha256": "44daae43bead8c859ebf8ca46b9e84265b3811a04e185aabea4f48ca9b6ca524"
+  },
+  "doc/verification/reviews/draw2d-example-api-ergonomics-2026-10-19.md": {
+    "bytes": 19851,
+    "sha256": "65d5297c0e6f2609f784079a624140bff2549d47dc72c5ad0bd6f2469e53f3aa"
+  },
+  "doc/verification/reviews/draw2d-gef-core-semantic-follow-up-audit-2026-09-20.md": {
+    "bytes": 8704,
+    "sha256": "0d95e84f3ed60d2d1410b48330630221e9b673f881a628e4c1a2921d6eb305b9"
+  },
+  "doc/verification/reviews/draw2d-gef-migration-plan-2026-09-16.md": {
+    "bytes": 15307,
+    "sha256": "5aa547747adb5a5ded05067f3e097ad824709d8b2143317745a6dbfb098dfd2c"
+  },
+  "doc/verification/reviews/draw2d-gef-semantic-differences-2026-09-16.md": {
+    "bytes": 11338,
+    "sha256": "191d28d3b8c2b76866f3f91e113b3b768c6ba02d17c971ab824daef4800d2163"
+  },
+  "doc/verification/reviews/draw2d-gef-semantic-mapping-2026-09-16.md": {
+    "bytes": 17439,
+    "sha256": "369d48a81af1d41fe7114465a6507eb45e48299e58ef42bae29309be81d6be08"
+  },
+  "doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md": {
+    "bytes": 8255,
+    "sha256": "432e405cb6aa43ba09e7369ce6f44f2aace4305ae952d0db0e99c7047bf5285a"
+  },
+  "doc/verification/reviews/draw2d-official-examples-functional-audit-2026-10-26.md": {
+    "bytes": 24104,
+    "sha256": "c437822c3c17c2296e9447dc64ef7faf0ade8bafdc643f3715ad8522300e4734"
+  },
+  "doc/verification/reviews/draw2d-official-examples-parity-2026-10-16.md": {
+    "bytes": 18910,
+    "sha256": "c7a3c12b882890183c4e9027c6cd39aa31b8110da07e78bdd3c00950666cc041"
+  },
+  "doc/verification/reviews/draw2d-official-examples-remaining-audit-2026-10-26.md": {
+    "bytes": 11984,
+    "sha256": "8395eeb2ed85787da6d47f6b740c4d541b5712f414ee7bd79c29e8e080f1d575"
+  },
+  "doc/verification/reviews/editor-container-combinations-2026-11-02.md": {
+    "bytes": 9407,
+    "sha256": "182257132dabe9c7a5b1d782fc6bfa122fed77ed115fa0845a551494bd4f76e8"
+  },
+  "doc/verification/reviews/editor-container-followup-2026-10-30.md": {
+    "bytes": 9110,
+    "sha256": "36940624349b633ad934f2ec8f00a056ac49921a302476850c99526afa31ab9d"
+  },
+  "doc/verification/reviews/engine-capability-assessment-2026-09-28.md": {
+    "bytes": 8504,
+    "sha256": "592d27e0cf8f5b6912eef80b7688955cf1173a10902707e9820bc3cc5b5a8886"
+  },
+  "doc/verification/reviews/flow-assembly-attribution-2026-11-03.md": {
+    "bytes": 13496,
+    "sha256": "6b3e6efe1bb582aefa14298e7741a6d5c7a07fd82426456a2ad7eca663cb056f"
+  },
+  "doc/verification/reviews/flow-runtime-input-reuse-2026-11-03.md": {
+    "bytes": 10287,
+    "sha256": "43515c74cb5a17bda9ebbe7761c705f7be958df138f556984c3d34bcfb7ccd82"
+  },
+  "doc/verification/reviews/flow-runtime-repeat-work-analysis-2026-11-03.md": {
+    "bytes": 18586,
+    "sha256": "4e0fc300568e501e151b7d06b9ef11ef4d9718e7e1533deb486e8225960f030a"
+  },
+  "doc/verification/reviews/framework-architecture-contract-revision-2026-10-12.md": {
+    "bytes": 5025,
+    "sha256": "25a0bb5861bdf8a7a7a0d11bef20e80757c3c65920c0e6e1d6e3e5e948ffffa1"
+  },
+  "doc/verification/reviews/framework-contract-review-status.md": {
+    "bytes": 2262,
+    "sha256": "c5d10520bd0568244432b32c97709e78dc0ba7e40cb17f67f8d0533ee32f5fc7"
+  },
+  "doc/verification/reviews/framework-documentation-and-architecture-review-2026-10-12.md": {
+    "bytes": 35481,
+    "sha256": "0d6a3789b9e7056656e05d78ef054a5c11b24bb46174d6c47acbba072d7b57da"
+  },
+  "doc/verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md": {
+    "bytes": 17351,
+    "sha256": "e8fb75698432dba14c61682b66ca970ec0986d27fd5b6c8ef1aec36f040d99d9"
+  },
+  "doc/verification/reviews/g1-model-command-completion-2026-09-13.md": {
+    "bytes": 3757,
+    "sha256": "c392aefc98767701e38d1a04323e648c17b08b636650ef9fd2c7e3fa19a430a6"
+  },
+  "doc/verification/reviews/g2-viewer-projection-completion-2026-09-13.md": {
+    "bytes": 3363,
+    "sha256": "cc0fe6fcc0f818ab59a2f0879cbde90126d069f2ec9c51ed058a53231f8190b6"
+  },
+  "doc/verification/reviews/g3-selection-targeting-behavior-2026-09-13.md": {
+    "bytes": 4235,
+    "sha256": "f5a4737893ece84bc9fbfec2efbda0d3322d0c634e485a638e30bc8735565e46"
+  },
+  "doc/verification/reviews/g4-editing-loop-behavior-2026-09-14.md": {
+    "bytes": 3998,
+    "sha256": "ad53f129e858c8af72f97f04829ad2a4e1e0412dd95bf6bbd6b546960798a4c2"
+  },
+  "doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md": {
+    "bytes": 1159,
+    "sha256": "c3718767776682d5ea197485588cc04047d35d25a8aee88e7ddbf19d107c8084"
+  },
+  "doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md": {
+    "bytes": 3300,
+    "sha256": "317fa8607de743d905a1170709b5292d526fa4ec981454d3245d982075b0754e"
+  },
+  "doc/verification/reviews/g5-connection-projection-design-2026-09-14.md": {
+    "bytes": 5547,
+    "sha256": "132f178c05ad9659e7586ef1af61568e076e3112adae55c7d33f23afb3ccb674"
+  },
+  "doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md": {
+    "bytes": 1847,
+    "sha256": "cd086d0cd28a2188df378466098584c64a8ee5551e4bf414e291703f9e1650a3"
+  },
+  "doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md": {
+    "bytes": 3655,
+    "sha256": "a42280400fff19ce045f460a7c5f62cdfad4263d1f40029e91b57a694c60ae26"
+  },
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md": {
+    "bytes": 4734,
+    "sha256": "9f027d5e66219d4240923a2a55960827cb27366870d2a87c6f129fee149deb8d"
+  },
+  "doc/verification/reviews/ga4-module-extension-completion-2026-10-01.md": {
+    "bytes": 3109,
+    "sha256": "13ac4af6bf4fa275e8a6c0675b91db1a32167659dd6c146603adb06af4a91300"
+  },
+  "doc/verification/reviews/ga5-documentation-gate-completion-2026-10-01.md": {
+    "bytes": 2217,
+    "sha256": "eee507db2cd3937893a9460184731cfcd1cf8c13720c65a47a6a6cbd92a42316"
+  },
+  "doc/verification/reviews/ga6-goal-matrix-audit-2026-10-01.md": {
+    "bytes": 4739,
+    "sha256": "f039f1d7adc02839299518f0c3881cc675c7687655d8da645826120864a0f3db"
+  },
+  "doc/verification/reviews/gef-logic-first-slice-2026-10-29.md": {
+    "bytes": 5374,
+    "sha256": "04a1fe8a1f16185b4c7f145662d6286c35f433cdc5d6054d7c67f8a5b28368d0"
+  },
+  "doc/verification/reviews/gef-logic-routing-2026-10-30.md": {
+    "bytes": 5200,
+    "sha256": "f3042b6bdacb9c7aa2987ab161287cf62ad11b3ba8da3ae6f676e4fd8d01ba2b"
+  },
+  "doc/verification/reviews/gef-readiness-analysis-2026-09-13.md": {
+    "bytes": 7039,
+    "sha256": "74df21fce9a282ead731c31fc3e630f92f22852fc1dfc1cc692349a1c6033d51"
+  },
+  "doc/verification/reviews/gef-scene-target-implementation-2026-10-28.md": {
+    "bytes": 5675,
+    "sha256": "7a2aa1125fdc3951bdc06a470aa1d3174a6013fb27c0a11664aba685956e7e8c"
+  },
+  "doc/verification/reviews/goal-design-code-audit-2026-09-30.md": {
+    "bytes": 21606,
+    "sha256": "b6e9fd63c6a59e70d0f92822f07494d9c92ba4838717b785f4d403c61c6cc6e5"
+  },
+  "doc/verification/reviews/graph-projection-preparation-review-2026-10-22.md": {
+    "bytes": 7758,
+    "sha256": "3de9329bae9fee2fc2b71b4732f6441ee69444039558816383838dad73f3d2d9"
+  },
+  "doc/verification/reviews/historical-baselines.md": {
+    "bytes": 2782,
+    "sha256": "0a8eebae0b4fb3a7069bd3845b5af7858befc32efda3bbab56367b523c62427b"
+  },
+  "doc/verification/reviews/independent-shape-corners-2026-10-27.md": {
+    "bytes": 6482,
+    "sha256": "e811b80d40de33ed311fb228ab48eb5847cf2e9f54e5692287b542aa828498a9"
+  },
+  "doc/verification/reviews/k02-layout-consumers-evidence-2026-10-23.md": {
+    "bytes": 3760,
+    "sha256": "ec2c31444aad4f31bc7620cada5afc2a38d17e462a3278a4865859e3396bab85"
+  },
+  "doc/verification/reviews/k07-1-scene-capture-evidence-2026-10-23.md": {
+    "bytes": 3709,
+    "sha256": "f7fdbdace24e761c4dd67ba6d5fef617b32a61262403a1f09c53e990f8804e8c"
+  },
+  "doc/verification/reviews/k07-2-scene-group-evidence-2026-10-23.md": {
+    "bytes": 4666,
+    "sha256": "ee19b79110e6788d346179dcfa1b2c69314661155e8eb2954ff63c7d6c3a0b97"
+  },
+  "doc/verification/reviews/k07-3-scene-view-evidence-2026-10-23.md": {
+    "bytes": 4166,
+    "sha256": "5db096d96ef177e2e9e3156e2179487515dea13f77376e7266f7e5dafdd5a17f"
+  },
+  "doc/verification/reviews/k07-4-thumbnail-evidence-2026-10-23.md": {
+    "bytes": 3517,
+    "sha256": "f3958cf2fc8c7adf5a63f9c216dc09a5300e2efbb4c461b14032332482d7c485"
+  },
+  "doc/verification/reviews/k07-5-host-background-evidence-2026-10-23.md": {
+    "bytes": 4296,
+    "sha256": "0bc1d63d3071540e37c5a23fefe83b9ba3ce7d549f53e747638d7030030bb3bd"
+  },
+  "doc/verification/reviews/k07-6-inherit-background-evidence-2026-10-23.md": {
+    "bytes": 3854,
+    "sha256": "4a08a9924ec3327d7e3c39550b00e731930a18d517ebb0949e5805122d1e9d14"
+  },
+  "doc/verification/reviews/k08-svg-density-evidence-2026-10-23.md": {
+    "bytes": 3650,
+    "sha256": "3e7a50c4e42aeb4199a43f4969e1fca0aba2006ad7cfc96b2af6bf9ccb9a5205"
+  },
+  "doc/verification/reviews/long-text-incremental-layout-review-2026-10-27.md": {
+    "bytes": 12371,
+    "sha256": "78438dd5762261cb350c6a223e61cde857b5c92668be135fa1af0439629f8576"
+  },
+  "doc/verification/reviews/long-text-performance-implementation-2026-10-27.md": {
+    "bytes": 50550,
+    "sha256": "4a3352cbac12cddf7cb1ab56c5b63e9e41431cd692460fa6dc1e4a62a5e91ab4"
+  },
+  "doc/verification/reviews/long-text-performance-proposal-review-2026-10-27.md": {
+    "bytes": 9304,
+    "sha256": "0bad85c532cef3c728ff346651d06d256194c3a08c5a7fb93d4a1fd068ec42ca"
+  },
+  "doc/verification/reviews/long-text-performance-revision-2-review-2026-10-27.md": {
+    "bytes": 6126,
+    "sha256": "18717f40f0e006a303eab5c1d41d99887101d9d5f7bca240b7d8886668fa468e"
+  },
+  "doc/verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md": {
+    "bytes": 17483,
+    "sha256": "92b12a1e01a1b132b73dd065af8762c20ceb75ca371f1cbfee8bf192ecc76ab7"
+  },
+  "doc/verification/reviews/long-text-scroll-resize-review-2026-10-28.md": {
+    "bytes": 14033,
+    "sha256": "9f032f6545034da8daf6c98962667292ea8573321967bfab098455e15fea7cb4"
+  },
+  "doc/verification/reviews/m1-m8-manual-acceptance-2026-09-12.md": {
+    "bytes": 4830,
+    "sha256": "d1df613b657f6bab0b7ee4403c19c77750717bbc42ed76b3e09673f4d77ba690"
+  },
+  "doc/verification/reviews/m10-web-equivalence-2026-09-13.md": {
+    "bytes": 4420,
+    "sha256": "5e0fe67bad0c15c7b0f1945e698549847d84478ac1855ee1353124a7596c42a4"
+  },
+  "doc/verification/reviews/m10.5-tooltip-accessibility-2026-09-10.md": {
+    "bytes": 3838,
+    "sha256": "e28e143aa809102824744a679c228e263498d6305f20e77c7007dec14de5efa8"
+  },
+  "doc/verification/reviews/macos-live-resize-transaction-2026-09-12.md": {
+    "bytes": 16975,
+    "sha256": "e4289145c2008e8e8b99a07645331cff3d1d7b6496b419f85e6ff0b5aa75a070"
+  },
+  "doc/verification/reviews/masonry-native-first-frame-followup-2026-10-28.md": {
+    "bytes": 3596,
+    "sha256": "20eb5f2e0bad976ba92ebf8facdd4b84a43f6839417a60f712e2c9b7cfdfdc8e"
+  },
+  "doc/verification/reviews/masonry-upstream-migration-2026-10-28.md": {
+    "bytes": 6109,
+    "sha256": "606adb0603d158b3a15819f5439c7e378ff55eaa50bf870cd5eaf766a9567def"
+  },
+  "doc/verification/reviews/masonry-xilem-canvas-implementation-2026-10-28.md": {
+    "bytes": 7132,
+    "sha256": "0fa7f1075e0839207b873af8bf6ed99083a7be26fdf4b5a897892e7e10ac428a"
+  },
+  "doc/verification/reviews/official-example-capability-increment-2026-10-26.md": {
+    "bytes": 3166,
+    "sha256": "98e7af34bc8eb3c2e7a53922ce30d584522ad03ced537af85bd26a8ff8ff5b82"
+  },
+  "doc/verification/reviews/official-example-core-increment-2026-10-27.md": {
+    "bytes": 9162,
+    "sha256": "70ce4276b3672001cb9e905530b9e4621c8d4420f3c4938e81eba5e97edf76aa"
+  },
+  "doc/verification/reviews/official-layout-caret-consumers-2026-10-27.md": {
+    "bytes": 6706,
+    "sha256": "80e811d2d54fb403c05e07dd694a867214166b1479935ba44c986418c9442ef5"
+  },
+  "doc/verification/reviews/official-layout-native-mouse-2026-10-29.md": {
+    "bytes": 4829,
+    "sha256": "b4604fc5671015eba2dc9f917791b86b21449020a0cdcdfa80454233fe830873"
+  },
+  "doc/verification/reviews/official-layout-native-window-2026-10-29.md": {
+    "bytes": 5629,
+    "sha256": "0a9735bee99e12aaffef89e8f15bd5894b73fa680cc9c2518d0342aa333fc717"
+  },
+  "doc/verification/reviews/official-system-fonts-2026-10-28.md": {
+    "bytes": 4791,
+    "sha256": "bf67650b7aab8b668aa8c283a01b02a61c268d1f43ca2065d01ac8dd65436024"
+  },
+  "doc/verification/reviews/open-snapping-review-status.md": {
+    "bytes": 2497,
+    "sha256": "fbc3080997d18956809a5224dbb7d91012e5c89e741273dd976739bfbf3bc6a8"
+  },
+  "doc/verification/reviews/p2-direct-text-edit-session-2026-09-29.md": {
+    "bytes": 1833,
+    "sha256": "d121bd785b3b48fdd3af7fefa14ba118dc3c5951f35f7e82eb7ac6ef53695f04"
+  },
+  "doc/verification/reviews/p2-e04-a-implementation-2026-11-02.md": {
+    "bytes": 20885,
+    "sha256": "b4e66e7cda6843d1cb7a4373c988e48b502fec6318fb7b5d578a4eff3d12b650"
+  },
+  "doc/verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md": {
+    "bytes": 3865,
+    "sha256": "896b797621480d7563c14ef70b12c3eff64802db50a75993d3301140eb94bae1"
+  },
+  "doc/verification/reviews/p2-g01-graphics-evidence.md": {
+    "bytes": 4747,
+    "sha256": "cde16202e9d1b4ee5e2bf22cb9c62134f31aa21198040fe6c5698a4714f3499d"
+  },
+  "doc/verification/reviews/p2-g02-text-graphics-evidence.md": {
+    "bytes": 2856,
+    "sha256": "292500b3a8b0f14fb74ca302aeb477f90996b0592b09acdafa2822a4fe7d485e"
+  },
+  "doc/verification/reviews/p2-m01-animation-architecture-review.md": {
+    "bytes": 8973,
+    "sha256": "1a44b5c9ba53b1d45e112ac5453460ad41078d117086a8b2dea41a1259fd82dd"
+  },
+  "doc/verification/reviews/p2-m01a-animation-evidence.md": {
+    "bytes": 5198,
+    "sha256": "1a64df8c908a6a3af5ca13790fcafd5d155389eb4c967687d80e83eca3f7061a"
+  },
+  "doc/verification/reviews/p2-m01b-animation-presentation-evidence.md": {
+    "bytes": 4839,
+    "sha256": "6a33b0c913bc9625ccbb9a80f77156057f077abe739167cabf1434eb6d2a0939"
+  },
+  "doc/verification/reviews/p2-m01c-animation-consumer-evidence.md": {
+    "bytes": 4638,
+    "sha256": "67171d63b8c6f8715b9886ddedae406c6ccd4e5c72add937f348f8a30dd9394e"
+  },
+  "doc/verification/reviews/p2-s02-explicit-domain-imports-completion-2026-10-09.md": {
+    "bytes": 2172,
+    "sha256": "426f82c5a8d74e749009846f8fdb3a42557b2161ef8550a1e0befa519ae19bc6"
+  },
+  "doc/verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md": {
+    "bytes": 2521,
+    "sha256": "b17a1320d9f546d6f4063c5b522eba57ded0c3ce36ef020f8ead25daab854ced"
+  },
+  "doc/verification/reviews/p2-s04-editor-open-protocol-completion-2026-10-10.md": {
+    "bytes": 3068,
+    "sha256": "bc44914c8cec01b828de1949b87bf715747c32c679d06a12e30102ea0482fc53"
+  },
+  "doc/verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md": {
+    "bytes": 4086,
+    "sha256": "203dcce8624bc01f69c9162eecae126cc35a59f9cc8a2c9fe65337acb90860f8"
+  },
+  "doc/verification/reviews/p2-s06-failure-isolation-completion-2026-10-15.md": {
+    "bytes": 10428,
+    "sha256": "0fc1681cce9dd7a197acbaa6564a4d804d02f0b88d07d270dd7b1fe5eb06a3d9"
+  },
+  "doc/verification/reviews/p2-s06-implementation-evidence-2026-10-15.md": {
+    "bytes": 9395,
+    "sha256": "4eab6e61c64a8293246c43cc4e1a2da8c3150cf74df16393a5dcb3a273fe74f5"
+  },
+  "doc/verification/reviews/p2-s06-mechanism-necessity-2026-10-14.md": {
+    "bytes": 5101,
+    "sha256": "896790b2d6291106bebbe2413840bae3cbf439b0d147281031364b81be05ff14"
+  },
+  "doc/verification/reviews/p2-s06-remaining-evidence-review-2026-10-15.md": {
+    "bytes": 5586,
+    "sha256": "82a21f9de680b7ff59ec0e406a1ca90cfda1231834afbd85505b82c6ec272dff"
+  },
+  "doc/verification/reviews/p2-s07-coordinate-route-query-evidence-2026-10-16.md": {
+    "bytes": 4882,
+    "sha256": "41eaae3869e1dd7afa406d777a1e3fea0c05159e395d5d74bc6a5de095554603"
+  },
+  "doc/verification/reviews/p2-s07-layout-query-evidence-2026-10-16.md": {
+    "bytes": 4443,
+    "sha256": "73a6f9587ed986dd7f4f96eacbb67580d41a1bfdee74370357284f3ee5152556"
+  },
+  "doc/verification/reviews/p2-s07-query-design-inventory-2026-10-15.md": {
+    "bytes": 8476,
+    "sha256": "6c96f4aad892436a48b082db099a19a90b939e313f990c4092eb766c112051c1"
+  },
+  "doc/verification/reviews/p2-s07-query-identity-completion-2026-10-16.md": {
+    "bytes": 7872,
+    "sha256": "11abe8cde1fbd1747a4cb65040354626f5ec13a97d9ef7561dc7a87d16182584"
+  },
+  "doc/verification/reviews/p2-s07-tree-query-evidence-2026-10-16.md": {
+    "bytes": 3905,
+    "sha256": "c977409dd7dc451652561752a2b65597f838b3db79cfecf87836565be5c2fc28"
+  },
+  "doc/verification/reviews/p2-s08-a-implementation-2026-10-29.md": {
+    "bytes": 10884,
+    "sha256": "bfbeeffc44817a6637f7fdf8adbb2d265434035b79cc486aebf8240b952a7e61"
+  },
+  "doc/verification/reviews/p2-s08-b-implementation-2026-10-29.md": {
+    "bytes": 10010,
+    "sha256": "d077d460b931fa924f1a59a490eb942b0048d35ed2998bb43971f11d764ee4d5"
+  },
+  "doc/verification/reviews/p2-s08-c-implementation-2026-10-29.md": {
+    "bytes": 6549,
+    "sha256": "1ccf5c6e62403b411cf71e830845273414e82130f5f8ca6ffe6c2d3d30f64a22"
+  },
+  "doc/verification/reviews/p2-s08-d-completion-2026-10-29.md": {
+    "bytes": 11771,
+    "sha256": "d9ac7138e92cdd54e3320b03a5f9c54a8cdcf99b6a67711518714a21acf5cdf1"
+  },
+  "doc/verification/reviews/p2-s08-design-record-2026-10-29.md": {
+    "bytes": 2967,
+    "sha256": "7490b7c3e2008ef2aec09d13018256ea02e7536b58ba89c2f2521d4158343da4"
+  },
+  "doc/verification/reviews/p2-s09-a-implementation-2026-10-30.md": {
+    "bytes": 8044,
+    "sha256": "3e39158001e3dc9b55f2df6c9fae924869de2f063dd9a03a448d408e25af82e4"
+  },
+  "doc/verification/reviews/p2-s09-b-implementation-2026-10-30.md": {
+    "bytes": 12953,
+    "sha256": "3b811e8b157fb3f2ab5c28a4616e260b5e36b9b25cac3452721d6d849ee50ef2"
+  },
+  "doc/verification/reviews/p2-s09-c-implementation-2026-11-02.md": {
+    "bytes": 6393,
+    "sha256": "aca0693fc96d78575f49cf49b0b493ca0fac8c5dd64eb189b6e2eaf9661ee370"
+  },
+  "doc/verification/reviews/p2-s09-d-implementation-2026-11-02.md": {
+    "bytes": 5240,
+    "sha256": "0af2f0b69e63a01d9a0541978c4c1f13fc8c238f1658913bfce55fda9e05cbfd"
+  },
+  "doc/verification/reviews/p2-s09-design-inventory-2026-10-30.md": {
+    "bytes": 8790,
+    "sha256": "4af477f8f102ba65ed263a0744be0b27aa96d8d8f5623dff8de07d053d4d9ca2"
+  },
+  "doc/verification/reviews/p2-text-input-bridge-2026-09-29.md": {
+    "bytes": 2687,
+    "sha256": "5686c2363004d396923c9399b91cd1fbb76eb83f5ff414889f936c22ea9b232d"
+  },
+  "doc/verification/reviews/p2-text-interaction-2026-09-29.md": {
+    "bytes": 1687,
+    "sha256": "573415b20c8cb041db23f1cb1b7dd6bc4ac58b6718f877c4baacafd31a05b9ac"
+  },
+  "doc/verification/reviews/per-operation-antialias-implementation-2026-10-26.md": {
+    "bytes": 9451,
+    "sha256": "35ac25d62f3233cd2e320907e4b26b79b34d1aa5b584d7b0e5d099e22953b05e"
+  },
+  "doc/verification/reviews/public-api-unification-completion-2026-10-06.md": {
+    "bytes": 3909,
+    "sha256": "77d5aca67e43e64e1cadb5c28b9fad658c01900c5b9271db56edb9b80d5147aa"
+  },
+  "doc/verification/reviews/roadmap-calibration-2026-10-14.md": {
+    "bytes": 6454,
+    "sha256": "2d9ec28dffbb122726db262b7171c565c18dc25ea0d33fc40ed784ad8ac4ddbe"
+  },
+  "doc/verification/reviews/s09-and-snapping-design-review-2026-10-29.md": {
+    "bytes": 4271,
+    "sha256": "c5de82a5ca512786a08027e972a30c9513dd2727cac40b72633fe9c08b5c2a2f"
+  },
+  "doc/verification/reviews/scroll-zoom-native-window-2026-10-29.md": {
+    "bytes": 4338,
+    "sha256": "f161b12805f9a5f9ac98e6f8d2fa8364e30317df9ea7557d23fff702928bc094"
+  },
+  "doc/verification/reviews/service-failure-review-status.md": {
+    "bytes": 1871,
+    "sha256": "61d1f34d436c015821d66b0f97a272fd104427b6a569190b39542782d5b66a20"
+  },
+  "doc/verification/reviews/shape-aa-feasibility-2026-10-26.md": {
+    "bytes": 3735,
+    "sha256": "b0d636940e648566b0524d8e276c172535c8853d892be453e4fa597efe37c352"
+  },
+  "doc/verification/reviews/shape-free-end-butt-2026-10-27.md": {
+    "bytes": 4279,
+    "sha256": "3eeaaec899bcffff98288aa4fe26990787ac42a18aba01d4d655b56bdbb45f9c"
+  },
+  "doc/verification/reviews/shapes-editor-implementation-2026-10-28.md": {
+    "bytes": 14135,
+    "sha256": "d716d1df3ae6e3898c3d4b0cfca4664c1ae86b610b09c2c0e5b0eb8165995f33"
+  },
+  "doc/verification/reviews/shapes-inspector-layout-analysis-2026-10-29.md": {
+    "bytes": 4731,
+    "sha256": "2e6737e2bf7ab10635670f8bd51bcdf39a9c066405bb696e63697ed01cd842ce"
+  },
+  "doc/verification/reviews/suite-configuration-and-unit-test-boundary-2026-10-16.md": {
+    "bytes": 20311,
+    "sha256": "389a17a92f7093f2e8fd0fe72a9975b28c0303c18dcd9ceff991835f175e1eac"
+  },
+  "doc/verification/reviews/tc01-graphics-cutover-completion-2026-10-09.md": {
+    "bytes": 3405,
+    "sha256": "49b4d0f45e7e8b4c0cb3f8dbefeb42852c6316afb072ca242372736c97af5034"
+  },
+  "doc/verification/reviews/tc04-typed-property-identity-completion-2026-10-08.md": {
+    "bytes": 2914,
+    "sha256": "cf250ece5a0a29dab2918c7f09efff27ae424f320c5d492259d85b4c50bd3932"
+  },
+  "doc/verification/reviews/tc07-viewer-edit-boundary-completion-2026-10-09.md": {
+    "bytes": 4114,
+    "sha256": "e2c51281842d83617a84cf68a4dc4412f890c6d877e81cc40d2d442867e8e732"
+  },
+  "doc/verification/reviews/tc11-resource-provider-completion-2026-10-09.md": {
+    "bytes": 3276,
+    "sha256": "e1ead691946f98c91f15d5404f8cb2e427777093fb169cf952452e25c34f5666"
+  },
+  "doc/verification/reviews/tc12-render-backend-failure-completion-2026-10-08.md": {
+    "bytes": 3367,
+    "sha256": "f97d0ea939bdb1a758b4c14902dfacf557935958413bc23d91452650a16a6374"
+  },
+  "doc/verification/reviews/tc13-tc14-api-surface-hot-path-completion-2026-10-08.md": {
+    "bytes": 2708,
+    "sha256": "5b7b4c689ad3f7d8bb38bcce9742556429b431290c3cad956d280482509221ed"
+  },
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md": {
+    "bytes": 29691,
+    "sha256": "bbf923463c7eeaefc65eea49de0ea1fe4bf4c715eea0c7615110d4dd698fd634"
+  },
+  "doc/verification/reviews/text-cache-optimization-2026-11-02.md": {
+    "bytes": 6560,
+    "sha256": "3b7cce47b46fcefe24e701c96723ef0d878dd15b735c526e909952473e1cf1c3"
+  },
+  "doc/verification/reviews/text-stages-a-implementation-2026-11-02.md": {
+    "bytes": 7446,
+    "sha256": "2872d9901fa193193655e805a8696d58e8f35cf932d40c937fd19075a355dfbf"
+  },
+  "doc/verification/reviews/text-stages-b-line-breaking-2026-11-02.md": {
+    "bytes": 7331,
+    "sha256": "d9efa251db536b7029ce101548ea1dd4b662198326dcd248214cf2968ab7dac6"
+  },
+  "doc/verification/reviews/text-stages-b-operations-2026-11-02.md": {
+    "bytes": 8270,
+    "sha256": "fd4b7f78d92a1740e15b5e1df31b49372b80c5fc4ff426cd4e54378b271c3449"
+  },
+  "doc/verification/reviews/text-stages-b-storage-patch-2026-11-02.md": {
+    "bytes": 14368,
+    "sha256": "aad224a665750b16c9e12803c88394d6f2a6c089d528cd2799206a5ae1161def"
+  },
+  "doc/verification/reviews/text-stages-status.md": {
+    "bytes": 4591,
+    "sha256": "ccd1d89e143f9a9afc7d3dd5d020e5c0b3dbb756adbb7a9c8eca280124a96cfe"
+  },
+  "doc/verification/reviews/text-width-reuse-feasibility-2026-11-02.md": {
+    "bytes": 6607,
+    "sha256": "715e74a2234f82934f18914e7b444f82494b82e81f03465ab0c6db77bd7e9152"
+  },
+  "doc/verification/reviews/textflow-large-app-implementation-2026-11-03.md": {
+    "bytes": 5330,
+    "sha256": "8974b5113197a5a2f6a768600ce7dd4bc7e4c42c846c13b57bf78cdaa666d22b"
+  },
+  "doc/verification/reviews/textflow-large-performance-analysis-2026-10-26.md": {
+    "bytes": 11646,
+    "sha256": "8e924d814313f5e408b0e73cc49c7cbc83e12bd4e3d4f03bdcdf02b711abd686"
+  },
+  "doc/verification/reviews/tree-layout-presentation-implementation-2026-10-26.md": {
+    "bytes": 8938,
+    "sha256": "d079049dc089d43e494e2f647b2da6855004dc6027947361b3070c7ed7db8971"
+  },
+  "doc/verification/reviews/uml-extension-capability-2026-10-05.md": {
+    "bytes": 5686,
+    "sha256": "cca42027d32c012e1c4e35b3051c50a27d4a776e595a8d91c3063303f8f2d943"
+  },
+  "doc/verification/reviews/wasm-rust-file-migration-2026-10-28.md": {
+    "bytes": 3169,
+    "sha256": "17393d3540ff67a598d1787b17271788adc57ac93ed71611a8b4628f9b7bb73b"
+  },
+  "doc/verification/reviews/web-edit-context-capability-2026-09-30.md": {
+    "bytes": 5514,
+    "sha256": "8b5f82b279d2d6d8ad992c55b5ff144b4ccfd7c62493809a2759c2d473ce563f"
+  },
+  "doc/verification/reviews/xilem-masonry-upstream-reassessment-2026-10-28.md": {
+    "bytes": 10731,
+    "sha256": "cdce0bb2439592189d18c389cbc33dfb8a26bcd9de2292ff5d34e858f38e1ce3"
+  },
+  "doc/verification/reviews/xtask-command-system-value-assessment-2026-10-16.md": {
+    "bytes": 27782,
+    "sha256": "6bb9b9d813b48156176802a59f3214c850aab432e2bb60d8e473d9f1a928cb29"
+  },
+  "doc/verification/reviews/zoom-icon-alignment-2026-10-30.md": {
+    "bytes": 3259,
+    "sha256": "fbe4aee1f888fd2b54da679c0c4d5f23134f70382603c4d58ee36ea78b68bb0a"
+  },
+  "doc/verification/reviews/zoom-input-arbitration-2026-10-26.md": {
+    "bytes": 2243,
+    "sha256": "6d9a1b0f1d07cb851033384e717774f2466d08978b2de8d4f123024f0903256c"
+  },
+  "doc/verification/reviews/zoom-typographic-alignment-2026-10-30.md": {
+    "bytes": 4009,
+    "sha256": "74101d651fc13fea1d01a1014a1a9ae60890c259c9dea80e70f35773d3f08b98"
+  },
+  "examples/README.md": {
+    "bytes": 7302,
+    "sha256": "a9398733dfc2886d9d76034d3ecce7b052d8bc23df9a3c28373de2e5783a850c"
+  },
+  "examples/integration/web-validation/README.md": {
+    "bytes": 2196,
+    "sha256": "30a7589e0a16f13525dd0da855e1de823049d2b9c908d2904792af7c914cc935"
+  },
+  "examples/integration/winit-canvas-demo/README.md": {
+    "bytes": 2534,
+    "sha256": "845e1abd44c2f4acf2addb6247e2e36c772e818bc893e17103491f48ff5b6c12"
+  },
+  "examples/support/README.md": {
+    "bytes": 4735,
+    "sha256": "a2cdc335f8d388c681b1122ddde3ab00a6a676866e0ac0f9acf8152cffd18df4"
+  },
+  "tests/README.md": {
+    "bytes": 12481,
+    "sha256": "2f6db7951b902280c5055d89dbf54addd05fc71345649519cd859a4de1a21de4"
+  },
+  "tests/consumers/editor-container-input/README.md": {
+    "bytes": 3117,
+    "sha256": "d01a0a72415309c69fa2d918396d1c58f16ca76308d1760110f0bddf17dc11ff"
+  },
+  "tests/consumers/harfrust-admission/README.md": {
+    "bytes": 29661,
+    "sha256": "74bd0f9d22356bc86768797941aaa740b2e2153ad5e329f09a75e9439b472cee"
+  },
+  "tests/consumers/parley-storage/README.md": {
+    "bytes": 3168,
+    "sha256": "12fdc1f017157b83c4c66b96fb7d59b71aadc71a0b016d035b2572e8e19aab59"
+  },
+  "tests/consumers/service-failure/README.md": {
+    "bytes": 6732,
+    "sha256": "fcfdb70fdb7e5dc6407e4b4f87344b0da7121450bdc7eeed00e92b67dd123af8"
+  },
+  "tests/consumers/shape-artifact/README.md": {
+    "bytes": 1053,
+    "sha256": "780d558136829db52691cabee34282d60dab88f63de8d72be427aa06bf44415f"
+  },
+  "tests/consumers/style-input/README.md": {
+    "bytes": 2541,
+    "sha256": "ce661fb2ec4cbf9dc8ac7f2fa0ecd4925841dc3b6b9dc71a68b096353c0324bc"
+  },
+  "tests/consumers/text-stages/README.md": {
+    "bytes": 1289,
+    "sha256": "5b644b88799d101725fa22ab65aca6e5680d2f6871199141ae93bb427e2c5e67"
+  },
+  "tests/consumers/vello-scene/README.md": {
+    "bytes": 1177,
+    "sha256": "3181d854a364264966db2dd07c3cfb76d2e578f22cf9b0cea72d6791cf563602"
+  }
+}

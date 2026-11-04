@@ -9,7 +9,7 @@ Editor、backend、platform 无新增能力。
 A 的统一阶段协议、独立消费者与定向边界验证已完成。
 普通 Parley 和 Outline 引擎仍使用完整布局；Flow 尚未选择阶段调用。
 本文验证协议、失败与留存计费，不代表 Parley 宽度复用或性能验收完成。
-授权与后续顺序见 [ADR-059 修订 2](../../adr/adr-059-staged-text-width-reuse.md)。
+授权与后续顺序见 [ADR-059 修订 2](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)。
 
 ## 实现入口与行为
 

@@ -10,7 +10,7 @@ backend、platform、Editor 无新增能力。
 
 ADR-059 修订 2 于 2026-11-02 复核通过、由用户接受并批准实施；
 资产先查询、新增工作再准入，原始 source 和复合失败规则已明确。
-合同见[ADR-059](../../adr/adr-059-staged-text-width-reuse.md)，
+合同见[ADR-059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)，
 依赖范围见[分析准入方案](../../design/architecture/text-analysis-admission-proposal.md)。
 
 | 阶段 | 已有验证／剩余边界 |

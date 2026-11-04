@@ -169,7 +169,7 @@ Core 1.0 最终审计确认 M1-M10、P0/P1 和 ADR-014 门禁完成。当前 HEA
 - G0-G4 保持单 crate，不提前拆包。
 
 关键决策由
-[`../../adr/adr-015-editor-framework-boundary.md`](../../adr/adr-015-editor-framework-boundary.md)
+[`../../adr/adr-015-editor-framework-boundary.md`](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-015-editor-framework-boundary.md.txt)
 接受。
 
 ## 10. G0 执行结果

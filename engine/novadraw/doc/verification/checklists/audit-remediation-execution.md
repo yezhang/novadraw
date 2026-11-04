@@ -43,14 +43,14 @@
 
 | 批次 | 审计优先级 | 合并的审计发现 | 契约与证据入口 |
 |---|---|---|---|
-| P2-S02 显式领域导入与 Root 收口 | P0 | R02、API-F07、API-08、A04、B05、TC-13 follow-up | [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) |
-| P2-S03 Runtime 子系统 Facade | P0 | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
-| P2-S04 Editor 开放协议 | P0 | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
+| P2-S02 显式领域导入与 Root 收口 | P0 | R02、API-F07、API-08、A04、B05、TC-13 follow-up | [唯一领域导入](../../design/architecture/public-api-contract.md) |
+| P2-S03 Runtime 子系统 Facade | P0 | R01、API-F03/A06 的 concrete facade 后续 | [Runtime 子系统 Facade](../../design/architecture/runtime-subsystem-facade.md) |
+| P2-S04 Editor 开放协议 | P0 | R05、TC-06、R08 暴露面 | [Editor 开放交互协议](../../design/editor/tool-request-handle-protocol.md) |
 | P2-S05 深层布局/presentation 收敛 | P0 | UML F-01 | [完成记录](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
 | P2-S06 Editor 增量投影失败隔离与 Overlay 批量校验 | P0 | R06、TC-08 | [完成记录](../reviews/p2-s06-failure-isolation-completion-2026-10-15.md)，矩阵修订 2 |
 | P2-S07 查询身份与失败语义 | P1 | R04、TC-09、API-F06、API-07 | [完成核验](../reviews/p2-s07-query-identity-completion-2026-10-16.md) |
 | P2-S08 Detached 输入不变量 | P0 | R03、TC-03、API-F04、API-10 | [关闭记录](../reviews/p2-s08-d-completion-2026-10-29.md) |
-| P2-S09 服务失败与 Inspector | P1 | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)；各切片证据与未关闭要求见 §10 |
+| P2-S09 服务失败与 Inspector | P1 | R07、TC-10、API-F08、API-F10、API-F09 register alias 后续 | [服务失败与订阅恢复 修订 3](../../design/architecture/service-failure-and-inspector-lifecycle.md)；各切片证据与未关闭要求见 §10 |
 
 `in_progress` 表示交付仍有缺项，不表示正在 Execute；单链限制检查实际执行批次数。
 历史校准见[路线图复核](../reviews/roadmap-calibration-2026-10-14.md)，不从其旧顺序恢复当前队列。
@@ -220,7 +220,7 @@
 来源：R03、TC-03、API-F04、API-10。
 
 - [x] 已形成[输入盘点与设计草案](../../design/architecture/detached-input-invariants.md)、
-  [ADR-056](../../adr/adr-056-detached-input-invariants.md)及
+  [Detached 输入不变量](../../design/architecture/detached-input-invariants.md)及
   [验证矩阵](../plans/p2-s08-detached-input-invariants.md)；已接受并按切片实施。
 - [x] 先盘点 Opacity、StrokeStyle、几何与字体现有不变量；仅为真实缺口补充受检值，
   不预定 `Alpha01` 等新类型，不为所有 f64 建 wrapper。
@@ -242,7 +242,7 @@
 
 来源：R07、TC-10、API-F08、API-F10，以及 API-F09 未覆盖的 connection register alias。
 
-- [x] [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)收口本批服务的 fault、mutation、check 与 idempotence 语义；2026-10-30 已接受，
+- [x] [服务失败与订阅恢复](../../design/architecture/service-failure-and-inspector-lifecycle.md)收口本批服务的 fault、mutation、check 与 idempotence 语义；2026-10-30 已接受，
   身份/查询规范引用 S07，不重复改造所有 getter。
 - [x] AnimationMut 的 fault 与 `Ok(false)` 幂等未变化分离；S09-A 已完成私有入口、帧传播与消费者验收。
 - [x] [S09-B](../reviews/p2-s09-b-implementation-2026-10-30.md)验证 Inspector 锁 poison 的

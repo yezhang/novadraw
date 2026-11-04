@@ -76,7 +76,7 @@
 | DOC-11 | P1 | `doc/00-index.md` 核心 SSOT、AGENTS/CLAUDE 当前顺序、设计索引 | 审计报告被列为核心 SSOT；启动摘要仍写先 S01；设计索引将已完成 proposal 称待评审 | 设计入口、当前队列、历史证据分开；启动文件镜像当前决策和队列链接 |
 | DOC-12 | P2 | Editor 设计与 direct edit 状态、P2-M01 概述、Text/Graphics §独立录制 | target/accepted/implemented/complete 混用；M01 概述称下一阶段 C，下文 C 完成；RecordedDrawing 仍被称候选 | 分离规范效力与执行状态，执行状态只链接 roadmap；历史阶段范围保留并明示 |
 
-证据交叉入口：[ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)、[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)、[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)、[组件更新规范](../../design/architecture/component-update.md)、[Capability 规范](../../design/architecture/figure-capability-model.md)、[P2-S03 完成记录](p2-s03-runtime-facade-completion-2026-10-10.md)、[执行工作流](../audit-remediation-workflow.md)。
+证据交叉入口：[ADR-033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)、[ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)、[ADR-031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)、[组件更新规范](../../design/architecture/component-update.md)、[Capability 规范](../../design/architecture/figure-capability-model.md)、[P2-S03 完成记录](p2-s03-runtime-facade-completion-2026-10-10.md)、[执行工作流](../audit-remediation-workflow.md)。
 
 ## 4. 建议保留的架构骨架
 
@@ -147,7 +147,7 @@ flowchart TD
 
 实例 ID、协议 key、ModelId 不能为减少类型数而合并。注册阶段必须写清 key 唯一性、descriptor/payload 匹配、存活期、删除规则和拒绝行为。内部可复用 typed identity 原语，公共层继续保留各领域名称；当前无需一个公开万能 Key/Plugin 协议。
 
-依据：[ADR-027](../../adr/adr-027-open-figure-capability-registry.md)、[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)、[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)。
+依据：[ADR-027](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-027-open-figure-capability-registry.md.txt)、[ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)、[ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。
 
 ### 5.2 Runtime Facade：以任务和权限裁决分组
 
@@ -209,7 +209,7 @@ source/resource 输入
 
 这是待评审的合同修订；本次未证明具体实现仍存在该特权。通过外部 wrapping Figure、自定义容器和布局器共同验证，而不是只测试内置 Label。
 
-依据：[收敛规范](../../design/architecture/derived-state-convergence.md)、[UML F-01](uml-extension-capability-2026-10-05.md)、[ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)。优先由 P2-S05 承接。
+依据：[收敛规范](../../design/architecture/derived-state-convergence.md)、[UML F-01](uml-extension-capability-2026-10-05.md)、[ADR-014](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)。优先由 P2-S05 承接。
 
 ### 5.5 固定 Pipeline 与开放策略：先声明兼容边界
 
@@ -243,7 +243,7 @@ P2-S06 应明确：
 
 Tool/Request/Policy 的 typed registry 继续保留，不因准备批次再造第二套请求语言。RootLayerFactory、SelectionPolicy、tracker 的开放程度应通过真实 consumer 确认；架构“扩展点列表”中的名字本身不是实现或可替换证据。
 
-依据：[Editor 规范](../../design/editor/architecture.md)、[ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)、[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)。
+依据：[Editor 规范](../../design/editor/architecture.md)、[ADR-032](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)、[ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)。
 
 ### 5.7 公共 API：按权限、单位与失败语义收敛
 
@@ -279,7 +279,7 @@ P2-L01 应与 FigureTree 的容器 LayoutManager 分开建模。图算法输入�
 
 同样，公开 Render IR 的可演进性不等于任意插件可以注入未知 GPU command。每条新命令需要明确语义、所有启用后端完整消费或预先拒绝，以及失败/资源/版本门禁。统一原则不能被用来建设没有消费者的通用资源和 shader 插件系统。
 
-依据：[资源规范 §12](../../design/architecture/resource-lifecycle.md)、[图布局 backlog](../../roadmap/p2-delta-backlog.md)、[文字后端边界](../../design/rendering/text-graphics-integration.md)、[ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md)。
+依据：[资源规范 §12](../../design/architecture/resource-lifecycle.md)、[图布局 backlog](../../roadmap/p2-delta-backlog.md)、[文字后端边界](../../design/rendering/text-graphics-integration.md)、[ADR-023](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md.txt)。
 
 ## 6. 文档体系调整
 
@@ -336,7 +336,7 @@ P2-L01 应与 FigureTree 的容器 LayoutManager 分开建模。图算法输入�
 
 ## 9. 证据与阅读入口
 
-- 当前决策：[ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)、[ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md)、[ADR-027](../../adr/adr-027-open-figure-capability-registry.md)、[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)、[ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)、[ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)、[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)、[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)。
+- 当前决策：[ADR-014](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)、[ADR-023](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md.txt)、[ADR-027](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-027-open-figure-capability-registry.md.txt)、[ADR-031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)、[ADR-032](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)、[ADR-033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)、[ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)、[ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。
 - 核心规范：[总览](../../design/architecture/overview.md)、[静态架构](../../design/architecture/static-architecture.md)、[动态架构](../../design/architecture/dynamic-architecture.md)、[目录边界](../../design/architecture/directory-structure.md)、[Runtime 所有权](../../design/architecture/runtime-ownership-and-module-boundaries.md)、[组件更新](../../design/architecture/component-update.md)、[Capability](../../design/architecture/figure-capability-model.md)、[派生收敛](../../design/architecture/derived-state-convergence.md)、[UpdateManager](../../design/rendering/update-manager.md)。
 - 对等与状态：[Draw2D parity](../../parity/draw2d/api-coverage.md)、[Editor 架构](../../design/editor/architecture.md)、[P2 backlog](../../roadmap/p2-delta-backlog.md)、[整改总清单](../checklists/audit-remediation-execution.md)、[平台矩阵](../../roadmap/platform-support-matrix.md)。
 - 历史发现：[公共 API 复审](framework-public-api-follow-up-audit-2026-10-07.md)、[API 架构 Review](api-architecture-review-2026-10-09.md)、[UML 扩展验证](uml-extension-capability-2026-10-05.md)、[语义整改完成页](draw2d-gef-semantic-remediation-2026-09-16.md)。

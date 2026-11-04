@@ -9,7 +9,7 @@ R06/TC-08 按修订 2 矩阵和最终关闭门禁判定。
 
 本页补充[实施证据](p2-s06-implementation-evidence-2026-10-15.md)，
 其验收调整已纳入[验证矩阵修订 2](../plans/p2-s06-incremental-failure-isolation.md)。
-目标契约仍是 [ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
+目标契约仍是 [ADR-037](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)。
 
 ## prepare 拒绝的可达性
 

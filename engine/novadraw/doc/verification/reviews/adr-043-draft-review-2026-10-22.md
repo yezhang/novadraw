@@ -10,7 +10,7 @@
 需要补齐的是公共结果、端点和失败发布契约，无需推翻整体方案。
 
 本文件保留 2026-10-22 会话中的审核意见，供另一个 agent 修改
-[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
+[ADR-043](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt)。
 审核对象为“提议，待评审”的 189 行草案，尚未实施。
 下文行号均指此基线，修改后应按章节和引用原句定位。
 
@@ -41,11 +41,11 @@ Rust 实现的规则，参考范围限定 Draw2D/GEF，不使用 Zest。
 严重级：`P1`。位置：ADR-043“Figure 投影与稳定发布”，135–140 行。
 
 草案规定“任一测量、求解、校验或 Locator 失败保留上一稳定结果”；
-[ADR-040](../../adr/adr-040-group-route-solving.md)的组输出验证则规定失败后
+[ADR-040](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-040-group-route-solving.md.txt)的组输出验证则规定失败后
 清空路线、进入 unresolved。两种失败行为的适用边界尚未明确。
 
 建议明确图布局是否整体进入
-[ADR-042](../../adr/adr-042-structured-flow-layout.md)的派生检查点，
+[ADR-042](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)的派生检查点，
 并区分候选失败、源状态已改变、端点删除三种情况。
 旧派生快照不能因为“保留旧结果”继续被当作当前有效结果；
 恢复也不能撤销已提交的源属性、拓扑或 binding。
@@ -101,8 +101,8 @@ Compound 的端点规则还依赖包含关系：
 建议定义输入尺寸属于固定尺寸、minimum 还是 preferred；
 明确测量约束、最终 placement 后是否重新测量，以及缓存如何记录约束。
 普通图 fixture 的显式尺寸和动态 Figure 测量也应分开规定。
-测量继续遵循 [ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md)、
-[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)和
+测量继续遵循 [ADR-018](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-018-runtime-driving-and-measurement-api.md.txt)、
+[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)和
 [深层布局与 Presentation 收敛契约](../../design/architecture/deep-layout-presentation-convergence.md)。
 
 复审检查：增加宽度敏感 Figure 的 EAST 回归要求，

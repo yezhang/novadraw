@@ -12,6 +12,8 @@ Parley 阶段适配及 Flow 宽度复用仍未实现。
 阶段验证见[文字阶段状态](../reviews/text-stages-status.md)。
 FR-01 已复用同一只读作用域内的准备输入，整体延迟尚未达标；
 当前优先设计 FR-02 贡献组装复用合同，B1 扩张暂停。
+FR-02 的[内部归因与诊断扰动](../reviews/flow-assembly-attribution-2026-11-03.md)
+已完成；这不是生产复用前后对照，不能与下表 FR-01 数据混算提速。
 执行顺序以[P2 backlog](../../roadmap/p2-delta-backlog.md#当前推进顺序)为准。
 
 ## 最新匹配比较

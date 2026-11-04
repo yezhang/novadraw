@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-能力归属：Core Runtime；事务权威由 [ADR-009](../../adr/adr-009-runtime-dynamic-mutation-contract.md)接受。
+能力归属：Core Runtime；事务权威由 [原编号 009 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-009-runtime-dynamic-mutation-contract.md.txt)接受。
 
 ## 状态
 
@@ -394,3 +394,9 @@ HashSet，避免逐 binding 扫描全部节点或逐 Anchor 扫描全部 Connect
 `api_semantics`：`figure.tree`、`figure.properties`、`layout.manager`、
 `runtime.identity`、`validation.protocol`、`damage.repaint`、`connection.figure`、
 `connection.anchor`。
+
+## 选择依据（原编号 009）
+
+Runtime 是唯一运行期提交者；先预检后发布。callback effects 按 FIFO 逐操作提交，源状态、派生输出及外部副作用的原子性分别定义。
+
+原批准范围、修订与历史判断见[原稿 009](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-009-runtime-dynamic-mutation-contract.md.txt)。

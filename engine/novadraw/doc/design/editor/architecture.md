@@ -396,7 +396,7 @@ Viewer selection 与 session 内 text selection 不共享状态。完整契约�
 发生结构一致性破坏或扩展 panic 后，Editor 进入 faulted；不得只清理 updating 标志后
 继续接受命令。
 
-[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)进一步规定：
+[Editor 增量失败隔离](incremental-failure-isolation.md)进一步规定：
 新建 Part 子树或 Connection 失败时，按实际取得资源和生命周期进度清理；
 不回滚完整 synchronize 的成功前缀，也不撤销成功的模型命令或 history。
 Overlay 在写入前校验完整输入批次。Core fault 后停止普通 mutation，保留结构退休
@@ -405,7 +405,7 @@ Viewer fault 阻止新帧准备；Runtime 健康时仍可结清已有 submission
 
 ## 13. 验证入口
 
-[ADR-055](../../adr/adr-055-container-editing-protocol.md)补充容器编辑：
+[容器编辑](container-editing-protocol.md)补充容器编辑：
 `container` 领域拥有固定批次、当前父域候选、统一资格与受检计划。
 Viewer 提供实际 content pane 映射及排除源视觉子树的 Core 命中；
 ToolContext 提供公开 begin/candidate/resolve/show/submit 服务，

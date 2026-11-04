@@ -30,6 +30,8 @@
 
 ## 非规范提案
 
+- [FR-02 贡献组装复用合同](architecture/flow-assembly-reuse.md)：可选声明、
+  完整组装资产与精确失效；待评审，生产复用未实施。
 - [DisplayList 候选协议及探索门禁](rendering/display-list-protocol.md)：休眠候选，
   wire format、chunk patch 和远程传输尚未成为 Core 契约。
 

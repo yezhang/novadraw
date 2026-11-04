@@ -5,7 +5,7 @@
 日期：2026-10-15
 
 状态：`complete`。目标契约为
-[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)；
+[ADR-037](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)；
 [验证矩阵修订 2](../plans/p2-s06-incremental-failure-isolation.md)已按用户接受的范围满足，
 最终 full 通过。逐项证据、R06/TC-08 关闭结论及永久限制见
 [完成记录](p2-s06-failure-isolation-completion-2026-10-15.md)。

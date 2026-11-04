@@ -5,7 +5,7 @@
 日期：2026-10-15
 
 结论：设计复核通过。用户已授权“确认无误后推进到实现阶段”，
-据此接受 [ADR-037 修订 1](../../adr/adr-037-editor-incremental-failure-isolation.md)，
+据此接受 [ADR-037 修订 1](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)，
 P2-S06 进入 Execute。实现与运行验证尚未完成，R06/TC-08 保持开放。
 
 本轮先对照首轮评审与现行 Core/Editor 契约复核，未以本项目 Rust 实现定义目标。

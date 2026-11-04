@@ -6,7 +6,7 @@
 
 状态：`complete`；完成 K07-3 目标端契约，官方消费者另行验收。
 
-范围：[ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)的目标导入、视图、
+范围：[ADR-044](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-044-shared-scene-capture-and-view.md.txt)的目标导入、视图、
 测量和资源保留。本记录不证明官方 Thumbnail Native 消费或宿主背景已完成。
 
 ## 在目标提交点安装完整结果

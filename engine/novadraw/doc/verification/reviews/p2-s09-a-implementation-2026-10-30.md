@@ -7,7 +7,7 @@
 能力归属：Core（`novadraw`）Animation 与直接帧调用方。
 示例只迁移调用方式，Inspector／Observations、Connections 与 Editor 归后续切片。
 
-用户已接受 [ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)并授权实施。
+用户已接受 [ADR-057 修订 3](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)并授权实施。
 S09-A 的实现、消费者、成本、公共 API 与 workspace 最终门禁已完成。
 S09 整批保持 `in_progress`，本记录不关闭其他切片的来源审计项。
 Core 与调用方实现提交为 `fd9d8ef8`；消费者、接受状态及证据单独提交。

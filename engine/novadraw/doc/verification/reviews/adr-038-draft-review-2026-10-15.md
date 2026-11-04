@@ -8,7 +8,7 @@
 
 ## 结论
 
-[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md) 有两项 P1 需要先
+[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt) 有两项 P1 需要先
 冻结契约：逆变换的数值失败分类，以及测量成功值的校验与缓存边界。另有两项 P2
 补充：Route 依赖指纹与身份校验的分工，以及现行 SSOT 的同步范围。
 

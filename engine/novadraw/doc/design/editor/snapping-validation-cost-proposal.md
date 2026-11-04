@@ -5,7 +5,7 @@
 能力归属：Editor（`novadraw-editor`）。本提案不授权 Core 改动。
 
 状态：待评审，2026-11-02。属于 E04 的性能续项，不新增并行执行批次；
-现行契约仍以 [ADR-058](../../adr/adr-058-open-editor-snapping.md)为准。
+现行契约仍以 [Editor 开放吸附](open-snapping.md)为准。
 行为实施和采样见[实施记录](../../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。
 
 ## 问题与目标

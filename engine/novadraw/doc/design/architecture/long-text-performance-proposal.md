@@ -834,9 +834,9 @@ Zed 本地源码参考：
 这些证明参考机制存在，不证明 Novadraw 采用后已获得同样收益。
 
 当前约束：
-[ADR-042](../../adr/adr-042-structured-flow-layout.md)定义来源身份与整体段落 shaping；
+[结构化 Flow](structured-flow-layout.md)定义来源身份与整体段落 shaping；
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)定义布局/曲线/后端边界；
-[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)定义唯一帧提交权威；
+[录制与帧出版](../rendering/graphics-recording-and-publication.md)定义唯一帧提交权威；
 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)定义身份与失败；
 [派生状态收敛](derived-state-convergence.md)定义工作前缀与稳定 epoch。
 Draw2D 参考限定为 `org.eclipse.draw2d.text` 及其基础绘制/布局协议，不使用 Zest。

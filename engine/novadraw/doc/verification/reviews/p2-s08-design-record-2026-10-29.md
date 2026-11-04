@@ -12,7 +12,7 @@
 标题为 `fix(core): 拒绝非法颜色文本并消除 UTF-8 解析崩溃`。
 该提交包含颜色实现、三项外部回归及既有验证记录，归 ADR-020。
 
-随后形成 [ADR-056](../../adr/adr-056-detached-input-invariants.md)、
+随后形成 [ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)、
 [专题设计](../../design/architecture/detached-input-invariants.md)和
 [验证矩阵](../plans/p2-s08-detached-input-invariants.md)，并回写 Backlog、
 审计执行清单和所属索引。本批设计未提交 Git。

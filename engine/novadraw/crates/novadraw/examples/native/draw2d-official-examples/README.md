@@ -143,7 +143,7 @@ cargo xtask verify example.inherit-background
 `--screenshot=InheritBackgroundExample` 和 `--screenshot-all` 都捕获完整双 Canvas。
 独立二进制和打开独立窗口的按钮已移除，macOS Run 脚本只构建、打包主程序。
 
-Obstruction 的组求解和交互按 [ADR-040](../../../../../doc/adr/adr-040-group-route-solving.md)
+Obstruction 的组求解和交互按 [连接组求解](../../../../../doc/design/architecture/group-route-solving.md)
 实现。初始画面只有 5 个绿色矩形及坐标文字，没有端点或连接，与官方初值一致。
 运行后，背景左拖创建障碍；背景右键两次创建一对端点与连接；
 左拖移动障碍或端点；障碍右键删除；端点中键删除整对，未配对端点中键只删除自身。

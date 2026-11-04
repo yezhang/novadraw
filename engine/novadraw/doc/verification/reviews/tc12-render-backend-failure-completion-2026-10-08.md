@@ -76,7 +76,7 @@ TC-12 定向测试、source workspace 编译及 backend feature 编译不依赖�
 
 ## 关系
 
-- [ADR-029](../../adr/adr-029-structured-render-backend-failure.md)
+- [ADR-029](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt)
 - [临时概念设计审计](temporary-concept-design-audit-2026-10-08.md)
 - [UpdateManager](../../design/rendering/update-manager.md)
 - [动态架构](../../design/architecture/dynamic-architecture.md)

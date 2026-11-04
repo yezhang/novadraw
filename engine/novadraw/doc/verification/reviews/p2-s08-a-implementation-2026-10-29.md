@@ -2,7 +2,7 @@
 
 类型：`implementation-verification`
 
-本记录对应用户批准实施的 [ADR-056](../../adr/adr-056-detached-input-invariants.md)
+本记录对应用户批准实施的 [ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)
 S08-A。Opacity 领域迁移、受检样式、字体 token 解析和 Graphics 输入迁移已完成。
 本切片的公共消费者、API、非法输入与继承门禁通过；S08 整批保持 `in_progress`。
 Border 构造和 builder 属于 S08-B，Detached 几何与外部指标准入属于 S08-C，

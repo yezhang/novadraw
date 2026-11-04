@@ -34,8 +34,8 @@ SHA-256：
 Novadraw 已有统一 Graphics、TextLayoutEngine、TextFlow、位置几何查询、
 Editor direct-edit session 和 backend submission 边界。新增工作应复用这些入口，
 避免在 Editor 或应用中新建另一套字体上下文、换行、命中与坐标转换。
-依据见 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
-[ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)和
+依据见 [ADR-025](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)、
+[ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)和
 [Editor direct edit](../../design/editor/p2-direct-text-edit.md)。
 
 | 提案技术 | 项目判断 | 能力归属 | 应用条件 |
@@ -100,7 +100,7 @@ Editor direct-edit session 和 backend submission 边界。新增工作应复用
 ### 颜色只影响绘制是目标合同，不是当前实现结论
 
 提案 §5.2／5.3 将纯颜色变化排除在 shaping 与换行失效之外，方向适合普通文本
-前景色修改。但 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md) 第一片的分析请求
+前景色修改。但 [ADR-059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt) 第一片的分析请求
 只去掉 max_width，保留颜色、span 范围与顺序等其他字段；
 ADR-051 的布局复用仍比较完整受检输入。
 
@@ -129,7 +129,7 @@ ADR-051 的布局复用仍比较完整受检输入。
 
 提案 §5.5 的目标是减少不可见内容的实例生成，这与本项目可见 IR 研究一致。
 但 `GlyphRun`／IR 命令不能直接等同于 GPU draw call；Vello 默认已经有自身 glyph
-编码与缓存路径。[ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)
+编码与缓存路径。[ADR-025](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)
 明确保留 Vello draw_glyphs，并将预处理格式和 GPU buffer 放在 backend-local 合同中。
 
 应先按可靠覆盖筛选可见 run／glyph，复用共享范围，减少 CPU IR 与后端编码输入。
@@ -233,9 +233,9 @@ VS Code、CodeMirror、HarfBuzz 和 Unicode 资料确认相应机制及限制，
 
 ## 主要来源
 
-- 项目后端与 glyph 所有权：[ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)。
-- 项目精确布局、共享 glyph 与覆盖边界：[ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)。
-- 项目阶段分析请求与复用条件：[ADR-059](../../adr/adr-059-staged-text-width-reuse.md)。
+- 项目后端与 glyph 所有权：[ADR-025](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)。
+- 项目精确布局、共享 glyph 与覆盖边界：[ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)。
+- 项目阶段分析请求与复用条件：[ADR-059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)。
 - 项目编辑状态与平台输入：[direct-edit 专题](../../design/editor/p2-direct-text-edit.md)。
 - 性能证据：[Flow／Runtime 重复工作分析](flow-runtime-repeat-work-analysis-2026-11-03.md)、
   [FR-01 实施与采样](flow-runtime-input-reuse-2026-11-03.md)。

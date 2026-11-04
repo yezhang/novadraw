@@ -5,7 +5,7 @@
 效力：仅用于追溯，禁止作为当前设计、API 或实现完成状态的依据。
 
 当前入口：[ADR 索引](../../adr/README.md)、
-[ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)、
+[ADR-014](../adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)、
 [逐项审计与替代关系](../../verification/reviews/adr-audit-2026-09-10.md)。
 
 ## 保存方式

@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core 确认帧结果，backend 分类失败，platform 调度恢复。
-边界选择见 [ADR-029](../../adr/adr-029-structured-render-backend-failure.md)。
+边界选择见 [原编号 029 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt)。
 
 状态：`accepted`
 
@@ -131,3 +131,9 @@ Vello backend 必须：
 - 延续 ADR-017 的结构化公开失败合同；
 - 延续 ADR-022 的第三方类型隔离；
 - 关闭临时概念设计审计 TC-12。
+
+## 选择依据（原编号 029）
+
+成功 disposition 与失败分开；Runtime 管理确认和 session，Host 管理 backend 恢复。永久 unsupported 不能进入无限 retry。
+
+原批准范围、修订与历史判断见[原稿 029](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt)。

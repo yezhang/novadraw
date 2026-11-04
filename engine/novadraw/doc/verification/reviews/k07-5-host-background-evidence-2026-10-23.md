@@ -6,7 +6,7 @@
 
 状态：`complete`；完成 Core 契约、Vello 合成与切片门禁。
 
-范围：[ADR-045](../../adr/adr-045-host-background-submission.md)的背景提供者、
+范围：[ADR-045](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-045-host-background-submission.md.txt)的背景提供者、
 受检交接、帧输入冻结与恢复。官方 InheritBackground 消费者由 K07-6 验收。
 
 ## 提供者留在宿主

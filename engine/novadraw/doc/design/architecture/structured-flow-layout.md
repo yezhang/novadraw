@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core Flow；Caret/Path 是消费者。
-整体 shaping 与来源身份选择见 [ADR-042](../../adr/adr-042-structured-flow-layout.md)。
+整体 shaping 与来源身份选择见 [原编号 042 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)。
 
 ## 状态
 
@@ -222,3 +222,9 @@ Native 六个入口均已截图检查，产物在 `target/visual-verification/sc
 
 实现与验收状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 原测试计数与逐切片事实从 [原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。
+
+## 选择依据（原编号 042）
+
+Flow 保留 Figure 来源身份，按段落整体 shaping；inline、paint、caret 和 selection 共用快照，不按 span 独立塑形。
+
+原批准范围、修订与历史判断见[原稿 042](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)。

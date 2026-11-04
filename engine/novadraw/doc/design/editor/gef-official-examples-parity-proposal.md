@@ -125,7 +125,7 @@ Flow 保持拓扑驱动布局；Text 的未接通 factory 类型、分页请求�
 依据：[Editor 路线图](../../roadmap/editor/00-index.md)、
 [GEF 账本](../../parity/gef/api-coverage.md)、
 [Direct Edit](p2-direct-text-edit.md)、
-[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)、
+[有向图布局](../architecture/directed-compound-graph-layout.md)、
 [图投影契约](../architecture/graph-projection-preparation.md)、
 [动画契约](../animation/animation-system.md)和
 [Tree 表现几何](../animation/tree-layout-presentation-proposal.md)。

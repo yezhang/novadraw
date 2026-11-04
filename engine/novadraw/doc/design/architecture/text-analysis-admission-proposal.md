@@ -7,7 +7,7 @@
 Editor、backend、platform 不新增能力。
 `api_semantics`：`text.flow`、`text.interaction`。
 
-本文补充 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md) 的 B 切片。
+本文补充 [可选阶段文字协议](staged-text-width-reuse.md) 的 B 切片。
 已完成的复制、对齐和断行准入保持。下一步需要补齐 Fontique 与 Harfrust
 内部操作的费用依据和拒绝通道；仅修改 Parley 外层不能覆盖这些操作。
 本提案不改变 Core 的预算单位、阶段协议和默认启用条件。

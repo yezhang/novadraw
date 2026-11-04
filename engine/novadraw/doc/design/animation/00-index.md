@@ -14,7 +14,7 @@
 
 已接受增量：[Tree 表现几何](tree-layout-presentation-proposal.md)，
 定义展开/折叠中的真实 bounds、线端点与 viewport 同步；
-修订 3 已批准，决策见 [ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)，
+修订 3 已批准，决策见 [表现几何与动画容量](tree-layout-presentation-proposal.md)，
 当前推进 T-1，完整切片状态见 P2 backlog。
 
 决策见 [ADR-026](../../adr/adr-026-animation-and-presentation-plane.md)，

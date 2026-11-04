@@ -289,7 +289,7 @@ handle.saveGraphicsState();     // 创建新状态
 路径复用、延迟初始化和状态跟踪可以作为实现输入，但不能仅凭 SWT 机制证明
 Novadraw 的性能收益。项目的公开 Graphics、录制与出版分别见
 [文字/图形契约](../../design/rendering/text-graphics-integration.md)和
-[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)；
+[录制与帧出版](../../design/rendering/graphics-recording-and-publication.md)；
 本页不再维护 NdCanvas 候选结构或另一套命令队列设计。
 
 ## 参考

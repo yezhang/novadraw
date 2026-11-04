@@ -216,7 +216,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
 | `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `adapted` | `TextFlowFigure`、`TextLayoutEngine`、`figure::flow` | P2-T01/T02/T03 complete（ADR-042） | styled request、来源快照、开放 inline/block、四侧 FlowBorder、外部 root 与独立替代引擎、失败恢复与六个官方入口已验证；UTF-8/affinity 和显式选择绘制作为合理变体 |
 | `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` 与五部件 ScrollBar／共享 range／repeat 已实现 | M10.4 complete、ADR-041；P2-W01 deferred | 已实现子集不等于完整 family；ButtonGroup／radio／slider 等继续独立评审 |
-| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `adapted` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router | P2-L01、[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) | 独立图与 FigureTree 分开；默认/外部算法共用投影，52 个组合、候选测量/整体发布/失败恢复、真实菜单及 Native 四幅截图已验证，不承诺平台字体逐像素一致 |
+| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `adapted` | `layout::graph` 独立模型、typed registry、GraphProjection/Anchor/Router | P2-L01、[有向图布局](../../design/architecture/directed-compound-graph-layout.md) | 独立图与 FigureTree 分开；默认/外部算法共用投影，52 个组合、候选测量/整体发布/失败恢复、真实菜单及 Native 四幅截图已验证，不承诺平台字体逐像素一致 |
 | `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |
 | `CAP-SHARED-SCENE` | `parts.Thumbnail` source / update / deactivate | GOAL-CAP/EXT | `adapted` | `scene::RuntimeScenes`、typed capture/dependency/view policy、owned `SceneSnapshot`、只读 `SceneViewHandle` 与有界交接 | K07、ADR-044 | K07-1/2 提供捕获、终止与结构准入；K07-3 提供目标导入和 view 契约；K07-4 官方活源拖拽、overview resize 与 Native 图像已验收 |
 | `CAP-ACCESSIBILITY` | Accessible / dispatcher / actions | GOAL-CAP/PORT | `pending` | Core snapshot/action；Web/Native provider | M10.5 complete；P2-A01 pending | Core 语义完成不等于原生 AT provider 完成 |
@@ -341,7 +341,7 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 2026-10-22 BorderLayout 回归：显式 Center 且没有边区 child 时占满完整 client area，
 不为不存在的 North/South/East/West 预留默认尺寸。`m5_layout_contract` 验证该反例；
 旧无约束布局的 fallback 区域保持兼容。官方 Path 已使用默认 BorderLayout 消费。
-P2-L01 按已接受的 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)
+P2-L01 按已接受的 [有向图布局](../../design/architecture/directed-compound-graph-layout.md)
 实施：`layout::graph` 纯请求/受检结果、通用候选验证和实例级开放 registry
 已通过 18 项外部非分层协议测试。Directed 默认算法已完成消环、加权 rank、
 virtual nodes、排序/放置与完整路由，16 fixture 双方向 32 组合和独立反例通过。

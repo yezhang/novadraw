@@ -6,7 +6,7 @@
 
 状态：`complete`；仅完成 K07-1 producer 切片。
 
-范围：[ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)的 producer 切片。
+范围：[ADR-044](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-044-shared-scene-capture-and-view.md.txt)的 producer 切片。
 目标端循环准入、资源导入、SceneView、Thumbnail 与宿主背景仍待后续切片验收。
 
 ## 实现结果

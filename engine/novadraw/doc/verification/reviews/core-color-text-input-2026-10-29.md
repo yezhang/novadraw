@@ -17,7 +17,7 @@
 
 修复前，新外部消费者测试为 1 passed、2 failed；失败分别确认 UTF-8 切片 panic
 和正号被接受。公开契约见
-[ADR-020](../../adr/adr-020-engine-value-and-render-contract.md)，
+[ADR-020](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-020-engine-value-and-render-contract.md.txt)，
 实现见 [Color](../../../crates/novadraw/src/color.rs)。
 
 ## 修复与消费边界

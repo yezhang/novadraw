@@ -111,4 +111,4 @@ UnicodeBuffer 扩容和 glyph 导出。
 继续 B 时须先补齐这些依赖操作的费用依据与拒绝通道，再接阶段生产者。
 依据未知的 analyze 必须在 shaping 前返回成功缺失；不能先 shaping 后记零费用，
 也不能登记无法履行后续 reflow 合同的资产。
-详细边界继续以 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md) 为准。
+详细边界继续以 [ADR-059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt) 为准。

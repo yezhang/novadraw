@@ -5,7 +5,7 @@
 日期：2026-10-05
 
 规范：[Graphics 扩展契约](../../design/rendering/p2-g01-graphics-extension.md)、
-[ADR-024](../../adr/adr-024-graphics-paint-stroke-and-clipping.md)。
+[ADR-024](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-024-graphics-paint-stroke-and-clipping.md.txt)。
 交付状态：[P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
 ## 实现边界

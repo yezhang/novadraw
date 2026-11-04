@@ -4,7 +4,7 @@
 
 能力归属：Editor。本片使用既有 Core Runtime、Figure 和通知协议，不新增 Core 能力。
 状态：实现与定向验证已完成，最终门禁待补验；2026-11-02。
-目标见 [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+目标见 [ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)。
 
 ## 入口盘点与契约
 

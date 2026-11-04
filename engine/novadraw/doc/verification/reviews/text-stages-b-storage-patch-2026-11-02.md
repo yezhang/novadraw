@@ -15,7 +15,7 @@ B 的阶段适配器、操作前计费和退出门禁仍未完成；C／D 未开
 
 用户已经批准 ADR-059 的 A→D 实施，并于本轮回复“批准吧”，
 解除存储补丁的独立批准门禁。原暂停依据为：
-[ADR-059](../../adr/adr-059-staged-text-width-reuse.md)明确写明
+[ADR-059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)明确写明
 “本 ADR 目前没有授权或实现该补丁”，并要求取得“上游或经评审依赖补丁”。
 下文保留候选验证范围，并在末节记录本轮生产接入；B 的后续退出条件保持。
 

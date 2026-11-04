@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Editor Viewer；应用拥有模型，宿主持有 drive。
-边界选择见 [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)。
+边界选择见 [原编号 032 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)。
 
 ## 状态
 
@@ -212,3 +212,9 @@ fn check_redo(&mut self) -> Result<bool, CommandStackError>;
 ## 日期
 
 2026-10-09
+
+## 选择依据（原编号 032）
+
+编辑会话拥有模型与命令，宿主 drive、viewport 和观察权限分别投影。只读宿主不取得模型写权限。
+
+原批准范围、修订与历史判断见[原稿 032](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)。

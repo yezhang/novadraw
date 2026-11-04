@@ -4,7 +4,7 @@
 
 能力归属：Core 服务/observations、Inspector 本地诊断/恢复、Editor 扩展错误；
 各节分别维护其状态，不把 Inspector 故障升级为 Runtime fault。
-边界选择见 [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+边界选择见 [原编号 057 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)。
 
 能力归属：跨包整改，Core／Editor／Inspector 分项负责；不属于单一 GEF 能力批次。
 
@@ -274,7 +274,7 @@ SF-08／18／20 必须分别验证这两种情况。
 
 ### ADR-010 的局部替代关系
 
-本设计依 ADR-057 局部替代 [ADR-010](../../adr/adr-010-runtime-listener-lifecycle.md) 的以下条款。
+本设计依 ADR-057 局部替代 [通知订阅生命周期](notification-subscription-lifecycle.md) 的以下条款。
 listener 新合同的实现与验收归 S09-B，接受决策不表示该切片已完成：
 
 | ADR-010 原条款 | ADR-057 的 listener 合同 |
@@ -389,3 +389,9 @@ Inspector 每条 record 维持一次有界入队，不扫描全树，不创建�
 避免 Inspector 宣称已 detach 而 Core 仍在 fault 后保留登记。
 S09-A 先覆盖 `set_mode`、私有 suspension／processing、直接帧调用方及 Animation
 错误 source；不同时启动 Connections 与 Editor 改造。
+
+## 选择依据（原编号 057）
+
+沿用已接受的修订 3。Inspector 本地 fault 与 Runtime fault 分离，订阅恢复使用 checkpoint／cursor；复合错误保留 source。旧订阅注册、耗尽和 fault 后注销条款仅按明确的局部替代生效。
+
+原批准范围、修订与历史判断见[原稿 057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)。

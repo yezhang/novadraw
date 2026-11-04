@@ -4,7 +4,7 @@
 
 日期：2026-10-26
 
-依据：[ADR-047](../../adr/adr-047-per-operation-antialias.md)与用户批准的
+依据：[ADR-047](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-047-per-operation-antialias.md.txt)与用户批准的
 [方案修订 2](../../design/rendering/shape-antialias-proposal.md)。
 当前执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 

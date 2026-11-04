@@ -6,7 +6,7 @@
 
 结论：**暂不通过。三个 P1 契约问题需修订后复核。**
 
-评审对象：[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)
+评审对象：[ADR-037](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)
 及其[验证矩阵](../plans/p2-s06-incremental-failure-isolation.md)，均为本轮开始时的
 未提交草案。本报告行号指向该草案快照，不表示引擎已经实现这些行为。
 P2-S06 继续保持 `design-draft`，不进入 Execute，不关闭 R06/TC-08。
@@ -47,7 +47,7 @@ P2-S06 继续保持 `design-draft`，不进入 Execute，不关闭 R06/TC-08。
 优先级：P1。草案 §2、§3、§6，原行 68–70、81–90、157–163。
 
 流程图将拒绝与 panic 合并到“清理新增资源”，正文又要求继续清理独立资源。
-但 [ADR-014 决策 2](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md#决策-2原子性分层不承诺任意用户代码回滚)
+但 [ADR-014 决策 2](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)
 规定：Core 扩展 panic 后 Runtime faulted，拒绝新提交。
 若 panic 发生在 Figure activation、dispose completion 或 Core extension，
 此时正常 mutation/Connections/Observations 清理入口可能已不可用。
@@ -76,7 +76,7 @@ P2-S06 继续保持 `design-draft`，不进入 Execute，不关闭 R06/TC-08。
 现行 [Connection routing §4.1](../../design/architecture/connection-routing.md)
 在校验 point 有限性、route geometry 与 locator 后，要求任一 route batch 预检失败
 都提交整批 unresolved、清除旧 route，并保留恢复依赖；参见该文原行 124–135。
-[ADR-014 决策 6](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md#决策-6失败状态和-session-顺序显式化)
+[ADR-014 决策 6](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)
 也规定运行期路由失败提交稳定 unresolved 结果。
 
 这意味着 Router 的非法输出可以成为 Runtime 的 unresolved 原因。
@@ -113,14 +113,14 @@ Part/policy deactivate 和 Figure retire/lifecycle。每条路径检查次数与
 
 优先级：P2。矩阵 P04，以及草案原行 137。
 
-[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) 的
+[ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt) 的
 `EditPolicy::deactivate` 返回 `()`，不是 `Result`。
 P04 的“deactivate 或 dispose 再次拒绝”应按实际协议拆开：
 可失败的 prepare/cleanup 返回 Err；无 Result 的 deactivation 验证 panic。
 不要为实现测试中的“拒绝”而修改已有生命周期 API。
 
 fault 关闭回归还应区分停止新 `prepare_submission` 与处置已有 in-flight submission。
-依照 [ADR-029](../../adr/adr-029-structured-render-backend-failure.md)、
+依照 [ADR-029](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt)、
 ADR-014 的旧生产者退出与新 Runtime `Snapshot + Full` 基线规则验证，
 不要把新帧拒绝扩大成关闭流程无法执行。
 

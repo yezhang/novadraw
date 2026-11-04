@@ -9,7 +9,7 @@
 
 ADR-057 修订 3 于 2026-10-30 复核通过，用户随后接受并授权按 S09 切片实施。
 checkpoint 与 backend 完成分层、持久发布游标、首 fault 胜出值的来源等设计缺口已解决。
-当前合同见[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+当前合同见[ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)。
 
 | 切片／owner | 最新验证结果 |
 |---|---|

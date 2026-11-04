@@ -9,7 +9,7 @@
 ## 1. 范围
 
 本批按
-[ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)
+[ADR-033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)
 关闭 API 与架构 Review R01：
 
 - Runtime 本体只保留组合根、Figure mutation 和故障查询职责；

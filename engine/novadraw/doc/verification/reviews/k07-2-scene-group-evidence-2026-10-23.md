@@ -6,7 +6,7 @@
 
 状态：`complete`；仅完成 K07-2 共享组结构准入。
 
-范围：[ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)的共享组切片。
+范围：[ADR-044](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-044-shared-scene-capture-and-view.md.txt)的共享组切片。
 本记录不证明目标快照安装、资源导入、SceneView 或官方 Thumbnail 已完成。
 
 ## 提交前核验结构依赖

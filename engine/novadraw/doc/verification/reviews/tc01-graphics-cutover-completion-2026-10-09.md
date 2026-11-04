@@ -75,7 +75,7 @@ construction helper 与领域模块导入迁移；`cargo xtask check --full` 现
 
 ## 关系
 
-- [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)
+- [ADR-031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)
 - [临时概念设计审计](temporary-concept-design-audit-2026-10-08.md)
-- [统一 Graphics 与 glyph 准备](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)
+- [统一 Graphics 与 glyph 准备](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)
 - [Graphics 扩展契约](../../design/rendering/p2-g01-graphics-extension.md)

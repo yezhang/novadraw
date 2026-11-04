@@ -6,7 +6,7 @@
 已按[增量评审意见](../../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
 处理 GP01–GP04。原评审报告保留其基线判断；当前执行授权来自修订后的用户指令。
 属于 P2-L01 的 Figure/Connection adapter 切片，补充
-[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
+[有向图布局](directed-compound-graph-layout.md)。
 纯请求、Directed、Compound、统一 adapter 与本增量均已实现；
 最终门禁及 Native 证据见[实施记录](../../verification/evidence/adr043/implementation.md)。
 `api_semantics`：`frame.preparation`、`layout.manager`、`connection.anchor`、

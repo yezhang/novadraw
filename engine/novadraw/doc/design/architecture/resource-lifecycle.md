@@ -353,7 +353,7 @@ Runtime 拉取 payload。
 
 ## 宿主背景的资源与帧输入
 
-[ADR-045](../../adr/adr-045-host-background-submission.md)的宿主背景也使用不可变
+[宿主背景帧提交](shared-scene-view-background-proposal.md)的宿主背景也使用不可变
 image/font 闭包。Host 提供者在 Runtime 外录制 owned drawing；
 `complete_background` 先完整检查闭包，再通过与 SceneView 相同的导入表创建候选
 Registry、重写命令引用，成功后一起安装。导入键包含背景来源 namespace、资源 ID、
@@ -377,3 +377,9 @@ Presented 只确认该在途前缀，之后收到的新背景仍保持 pending�
 - worker/thread pool 实现；
 - 解码、GPU cache 或 CPU payload 内存预算；
 - D4.4 的完整 backend capability 与永久错误分类。
+
+## 选择依据（原编号 012）
+
+资源操作保持有序前缀与单一 inflight。session reset／snapshot 与 resize 分开，Host 串行交接 backend；当前合同不支持多 consumer 或并发 handoff。
+
+原批准范围、修订与历史判断见[原稿 012](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-012-resource-causality-and-backend-session.md.txt)。

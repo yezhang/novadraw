@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-能力归属：Editor；开放模型由 [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)接受。
+能力归属：Editor；开放模型由 [原编号 034 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)接受。
 
 ## 状态
 
@@ -301,3 +301,9 @@ Core 中禁止：
 ## 日期
 
 2026-10-09
+
+## 选择依据（原编号 034）
+
+Request、Tool、Policy 和 Handle 内置与外部共用 typed identity、payload 和 registry；失败保留原始 source，不创建仅内置可用的 hook。
+
+原批准范围、修订与历史判断见[原稿 034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)。

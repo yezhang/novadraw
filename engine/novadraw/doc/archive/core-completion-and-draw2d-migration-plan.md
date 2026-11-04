@@ -513,7 +513,7 @@ D2.5 自动验证结果：
 候选契约：
 
 - [`../design/architecture/connection-routing.md`](../design/architecture/connection-routing.md)
-- [`../adr/adr-005-connection-routing-contract.md`](../adr/adr-005-connection-routing-contract.md)
+- [`../adr/adr-005-connection-routing-contract.md`](adr-consolidation-2026-11-03/original/doc/adr/adr-005-connection-routing-contract.md.txt)
 
 ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗口验收已完成。
 2026-09-08 审计发现的 shared Manhattan reservation 与 nested viewport policy
@@ -863,7 +863,7 @@ D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写�
 状态：`complete`
 
 补充决策：
-[`../adr/adr-008-m9-contract-recovery.md`](../adr/adr-008-m9-contract-recovery.md)。
+[`../adr/adr-008-m9-contract-recovery.md`](adr-consolidation-2026-11-03/original/doc/adr/adr-008-m9-contract-recovery.md.txt)。
 
 ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验收均已完成。
 
@@ -1037,7 +1037,7 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 正式契约：
 
 - [`../design/architecture/derived-state-convergence.md`](../design/architecture/derived-state-convergence.md)
-- [`../adr/adr-011-derived-state-convergence.md`](../adr/adr-011-derived-state-convergence.md)
+- [`../adr/adr-011-derived-state-convergence.md`](adr-consolidation-2026-11-03/original/doc/adr/adr-011-derived-state-convergence.md.txt)
 
 目标：
 
@@ -1081,7 +1081,7 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 正式契约：
 
 - [`../design/architecture/resource-lifecycle.md`](../design/architecture/resource-lifecycle.md)
-- [`../adr/adr-012-resource-causality-and-backend-session.md`](../adr/adr-012-resource-causality-and-backend-session.md)
+- [`../adr/adr-012-resource-causality-and-backend-session.md`](adr-consolidation-2026-11-03/original/doc/adr/adr-012-resource-causality-and-backend-session.md.txt)
 
 目标：
 
@@ -1123,7 +1123,7 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 正式契约：
 
 - [`../design/architecture/figure-lifecycle.md`](../design/architecture/figure-lifecycle.md)
-- [`../adr/adr-014-extensibility-and-lifecycle-boundaries.md`](../adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+- [`../adr/adr-014-extensibility-and-lifecycle-boundaries.md`](adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)
 
 2026-09-10：首批身份隔离/dispose 已进入实现；同树 Runtime 重包装曾确认
 registry/session 身份复活，现已通过“场景工厂交付完整 Runtime、移除 into_tree”

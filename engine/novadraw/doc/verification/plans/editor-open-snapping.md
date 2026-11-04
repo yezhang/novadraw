@@ -7,7 +7,7 @@ Core 基础协议的使用作为依赖验证；平台输入与应用消费者证
 不将 Core 回归通过或应用网格实现计为 Editor 吸附完成。
 
 状态：修订 2 已接受，E04 实施中，当前补 E04-C；2026-11-02。对应
-[ADR-058](../../adr/adr-058-open-editor-snapping.md)与
+[Editor 开放吸附](../../design/editor/open-snapping.md)与
 [专题](../../design/editor/open-snapping.md)。首段结果见
 [E04-A 实施记录](../reviews/p2-e04-a-implementation-2026-11-02.md)，其余要求仍待执行。
 依赖与设计结论见[E04 验证状态](../reviews/open-snapping-review-status.md)。

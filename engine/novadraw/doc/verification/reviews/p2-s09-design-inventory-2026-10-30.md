@@ -13,7 +13,7 @@ Editor 的 Command／Policy 错误。三类改动分别验收。
 
 基线：`9825957efb1859ffca504e03eafd79ff19a226bd`。
 不扫描渲染主循环、不扩大长文本或 Editor 功能范围。
-目标见 [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，
+目标见 [ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)，
 退出条件见 [验证矩阵](../plans/p2-s09-service-failure.md)。
 
 ## 实际入口与缺口

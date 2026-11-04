@@ -4,7 +4,7 @@
 
 日期：2026-11-02。外部参考归属：LibreOffice VCL、Qt、VS Code、Xi、Zed／GPUI。
 本文记录公开源码与文档中的机制、限制和对 Novadraw 的适用性，不定义 Core API。
-Novadraw 的采用合同以 [ADR-051](../adr/adr-051-exact-flow-layout-reuse.md)和
+Novadraw 的采用合同以 [精确 Flow 复用](../design/architecture/exact-flow-layout-reuse.md)和
 [长文本方案](../design/architecture/long-text-performance-proposal.md)为准。
 
 ## 性能问题要按阶段判断

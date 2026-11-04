@@ -3,7 +3,7 @@
 类型：`implementation-verification`
 
 状态：已完成；2026-10-29。本记录汇总
-[ADR-056](../../adr/adr-056-detached-input-invariants.md)的整批验收。
+[ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)的整批验收。
 S08-C 的入口与外部准入证据见
 [实施记录](p2-s08-c-implementation-2026-10-29.md)。
 全量回归、Graphics GPU、成对产物与十轮采样已完成，

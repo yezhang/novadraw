@@ -172,13 +172,13 @@ test(winit-canvas): 覆盖跨画布捕获与焦点切换
 | 路线图（Core + Editor） | [doc/roadmap/00-index.md](doc/roadmap/00-index.md) |
 | Editor / GEF 架构 | [doc/design/editor/architecture.md](doc/design/editor/architecture.md) |
 | Editor / GEF 路线图 | [doc/roadmap/editor/00-index.md](doc/roadmap/editor/00-index.md) |
-| Core 公开 API 边界 | [doc/adr/adr-017-core-public-api-boundary.md](doc/adr/adr-017-core-public-api-boundary.md) |
-| Runtime 驱动与结构化测量 API | [doc/adr/adr-018-runtime-driving-and-measurement-api.md](doc/adr/adr-018-runtime-driving-and-measurement-api.md) |
-| 公开 Facade 与 Feature 边界 | [doc/adr/adr-021-public-facade-and-feature-boundary.md](doc/adr/adr-021-public-facade-and-feature-boundary.md) |
-| 第三方类型与渲染依赖边界 | [doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md](doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md) |
+| Core 公开 API 与驱动测量 | [公共 API 契约](doc/design/architecture/public-api-contract.md) |
+| 公开领域路径与包边界 | [ADR-023](doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md) |
+| 第三方类型与渲染依赖 | [依赖规范](doc/design/architecture/third-party-dependency-boundaries.md) |
+| 长期架构决策入口 | [10 项长期边界选择](doc/adr/README.md) |
 | Crate 收口与扩展边界 | [doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md](doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md) |
 | 统一 Graphics 与 glyph 预处理边界 | [ADR-025](doc/adr/adr-025-unified-graphics-and-glyph-preparation.md) |
-| 类型化属性身份与异构通知日志 | [ADR-028](doc/adr/adr-028-typed-property-identity.md) |
+| 类型化属性身份与异构通知日志 | [类型化属性与通知日志](doc/design/architecture/typed-property-identity.md) |
 | Core 公开 API 审计 | [doc/verification/reviews/core-public-api-audit-2026-09-22.md](doc/verification/reviews/core-public-api-audit-2026-09-22.md) |
 
 ### Milestone 与路线图
@@ -242,6 +242,25 @@ ADR-033/035/038 细化。P2-R02 image source rectangle 已完成。
 完整审计入口：`doc/verification/reviews/adr-audit-2026-09-10.md`。
 
 ## 架构设计原则
+
+### 设计方案与 ADR 的使用边界
+
+普通设计方案默认放在 `doc/design/`，使用小写 kebab-case 的主题文件名，
+不分配 ADR 编号。功能方案、接口细节、算法、缓存失效、组件组合、平台适配和
+性能优化由对应设计专题维护，正文说明问题、目标、机制、取舍与验证方法。
+候选标为 `proposal`，接受后按内容标为 `normative-design`，记录接受范围与依据。
+设计可以独立评审、接受；文档先行和方案评审不要求配套 ADR。
+
+只有存在影响长期架构边界的重要选择时，才单独创建 ADR，例如改变层间依赖、
+状态所有权、公开扩展模型或既有关键契约。ADR 说明选择、理由、实质替代方案、
+代价及对已有决策的效力；具体机制仍由 design 负责。
+修改公开 API、新增能力、性能优化、经过评审或篇幅较大本身均不构成创建 ADR 的理由。
+
+设计与 ADR 无需一一对应；设计可引用已有 ADR，一项设计也可涉及多个独立决策。
+开始设计任务时先判断文档归属，再决定是否需要新增 ADR，不以 ADR 编号组织所有方案。
+执行状态由 roadmap 维护，验证方法和结果由 verification 维护。
+设计接受、实施完成与生产启用分别记录；重大架构变更仍须按既有规则获批后实施。
+文档归属与替代细则见 [文档知识维护](doc/knowledge-maintenance.md#adr-与具体设计分开维护)。
 
 ### 规划与方案必须明确能力归属
 
@@ -321,8 +340,10 @@ Novadraw 替代体系。Canvas 外的临时控制工具可用于过渡或验证�
      常用做法：抽出 `Key<T>` + `Payload: Trait`，内置用预定义 Key，外部用自定义 Key；
    - 任何对内置能力做 `match concrete_variant` 的位置都是债务，必须以第三方
      也能注册同 identity 的方式重写；
-   - 验证形式：ADR 必须包含"外部消费者证据"章节，证明同一能力由第三方 crate
-     不改 Core 即可实现，且与内置实现共用全部语义与错误通道。
+   - 验证形式：涉及扩展能力的设计必须说明"外部消费者证据"，证明同一能力由
+     第三方 crate 不改 Core 即可实现，且与内置实现共用全部语义与错误通道。
+     设计阶段说明接口与消费者可行性依据，实施完成时提供可执行验证；
+     证据的要求不构成新增 ADR 的理由，相关 ADR 可链接设计与验证记录。
 
 ### 包体积与性能要求
 

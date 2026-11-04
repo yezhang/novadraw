@@ -218,6 +218,12 @@ flattening、展开状态、过滤和选中状态均属于 Inspector UI，不得
 ## 关系
 
 - [UpdateManager](../rendering/update-manager.md)
-- [ADR-016](../../adr/adr-016-figure-inspector-observability.md)
+- [原编号 016 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-016-figure-inspector-observability.md.txt)
 - [ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md)
 - [P2 delta backlog](../../roadmap/p2-delta-backlog.md)
+
+## 选择依据（原编号 016）
+
+Inspector 只依赖 Core，消费稳定场景与有界提交后事件；不保存任意历史树。Editor 身份映射通过 adapter 接入，不形成新的提交权威。
+
+原批准范围、修订与历史判断见[原稿 016](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-016-figure-inspector-observability.md.txt)。

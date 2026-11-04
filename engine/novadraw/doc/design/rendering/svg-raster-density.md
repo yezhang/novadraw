@@ -76,7 +76,7 @@ ImageId 保持不变，资源 revision 仅在密度变化时更新。资源更�
 本批不改变 SVG 的字体解析策略，不建设 SVG DOM 编辑器或 GPU 矢量资源格式；
 逐 Shape AA 的 Graphics／IR／backend 增量需另行评审。
 
-依据：[ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md)、
+依据：[资源加载与请求 Token](../architecture/resource-loading-and-request-tokens.md)、
 [资源因果协议](../architecture/resource-lifecycle.md)、
 [官方示例 Core 计划](../../verification/plans/draw2d-official-examples-core-plan.md)。
 

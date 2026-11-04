@@ -4,7 +4,7 @@
 
 日期：2026-10-05
 
-规范：[ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
+规范：[ADR-025](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)、
 [文字与图形整合](../../design/rendering/text-graphics-integration.md)。
 
 ## 实现边界

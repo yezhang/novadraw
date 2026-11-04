@@ -7,9 +7,9 @@
 日期：2026-09-28
 
 实施更新：E1 与 E2 已由
-[ADR-020](../../adr/adr-020-engine-value-and-render-contract.md) 完成并验证；E3 的聚合
+[ADR-020](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-020-engine-value-and-render-contract.md.txt) 完成并验证；E3 的聚合
 facade 与 backend feature 边界已由
-[ADR-021](../../adr/adr-021-public-facade-and-feature-boundary.md) 收口。本文第 3.3 与
+[ADR-021](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) 收口。本文第 3.3 与
 第 4.1-4.3 节保留整改前证据，后续工作从 Figure capability 与内部模块拆分继续。
 
 ## 1. 范围

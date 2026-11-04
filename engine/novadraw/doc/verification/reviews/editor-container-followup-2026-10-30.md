@@ -10,7 +10,7 @@ Core revision 耗尽是依赖故障，平台消费者负责转发真实输入；
 已补实际移动／创建 Tool 的 revision 耗尽链路、浏览器 DPR 1／2 输入、
 Native Retina 输入、取消与窗口外释放。跨显示器 DPI、
 系统 DnD 及完整平台组合仍未关闭。
-目标契约见 [ADR-055](../../adr/adr-055-container-editing-protocol.md)，
+目标契约见 [ADR-055](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt)，
 验收分母见[容器矩阵](../plans/editor-container-editing.md)。
 
 ## 真实 revision 耗尽如何进入 Tool

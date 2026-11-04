@@ -234,7 +234,7 @@ PaintContext 将错误交回帧录制调用链，禁止由自定义 Figure 吞�
 文本命令所引用字体必须由当前 Registry/资源快照保活。独立录制不能只携带
 FontFaceRef 就宣称脱离 TextSystem 可重放；需要命令与匹配版本资源共同组成结果。
 RecordedDrawing 是资源闭合的独立录制结果，合同由
-[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)承接；
+[录制与帧出版](graphics-recording-and-publication.md)承接；
 它不改变 ResourceSync/RenderSubmission 的确认协议，也不取得 Runtime 帧出版权限。
 
 ## 4. 度量与像素不应混成一种 bounds

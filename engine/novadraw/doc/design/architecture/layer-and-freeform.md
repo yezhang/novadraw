@@ -5,7 +5,7 @@
 状态：`approved`
 
 本文定义 D2 的规范架构，由
-[`ADR-004`](../../adr/adr-004-layer-and-freeform-contract.md) 接受。本文只定义
+[`ADR-004`](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-004-layer-and-freeform-contract.md.txt) 接受。本文只定义
 Draw2D 行为语义到 Novadraw 的映射，不复制 Java 继承结构。
 
 ## 1. 目标与边界
@@ -729,3 +729,9 @@ primitive，callback 只能记录 effect。
 - 某些底层批量算法需要专用复合 mutation，不能直接循环操作 FigureTree；
 - 运行期写入强制依赖 Runtime；独立批量构建必须显式使用 builder；
 - 事务队列和校验会引入少量管理开销。
+
+## 选择依据（原编号 004）
+
+extent 是派生范围，不改写 bounds；LayerKey 在所属 pane 内唯一。负坐标、content-domain range、拓扑与共享 scale 的 owner 按本专题统一定义。
+
+原批准范围、修订与历史判断见[原稿 004](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-004-layer-and-freeform-contract.md.txt)。

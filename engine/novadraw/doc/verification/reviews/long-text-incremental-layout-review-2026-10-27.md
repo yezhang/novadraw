@@ -166,8 +166,8 @@ inline 依赖及成本协议。可行路径尚不确定时，写明待证问题�
 ## 核验依据与限制
 
 已核对[母方案](../../design/architecture/long-text-performance-proposal.md)、
-[ADR-042](../../adr/adr-042-structured-flow-layout.md)、
-[ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)、
+[ADR-042](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)、
+[ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)、
 [文字布局规范](../../design/architecture/text-layout.md)、
 [原生覆盖边界](../../design/architecture/long-text-native-coverage-boundary.md)、
 [Lapce 与 Xi 参考](../../reference/lapce-text-engine.md)及

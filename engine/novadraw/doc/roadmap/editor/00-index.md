@@ -37,16 +37,16 @@
 [GEF 分析](../../reference/gef/00-index.md)，采用关系见
 [GEF 语义账本](../../parity/gef/api-coverage.md)。
 模型写入与 Viewer 驱动、开放 Tool/Request/Handle、增量失败隔离分别由
-[ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)、
-[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)和
-[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)细化。
+[Viewer 编辑会话](../../design/editor/viewer-edit-session-and-drive.md)、
+[Editor 开放交互协议](../../design/editor/tool-request-handle-protocol.md)和
+[Editor 增量失败隔离](../../design/editor/incremental-failure-isolation.md)细化。
 
 Direct text edit/IME 的回归范围见
 [设计](../../design/editor/p2-direct-text-edit.md)与
 [矩阵](../../verification/plans/p2-text-direct-edit.md)。
 后续失败、输入不变量和服务整改顺序只在
 [P2 backlog](../p2-delta-backlog.md#当前推进顺序)维护。
-开放吸附采用已接受的 [ADR-058 修订 2](../../adr/adr-058-open-editor-snapping.md)，
+开放吸附采用已接受的 [Editor 开放吸附 修订 2](../../design/editor/open-snapping.md)，
 分片证据见 [E04-A 实施记录](../../verification/reviews/p2-e04-a-implementation-2026-11-02.md)。
 
 ## 下游产品与变更规则

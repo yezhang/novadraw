@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core Graphics/Runtime；platform 负责宿主提交。
-边界选择见 [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)。
+边界选择见 [原编号 031 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)。
 
 ## 状态
 
@@ -13,7 +13,7 @@
 由 `runtime.frames()` 获取，Runtime 出版权威保持不变。
 
 2026-10-23 按已接受的 [ADR-044](../../adr/adr-044-shared-scene-capture-and-view.md)增加独立、
-受检的 scene capture 出口；按 [ADR-045](../../adr/adr-045-host-background-submission.md)
+受检的 scene capture 出口；按 [宿主背景帧提交](../architecture/shared-scene-view-background-proposal.md)
 将宿主背景纳入统一帧输入。这两项为已批准增量，功能实现与验收另行记录。
 
 本决策关闭临时概念审计 TC-01，并替代以下旧决定：
@@ -146,3 +146,9 @@ ADR-045 的背景只能由同一 `prepare_submission` 预检并冻结，Host 不
 ## 日期
 
 2026-10-09
+
+## 选择依据（原编号 031）
+
+CommandRecorder 只生成资源闭合的 owned RecordedDrawing，Runtime 唯一分配 frame／session 并出版；内部 NdCanvas 不形成第二公开录制入口。
+
+原批准范围、修订与历史判断见[原稿 031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)。

@@ -18,7 +18,7 @@ revision／policy 失效、Tool 切换、静止指针 resize 与真实 HTML 模�
 模型复制、snapshot、投影、反馈与稳定化已分别计时。
 结果与未关闭范围见[组合续验](../reviews/editor-container-combinations-2026-11-02.md)。
 HTML drop 不替代 Native 系统文件 DnD，阶段耗时不替代全部内部工作量计数。
-目标契约：[ADR-055](../../adr/adr-055-container-editing-protocol.md)。
+目标契约：[容器编辑](../../design/editor/container-editing-protocol.md)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
 ## 观测与夹具

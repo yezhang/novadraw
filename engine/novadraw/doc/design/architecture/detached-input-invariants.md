@@ -1,9 +1,9 @@
 # Detached 输入不变量设计
 
-类型：`proposal`
+类型：`normative-design`
 
 状态：已接受；2026-10-29，S08-A 已获实施批准。决策入口为
-[ADR-056](../../adr/adr-056-detached-input-invariants.md)。
+[原编号 056 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 S08-A／B／C／D 已完成，输入、外部准入、Native GPU 与成本证据见
 [整批完成记录](../../verification/reviews/p2-s08-d-completion-2026-10-29.md)。
@@ -275,3 +275,9 @@ StrokeStyle 含共享 dash 数据，Clone 应复用共享存储；迁移原 Copy
 alpha 范围和继承以本项目现行样式契约为准，不从上游未出现的 Figure alpha
 接口推导。覆盖账本见
 [Draw2D API family](../../parity/draw2d/api-coverage.md#api-family-id-约定)。
+
+## 选择依据（原编号 056）
+
+Opacity／FontDescriptor 受检构造，Border 保留真实私有配置。不同领域分别定义零值、owner 指标和动态输出校验，不以某一已完成批次推断其他范围已验收。
+
+原批准范围、修订与历史判断见[原稿 056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)。

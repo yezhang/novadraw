@@ -2,7 +2,7 @@
 
 类型：`architecture-review`
 
-日期：2026-10-29。范围为 [ADR-056](../../adr/adr-056-detached-input-invariants.md)、
+日期：2026-10-29。范围为 [ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)、
 [专题](../../design/architecture/detached-input-invariants.md)和
 [验证矩阵](../plans/p2-s08-detached-input-invariants.md)。这是本 Agent 的定向复核，
 不代表独立 reviewer 或用户接受。

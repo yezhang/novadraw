@@ -98,5 +98,5 @@ Web 体积、传输和加载成本需要同配置实际产物，不能用 Native
 Eclipse Workbench、JFace 和 TreeViewer 不进入 Editor。
 打印/导出与平台 AT 沿用既有 P2-O01/P2-A01，避免重复队列。
 
-首批契约见 [ADR-055](../../adr/adr-055-container-editing-protocol.md)，
+首批契约见 [容器编辑](container-editing-protocol.md)，
 退出场景见 [验证矩阵](../../verification/plans/editor-container-editing.md)。

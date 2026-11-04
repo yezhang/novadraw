@@ -144,10 +144,10 @@ LTP-R01、LTP-R02 补齐并复核后，首批方案可通过设计评审；
 ## 证据范围
 
 本轮读取方案、[原始耗时分析](textflow-large-performance-analysis-2026-10-26.md)、
-[ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
-[ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)、
-[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)、
-[ADR-042](../../adr/adr-042-structured-flow-layout.md)、
+[ADR-025](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt)、
+[ADR-031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt)、
+[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)、
+[ADR-042](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)、
 [文字与图形整合规范](../../design/rendering/text-graphics-integration.md)、
 [派生状态收敛](../../design/architecture/derived-state-convergence.md)
 及 [API 语义账本](../../parity/draw2d/api-coverage.md)。

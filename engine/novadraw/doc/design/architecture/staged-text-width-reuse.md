@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core 阶段协议/资产账本；默认文字引擎提供分析与重排，Flow 负责接入。
-可选能力与完整回退选择见 [ADR-059](../../adr/adr-059-staged-text-width-reuse.md)。
+可选能力与完整回退选择见 [原编号 059 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)。
 
 日期：2026-11-02。修订：2。状态：`accepted`，用户已接受。
 本页只维护已接受合同。评审结论、依赖补丁范围和最新验证见
@@ -481,4 +481,10 @@ fallback 与字体替换、显式段落方向、五种对齐与镜像、空文�
 
 所选路径增加小型可选协议与分析资产留存，保留完整回退和精确几何。
 它优先解决同内容 resize 的重复分析，对编辑和 inline 度量变化仍可退化完整重算。
-批准本 ADR 只接受这些边界；阶段是否完成以对应验证记录为准。
+既有批准只接受这些边界；阶段是否完成以对应验证记录为准。
+
+## 选择依据（原编号 059）
+
+沿用已接受的修订 2。阶段可选，但共享精确绑定、资产与账本；先判断有效资产，再判断新增准入。失败保留 source，不能解释为普通 miss；阶段完成状态由 backlog 维护。
+
+原批准范围、修订与历史判断见[原稿 059](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt)。

@@ -19,7 +19,7 @@
 |---|---|---|
 | Figure 与能力 | [`crates/novadraw/src/figure`](../../../crates/novadraw/src/figure) | [`figure-capability-model.md`](../../../doc/design/architecture/figure-capability-model.md) |
 | Figure 树 | [`crates/novadraw/src/graph`](../../../crates/novadraw/src/graph) | [`architecture`](../../../doc/design/architecture/00-index.md) |
-| Runtime | [`crates/novadraw/src/runtime`](../../../crates/novadraw/src/runtime) | [`ADR-018`](../../../doc/adr/adr-018-runtime-driving-and-measurement-api.md) |
+| Runtime | [`crates/novadraw/src/runtime`](../../../crates/novadraw/src/runtime) | [`驱动与结构化测量`](../../../doc/design/architecture/public-api-contract.md) |
 | 几何与坐标 | [`crates/novadraw/src/geometry`](../../../crates/novadraw/src/geometry) | [`coordinate-system.md`](../../../doc/design/coordinates/coordinate-system.md) |
 | 布局 | [`crates/novadraw/src/layout`](../../../crates/novadraw/src/layout) | [`Draw2D API 账本`](../../../doc/parity/draw2d/api-coverage.md) |
 | 连接 | [`crates/novadraw/src/connection`](../../../crates/novadraw/src/connection) | [`connection-routing`](../../../doc/design/architecture/connection-routing.md) |

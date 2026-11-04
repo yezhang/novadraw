@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core Connection；Obstruction 是消费者。
-组求解边界见 [ADR-040](../../adr/adr-040-group-route-solving.md)。
+组求解边界见 [原编号 040 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-040-group-route-solving.md.txt)。
 
 ## 状态
 
@@ -177,3 +177,9 @@ ObstructionInitial、ObstructionShared、ObstructionMoved、ObstructionRemoved�
 
 当前验收状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)，
 原测试计数与实施流水从 [原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。
+
+## 选择依据（原编号 040）
+
+组 solver 接收完整输入并返回受检完整结果，由 Runtime 原子发布。visibility 属于具体算法；逐条路由不能通过共享 Singleton 模拟组求解。
+
+原批准范围、修订与历史判断见[原稿 040](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-040-group-route-solving.md.txt)。

@@ -4,7 +4,7 @@
 
 日期：2026-11-02。能力归属：Core 的 `FlowLayoutService`。
 状态：内部缓存优化、定向回归和 CPU 对照完成；整体长文本性能仍未闭合。
-本片沿用 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)，不改变公开 API、
+本片沿用 [ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)，不改变公开 API、
 贡献 callback、字体布局、完整几何发布或默认原生字形输出。
 
 ## 根因与最终修改

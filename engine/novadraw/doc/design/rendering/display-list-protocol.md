@@ -238,4 +238,4 @@ optional capability missing → defined fallback
 
 协议稳定前不创建独立发布包。新增 crate 还须证明 semver/version policy、兼容测试、
 格式规范、安全策略和发布责任；不预先承诺 C/C++/Swift ABI 或 crates.io 发布。
-当前绘图与出版边界见 [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)。
+当前绘图与出版边界见 [录制与帧出版](graphics-recording-and-publication.md)。

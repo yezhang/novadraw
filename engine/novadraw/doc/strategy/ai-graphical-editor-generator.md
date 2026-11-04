@@ -22,8 +22,8 @@
 - [AI 时代的关系编辑器机会研究](ai-era-relationship-editor-research.md)
 - [Editor 框架架构](../design/editor/architecture.md)
 - [独立 Editor 框架边界](../adr/adr-015-editor-framework-boundary.md)
-- [Core 公开 API 边界](../adr/adr-017-core-public-api-boundary.md)
-- [可组装 API 与 Scoped Editor](../adr/adr-019-composable-api-and-scoped-editors.md)
+- [Core 公开 API 边界](../design/architecture/public-api-contract.md)
+- [可组装 API 与 Scoped Editor](../design/architecture/public-api-contract.md)
 
 ## 2. 产品愿景
 
@@ -620,9 +620,9 @@ Headless 验证。
 - [Editor 框架架构](../design/editor/architecture.md)
 - [独立 Editor 框架边界](../adr/adr-015-editor-framework-boundary.md)
 - [扩展协议、生命周期与稳定发布边界](../adr/adr-014-extensibility-and-lifecycle-boundaries.md)
-- [Core 公开 API 边界](../adr/adr-017-core-public-api-boundary.md)
-- [可组装 API 与 Scoped Editor](../adr/adr-019-composable-api-and-scoped-editors.md)
-- [公开 Facade 与 Feature 边界](../adr/adr-021-public-facade-and-feature-boundary.md)
+- [Core 公开 API 边界](../design/architecture/public-api-contract.md)
+- [可组装 API 与 Scoped Editor](../design/architecture/public-api-contract.md)
+- [公开 Facade 与 Feature 边界](../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt)
 
 外部：
 

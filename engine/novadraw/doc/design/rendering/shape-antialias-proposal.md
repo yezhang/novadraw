@@ -1,9 +1,9 @@
 # 逐图形抗锯齿方案
 
-类型：`proposal`
+类型：`normative-design`
 
 状态：修订 2 已于 2026-10-26 获用户批准，按
-[ADR-047](../../adr/adr-047-per-operation-antialias.md)进入实施。
+[原编号 047 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-047-per-operation-antialias.md.txt)进入实施。
 
 目标：K08 ShapeStylesExample 的 AA ON/OFF/DEFAULT 完整绘制链路。
 
@@ -189,5 +189,11 @@ AA-4 关闭既定自动验证切片，ShapeStyles 完整对等和平台呈现保
 
 参考：本地 `org.eclipse.draw2d/SWTGraphics.java` 的 `reconcileHints`、
 `setAntialias` 与状态栈；本地 `vello/vello/src/lib.rs::AaConfig`；
-[ADR-024](../../adr/adr-024-graphics-paint-stroke-and-clipping.md)、
+[Paint、Stroke 与 Clip](p2-g01-graphics-extension.md)、
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)。
+
+## 选择依据（原编号 047）
+
+图形和文字分别声明抗锯齿 hint，录制状态冻结。OFF 表达二值覆盖，仍保留 paint／clip alpha；覆盖准备受容量和后端能力约束。
+
+原批准范围、修订与历史判断见[原稿 047](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-047-per-operation-antialias.md.txt)。

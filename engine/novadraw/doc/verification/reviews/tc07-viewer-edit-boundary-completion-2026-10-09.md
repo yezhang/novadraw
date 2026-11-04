@@ -102,7 +102,7 @@ doctest。
 
 ## 关系
 
-- [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)
+- [ADR-032](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)
 - [Editor 架构](../../design/editor/architecture.md)
 - [临时概念设计审计](temporary-concept-design-audit-2026-10-08.md)
 - [公共 API 后续审计](framework-public-api-follow-up-audit-2026-10-07.md)

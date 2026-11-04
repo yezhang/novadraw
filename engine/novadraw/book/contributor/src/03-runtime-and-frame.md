@@ -83,7 +83,7 @@ Viewer 的 Overlay、Handle 和 Feedback 都进入 Figure 树，不属于表现�
 
 需要核验的公开合同：
 
-- [`ADR-018：Runtime 驱动与测量 API`](../../../doc/adr/adr-018-runtime-driving-and-measurement-api.md)
+- [`驱动与结构化测量：Runtime 驱动与测量 API`](../../../doc/design/architecture/public-api-contract.md)
 - [`ADR-025：统一 Graphics 与 glyph 预处理`](../../../doc/adr/adr-025-unified-graphics-and-glyph-preparation.md)
 - [`Runtime 实现`](../../../crates/novadraw/src/runtime/runtime.rs)
 

@@ -18,8 +18,8 @@
   - [临时概念设计审计 2026-10-08](temporary-concept-design-audit-2026-10-08.md)
   - [框架公共 API 复审 2026-10-07](framework-public-api-follow-up-audit-2026-10-07.md)
   - [Core 公开 API 审计 2026-09-22](core-public-api-audit-2026-09-22.md)
-  - [ADR-021 公开 Facade 与 Feature 边界](../../adr/adr-021-public-facade-and-feature-boundary.md)
-  - [ADR-032 Viewer 编辑会话与宿主驱动边界](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md)
+  - [ADR-021 公开 Facade 与 Feature 边界](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt)
+  - [ADR-032 Viewer 编辑会话与宿主驱动边界](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt)
 
 本报告是对临时概念设计审计 TC-01 ~ TC-14 之外的横向复查，用于补齐该审计未显式
 列出但同等级的架构债，并给出下一个推进顺序建议。本报告是对应快照的历史证据，
@@ -270,9 +270,9 @@ S09-B 最大容量成本要求仍未验收，R07 保持部分关闭。
 | 8 | **Editor overlay 命名空间**（R08） | 收口 overlay re-export | 低 | 依赖 R05 / R06 |
 
 > **Design 已就绪**（2026-10-09）：R01、R02、R05 的 ADR 草案已就绪，分别为
-> [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)、
-> [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)、
-> [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)；
+> [ADR-033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)、
+> [ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)、
+> [ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)；
 > Backlog 对应条目为 P2-S03、P2-S02、P2-S04，推荐 Execute 顺序：
 > **P2-S02 → P2-S03 → P2-S04**（先建立唯一领域路径，再迁移 Runtime 与 Editor
 > 公开协议）。

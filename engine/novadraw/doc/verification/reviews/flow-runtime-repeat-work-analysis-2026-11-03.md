@@ -29,7 +29,7 @@ Runtime 和布局器又在多个只读阶段重新建立 styles、子树成员�
 
 这些事实支持优先处理贡献组装和只读输入重建。不能据此删掉布局反馈轮次，
 也不能把 contributor／handler 的完整结果直接跨场景缓存。
-现有 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)明确保留贡献重读，
+现有 [ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)明确保留贡献重读，
 因为这两个扩展点尚无纯度或 revision 声明。
 
 本次定向审阅实现是为了分析实际重复工作，不是理想架构扫描。
@@ -227,7 +227,7 @@ invalidate 清缓存。未命中时临时布局，恢复原 width 后重新安�
 它们没有证明 Novadraw 任意 contributor 或 handler 可跨场景复用，
 也不要求照搬 Java 的三个缓存槽或可变临时布局。
 现行映射仍以 [Draw2D 语义账本](../../parity/draw2d/api-coverage.md)的 `text.flow`
-及[ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)为准。
+及[ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)为准。
 
 ## 候选优化与推进顺序
 

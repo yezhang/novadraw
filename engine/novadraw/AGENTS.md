@@ -66,13 +66,16 @@
   - M1-M10 编号与状态入口：`doc/roadmap/00-index.md`
 - **Editor / GEF 路线图**：`doc/roadmap/editor/00-index.md`
 - **Editor 架构 SSOT**：`doc/design/editor/architecture.md`
-- **Core 公开 API 边界**：`doc/adr/adr-017-core-public-api-boundary.md`
+- **Core 公开 API 边界**：`doc/design/architecture/public-api-contract.md`
 - **Runtime 驱动与结构化测量 API**：
-  `doc/adr/adr-018-runtime-driving-and-measurement-api.md`
+  `doc/design/architecture/public-api-contract.md`
 - **公开 Facade 与 Feature 边界**：
-  `doc/adr/adr-021-public-facade-and-feature-boundary.md`
+  `doc/design/architecture/public-api-contract.md` 与
+  `doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md`
+- **长期架构决策入口**：`doc/adr/README.md`；仅维护长期边界选择，
+  具体协议进入 `doc/design/`，迁出编号从归并记录追溯。
 - **第三方类型与渲染依赖边界**：
-  `doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md`
+  `doc/design/architecture/third-party-dependency-boundaries.md`
 - **Crate 收口与扩展边界**：
   `doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md`
 - **统一 Graphics 与 glyph 预处理边界**：
@@ -80,7 +83,7 @@
   字体指标、文字测量与图文绘制统一 API，布局后曲线预处理与片段着色器数据归后端；
   已接受并完成 P2-G02 Core API 与默认/可替换轮廓链路；自研后端算法不属于当前交付
 - **类型化属性身份与异构通知日志**：
-  `doc/adr/adr-028-typed-property-identity.md`；属性行为身份使用
+  `doc/design/architecture/typed-property-identity.md`；属性行为身份使用
   `PropertyKey<V>` / `ErasedPropertyKey`，字符串只用于诊断显示
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
@@ -131,6 +134,11 @@
 
 ### 架构分析边界
 
+- 普通设计方案默认放在 `doc/design/`，按主题命名，不分配 ADR 编号；
+  方案可以独立评审、接受，评审通过不要求配套 ADR。只有影响长期架构边界的
+  重要选择才单独记录 ADR，说明理由、替代方案与代价；设计与 ADR 无需一一对应。
+  修改公开 API、新增能力、性能优化或篇幅较大本身均不构成创建 ADR 的理由。
+  完整规则见 `CLAUDE.md` 的“设计方案与 ADR 的使用边界”。
 - 规划、ADR、方案及验证文档必须在开头明确 Core／Editor／其他 owner；
   跨层方案逐项区分能力、API／状态归属、依赖、改动与验收。
   Editor 使用 Core 基础协议不改变能力归属；新增 Core 能力单列 delta。
@@ -171,7 +179,7 @@
 | 硬编码 | 业务代码中不使用 magic numbers |
 | 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，examples 只做平台输入适配与示例编排 |
 | 第三方类型边界 | backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型 |
-| 内置与扩展同模型 | 内置能力只是"提前实现的代码"，不是特权路径；Request/Tool/Handle/Capability/Binding/Layout/Figure 等必须统一走 typed identity + payload trait + registry，禁止为内置能力保留闭合枚举、typed-only hook 或 fast path；每条新能力的 ADR 需含"外部消费者证据" |
+| 内置与扩展同模型 | 内置能力只是"提前实现的代码"，不是特权路径；Request/Tool/Handle/Capability/Binding/Layout/Figure 等必须统一走 typed identity + payload trait + registry，禁止为内置能力保留闭合枚举、typed-only hook 或 fast path；涉及扩展能力的设计需说明"外部消费者证据"，不要求为此新增 ADR |
 | Git 提交 | 标题统一为 `type(scope): 中文摘要`；type/scope 必填且使用小写英文，半角冒号后一个空格；按主题保持原子化，详见 `CLAUDE.md` 的 Git 提交规范 |
 
 ## 项目特性

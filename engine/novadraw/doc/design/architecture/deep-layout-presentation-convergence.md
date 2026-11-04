@@ -8,7 +8,7 @@
 
 关联规范：
 
-- [ADR-011：派生状态收敛](../../adr/adr-011-derived-state-convergence.md)
+- [派生状态收敛：派生状态收敛](derived-state-convergence.md)
 - [Runtime 派生状态收敛事务](derived-state-convergence.md)
 - [Reusable Shape 与 Border](reusable-shape-border.md)
 - [UML 扩展能力验证 F-01](../../verification/reviews/uml-extension-capability-2026-10-05.md#f-01深层复合布局与文字-presentation-未稳定收敛已关闭)

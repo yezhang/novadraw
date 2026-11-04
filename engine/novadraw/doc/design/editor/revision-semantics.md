@@ -3,7 +3,7 @@
 类型：`reference-analysis`
 
 本文记录编辑框架的版本语义分析。总体契约以 [Editor 架构](architecture.md) 和
-[ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md) 为准；
+[Viewer 编辑会话](viewer-edit-session-and-drive.md) 为准；
 本文解释现行机制，不新增接口或架构决策。
 
 ## revision 连接模型发布与视图同步

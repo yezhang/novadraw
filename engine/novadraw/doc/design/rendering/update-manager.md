@@ -277,7 +277,7 @@ Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_ca
 backend 返回 `RenderResult = Result<RenderDisposition, RenderFailure>`；Host 必须把完整
 结果交回 `runtime.frames().complete_submission(...)`，并按 acknowledgement 执行重绘、surface
 恢复、backend 重建或终止。恢复权威和分类见
-[ADR-029](../../adr/adr-029-structured-render-backend-failure.md)。
+[后端失败与恢复](backend-failure-and-recovery.md)。
 
 ## 11. Mutation 协作
 
@@ -370,3 +370,9 @@ phase guard 必须使用作用域恢复机制，确保错误后 `is_updating` �
 10. backend full-render 与 partial-render 结果等价；
 11. panic/error 后 phase 状态恢复；
 12. 通知保持因果顺序。
+
+## 选择依据（原编号 002）
+
+提交后通知按 FIFO 分发；内部 dirty work、damage 与观察 journal 分开。观察事件不提供事前拦截，提交权威仍归 Runtime。
+
+原批准范围、修订与历史判断见[原稿 002](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-002-notification-effect-queue.md.txt)。

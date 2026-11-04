@@ -102,7 +102,7 @@ detached 数值构造和 Bounded::set_bounds 返回领域 Result，拒绝时保�
 detached 的 BorderedFigure::replace_border 接收受检 BorderCandidate；
 Runtime 的 ReplaceFigureBorder 在 prepare 捕获相同候选，commit 不重复读取基础指标。
 构造、外部指标准入与 owner 准备的边界见
-[ADR-056](../../adr/adr-056-detached-input-invariants.md)。
+[Detached 输入不变量](detached-input-invariants.md)。
 
 ### 3.4 Shape 是绘制辅助，不是第二棵对象树
 
@@ -537,3 +537,9 @@ backend 添加 Shape/Border 类型识别。
 
 实现期间若发现必须修改 M1 Graphics 稳定契约，应停止当前实现，提交独立
 architecture delta 说明原因、兼容性和 backend 影响，经批准后再继续。
+
+## 选择依据（原编号 006）
+
+Shape 提供绘制辅助，Border 保持不可变。PointList、bounds 与 damage 通过同一提交协议保持一致；历史实施批次不定义新的能力边界。
+
+原批准范围、修订与历史判断见[原稿 006](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-006-reusable-shape-border-contract.md.txt)。

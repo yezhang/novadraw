@@ -129,7 +129,7 @@ runtime.viewports() / layers() -> 关系与服务视图
 
 facade 只组织按能力分组的调用表面，内部仍进入同一 Runtime 校验、提交、失效和通知
 协议。它不能暴露 FigureTree/UpdateManager 可变引用，也不能逃逸 Runtime 的可变借用。
-完整裁决见 [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) 与
+完整裁决见 [Runtime 子系统 Facade](runtime-subsystem-facade.md) 与
 [公共 API 契约](public-api-contract.md)。具体私有内容采用 typed component update；
 跨类型消费者采用 typed capability。内置 Figure 不保留专用 facade 或闭集快捷路径。
 

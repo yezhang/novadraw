@@ -17,7 +17,7 @@
 
 ## 2. 实现
 
-依据 [ADR-028](../../adr/adr-028-typed-property-identity.md) 新增：
+依据 [ADR-028](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-028-typed-property-identity.md.txt) 新增：
 
 ```text
 PropertyKey<V>

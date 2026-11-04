@@ -9,7 +9,7 @@
 ## 1. 范围
 
 本批按
-[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)
+[ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)
 关闭 API 与架构 Review R02：
 
 - 删除库级 `novadraw::prelude`；

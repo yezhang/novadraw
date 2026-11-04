@@ -122,7 +122,7 @@ family 的既定引擎边界。
 ### 容器编辑增量
 
 2026-10-29 用户批准实施 P2-E03。
-[ADR-055 修订 2](../../adr/adr-055-container-editing-protocol.md)补充 GEF
+[容器编辑 修订 2](../../design/editor/container-editing-protocol.md)补充 GEF
 Layout/Container Policy 的换父、有序插入与父坐标语义，
 验证范围见[矩阵修订 2](../../verification/plans/editor-container-editing.md)。
 首次评审的 CE-DR01～09 已采纳，补充通用 host 聚合、第三方受检计划、

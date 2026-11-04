@@ -28,7 +28,7 @@
 
 ### 审计编号先于问题出现
 
-出处：[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，第 21～26 行。
+出处：[ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)，第 21～26 行。
 
 > R07、TC-10、API-F08 和 API-F10 指出，部分服务把故障解释为未变化或空集合。
 > API-F09 的资源读取整改已完成，本批仅承接残余 connection 注册别名。
@@ -46,7 +46,7 @@
 
 ### 英文标识符被当成中文动词
 
-出处：[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，第 109～115 行。
+出处：[ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)，第 109～115 行。
 
 > 其他 payload 保存“非文本 payload”的结构化分类与调用位置，
 > 不 Debug 任意 Any，不调用用户格式化器；
@@ -61,7 +61,7 @@
 
 ### 斜杠没有交代枚举项之间的关系
 
-出处：[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)，第 131～136 行。
+出处：[ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)，第 131～136 行。
 
 > 独立 crate 使用公开领域导入完成 Animation 同值／变化／fault 对照、
 > Inspector attach／observe／detach／重复 detach／foreign token、
@@ -203,7 +203,7 @@
 
 ### 方案状态用历史追加代替当前摘要
 
-出处：[ADR-056](../../adr/adr-056-detached-input-invariants.md)，第 8～21 行，以及第 79～98 行。
+出处：[ADR-056](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)，第 8～21 行，以及第 79～98 行。
 
 开头依次追加 S08-A 获批、A 完成、继续获批、B 完成、C 完成、D 完成，再写整批关闭。后文仍保留“实施时”“其他场景由后续切片完成”和接受条件。
 

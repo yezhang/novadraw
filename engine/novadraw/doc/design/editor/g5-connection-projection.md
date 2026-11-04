@@ -268,7 +268,7 @@ Novadraw 差异：
 “原子协调”限于上述单项关系更新与 Runtime 候选提交，不保证完整 synchronize
 全局回滚。新建 Connection 的失败清理、binding admission 与已提交 unresolved
 的分类，以及 Core fault 后退出，遵循
-[ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
+[Editor 增量失败隔离](incremental-failure-isolation.md)。
 
 ## 12. 验证门禁
 

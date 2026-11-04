@@ -1,0 +1,262 @@
+{
+  "doc/adr/adr-001-webgpu-rust-stack.md": {
+    "bytes": 1298,
+    "sha256": "a92693c090d1c5c1a1f5a3430d679a4af42f2dc2fb820645802fb219db9dd6c9",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-001-webgpu-rust-stack.md.txt"
+  },
+  "doc/adr/adr-002-notification-effect-queue.md": {
+    "bytes": 2843,
+    "sha256": "b439356fb38c88357e725011f2357cfaf39dbe89a2ab851eb8c2fa7f9da815de",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-002-notification-effect-queue.md.txt"
+  },
+  "doc/adr/adr-003-rust-runtime-and-geometry-boundaries.md": {
+    "bytes": 4974,
+    "sha256": "11d8d4c188108b3a321d5628544305a35f1e87ac4b5116d25f04a29538793abe",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-003-rust-runtime-and-geometry-boundaries.md.txt"
+  },
+  "doc/adr/adr-004-layer-and-freeform-contract.md": {
+    "bytes": 4292,
+    "sha256": "0dc24584aaa66e6567d93157b66425115be14d69f5c52a318074fef2f508cb2a",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-004-layer-and-freeform-contract.md.txt"
+  },
+  "doc/adr/adr-005-connection-routing-contract.md": {
+    "bytes": 7004,
+    "sha256": "f82643e113541e24f7bc1897cf32779edebab01bdc9cfb9b860d41eaba316477",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-005-connection-routing-contract.md.txt"
+  },
+  "doc/adr/adr-006-reusable-shape-border-contract.md": {
+    "bytes": 5912,
+    "sha256": "b28a659610ef6cb08580e0d8396b01fbe4147b92d08d2b3c2132f883fcf3799a",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-006-reusable-shape-border-contract.md.txt"
+  },
+  "doc/adr/adr-007-parley-text-layout.md": {
+    "bytes": 6637,
+    "sha256": "6e1a88031ac849f1955805f3aa9d4410068e18d6ef035c35ab8dd326f92f5fae",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-007-parley-text-layout.md.txt"
+  },
+  "doc/adr/adr-008-m9-contract-recovery.md": {
+    "bytes": 7998,
+    "sha256": "e508e872e68debca1386dc051a40b7f298bf237f2b02a55d516f13ccee07cd6f",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-008-m9-contract-recovery.md.txt"
+  },
+  "doc/adr/adr-009-runtime-dynamic-mutation-contract.md": {
+    "bytes": 1303,
+    "sha256": "0a4157497a5a8326237a3d73040b95473947ec9c8be1563e20a2371c9be64fe1",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-009-runtime-dynamic-mutation-contract.md.txt"
+  },
+  "doc/adr/adr-010-runtime-listener-lifecycle.md": {
+    "bytes": 6797,
+    "sha256": "adc6503e97a31bb738341d1dc42222231742cccdc8f462955231ef3e9f2845a3",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-010-runtime-listener-lifecycle.md.txt"
+  },
+  "doc/adr/adr-011-derived-state-convergence.md": {
+    "bytes": 7203,
+    "sha256": "93fbe60f4f59930b90a34d9bf74dac29aeac0921fe684a0aa08aa3924dab8526",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-011-derived-state-convergence.md.txt"
+  },
+  "doc/adr/adr-012-resource-causality-and-backend-session.md": {
+    "bytes": 7529,
+    "sha256": "55e54d66133c7795d1516d6ed31d7c92b80ffd9c67aa0b02d2713472ded8e2af",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-012-resource-causality-and-backend-session.md.txt"
+  },
+  "doc/adr/adr-013-figure-lifecycle-and-runtime-identity.md": {
+    "bytes": 763,
+    "sha256": "5649ef7a091486b8ab1a80281ef5da217019788cadb596e571c0e2455a613d32",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-013-figure-lifecycle-and-runtime-identity.md.txt"
+  },
+  "doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md": {
+    "bytes": 9976,
+    "sha256": "1b8621f2cab28d2300e253c53a6af1215a2fa0e3270637d194abbd163820aed5",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt"
+  },
+  "doc/adr/adr-015-editor-framework-boundary.md": {
+    "bytes": 5224,
+    "sha256": "f4d5bf7d777eeb32eccb8d71af73581f867fbc99ed45ba5e910966e30f822be6",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-015-editor-framework-boundary.md.txt"
+  },
+  "doc/adr/adr-016-figure-inspector-observability.md": {
+    "bytes": 3250,
+    "sha256": "b1939b34c5dd76e3b5035e5d3dd0d52fe5e7ae68995cdf0b918ffc81634ba21f",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-016-figure-inspector-observability.md.txt"
+  },
+  "doc/adr/adr-017-core-public-api-boundary.md": {
+    "bytes": 7051,
+    "sha256": "1953384262574515e43d179477b78544d7dca7a37304d70cd296fe4089acdea8",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-017-core-public-api-boundary.md.txt"
+  },
+  "doc/adr/adr-018-runtime-driving-and-measurement-api.md": {
+    "bytes": 6078,
+    "sha256": "4d079e240406d3d56c60dab9256820b176130197af66bf44d9dee3cf4cf0a5e5",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-018-runtime-driving-and-measurement-api.md.txt"
+  },
+  "doc/adr/adr-019-composable-api-and-scoped-editors.md": {
+    "bytes": 7117,
+    "sha256": "ddf9ad0014e7bf93e6a56564244e175253582e619c1c07f6d6a8ee47e841733c",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt"
+  },
+  "doc/adr/adr-020-engine-value-and-render-contract.md": {
+    "bytes": 6806,
+    "sha256": "5c19777efac902ead51a3be6a420fd8f1a1f4351a81ad35b672490c58447f73f",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-020-engine-value-and-render-contract.md.txt"
+  },
+  "doc/adr/adr-021-public-facade-and-feature-boundary.md": {
+    "bytes": 1196,
+    "sha256": "8ffea4ee0d63d53e3ca26111aff8f9d11f835547cbe82d219f788a97e1630348",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt"
+  },
+  "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md": {
+    "bytes": 5095,
+    "sha256": "2f08d95d0198a137e7bf2e12b650f43a8c592b9e9c0352fd0b9af782e16ea110",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md.txt"
+  },
+  "doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md": {
+    "bytes": 7516,
+    "sha256": "87cb4818f5b437e1b18e7cdc1b09523e2bfa2c05c0ef12187108a22030e8d014",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md.txt"
+  },
+  "doc/adr/adr-024-graphics-paint-stroke-and-clipping.md": {
+    "bytes": 2366,
+    "sha256": "4548523e2a130cce077e46fd17f970981a9a2b7cb9bef171a08608fa2cb6d955",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-024-graphics-paint-stroke-and-clipping.md.txt"
+  },
+  "doc/adr/adr-025-unified-graphics-and-glyph-preparation.md": {
+    "bytes": 4460,
+    "sha256": "52e3499bbefacf5f327693f8923dda317f702ae56e8888249abff105be97a08f",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-025-unified-graphics-and-glyph-preparation.md.txt"
+  },
+  "doc/adr/adr-026-animation-and-presentation-plane.md": {
+    "bytes": 6403,
+    "sha256": "0a5a7072bf5c160c45959d5d81390f23abb89a87512e323f047a436dff17e002",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-026-animation-and-presentation-plane.md.txt"
+  },
+  "doc/adr/adr-027-open-figure-capability-registry.md": {
+    "bytes": 7893,
+    "sha256": "a4d4298f3d7943810e47e5475a3ca33048388bcd27e5b2b41238c6f828a9e3f0",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-027-open-figure-capability-registry.md.txt"
+  },
+  "doc/adr/adr-028-typed-property-identity.md": {
+    "bytes": 3489,
+    "sha256": "8478b140b7a9f7f2e2d3abb211ae11da1145139917ce29fb406924cc7e4238dc",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-028-typed-property-identity.md.txt"
+  },
+  "doc/adr/adr-029-structured-render-backend-failure.md": {
+    "bytes": 1052,
+    "sha256": "047d90ad2476b647901bcf538837a37c5b0aad0ee464048589d3bcf41e12b3f6",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt"
+  },
+  "doc/adr/adr-030-resource-provider-and-request-token-boundary.md": {
+    "bytes": 1083,
+    "sha256": "f25d6505d69ad50fd2956d75ff7cc22db1b0741126c0e200c51d77337a8cf77d",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-030-resource-provider-and-request-token-boundary.md.txt"
+  },
+  "doc/adr/adr-031-graphics-recording-and-publication-boundary.md": {
+    "bytes": 1083,
+    "sha256": "4f5176e25263f4510c151f71fd2f4e062f35836cff948e36e4ef6eff573db67f",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt"
+  },
+  "doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md": {
+    "bytes": 979,
+    "sha256": "768f43482539089bb9088b3f5b4ce8a6e65ff2504d9a0fd573a1760d452b5a19",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt"
+  },
+  "doc/adr/adr-033-runtime-subsystem-facade.md": {
+    "bytes": 1105,
+    "sha256": "b7f2a391c3e71f524baee38f8b1d6514a763602c0b1d32c2cf4bc706c3c0e223",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt"
+  },
+  "doc/adr/adr-034-editor-tool-request-handle-protocol.md": {
+    "bytes": 1066,
+    "sha256": "d0f651e72c4dcd1b6145bda413c1467e226c748d7f352e3edf5242393e39a402",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt"
+  },
+  "doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md": {
+    "bytes": 8868,
+    "sha256": "73cbf7a3715c96947e58e1eba46f7986c7d3085faac7f5d58047cee65b733878",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt"
+  },
+  "doc/adr/adr-036-context-phase-authority-projection.md": {
+    "bytes": 1058,
+    "sha256": "44541dae8f2b11aa2caadaf1789e45afa09d3adb834d5d38f60e51d492dd8d70",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-036-context-phase-authority-projection.md.txt"
+  },
+  "doc/adr/adr-037-editor-incremental-failure-isolation.md": {
+    "bytes": 1144,
+    "sha256": "c44bf8d8b597e3236025fa87f322615819609e47ce972913d37b6346c985da5b",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt"
+  },
+  "doc/adr/adr-038-query-identity-and-failure-semantics.md": {
+    "bytes": 999,
+    "sha256": "54ebbc033c614a07fb7c7fa460bd141260ddbc6eb7eb32d59c4b7008d191446d",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt"
+  },
+  "doc/adr/adr-040-group-route-solving.md": {
+    "bytes": 1076,
+    "sha256": "b634712f2163f94380bba7ff0e2e375d13846e71d35312b5b143e00c2ef3c677",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-040-group-route-solving.md.txt"
+  },
+  "doc/adr/adr-042-structured-flow-layout.md": {
+    "bytes": 1008,
+    "sha256": "941c909688d4520757bfcd199d592d11a441aae2212bb42b69368fbf7d082e68",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt"
+  },
+  "doc/adr/adr-043-directed-compound-graph-layout.md": {
+    "bytes": 1155,
+    "sha256": "5cc8ca915a156145a8d5c0e10e374e978af605fae230246bfb94a688624bcdda",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt"
+  },
+  "doc/adr/adr-044-shared-scene-capture-and-view.md": {
+    "bytes": 1331,
+    "sha256": "a21273f6b0b9430ca95dd7cec6744acfefecda24706ff4f1918b5e719e23eb88",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-044-shared-scene-capture-and-view.md.txt"
+  },
+  "doc/adr/adr-045-host-background-submission.md": {
+    "bytes": 1125,
+    "sha256": "6f1aa9588baf62619c6945ac69876f027984e85f2941b27a0dc4abbaa7d2571e",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-045-host-background-submission.md.txt"
+  },
+  "doc/adr/adr-046-sampled-geometry-and-animation-reservations.md": {
+    "bytes": 1187,
+    "sha256": "4308d7cc8fabcf4579f745ef9dd8ad330676fd54e977562c9f80e4efac1cf099",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-046-sampled-geometry-and-animation-reservations.md.txt"
+  },
+  "doc/adr/adr-047-per-operation-antialias.md": {
+    "bytes": 1208,
+    "sha256": "964e08e37ad3d366ee55c7b3d9dfa8a41d14acc84cc34694615698d9b3a69603",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-047-per-operation-antialias.md.txt"
+  },
+  "doc/adr/adr-051-exact-flow-layout-reuse.md": {
+    "bytes": 1085,
+    "sha256": "bb81d20822e3a6279504dbc08f27076fc8b6a2a951771b4dc6aa2b99a52e9a65",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt"
+  },
+  "doc/adr/adr-055-container-editing-protocol.md": {
+    "bytes": 1198,
+    "sha256": "53be59b2b711f7a9a69ed8ee4092be1cf90cd0ea797b00dec91055d43dbe72d4",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt"
+  },
+  "doc/adr/adr-056-detached-input-invariants.md": {
+    "bytes": 6176,
+    "sha256": "d80ec3daba422ce5d5a7478587f15abecd9061a4e4fd8c1bfc14f726622db8e5",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt"
+  },
+  "doc/adr/adr-057-service-failure-and-inspector-lifecycle.md": {
+    "bytes": 1277,
+    "sha256": "29095bc559274cc9eb0121f5c980e19201380da95fad94abf37d88904603b1c6",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt"
+  },
+  "doc/adr/adr-058-open-editor-snapping.md": {
+    "bytes": 1660,
+    "sha256": "15c9950532a647d28e7c43fb5ecb6d78e451cf493f797a9565214349e45103e5",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt"
+  },
+  "doc/adr/adr-059-staged-text-width-reuse.md": {
+    "bytes": 1609,
+    "sha256": "713e58f57dfd54dcf58cce631f5f715b7b9dd5f576a6a48d3a608ad39b94ad43",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-059-staged-text-width-reuse.md.txt"
+  },
+  "doc/adr/adr-060-flow-assembly-reuse.md": {
+    "bytes": 5573,
+    "sha256": "c33ceb2b0262a5fcbddd90ab3488eaf19c8d5f07f8656ab7fdaab1b573e6f4a0",
+    "snapshot": "doc/archive/adr-consolidation-2026-11-03/original/doc/adr/adr-060-flow-assembly-reuse.md.txt"
+  }
+}

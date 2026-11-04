@@ -5,7 +5,7 @@
 状态：布局切片已实施。本记录保留切片执行时的进度；后续验收已完成，
 P2-S07 当前状态见[完成核验](p2-s07-query-identity-completion-2026-10-16.md)。
 
-规范：[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)。
+规范：[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)。
 验收范围：[验证矩阵](../plans/p2-s07-query-identity-and-failure-semantics.md)。
 
 ## 已实施合同

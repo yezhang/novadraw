@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core Runtime；Editor ViewerDrive 只投影宿主权限。
-边界选择见 [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)。
+边界选择见 [原编号 033 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)。
 
 ## 状态
 
@@ -213,13 +213,19 @@ ADR-032 的 `ViewerDrive` 继续是 Editor 对宿主暴露的受限能力集。�
 
 - 落实 [R01](../../verification/reviews/api-architecture-review-2026-10-09.md#r01runtime-公开面已达大上帝对象量级)；
 - 继承 ADR-009、ADR-014、ADR-018 的提交、fault 和 frame 合同；
-- 修订 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md) 与
+- 修订 [Owned 与 Scoped API](public-api-contract.md) 与
   [ADR-027](../../adr/adr-027-open-figure-capability-registry.md) 的 concrete facade 例外；
-- 不改变 [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md) 的
+- 不改变 [Viewer 编辑会话](../editor/viewer-edit-session-and-drive.md) 的
   ViewerDrive 边界；
-- 与 [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) 一起收敛公开
+- 与 [唯一领域导入](public-api-contract.md) 一起收敛公开
   命名空间。
 
 ## 日期
 
 2026-10-09
+
+## 选择依据（原编号 033）
+
+子系统 facade 只提供无状态短借用，FigureMut 统一提交内置和外部组件。具体 Figure 类型没有专用提交通道，历史方法计数不构成长期开口承诺。
+
+原批准范围、修订与历史判断见[原稿 033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)。

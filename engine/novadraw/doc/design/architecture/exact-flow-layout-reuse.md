@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core Flow、文字资产与 Render IR；后端复用公开结果。
-精确性选择见 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)。
+精确性选择见 [原编号 051 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)。
 
 日期：2026-10-27。状态：Accepted（用户已批准 LT-00～LT-03；实施验收另记）。
 
@@ -142,3 +142,9 @@ owned normalized coords 转为共享 slice。Core 不暴露第三方 Layout 或�
 独立 backend 读取 submission 并保留旧 lease；校验非法范围、
 不同字体/coords、缓存淘汰、source retire 与 session/font 变化。
 GPU 对照保留当前原生输出和绘制顺序；共享成功不表示裁剪成功。
+
+## 选择依据（原编号 051）
+
+复用比较完整输入、身份和版本，共享资产保持不可变；ink coverage 必须有安全依据。贡献仍读取当前场景，未接受的贡献组装提议不覆盖该要求。
+
+原批准范围、修订与历史判断见[原稿 051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)。

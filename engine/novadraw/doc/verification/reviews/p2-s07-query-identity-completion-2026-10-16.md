@@ -6,7 +6,7 @@
 
 状态：`complete`；核心实现、消费者迁移、行为验证与规范同步完成。
 
-规范：[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)；
+规范：[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)；
 逐项验收：[验证矩阵](../plans/p2-s07-query-identity-and-failure-semantics.md)。
 
 ## 实施结果

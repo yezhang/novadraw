@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Editor 投影与扩展生命周期；Core 负责 Figure disposal。
-隔离单位见 [ADR-037](../../adr/adr-037-editor-incremental-failure-isolation.md)。
+隔离单位见 [原编号 037 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)。
 
 ## 状态
 
@@ -257,7 +257,7 @@ Core fault 路径保留其已经完成的结构退休；未退休资源隔离在
 
 Viewer fault 后停止正常编辑、输入分派和新 `prepare_submission`，不接受成功
 同步 revision。诊断读取及旧生产者退出不属于新帧驱动。
-按 [ADR-029](../../adr/adr-029-structured-render-backend-failure.md)与 ADR-014 处理已有提交：
+按 [后端失败与恢复](../rendering/backend-failure-and-recovery.md)与 ADR-014 处理已有提交：
 
 - Runtime 仍健康时，允许沿既有 completion 入口结清旧 in-flight submission；
   completion 不表示失败同步成功，不提升 Viewer 接受的模型 revision。
@@ -319,3 +319,9 @@ Design 阶段的文档门禁和既有失败探针不作为整改完成证据。
 
 评审回应已合入上述协议与验证矩阵，原对应表从
 [分类前快照](../../archive/adr-classification-2026-11-03.md)追溯。
+
+## 选择依据（原编号 037）
+
+资源与增量投影在所属批次隔离，失败保留既有有效前缀与原始 source。该合同不承诺跨外部模型或全局状态回滚。
+
+原批准范围、修订与历史判断见[原稿 037](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-037-editor-incremental-failure-isolation.md.txt)。

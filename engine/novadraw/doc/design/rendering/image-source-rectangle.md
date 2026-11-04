@@ -89,4 +89,4 @@ unsupported，不得在 command lowering 中静默跳过。
 - Draw2D `Graphics.drawImage(Image, Rectangle, Rectangle)`；
 - Draw2D `SWTGraphics.drawImage(...)`；
 - SWT `GC.drawImage(...)` source containment 与负尺寸失败契约；
-- [ADR-020](../../adr/adr-020-engine-value-and-render-contract.md)。
+- [引擎基础值](../architecture/engine-value-contract.md)。

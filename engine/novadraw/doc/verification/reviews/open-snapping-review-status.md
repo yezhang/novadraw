@@ -9,7 +9,7 @@
 
 ADR-058 修订 2 于 2026-11-02 复核通过，满足用户“如果复核通过，则推进方案”的授权条件，
 随后接受并进入 E04 实施。七项修订意见已在设计中解决；这不证明整体验收通过。
-[ADR-058](../../adr/adr-058-open-editor-snapping.md)、
+[ADR-058](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)、
 [开放吸附专题](../../design/editor/open-snapping.md)和
 [矩阵](../plans/editor-open-snapping.md)分别维护决策、行为与验收要求。
 

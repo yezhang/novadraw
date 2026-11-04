@@ -85,18 +85,18 @@ R01 Runtime 公开面已达"大上帝对象"量级、R02 root `pub use` 与 prel
 
 | ID | 优先级 | 临时概念 | 主要证据 | 长期方向 |
 |---|---|---|---|---|
-| TC-01 | P0，已关闭 | `Graphics` 与公开 `NdCanvas` 双方言 | [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md) + [完成记录](tc01-graphics-cutover-completion-2026-10-09.md) | Figure 只接收 `PaintContext`；owned 录制只经 `CommandRecorder`；Runtime 只公开 `prepare_submission` |
-| TC-02 | P0，已关闭 | `Figure` 是封闭 capability 注册表 | `figure/mod.rs:603-710`、`graph/presentation.rs:461-480`、`container/viewport.rs:668-678` | [ADR-027](../../adr/adr-027-open-figure-capability-registry.md) + [P2-F02](../../roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry) |
+| TC-01 | P0，已关闭 | `Graphics` 与公开 `NdCanvas` 双方言 | [ADR-031](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-031-graphics-recording-and-publication-boundary.md.txt) + [完成记录](tc01-graphics-cutover-completion-2026-10-09.md) | Figure 只接收 `PaintContext`；owned 录制只经 `CommandRecorder`；Runtime 只公开 `prepare_submission` |
+| TC-02 | P0，已关闭 | `Figure` 是封闭 capability 注册表 | `figure/mod.rs:603-710`、`graph/presentation.rs:461-480`、`container/viewport.rs:668-678` | [ADR-027](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-027-open-figure-capability-registry.md.txt) + [P2-F02](../../roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry) |
 | TC-03 | P0 | detached 值是未受检公开数据袋 | `figure/rectangle.rs:18-34,80-112`、`figure/border/line_border.rs:17-57`、`style.rs:20-69` | 私有字段、受检领域值和统一 `Result` 构造；admission 只做最后防线 |
-| TC-04 | P0，已关闭 | 属性身份和值未类型关联 | [ADR-028](../../adr/adr-028-typed-property-identity.md) + [完成记录](tc04-typed-property-identity-completion-2026-10-08.md) | typed key、erased journal、Behavior/coalescing identity 已实现 |
+| TC-04 | P0，已关闭 | 属性身份和值未类型关联 | [ADR-028](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-028-typed-property-identity.md.txt) + [完成记录](tc04-typed-property-identity-completion-2026-10-08.md) | typed key、erased journal、Behavior/coalescing identity 已实现 |
 | TC-05 | P0，已关闭 | Animation 值开放、可见 target 封闭 | `animation/service.rs:30-45,123-166` | typed `PresentationBinding<V>` / provider；领域模块和外部 Figure 自行提供 target |
 | TC-06 | P1 | Editor Tool/Request/Handle 是闭集 | `editor/domain.rs:101-116`、`request/mod.rs:546-603`、`feedback/mod.rs:39-52` | object-safe Tool 插槽、typed request envelope、可扩展 handle action |
-| TC-07 | P0，已关闭 | Viewer 仍暴露模型可变逃逸 | [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md) + [完成记录](tc07-viewer-edit-boundary-completion-2026-10-09.md) | `ViewerEditSession`、`synchronize_model` 与窄 `ViewerDrive` 已实现 |
+| TC-07 | P0，已关闭 | Viewer 仍暴露模型可变逃逸 | [ADR-032](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md.txt) + [完成记录](tc07-viewer-edit-boundary-completion-2026-10-09.md) | `ViewerEditSession`、`synchronize_model` 与窄 `ViewerDrive` 已实现 |
 | TC-08 | P0 | Editor 结构发布依赖手工补偿 | `viewer/projection.rs:447-475`、`viewer/mod.rs:1681-1749` | `PartProjectionPlan` / `ConnectionProjectionPlan` prepared commit；`OverlayBatch`/lease 管理清理 |
 | TC-09 | P1 | 查询用默认值吞掉无效身份 | `layout/mod.rs:102-153`、`graph/layout_measurement.rs:983-1007`、`graph/query.rs:31-36,118-135` | 结构查询统一 `Result<Option<T>, QueryError>`；布局 snapshot 不再返回伪造零值 |
 | TC-10 | P1，部分关闭 | fault、幂等和缺失的返回语义碎片化 | CommandStack 已按 ADR-032 完成；S09-A／B／C 已完成，S09-D 实现与定向验证通过 | 补 S09-D 最终门禁与成本，保留 S09-B 容量成本限制 |
-| TC-11 | P1，已关闭 | Core Runtime 承担文件读取 | [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md) + [完成记录](tc11-resource-provider-completion-2026-10-09.md) | Native/Web provider、Core request token 与独立错误分类已实现 |
-| TC-12 | P0，已关闭 | Render backend 无运行失败通道 | [ADR-029](../../adr/adr-029-structured-render-backend-failure.md) + [完成记录](tc12-render-backend-failure-completion-2026-10-08.md) | `RenderResult`、结构化 acknowledgement 与 Vello fault channel 已实现 |
+| TC-11 | P1，已关闭 | Core Runtime 承担文件读取 | [ADR-030](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-030-resource-provider-and-request-token-boundary.md.txt) + [完成记录](tc11-resource-provider-completion-2026-10-09.md) | Native/Web provider、Core request token 与独立错误分类已实现 |
+| TC-12 | P0，已关闭 | Render backend 无运行失败通道 | [ADR-029](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-029-structured-render-backend-failure.md.txt) + [完成记录](tc12-render-backend-failure-completion-2026-10-08.md) | `RenderResult`、结构化 acknowledgement 与 Vello fault channel 已实现 |
 | TC-13 | P1，已关闭 | root/prelude 仍是专业 API 平铺面 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 分层 rustdoc symbol snapshot 已进入 quick/full |
 | TC-14 | P1，已关闭 | 渲染与布局热路径仍保留日志 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 受保护热路径日志已删除并由 source gate 防回归 |
 

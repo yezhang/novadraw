@@ -10,7 +10,7 @@ S08-B 的构造、builder、描边复用与独立消费者结果见
 动态指标准入、Detached Figure 和整批关闭已按 S08-C／D 完成，
 结果见[完成记录](../reviews/p2-s08-d-completion-2026-10-29.md)。
 
-契约见 [ADR-056](../../adr/adr-056-detached-input-invariants.md)及
+契约见 [Detached 输入不变量](../../design/architecture/detached-input-invariants.md)及
 [输入不变量专题](../../design/architecture/detached-input-invariants.md)。
 本矩阵定义验收方法，不记录独立实施状态。
 

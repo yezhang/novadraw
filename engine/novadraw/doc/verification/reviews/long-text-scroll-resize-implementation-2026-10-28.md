@@ -12,7 +12,7 @@ resize 16 ms 与查询/完整 IR 4 ms 性能目标尚未验收。
 前序最新修改已形成七个提交，最后为 `728ace3f`；未推送。
 随后按[批准方案](../../design/architecture/long-text-scroll-resize-optimization-proposal.md)
 在既有 LT-00 内登记单一测量切片。实施合同记入
-[ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md)，不另建算法执行队列。
+[ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)，不另建算法执行队列。
 
 ## 已实现的观测
 

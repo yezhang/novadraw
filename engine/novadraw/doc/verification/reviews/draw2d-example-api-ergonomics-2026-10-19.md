@@ -45,8 +45,8 @@ Rust UI 或性能基准，因此不宣称完成全量行为验收，也不报告
 
 **应保留的基础边界**
 
-现行[ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)与
-[ADR-033](../../adr/adr-033-runtime-subsystem-facade.md)已经解决了重要问题：
+现行[ADR-019](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)与
+[ADR-033](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-033-runtime-subsystem-facade.md.txt)已经解决了重要问题：
 detached value 可直接配置，挂载后的修改通过短借用 facade 提交，Runtime
 按领域提供 frames/resources/connections 等入口。下面两种现有调用都清楚表达了目的：
 
@@ -59,7 +59,7 @@ runtime.figure(id)?.update_component(SetLabelText::new(text))?;
 契约；普通应用使用已经定义好的 payload 即可。取消这些机制会使修改绕过通知、
 damage 或资源准入，增加长期维护成本。
 
-[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)的受检查询也应保留。
+[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)的受检查询也应保留。
 Rust arena 的 foreign/stale ID 需要显式失败；Java 活对象 getter 的短调用不能
 直接成为删除 Result 的依据。已有 immutable snapshot 的 getter 可以简洁，
 任意 live ID 的查询仍需校验。

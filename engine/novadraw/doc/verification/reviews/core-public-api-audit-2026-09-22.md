@@ -23,15 +23,15 @@ P0 实施日期：2026-09-24
 - 当前设计约束：
   [`总体架构`](../../design/architecture/overview.md)、
   [`静态架构`](../../design/architecture/static-architecture.md)、
-  [ADR-009](../../adr/adr-009-runtime-dynamic-mutation-contract.md) 与
-  [ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)。
+  [ADR-009](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-009-runtime-dynamic-mutation-contract.md.txt) 与
+  [ADR-014](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md.txt)。
 
 本报告第 4 节保留 2026-09-22 审计时的事实和迁移前名称。P0 目标已由
-[ADR-017](../../adr/adr-017-core-public-api-boundary.md) 裁决，并于 2026-09-24
+[ADR-017](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-017-core-public-api-boundary.md.txt) 裁决，并于 2026-09-24
 完成 Batch A/B；同日由
-[ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md) 裁决并完成
+[ADR-018](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-018-runtime-driving-and-measurement-api.md.txt) 裁决并完成
 API-03/API-04 剩余项与 API-06。2026-09-28 又由
-[ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md) 将挂载后领域 mutation
+[ADR-019](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt) 将挂载后领域 mutation
 整理为 Runtime-backed scoped mutable facade；同日 ADR-020 完成 Color、Render IR 与 Geometry
 基础值收口；ADR-021 随后完成聚合 facade 与 backend feature 分层。实施证据见第 9
 至 12 节。Graphics 双方言仍留待独立小批次，不改变 Core 1.0、roadmap 或 parity

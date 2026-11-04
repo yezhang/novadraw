@@ -429,3 +429,9 @@ Editor direct-edit session、应用模型 Command 与 Native/Web IME bridge 属�
 - backend 收到空 glyph run：安全 no-op。
 
 不得 panic 或以平均字符宽度伪造成功结果。
+
+## 选择依据（原编号 007）
+
+Parley 是默认可替换 adapter。精确字体身份、中立 glyph IR 与不可变布局连接测量和绘制；字体显式注册，paint 不重新 shaping。
+
+原批准范围、修订与历史判断见[原稿 007](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-007-parley-text-layout.md.txt)。

@@ -79,7 +79,7 @@ TC-11 定向测试、source workspace 编译和 Native/Web provider 验证不依
 
 ## 关系
 
-- [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md)
+- [ADR-030](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-030-resource-provider-and-request-token-boundary.md.txt)
 - [资源生命周期](../../design/architecture/resource-lifecycle.md)
 - [临时概念设计审计](temporary-concept-design-audit-2026-10-08.md)
 - [公共 API 复审](framework-public-api-follow-up-audit-2026-10-07.md)

@@ -479,7 +479,7 @@ Runtime/Figure owner scope 与 namespace 隔离遵循 ADR-014/033。
 完整提交及 flush 语义由
 [派生状态收敛](../../design/architecture/derived-state-convergence.md)和
 [UpdateManager](../../design/rendering/update-manager.md)维护，
-身份及属性决策见 [ADR-028](../../adr/adr-028-typed-property-identity.md)。
+身份及属性决策见 [类型化属性与通知日志](../../design/architecture/typed-property-identity.md)。
 历史 D3/D4 实施证据保留于 [审计索引](../../verification/reviews/00-index.md)，
 后续服务错误和订阅整改状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 

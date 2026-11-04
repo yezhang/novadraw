@@ -8,7 +8,7 @@
 
 ## 结论
 
-[ADR-038 修订 1](../../adr/adr-038-query-identity-and-failure-semantics.md)
+[ADR-038 修订 1](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)
 已处理首轮评审的两项 P1 和两项 P2，未发现新的设计阻塞项。
 用户已授权“复核 ADR-038 修订内容，确认无误后推进到实现阶段”，本次复核通过后
 接受 ADR-038，P2-S07 转为 `in_progress`。

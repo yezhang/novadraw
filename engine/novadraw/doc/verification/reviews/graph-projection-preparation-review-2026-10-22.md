@@ -11,7 +11,7 @@ Runtime 持有候选快照、显式约束测量和必需路由发布条件的方
 
 本文件保留 2026-10-22 会话中的审计结论，供另一个 agent 修改
 [图投影的候选快照查询提案](../../design/architecture/graph-projection-preparation.md)。
-该增量属于 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md) 的
+该增量属于 [ADR-043](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt) 的
 Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不因本报告改变；
 此次拒绝针对新增公开契约。
 
@@ -100,7 +100,7 @@ Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不
 - `crates/novadraw/src/graph/layout_measurement.rs` 的
   `FigureTree::preferred_measurement` 和 `minimum_size`
   先处理对应显式 override，再处理 LayoutManager，随后处理 prepared/intrinsic。
-- [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
+- [ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)
   保留权威测量的既有组合顺序。
 - [深层布局与 Presentation 收敛契约](../../design/architecture/deep-layout-presentation-convergence.md)
   区分 content 与 outer measurement，显式 override 不重复增加 insets。
@@ -124,7 +124,7 @@ Figure/Connection adapter 切片。原 ADR-043 修订 1 的方案通过意见不
   `InvalidMetric` 与 `InvalidPreparedScene(String)` 等变体。
 - `crates/novadraw/src/figure/preparation/scene.rs` 的 `scene_error`
   当前把错误格式化为 `InvalidPreparedScene` 字符串。
-- [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)
+- [ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)
   要求测量错误保留失败 FigureId 和领域分类，
   不能为方便而把结构化失败转为字符串。
 

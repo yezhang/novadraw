@@ -60,7 +60,7 @@ Core 输出不包含 Vello 类型的 `RenderSubmission`。后端负责：
 
 边界规范：
 
-- [`ADR-022：第三方类型与渲染依赖边界`](../../../doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md)
+- [`第三方类型与依赖规范：第三方类型与渲染依赖边界`](../../../doc/design/architecture/third-party-dependency-boundaries.md)
 - [`ADR-025：统一 Graphics 与 glyph 预处理`](../../../doc/adr/adr-025-unified-graphics-and-glyph-preparation.md)
 - [`Vello 后端`](../../../crates/novadraw-backend-vello/src/lib.rs)
 

@@ -100,7 +100,7 @@ measurement；非法测量报告 ChildMeasurementFailed，拒绝路由发布并�
 [owner 标签定位](../../design/architecture/connection-owner-locator.md)接入 owner quadrant、
 child-size 输入与开放 child bounds placement，官方 UML 使用 ConnectionEndpointLocator，
 既有 EndpointLocator 切线偏移保持不变。Obstruction 已按
-[ADR-040](../../adr/adr-040-group-route-solving.md)实现组求解与 visibility/shared corner，
+[连接组求解](../../design/architecture/group-route-solving.md)实现组求解与 visibility/shared corner，
 完成外部消费者、真实输入和 Native 四阶段截图；workspace 最终门禁通过。
 K03 的其他示例验收继续保留。
 
@@ -119,7 +119,7 @@ UMLClassDiagram 覆盖只修改连接文字且类和路由不动时的重新测�
 Path/MultiLineLabel 的消费者待 K05/K08，不关闭 K04 整批。
 
 K05 已按用户批准的
-[ADR-042](../../adr/adr-042-structured-flow-layout.md)进入实施。
+[结构化 Flow](../../design/architecture/structured-flow-layout.md)进入实施。
 styled 引擎、原子 preparation、开放贡献 registry、结构化 flow 快照、
 真实 inline Figure 与 fragment border 已有独立契约测试。
 普通 page/block Border、公开 flow 服务与独立替代文字引擎已补齐。
@@ -138,7 +138,7 @@ K00/H04 随每批维护。
 的下划线仍待 K08，当前静态示例装饰不代表通用文字装饰 API 已完成。
 
 2026-10-22 K06 的 Directed/Compound 图布局部分已按
-[ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)与
+[有向图布局](../../design/architecture/directed-compound-graph-layout.md)与
 [preparation 增量](../../design/architecture/graph-projection-preparation.md)接入 Core。
 默认与外部算法共用独立请求、typed registry 和统一 Figure/Connection adapter；
 候选测量、快照身份与整组发布通过外部契约。两个官方图入口的 52 个方向组合、

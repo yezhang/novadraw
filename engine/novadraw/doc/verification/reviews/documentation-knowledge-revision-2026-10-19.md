@@ -25,7 +25,7 @@ parity、路线图、策略、迁移及验证分类复核。以现行 ADR、规�
 | 公共 API 综合提案已被取代却仍被规范引用 | 删除当前全文；提炼 owned/scoped，历史 review 指向原稿 | [公共 API 契约](../../design/architecture/public-api-contract.md) |
 | 09-15 迁移提案保留旧 enum/G6 方案 | 删除当前提案，方法论归入迁移指南 | [语义迁移](../../migration/java-rust/migration-guide.md) |
 | 已完成 Editor 实施计划与 roadmap 重复 | 删除计划，roadmap 收敛为状态、门禁与证据；拆分判据归目录规范 | [Editor 路线图](../../roadmap/editor/00-index.md) |
-| ADR-021 正文继续推荐旧聚合/prelude/feature | 改为决策身份及 ADR-023/031/035 替代指引 | [ADR-021](../../adr/adr-021-public-facade-and-feature-boundary.md) |
+| ADR-021 正文继续推荐旧聚合/prelude/feature | 改为决策身份及 ADR-023/031/035 替代指引 | [ADR-021](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-021-public-facade-and-feature-boundary.md.txt) |
 | DisplayList 协议与实验计划重复 | 探索与晋级门禁归一页，删除独立计划 | [休眠候选](../../design/rendering/display-list-protocol.md) |
 | Figure 概览、bounds 与管线多份展开同一协议 | 概览改为概念地图；bounds 专注存储更新，转换与命中链接专题；管线去除重复大图 | [Draw2D 参考](../../reference/draw2d/00-index.md) |
 | Rust 教程混淆继承、转型和覆盖 | 流程与语法分工；纠正 overlapping impl、Any、泛型通配符及对象分配表达 | [迁移入口](../../migration/00-index.md) |

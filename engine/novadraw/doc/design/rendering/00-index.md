@@ -20,7 +20,7 @@
 | 10 | [Vello Scene 目标](embedded-vello-scene-target.md) | 逻辑坐标/DPI、原子目标替换与宿主合成 |
 
 文字布局与组件语义见 [Text Layout](../architecture/text-layout.md)，
-录制及出版决策见 [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md)。
+录制及出版决策见 [录制与帧出版](graphics-recording-and-publication.md)。
 实现、surface 验收和待采证状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 
 候选研究：[DisplayList](display-list-protocol.md)，包含探索顺序和晋级门禁，

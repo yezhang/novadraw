@@ -12,7 +12,7 @@
 本页承接[上一轮补验](editor-container-followup-2026-10-30.md)，
 不改写原始证据，也不将其中的 Native 正例推广到本轮未执行的组合。
 
-目标契约见 [ADR-055](../../adr/adr-055-container-editing-protocol.md)，
+目标契约见 [ADR-055](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt)，
 验收分母见[容器矩阵](../plans/editor-container-editing.md)，
 执行状态在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 

@@ -5,7 +5,7 @@
 能力归属：Editor（`novadraw-editor`）。
 策略、候选、会话与编辑反馈属于 Editor；Core 提供既有坐标与绘制依赖。
 平台输入及应用模型／Guide 持久化按各自 owner 验收。
-架构选择见 [ADR-058](../../adr/adr-058-open-editor-snapping.md)，具体职责如下。
+架构选择见 [原编号 058 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)，具体职责如下。
 
 | owner | 状态与验收 |
 |---|---|
@@ -15,13 +15,13 @@
 | 应用 | Grid/Guide、业务资格、模型命令与 attachment 持久化 |
 
 规范效力：修订 2 已接受，2026-11-02。
-[ADR-058](../../adr/adr-058-open-editor-snapping.md)定义决策与分层。
+[原编号 058 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)定义决策与分层。
 依赖核验、评审结论和最新实施限制见
 [E04 验证状态](../../verification/reviews/open-snapping-review-status.md)；
 本页只维护吸附契约，不重复修订流水。
 
 Core 依赖按 GEF 对 Draw2D 对等契约的实际调用与行为核验，
-具体门禁见 [ADR-058](../../adr/adr-058-open-editor-snapping.md#分层归属)。
+具体门禁见 [原编号 058 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)。
 必要契约缺失时停止 Editor 新增，先形成 Core 建议；
 不得在策略或宿主中另建缺失的基础机制绕过依赖。
 
@@ -348,3 +348,9 @@ Geometry 首次扫描 N 个候选并建立轴索引，预期 O(N log N) 时间�
 分片不新增 Core owner，也不先为内置策略开专用入口。
 实施前先核对 E03 的使用契约；S09-D 的最终门禁与 E03 剩余平台／成本退出条件
 仍在执行队列保留。用户已接受本修订并授权实施；按切片验证后记录结果。
+
+## 选择依据（原编号 058）
+
+沿用修订 2 与既有条件授权。Editor 拥有吸附协议；预览和提交使用同一候选，source 失效取消，有效依赖变化只允许有界重算，严格 release 不静默退为无吸附。
+
+原批准范围、修订与历史判断见[原稿 058](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)。

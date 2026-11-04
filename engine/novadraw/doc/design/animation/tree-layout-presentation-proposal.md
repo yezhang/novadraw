@@ -6,7 +6,7 @@
 
 能力归属：Core 表现几何与动画、Tree 领域消费者；宿主负责实际呈现。
 修订 3 已获批准，决策固化为
-[ADR-046](../../adr/adr-046-sampled-geometry-and-animation-reservations.md)。
+[原编号 046 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-046-sampled-geometry-and-animation-reservations.md.txt)。
 R01～R10、F01／F02 的评审结论见
 [表现几何验证状态](../../verification/reviews/framework-contract-review-status.md)；
 执行状态由[P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
@@ -511,3 +511,9 @@ Tree Viewport。T-4 增加默认关闭的 Use Animation checkbox；关闭时继�
 [领域能力矩阵](capability-integration.md)、
 [坐标规范](../coordinates/coordinate-system.md)、
 [语义覆盖账本](../../parity/draw2d/api-coverage.md)。
+
+## 选择依据（原编号 046）
+
+表现几何共用版本并与源状态分离，临时 visual 的输入资格显式声明。准入先预留容量，retarget 检查净需求；无动画时不制造持续工作。
+
+原批准范围、修订与历史判断见[原稿 046](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-046-sampled-geometry-and-animation-reservations.md.txt)。

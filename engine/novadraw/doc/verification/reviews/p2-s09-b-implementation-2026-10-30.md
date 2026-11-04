@@ -9,7 +9,7 @@
 token；宿主拥有暂停、重建与恢复编排。本片不增加 Editor 能力。
 
 S09-B 的实现、公开消费者及自动门禁已完成，依据用户已接受的
-[ADR-057 修订 3](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+[ADR-057 修订 3](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)。
 成本证据覆盖容量 64／4096，理论最大容量未验收。
 Connections 和 Editor 仍归 S09-C／D，S09 整批保持 `in_progress`。
 样例与公开消费者见 [service-failure README](../../../tests/consumers/service-failure/README.md)。

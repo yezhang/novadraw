@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-能力归属：Core；阶段权限选择见 [ADR-036](../../adr/adr-036-context-phase-authority-projection.md)。
+能力归属：Core；阶段权限选择见 [原编号 036 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-036-context-phase-authority-projection.md.txt)。
 
 ## 状态
 
@@ -307,15 +307,21 @@ child-content area，不依赖初始窗口常量。
 
 ## 关系
 
-- 延续 [ADR-009](../../adr/adr-009-runtime-dynamic-mutation-contract.md) 的 callback FIFO effect；
-- 延续 [ADR-011](../../adr/adr-011-derived-state-convergence.md) 的 Query → Output 原子提交；
+- 延续 [Mutation 与子树准入](runtime-mutation-and-subtree-admission.md) 的 callback FIFO effect；
+- 延续 [派生状态收敛](derived-state-convergence.md) 的 Query → Output 原子提交；
 - 延续 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md) 的阶段受限视图；
-- 延续 [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md) 的 Paint 权限；
-- 延续 [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) 的 Runtime 组合根边界；
-- 延续 [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) 的 ToolContext 权限投影；
+- 延续 [录制与帧出版](../rendering/graphics-recording-and-publication.md) 的 Paint 权限；
+- 延续 [Runtime 子系统 Facade](runtime-subsystem-facade.md) 的 Runtime 组合根边界；
+- 延续 [Editor 开放交互协议](../editor/tool-request-handle-protocol.md) 的 ToolContext 权限投影；
 - 补充 [动态协议](dynamic-architecture.md) 的 callback/query
   命名与权限规则。
 
 ## 日期
 
 2026-10-13
+
+## 选择依据（原编号 036）
+
+owner 不进入 callback；Context／Query 是受限短借用，Output 是完整候选，Effects 是待提交意图，Snapshot 是 owned 结果。开放回调不能重入 owner 或重排固定阶段。
+
+原批准范围、修订与历史判断见[原稿 036](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-036-context-phase-authority-projection.md.txt)。

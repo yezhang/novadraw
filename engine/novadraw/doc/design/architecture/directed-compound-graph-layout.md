@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Core 独立图布局域与 Figure adapter；示例只编排消费者。
-领域边界见 [ADR-043](../../adr/adr-043-directed-compound-graph-layout.md)。
+领域边界见 [原编号 043 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt)。
 
 ## 状态
 
@@ -256,7 +256,7 @@ head/tail 不成为用户实体或 FigureId。group→成员、成员→group、
 动态 Figure binding 则使用受检 preferred/minimum measurement。初始由请求配置
 给定 outer constraints（通常未限定的轴保持无界），不能把上一轮派生 bounds
 隐式当成 source 尺寸。测量及容器投影遵守
-[ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md)、
+[驱动与结构化测量](public-api-contract.md)、
 [查询协议](query-identity-and-failure.md)和
 [深层布局与 Presentation 收敛契约](deep-layout-presentation-convergence.md)：
 outer constraint→扣除物理 insets→反投影→content measurement→outer 正投影。
@@ -393,3 +393,9 @@ Inter 与上游 Tahoma 不作逐像素等同声明。
 实际执行结果见[实施记录](../../verification/evidence/adr043/implementation.md)，
 当前状态见[P2 backlog](../../roadmap/p2-delta-backlog.md)。
 逐切片计数与评审回应从[原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。
+
+## 选择依据（原编号 043）
+
+独立图模型和开放 solver 不依赖 Figure 身份；adapter 映射身份，提交受约束测量与投影结果。后续候选准备增量由图投影专题维护。
+
+原批准范围、修订与历史判断见[原稿 043](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt)。

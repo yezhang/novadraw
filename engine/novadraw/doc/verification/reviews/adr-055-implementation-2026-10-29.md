@@ -2,7 +2,7 @@
 
 类型：`implementation-verification`
 
-日期：2026-10-29。依据用户批准的 [ADR-055 修订 2](../../adr/adr-055-container-editing-protocol.md)。
+日期：2026-10-29。依据用户批准的 [ADR-055 修订 2](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt)。
 公共协议、移动与创建/drop 已接入；无窗口契约和独立消费者通过。
 Native/Web 实际输入验收尚未执行，P2-E03 保留 `in_progress`。
 

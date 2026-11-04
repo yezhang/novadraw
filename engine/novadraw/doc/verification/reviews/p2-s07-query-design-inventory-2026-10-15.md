@@ -12,7 +12,7 @@ R04/TC-09 的默认成功值问题仍存在，API-F06 的 parent/bool 身份折�
 非权威 Node 尺寸 getter 也仍存在。S07 需要调整任意 ID 查询及 LayoutManager 测量
 返回值，并贯通原有候选失败通道；不需要重建 Context 或 LayoutOutput。
 
-设计候选为[ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)，
+设计候选为[ADR-038](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-038-query-identity-and-failure-semantics.md.txt)，
 验收要求为[验证矩阵](../plans/p2-s07-query-identity-and-failure-semantics.md)。
 草案不等于批准实施，四个来源审计 ID 保持开放。
 

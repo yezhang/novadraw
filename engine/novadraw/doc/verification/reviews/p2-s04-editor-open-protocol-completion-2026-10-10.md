@@ -9,7 +9,7 @@
 ## 1. 范围
 
 本批按
-[ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md)
+[ADR-034](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-034-editor-tool-request-handle-protocol.md.txt)
 关闭 API 与架构 Review R05 / TC-06：
 
 - Request 使用 typed key、payload、metadata、contribution 和 reducer；

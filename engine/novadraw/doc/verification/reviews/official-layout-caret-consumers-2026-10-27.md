@@ -29,7 +29,7 @@ position 查询完整逻辑字素。Downstream 取后一个，Upstream 取前一
 多字节 emoji、ZWJ emoji、阿拉伯文、源边缘、非法端点和过期版本。
 样例保留透明蓝色 alpha 高亮；这与上游 white/XOR 是明确的绘制变体。
 本批没有恢复 XOR，没有宣称全部 UTF-16、字体和原生栅格逐像素等价。
-契约补充见 [ADR-042](../../adr/adr-042-structured-flow-layout.md)。
+契约补充见 [ADR-042](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)。
 
 ## Grid 必须按分配后的列宽重新测量
 

@@ -85,7 +85,7 @@ NodeState 或让状态泄漏到 sibling。
 - 字体在本阶段使用稳定描述值，资源解析和异步加载由 ResourceRegistry 承担；
 - style 不包含 selection、hover、pressed 或业务状态。
 
-按 [ADR-056](../../adr/adr-056-detached-input-invariants.md)，alpha 保存
+按 [Detached 输入不变量](detached-input-invariants.md)，alpha 保存
 `Option<graphics::Opacity>`，font 保存 `Option<text::FontDescriptor>`；
 ResolvedStyle 使用相同领域值。原始标量和文本先受检，再组装样式，覆盖和继承
 不再 clamp 或重新解析。字段之间没有组合不变量，仍可独立替换。

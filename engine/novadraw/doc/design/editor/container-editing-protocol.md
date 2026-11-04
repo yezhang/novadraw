@@ -3,7 +3,7 @@
 类型：`normative-design`
 
 能力归属：Editor 受检计划、坐标与资格；应用负责原子模型命令。
-事务边界见 [ADR-055](../../adr/adr-055-container-editing-protocol.md)。
+事务边界见 [原编号 055 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt)。
 
 能力归属：Editor（`novadraw-editor`），对应 GEF 容器编辑协议。
 Editor 持有操作集合、目标容器解析、父域映射编排与编辑事务协议；
@@ -481,3 +481,9 @@ Payload/Request/Plan，创建不查询移出资格。
 设计通过不证明 Native 系统 DnD、跨显示器 DPI 或完整内部工作量通过；
 最新覆盖与恢复条件见[专题结论](../../verification/reviews/framework-contract-review-status.md)
 和[P2 backlog](../../roadmap/p2-delta-backlog.md)。
+
+## 选择依据（原编号 055）
+
+Editor 准备受检计划，应用通过原子模型 Command 执行。资格、父坐标映射、批次锚点与版本复查保持一致，不将模型所有权移入 Core。
+
+原批准范围、修订与历史判断见[原稿 055](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-055-container-editing-protocol.md.txt)。

@@ -100,7 +100,7 @@ roadmap 维护执行状态；历史报告只证明其指定基线。
 
 优先级：P2。归属：文档治理／验证成本。
 
-[ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md#验收条件)
+[ADR-023](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md.txt)
 第 168 行要求“二进制体积门禁继续通过”；
 [抗锯齿方案](../../design/rendering/shape-antialias-proposal.md#性能与包体积退出条件)
 第 134–137 行要求实施后必须比较 Native／Wasm 和压缩产物。
@@ -138,9 +138,9 @@ roadmap 维护执行状态；历史报告只证明其指定基线。
 
 优先级：P2。归属：文档治理。
 
-[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md)
+[ADR-035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)
 第 47–62、71–80、184–207 行仍保留完整模块清单、路径表、门禁和迁移步骤。
-[ADR-027](../../adr/adr-027-open-figure-capability-registry.md)
+[ADR-027](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-027-open-figure-capability-registry.md.txt)
 第 103–116、139–157 行展开 presentation channel 仲裁、失败分类和测试清单；
 [能力模型](../../design/architecture/figure-capability-model.md#9-mutation-协议)
 与[组件更新](../../design/architecture/component-update.md#3-执行顺序)

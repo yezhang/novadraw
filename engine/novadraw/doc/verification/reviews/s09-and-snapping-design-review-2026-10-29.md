@@ -7,7 +7,7 @@
 
 ## S09
 
-审阅 [ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)与
+审阅 [ADR-057](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-057-service-failure-and-inspector-lifecycle.md.txt)与
 [矩阵](../plans/p2-s09-service-failure.md)。
 目标从 ADR-010／014／016／033／038 及现有审计提取，未扫描 Rust 现状。
 
@@ -29,7 +29,7 @@ detach 的 foreign token 结构化错误与 fault 后清理是本草案的显式
 
 ## 开放吸附
 
-审阅 [ADR-058](../../adr/adr-058-open-editor-snapping.md)、
+审阅 [ADR-058](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-058-open-editor-snapping.md.txt)、
 [专题](../../design/editor/open-snapping.md)与[矩阵](../plans/editor-open-snapping.md)。
 只读参考 GEF 的 SnapToHelper、Grid、Geometry、Guides 和 DragEditPartsTracker。
 

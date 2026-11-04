@@ -384,3 +384,9 @@ K07-1 使用通知队列的单调输入 serial 与宿主活动时间判断是否
 - ShortestPath routing；
 - 完整 TextFlow/富文本编辑；
 - backend session、dispose/identity 与递归渲染性能修复，它们分别属于 D4.2-D4.5。
+
+## 选择依据（原编号 011）
+
+typed worklist 保持固定阶段依赖，源输入、派生几何与最终表现分离。自然／约束测量、布局、表现依次闭合；非收敛不发布、不发成功通知。
+
+原批准范围、修订与历史判断见[原稿 011](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-011-derived-state-convergence.md.txt)。

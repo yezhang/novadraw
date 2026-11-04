@@ -3,7 +3,7 @@
 类型：`verification-plan`
 
 状态：已接受，实施中；2026-10-30。能力归属：Core／Editor／Inspector 与宿主分项验收。目标见
-[ADR-057](../../adr/adr-057-service-failure-and-inspector-lifecycle.md)。
+[服务失败与订阅恢复](../../design/architecture/service-failure-and-inspector-lifecycle.md)。
 本页定义退出条件；[S09-A](../reviews/p2-s09-a-implementation-2026-10-30.md)已完成，
 SF-01／02／16 和 SF-12／13／14／15 的 Animation 部分通过；
 [S09-B](../reviews/p2-s09-b-implementation-2026-10-30.md)的
