@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Graphics 状态与受检命令；backend 实现 lowering 和像素输出，Figure 与外部 recorder 共用协议。
+
 日期：2026-10-02
 
 规范效力：已接受，依据
@@ -86,7 +88,8 @@ PaintContext::set_fill_rule(rule: FillRule);
 PaintContext::clip_path(clip: &ClipPath) -> Result<(), GraphicsError>;
 ```
 
-`GradientStop` 的 offset 同样通过构造校验；Color 复用 ADR-020 的不变量。
+`GradientStop` 的 offset 同样通过构造校验；Color 复用
+[基础值合同](../architecture/engine-value-contract.md)的不变量。
 站点、dash 数组、clip path 均由值拥有，外部后续修改不能影响已录制命令。
 重复引用可内部使用不可变共享存储，不引入资源 ID 或 Runtime 注册流程。
 
@@ -122,8 +125,10 @@ PaintContext::clip_path(clip: &ClipPath) -> Result<(), GraphicsError>;
 ## 5. Stroke 与包围盒
 
 - width 有限且非负，零宽表示不绘制，不采用 SWT 设备 hairline 语义。
-- miter limit 有限且至少为 1，定义为 miter 长度与 stroke 半径的比值；默认复用
-  `DEFAULT_STROKE_MITER_LIMIT`。超限采用 bevel，Round/Bevel 不使用 miter 扩张。
+- miter limit 有限且非负，定义为 miter 长度与 stroke 半径的比值；默认复用
+  `DEFAULT_STROKE_MITER_LIMIT`。保留原参数；Miter 且 limit 小于 1 时有效 join
+  为 Bevel，超限也采用 Bevel，Round/Bevel 不使用 miter 扩张。
+  准入、有效描边与包围盒按[低 miter 修订](low-miter-and-cocoa-sample-profile.md#低-miter-契约)统一解释。
 - 自定义 dash 非空，元素有限且严格大于零，总周期及奇数数组翻倍后的周期均有限。
   奇数长度数组按重复一次的偶数周期解释，允许负 offset，按周期规范化。
 - 正 offset 表示从 pattern 起点向前跳过该长度；如 `[6,2]`、offset 2，
@@ -203,7 +208,8 @@ Ellipse 等包含 fill/stroke 的命令收集两部分全部能力，不能只�
 backend 还需预检新增 payload 在实际 transform/DPI 下的派生数值：
 有限 f64 转为 Vello f32 后溢出或渐变端点坍缩不能静默绘制。
 以 `RenderFailure::InvalidInput` 返回结构化 `InvalidGraphicsInput`，携带 command
-index 和原因；结果信封已由 ADR-029 统一为 `RenderResult`。此错误不得接受 session/frame、
+index 和原因；结果信封按[后端失败合同](backend-failure-and-recovery.md)
+统一为 `RenderResult`。此错误不得接受 session/frame、
 取走资源或破坏上一张 retained surface；修正输入后可重试。
 不把资源缺失、临时 surface 丢失和非法 Graphics 输入混成同一个错误。
 

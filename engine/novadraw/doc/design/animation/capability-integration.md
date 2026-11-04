@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 动画与 Figure capability 集成；各领域拥有源状态，Animation 拥有表现覆盖。
+
 状态：`accepted`，按领域消费者分阶段实施
 
 目标 delta：P2-M01

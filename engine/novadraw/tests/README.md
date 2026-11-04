@@ -207,6 +207,12 @@ cargo xtask docs
 git diff --check
 ```
 
+## 公开 API 快照
+
+[Core 符号快照](public-api/novadraw-symbols.txt)列出受门禁约束的公开路径。
+方法的完整签名与调用前提以对应领域的公开 rustdoc 为准；设计中的角色示意
+不作为可独立编译示例。可执行消费者与编译门禁从上面的 xtask 表进入。
+
 ## 边界
 
 - `cargo xtask docs` 不编译 Rust，只检查 Markdown 类型、本地链接、当前 xtask 引用、

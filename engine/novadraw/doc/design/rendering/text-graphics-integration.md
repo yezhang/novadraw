@@ -2,6 +2,9 @@
 
 类型：`normative-design`
 
+能力归属：Core Graphics／Text 的测量、绘制与可替换轮廓协议；Runtime 或独立组合根拥有文字服务，
+backend 拥有 glyph 预处理及 GPU 格式，platform 提供资源与呈现。
+
 规范效力：已接受，依据
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md)。
 

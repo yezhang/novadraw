@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 更新、损伤与帧调度；Runtime 拥有队列，backend 执行提交，platform 安排宿主重绘。
+
 本文是 Novadraw validation、damage repair 和 frame preparation 的 SSOT。Draw2D
 机制事实见 `doc/reference/draw2d/rendering/update-manager.md`。
 
@@ -102,7 +104,8 @@ set、dirty freeform extent 与 pending range update 同时为空。相同输入
 
 ### 4.1 收敛
 
-局部 validation 完成不等于整个 frame 稳定；最终须满足 ADR-011 的全部 typed
+局部 validation 完成不等于整个 frame 稳定；最终须满足
+[派生收敛](../architecture/derived-state-convergence.md)的全部 typed
 worklist 排空。为防止错误 Figure/Layout 无限制造 invalid：
 
 - 记录每个 generation 的处理次数和因果来源；

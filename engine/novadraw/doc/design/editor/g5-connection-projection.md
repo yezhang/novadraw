@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Editor ConnectionPart 视觉投影；Viewer 管理映射，Core Runtime 拥有投影后的连接状态。
+
 状态：`implemented`
 
 适用范围：G5 的模型连接发现、ConnectionPart 投影、关系索引、Connection Runtime

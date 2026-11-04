@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Animation 的 behavior／trigger；Runtime 提交触发结果，宿主提供归一化输入与时钟。
+
 状态：`accepted`，按 P2-M01C 分阶段实施
 
 目标 delta：P2-M01

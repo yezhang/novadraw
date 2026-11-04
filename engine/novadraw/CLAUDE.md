@@ -106,8 +106,10 @@ git diff --check
 `cargo test -p <crate>`。
 
 跨工具 suite 由 xtask 维护，当前入口见 `tests/README.md` 和
-`cargo xtask list`。`cargo xtask docs` 只检查 Markdown 类型、本地链接、当前命令引用、
-设计索引与 parity 状态，不编译 Rust。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
+`cargo xtask list`。`cargo xtask docs` 检查 Markdown 类型、本地链接、当前命令引用、
+设计索引与 parity 状态，并检查 design 的能力归属、可达性和标题锚点；
+有限替代关系、示例分类与基线规则见 `doc/knowledge-maintenance.md`。
+它不编译 Rust，也不证明全文技术语义。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
 `cargo fmt --all` 会递归扫描 path 依赖。生产第三方补丁在 `dependencies/`
 保留上游格式；新增本地 Rust 模块另用 `rustfmt --config disable_all_formatting=false`
 定向检查，不将第三方格式重写混入功能补丁。维护入口为 `dependencies/README.md`。

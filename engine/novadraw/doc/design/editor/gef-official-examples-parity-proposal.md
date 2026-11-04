@@ -2,6 +2,8 @@
 
 类型：`proposal`
 
+能力归属：Editor／GEF 消费者与应用 shell 接入候选；Core、backend、platform 分别维护视觉、渲染和宿主契约。
+
 日期：2026-10-27。2026-10-28 用户批准记录方案并开始实施。
 总体方向已获授权；分批实施与完成证据只在 P2 backlog 维护。
 
@@ -165,7 +167,7 @@ flowchart TD
 Xilem 的 view 重建只能更新 Widget 配置和消费稳定状态，不能重建 Viewer、
 Runtime、CommandStack 或订阅。Widget 内可持有画布 controller，应用 session 持有
 文档与 domain；跨两者的消息通过有界动作/效果通道传递，避免循环可变借用。
-controller、session 和 Host 的释放职责必须在接入 ADR 中固定。
+controller、session 和 Host 的释放职责必须在接入设计中固定。
 
 一个窗口多文档时，每个文档拥有独立模型和历史。多个 Viewer 若共享同一文档，
 共享的模型与命令路由由应用 session 协调，Viewer selection 和 Runtime 仍分别持有。

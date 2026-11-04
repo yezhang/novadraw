@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Figure 扩展模型；Figure 拥有私有实现，registry 管理行为发现，Runtime 校验调用权限。
+
 状态：`accepted`，P2-F02 已实现
 
 2026-10-12 修订：attached mutation 按 ADR-033 统一；开放策略与固定调度分离。
@@ -297,21 +299,10 @@ Core 内部阶段可以借用标准 descriptor 执行同步行为，但借用不
 
 ## 9. Mutation 协议
 
-Capability mutation 与 `FigureComponentUpdate` 共享以下提交骨架：
-
-```text
-validate Runtime/Figure/capability identity
--> capture old visual envelope and revision
--> descriptor.prepare(read-only old state, owned command, context)
--> NoChange: return unchanged receipt without commit/effects
--> changed: validate prepared value, revision capacity and all effects
--> descriptor.commit(&mut dyn Figure, prepared value)
--> Runtime commits prevalidated engine effects
--> increment revision
--> invalidate layout/geometry/paint
--> invalidate dependent Connection/Accessibility/Presentation work
--> enqueue damage and typed committed facts
-```
+Capability mutation 与 `FigureComponentUpdate` 共享
+[组件更新执行顺序](component-update.md#3-执行顺序)。
+身份准入、prepare、NoChange、effect 校验、commit、revision 与派生失效的完整合同
+仅由该专题维护；本页补充 capability 的 descriptor 适配要求。
 
 公开目标形状：
 
@@ -323,12 +314,9 @@ runtime.figure(figure)?.update_capability(SCALE, SetScale::new(2.0))?;
 或闭合集合 mutation 例外。类型适配封装在 typed update/descriptor 内；
 不要求类型专用状态登记到 registry。
 
-prepare 读取当前提交前缀的值。NoChange 不提升 revision，不产生 work、journal、
-damage、资源或结构 effect。effect 必须在 commit 前校验 namespace、权限和完整原子性；
-不能通过 capability key 或任意 FigureId 扩权，详见 [组件更新协议](component-update.md)。
-
-外部 capability 的 commit 必须是无失败赋值；prepare 完成所有可预见校验。commit panic
-沿 ADR-014 使 Runtime faulted，不承诺回滚扩展内部副作用。
+descriptor 将 owned typed command 适配为受检 prepared value，不授予额外目标权限；
+capability key 的发现成功不能代替提交身份校验。commit 的失败与 panic 边界同样由
+[组件更新协议](component-update.md)维护。
 
 ## 10. 固定调度与开放阶段策略
 

@@ -12,13 +12,20 @@ Editor、backend、platform 无新增能力。
 
 ## 评审范围与依据
 
-本次通读了 [ADR-060](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-060-flow-assembly-reuse.md.txt)、
-[复用合同](../../design/architecture/flow-assembly-reuse.md)、
-[验收矩阵](../plans/flow-assembly-reuse.md)和
+本次评审的 ADR 草案可由
+[早期决策快照](../evidence/document-quality-2026-11-04/fr02-early-decision.md.txt)核对；
+其第 19–25、43 行与下文关键引文相符。合同与矩阵的完整被审版本缺失：
+保存的[早期合同](../evidence/document-quality-2026-11-04/fr02-early-contract.md.txt)只有 151 行，
+[早期矩阵](../evidence/document-quality-2026-11-04/fr02-early-matrix.md.txt)尚无 FA-R23，
+不能据此复原下文全部行号。原评审还引用
 [成本归因报告](flow-assembly-attribution-2026-11-03.md)，并核对
 [ADR-051](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-051-exact-flow-layout-reuse.md.txt)及其
 [现行设计](../../design/architecture/exact-flow-layout-reuse.md)。
-下文行号对应本次评审版本，修订后按章节和原句定位。
+下文保留原评审行号和判断；缺失版本的定位以原句为线索，不能声称完整基线已恢复。
+版本来源、哈希及限制见[基线核对](fr02-review-baseline-2026-11-04.md)。
+后续[修订 1 决策快照](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-060-flow-assembly-reuse.md.txt)
+与[现行合同](../../design/architecture/flow-assembly-reuse.md)、
+[现行矩阵](../plans/flow-assembly-reuse.md)是独立阅读入口，不代表本次被审版本。
 
 本次未审阅生产实现、未执行新增行为用例。问题属于合同缺口或解释歧义，
 不据此断言已有实现存在缺陷。

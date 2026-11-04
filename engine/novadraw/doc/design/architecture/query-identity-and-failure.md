@@ -3,6 +3,8 @@
 类型：`normative-design`
 
 能力归属：Core 领域查询；Editor/Inspector 是消费者。
+规范效力：已接受，返回类别与失败规则具有规范效力。
+示例性质：协议示意；精确签名以领域公开 rustdoc 为准。
 边界选择见 [ADR-038](../../adr/adr-038-query-identity-and-failure-semantics.md)。
 
 ## 状态
@@ -23,7 +25,8 @@ FigureId 是带所有者与代次的引用。对象不存在、对象合法但�
 LayoutSceneQuery 的查询和失败传播。Event、Route、Stable 与 typed capability 查询
 核对相同身份规则，保留各阶段权限和领域结果。
 
-ADR-036 的 Event Query/Effects、LayoutSceneQuery/RouteSceneQuery 命名迁移已完成；
+[阶段权限投影](context-phase-authority.md)的 Event Query/Effects、
+LayoutSceneQuery/RouteSceneQuery 命名迁移已完成；
 本批次不重复迁移。服务注册、Animation fault、Inspector poison 和通用扩展错误
 source 整改属于 S09；detached 输入不变量属于 S08。
 
@@ -101,7 +104,7 @@ is_attached、有效可见性和 focus predicates 必须先验证目标，不能
 
 ### 5. 坐标查询
 
-ADR-018 的五个变换入口保留“返回变换，由调用方应用”的方向：
+[公共 API 契约](public-api-contract.md)的五个变换入口保留“返回变换，由调用方应用”的方向：
 
 - 必有正向变换使用 `Result<Affine2D, E>`；
 - 可能不可逆的入口使用 `Result<Option<Affine2D>, E>`；
@@ -126,8 +129,9 @@ ADR-018 的五个变换入口保留“返回变换，由调用方应用”的方
 该调整不预定公开 geometry API 重构，也不修改受保护的递归渲染主循环。
 
 具体错误组合复用 tree 身份与几何领域错误，不要求所有入口共享一个万能枚举。
-本节获批后替换 ADR-018 第 2 节与“错误处理”中的坐标失败折叠规则，并按实施清单
-同步现行规范；Runtime 驱动、MeasureConstraints 和 preferred/minimum 回退契约继续有效。
+本节已替代旧坐标失败折叠规则；当前[公共 API 契约](public-api-contract.md#4-命名单位与失败)
+按本专题解释身份、数学奇异和几何失败。Runtime 驱动、MeasureConstraints 和
+preferred/minimum 回退契约继续有效。
 
 ### 6. 布局测量与候选传播
 
@@ -185,14 +189,16 @@ callback 的非法 Ok 值、projection 失败及错误本身均不入成功缓�
 子测量缓存不要求回滚。失败后通过合法更新修正输入，按正常失效机制重试，必须能够
 得到新成功值，不能命中先前失败生成的缓存。
 
-本节获批后同步 ADR-018 第 3 节的 LayoutManager preferred/minimum 签名；
-其结构化 constraints、baseline、minimum 回退和无 sentinel 规则继续有效。
+本节细化[公共 API 契约](public-api-contract.md#4-命名单位与失败)的测量失败规则；
+结构化 constraints、baseline、minimum 回退和无 sentinel 规则继续有效。
 
 ### 7. 返回签名与错误组合
 
-以下是已接受的 API 选择，不代表迁移已完成：
+以下表格表达已接受的返回类别与错误组合；P2-S07 迁移和行为验收已完成。
+`T` 和斜杠分隔的类型表示多类入口的角色，不是可直接复制的 Rust 签名。
+精确公开路径与签名见[公开 API 快照](../../../tests/README.md#公开-api-快照)。
 
-| 入口 | 建议返回值 |
+| 入口 | 规范返回类别 |
 |---|---|
 | Tree node、bounds、depth、component revision、style、布尔事实与 children | Result<T, TreeQueryError> |
 | Tree parent、child_z_index、可选内容/capability | Result<Option<T>, 对应身份/领域错误> |
@@ -219,7 +225,7 @@ InvalidChild 和 NonFiniteGeometry 分类。测量几何失败须补充非法尺
 identity 变体；Route 补充 foreign 区分，并先验证身份，再判断 detached/anchor/transform。
 
 Layout 的可选 freeform 查询仅把“有效对象不是 freeform”映射为 Ok(None)；
-Unvalidated 仍是领域错误，建议由 LayoutError 保留对应 FreeformError 原因。
+Unvalidated 仍是领域错误，由 LayoutError 保留对应 FreeformError 原因。
 content_scale 仅把合法 capability 缺失映射为 None，descriptor 错误保留原分类。
 这些原因按真实调用需要组合，不为追求 Copy/Clone 把结构化失败转为字符串。
 Tree 的专用 freeform 查询保留 NotFreeform/Unvalidated 领域合同。
@@ -231,7 +237,8 @@ tracked query 可在事实读取前登记存在性或失败观测，事实查询
 不能把缺失指纹机械升级为稳定化失败，也不能将失败观测标记成成功事实读取。
 
 外部 RouteSceneRead 与内置 adapter 共用该协议。有效但缺失 anchor、不可逆映射及
-unresolved 恢复继续按 ADR-005/037 分类，保留恢复所需的依赖和失败观测。
+unresolved 恢复继续按[连接路由](connection-routing.md)与
+[增量失败隔离](../editor/incremental-failure-isolation.md)分类，保留恢复所需的依赖和失败观测。
 删除已绑定主体后，旧 stale ID 永远无效；恢复须更新为有效新绑定，不能假设创建
 新 Figure 会使旧 ID 复活。
 
@@ -241,8 +248,8 @@ unresolved 恢复继续按 ADR-005/037 分类，保留恢复所需的依赖和�
 不允许用 preferred/minimum/maximum measurement 同名 getter 返回弱化的局部值。
 已经删除的旧 getter 只保留防回归证据，不重新创造整改任务。
 
-版本仍为 0.1.0。获批后直接迁移 workspace 调用点、外部消费者与 API snapshot；
-不保留吞错 alias、deprecated 双入口或 root 重导出。
+本次 breaking 已直接迁移 workspace 调用点、外部消费者与 API snapshot；
+不保留吞错 alias、deprecated 双入口或 root 重导出。完成事实由状态节的核验报告负责。
 
 ## 取舍与稳定性
 
@@ -301,7 +308,8 @@ Novadraw 所有权迁移的显式边界，不伪称为 Draw2D 原生异常合同
 
 ## 关系与日期
 
-延续 ADR-018 的测量值合同与 Runtime 驱动；延续 ADR-036 的阶段权限；
-延续 ADR-011 的派生候选提交；不扩张 ADR-037 的失败回滚保证。
+测量值与驱动沿用[公共 API 契约](public-api-contract.md)，阶段权限沿用
+[权限投影](context-phase-authority.md)，候选提交沿用[派生收敛](derived-state-convergence.md)；
+失败回滚范围仍受[增量失败隔离](../editor/incremental-failure-isolation.md)约束。
 
 2026-10-15 起草；2026-10-16 修订 1、复核通过并接受。

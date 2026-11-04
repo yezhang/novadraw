@@ -2,6 +2,8 @@
 
 类型：`proposal`
 
+能力归属：应用 shell 的 docking 候选；Editor 提供编辑协议，Core／backend 提供画布，不新增引擎窗口体系。
+
 日期：2026-10-29
 
 状态：`deferred`。当前继续使用固定三栏；本方案不进入 P2 backlog，也不代表已经批准实施。

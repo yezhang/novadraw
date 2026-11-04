@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Editor 重连工具与命令；应用模型保存端点变更，Core 投影绑定及路线。
+
 状态：`implemented`
 
 适用范围：已提交连接的 endpoint handle、拖动重连、feedback、Command 与取消语义。

@@ -2,6 +2,10 @@
 
 类型：`normative-design`
 
+能力归属：Core Preparation／Layout／Connection；Runtime 拥有候选身份与发布权，图 adapter 消费受检查询。
+规范效力：已接受，修订 2 的查询与发布合同有效。
+示例性质：协议示意；精确签名以领域公开 rustdoc 为准。
+
 状态：`accepted / implemented`，修订 2（2026-10-22，按用户授权完成 Core 编码与验证）。
 已按[增量评审意见](../../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
 处理 GP01–GP04。原评审报告保留其基线判断；当前执行授权来自修订后的用户指令。
@@ -12,10 +16,11 @@
 `api_semantics`：`frame.preparation`、`layout.manager`、`connection.anchor`、
 `connection.router`。
 
-Core 实施进度：约束测量与结构化错误已完成首批；候选快照查询、稳定领域结果版本、
-源 bounds 与派生 bounds 分离、路由快照观察和必需组发布屏障已接入。
-外部验证入口为 `p2_preparation_measurement_contract` 和
-`p2_prepared_scene_routing_contract`。快照携带计算观察，路由环检测展开这些观察；
+## 集成与观察规则
+
+本节定义当前查询、缓存与恢复的跨领域约束。实施流水、旧缺口和测试入口见
+[证据导航](../../verification/reviews/flow-and-graph-design-evidence-2026-11-04.md)。
+快照携带计算观察，路由环检测展开这些观察；
 preparation 查询自身快照返回有序结构环，必需组准入拒绝直接或经快照读取
 route/Locator 子树的几何与测量。原始 Figure/capability 借用进入路由子树时
 也记录几何读取；children/parent 源查询不增加此类边。缓存复用核对观察代数，
@@ -25,7 +30,7 @@ route/Locator 子树的几何与测量。原始 Figure/capability 借用进入�
 恢复后必需组未 resolved 的 owner 及后代 presentation 标为 invalid；
 受检快照查询拒绝读取，不能通过显式 resolve 绕过重新 preparation。
 首帧尚无成功记录时保留重试状态；普通路由失败继续走既有通道。
-LayoutManager 子查询已接入同一受约束测量会话，preferred/minimum 分别选择来源；
+LayoutManager 子查询进入同一受约束测量会话，preferred/minimum 分别选择来源；
 会话缓存保留子查询的传递观察，命中时将观察交给当前消费者。
 嵌套失败经 `LayoutError::Preparation` 保留实际主体、约束和原始原因，
 回到直接测量边界后返回原 `PreparationMeasureError`。
@@ -33,13 +38,13 @@ LayoutManager 子查询已接入同一受约束测量会话，preferred/minimum 
 preparation provider 的源版本，排除布局缓存失效代数。
 旧 `FigureMeasurement` 继续表示已提交测量结果依赖；同源失败后的重试不因
 重新验证布局缓存而替换快照或重算路由。
-候选准入与身份复用已逐项比较冻结的源输入，公开 `source_revision` 仍用于诊断。
+候选准入与身份复用逐项比较冻结的源输入，公开 `source_revision` 仅用于诊断。
 批次写入前再次核对源输入、字体版本和计算观察；字体替换或移除后，
 即使尚未重新 preparation，显式路由也不能读取旧快照。
 挂载时的 capability/显式资源依赖及 component effect 的资源绑定记录资源身份与当前状态，
 参与源前缀和 `FigureMeasurementSource`。资源完成、失败或移除立即更新这些
 已提交输入，派生恢复不撤销资源变化；无关图片资源不替换当前图快照。
-完整候选准入已合并本批快照、保留快照、成功路线的计算读取和路线后代输出关系，
+完整候选准入合并本批快照、保留快照、成功路线的计算读取和路线后代输出关系，
 在任何布局或 presentation 写入前检查有序闭环与必需组反向读取。
 检查范围包含保留 owner，不能用旧快照掩盖本批后代候选新增的读取。
 连接的成功计算边与失败后保留的重试观察分别保存；拒绝的路线读取不会变成
@@ -47,17 +52,17 @@ preparation provider 的源版本，排除布局缓存失效代数。
 成功计算边绑定产生它的连接 binding 版本；替换 Router 或端点后，
 旧边不能阻止新绑定重新计算，失败时仍保留当前重试观察。
 快照身份、visibility 与 topology 源查询不等于几何读取；快照按实际观察展开。
-外部契约覆盖跨 owner 的 P→Q→route→P、保留快照后的新增禁读和修正后恢复，
+依赖检查覆盖跨 owner 的 P→Q→route→P、保留快照后的新增禁读和修正后恢复，
 普通 Router 的既有结构环错误仍走 RouteError 通道。
-共享预算已接入 preparation、受约束测量、源前缀与快照检查、计算依赖遍历和图求解入口。
-FlowPage/TextFlow 已接入显式约束测量。结构化 Flow 通过公开
+共享预算覆盖 preparation、受约束测量、源前缀与快照检查、计算依赖遍历和图求解入口。
+FlowPage/TextFlow 使用显式约束测量。结构化 Flow 通过公开
 `FlowLayoutService::measure` 复用绘制排版算法，内联 Figure 进入同一测量会话；
 无界宽度传给文字引擎，不以无限 Rectangle 模拟。FlowPage 的 minimum
 沿用 Draw2D 同约束 preferred 契约，物理 Border 仍由权威入口组合一次。
 TextFlow 的候选测量复用换行与截断算法，不修改附着的文字交互布局。
 文字查询与绘制共用 Runtime presentation 中的不可变值，专用附着刷新路径已移除。
 贡献遍历、排版与快照分配记入共享预算；内联测量错误保留叶节点身份和约束。
-graph adapter 已接入 `layout::graph::GraphProjection`：完整 flat binding、动态实体的
+graph adapter 使用 `layout::graph::GraphProjection`：完整 flat binding、动态实体的
 候选宽度反馈、不可变 `GraphProjectionSnapshot`、attachment Anchor 与整组路径输出
 均走相同公开协议。`GraphProjectionFigure` 通过 typed component update 安装 producer；
 外部容器可以直接组合同一 producer，不需要 Core 类型分派。
@@ -67,44 +72,19 @@ producer 的缓存只保存纯验证成功的图结果，不保存附着几何�
 不能绕过 Runtime 的快照有效性检查；求解或测量失败值不进入缓存。
 RuntimeFrames 提供 preparation budget 查询和配置，配置作用于下一次完整稳定化；
 默认有限额度保持不变，回调不能重置共享计数器。大型官方图使用显式的有限宿主预算。
-官方图场景已接入真实 Label、子图边框、连线和箭头，52 个输入方向组合通过。
-宿主 fixture/方向菜单的真实点击、完整替换后的旧身份拒绝也已验证。
 图容器通过同一纯 producer 返回受约束尺寸，tracked viewport 测量/滚动保持
 图请求 identity 与路由计算次数；测量阶段不发布缓冲布局。
-Native 代表性场景已生成并检查；workspace fmt、check、严格 Clippy、test，
-五个应用探针、Web backend 编译及公开 API 边界门禁均通过，P2-L01 已完成。
-普通 Runtime 布局已传入文字服务与同一稳定化预算，复用显式约束测量。
+普通 Runtime 布局传入文字服务与同一稳定化预算，复用显式约束测量。
 LayoutManager 保留调用者的读取范围，preparation 回调仍限定在自身子树。
 冻结源前缀与快照观察由 owner 和后代共享不可变切片，保留逐项输入核对，
 避免发布时为每个后代复制完整前缀。默认预算未提高。
-官方文本的窗口缩窄、大段文本、输入重排与小尺寸多行标签回归均已通过。
-下表保留实施前基线，不能用来判断上述入口的当前代码行为。
-
-## 实施前发现的契约缺口
-
-候选 bounds 已可通过现有 Anchor 查询读取。Runtime 先应用候选 LayoutOutput，
-随后用同一 FigureTree 构造 FigureTreeRouteSceneRead；border_box 和 map_rect
-读取当前树中的几何，并未固定到上一稳定帧。因此无需增加另一套候选坐标转换。
-
-缺少的是同一候选的受检图结果、身份和测量查询。以下结论来自静态源码核对，
-没有以未执行的运行测试作为证据：
-
-| 入口 | 当前行为 | 对 adapter 的影响 |
-|---|---|---|
-| `crates/novadraw/src/connection/query.rs`：RouteSceneRead、RouteSceneQuery | 只提供几何、可见性、拓扑与坐标映射；不提供 prepared presentation 或领域数据 | Anchor/Router 无法从 Runtime 取得本次 GraphLayoutResult 和 attachment boundary 证据 |
-| 同文件：DependencySubject、dependency_generation | 路由观察只包含几何、可见性、命名几何、变换、拓扑 | bounds 不变但请求、算法配置或完整路径改变时，已有 resolved route 没有结果身份依赖 |
-| `crates/novadraw/src/graph/query.rs`：prepared_presentation | 普通 FigureTree 查询可以借用已有 presentation | Router 只获得 RouteSceneQuery，不能借助此方法绕过受检查询权限 |
-| `crates/novadraw/src/graph/layout_measurement.rs`：preferred_measurement、minimum_size | 无 layout manager 且已有 prepared 值时，直接返回该值；新 constraints 不参与重新 preparation | EAST 候选宽度不能靠这两个调用完成任意外部 prepared Figure 的重新测量 |
-| `crates/novadraw/src/figure/preparation/scene.rs`：revision | 包含 bounds 与 layout generation | 派生布局写入会改变该 revision，不能直接作为 graph 的 source revision |
-| `crates/novadraw/src/runtime/runtime/frame_submission.rs`：resolve_dirty_connection_routes、stabilize | 路由错误记入 connection_error；组 unresolved 本身不阻止 stable epoch 晋升 | placement 成功、路径失败的图候选需要额外的整体发布检查 |
-| `crates/novadraw/src/graph/derived.rs` 与 `crates/novadraw/src/connection/runtime.rs`：检查点恢复 | 恢复树几何与 preparation；连接恢复依赖后统一标为 Dirty | 尚未区分同源有效旧结果与源已改变后的 invalid/unresolved |
 
 在 Anchor/Router 与布局器之间放置可变结果槽，会让检查点外的缓存成为候选权威，
 且现有 Runtime 无法恢复该槽。用 RoutingConstraint 更新结果又会把派生写入变成
-source mutation。两种方式均不满足 ADR-043 的整体检查点契约。
+source mutation。两种方式均不满足[图布局](directed-compound-graph-layout.md)的整体检查点契约。
 
-本提案保留原 ADR 的独立图模型、开放 registry 和完整路径决策，
-增加通用 preparation 查询与发布约束。引擎不识别 Directed 或 Compound 类型。
+本规范使用独立图模型、开放 registry 和完整路径，
+定义通用 preparation 查询与发布约束。引擎不识别 Directed 或 Compound 类型。
 
 ## Runtime 持有候选快照
 
@@ -118,9 +98,11 @@ Runtime 持有 `PreparedSceneIdentity`，身份字段私有，包含 owner 与�
 快照身份，不能由消费者构造。preparation 尝试与实际快照替换分别记录；
 身份更新条件见下节。尝试次数不参与路由依赖 generation。
 
-公开类型放在 `novadraw::figure`；拟采用以下查询形状：
+公开类型放在 `novadraw::figure`。以下查询仅作职责示意，省略 trait 及上下文，
+不能直接复制编译；公开路径见[API 快照](../../../tests/README.md#公开-api-快照)，
+完整签名以对应领域 rustdoc 为准。
 
-```rust
+```rust,ignore
 pub struct PreparedSceneSnapshot { /* private fields */ }
 
 impl PreparedSceneSnapshot {
@@ -198,9 +180,9 @@ preferred 与 minimum 分别遵循现有权威顺序，按实际查询选择测�
 测量时必须显式准入该分支，不能以尚无快照为由借 intrinsic 绕过不支持错误。
 preferred 有 override 不代表 minimum 也有 override，两项独立分派。
 
-对实际选中的 preparation 分支，补充可失败的约束测量方法：
+实际选中的 preparation 分支使用可失败的约束测量方法；以下仍是协议示意：
 
-```rust
+```rust,ignore
 fn measure_scene(
     &self,
     context: &mut MeasureContext<'_>,
@@ -231,10 +213,10 @@ PreparationScene 增加统一的 `measure_figure` 入口，由 Runtime 测量服
 
 ## 测量错误保留主体和原始原因
 
-新增 `PreparationMeasureError`，放在 `novadraw::figure`，替代新测量接口中的
+`PreparationMeasureError` 放在 `novadraw::figure`，替代测量接口中的
 TextError 返回值。Runtime 的 `measure_figure` 统一包装 callback 和权威测量失败：
 
-```rust
+```rust,ignore
 pub struct PreparationMeasureError {
     pub figure: FigureId,
     pub outer_constraints: MeasureConstraints,
@@ -302,7 +284,7 @@ ConnectionId，作为该 preparation 成功发布的必要条件。
 Runtime 校验连接属于准备 owner 的 flat child-content 域，组无重复且覆盖完整。
 稳定化结束前检查组成员已 resolved，且结果依赖本次 prepared identity。
 Anchor、route、Locator、Decoration 失败或前缀漂移均拒绝晋升 stable epoch。
-未声明必需路由的普通 Figure 仍沿现有 ADR-040 失败通道处理。
+未声明必需路由的普通 Figure 仍沿[组路由](group-route-solving.md)的失败通道处理。
 
 ## 快照计算依赖参与结构环检测
 
@@ -405,19 +387,11 @@ Core 对子树构建、测量缓存、源前缀、快照观察、依赖图构建
 | 改源后路由失败、删除端点或退休 binding | 源变化保留，旧结果 invalid，受影响组 unresolved，无新 partial submission |
 | contents 成功替换后旧服务再查询 | 旧身份拒绝，无旧树或旧依赖复活 |
 
-本增量已按候选查询与必需组发布→测量/source 前缀→graph adapter 的顺序实施。
-两个官方场景、真实 fixture/方向切换与 Native 截图已验收，书籍与语义账本已同步；
-最终门禁通过后关闭 P2-L01。
+切片顺序、官方场景与最终门禁的结果见
+[证据导航](../../verification/reviews/flow-and-graph-design-evidence-2026-11-04.md)。
 
 ## 增量评审意见处理记录
 
-依据[2026-10-22 增量评审](../../verification/reviews/graph-projection-preparation-review-2026-10-22.md)
-完成修订 2。全部采纳，无未采纳项。原报告及其基线清单保留；
-本表只记录契约修订，不表示复审通过、实现完成或运行测试通过。
-
-| 意见 | 处理结果与新章节 | 理由 |
-|---|---|---|
-| GP01，P1 | 已采纳：[快照未改变时保留 identity](#快照未改变时保留-identity) | attempt 与快照替换分离；相同完整前缀及领域结果复用 identity，新请求/路径更新身份；新增后代更新不重复路由验收 |
-| GP02，P1 | 已采纳：[preparation 声明必需路由](#preparation-声明必需路由)、[快照计算依赖参与结构环检测](#快照计算依赖参与结构环检测) | 发布屏障与计算读取分开；PreparedScene subject 展开传递依赖，直接环/跨 preparation 环提前结构化拒绝并覆盖恢复 |
-| GP03，P2 | 已采纳：[候选测量使用显式约束](#候选测量使用显式约束) | preferred/minimum 独立保留 override→LayoutManager→prepared→intrinsic 优先级，仅替换选中 prepared 分支；明确 Border/insets 单次组合 |
-| GP04，P2 | 已采纳：[测量错误保留主体和原始原因](#测量错误保留主体和原始原因) | 新测量接口使用结构化包装，保留主体、约束、分类和 source；TextError 边界增加 boxed 变体，禁止 InvalidPreparedScene 字符串降级 |
+修订 2 对 GP01–GP04 的回应及原判断从
+[证据导航](../../verification/reviews/flow-and-graph-design-evidence-2026-11-04.md)追溯。
+本页对应章节直接维护 identity、必需组屏障、测量优先级与结构化错误的当前合同。

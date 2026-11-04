@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 的总体边界；Editor 拥有编辑模型与历史，backend 和 platform 独立拥有执行资源及宿主状态。
+
 本文定义 Novadraw 的长期架构原则、核心概念和稳定边界，是总体架构的
 SSOT。静态所有权见 [static-architecture.md](static-architecture.md)，运行时事务见
 [dynamic-architecture.md](dynamic-architecture.md)。坐标、输入和更新的细节由对应

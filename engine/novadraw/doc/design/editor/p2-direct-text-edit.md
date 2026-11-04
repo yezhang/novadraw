@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 提供文字交互几何；Editor 拥有 direct-edit 草稿与命令，应用拥有持久模型，platform 适配 IME。
+
 规范效力：`accepted`；P2-T02/E02 的实施与验收状态见
 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
 

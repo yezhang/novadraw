@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Graphics 图像源区域；资源保存源像素，backend 执行采样，调用者提供目标逻辑矩形。
+
 ## 1. 目标
 
 Novadraw 支持把图像资源的一个矩形区域缩放绘制到 Canvas 的目标矩形。该能力对应

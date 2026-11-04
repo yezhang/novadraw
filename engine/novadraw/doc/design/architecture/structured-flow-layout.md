@@ -3,6 +3,8 @@
 类型：`normative-design`
 
 能力归属：Core Flow；Caret/Path 是消费者。
+规范效力：已接受；当前行为与扩展权限有效，示意类型不冻结具体签名。
+示例性质：协议示意；精确签名以领域公开 rustdoc 为准。
 整体 shaping 与来源身份选择见 [原编号 042 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-042-structured-flow-layout.md.txt)。
 
 ## 状态
@@ -40,9 +42,11 @@ leading/trailing 与方向；相邻和嵌套 block 的垂直 margin 允许折叠
 不在 Runtime 按具体 Figure 类型分支，也不给内置节点保留专用 hook。
 普通 Figure 子树通过 adapter 贡献占位盒，保留原有树身份。
 
-拟定的公开协议骨架如下；名称在实现阶段可调整，权限边界需要保留：
+以下代码仅说明 contributor 与 fragment border 的职责和权限，省略公开类型路径
+及部分参数，不能直接复制编译。精确签名从[公开 API 快照](../../../tests/README.md#公开-api-快照)
+核对；本文的行为合同已接受并实施。
 
-```rust
+```rust,ignore
 trait FlowContributor {
     fn contribute(
         &self,
@@ -125,7 +129,7 @@ margin 折叠由 flow 布局负责，border 只返回受检度量并绘制。
 
 ## 准备、贡献与恢复协议
 
-文字引擎切片已提供 `StyledTextRequest` / `StyledTextLayout`、受检 UTF-8
+文字引擎使用 `StyledTextRequest` / `StyledTextLayout`、受检 UTF-8
 style span、段落方向与对齐、内嵌盒，以及 `TextLayoutEngine::layout_styled`。
 `RuntimeText` 和 `MeasureContext` 共用该入口；默认引擎的单样式入口适配到同一
 排版路径。`Graphics::fill_styled_text` 与 `PaintContext::fill_styled_text`
@@ -137,7 +141,7 @@ Parley 0.7 的显式方向由适配层维护私有方向标记与原文偏移映
 独立消费者与失败反例见
 `crates/novadraw/tests/p2_t03_styled_text_contract.rs`。
 
-通用 preparation 协议已增加 `PreparationScene` 和 `PreparedScene`。
+通用 preparation 协议使用 `PreparationScene` 和 `PreparedScene`。
 前者只读 preparing Figure 的冻结子树、解析样式和受检测量；
 后者将根 drawing、子节点 presentation 与普通 `LayoutOutput` 一起缓冲。
 Runtime 先校验完整批次及输入 revision，再发布；非法 placement、测量失败、
@@ -146,7 +150,7 @@ Runtime 先校验完整批次及输入 revision，再发布；非法 placement�
 普通后代的输入遍历。独立外部消费者见
 `crates/novadraw/tests/p2_scene_preparation_contract.rs`。
 
-开放贡献协议已增加 `ContributionKey<P>`、payload trait 和实例 registry。
+开放贡献协议使用 `ContributionKey<P>`、payload trait 和实例 registry。
 标准 text/group/block/figure-box/fragment-border handler 与外部 contributor
 使用同一注册入口。`FlowPageFigure`、`BlockFlowFigure`、`InlineFlowFigure`、
 `StructuredTextFigure` 与 `FlowAdapterFigure` 通过正常 capability 接入，
@@ -167,7 +171,7 @@ fragment border 通过同一贡献协议注册，首尾占位盒参与段落布�
 片段空白命中、二次测量、字体失效、来源迁移和非法边框指标拒绝。
 styled 输出另增加跨 style source range 的拒绝校验。
 
-`FlowLayoutService` 已开放，内置 page 与外部自定义 root 共用同一 preparation
+`FlowLayoutService` 对内置 page 与外部自定义 root 提供同一 preparation
 入口和实例缓存。候选通过完整检查后才进入缓存；scene、文字引擎或排版区域变化
 都会更新快照 revision。`PreparedScene` 允许组合根绘制并保留子节点和布局效果，
 供 caret、selection 等显式绘制策略使用。
@@ -190,21 +194,13 @@ viewport 范围、Connection route points 和装饰几何，丢弃未发布通�
 `p2_scene_preparation_contract` 覆盖晚发测量失败、不收敛、源写入、viewport 以及
 实际发生重路由后的外部装饰恢复。
 
-`FlowBorderMetrics` 增加四侧 insets 和 margin；同一标准贡献 registry 提供
+`FlowBorderMetrics` 包含四侧 insets 和 margin；同一标准贡献 registry 提供
 `BorderedBlockContribution`，外部 block 可复用，内置 block 不走特权路径。
 block 边框间距进入既有 margin 折叠；inline 的首尾横向间距参与 shaping，
 各行的垂直间距同步调整 glyph、轮廓实例、内嵌盒、caret 和 selection。
 边框度量与不可变 renderer 在贡献遍历时一次准备，绘制阶段不测量。
 跨段上下移动保留全局横向位置并支持空段落的来源身份。
 独立契约测试覆盖非对称四侧间距、block 折叠、空段移动和轮廓坐标。
-
-六个官方入口已接入 `draw2d-official-examples`。TextFlow 保留六个 section、
-嵌套蓝色 inline、不同字号、源码仅换行符分行与尾侧对齐；Large 保留四十个 block
-与可追加的首个文字来源。Caret 的多语言文字、begin/end 分片边框、命中、
-光标与显式选择绘制共用 flow 快照。MultiLineLabel 使用 width-tracking viewport、
-两像素 margin、自动滚动条、焦点绘制、键盘滚动与文字 accessibility。
-Surrounding 保留 Toolbar 三 Shape 子树及 Stack 内嵌 RTL page。
-Bidi 的两个独立 Figure 树共享 vertical RangeModel，十种段落组合保持独立身份。
 
 `FigureTreeBuilder::add_scroll_pane_with_models_to` 将调用方的范围模型交给现有
 Viewport 和 ScrollBar；默认入口复用同一路径。事件回调通过 `EventSceneQuery`
@@ -213,15 +209,9 @@ Viewport 和 ScrollBar；默认入口复用同一路径。事件回调通过 `Ev
 内嵌盒的小数高度在适配层以 f64 从已发布 baseline 推导位置，避免 f32 相减后
 盒底越过 layout height；受检输出仍保持严格校验。
 
-示例使用随包字体对应原例的普通、等宽和多语言字体；补充 Noto Sans JP 与
-Noto Sans Hebrew 及各自 OFL 许可证。SWT 原生比较 Text、Hit info 面板和 Caret
-控件不属于 Canvas 验收范围；Core 光标与高亮使用显式绘制。
-Native 六个入口均已截图检查，产物在 `target/visual-verification/screenshots/`。
-示例测试覆盖稳定发布、不同字体注册实例、窄窗口重排、真实子树保留、
-共享滚动、受限键入、来源 revision、命中与焦点键盘滚动。
-
+六个官方入口、字体和截图的完成事实见
+[Flow 与图布局证据导航](../../verification/reviews/flow-and-graph-design-evidence-2026-11-04.md)。
 实现与验收状态见 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
-原测试计数与逐切片事实从 [原稿快照](../../archive/adr-classification-2026-11-03.md)追溯。
 
 ## 选择依据（原编号 042）
 

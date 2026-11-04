@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 静态所有权；Runtime 持有场景，backend 与 platform 分别持有渲染资源及宿主句柄。
+
 本文定义 Novadraw 核心类型的所有权、职责和依赖方向。总体原则见
 [overview.md](overview.md)，运行时时序见
 [dynamic-architecture.md](dynamic-architecture.md)。

@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Editor 连线创建工具与策略；应用模型保存连接，Core 提供锚点、路由及反馈。
+
 规范效力：`accepted`；实施与验收状态见 [Editor 路线图](../../roadmap/editor/00-index.md)。
 
 适用范围：两阶段连接创建的 Request、Tool、Policy、Command、feedback 与取消语义。

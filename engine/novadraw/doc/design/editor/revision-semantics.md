@@ -2,6 +2,8 @@
 
 类型：`reference-analysis`
 
+能力归属：Editor 的版本语义分析；应用拥有模型版本，Viewer 拥有已应用版本，Core 版本作为投影依赖。
+
 本文记录编辑框架的版本语义分析。总体契约以 [Editor 架构](architecture.md) 和
 [Viewer 编辑会话](viewer-edit-session-and-drive.md) 为准；
 本文解释现行机制，不新增接口或架构决策。

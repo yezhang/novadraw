@@ -6,7 +6,9 @@
 独立真源，文档规则见 [知识维护](knowledge-maintenance.md)。
 
 ADR 只维护架构选择，具体协议进入 design，采样方法进入 verification/plans；
-原编号和本次拆分关系见[分类记录](archive/adr-classification-2026-11-03.md)。
+当前保留[10 项长期边界选择](adr/README.md)；52 → 10 的取舍、
+原编号与专题映射见[归并记录](archive/adr-consolidation-2026-11-03.md)。
+此前的[59 篇分类](archive/adr-classification-2026-11-03.md)供历史追溯。
 
 ## 从任务进入
 

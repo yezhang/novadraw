@@ -1109,6 +1109,16 @@ fn validate_docs(root: &Path) -> Result<usize> {
         "doc/design",
         &["proposal"],
     )?;
+    let status = Command::new("python3")
+        .arg(root.join("tools/scripts/check_design_docs.py"))
+        .arg("--root")
+        .arg(root)
+        .current_dir(root)
+        .status()
+        .context("failed to run design documentation checks")?;
+    if !status.success() {
+        bail!("design documentation checks failed with {status}");
+    }
     Ok(markdown_files.len())
 }
 

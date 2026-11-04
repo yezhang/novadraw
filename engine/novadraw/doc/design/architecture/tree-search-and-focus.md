@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 树搜索与焦点遍历；Runtime 拥有输入状态，查询策略与 Editor 消费受检事实。
+
 状态：`approved`
 
 本文定义 D1.5 的规范契约。各分批只有在实现与验证完成后才视为已交付。

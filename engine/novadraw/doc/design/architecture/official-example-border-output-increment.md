@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Border／Graphics／资源合同；官方示例编排消费者，backend 执行输出，原生打印 UI 不在范围内。
+
 状态：`implemented / verified`。按现有官方示例 Core 计划和用户授权完成普通 Border、字体指标及资源扩展。
 验证见[交付证据](../../verification/evidence/official-examples-2026-10-23/implementation.md)。
 `api_semantics`：`border.protocol`、`graphics.context`、`paint.protocol`、`connection.locator`。

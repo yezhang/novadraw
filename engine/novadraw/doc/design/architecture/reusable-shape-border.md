@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Shape／Border 组合；owned 策略保存配置，Runtime 提交附着更新，backend 消费轮廓。
+
 状态：`accepted`
 
 范围：M10.1

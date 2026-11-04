@@ -2,6 +2,9 @@
 
 类型：`normative-design`
 
+能力归属：Core Text／Figure 的测量、布局和不可变交互几何；Runtime 拥有文字服务，
+backend 消费 glyph 输出，platform 提供字体资源与呈现条件。
+
 状态：`accepted`
 
 范围：M10.2、P2-T01、P2-T02

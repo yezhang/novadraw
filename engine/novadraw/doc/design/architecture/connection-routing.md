@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Connection／Anchor／Router；Runtime 持有绑定和派生路线，Editor 是消费者。
+
 状态：`approved`
 
 本文定义 M9 的规范架构，由

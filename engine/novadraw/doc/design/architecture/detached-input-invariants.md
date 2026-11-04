@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Figure／Border／Style 的输入准入；构造器保护配置，Runtime 校验附着候选。
+
 状态：已接受；2026-10-29，S08-A 已获实施批准。决策入口为
 [原编号 056 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-056-detached-input-invariants.md.txt)。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。

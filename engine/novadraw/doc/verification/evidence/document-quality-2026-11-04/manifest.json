@@ -1,0 +1,26 @@
+{
+  "fr02-early-decision.md.txt": {
+    "original_path": "doc/adr/adr-060-flow-assembly-reuse.md",
+    "sha256": "459929a297e75af46724af4aedc2ec53ab1512fdb31b5d4a6fb9702025244a21"
+  },
+  "fr02-early-contract.md.txt": {
+    "original_path": "doc/design/architecture/flow-assembly-reuse.md",
+    "sha256": "12b1b6d85a9be643977bfddf94c95d5acff387d14eb0657fc3a91e9a836b33a2"
+  },
+  "fr02-early-matrix.md.txt": {
+    "original_path": "doc/verification/plans/flow-assembly-reuse.md",
+    "sha256": "42d57c2813b19582eadac0352e2dc50aeaab00b2e0c574dacfb654bf0575db52"
+  },
+  "structured-flow-before.md.txt": {
+    "original_path": "doc/design/architecture/structured-flow-layout.md",
+    "sha256": "55d78cf6aeb840e50cf301e2f16ba2eed9615fd985649e4f23de0849c14747a5"
+  },
+  "graph-preparation-before.md.txt": {
+    "original_path": "doc/design/architecture/graph-projection-preparation.md",
+    "sha256": "ce458fe1ae8fbc769800815f268ba29cee1a266ed95dfde01467ef26d0bde4c3"
+  },
+  "fr02-review-before.md.txt": {
+    "original_path": "doc/verification/reviews/adr-060-draft-review-2026-11-03.md",
+    "sha256": "f913f8bf3eec49bf97c7df6d9c45e375f5fb7c911bd1cfafc2fb9f1a400e20f3"
+  }
+}

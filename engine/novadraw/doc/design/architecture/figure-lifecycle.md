@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Figure／Runtime 生命周期；Runtime 拥有附着身份和退休规则，宿主消费生命周期结果。
+
 状态：`accepted / implemented`
 
 范围：D4.3；决策：[ADR-014](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)。

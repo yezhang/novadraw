@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 坐标与变换协议；节点拥有局部几何，Core 组合映射，platform 适配设备坐标。
+
 本文是 Novadraw 二维坐标、变换、命中和 damage 投影的 SSOT。Draw2D 的参考事实见
 `doc/reference/draw2d/figure/tree-coordinates.md`。
 

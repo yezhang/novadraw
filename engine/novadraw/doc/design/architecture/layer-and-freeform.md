@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Layer／Freeform；Runtime 与节点维护层关系及派生 extent，Editor 消费布局和查询。
+
 状态：`approved`
 
 本文定义 D2 的规范架构，由

@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Animation；Runtime 拥有 timeline 与 presentation，Editor 和宿主消费结果。
+
 状态：`accepted`，按 M01-A 至 M01-D 分阶段实施
 
 目标 delta：P2-M01

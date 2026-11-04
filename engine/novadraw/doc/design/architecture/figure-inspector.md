@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Inspector 的只读诊断与有界时间线；Core 提供稳定事实，宿主负责显示及未来跨进程传输。
+
 规范效力：`accepted`
 
 实现状态：`partial`（本地快照与事件观察已实现；跨进程宿主与 wire protocol 延后）

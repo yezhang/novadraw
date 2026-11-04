@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 资源因果与请求身份；backend 拥有设备资源和 session，platform／组合根执行宿主生命周期。
+
 状态：`approved`
 
 范围：D4.2
@@ -307,7 +309,8 @@ complete(token, payload) / fail(token, diagnostic)
 每个 ResourceId 只有最新 token 可提交结果。旧 token 返回 `ResourceError::StaleRequest`，
 不得改变 Registry revision、pending op log 或依赖 Figure。
 
-该合同已由 ADR-030 实现。Core 不持有 provider，也不访问文件系统或 URL：
+该合同由[资源加载与请求 token](resource-loading-and-request-tokens.md)维护。
+Core 不持有 provider，也不访问文件系统或 URL：
 
 - `FileResourceProvider` 位于 Native platform package；
 - `FetchResourceProvider` 位于 Web platform package；

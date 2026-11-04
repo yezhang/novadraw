@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Scroll／Zoom 手势与视口更新；Runtime 提交范围，platform 归一化输入，Editor 消费反馈。
+
 ## 1. 边界
 
 Novadraw 将鼠标滚轮、触控板滚动和 pinch zoom 归一为平台无关事件：

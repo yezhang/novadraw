@@ -1,0 +1,36 @@
+{
+  "protocol_examples": [
+    "doc/design/architecture/query-identity-and-failure.md",
+    "doc/design/architecture/structured-flow-layout.md",
+    "doc/design/architecture/directed-compound-graph-layout.md",
+    "doc/design/architecture/graph-projection-preparation.md"
+  ],
+  "accepted_scope": [
+    {
+      "path": "doc/design/architecture/long-text-performance-proposal.md",
+      "links": ["exact-flow-layout-reuse.md", "staged-text-width-reuse.md"]
+    }
+  ],
+  "supersessions": [
+    {
+      "path": "doc/design/rendering/p2-g01-graphics-extension.md",
+      "section": "5. Stroke 与包围盒",
+      "link": "low-miter-and-cocoa-sample-profile.md",
+      "reject": ["miter limit 有限且至少为 1"]
+    },
+    {
+      "path": "doc/design/rendering/shape-antialias-proposal.md",
+      "section": "Hairline 与低 miter 单独决策",
+      "link": "low-miter-and-cocoa-sample-profile.md",
+      "reject": ["miter limit 至少为 1", "现有 `< 1` 错误继续有效"]
+    }
+  ],
+  "baselines": [
+    {
+      "review": "doc/verification/reviews/adr-060-draft-review-2026-11-03.md",
+      "required_links": ["fr02-early-decision.md.txt", "fr02-review-baseline-2026-11-04.md"],
+      "missing": true
+    }
+  ],
+  "manifests": ["doc/verification/evidence/document-quality-2026-11-04/manifest.json"]
+}

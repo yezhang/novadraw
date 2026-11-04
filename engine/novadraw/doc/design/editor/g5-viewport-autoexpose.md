@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Editor 视口反馈与 auto-expose 策略；Core 持有视口几何和范围，platform 提供输入与时钟。
+
 状态：`implemented`
 
 适用范围：Editor 拖拽手势在 scroll/zoom 下的 request、target、feedback 与 viewport

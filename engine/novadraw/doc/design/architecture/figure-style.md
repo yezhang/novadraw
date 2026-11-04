@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Figure 样式；节点拥有覆盖值，Core 解析继承，backend 消费冻结绘制样式。
+
 本文定义 Figure 通用视觉属性的所有权、继承和更新语义。具体 Figure 的点集、圆角、
 文本内容和图像句柄不属于通用样式。
 

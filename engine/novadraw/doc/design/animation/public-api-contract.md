@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Animation 公开协议；Runtime 持有服务实例，外部 binding 与宿主通过受检入口消费。
+
 状态：`accepted`，M01-A 公开合同 SSOT
 
 目标 delta：P2-M01

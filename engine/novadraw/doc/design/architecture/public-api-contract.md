@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 公共协议与跨包权限；Editor、Inspector、backend、platform 按各自 owner 消费和实现边界。
+
 规范效力：`accepted`（2026-10-12，五项架构修订已获确认）
 
 实现状态：既有入口以 ADR-031/033/035 和完成记录为准；本次补充契约的验证边界见
@@ -40,6 +42,7 @@ surface/device 配置、提交和恢复。组合根衔接二者。Core 只接受
 
 Core root 只公开领域模块，不提供库级 prelude 或类型平铺重导出，见
 [原编号 035 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。
+应用可以组织自己的 local prelude；API snapshot 必须反映真实公开路径。
 
 | 规范路径示例 | 角色 |
 |---|---|
@@ -71,6 +74,8 @@ Border 的原始配置构造与更新按
 [ADR-056 输入不变量](detached-input-invariants.md#border-构造保护真实配置)返回领域错误。
 受检值构造成功后仍需走 attached 候选发布协议。冻结描边入口的受限存储规则见
 [Border 契约](reusable-shape-border.md#61-不可变可复用策略)。
+Builder 拥有 pre-Runtime 树写权限，不垄断 owned 值的独立构造；
+attached 领域错误不能由只验证、不提交的公开伪入口掩盖。
 
 内置和外部 Figure 使用同一 identity、prepare、effect validation、commit、revision、
 damage、notification 与错误通道。具体类型不获得 `runtime.label/image/viewport` 等
@@ -156,6 +161,10 @@ Node 非权威尺寸 getter 已退出公开表面；行为与最终门禁登记�
 
 ## 5. 计算、发布与开放策略
 
+生产帧出口由 Runtime 的 frames prepare／complete 协调，FigureTree 不驱动更新队列。
+测量使用结构化约束；preferred 返回尺寸与 baseline，minimum 返回 Dimension，
+不使用 `-1` sentinel，失败按查询专题解释。
+
 source/resource → intrinsic/constrained measurement → layout geometry → route →
 post-route geometry → final presentation → damage/recording → submission。
 阶段输入必须携带足以判断依赖有效性的版本；旧测量、旧约束或旧资源不能混进新稳定帧。
@@ -204,26 +213,8 @@ scoped facade 的有效范围受一次 Runtime 借用限制。它只持有受限
 借用结束后状态仍归 Runtime。具体组件提交顺序见
 [组件更新协议](component-update.md)，生命周期见 [原编号 019 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)。
 
-## 选择依据（原编号 017）
+## 历史批准依据
 
-Builder 拥有 pre-Runtime 树写权限，但不垄断 owned 值的独立构造。attached 状态统一受检提交，领域错误不能由公开验证伪入口掩盖；旧 concrete facade 不恢复。
-
-原批准范围、修订与历史判断见[原稿 017](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-017-core-public-api-boundary.md.txt)。
-
-## 选择依据（原编号 018）
-
-生产帧出口是 frames.prepare／complete，FigureTree 不驱动更新队列。测量使用结构化约束；preferred 返回尺寸及 baseline，minimum 返回 Dimension，不使用 -1 sentinel。坐标失败按查询专题解释。
-
-原批准范围、修订与历史判断见[原稿 018](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-018-runtime-driving-and-measurement-api.md.txt)。
-
-## 选择依据（原编号 019）
-
-detached、build、attached、query 和 drive 的权限分别定义。scoped facade 只是短借用，获取和 Drop 不提交；多个调用不自动组成可回滚事务。
-
-原批准范围、修订与历史判断见[原稿 019](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)。
-
-## 选择依据（原编号 035）
-
-Core root 只公开领域模块，不提供库级 prelude 或重复类型重导出。应用可以组织自己的 local prelude；API snapshot 必须反映真实公开路径。
-
-原批准范围、修订与历史判断见[原稿 035](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-035-explicit-domain-imports-and-root-boundary.md.txt)。
+原编号 017／018／019／035 的批准范围、修订与原稿统一从
+[归并记录](../../archive/adr-consolidation-2026-11-03.md)追溯。
+当前行为由本页对应章节及其领域专题维护。

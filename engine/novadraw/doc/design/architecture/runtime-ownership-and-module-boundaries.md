@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Runtime 内部所有权与协作；Runtime 是场景 owner，子 facade 只投影借用权限。
+
 状态：`accepted`
 
 范围：GA-4 Core/Editor 内部依赖与扩展更新入口。

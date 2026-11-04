@@ -2,6 +2,8 @@
 
 类型：`proposal`
 
+能力归属：Core Render 与 backend 间的 DisplayList 候选；recorder 生成命令，backend 消费，不改变宿主窗口所有权。
+
 状态：休眠候选；协议与实验门禁合并于本页，不建立独立执行队列。
 
 本文讨论可选的序列化 DisplayList。它不是 Novadraw 核心架构前提，不是 Draw2D
@@ -142,7 +144,9 @@ UpdateResource
 
 ## 7. 二进制格式要求
 
-只有 ADR 接受二进制协议后，才定义精确 `repr(C)` 或 wire layout。届时必须覆盖：
+二进制协议须先明确兼容性、版本演进和后端边界并获接受，才定义精确
+`repr(C)` 或 wire layout。若形成新的长期兼容边界，单独记录 ADR 的取舍；
+字段布局与编解码机制由设计维护。届时必须覆盖：
 
 - magic、major/minor version；
 - endian；

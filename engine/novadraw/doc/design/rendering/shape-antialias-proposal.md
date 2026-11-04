@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 逐 draw AA 状态与 backend 覆盖实现；样例负责组合验证，platform 提供 DPI 与表面条件。
+
 状态：修订 2 已于 2026-10-26 获用户批准，按
 [原编号 047 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-047-per-operation-antialias.md.txt)进入实施。
 
@@ -131,26 +133,29 @@ resize/DPI/session reset 清理不兼容缓存，Retry 不发布半成品。超�
 默认 On/Default 不进入扫描线，也不分配 OFF 路径。
 
 实验的 CPU 时间只记录 dev 构建的单次参考采样，不能用来宣称性能合格。
-实施后必须比较相同 release 配置的 Native/Wasm 产物与传输压缩体积，
-以及默认 AA、25 个矩阵单元、复杂 dashed path、连续变换与高 DPI 场景。
+实施后必须在相同 release 配置下比较默认 AA、25 个矩阵单元、
+复杂 dashed path、连续变换与高 DPI 场景的运行成本。
 记录冷/热缓存准备时间、P95 帧耗时、输出元素数、上传字节与峰值内存；
-不以“没有新增依赖”代替最终包体积测量。
+产物与传输压缩体积只在用户明确要求比较时测量，执行规则见
+[包体积与性能要求](../../../CLAUDE.md#包体积与性能要求)。
 
 若预算内的代表性场景仍无法满足既定消费预算，则 AA-2 不通过，
 返回 Design 比较 GPU 逐 draw 覆盖路线。Core setter 通过不代表后端或入口完成。
 
 ## Hairline 与低 miter 单独决策
 
-已接受的 [Graphics 契约](p2-g01-graphics-extension.md)规定逻辑宽度 0 不绘制，
-miter limit 至少为 1。本增量保留这两个既有语义。
+已接受的 [Graphics 契约](p2-g01-graphics-extension.md)规定逻辑宽度 0 不绘制。
+[低 miter 修订](low-miter-and-cocoa-sample-profile.md)允许有限非负 limit，
+保留原值；Miter 且 limit 小于 1 时有效 join 为 Bevel。AA 开关不改变这些规则。
 
 ShapeStyles 的设备 hairline 如需实现，建议通过显式的 stroke width 语义值表达，
 区分 `Logical(width)` 与 `Hairline`，不把旧宽度 0 改成设备像素线。
 Hairline 的最终轮廓与 damage envelope 依赖 DPI 和变换，必须先定义非均匀缩放、
 旋转、dash 和边界测量，再修改公共 StrokeStyle。它不随 AA setter 自动获得支持。
 
-低 miter 的上游行为需要独立证据与准入范围决定。现有 `< 1` 错误继续有效；
-不能把示例中的输入静默夹到 1 后声称对等。
+低 miter 已有独立证据和接受范围，不再保留 `< 1` 拒绝条件，也不夹取到 1。
+Cocoa 样例 profile 将宽度 0 映射为 1 个逻辑单位，仅适用于该样例；
+它不改变 Core 零宽语义，也不授予通用设备 hairline 能力。
 
 ## 外部消费者证据
 

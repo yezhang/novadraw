@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 派生状态事务；Runtime 拥有检查点和 stable 发布，领域策略提供计算结果。
+
 状态：`approved`
 
 范围：D4.1

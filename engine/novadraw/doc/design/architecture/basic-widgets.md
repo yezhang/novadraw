@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core 的 Canvas 内交互 Figure；Runtime 拥有输入与焦点，应用处理 typed action。
+
 ## 范围
 
 M10.4 提供最小 button-like Figure 能力：

@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Editor 折点编辑；模型与 CommandStack 保存编辑事实，Core Connection 投影路线和反馈。
+
 状态：`implemented`
 
 适用范围：连接 bendpoint 模型投影、create/move/delete handles、拖动反馈和 history。

@@ -3,6 +3,8 @@
 类型：`normative-design`
 
 能力归属：Core 独立图布局域与 Figure adapter；示例只编排消费者。
+规范效力：已接受；图模型、算法准入和投影合同有效。
+示例性质：协议示意；精确签名以领域公开 rustdoc 为准。
 领域边界见 [原编号 043 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-043-directed-compound-graph-layout.md.txt)。
 
 ## 状态
@@ -56,7 +58,8 @@ ConvertCompoundGraph、CompoundRankSorter、RouteEdges 的端点与排序规则�
 资源对象或 UI 控制器。请求不可变；算法的 cycle inversion、rank、virtual nodes、
 spanning tree 与 compound boundary 都在实例局部工作区中处理。
 
-拟定字段如下，命名可在实施中调整：
+下表说明对象的输入职责，省略构造器与字段封装；不作为逐字段 Rust 声明。
+精确公开路径和签名见[公开 API 快照](../../../tests/README.md#公开-api-快照)。
 
 | 对象 | 输入 |
 |---|---|
@@ -108,9 +111,9 @@ weight 为非负整数，零表示不参与 weighted length 目标，仍保留 r
 compound 配置也是注册项；Runtime 不根据算法名字或内置类型分支。
 registry 属于消费者的布局服务实例，不使用全局 singleton。
 
-拟定协议：
+以下代码是算法角色示意，省略泛型与公开路径，不能直接复制编译：
 
-```rust
+```rust,ignore
 trait GraphLayoutAlgorithm {
     fn solve(
         &self,
@@ -222,14 +225,14 @@ attachment-aware Anchor 负责向现有 Runtime 准入通道提供同一端点�
 4. Runtime 在候选 bounds 视图上调用 attachment-aware Anchor，准备位置与
    Anchor metadata；记录请求 revision、候选结果身份、endpoint 实体和方向。
    不允许从上一 stable bounds 取端点，也不允许绕过 Runtime 端点准备。
-5. RouteGroupSolver 读取这一候选的完整 points；按 ADR-040 检查组覆盖、位置
+5. RouteGroupSolver 读取这一候选的完整 points；按[组路由](group-route-solving.md)检查组覆盖、位置
    与 metadata 完整性，首尾必须等于本次 Anchor 准备的端点，再准备 Locator、
    Decoration、hit 和 damage。结果只能复用同一候选，不能另求一套布局。
 6. 检查冻结前缀未漂移，整体提交快照与稳定 epoch，才允许 paint/input 消费。
 
 第 2–5 步内部可以暂存候选几何，不能向 stable query、通知或 RenderSubmission
-暴露部分节点或路径。现有机制是否支持候选 bounds 的 Anchor 读取，需要在 adapter
-切片验证；若不支持，补充公开的受检候选查询契约并复审后实施，不能读取旧 bounds
+暴露部分节点或路径。候选 bounds 和结果读取按已接受并实施的
+[图投影查询](graph-projection-preparation.md)执行，不能读取旧 bounds
 或在示例手写端点换算作为替代。
 
 默认 compound attachment 在 SOUTH 消环后的规范工作图中选择边界：
@@ -293,7 +296,7 @@ presentation、Anchor 派生依赖、组路由、Locator、Decoration 与候选�
 | 源属性、拓扑或测量前缀已改变 | 撤销候选，不撤销 source；旧快照仅供上次已呈现帧/诊断保留，不能作为当前有效布局、hit 或 route；标记整个 graph projection invalid，受影响组进入 unresolved，保留恢复依赖 |
 | 端点删除或 binding 退休 | 删除仍生效，恢复不得复活 FigureId/ConnectionId；清除退休身份的缓存/binding/路由依赖，其余受影响组 unresolved；消费者更新拓扑并准入新完整 binding 后重试 |
 
-ADR-040 的组失败清空路线/unresolved 规则保持：失败候选组先沿该通道处理，
+[组路由](group-route-solving.md)的组失败清空路线/unresolved 规则保持：失败候选组先沿该通道处理，
 随后事务根据表中的当前前缀决定能否恢复上一有效派生分支。源已改变时不能以
 “保留旧结果”把旧路线重新标为 resolved。Source/binding 清理属于已提交事实，
 从检查点恢复派生依赖时必须按当前身份和输入重建/失效。

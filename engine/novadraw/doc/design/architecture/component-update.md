@@ -2,11 +2,14 @@
 
 类型：`normative-design`
 
+能力归属：Core Figure 更新；Figure 拥有私有内容，Runtime 是附着状态与 effects 的唯一提交者。
+
 规范效力：`accepted`
 
 实现状态：`implemented`
 
-范围：ADR-014 D4.4 与 ADR-033 的统一 typed component/capability update。
+范围：[扩展生命周期](../../adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+D4.4 与[统一 mutation](runtime-subsystem-facade.md)的 typed component/capability update。
 
 2026-10-12 修订：补齐 S03 已提供的 NoChange 和 effect 合同；新增权限验证要求见
 [修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。

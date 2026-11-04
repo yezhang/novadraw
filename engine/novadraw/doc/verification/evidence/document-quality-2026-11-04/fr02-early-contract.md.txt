@@ -1,0 +1,151 @@
+# FR-02 贡献组装复用合同
+
+类型：`proposal`
+
+能力归属：Core（`novadraw`）Flow／Preparation。
+状态：草案，2026-11-03。用户授权成本归因和合同／矩阵交付，生产复用尚未实施。
+架构选择见 [ADR-060 草案](../../adr/adr-060-flow-assembly-reuse.md)，
+现行 [ADR-051](../../adr/adr-051-exact-flow-layout-reuse.md) 继续要求贡献重读。
+`api_semantics`：`text.flow`、`text.interaction`、`layout.manager`、
+`viewport.scroll_zoom`、`notification.layout_update`。
+
+## 问题与目标
+
+Flow measure 与 prepare 都先组装贡献，随后查询完整段落缓存。
+本合同要省掉同一精确输入下的贡献回调、handler 和归一化组装，
+同时保持段落内容、来源顺序、失败和发布结果。缓存资格由开放声明提供，
+不能由 Figure 名称、闭合内置枚举、散列或计时结果决定。
+
+本片只处理整页组装资产，保留当前布局反馈与事务发布。
+子树增量拼接、完整测量复用、Runtime 调度、宽度阶段化、glyph 裁剪和 worker
+均属于后续独立切片。成本与实现证据不在本规范重复维护。
+
+## 资产与所有权
+
+拟议的 assembly asset 拥有不可变段落文本、默认样式、span、来源范围、
+source offset／ancestors、有序 members、block 关系、traversal order 与 inline 意图。
+真实 Figure box 保留 child 身份及逻辑插入点；不保存当前剩余宽度下的测量结果。
+边框已测量的 metrics／renderer 只有另有有效声明与完整依赖时才可入资产。
+
+FlowLayoutService 持有实例 cache 与账本。资产不持有 PreparationScene、
+MeasureContext、Runtime 或树的活借用。measure 和 prepare 通过相同受检读取取得 lease；
+measure 只消费尺寸，prepare 仍生成并验证完整来源、placement、边框与绘制几何。
+消费 asset 不复制全文文本／span／ancestors；宽度相关 box 和段落工作数据单独按需分配。
+旧 snapshot 与 asset lease 不因淘汰、字体变化或 source 删除而突变。
+
+缓存责任域必须显式定义服务 clone 的含义：共享 cache 的 clone 同时共享实例身份、
+绑定和账本；不同 registry／root 的新服务不得意外继承资格。
+同一 Runtime 的不同 root 与不同 Runtime 都不互用资产，即使文本相同。
+不存在全局缓存、跨 Runtime 活对象或第三方文本库类型穿透。
+
+## 可选声明的公开边界
+
+下面是拟议职责，名称尚未冻结，不是可以照抄的已实现 API。
+
+| 扩展入口 | 拟议合同 | 缺省行为 |
+|---|---|---|
+| FlowContributor | 可选 fallible 声明，绑定具体实例、typed identity、版本和输入域；同版本承诺输出与失败行为相同、无必须执行的副作用 | 无声明，每次 contribute |
+| FlowContributionHandler<P> | 可选 fallible 声明，绑定注册实例、payload 类型、版本、读取域与可省略 process 承诺 | 无声明，每次 process |
+| FlowContributionRegistry | 为每次注册建立稳定 token，资产绑定整个参与集合及注册代际；registry clone／替换语义明确 | 沿用开放 register，不以 TypeId 单独代表实例 |
+| FlowFragmentBorder | 可选 renderer／metrics 资格，绑定边框实例、版本、owner style、字体与引擎身份／revision及读取依赖 | 无声明，整页资产不合格，沿用 prepare_renderer／metrics |
+| 受检依赖描述 | 用 typed key、owned payload 和登记实例记录外部状态；Core 不解释任意 Any，也不按名字匹配 | 未覆盖的读取使资产不合格 |
+
+内置 Text／Block／Group 只能通过上述相同入口声明，外部拥有相同 typed 入口、
+版本、错误与容量能力。现有闭包 handler 的 blanket impl 必须保持源兼容；
+需要声明的外部 handler 可以使用相同的声明适配器或显式实现。
+追加默认 trait 方法或独立可选 capability 的最终 API 形状在评审中选择，
+不能同时保留内置 typed 快路径与外部 erased 慢路径。
+
+immutable payload 不能证明生产 payload 的回调纯。contributor 声明不能替代 handler
+声明，也不能替代 border／renderer。引用指针地址不能独立承担实例身份；
+移除后重注册、地址复用、相同 payload 类型的不同 handler 均产生不同绑定。
+版本必须覆盖内部可变文本、控制分支、访问依赖、成功／缺失及错误行为，
+不能只借用 Figure component revision。
+
+声明本身仍在每次必要检查时读取。它必须无业务副作用、稳定且有界，
+不保证调用次数，失败不能解释为“没有能力”。资产不跨线程使用，
+延续当前 Runtime 串行执行模型。
+
+## 输入域与精确命中
+
+首片使用保守完整输入，命中比较完整有序记录：
+
+| 输入 | 必须绑定的事实 |
+|---|---|
+| 实例与结构 | Runtime／root／service／registry 身份，完整树成员与父子顺序、component／capability 代际 |
+| 参与者 | 实际访问的 contributor、每个 payload 的 handler token、声明版本、读取域及注册配置 |
+| 样式与资源 | 完整 resolved style、方向、insets、源属性与资源输入；外部 provider 版本逐次重读 |
+| 派生读取 | 回调实际读取的 geometry／measurement／prepared 及传递依赖，包括失败与合法缺失 |
+| 引擎与字体 | 凡声明回调或边框使用 MeasureContext，绑定具体 engine identity、revision、font registry 与字体描述；缺失 engine 身份不复用这类结果 |
+| 环境与调用域 | 若依赖约束、measure selection、页面宽度或 origin，按完整值隔离；未声明宽度独立不得跨宽度命中 |
+
+现有 source prefix／scene revision 可以提供候选定位或部分事实，
+不因一个 u64 相等省略完整比较。哈希碰撞必须落到不同完整输入。
+PreparationScene 的观察日志用于 Core 派生读取，不能证明任意扩展私有状态已被观察。
+raw figure／capability 读取范围广；若无法覆盖其所有可观察行为，则降为不合格。
+
+宽度变化后能否共享 assembly，必须由全部参与者承诺不依赖 width／约束／派生几何；
+对这些输入有依赖的页面走精确 key 或重读，不能从标准 Large 推断通用资格。
+首片允许为安全保留完整依赖扫描，不以命中率或声明存在证明净性能收益。
+隐藏、成员增删、源删除／重挂载、祖先样式与方向变化都进入完整输入检查。
+
+## 冷路径、命中与发布
+
+1. 先在当前 root 权限内捕获完整静态输入与所有必要的动态声明。
+   有确定无声明者时走现行路径；声明或依赖读取失败则返回原始错误。
+2. 在实例候选 cache 中比较完整绑定与输入；命中仍重验每个动态版本及观察。
+   检查调用保留当前 root、selection、预算和测量 cycle 规则。
+3. 未命中时按现行遍历执行 contributor／handler，收集全体参与者和实际读依赖；
+   创建新不可变候选，所有新增分配在增长前准入。
+4. 冷构建后重新读取最初参与集合和版本。后一个 callback 修改了前一个参与者，
+   或产生新的成员／依赖变化时，拒绝该候选，不通过一次后读值覆盖首次值。
+5. 候选组装可先作为本次计算的私有输入；实际段落排版、inline 前缀与 Figure 测量、
+   prepare 几何及结果校验仍运行。cache 安装必须在本次调用成功、预算与输入末次
+   重验均通过之后；measure 成功可安装组装资产，但不能发布 preparation。
+6. 观察按首次读取顺序与 generation 回放到当前 scene；回放前预留预算，
+   当前已有同 subject 的首次记录不能被覆盖。最终 preparation／Runtime 批次重验仍保留。
+
+缓存 hit 后也可能出现外部版本变化；检查失败不使用旧 asset 继续发布。
+首片不建立无界重试，也不对同次预算失败重置账本或从完整入口重跑。
+单次命中是否省去了完整组装，必须有 callback、handler 和组装计数证明。
+
+## 边框与真实 inline 的处理
+
+边框 prepare_renderer 和 metrics 在组装中发生，影响 block padding 与 marker。
+只复用文本不能省掉它们。未声明的边框让整页 asset 不合格，正常行为仍完整执行；
+这是统一依赖资格规则，任何内置／外部边框都适用。
+声明边框应覆盖 renderer 生命周期、owner 字体、engine/font 变化与所有动态资源，
+不能只声明数值 metrics 稳定而保留可变 renderer。
+
+inline Figure 的 remaining width 依赖前缀布局、前面 boxes 与当前约束。
+asset 只保留 child 身份与顺序；prefix layout、child measure、超宽重测保持现行行为。
+如果 contributor／handler 自己先执行 measure_figure，首片不能把这种页面视为
+与宽度无关；依赖与约束必须完整覆盖，否则整页重读。
+
+## 预算、错误与寿命
+
+容量分为 asset 数、backing 留存、metadata、候选峰值与外部 lease；
+计费单位延续现有 preparation 工作／辅助项预算，不能把逻辑项称为实测字节。
+实现需为不同项给出增长前的可计算 charges，同时单列 allocator／RSS 实测。
+共享 backing 在同一账本计一次，子范围钉住完整 backing 按完整留存计算。
+首片容量必须有显式配置和有限默认值，不能用无界 Vec 或 undocumented 常数。
+
+查找有效资产先于新增资产准入，已存资产不重新收费 backing；
+本次输入检查、观察回放与消费分配继续收费。只因新增资产容量策略不留存时，
+可按现行完整路径计算；已经产生的 PreparationBudgetError 仍粘滞失败，
+不能把预算不足当作普通 cache miss。
+
+扩展普通 Error、协议／绑定错误、预算耗尽保持原 cause；
+新诊断层不得改成 String，也不得把错误变成 Ok(None)。
+panic 沿用所属 preparation／Runtime 已接受的 fault 和恢复合同；
+若引入新的捕获边界或 poison 恢复，需要独立评审，首片不许悄悄改变。
+失败不安装半成品、覆盖最后成功资产或发布部分快照；
+此前已提交 source mutation 不承诺回滚，旧合法 lease 按现行合同继续存活。
+
+## 验收与开放扩展证据
+
+[验收矩阵](../../verification/plans/flow-assembly-reuse.md)负责逐项反例和完成判据。
+实施前冻结最终接口和机器入口；现有精确 flow tests 不足以证明新声明／绑定，
+须登记独立消费者 integration target，不能只在私有单元测试注入缓存资格。
+归因测量用当前实现，生产前后比较以实施前最新源码重新冻结。
+两者分开，诊断细阶段收益不算生产收益。

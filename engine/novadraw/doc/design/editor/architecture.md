@@ -2,7 +2,13 @@
 
 类型：`normative-design`
 
-规范效力：`accepted`；依据 ADR-015 及后续 ADR-032/034/037。
+能力归属：Editor 的模型适配、命令历史、Viewer／Tool／Policy；Core Runtime 拥有视觉状态，应用拥有业务模型。
+
+规范效力：`accepted`；长期边界见
+[ADR-015](../../adr/adr-015-editor-framework-boundary.md)，
+后续细化由[Viewer 会话](viewer-edit-session-and-drive.md)、
+[Tool／Request／Handle](tool-request-handle-protocol.md)与
+[增量失败隔离](incremental-failure-isolation.md)维护。
 
 本文件定义 `novadraw-editor` 的目标架构。GEF Classic 源码事实见
 [`../../reference/gef/core-principles.md`](../../reference/gef/core-principles.md)，

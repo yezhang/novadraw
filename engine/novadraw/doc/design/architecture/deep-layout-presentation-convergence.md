@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Layout／Presentation 收敛；Runtime 管理预算与发布，外部布局器提供受检候选。
+
 状态：`accepted / implemented`
 
 适用增量：`P2-S05`

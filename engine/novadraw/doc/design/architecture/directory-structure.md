@@ -2,6 +2,9 @@
 
 类型：`normative-design`
 
+能力归属：仓库模块与发布包边界；Core、Editor、backend、platform 分别维护各自状态。
+本页描述逻辑依赖；实际目录和构建入口以[根目录说明](../../../README.md)为准。
+
 本文定义理想架构映射到 Rust 模块和 crate 的原则，不记录当前仓库迁移状态。
 
 ## 1. 原则
@@ -228,7 +231,7 @@ Core 公开表面按领域组织：
 Editor、Inspector、Vello backend 和 Winit/Web platform adapter 是独立 package，
 只单向依赖 `novadraw`。Core 不声明或转发具体后端 feature。
 
-自 ADR-022 起，第三方类型与渲染依赖还受以下边界约束：
+第三方类型与渲染依赖按[依赖边界](third-party-dependency-boundaries.md)受以下约束：
 
 - backend-neutral 公共签名不得出现 Kurbo、Vello 或 Winit 类型；
 - Kurbo 按通用 Geometry 私有实现、Render IR 私有算法、Vello lowering 三类归属；

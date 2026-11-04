@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Masonry／Xilem 宿主集成；应用拥有文档 session，Editor 拥有编辑域，Core Runtime 与 backend 分别拥有视觉及 GPU 状态。
+
 2026-10-28，按用户批准的
 [GEF 对等样例方案](gef-official-examples-parity-proposal.md)继续实施。
 本切片保持 [Vello Scene 目标](../rendering/embedded-vello-scene-target.md)的完整帧发布与宿主

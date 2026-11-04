@@ -2,7 +2,10 @@
 
 类型：`normative-design`
 
-状态：已实现，承接已批准的 K08 与 ADR-030 纯解码边界。
+能力归属：Core 纯 SVG 源与资源替换合同；消费者选择栅格密度，backend 使用像素，宿主提供缩放和 DPI。
+
+状态：已实现，承接已批准的 K08 与
+[资源加载](../architecture/resource-loading-and-request-tokens.md)的纯解码边界。
 
 `api_semantics`：`resource.lifecycle`、`graphics.context`。
 
@@ -58,7 +61,8 @@ usvg 默认的外部图片路径 resolver 会读取本地文件。本批关闭�
 
 多个 Figure 共用一个 ImageId 时，消费者选择这些实例所需的最大密度。
 原始 SVG 与密度缓存由消费者持有。Runtime 不新增 provider、全树逐帧扫描或文件 I/O。
-迟到完成、replacement、Retry、reset 与释放继续遵循 ADR-030 和资源因果协议。
+迟到完成、replacement、Retry、reset 与释放继续遵循
+[资源加载](../architecture/resource-loading-and-request-tokens.md)和资源因果协议。
 
 Zoom 的宿主消费同一组图标 source，读取缩放后的已提交变换与实际 DPI。图标的
 ImageId 保持不变，资源 revision 仅在密度变化时更新。资源更新不得改变类布局、

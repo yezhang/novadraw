@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Tooltip／Accessibility 描述与稳定状态；platform 将结果桥接到原生提示和辅助技术。
+
 状态：`accepted / complete`
 
 范围：M10.5；`figure.properties`、`event.dispatcher`、`accessibility.bridge`

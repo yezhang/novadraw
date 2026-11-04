@@ -9,9 +9,9 @@
 
 | 专题 | 当前结论与证据 |
 |---|---|
-| 文档内容质量 | [一致性与质量分析](documentation-content-quality-2026-11-03.md)：Q01–Q03 的坐标、执行清单与公开调用已修正；Q04–Q08 的旧条款同步、正文去重及 owner 问题待处理；原报告保留分析基线 |
+| 文档内容质量 | [DQ01–DQ08 修订记录](documentation-quality-completion-2026-11-04.md)：确定问题已修正，FR-02 基线缺失及引用候选保留限制；[本轮分析](documentation-quality-follow-up-2026-11-04.md)与[前轮分析](documentation-content-quality-2026-11-03.md)保留原发现，Q07 的 ADR 压缩与本轮两组 design 去重已完成 |
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md)、[FR-02 内部归因与诊断扰动](flow-assembly-attribution-2026-11-03.md) |
-| FR-02 复用合同评审 | [ADR-060 草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)：六项已回应，待复核；未接受、未进入生产实施 |
+| FR-02 复用合同评审 | [草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)：六项已回应，待复核；未接受、未进入生产实施；[基线核对](fr02-review-baseline-2026-11-04.md)明确可核对草案与合同／矩阵的缺失范围 |
 | 阶段文字引擎 | [ADR-059 与 B1 验证状态](text-stages-status.md)：范围、最新分母、未完成边界及原稿入口 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |
 | 服务失败／Inspector | [ADR-057 与 S09 结论](service-failure-review-status.md)：A／B／C 完成，D 和整批待补验 |
@@ -23,6 +23,7 @@
 | GEF 应用消费者 | [Shapes](shapes-editor-implementation-2026-10-28.md)、[Logic 路由](gef-logic-routing-2026-10-30.md)、[Scene backend](gef-scene-target-implementation-2026-10-28.md) |
 | 语义整改 | [Draw2D／GEF 整改状态](draw2d-gef-semantic-remediation-2026-09-16.md)、[Core 公开 API 审计](core-public-api-audit-2026-09-22.md) |
 | 长期架构 | [目标／设计／实现审计](goal-design-code-audit-2026-09-30.md)、[架构契约修订](framework-architecture-contract-revision-2026-10-12.md)、[API／架构审计](api-architecture-review-2026-10-09.md) |
+| Flow／图布局文档 | [证据导航](flow-and-graph-design-evidence-2026-11-04.md)：完成事实、实施前缺口与当前合同分别阅读 |
 
 ## 历史追溯
 

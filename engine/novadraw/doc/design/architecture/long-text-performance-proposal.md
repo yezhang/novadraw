@@ -5,6 +5,8 @@
 日期：2026-10-27。修订：2。能力归属：Core Text／Flow／Runtime；
 backend 与 platform 分别承担字形输出和呈现验收。
 设计状态：LT-00～LT-03 复核通过。整体性能验收尚未关闭。
+效力范围：已接受增量由下列精确复用与阶段协议专题维护；
+LT-04～LT-09 及总体性能目标保持候选或待验收，不由本提案授予实施效力。
 
 用户已批准首批实施，当前契约增量见 [精确复用设计](exact-flow-layout-reuse.md)，
 状态与证据见[实施记录](../../verification/reviews/long-text-performance-implementation-2026-10-27.md)。
@@ -19,7 +21,8 @@ LT-04～LT-09 保持独立评审，本方案的性能目标与平台呈现验收
 
 本方案从长文本需求、Draw2D 文字流契约和既有测量事实出发，定义目标架构与实施顺序。
 方案编写阶段未重新扫描本项目 Rust 实现。本文拟定类型、接口角色和切片均不表示已经实现；
-获批后再定向审阅实现、形成最小 ADR 增量并登记执行队列。
+获批后再定向审阅实现、修订对应设计并登记执行队列；只有改变长期架构边界的
+选择才单独形成 ADR。
 
 本文是长文本性能设计的当前提案入口，承接并取代
 [10 月 23 日初步提案的归档](../../verification/evidence/knowledge-maintenance-2026-11-03/doc/design/architecture/textflow-performance-proposal-2026-10-23.md)的方案职责。

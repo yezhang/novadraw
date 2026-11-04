@@ -2,6 +2,8 @@
 
 类型：`proposal`
 
+能力归属：Core Flow／Runtime 的滚动与 resize 优化候选；platform 交付输入和呈现，backend 消费字形输出。
+
 日期：2026-10-28。修订：2。状态：用户已批准实施；观测与共享 IR 已落地，
 具体证据及剩余验收见[首批实施记录](../../verification/reviews/long-text-scroll-resize-implementation-2026-10-28.md)。
 

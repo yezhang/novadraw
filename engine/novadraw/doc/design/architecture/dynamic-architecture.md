@@ -2,6 +2,8 @@
 
 类型：`normative-design`
 
+能力归属：Core Runtime 动态协议；Runtime 提交场景状态，backend 与 platform 分别执行渲染和宿主效果。
+
 本文定义 Novadraw 输入、回调、变更、更新和渲染的运行时时序。所有流程按实际发生
 顺序自上而下描述。
 
