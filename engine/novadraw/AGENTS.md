@@ -42,8 +42,8 @@
   架构设计或实现逻辑参考
 - SWT GC: `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt`
 - vello: `/Users/bytedance/Documents/code/GitHub/vello`
-- Parley 0.7.0 生产补丁：`dependencies/parley-0.7.0/`；独立第三方依赖，
-  不属于一方 workspace，来源和本地修改见 `dependencies/README.md`。
+- Parley 0.12.0：使用 crates.io 未打补丁的发布版；旧 Parley／Fontique／Harfrust
+  源码副本与补丁已退役，版本及历史入口见 `dependencies/README.md`。
 - xilem: `/Users/bytedance/Documents/code/GitHub/xilem`
 - Zed: `/Users/bytedance/Documents/code/GitHub/zed`
 

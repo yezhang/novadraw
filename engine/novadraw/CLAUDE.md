@@ -35,7 +35,7 @@ tools/scripts/                  - 构建、浏览器验收和性能采样脚本
 doc/verification/evidence/      - 保持原始内容的历史证据
 doc/reference/fonts/reports/    - 独立字体报告及原始 GPU demos
 target/                         - 构建产物、日志、截图与本地采样输出
-dependencies/                   - 经批准的生产第三方依赖补丁，不属于一方 workspace
+dependencies/                   - 第三方依赖与补丁退役说明，不属于一方 workspace
 ```
 
 完整目录归属见 [README.md](README.md)。库包名与 Cargo 命令不因目录迁移改变。
@@ -110,9 +110,9 @@ git diff --check
 设计索引与 parity 状态，并检查 design 的能力归属、可达性和标题锚点；
 有限替代关系、示例分类与基线规则见 `doc/knowledge-maintenance.md`。
 它不编译 Rust，也不证明全文技术语义。普通 Cargo 命令直接执行，不在 xtask 中建立别名。
-`cargo fmt --all` 会递归扫描 path 依赖。生产第三方补丁在 `dependencies/`
-保留上游格式；新增本地 Rust 模块另用 `rustfmt --config disable_all_formatting=false`
-定向检查，不将第三方格式重写混入功能补丁。维护入口为 `dependencies/README.md`。
+默认文字引擎使用 crates.io 未打补丁的 Parley 0.12.0；Fontique、Harfrust
+由上游依赖图引入。旧文字依赖源码副本与补丁已退役，维护入口为
+`dependencies/README.md`。第三方格式重写不得混入功能修改。
 
 ## Git 提交规范
 

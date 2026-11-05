@@ -123,6 +123,9 @@ impl FontDescriptor {
     pub fn family(&self) -> &str {
         &self.family
     }
+    pub(crate) fn family_capacity(&self) -> usize {
+        self.family.capacity()
+    }
     pub fn size(&self) -> f32 {
         self.size
     }
@@ -1134,6 +1137,8 @@ impl TextLayout {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextError {
+    PreparationInput(Box<crate::figure::PreparationInputError>),
+    Content(Box<crate::text::TextContentError>),
     Stage(Box<crate::text::shaping::TextStageFailure>),
     RuntimeFaulted,
     BorderInput(Box<crate::figure::border::BorderInputError>),
@@ -1169,6 +1174,8 @@ pub enum TextError {
 impl fmt::Display for TextError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PreparationInput(error) => error.fmt(formatter),
+            Self::Content(error) => error.fmt(formatter),
             Self::Stage(error) => error.fmt(formatter),
             Self::RuntimeFaulted => formatter.write_str("Runtime is faulted"),
             Self::BorderInput(error) => error.fmt(formatter),
@@ -1223,6 +1230,8 @@ impl fmt::Display for TextError {
 impl Error for TextError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::PreparationInput(error) => Some(error.as_ref()),
+            Self::Content(error) => Some(error.as_ref()),
             Self::Stage(error) => Some(error.as_ref()),
             Self::BorderInput(error) => Some(error.as_ref()),
             Self::BorderChild { source, .. } | Self::BorderOwner { source, .. } => {
@@ -1362,7 +1371,6 @@ fn validate_interaction_rectangle(rectangle: Rectangle) -> Result<(), TextIntera
 struct ParleyTextInteraction {
     layout: Layout<usize>,
     text_len: usize,
-    source_start: usize,
     line_shifts: Vec<(f32, f32, f32)>,
 }
 
@@ -1395,7 +1403,7 @@ impl TextInteractionProvider for ParleyTextInteraction {
             .lines()
             .position(|line| {
                 let metrics = line.metrics();
-                midpoint >= metrics.min_coord && midpoint <= metrics.max_coord
+                midpoint >= metrics.block_min_coord && midpoint <= metrics.block_max_coord
             })
             .unwrap_or_else(|| self.layout.len().saturating_sub(1));
         Ok(CaretGeometry::new(
@@ -1469,18 +1477,12 @@ impl ParleyTextInteraction {
     fn cursor(&self, position: TextPosition) -> Result<Cursor, TextInteractionError> {
         parley_cursor(
             &self.layout,
-            TextPosition::new(position.byte_offset + self.source_start, position.affinity),
+            TextPosition::new(position.byte_offset, position.affinity),
         )
     }
     fn source_position(&self, cursor: Cursor) -> TextPosition {
         let position = text_position_from_parley(cursor);
-        TextPosition::new(
-            position
-                .byte_offset
-                .saturating_sub(self.source_start)
-                .min(self.text_len),
-            position.affinity,
-        )
+        TextPosition::new(position.byte_offset.min(self.text_len), position.affinity)
     }
 }
 
@@ -1596,6 +1598,7 @@ pub struct ParleyTextEngine {
     registered_fonts: BTreeMap<ResourceId, RegisteredFont>,
     registered_faces: Vec<RegisteredFace>,
     resolved_faces: HashMap<(u64, u32), FontFaceRef>,
+    font_metrics_cache: Option<(FontDescriptor, crate::text::FontMetrics)>,
     revision: u64,
 }
 
@@ -1625,6 +1628,7 @@ impl ParleyTextEngine {
             registered_fonts: BTreeMap::new(),
             registered_faces: Vec::new(),
             resolved_faces: HashMap::new(),
+            font_metrics_cache: None,
             revision: 0,
         }
     }
@@ -1665,11 +1669,18 @@ impl TextLayoutEngine for ParleyTextEngine {
         &mut self,
         font: &FontDescriptor,
     ) -> Result<crate::text::FontMetrics, TextError> {
+        if let Some((descriptor, metrics)) = &self.font_metrics_cache
+            && descriptor == font
+        {
+            return Ok(metrics.clone());
+        }
         // Resolve through the same explicit collection and synthesis policy as layout.
         // A space selects the primary face without using its advance as a metric.
         let layout = self.layout(" ", font, TextConstraints::UNBOUNDED)?;
         let run = layout.glyph_runs().first().ok_or(TextError::NoUsableFont)?;
-        self.resolved_font_metrics(run)
+        let metrics = self.resolved_font_metrics(run)?;
+        self.font_metrics_cache = Some((font.clone(), metrics.clone()));
+        Ok(metrics)
     }
 
     fn resolved_font_metrics(
@@ -1781,18 +1792,8 @@ impl TextLayoutEngine for ParleyTextEngine {
         font.validate()?;
         TextConstraints::new(constraints.max_width)?;
 
-        // Parley 0.7 auto-detects the base direction. A private initial directional
-        // mark supplies the explicit paragraph context. All offsets are mapped back
-        // to the caller's source; this mark is never published as source content.
-        let prefix = match request.direction() {
-            ParagraphDirection::Auto => "",
-            ParagraphDirection::LeftToRight => "\u{200e}",
-            ParagraphDirection::RightToLeft => "\u{200f}",
-        };
-        let source_start = prefix.len();
-        let shaped_text = format!("{prefix}{}", request.text());
-        let text = shaped_text.as_str();
-        FontFamily::parse(&font.family)
+        let text = request.text();
+        parley::FontFamilyName::parse(&font.family)
             .ok_or_else(|| TextError::InvalidFontDescriptor(font.family.clone()))?;
         let fallback_stack = self.fallback_stack(&font.family);
         let span_stacks = request
@@ -1800,11 +1801,17 @@ impl TextLayoutEngine for ParleyTextEngine {
             .iter()
             .map(|span| self.fallback_stack(span.style.font().family()))
             .collect::<Vec<_>>();
-        let fallback_families = FontFamily::parse_list(&fallback_stack).collect::<Vec<_>>();
         let mut builder =
             self.layout_context
                 .ranged_builder(&mut self.font_context, text, 1.0, true);
-        builder.push_default(fallback_families.as_slice());
+        builder.set_base_direction(match request.direction() {
+            ParagraphDirection::Auto => parley::BaseDirection::Auto,
+            ParagraphDirection::LeftToRight => parley::BaseDirection::Ltr,
+            ParagraphDirection::RightToLeft => parley::BaseDirection::Rtl,
+        });
+        builder.push_default(StyleProperty::FontFamily(FontFamily::from(
+            fallback_stack.as_str(),
+        )));
         builder.push_default(StyleProperty::FontSize(font.size));
         builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(
             font.weight,
@@ -1816,10 +1823,12 @@ impl TextLayoutEngine for ParleyTextEngine {
         }));
         builder.push_default(StyleProperty::Brush(0));
         for (index, span) in request.spans().iter().enumerate() {
-            let range = span.range.start + source_start..span.range.end + source_start;
+            let range = span.range.clone();
             let font = span.style.font();
-            let families = FontFamily::parse_list(&span_stacks[index]).collect::<Vec<_>>();
-            builder.push(families.as_slice(), range.clone());
+            builder.push(
+                StyleProperty::FontFamily(FontFamily::from(span_stacks[index].as_str())),
+                range.clone(),
+            );
             builder.push(StyleProperty::FontSize(font.size()), range.clone());
             builder.push(
                 StyleProperty::FontWeight(parley::FontWeight::new(font.weight())),
@@ -1838,20 +1847,38 @@ impl TextLayoutEngine for ParleyTextEngine {
         for inline in request.inline_boxes() {
             builder.push_inline_box(parley::InlineBox {
                 id: inline.id,
-                index: inline.byte_offset + source_start,
+                kind: parley::InlineBoxKind::InFlow,
+                index: inline.byte_offset,
                 width: inline.width,
                 height: inline.height,
+                baseline: None,
+                vertical_align: parley::VerticalAlign::BASELINE,
             });
         }
 
         let mut layout: Layout<usize> = builder.build(text);
         drop(analysis);
         let wrapping = diagnostics.time("text-wrap");
-        layout.break_all_lines(if request.wraps() {
-            constraints.max_width
+        if !request.wraps()
+            && let Some(width) = constraints.max_width
+        {
+            // Keep explicit newline breaks while aligning unwrapped lines inside
+            // the caller's container. Parley's public override changes only the
+            // committed line box, never the shaping or break opportunities.
+            let mut breaker = layout.break_lines();
+            breaker.state_mut().set_layout_max_advance(f32::MAX);
+            breaker.state_mut().set_line_max_advance(f32::MAX);
+            while breaker.break_next().is_some() {
+                breaker.set_prior_line_width(width);
+            }
+            breaker.finish();
         } else {
-            None
-        });
+            layout.break_all_lines(if request.wraps() {
+                constraints.max_width
+            } else {
+                None
+            });
+        }
         drop(wrapping);
         let alignment_timing = diagnostics.time("text-align");
         let alignment = if request.layout_direction().is_mirrored() {
@@ -1866,7 +1893,6 @@ impl TextLayoutEngine for ParleyTextEngine {
             request.alignment()
         };
         layout.align(
-            constraints.max_width,
             match alignment {
                 ParagraphAlignment::Leading => parley::Alignment::Start,
                 ParagraphAlignment::Trailing => parley::Alignment::End,
@@ -1884,9 +1910,10 @@ impl TextLayoutEngine for ParleyTextEngine {
             .map(|line| {
                 let metrics = line.metrics();
                 TextLineMetrics {
-                    ascent: metrics.ascent,
-                    descent: metrics.descent,
-                    leading: metrics.leading,
+                    ascent: metrics.baseline - metrics.content_block_min_coord,
+                    descent: metrics.content_block_max_coord - metrics.baseline,
+                    leading: metrics.line_height
+                        - (metrics.content_block_max_coord - metrics.content_block_min_coord),
                     baseline: metrics.baseline,
                     advance: metrics.advance,
                 }
@@ -1945,9 +1972,9 @@ impl TextLayoutEngine for ParleyTextEngine {
                                 line: line_index,
                                 bounds: Rectangle::new(
                                     f64::from(inline.x),
-                                    f64::from(metrics.min_coord + line_shift),
+                                    f64::from(metrics.block_min_coord + line_shift),
                                     f64::from(inline.width),
-                                    f64::from(metrics.max_coord - metrics.min_coord),
+                                    f64::from(metrics.block_max_coord - metrics.block_min_coord),
                                 ),
                                 dx: f64::from(dx),
                             });
@@ -1986,8 +2013,7 @@ impl TextLayoutEngine for ParleyTextEngine {
                 if source_min == usize::MAX {
                     continue;
                 }
-                let source_range = source_min.saturating_sub(source_start)
-                    ..source_max.saturating_sub(source_start);
+                let source_range = source_min..source_max;
                 if source_range.is_empty() {
                     continue;
                 }
@@ -1998,9 +2024,9 @@ impl TextLayoutEngine for ParleyTextEngine {
                         line: line_index,
                         bounds: Rectangle::new(
                             f64::from(item_x),
-                            f64::from(metrics.min_coord + line_shift),
+                            f64::from(metrics.block_min_coord + line_shift),
                             f64::from(item_width),
-                            f64::from(metrics.max_coord - metrics.min_coord),
+                            f64::from(metrics.block_max_coord - metrics.block_min_coord),
                         ),
                         dx: f64::from(dx),
                     });
@@ -2012,9 +2038,9 @@ impl TextLayoutEngine for ParleyTextEngine {
                     baseline: glyph_run.baseline() + line_shift,
                     bounds: Rectangle::new(
                         f64::from(item_x + dx),
-                        f64::from(line.metrics().min_coord + line_shift),
+                        f64::from(line.metrics().block_min_coord + line_shift),
                         f64::from(item_width),
-                        f64::from(line.metrics().max_coord - line.metrics().min_coord),
+                        f64::from(line.metrics().block_max_coord - line.metrics().block_min_coord),
                     ),
                     right_to_left: run.is_rtl(),
                 });
@@ -2052,7 +2078,11 @@ impl TextLayoutEngine for ParleyTextEngine {
                 glyph_runs.push(GlyphRun {
                     font: font_face,
                     font_size: run.font_size(),
-                    normalized_coords: run.normalized_coords().into(),
+                    normalized_coords: run
+                        .normalized_coords()
+                        .iter()
+                        .map(|coord| coord.to_bits())
+                        .collect(),
                     skew_degrees: run.synthesis().skew(),
                     glyphs: GlyphRange::new(glyphs)?,
                 });
@@ -2074,7 +2104,6 @@ impl TextLayoutEngine for ParleyTextEngine {
         let original: Arc<dyn TextInteractionProvider> = Arc::new(ParleyTextInteraction {
             layout,
             text_len: request.text().len(),
-            source_start,
             line_shifts,
         });
         let provider = if request.layout_direction().is_mirrored() {
@@ -2140,6 +2169,7 @@ impl ParleyTextEngine {
         self.font_context = font_context;
         self.registered_faces = registered_faces;
         self.resolved_faces.clear();
+        self.font_metrics_cache = None;
     }
 }
 
@@ -2185,6 +2215,61 @@ mod tests {
                 .unwrap();
         }
         engine
+    }
+
+    #[test]
+    #[ignore = "release cost sample; run alone with --ignored --nocapture"]
+    fn draw2d_font_metrics_cost() {
+        const ITERATIONS: usize = 1000;
+        let mut engine = engine_with_builtins();
+        let font = FontDescriptor::default();
+        engine.font_metrics(&font).unwrap();
+        let start = std::time::Instant::now();
+        for _ in 0..ITERATIONS {
+            std::hint::black_box(engine.font_metrics(&font).unwrap());
+        }
+        println!(
+            "draw2d-font-metrics iterations={ITERATIONS} elapsed_us={}",
+            start.elapsed().as_micros()
+        );
+    }
+
+    #[test]
+    fn font_metrics_cache_tracks_descriptor_and_font_collection_changes() {
+        let mut engine = TextEngine::new();
+        let id = ResourceId::new(Uuid::nil(), 1);
+        let font = FontDescriptor::default();
+        assert!(engine.font_metrics(&font).is_err());
+        assert!(engine.font_metrics_cache.is_none());
+        engine
+            .register_font(id, 1, BuiltinFont::Inter.bytes())
+            .unwrap();
+        let first = engine.font_metrics(&font).unwrap();
+        assert_eq!(engine.font_metrics(&font).unwrap(), first);
+        let larger = FontDescriptor::new(font.family(), font.size() * 2.0).unwrap();
+        let large = engine.font_metrics(&larger).unwrap();
+        assert_eq!(large.size(), first.size() * 2.0);
+        assert_eq!(engine.font_metrics_cache.as_ref().unwrap().0, larger);
+        engine
+            .register_font(id, 2, BuiltinFont::Inter.bytes())
+            .unwrap();
+        assert!(engine.font_metrics_cache.is_none());
+        let replaced = engine.font_metrics(&font).unwrap();
+        assert_eq!(replaced.face().revision(), 2);
+        assert!(engine.register_font(id, 3, &[1, 2, 3]).is_err());
+        assert_eq!(engine.font_metrics(&font).unwrap(), replaced);
+        engine.remove_font(id);
+        assert!(engine.font_metrics_cache.is_none());
+        assert!(engine.font_metrics(&font).is_err());
+        // A saved run still has to pass exact resource validation after removal.
+        let run = GlyphRun {
+            font: replaced.face().clone(),
+            font_size: replaced.size(),
+            normalized_coords: replaced.normalized_coords().into(),
+            skew_degrees: None,
+            glyphs: GlyphRange::new(Vec::new()).unwrap(),
+        };
+        assert!(engine.resolved_font_metrics(&run).is_err());
     }
 
     #[test]

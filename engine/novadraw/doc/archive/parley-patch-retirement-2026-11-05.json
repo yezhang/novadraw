@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-05",
+  "owner": "Core text adapter",
+  "committed_baseline": "a77c7e74fa89a8a58e9ba2c65d7cf7f2c2fb849e",
+  "replacement": "doc/verification/reviews/parley-upstream-migration-2026-11-05.md",
+  "snapshots": [
+    {
+      "original": "dependencies/README.md",
+      "snapshot": "doc/archive/dependency-patches-2026-11-05.md.txt",
+      "sha256": "040b348a4052050b12059c7f1adc139cac0a79760389afa306c43bf36e849188"
+    },
+    {
+      "original": "doc/verification/reviews/text-stages-b-storage-patch-2026-11-02.md",
+      "snapshot": "doc/archive/text-stages-b-storage-patch-2026-11-02.md.txt",
+      "sha256": "15b307b4c16dac9dcd14bc16c292a9d9de958a555dd75355a2f4a2bfa8c5f18e"
+    },
+    {
+      "original": "doc/verification/reviews/text-stages-b-operations-2026-11-02.md",
+      "snapshot": "doc/archive/text-stages-b-operations-2026-11-02.md.txt",
+      "sha256": "fd4b7f78d92a1740e15b5e1df31b49372b80c5fc4ff426cd4e54378b271c3449"
+    },
+    {
+      "original": "doc/verification/reviews/text-stages-b-line-breaking-2026-11-02.md",
+      "snapshot": "doc/archive/text-stages-b-line-breaking-2026-11-02.md.txt",
+      "sha256": "3e62da1aef514824f12350554acd92856e562f6c3895e5cac4a713d0b7f860b0"
+    }
+  ]
+}
