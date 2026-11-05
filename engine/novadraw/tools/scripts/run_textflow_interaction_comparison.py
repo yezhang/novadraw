@@ -3,6 +3,8 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import plistlib
+import shutil
 import subprocess
 import time
 
@@ -17,11 +19,20 @@ def main():
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--cycles", type=int, default=2)
     parser.add_argument("--gpu-wait", action="store_true")
+    parser.add_argument("--native", action="store_true",
+                        help="Launch each frozen executable through a macOS app bundle")
     parser.add_argument("--no-flow-assembly-reuse", action="store_true",
                         help="Compare the default full-assembly path")
+    parser.add_argument("--before-no-flow-assembly-reuse", action="store_true",
+                        help="Disable reuse only for before; allows same-binary off/on baselines")
     args = parser.parse_args()
-    args.output.mkdir(parents=True, exist_ok=True)
     binaries = {"before": args.before.resolve(), "after": args.after.resolve()}
+    hashes = {label: hashlib.sha256(binary.read_bytes()).hexdigest()
+              for label, binary in binaries.items()}
+    same_config = args.no_flow_assembly_reuse or not args.before_no_flow_assembly_reuse
+    if same_config and hashes["before"] == hashes["after"]:
+        raise ValueError("Identical binaries and configurations cannot measure a code change")
+    args.output.mkdir(parents=True, exist_ok=True)
     receipts, groups = [], {}
     for run in range(args.runs):
         for label in (("before", "after") if run % 2 == 0 else ("after", "before")):
@@ -29,20 +40,61 @@ def main():
             directory = (args.output / f"{label}-{run}").resolve()
             command = [str(binary), "--interaction-replay", "--cycles", str(args.cycles),
                        "--timings", "--natural-damage",
-                       "--offscreen-gpu", "--exit-after-replay", "--output", str(directory)]
-            if not args.no_flow_assembly_reuse:
+                       "--exit-after-replay", "--output", str(directory)]
+            if not args.native:
+                command.append("--offscreen-gpu")
+            if not args.no_flow_assembly_reuse and not (
+                    label == "before" and args.before_no_flow_assembly_reuse):
                 command.append("--flow-assembly-reuse")
             if args.gpu_wait:
                 command.append("--gpu-wait")
+            if args.native:
+                bundle = directory / "TextFlowLarge.app"
+                executable_dir = bundle / "Contents" / "MacOS"
+                executable_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(binary, executable_dir / "textflow-large-app")
+                with (bundle / "Contents" / "Info.plist").open("wb") as output:
+                    plistlib.dump({
+                        "CFBundleIdentifier": "org.novadraw.textflow-large-research",
+                        "CFBundleName": "TextFlowLarge",
+                        "CFBundleExecutable": "textflow-large-app",
+                        "CFBundlePackageType": "APPL",
+                        "CFBundleVersion": "0.1.0",
+                        "LSUIElement": False,
+                        "NSHighResolutionCapable": True,
+                    }, output)
+                for name in ("app-stdout.txt", "app-stderr.txt"):
+                    (directory / name).touch()
+                command = [
+                    "open", "-n", "-W",
+                    "--stdout", str(directory / "app-stdout.txt"),
+                    "--stderr", str(directory / "app-stderr.txt"),
+                    str(bundle), "--args", *command[1:]]
             started = time.time()
-            result = subprocess.run(command, capture_output=True, text=True, timeout=180)
             directory.mkdir(parents=True, exist_ok=True)
-            (directory / "stdout.txt").write_text(result.stdout)
-            (directory / "stderr.txt").write_text(result.stderr)
+            with (directory / "stdout.txt").open("w") as stdout, (
+                    directory / "stderr.txt").open("w") as stderr:
+                try:
+                    result = subprocess.run(
+                        command, stdout=stdout, stderr=stderr, text=True, timeout=180)
+                except subprocess.TimeoutExpired:
+                    (directory / "failure-receipt.json").write_text(json.dumps({
+                        "label": label, "run": run, "started": started,
+                        "command": command, "outcome": "launcher_timeout",
+                        "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                    }, indent=2))
+                    raise
             result.check_returncode()
             timing_files = list(directory.glob("timings-*.json"))
             if len(timing_files) != 1:
                 raise ValueError(f"Expected one timing file in {directory}")
+            document = json.loads(timing_files[0].read_text())
+            if not any(r["kind"] == "replay_complete" for r in document["records"]):
+                raise ValueError(f"Incomplete replay in {directory}")
+            expected = "native_backend_presented" if args.native else "gpu_offscreen_published"
+            if not any(r["kind"] == "frame" and r["outcome"] == expected
+                       for r in document["records"]):
+                raise ValueError(f"No {expected} frames in {directory}")
             config, samples = analyze(timing_files[0])
             receipt = {
                 "label": label, "run": run, "started": started, "command": command,

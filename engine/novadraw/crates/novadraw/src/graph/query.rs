@@ -1,5 +1,163 @@
 use super::*;
 
+#[cfg(test)]
+mod capability_workset_tests {
+    use super::*;
+    use crate::figure::{ACTIVITY, ActivityCapability, FigureActivity, FigureCapabilityBuilder};
+
+    const EXTERNAL: CapabilityKey<ExternalDescriptor> = CapabilityKey::new("consumer.workset");
+    struct ExternalDescriptor;
+    struct ExternalFigure;
+
+    impl crate::Figure for ExternalFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+        fn name(&self) -> &'static str {
+            "ExternalWorkset"
+        }
+        fn register_capabilities(
+            &self,
+            out: &mut FigureCapabilityBuilder,
+        ) -> Result<(), FigureCapabilityRegistrationError> {
+            out.register(EXTERNAL, ExternalDescriptor)?;
+            out.register(ACTIVITY, ActivityCapability::of::<Self>())
+        }
+    }
+    impl FigureActivity for ExternalFigure {
+        fn poll(&self, _: crate::MonotonicTime, _: bool, _: &mut crate::EventContext<'_>) {}
+    }
+
+    fn assert_scan_matches(tree: &FigureTree) {
+        let scanned = tree
+            .blocks
+            .iter()
+            .filter_map(|(id, node)| {
+                node.capabilities
+                    .get(EXTERNAL)
+                    .unwrap()
+                    .is_some()
+                    .then_some(id)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(tree.capability_ids(EXTERNAL).collect::<Vec<_>>(), scanned);
+        let activities = tree
+            .blocks
+            .iter()
+            .filter_map(|(id, node)| node.activity().is_some().then_some(id))
+            .collect::<Vec<_>>();
+        assert_eq!(tree.activity_ids(), activities);
+        let clickables = tree
+            .blocks
+            .iter()
+            .filter_map(|(id, node)| node.clickable().is_some().then_some(id))
+            .collect::<Vec<_>>();
+        assert_eq!(tree.clickable_ids(), clickables);
+    }
+
+    #[test]
+    fn capability_members_follow_detach_retirement_and_reused_slots() {
+        let mut tree = FigureTree::new();
+        let first = tree.add_child_to(tree.root, Box::new(ExternalFigure));
+        let second = tree.add_child_to(tree.root, Box::new(ExternalFigure));
+        let mut updates = UpdateManager::new();
+        assert_scan_matches(&tree);
+        tree.remove_child(&mut updates, tree.root, first);
+        assert_scan_matches(&tree);
+        assert!(tree.capability_ids(EXTERNAL).any(|id| id == first));
+        tree.attach_child_checked(tree.root, first).unwrap();
+        let ids = tree.disposal_ids(first).unwrap();
+        tree.extract_subtree(&ids, &mut updates).unwrap().complete();
+        let replacement = tree.add_child_to(tree.root, Box::new(ExternalFigure));
+        assert_ne!(first, replacement);
+        assert!(!tree.capability_ids(EXTERNAL).any(|id| id == first));
+        assert!(tree.capability_ids(EXTERNAL).any(|id| id == second));
+        assert_scan_matches(&tree);
+    }
+
+    #[test]
+    fn rejected_or_panicking_reservations_remove_all_capability_members() {
+        let mut tree = FigureTree::new();
+        let parent = tree.root;
+        let child = tree
+            .prepare_child(Box::new(ExternalFigure), parent, false, 0, None)
+            .unwrap();
+        let rejected =
+            tree.insert_prepared_child::<GraphMutationError>(child, parent, None, |_, _| {
+                Err(GraphMutationError::ParentNotFound)
+            });
+        assert_eq!(rejected, Err(GraphMutationError::ParentNotFound));
+        assert_scan_matches(&tree);
+        assert!(tree.capability_ids(EXTERNAL).next().is_none());
+        let child = tree
+            .prepare_child(Box::new(ExternalFigure), parent, false, 0, None)
+            .unwrap();
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            tree.insert_prepared_child::<GraphMutationError>(child, parent, None, |_, _| {
+                panic!("reservation rejection");
+            })
+        }));
+        assert!(panicked.is_err());
+        assert_scan_matches(&tree);
+        assert!(tree.capability_ids(EXTERNAL).next().is_none());
+    }
+
+    #[test]
+    #[ignore = "release-only capability query cost evidence"]
+    fn capability_query_cost() {
+        use std::{hint::black_box, time::Instant};
+        const SAMPLE_COUNT: usize = 200;
+        const QUERY_COUNT: usize = 100;
+        const WARMUP_COUNT: usize = 20;
+        for inactive in [300, 10_000] {
+            let mut tree = FigureTree::new();
+            for _ in 0..inactive {
+                tree.add_child_to(
+                    tree.root,
+                    Box::new(crate::RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+                );
+            }
+            tree.add_child_to(tree.root, Box::new(ExternalFigure));
+            assert_scan_matches(&tree);
+            let mut samples = [Vec::new(), Vec::new()];
+            for sample in 0..SAMPLE_COUNT + WARMUP_COUNT {
+                for side in if sample.is_multiple_of(2) {
+                    [0, 1]
+                } else {
+                    [1, 0]
+                } {
+                    let start = Instant::now();
+                    for _ in 0..QUERY_COUNT {
+                        let ids = if side == 0 {
+                            black_box(&tree)
+                                .blocks
+                                .iter()
+                                .filter_map(|(id, node)| node.activity().is_some().then_some(id))
+                                .collect::<Vec<_>>()
+                        } else {
+                            black_box(&tree).activity_ids()
+                        };
+                        assert_eq!(black_box(ids).len(), 1);
+                    }
+                    if sample >= WARMUP_COUNT {
+                        samples[side].push(start.elapsed().as_nanos() as f64 / QUERY_COUNT as f64);
+                    }
+                }
+            }
+            for (side, values) in samples.iter_mut().enumerate() {
+                values.sort_by(f64::total_cmp);
+                println!(
+                    "inactive={inactive} side={side} n={} p50_ns={} p95_ns={} p99_ns={}",
+                    values.len(),
+                    values[values.len() / 2],
+                    values[values.len() * 95 / 100],
+                    values[values.len() * 99 / 100]
+                );
+            }
+        }
+    }
+}
+
 /// Numerical reason a coordinate query could not produce a transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoordinateFailure {
@@ -456,17 +614,25 @@ impl FigureTree {
     }
 
     pub(crate) fn activity_ids(&self) -> Vec<FigureId> {
-        self.blocks
-            .iter()
-            .filter_map(|(id, block)| block.activity().is_some().then_some(id))
+        self.capability_ids(crate::figure::ACTIVITY)
+            .filter(|id| self.blocks[*id].activity().is_some())
             .collect()
     }
 
     pub(crate) fn clickable_ids(&self) -> Vec<FigureId> {
-        self.blocks
-            .iter()
-            .filter_map(|(id, block)| block.clickable().is_some().then_some(id))
+        self.capability_ids(CLICKABLE)
+            .filter(|id| self.blocks[*id].clickable().is_some())
             .collect()
+    }
+
+    pub(crate) fn capability_ids<C: 'static>(
+        &self,
+        _key: CapabilityKey<C>,
+    ) -> impl Iterator<Item = FigureId> + '_ {
+        self.capability_members
+            .get(&std::any::TypeId::of::<C>())
+            .into_iter()
+            .flat_map(|members| members.iter().copied())
     }
 
     pub(crate) fn border_snapshot(&self, id: FigureId) -> Option<&BorderSnapshot> {

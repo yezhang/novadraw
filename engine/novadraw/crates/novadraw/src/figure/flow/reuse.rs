@@ -223,7 +223,8 @@ fn read_input(
     store: &crate::text::TextContentStore,
     imports: &SourceImports,
 ) -> Result<Option<AssemblyInput>, FlowError> {
-    let _timing = scene.budget().time("flow-qualification");
+    let budget = scene.budget();
+    let _timing = budget.time("flow-qualification");
     // Root qualification precedes source-prefix capture.
     let root = contributor_declaration(scene.root(), scene)?;
     let Some(root) = root else { return Ok(None) };
@@ -250,8 +251,7 @@ fn read_input(
     // be shared; no callback result or private generation is memoized.
     let mut participants: Option<Vec<Participant>> = None;
     for (index, node) in source.0.iter().enumerate() {
-        scene
-            .budget()
+        budget
             .consume("flow qualification visit", 1)
             .map_err(TextError::from)?;
         let declaration = if node.id == scene.root() {
@@ -262,8 +262,7 @@ fn read_input(
         let Some(declaration) = declaration else {
             return Ok(None);
         };
-        scene
-            .budget()
+        budget
             .allocate(
                 "flow qualification temporary declaration",
                 declaration_units(&declaration) as u64,
@@ -283,8 +282,7 @@ fn read_input(
             let Some((token, handler)) = registry.handler_declaration(payload, &context)? else {
                 return Ok(None);
             };
-            scene
-                .budget()
+            budget
                 .allocate(
                     "flow qualification temporary handler",
                     declaration_units(&handler) as u64,
@@ -301,8 +299,7 @@ fn read_input(
                 continue;
             }
             if handlers.is_none() {
-                scene
-                    .budget()
+                budget
                     .allocate(
                         "flow qualification handlers",
                         (declaration.contributions.len()
@@ -313,8 +310,7 @@ fn read_input(
                 let mut next = Vec::with_capacity(declaration.contributions.len());
                 if let Some(old) = old_handlers {
                     for (token, declaration) in &old[..handler_index] {
-                        scene
-                            .budget()
+                        budget
                             .allocate(
                                 "flow qualification copied handler",
                                 declaration_units(declaration) as u64,
@@ -333,8 +329,7 @@ fn read_input(
         if same_declaration && handlers.is_none() {
             if let Some(participants) = &mut participants {
                 let previous = previous.expect("matching participant");
-                scene
-                    .budget()
+                budget
                     .allocate(
                         "flow qualification copied participant",
                         (declaration_units(&previous.1)
@@ -352,8 +347,7 @@ fn read_input(
             continue;
         }
         if participants.is_none() {
-            scene
-                .budget()
+            budget
                 .allocate(
                     "flow qualification participants",
                     (source.0.len() * std::mem::size_of::<Participant>()) as u64,
@@ -362,7 +356,7 @@ fn read_input(
             let mut next = Vec::with_capacity(source.0.len());
             if let Some(old) = &expected {
                 for previous in &old[..index] {
-                    scene.budget().allocate("flow qualification copied participant",
+                    budget.allocate("flow qualification copied participant",
                         (declaration_units(&previous.1)
                             + previous.2.capacity() * std::mem::size_of::<(FlowReuseIdentity, FlowReuseDeclaration)>()
                             + previous.2.iter().map(|(_, d)| declaration_units(d)).sum::<usize>()) as u64)
@@ -373,8 +367,7 @@ fn read_input(
             participants = Some(next);
         }
         let handlers = handlers.unwrap_or_default();
-        scene
-            .budget()
+        budget
             .allocate(
                 "flow qualification records",
                 (std::mem::size_of_val(&declaration)
@@ -389,8 +382,7 @@ fn read_input(
             .push((node.id, declaration, handlers));
     }
     let participants = if let Some(participants) = participants {
-        scene
-            .budget()
+        budget
             .allocate(
                 "flow qualification shared participants",
                 (2 * std::mem::size_of::<usize>()) as u64,
@@ -434,8 +426,7 @@ fn read_input(
             + std::mem::size_of::<AssemblySource>()
             + 2 * std::mem::size_of::<usize>();
     let retention = store.reserve(source_units).map_err(TextError::from)?;
-    scene
-        .budget()
+    budget
         .allocate("flow qualification source import", 1)
         .map_err(TextError::from)?;
     let source = Arc::new(AssemblySource {
@@ -454,10 +445,10 @@ fn contributor_declaration(
     source: FigureId,
     scene: &PreparationScene<'_>,
 ) -> Result<Option<FlowReuseDeclaration>, FlowError> {
-    let Some(capability) = scene.capability(source, FLOW)? else {
+    let Some((capability, figure)) = scene.capability_figure(source, FLOW)? else {
         return Ok(None);
     };
-    let Some(contributor) = capability.resolve(scene.figure(source)?) else {
+    let Some(contributor) = capability.resolve(figure) else {
         return Ok(None);
     };
     contributor.assembly_reuse(&FlowContributionContext { source, scene })

@@ -586,6 +586,10 @@ pub(crate) struct FigureCapabilitySet {
 }
 
 impl FigureCapabilitySet {
+    pub(crate) fn identities(&self) -> impl Iterator<Item = TypeId> + '_ {
+        self.entries.keys().copied()
+    }
+
     pub(crate) fn build(figure: &dyn Figure) -> Result<Self, FigureCapabilityRegistrationError> {
         let mut builder = FigureCapabilityBuilder::new();
         figure.register_capabilities(&mut builder)?;

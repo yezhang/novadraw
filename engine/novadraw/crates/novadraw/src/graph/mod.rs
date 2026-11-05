@@ -978,6 +978,8 @@ impl FigureNode {
 pub struct FigureTree {
     pub(crate) scene_group: Option<crate::scene::SceneBindingGroup>,
     blocks: RuntimeArena<FigureId, FigureNode>,
+    capability_members:
+        std::collections::HashMap<std::any::TypeId, std::collections::BTreeSet<FigureId>>,
     uuid_map: std::collections::HashMap<Uuid, FigureId>,
     /// 根块（内部使用）
     root: FigureId,
@@ -1319,8 +1321,16 @@ impl FigureTree {
             },
         });
 
+        let mut capability_members = std::collections::HashMap::new();
+        for identity in blocks[root_id].capabilities.identities() {
+            capability_members
+                .entry(identity)
+                .or_insert_with(std::collections::BTreeSet::new)
+                .insert(root_id);
+        }
         FigureTree {
             blocks,
+            capability_members,
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,

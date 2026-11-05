@@ -297,6 +297,23 @@ let custom = tree.capability_snapshot(figure, MY_CAPABILITY)?;
 
 Core 内部阶段可以借用标准 descriptor 执行同步行为，但借用不能逃出当前调用栈。
 
+### 内部成员索引
+
+2026-11-05 通用投影切片在 FigureTree 内增加能力成员索引。
+节点仍拥有唯一的 `FigureCapabilitySet`；索引按 descriptor 的 typed identity
+保存 FigureId 集合，不持有第二份 descriptor、callback 结果或输入证明。
+全部已准入的内置与外部 descriptor 使用同一登记路径。
+
+预留节点加入成员集合；准入失败、panic 清理或真正退休时删除其全部成员。
+仅卸载节点不退休身份，因此保留登记；重新挂载与同 Runtime reparent 不重复登记。
+arena 槽位复用必须使用新 FigureId，不能使旧身份再次出现在成员集合中。
+
+当前 activity、clickable 与 preparation 存在性查询消费该索引。
+消费者仍解析节点的实际 descriptor，并保留原 arena 顺序及所属领域的
+attachment、可见性和启用检查。成员索引只用于发现消费者；
+它不授予布局、准备或绘制输入的复用资格，也不自动调用未知自定义 key。
+验证和查询成本见[实施记录](../../verification/reviews/figure-tree-projection-implementation-2026-11-05.md)。
+
 ## 9. Mutation 协议
 
 Capability mutation 与 `FigureComponentUpdate` 共享

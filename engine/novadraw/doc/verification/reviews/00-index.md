@@ -13,6 +13,7 @@
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md)、[FR-02 内部归因与诊断扰动](flow-assembly-attribution-2026-11-03.md) |
 | 富文本管线删减 | [逐项实施与前后对照](rich-text-pipeline-reduction-2026-11-05.md)：关闭 tracing 的拖拽／滚轮／连续 resize 与 GPU 完成等待，Perfetto 分析另列；整体仍在实施 |
 | 独立 RichTextFigure | [基础切片](rich-text-figure-foundation-2026-11-05.md)：文档快照、稳定段落、高度索引、typed update 与类图／正文双内容 app；Native 图像和定向检查通过，缓存、人工交互及性能仍待验收 |
+| RichTextFigure 缩放 | [快照复用与 CPU 成本](rich-text-figure-resize-optimization-2026-11-05.md)：测量／准备共享完整结果，连续变宽 CPU P50 从 17.491 降至 3.566 ms；Perfetto 快照次数下降 89.69%，真实 Native resize 和 GPU 完成待验 |
 | Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
 | Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |
@@ -24,6 +25,8 @@
 | Parley 上游与补丁必要性 | [0.12.0／main API 复核](parley-upstream-api-and-patch-necessity-2026-11-05.md)：公开分析／shaping 数据、重排及扁平样式输入；35 份补丁的退役条件与未满足的预算／容量合同，无补丁 Native 消费者通过 |
 | Parley 存储与预算边界 | [v0.12.0 再评估](parley-v012-storage-and-budget-reassessment-2026-11-05.md)：公开数组可构造自有计费快照，逐行控制已验证；建议保留 Core 累计工作与留存限额，重新裁决默认后端的深层逐操作预算，合同未修改 |
 | Parley 上游迁移 | [实施与回归验证](parley-upstream-migration-2026-11-05.md)：默认适配器使用未打补丁的 0.12.0；旧源码、35 份补丁及专用入口退役，Core 通用阶段合同保留 |
+| Parley 0.12 后续性能 | [新基线、输入检查与投影分离](parley012-input-scope-and-projection-2026-11-05.md)：已获按序推进授权，release 基线已冻结；交互采样与检查有效区间实施待完成 |
+| FigureTree 通用投影分离 | [实施记录](figure-tree-projection-implementation-2026-11-05.md)：活动交接删减与成员索引已验证；默认交接拖拽 P50 下降 7.17%，成员索引整帧收益不稳定；三份 Perfetto 仍显示重复输入检查和全量 glyph 提交，整树门禁未完成 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |
 | quiet-md 工程样例 | [富文本编辑技术适用性分析](quiet-md-rich-text-assessment-2026-11-05.md)：固定源码的样式事务、行内对象、虚拟化、IME 与随机验证参考；性能为作者历史测量，采用建议未实施 |
 | 服务失败／Inspector | [ADR-057 与 S09 结论](service-failure-review-status.md)：A／B／C 完成，D 和整批待补验 |

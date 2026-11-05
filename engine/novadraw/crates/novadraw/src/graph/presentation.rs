@@ -145,9 +145,8 @@ impl FigureTree {
         use crate::figure::preparation::{PreparationKey, PreparedFigure, scene_error};
         self.synchronize_preparation_text_revision(text.revision());
         if !self
-            .blocks
-            .iter()
-            .any(|(_, node)| node.preparation().is_some())
+            .capability_ids(PREPARATION)
+            .any(|id| self.blocks[id].preparation().is_some())
         {
             return Ok(false);
         }

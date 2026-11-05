@@ -552,9 +552,8 @@ impl FigureTree {
         mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), ValidationError> {
         if !self
-            .blocks
-            .iter()
-            .any(|(_, node)| node.preparation().is_some())
+            .capability_ids(PREPARATION)
+            .any(|id| self.blocks[id].preparation().is_some())
         {
             measurement = None;
         }

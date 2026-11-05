@@ -471,7 +471,7 @@ impl FigureTree {
         self.blocks[parent].children.retain(|id| *id != root);
         let parent_constraint = self.blocks[parent].layout.constraints.remove(&root);
         for &id in ids.iter().rev() {
-            let node = self.blocks.remove(id).expect("validated subtree node");
+            let node = self.remove_node(id).expect("validated subtree node");
             self.uuid_map.remove(&node.uuid);
             nodes.push(node);
         }
@@ -861,25 +861,25 @@ impl FigureTree {
         let constraint = match prepared {
             Ok(Ok(constraint)) => constraint,
             Ok(Err(error)) => {
-                drop(self.blocks.remove(id));
+                drop(self.remove_node(id));
                 return Err(error);
             }
             Err(payload) => {
-                drop(self.blocks.remove(id));
+                drop(self.remove_node(id));
                 std::panic::resume_unwind(payload);
             }
         };
         let admission = match self.prepare_scene_topology(&[(id, Some(parent_id))], &[]) {
             Ok(admission) => admission,
             Err(error) => {
-                drop(self.blocks.remove(id));
+                drop(self.remove_node(id));
                 return Err(error.into());
             }
         };
         if let Err(error) = commit_scene_admission(admission, || {
             self.publish_reserved_child(id, parent_id, index, constraint);
         }) {
-            drop(self.blocks.remove(id));
+            drop(self.remove_node(id));
             return Err(error.into());
         }
         Ok(id)
@@ -894,7 +894,7 @@ impl FigureTree {
         } = child;
         let layout = LayoutState::for_capabilities(&capabilities);
         let uuid = Uuid::new_v4();
-        self.blocks.insert_with_key(|key| FigureNode {
+        let id = self.blocks.insert_with_key(|key| FigureNode {
             id: key,
             uuid,
             children: Vec::new(),
@@ -909,7 +909,27 @@ impl FigureTree {
             prepared: None,
             layout,
             state,
-        })
+        });
+        for identity in self.blocks[id].capabilities.identities() {
+            self.capability_members
+                .entry(identity)
+                .or_default()
+                .insert(id);
+        }
+        id
+    }
+
+    fn remove_node(&mut self, id: FigureId) -> Option<FigureNode> {
+        let node = self.blocks.remove(id)?;
+        for identity in node.capabilities.identities() {
+            if let Some(members) = self.capability_members.get_mut(&identity) {
+                members.remove(&id);
+                if members.is_empty() {
+                    self.capability_members.remove(&identity);
+                }
+            }
+        }
+        Some(node)
     }
 
     fn publish_reserved_child(
@@ -1018,7 +1038,7 @@ impl FigureTree {
             Ok(Ok(())) => {}
             other => {
                 for id in ids.into_iter().rev() {
-                    drop(self.blocks.remove(id));
+                    drop(self.remove_node(id));
                 }
                 match other {
                     Ok(Err(error)) => return Err(error),
@@ -1056,7 +1076,7 @@ impl FigureTree {
             Ok(retired) => retired,
             Err(error) => {
                 for id in ids.into_iter().rev() {
-                    drop(self.blocks.remove(id));
+                    drop(self.remove_node(id));
                 }
                 return Err(error);
             }
@@ -1105,7 +1125,7 @@ impl FigureTree {
             });
         if let Err(error) = result {
             for (id, _) in reserved.into_iter().rev() {
-                drop(self.blocks.remove(id));
+                drop(self.remove_node(id));
             }
             return Err(error);
         }

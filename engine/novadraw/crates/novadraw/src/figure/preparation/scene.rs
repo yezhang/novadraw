@@ -522,6 +522,24 @@ impl<'a> PreparationScene<'a> {
         self.tree.capability(id, key).map_err(scene_error)
     }
 
+    /// Reads a descriptor and its owner under one subtree/route permission check.
+    /// The descriptor is static; its resolver and producer still run on every call.
+    pub(crate) fn capability_figure<C: 'static>(
+        &self,
+        id: FigureId,
+        key: CapabilityKey<C>,
+    ) -> Result<Option<(&C, &dyn Figure)>, TextError> {
+        self.check(id)?;
+        self.observe_borrowed_route_output(id)?;
+        let Some(capability) = self.tree.capability(id, key).map_err(scene_error)? else {
+            return Ok(None);
+        };
+        Ok(Some((
+            capability,
+            self.tree.node(id).map_err(scene_error)?.figure.as_ref(),
+        )))
+    }
+
     // Raw capability/figure borrows can expose route or post-route derived data.
     // Treat access in that subtree as a calculation read; source membership has
     // separate children/parent queries and does not pass through this boundary.
@@ -1365,9 +1383,23 @@ mod tests {
             // The connection ancestor is outside the restricted root.
             let scoped = scene.input_scope(leaf, leaf, None).unwrap();
             assert!(scoped.figure(route).is_err());
+            assert!(scoped.capability_figure(route, crate::CONTAINER).is_err());
             scoped.figure(leaf).unwrap();
             scoped.capability(leaf, crate::CONNECTION).unwrap();
             assert_eq!(scoped.observations(), first);
+            let combined = scene.input_scope(leaf, leaf, None).unwrap();
+            let (capability, figure) = combined
+                .capability_figure(leaf, crate::CONTAINER)
+                .unwrap()
+                .unwrap();
+            assert!(capability.resolve(figure).is_some());
+            assert_eq!(combined.observations(), first);
+            assert!(
+                combined
+                    .capability_figure(leaf, crate::CONNECTION)
+                    .unwrap()
+                    .is_none()
+            );
             assert_eq!(scene.observations(), first);
             let repeated = scene.input_scope(leaf, leaf, None).unwrap();
             assert!(Rc::ptr_eq(&scoped.root_inputs, &repeated.root_inputs));
@@ -1377,6 +1409,7 @@ mod tests {
                 .consume("force exhaustion", u64::MAX)
                 .unwrap_err();
             assert!(repeated.figure(leaf).is_err());
+            assert!(repeated.capability_figure(leaf, crate::CONTAINER).is_err());
         }
         let mut updates = crate::UpdateManager::new();
         tree.reparent(&mut updates, leaf, root).unwrap();

@@ -35,30 +35,71 @@ impl DerivedNode {
                 .map(|decoration| decoration.decoration_geometry()),
         }
     }
-    fn rebase(&mut self, before: &Self, after: &Self) {
+    fn rebase(&mut self, before: &SourceNode, after: &FigureNode) {
         if before.bounds != after.bounds {
             self.bounds = after.bounds;
         }
         if before.insets != after.insets {
             self.insets = after.insets;
         }
-        if before.border != after.border {
-            self.border.clone_from(&after.border);
+        if before.border != after.border_snapshot {
+            self.border.clone_from(&after.border_snapshot);
         }
-        if before.visible != after.visible {
-            self.visible = after.visible;
+        if before.visible != after.is_visible {
+            self.visible = after.is_visible;
         }
-        if before.measurement_generation != after.measurement_generation {
-            self.measurement_generation = after.measurement_generation;
-            self.freeform = after.freeform;
+        if before.measurement_generation != after.layout.generation() {
+            self.measurement_generation = after.layout.generation();
+            self.freeform = after.layout.freeform;
         }
-        if before.route != after.route {
-            self.route.clone_from(&after.route);
+        let route = after
+            .connection()
+            .map(|connection| connection.route_points());
+        if before.route.as_ref() != route {
+            self.route = route.cloned();
         }
-        if before.decoration != after.decoration {
-            self.decoration.clone_from(&after.decoration);
+        let decoration = after
+            .connection_decoration()
+            .map(|decoration| decoration.decoration_geometry());
+        if before.decoration != decoration {
+            self.decoration = decoration;
         }
     }
+}
+
+/// Activity comparison inputs have no authority to replace prepared assets or proofs.
+struct SourceNode {
+    bounds: Rectangle,
+    insets: Insets,
+    border: Option<BorderSnapshot>,
+    visible: bool,
+    measurement_generation: u64,
+    route: Option<PointList>,
+    decoration: Option<crate::connection::PreparedDecorationGeometry>,
+}
+
+impl SourceNode {
+    fn capture(node: &FigureNode) -> Self {
+        Self {
+            bounds: node.bounds,
+            insets: node.insets,
+            border: node.border_snapshot.clone(),
+            visible: node.is_visible,
+            measurement_generation: node.layout.generation(),
+            route: node
+                .connection()
+                .map(|connection| connection.route_points().clone()),
+            decoration: node
+                .connection_decoration()
+                .map(|decoration| decoration.decoration_geometry()),
+        }
+    }
+}
+
+pub(crate) struct PreparationSourceCheckpoint {
+    nodes: HashMap<FigureId, SourceNode>,
+    effect_count: usize,
+    viewports: HashMap<FigureId, ViewportLayoutEffect>,
 }
 
 pub(crate) struct DerivedCheckpoint {
@@ -72,9 +113,8 @@ impl FigureTree {
     /// Only a preparation owner needs a rollback prefix across feedback rounds.
     pub(crate) fn begin_derived_preparation(&mut self) -> bool {
         if self
-            .blocks
-            .iter()
-            .any(|(_, node)| node.preparation().is_some())
+            .capability_ids(PREPARATION)
+            .any(|id| self.blocks[id].preparation().is_some())
         {
             self.derived_checkpoint = Some(self.capture_derived_prefix());
         }
@@ -103,15 +143,22 @@ impl FigureTree {
         }
     }
 
-    pub(crate) fn capture_preparation_sources(&mut self) -> Option<DerivedCheckpoint> {
-        let before = self
-            .derived_checkpoint
-            .as_ref()
-            .map(|_| self.capture_derived_prefix());
-        if let Some(prefix) = self.derived_checkpoint.as_mut() {
-            prefix.source_region = true;
-        }
-        before
+    pub(crate) fn capture_preparation_sources(&mut self) -> Option<PreparationSourceCheckpoint> {
+        let prefix = self.derived_checkpoint.as_mut()?;
+        prefix.source_region = true;
+        Some(PreparationSourceCheckpoint {
+            nodes: self
+                .blocks
+                .iter()
+                .map(|(id, node)| (id, SourceNode::capture(node)))
+                .collect(),
+            effect_count: self.notification_effects.len(),
+            viewports: prefix
+                .viewports
+                .iter()
+                .map(|(id, effect)| (*id, effect.current()))
+                .collect(),
+        })
     }
 
     pub(crate) fn record_preparation_source_bounds(&mut self, id: FigureId, bounds: Rectangle) {
@@ -132,33 +179,33 @@ impl FigureTree {
     }
 
     /// Rebase only committed activity changes; keep the earlier derived prefix.
-    pub(crate) fn rebase_preparation_sources(&mut self, before: Option<DerivedCheckpoint>) {
+    pub(crate) fn rebase_preparation_sources(
+        &mut self,
+        before: Option<PreparationSourceCheckpoint>,
+    ) {
         let Some(before) = before else { return };
-        let after = self.capture_derived_prefix();
         let prefix = self
             .derived_checkpoint
             .as_mut()
             .expect("active preparation");
         prefix.source_region = false;
-        prefix.nodes.retain(|id, _| after.nodes.contains_key(id));
-        for (id, node) in after.nodes {
+        prefix.nodes.retain(|id, _| self.blocks.contains_key(*id));
+        for (id, node) in self.blocks.iter() {
             match (prefix.nodes.get_mut(&id), before.nodes.get(&id)) {
-                (Some(saved), Some(old)) => saved.rebase(old, &node),
+                (Some(saved), Some(old)) => saved.rebase(old, node),
                 _ => {
-                    prefix.nodes.insert(id, node);
+                    prefix.nodes.insert(id, DerivedNode::capture(node));
                 }
             }
         }
         prefix.effects.extend(
-            after.effects.effects()[before.effects.len()..]
+            self.notification_effects.effects()[before.effect_count..]
                 .iter()
                 .cloned(),
         );
-        for (id, current) in after.viewports {
-            if let (Some(saved), Some(old)) =
-                (prefix.viewports.get_mut(&id), before.viewports.get(&id))
-            {
-                saved.rebase(old, &current);
+        for (id, saved) in &mut prefix.viewports {
+            if let Some(old) = before.viewports.get(id) {
+                saved.rebase(old, &saved.current());
             }
         }
     }
@@ -216,5 +263,196 @@ impl FigureTree {
         }
         self.notification_effects = prefix.effects;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::figure::preparation::{
+        FigureDrawing, FigurePresentation, PreparationKey, PreparationSource, PreparedFigure,
+        PreparedSceneIdentity,
+    };
+    use crate::graphics::{GraphicsError, PaintContext};
+    use std::sync::Arc;
+
+    struct EmptyDrawing;
+    impl FigureDrawing for EmptyDrawing {
+        fn paint(&self, _: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
+    }
+
+    fn install_asset(tree: &mut FigureTree, id: FigureId, fragments: usize) {
+        let bounds = tree.blocks[id].client_area();
+        let presentation = FigurePresentation::new(
+            FigureMeasurement::new(bounds.width, bounds.height, None),
+            Dimension::ZERO,
+            bounds,
+            Arc::new(EmptyDrawing),
+        )
+        .unwrap()
+        .with_hit_regions(vec![bounds; fragments])
+        .unwrap();
+        tree.blocks[id].prepared = Some(PreparedFigure {
+            owner: id,
+            valid: true,
+            key: PreparationKey {
+                component: 0,
+                provider: 0,
+                text: 0,
+                font: crate::text::FontDescriptor::default(),
+                bounds,
+            },
+            presentation,
+            identity: PreparedSceneIdentity::new(id, 1),
+            source: PreparationSource::default(),
+            result_version: None,
+            observations: Arc::from([]),
+            input_proofs: Arc::from([]),
+            required_routes: vec![],
+        });
+    }
+
+    #[test]
+    fn source_handoff_retains_original_assets_and_only_committed_geometry() {
+        let mut tree = FigureTree::new();
+        let parent = tree.add_child_to(
+            tree.root,
+            Box::new(crate::RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap()),
+        );
+        let child = tree.add_child_to(
+            parent,
+            Box::new(crate::RectangleFigure::new(5.0, 6.0, 10.0, 10.0).unwrap()),
+        );
+        install_asset(&mut tree, child, 4);
+        let identity = tree.blocks[child].prepared.as_ref().unwrap().identity;
+        let proofs = tree.blocks[child]
+            .prepared
+            .as_ref()
+            .unwrap()
+            .input_proofs
+            .clone();
+        tree.derived_checkpoint = Some(tree.capture_derived_prefix());
+        let retained = Arc::strong_count(&proofs);
+        // A rejected derived candidate precedes an unrelated committed source move.
+        tree.set_bounds(child, 5.0, 6.0, 40.0, 10.0);
+        let before = tree.capture_preparation_sources();
+        assert_eq!(Arc::strong_count(&proofs), retained);
+        tree.set_bounds(parent, 30.0, 40.0, 100.0, 100.0);
+        tree.rebase_preparation_sources(before);
+        assert_eq!(Arc::strong_count(&proofs), retained);
+        install_asset(&mut tree, child, 0);
+        tree.blocks[child].prepared.as_mut().unwrap().identity =
+            PreparedSceneIdentity::new(child, 2);
+        tree.finish_derived_preparation(false).unwrap();
+        assert_eq!(tree.blocks[parent].bounds.x, 30.0);
+        assert_eq!(tree.blocks[parent].bounds.y, 40.0);
+        assert_eq!(
+            tree.blocks[child].bounds,
+            Rectangle::new(5.0, 6.0, 10.0, 10.0)
+        );
+        assert_eq!(
+            tree.blocks[child].prepared.as_ref().unwrap().identity,
+            identity
+        );
+        assert!(Arc::ptr_eq(
+            &tree.blocks[child].prepared.as_ref().unwrap().input_proofs,
+            &proofs,
+        ));
+        let transform = tree.local_to_surface_transform(child).unwrap();
+        assert_eq!(
+            transform.transform_point(crate::Point::ZERO),
+            crate::Point::new(35.0, 46.0),
+        );
+    }
+
+    #[test]
+    fn source_handoff_rebases_size_visibility_and_new_node_without_restoring_deleted_identity() {
+        let mut tree = FigureTree::new();
+        let parent = tree.add_child_to(
+            tree.root,
+            Box::new(crate::RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap()),
+        );
+        let deleted = tree.add_child_to(
+            parent,
+            Box::new(crate::RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+        );
+        tree.derived_checkpoint = Some(tree.capture_derived_prefix());
+        let before = tree.capture_preparation_sources();
+        tree.set_bounds(parent, 5.0, 6.0, 80.0, 90.0);
+        tree.blocks[parent].is_visible = false;
+        tree.mark_validation_path_invalid(parent);
+        let generation = tree.blocks[parent].layout.generation();
+        let mut updates = UpdateManager::new();
+        let ids = tree.disposal_ids(deleted).unwrap();
+        tree.extract_subtree(&ids, &mut updates).unwrap();
+        let added = tree.add_child_to(
+            parent,
+            Box::new(crate::RectangleFigure::new(7.0, 8.0, 9.0, 10.0).unwrap()),
+        );
+        tree.rebase_preparation_sources(before);
+        tree.set_bounds(added, 0.0, 0.0, 30.0, 30.0);
+        tree.finish_derived_preparation(false).unwrap();
+        assert!(!tree.blocks.contains_key(deleted));
+        assert_eq!(
+            tree.blocks[parent].bounds,
+            Rectangle::new(5.0, 6.0, 80.0, 90.0)
+        );
+        assert!(!tree.blocks[parent].is_visible);
+        // Insertion/removal may advance the source generation further.
+        assert!(tree.blocks[parent].layout.generation() >= generation);
+        assert_eq!(
+            tree.blocks[added].bounds,
+            Rectangle::new(7.0, 8.0, 9.0, 10.0)
+        );
+    }
+
+    /// Isolates the activity handoff; it does not measure recording or GPU submission.
+    #[test]
+    #[ignore = "release cost probe; run explicitly with --ignored --nocapture"]
+    fn projection_source_handoff_cost() {
+        use std::hint::black_box;
+        use std::time::Instant;
+        const NODES: usize = 300;
+        const SAMPLES: usize = 200;
+        for fragments in [0, 1024] {
+            let mut tree = FigureTree::new();
+            let parent = tree.add_child_to(
+                tree.root,
+                Box::new(crate::RectangleFigure::new(0.0, 0.0, 200.0, 200.0).unwrap()),
+            );
+            for index in 0..NODES {
+                let id = tree.add_child_to(
+                    parent,
+                    Box::new(crate::RectangleFigure::new(0.0, 0.0, 20.0, 20.0).unwrap()),
+                );
+                if index % 3 == 0 {
+                    install_asset(&mut tree, id, fragments);
+                }
+            }
+            tree.derived_checkpoint = Some(tree.capture_derived_prefix());
+            let mut samples = Vec::with_capacity(SAMPLES);
+            for index in 0..SAMPLES + 20 {
+                let start = Instant::now();
+                let before = tree.capture_preparation_sources();
+                tree.set_bounds(parent, index as f64, 0.0, 200.0, 200.0);
+                tree.rebase_preparation_sources(before);
+                let elapsed = start.elapsed().as_nanos();
+                tree.drain_notification_effects();
+                black_box(&tree);
+                if index >= 20 {
+                    samples.push(elapsed);
+                }
+            }
+            samples.sort_unstable();
+            println!(
+                "projection_source_handoff nodes={NODES} assets={} fragments={fragments} samples={SAMPLES} p50_ns={} p95_ns={} p99_ns={}",
+                NODES / 3,
+                samples[SAMPLES / 2],
+                samples[SAMPLES * 95 / 100],
+                samples[SAMPLES * 99 / 100],
+            );
+        }
     }
 }

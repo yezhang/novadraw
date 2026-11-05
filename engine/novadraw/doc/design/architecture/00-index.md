@@ -69,12 +69,14 @@
 | [text-analysis-admission-proposal.md](text-analysis-admission-proposal.md) | 限定依赖补丁已获准：ADR-059 B 的字体查询、冷 shaping 与导出计费；B1 扩张暂停，未完成范围见专题验证状态 |
 | [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
 | [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 修订 4 已获通过并授权执行；按工作包分别验证组合、输入分母、覆盖和启用门禁 |
-| [rich-text-pipeline-reduction-proposal.md](rich-text-pipeline-reduction-proposal.md) | 待评审：富文本主线删减范围、共享资产、证明去重、纯投影与可见绘制的实施顺序和退出条件 |
+| [rich-text-pipeline-reduction-proposal.md](rich-text-pipeline-reduction-proposal.md) | 总体顺序已授权实施：富文本主线删减、共享资产、证明去重、纯投影与可见绘制；具体新增传播契约仍需复核 |
 | [rich-text-figure-proposal.md](rich-text-figure-proposal.md) | 已授权实施：独立文档型 RichTextFigure 与双内容 app 基础切片已实现；段落资产缓存、完整交互与性能门禁待续验 |
 | [long-text-incremental-layout-proposal.md](long-text-incremental-layout-proposal.md) | 待评审：基于第四轮测量与 Lapce／Xi 的 source delta、分阶段排版、安全巨段增量及可见输出细化 |
 | [long-text-native-coverage-boundary.md](long-text-native-coverage-boundary.md) | 原生字形、数值转换与设备覆盖的定向核验；生产证书合同待复核 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |
 | [scrollbar-and-figure-activity.md](scrollbar-and-figure-activity.md) | 五部件 ScrollBar、RangeModel、repeat 与活动时钟 |
+| [property-scoped-layout-revalidation.md](property-scoped-layout-revalidation.md) | 待复核：typed 属性依赖声明、局部重验队列、未知父布局回退与纯投影成本门禁 |
+| [figure-tree-projection-separation.md](figure-tree-projection-separation.md) | 已授权实施：整棵 FigureTree 的内容／布局／投影分离；活动交接与能力成员工作集先行，坐标消费者、局部绘制复用及混合场景仍待验 |
 | [tooltip-accessibility.md](tooltip-accessibility.md) | Tooltip 与 Accessibility Bridge |
 
 坐标、输入和渲染专题分别见

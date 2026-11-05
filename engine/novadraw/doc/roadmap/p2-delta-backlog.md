@@ -28,6 +28,11 @@ app 已按用户后续要求支持单画布对象选择、双击富文本进入�
 覆盖 Native 图像、单元测试、实际 Runtime 源替换／滚动隔离／resize 与 Wasm 编译。
 Parley 官方 `complex-scripts` feature 已启用，缺失 ICU4X 分词模型告警已关闭，
 中文／日文词边界回归与修复后 Native／Headless 运行通过。
+用户随后要求优化 richtext 样例窗口缩放：
+[完整快照复用](../verification/reviews/rich-text-figure-resize-optimization-2026-11-05.md)
+已实现，三轮匹配回放中连续变宽 CPU P50 从 17.491 降至 3.566 ms，
+仅高度变化和滑块拖拽分别下降 94.53%／86.54%；定向正确性与 Native 初始图像一致性通过。
+该结果不含真实窗口和 GPU 完成成本，不关闭 FR-02／LT。
 完整方案仍未关闭：段落缓存、可见输出、样式树、真实拖拽、复杂文本完整正确性与性能
 比较保留待办；FR-02／LT 原状态保持，不将基础构造记为管线优化完成。
 
@@ -79,6 +84,57 @@ Parley 样式分段、边界分析和字体栈内部准入已通过 Native／por
 深层预算合同调整尚未接受，现有 Core 通用阶段与外部引擎预算合同未修改。
 默认适配器的旧准入试验已退役，不将上游迁移记为 B／C／D 完成。
 本批没有扩大未授权的传递依赖补丁范围。
+
+用户随后授权按“Parley 0.12 新基线 → 输入检查有效区间 → 纯滚动与排版失效分离”
+推进，继续归入唯一 FR-02 Execute。
+[本轮验证](../verification/reviews/parley012-input-scope-and-projection-2026-11-05.md)
+记录冻结 binary、关闭 tracing 的匹配交互计时和独立 Perfetto 归因。
+release 基线、三轮原生／离屏对照和 Perfetto 归因已完成，复用仍有净回退；
+输入失效扫描的局部复用试验通过 17 项定向测试与 8 项独立消费者测试，
+但没有减少目标样例读取次数，决定撤回，继续分析实际重复检查区间；
+尚未改变跨回调检查有效区间或投影失效规则；
+动态扩展输入、回调屏障、原始失败与最终发布合同保持。
+
+同一次资格扫描的静态读取试验已通过 28 项定向测试、release 构建、
+Core lib Clippy 和完整文档门禁。三轮离屏对照匹配 753 个操作，
+拖拽／滚轮／缩放 P50 分别下降 5.32%／4.40%／5.07%；
+动态 reader 次数保持。原生两批对照超时，未完成三轮，试验暂保留而不关闭接受门槛。
+[按属性依赖限定布局重验](../design/architecture/property-scoped-layout-revalidation.md)
+已形成具体草案，覆盖即时失效、队列范围和内部 child resize 反馈；
+新传播契约尚未接受或实现，未知父布局保留普通传播；
+执行前非目标输入 guard、消费／发布证明和回调屏障需一并复核。
+
+用户随后明确：纯投影分离应覆盖整个 FigureTree。
+[通用总体方案](../design/architecture/figure-tree-projection-separation.md)已形成草案，
+区分局部内容／布局、场景投影、坐标消费者、录制与 backend 成本；
+属性级重验调整为辅助候选。验收需覆盖混合 Figure、大组合节点、
+Freeform 与跨子树连接，不能只用文本采样关闭通用门禁。
+用户随后授权按通用总体方案开始实施，继续归入唯一 FR-02 Execute。
+首片冻结活动源状态交接与失败回滚分离，删除不参与源状态合并的
+preparation／输入证明交接复制；新布局依赖接口仍未接受，
+通用失效工作集、录制与 backend 验收保持未完成。
+[首片实施记录](../verification/reviews/figure-tree-projection-implementation-2026-11-05.md)
+维护 57 项定向验证、五轮无 tracing 阶段对照及隔离应用基线；
+活动交接成本下降不代表通用投影路径或整帧成本已经验收。
+随后已实现全部 typed capability 的成员索引，活动／clickable 与 preparation
+存在性检查改用同一成员工作集；无活动且无 pending mutation 时省去活动源快照。
+两个身份与失败反例通过，Core 487 项、九组消费者 126 项、lib Clippy 与
+Wasm check 通过；五轮成员查询 P50 在 10000 个无活动节点时
+从 160.632 降到 0.090 微秒，尚不代表整帧收益。
+首片三轮离屏交互匹配 753 个操作，但拖拽、resize 的尾部耗时上升，
+尚未证明稳定整帧净收益；总体 FR-02 继续 `in_progress`。
+默认路径的交接删减对照已补齐，拖拽／滚轮 active P50 分别下降
+7.17%／4.91%，但 resize frame 尾部仍回退。
+成员索引两种 assembly 配置的三轮对照没有证明稳定整帧收益，
+默认路径拖拽 active P50 上升 3.79%，reuse 开启时滚轮 P99 上升 30.11%。
+下一布局切片已补齐[具体合同复核](../design/architecture/property-scoped-layout-revalidation.md#定向复核布局私有输入必须进入证明链)：
+请求隔离 guard 与完整布局消费 proof 分开，拟给任意布局提供受检 input 查询，
+再统一即时失效、队列出队与内部 child resize 的范围。新公共接口和队列合同待确认；
+未知私有输入、Freeform 与路由仍保守处理，没有新增免检查资格或新的性能结论。
+三份 Perfetto 健康检查通过；每次拖拽仍有 29 次 Flow 资格读取、
+27 次输入重验及约 51232 个 glyph 提交。
+后续继续真实布局依赖工作集与可见录制；候选布局依赖 API 仍需复核，
+混合 Figure、Native、像素与 GPU 完成验收保持未完成。
 
 ## 已完成批次
 

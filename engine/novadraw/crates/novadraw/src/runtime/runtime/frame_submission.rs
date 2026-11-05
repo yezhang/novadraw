@@ -571,10 +571,26 @@ impl Runtime {
                                 }),
                             )
                             .map_err(FramePreparationError::Validation)?;
-                        let source_prefix = self.tree.capture_preparation_sources();
+                        let source_prefix = {
+                            if self
+                                .tree
+                                .capability_ids(crate::figure::ACTIVITY)
+                                .next()
+                                .is_some()
+                                || !self.mutations.is_empty()
+                            {
+                                let _timing = preparation_budget.time("activity-source-capture");
+                                self.tree.capture_preparation_sources()
+                            } else {
+                                None
+                            }
+                        };
                         let effect_count = self.updates.preparation_effect_count();
                         let changed = self.poll_activities();
-                        self.tree.rebase_preparation_sources(source_prefix);
+                        {
+                            let _timing = preparation_budget.time("activity-source-rebase");
+                            self.tree.rebase_preparation_sources(source_prefix);
+                        }
                         if let Some(prefix) = prefix.as_deref_mut() {
                             self.updates
                                 .rebase_preparation_effects(prefix, effect_count);
