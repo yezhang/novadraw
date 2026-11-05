@@ -12,6 +12,9 @@
   可见绘制与安全增量边界
 - [文本排版与绘制性能技术](text-layout-performance-2026-11-02.md)：LibreOffice、
   Qt、VS Code、Xi 和 Zed 的缓存、增量换行、可见行与字形栅格技术及适用边界
+- [Chromium 文本排版与渲染性能优化](chromium-text-rendering-performance-2026-11-05.md)：
+  固定 Blink／Skia／cc 源码版本的整形与断行分离、区间共享、编辑复用、
+  绘制记录、字形图集及滚动合成机制与适用条件
 - [canvas-editor](https://github.com/Hufe921/canvas-editor)：基于 Canvas 的富文本编辑器，
   作为文字排版性能优化的候选参考，后续重点关注其排版与绘制的性能优化实现
 - [quiet-md 富文本编辑工程样例](quiet-md-rich-text.md)：Rust／GPUI 文档编辑应用，
