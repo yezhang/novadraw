@@ -2409,6 +2409,32 @@ mod tests {
     }
 
     #[test]
+    fn cjk_word_navigation_uses_dictionary_boundaries() {
+        let mut engine = engine_with_builtins();
+        let font = FontDescriptor::new(BuiltinFont::NotoSansSc.family(), 14.0).unwrap();
+        for (text, first_word) in [("你好世界", "你好"), ("こんにちは世界", "こんにちは")]
+        {
+            let layout = engine
+                .layout(text, &font, TextConstraints::UNBOUNDED)
+                .unwrap();
+            let next = layout
+                .move_text_position(
+                    TextPosition::new(0, TextAffinity::Downstream),
+                    TextMovement::NextWord,
+                )
+                .unwrap();
+            assert_eq!(next.byte_offset(), first_word.len(), "{text}");
+            let previous = layout
+                .move_text_position(
+                    TextPosition::new(text.len(), TextAffinity::Upstream),
+                    TextMovement::PreviousWord,
+                )
+                .unwrap();
+            assert_eq!(previous.byte_offset(), first_word.len(), "{text}");
+        }
+    }
+
+    #[test]
     fn registered_cjk_font_falls_back_when_the_requested_font_lacks_glyphs() {
         let mut engine = engine_with_builtins();
         let layout = engine

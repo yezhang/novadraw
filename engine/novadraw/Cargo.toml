@@ -115,7 +115,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2"
 pollster = "0.4.0"
 stacker = "0.1.25"
-parley = "=0.12.0"
+# Core needs dictionary-backed word and line segmentation for CJK and Thai.
+parley = { version = "=0.12.0", features = ["complex-scripts"] }
 kurbo = "0.13.1"
 unicode-segmentation = "1.12.0"
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
