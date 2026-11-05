@@ -17,6 +17,7 @@
 | FR-02 复用合同评审 | [草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)：六项已回应，待复核；未接受、未进入生产实施；[基线核对](fr02-review-baseline-2026-11-04.md)明确可核对草案与合同／矩阵的缺失范围 |
 | 阶段文字引擎 | [ADR-059 与 B1 验证状态](text-stages-status.md)：范围、最新分母、未完成边界及原稿入口 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |
+| quiet-md 工程样例 | [富文本编辑技术适用性分析](quiet-md-rich-text-assessment-2026-11-05.md)：固定源码的样式事务、行内对象、虚拟化、IME 与随机验证参考；性能为作者历史测量，采用建议未实施 |
 | 服务失败／Inspector | [ADR-057 与 S09 结论](service-failure-review-status.md)：A／B／C 完成，D 和整批待补验 |
 | Editor 开放吸附 | [ADR-058 与 E04 结论](open-snapping-review-status.md)：已验证范围、成本及平台限制 |
 | Editor 容器编辑 | [最新组合验证](editor-container-combinations-2026-11-02.md)、[框架状态](core-capability-status-2026-11-02.md) |
