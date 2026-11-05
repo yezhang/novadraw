@@ -5,7 +5,8 @@
 能力归属：Core（`novadraw`）Flow、共享文字请求内容、Preparation 输入证明传递与
 Runtime 发布检查。
 状态：草案，修订 1，2026-11-03；按 FR02-DR01～DR06 修订，待复核。
-用户授权成本归因和方案文档修改，生产复用尚未实施。
+2026-11-04 用户通过滚动方案修订 4 并授权执行；已开始共享内容／request 基础迁移。
+整页采用首片已接通，默认关闭；完整反例、容量与成本仍须按本文阶段门禁逐项交付。
 选择、替代与接受门槛由本文维护；[原编号 060 草案](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-060-flow-assembly-reuse.md.txt)仅供追溯，
 现行 [精确 Flow 复用](exact-flow-layout-reuse.md) 继续要求贡献重读。
 `api_semantics`：`text.flow`、`text.interaction`、`layout.manager`、
@@ -39,6 +40,7 @@ measure 只消费尺寸，prepare 仍生成并验证完整来源、placement、�
 
 现有 `StyledTextRequest` 已共享文本 backing，但构造入口接收 owned String，
 span 仍为 Vec；只给 FlowPlan 外面加 Arc 不能兑现上述消费合同。
+这是基础迁移前的事实；已实现的共享内容签名与计费范围见下节。
 首片同时引入受检、不可变共享的文字内容资产，包含文本、default style 和 spans，
 完整请求再组合当前 constraints、paragraph 设置与 boxes。
 owned 构造与共享构造都对外开放且进入相同验证路径；内容资产构造一次检查 span
@@ -47,6 +49,101 @@ owned 构造与共享构造都对外开放且进入相同验证路径；内容�
 公开共享存储、clone 和 retained 计费的迁移纳入本片验收，不能把全文复制藏到请求构造。
 
 ### 公开迁移范围（FR02-DR02）
+
+2026-11-04 首步冻结并实现的公开入口为：
+`StyledTextContent::new(text, default_style, spans)`、
+`TextContentStore::new(limit)`／`create(String, TextStyle, Vec<TextStyleSpan>)`、
+`StyledTextRequest::from_content(content, boxes, constraints)` 和 `content()`。
+原 owned `StyledTextRequest::new` 与所有 engine 读取方法保持。
+内容构造验证 span，shared 请求重新验证当前 boxes／constraints；clone 保留同一内容
+lease。`TextContentStore::usage`／`set_limit` 与内容 `retained_units`／`usage`
+提供本域留存和缩容状态；容量、溢出和账本 poison 通过 `TextError::Content`
+保留结构化 `TextContentError`。
+
+实际 Flow 消费迁移已开始：mutable `FlowPlan` 完成组装后，转换为不可变
+`FrozenFlowPlan`。段落的文本、默认样式与 spans 进入 `StyledTextContent`；
+`FlowParagraphSnapshot::sources` 从 `Vec<FlowSourceRange>` 改为
+`FlowSourceRanges`。公开消费者继续通过索引、借用 slice 和 `iter()` 读取来源；
+clone 保留共享来源记录及其独立 accounting lease，不能导出裸 Arc 脱离计费。
+完整请求使用 `from_content`，来源及其 ancestors 由快照共享持有。
+真实 inline 的 box 工作数据仍单独生成，前缀请求和当前剩余宽度测量保持原路。
+基础迁移本身不跳过贡献组装。2026-11-04 后续首片已接通可选声明和整页采用，
+实验默认关闭，已启用服务开始使用家族留存域；
+计费与生命周期的完整范围仍待验证，见
+[整页采用实施记录](../../verification/reviews/flow-assembly-adoption-implementation-2026-11-04.md)。
+
+该基础域只负责内容 backing：计费为记录与 Arc counters 的固定大小，加文本、
+spans 及字体名的 owned capacity。账本 owner 固定开销不属于 backing charge；
+调用方在传入 owned buffers 前的分配、allocator 开销和 RSS 另计。
+owned 兼容入口使用独立无上限域（`usize::MAX`），受限消费者显式指定 limit；
+这不是生产 Flow 服务家族的容量默认值。服务家族采用、assembly／proof metadata、
+cache 驻留与跨域引用计费仍在后续接口冻结范围，基础域不宣称已覆盖这些对象。
+阶段分析 registry 采用同一内容时，将其登记为 shared backing，按本域唯一身份计费；
+request／box metadata 继续独立收费，不把引用复制当作全文复制。
+
+### Preparation 证明传递接口
+
+2026-11-04 开始实现统一的 typed 输入证明收集器。公开入口为
+`PreparationInputKey<P>`、`PreparationInputPayload`、`PreparationInputReader<P>`、
+`PreparationInputRegistry::register` 与
+`PreparationScene::input(registry, key, source)`。`input` 返回不可变的
+`PreparationInputSnapshot`；`value(key)` 只允许读取对应 payload 类型。
+payload 必须拥有完整、不可变的输入值，完整相等比较须纯且有界。
+reader 在捕获和重验时走同一注册入口，返回的普通错误保持原分类和 source。
+该接口已用于 contributor／handler 声明的整页输入证据；
+基础证明链通过不代表整页生产矩阵完成。
+
+注册实例由 registry 拥有；registry clone 保留已有注册身份。证明保留首次 payload
+和注册的弱引用，不保活 reader、Runtime 或 Flow 服务。最后一个注册 owner 销毁后，
+旧 evidence 仍可读取，重验返回 `RetiredRegistration`，不再调用 reader。
+证明绑定 root、source 和测量调用约束；重验先在当前树权限内建立对应读取范围。
+外部状态必须保证 Runtime 稳定化期间没有并发写入。允许 Runtime 串行回调改变输入，
+后续检查必须发现该变化；异步外部写入域的稳定读取保证仍未实现。
+
+收集器随测量缓存和准备 metadata 自动传递证明，公开
+`PreparationMeasurement` 的尺寸字段和 Copy 语义暂时保持。
+布局协调器在采用 `LayoutOutput` 前检查测量证明，并将其留在对应容器的派生状态中。
+新受检布局输出替换该容器的旧证明；失败回滚同时恢复旧证明。
+移除或替换布局管理器时，该管理器的旧测量证明退役；
+子图准备结果所持有的证明仍由准备结果独立维护。
+2026-11-05 修复布局缓存的跨轮输入检查：Runtime 在新一轮稳定化的回调开始前，
+重验仍有效的布局缓存所持有的输入证明。输入变化使对应容器及其验证路径失效，
+由布局管理器重新计算并安装新的证明；准备结果的尺寸未变也不能跳过这一步。
+reader 错误、注册退役或预算失败继续传播。该检查不替换旧证明的首次值，
+本轮回调开始后的输入变化仍由消费、批次及最终发布检查拒绝。
+重读和临时来源快照使用同一 preparation 预算，其成本须计入后续性能验证。
+准备批次同时收集新候选和本批复用的旧准备结果，发布前重验首次值。
+Runtime 在路由及准备协调完成后，再检查当前布局输出和准备结果的完整证明集合。
+重复读取或合并冲突不会覆盖首次值，忽略错误也不能清除当前收集器的失败状态。
+
+2026-11-05 管线删减实施：同一收集器内的重验直接借用有序首次证明，
+不再为每个检查点复制整份 receipt 列表。reader 获得独立 `input_scope` 收集器，
+不能向被借用的原列表追加；检查失败后先释放借用，再锁存原始错误。
+每个 reader、注册存活检查、约束绑定和最终发布检查仍执行。
+需要向测量缓存或候选转移证明时，继续生成并计费独立 receipt；
+本项只删除检查点内部的交接复制，不扩大检查结果的有效区间。
+
+资格 metadata 的共享范围限定为同一不可变 source prefix。每次读取仍调用
+全部 contributor／handler 声明，比较完整身份、generation、贡献类型序列和输入快照。
+当结果逐项相同，借用已有不可变 participants backing，省去重新物化 participants
+及 handlers 数组；临时声明的实际分配继续准入计费。首次不同才创建新 backing，
+旧 backing 保持不可变，收集器继续拒绝首次值与后读值冲突。
+该共享仅保存弱引用，不保活注册或过期源；来源 backing 地址只定位候选，
+存活的弱引用和完整内容比较决定相等，不承担版本权威。
+无声明、普通错误、注册退役、预算失败和回调屏障后的重验规则不变。
+
+首个贡献类型内联存储试验未通过净成本验收，已退役。
+声明继续使用完整有序数组，重复类型不去重，内置和外部声明共用存储。
+
+不可变 metadata 的计费摘要试验也未通过净成本验收，已退役。
+当前继续按实际 backing 与嵌套记录计算留存费用。两项试验的源码、
+前后计时与 Perfetto 证据保存在逐项验证报告所指的本地产物目录。
+
+本基础片使用现有 `PreparationBudget` 为 reader 临时工作、payload 接收、
+proof metadata 和回放计费。它尚未提供跨调用留存账本、服务家族容量或资产 lease
+去重，不关闭 FA-R20／R21／R28／R29 的 proof 与 assembly 子范围。
+具体实施及反例证据见
+[输入证明实施记录](../../verification/reviews/flow-input-proof-implementation-2026-11-04.md)。
 
 | 能力／API | 状态 owner | 迁移与兼容性要求 |
 |---|---|---|
@@ -69,9 +166,8 @@ API 快照和消费者调用点在实施启动前逐项冻结。共享内容按�
 
 ## 可选声明的公开边界
 
-本草案推荐在现有 contributor／handler trait 上追加缺省方法，
-两者同名同返回类型，缺省为成功缺失。以下是待评审的接口形状，
-不是已经存在的可调用 API：
+2026-11-04 首片已在现有 contributor／handler trait 上追加以下缺省方法。
+两者同名同返回类型，缺省为成功缺失；实验入口默认关闭。
 
 ```rust
 fn assembly_reuse(
@@ -81,6 +177,14 @@ fn assembly_reuse(
     Ok(None)
 }
 ```
+
+已实现的声明构造入口为 `FlowReuseIdentity::new`、`declaration(generation)`、
+`with_contribution(key)` 和 `with_input(snapshot)`；
+闭包适配器为 `DeclaredFlowHandler::new(process, declaration)`。
+服务保留单个完整组装候选，使用完整 source 和有序参与者比较，不建立 hash 命中权威。
+服务 clone 共用 cache、开关、注册身份与留存配置。
+默认无上限兼容域、显式容量接口及尚待核对的 metadata 范围由实施记录说明，
+不能据接口存在认定生产容量门禁已完成。
 
 `FlowReuseDeclaration` 包含 owned `FlowReuseIdentity`、generation 和完整输入声明。
 identity 由显式构造器创建并归扩展实例持有，clone 保留身份；
@@ -333,7 +437,29 @@ panic 沿用所属 preparation／Runtime 已接受的 fault 和恢复合同；
 中“贡献、边框度量仍读取当前场景”和“每次测量仍读取其当前贡献”的条款：
 分别链接本局部例外，保留不合格页面、真实 inline 当前测量、完整布局、
 来源几何和发布一致性要求。提议期间不提前改写现行条款。
-组装资产不扩大为完整测量或整页快照缓存。
+首片组装资产不扩大为完整测量或整页快照缓存；用户于 2026-11-05 授权的
+管线删减增量按下节独立实施、测量，不据此扩大原首片验收结论。
+
+## 管线删减增量：纯文字测量复用
+
+能力归属：Core。首个增量只保存测量尺寸，不保存整页绘制快照。
+完整贡献声明合格、无真实 inline boxes、无 fragment border 时，测量生产是
+完整组装输入、文字引擎实例与 revision、有效宽度和测量约束的纯函数。
+所有这些值完整比较；散列、事件名称和 Figure 类型不授予复用资格。
+来源已含结构、样式、字体、资源、source bounds 和普通 border insets；
+声明读取的派生依赖继续逐项重验并保留。每次仍捕获首次输入、执行 adoption
+和 return 检查，后续回调与最终发布的证明链不变。
+
+服务最多保留四个近期测量记录，用于有界／无界宽度及滚动条反馈的交替请求；
+FIFO 淘汰不改变旧发布。每个记录的固定 metadata 与观察数组进入留存账本，
+其输入快照使用原共享 lease；cache limit 同时约束记录及所引用输入。
+没有 engine identity、任何不合格声明、inline 或 fragment border 时执行完整测量。
+宽度、约束、引擎或输入变化导致 miss；普通错误与预算拒绝继续传播。
+此增量不省略真实 inline 回调，不缓存未知 renderer，也不改变布局版本或投影。
+
+验收对照必须分别报告测量生产次数、拖拽和 resize 整体耗时与帧耗时。
+输入／字体／宽度变化、预算失败、外部声明与后续私有状态变化仍由既有反例验证。
+完整快照与可见原生字形提交继续属于后续增量。
 
 ## 接受、实施和启用门禁（FR02-DR05）
 
@@ -356,6 +482,26 @@ payload／handler，通过普通 registry 注册声明与外部 typed 输入域�
 全部满足实施启动条件后才进入生产 Execute。
 
 ## 验收与开放扩展证据
+
+### 管线删减增量：共享结构性 route 归属
+
+能力归属：Core Preparation。范围限定为同一不可变 tree/style 借用。
+资格 reader 的 Figure／capability 读取仍保留 route 输出 dependency observation；
+只合并反复发现“该节点或祖先是否具有 Connection capability”的结构查询。
+Connection descriptor 的公开构造使用 `of<T>`，投影由 blanket `AsAny` 的具体类型
+决定，不读取可变的 provider revision。parent 和已安装 descriptor 也受树借用保护。
+
+RootInputs 在已有 subtree membership 构造中同时汇总 route 子树成员；
+先检查 root 及其树外祖先，再将归属向子节点传播。输入验证的独立 scene 共享该
+结构摘要，保留自己的 observation 和首次证明日志。每次读取仍检查成员权限，
+命中 route 成员时仍记录原节点的 FigureGeometry，不能改为祖先的 geometry。
+普通读取不产生新 dependency；几何 generation、provider revision 和输入值不缓存。
+外部 `ConnectionCapability::of<T>` 与内置连接使用同一投影和汇总算法。
+
+摘要不跨 tree 借用、反馈写入、挂载或注册替换复用。构造临时记录与 route 成员
+在预算中计费，失败不能安装部分 RootInputs。验证包括 root 外的连接祖先、
+混合连接／普通 sibling、独立 input scope、实际 geometry observation、
+跨借用重挂载与预算失败，并独立比较拖拽和 resize 的总体成本。
 
 [验收矩阵](../../verification/plans/flow-assembly-reuse.md)负责逐项反例和完成判据。
 实施启动前冻结最终接口和机器入口；现有精确 flow tests 不足以证明新声明／绑定，

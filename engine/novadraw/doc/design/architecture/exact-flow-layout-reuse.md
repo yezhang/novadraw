@@ -74,6 +74,23 @@ layout、ink、paint 与索引必须对应同次受检发布；已有源 mutatio
 
 ## 外部消费者证据
 
+### 录制作用域内的字体资源留存
+
+2026-11-05 管线删减增量：PaintContext 在不可变 ResourceRegistry 借用期间，
+逐 run 查询当前 ready 状态，核验资源身份、revision、字体 payload 和已有 lease 冲突。
+校验与公开 FontInstanceRef 构造使用同一实现，外部布局和内置布局共用入口。
+只为本次成功录制新增的唯一资源克隆 payload；已留存资源不再产生临时副本。
+没有 lease 接收方时仍校验资源，不创建随调用结束即丢弃的副本。
+
+借用不跨越录制 scope，不按旧 lease 推断资源表仍有效。重新进入 Graphics 后，
+字体替换、非 ready、外部 namespace 和版本冲突继续受检。
+新增 lease 在 canvas 录制成功后安装；错误不安装部分资源，也不改变原始错误顺序。
+这一增量删除重复留存，尚未减少逐 run 资源查询或证明原生字形可裁剪。
+
+同一 immutable canvas 的最终校验也借用当前资源表 payload，不为只读字体
+校验创建随后即释放的 ResourceUpdate。每条命令的资源状态、字体身份及版本
+仍按原序核验，栈平衡错误顺序和失败锁存保持不变；最终提交资源同步继续独立执行。
+
 `draw2d-official-examples` 的 InteractivePage 使用公开 FlowLayoutService，
 是独立 root 消费者。外部引擎、contributor、border 与 outline provider
 仍使用原有开放协议和受检构造器；缓存不按内置类型选择路径。

@@ -57,17 +57,19 @@
 | [official-example-capability-increment-2026-10-26.md](official-example-capability-increment-2026-10-26.md) | 样例几何与文字适配；通用协议由各专题负责 |
 | [shared-scene-view-background-proposal.md](shared-scene-view-background-proposal.md) | K07 修订 3 已批准，ADR-044/045 接受：保守结构依赖、Runtime 提交点版本校验、独立捕获与宿主背景统一提交；功能验收按切片推进 |
 | [text-layout.md](text-layout.md) | Text Layout、Label 与标题边框 |
+| [draw2d-text-algorithm-adoption.md](draw2d-text-algorithm-adoption.md) | Draw2D 截断候选复用、当前字体指标缓存及平均宽度预测的适用限制 |
 | [structured-flow-layout.md](structured-flow-layout.md) | 结构化贡献、段落 shaping、inline 与交互快照 |
 | [inherited-layout-direction.md](inherited-layout-direction.md) | Figure 方向继承、文字片段位置与 ScrollPane |
 | [exact-flow-layout-reuse.md](exact-flow-layout-reuse.md) | 精确缓存、共享 glyph 与滚动 IR |
-| [flow-assembly-reuse.md](flow-assembly-reuse.md) | FR-02 修订 1：贡献复用、共享内容、证明发布链与留存容量；待复核 |
+| [flow-assembly-reuse.md](flow-assembly-reuse.md) | FR-02：共享内容基础迁移已开始；整页复用、证明链与留存容量仍逐项冻结和验收 |
 | [staged-text-width-reuse.md](staged-text-width-reuse.md) | 可选阶段、调用绑定、资产登记、计费与完整回退 |
 | [text-performance-strategy.md](text-performance-strategy.md) | 顶尖性能路线：精确增量、宽度复用、可见绘制、共享资产与调度；隔离实验完成，生产接入合同 ADR-059 已接受 |
 | [parley-replacement-candidate.md](parley-replacement-candidate.md) | 未来技术候选：当前保留 Parley，记录 Core 直接编排底层文本库的职责、取舍与重新评估条件；替换尚未授权 |
 | [可选阶段文字协议 修订 2](staged-text-width-reuse.md) | 已接受、已批准实施：先查询有效资产再判断新增准入，复合失败和原始 source 保留；阶段绑定、账本及启用门禁不变 |
 | [text-analysis-admission-proposal.md](text-analysis-admission-proposal.md) | 限定依赖补丁已获准：ADR-059 B 的字体查询、冷 shaping 与导出计费；B1 扩张暂停，未完成范围见专题验证状态 |
 | [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
-| [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 已批准的滚动／resize 方案，观测与共享 IR 首片已落地；原生覆盖、宽度复用和调度仍按各自合同取证 |
+| [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 修订 4 已获通过并授权执行；按工作包分别验证组合、输入分母、覆盖和启用门禁 |
+| [rich-text-pipeline-reduction-proposal.md](rich-text-pipeline-reduction-proposal.md) | 待评审：富文本主线删减范围、共享资产、证明去重、纯投影与可见绘制的实施顺序和退出条件 |
 | [long-text-incremental-layout-proposal.md](long-text-incremental-layout-proposal.md) | 待评审：基于第四轮测量与 Lapce／Xi 的 source delta、分阶段排版、安全巨段增量及可见输出细化 |
 | [long-text-native-coverage-boundary.md](long-text-native-coverage-boundary.md) | 原生字形、数值转换与设备覆盖的定向核验；生产证书合同待复核 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |

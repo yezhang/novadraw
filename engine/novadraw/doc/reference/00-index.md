@@ -19,6 +19,8 @@
   作为文字排版性能优化的候选参考，后续重点关注其排版与绘制的性能优化实现
 - [quiet-md 富文本编辑工程样例](quiet-md-rich-text.md)：Rust／GPUI 文档编辑应用，
   固定源码版本的样式编辑、行内对象、虚拟化、IME 与可重放验证参考及适用边界
+- [quiet-md 富文本渲染与长文滚动](quiet-md-rendering.md)：固定 vendor GPUI 的系统字体、
+  近期行缓存、glyph 位图图集、GPU 实例绘制与虚拟化机制，以及 Novadraw 的采用取舍
 - [SWT GC macOS](swt/gc-macos.md)：平台绘图实现
 - [Zed 响应式机制](zed/reactive-design.md)：通知与订阅生命周期
 - [Imaging 绘图中间表示](imaging-render-ir.md)：流式绘制、场景录制、多后端生态，

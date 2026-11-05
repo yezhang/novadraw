@@ -4,7 +4,7 @@
 
 能力归属：backend 原生字形覆盖证书候选；Core 提供字体与布局身份，宿主提供设备变换输入。
 
-日期：2026-10-27。修订日期：2026-10-28。状态：已补齐 SR-R01 设计响应，生产证书合同待复核。
+日期：2026-10-27。修订日期：2026-11-05。状态：已补齐 SR-R01 设计响应及锁定 lowerer 核验，生产证书合同待复核。
 
 本文承接[长文本方案](long-text-performance-proposal.md)的 LT-03，
 解释默认原生字形为何仍完整录制，以及生产裁剪需要补齐的合同。
@@ -42,6 +42,93 @@ Vello 的 fine shader 使用像素内的解析面积积分或 MSAA 采样。
 - Vello 参考源码 `vello_shaders/shader/fine.wgsl`：像素内面积积分与采样。
 
 参考仓库源码用于解释机制；锁定依赖版本的实际行为仍须以对应构建产物核验。
+
+## 锁定 lowerer 核验
+
+2026-11-05 管线删减核对实际 workspace 依赖：生产 Vello、vello_encoding、
+vello_shaders 为 0.10.0，字形提取使用 skrifa 0.44；锁文件中的其他 Vello 版本
+不能作为本次原生路径的覆盖依据。
+
+锁定的 `vello_shaders-0.10.0/shader/flatten.wgsl` 使用 `flatten_euler`：
+先由端点与导数拟合 Euler spiral，再以多项式积分近似生成线段。
+`tol = 0.25` 参与误差估计，但 `dt <= 1 / 65536` 时强制接受该段，
+每段的线段数量另外限制在 1～100。最终 path bbox 来自实际发出的线段。
+所以，控制点包络和该容差尚不能直接组成实际栅格覆盖证明；
+不能假定所有发出的顶点都位于原 Bezier 凸包加 0.25 像素之内。
+
+`es_params_eval` 还包含 chord 近似值的除法，非圆弧分支包含积分的逆近似。
+有限坐标或可逆 affine 本身不能证明这些中间量远离退化值。
+候选有限域必须覆盖实际接受的全部细分段、f32 运算、近零导数调整、
+Euler 参数和逆参数范围，随后才能推导线段顶点及像素支持范围。
+只测试常用字体的曲线包络，不能证明任意合法字体满足该域。
+对应 CPU 实现在 `vello_shaders-0.10.0/src/cpu/{flatten,euler}.rs`，
+其采样可以用于差分诊断，不能自动代替 GPU 运算的边界证明。
+
+本次尚未得到通过复核的有限域证书，未改变生产能力声明或原生提交。
+后续先验证静态曲线摘要能否低成本证明操作落入有效域；
+未知格式、曲线退化和无法证明的变换保留完整输出。
+证明若只能在逐帧遍历全文后取得，仍不满足录制前索引的成本目标。
+
+### 可先核验的空墨迹分支
+
+锁定的 Vello `scene.rs::DrawGlyphs::draw` 会先分流 COLR／CPAL 和 bitmap，
+普通轮廓则进入 `vello_encoding::GlyphCacheSession::get_or_insert`。
+后者在 `n_path_segments == 0` 时明确 reset 本次 encoding。
+因此可以先核验一个不依赖 Euler 顶点误差的分支：在对应 face、变量坐标、
+未 hint policy 下，成功提取后没有任何路径操作的单色字形。
+这只是待验证的有限域，不能按字符是空格、advance 为零或逻辑行盒为空决定。
+颜色／bitmap 分流必须排除；提取失败、未知格式或有路径操作时保留原生输出。
+
+若该分支证明成立，可先建立统一 provider、policy 和帧绑定通道，
+删除已证明没有墨迹的填充输出。完整布局、advance、来源、selection 和 caret 保留；
+字体依赖仍验证。空墨迹不会产生可见范围索引所需的曲线包络，
+也不能关闭一般屏幕外 glyph 的裁剪验收。留存、首次构造、碎片数量、
+GPU 像素和拖拽／resize 的净成本均须单独验证。
+
+进一步核对发现，现有 `SkrifaOutlineProvider` 在 font units 中未缩放提取，
+Vello GlyphCache 则以实际 f32 size 提取；现有 `GlyphOutline` 也没有原生分流
+的 provenance。不能把现有 `path().operations().is_empty()` 当作已受检原生证书。
+一个可实施的受限查询必须采用实际尺寸和变量实例的成功提取，并排除字体层面的
+COLR／CPAL 与 bitmap 分流；否则返回未知。还需证明提取设置与实际 lowering
+相同、空 encoding 不产生绘制支持，以及删除部分 glyph 后的命令片段顺序。
+本次静态核验尚未补齐这些证据，没有据此添加能力或跳过输出。
+
+另一个更小的待核验域是实际选中 `Glyf` 格式且
+`loca.get_glyf(glyph, glyf)` 成功返回空记录的字形。skrifa 的 glyf loader 在该
+分支只设置 phantom points；gvar 只调整这些度量点，不增加轮廓点或 contour。
+这有机会证明零路径操作不依赖 ppem，避免按每帧 DPI 再次提取。准入仍须核对
+实际格式优先级（VARC 高于 glyf）、glyph 可获取、颜色／bitmap 分流和完整资源版本。
+零 contour 的非空记录、复合字形、CFF 和未知格式不由这个域自动涵盖。
+该静态分支的首个 GPU 夹具对照已通过，公开消费合同尚未建立，
+不属于已实现优化。`novadraw-backend-vello` 的
+`empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs` 只在测试中
+使用上述准入，排除缺失 glyph，核对空记录在四个尺寸、三个变量坐标下不产生
+路径操作。Inter 混合空／非空 run 经压紧后，三个设备缩放、斜体与平移组合、
+Area／MSAA8／MSAA16 共 36 对 GPU readback 逐字节一致，且参考输出确有可见像素。
+该证据只覆盖此字体夹具；全部空 run、颜色／bitmap、资源替换、policy/session
+失效、公开外部消费者、留存计费和整体性能仍待补齐。生产代码没有使用该测试 helper。
+
+删除 run 中间的空字形会增加有序片段。候选可以在资产构造时生成保持原位置的
+紧凑绘制 backing，避免逐帧新增一条命令对应一个片段；原始 glyph backing 继续
+服务布局和交互。新 backing 是输出算法资产，必须计入构造、留存和淘汰费用，
+不能声称这一方案全链路零复制。两种表示均需用实际空字形比例比较净成本，
+通过之后才选定生产表示。
+
+### 后端空记录成本试验
+
+公开证书通道实施前，先独立测量后端删除空记录的净成本。试验只改变 Vello
+单色填充的 glyph iterator，不改变 Core IR、布局、资源校验或原生曲线 lowering；
+这不是录制前裁剪的替代实现，也不关闭步骤 4。它用于决定是否值得增加静态资产。
+后端按完整资源 ID、revision 和 collection index 缓存空记录位图；
+准入采用上面的实际 Glyf 格式与无颜色／bitmap 条件，不查询字符或 advance。
+未知字体、glyph、格式及位图分配失败保留原生输出。描边继续完整输出。
+
+位图按字体 glyph count 有界，最多留存 16 个 face，满容量时新 face 使用完整路径；
+资源移除、替换和 session snapshot 清除相关记录。统计构造时间、位图容量、
+Vello 实际 glyph 数和 Core 命令数；不得把 Core IR 未减少写成已减少。
+混合／全部空 run、变量坐标、AA、资源替换与 session 恢复先通过定向验证，
+再用同配置拖拽、滚轮、resize、首次与追加对照决定保留或退役。
+这项内部试验不增加公开可替换能力；公开 provider／policy 合同仍按下节实施。
 
 ## 生产合同必须包含什么
 

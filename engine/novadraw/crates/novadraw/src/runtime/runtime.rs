@@ -141,6 +141,7 @@ impl std::error::Error for FramePreparationError {
         match self {
             Self::Text(error) => Some(error),
             Self::Animation(error) => Some(error),
+            Self::Validation(error) => Some(error),
             _ => None,
         }
     }

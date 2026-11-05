@@ -53,27 +53,37 @@ impl FlowContributionRegistry {
         registry
             .register(
                 TEXT_CONTRIBUTION,
-                |p: &TextContribution,
-                 c: &FlowContributionContext<'_>,
-                 out: &mut super::FlowAssembly<'_>| {
-                    out.text(c.source, &p.0, c.text_style()?)
-                },
+                super::reuse::declared_handler(
+                    |p: &TextContribution,
+                     c: &FlowContributionContext<'_>,
+                     out: &mut super::FlowAssembly<'_>| {
+                        out.text(c.source, &p.0, c.text_style()?)
+                    },
+                ),
             )
             .expect("distinct standard identity");
         registry
             .register(
                 GROUP_CONTRIBUTION,
-                |_: &GroupContribution,
-                 c: &FlowContributionContext<'_>,
-                 out: &mut super::FlowAssembly<'_>| { out.children(c.source) },
+                super::reuse::declared_handler(
+                    |_: &GroupContribution,
+                     c: &FlowContributionContext<'_>,
+                     out: &mut super::FlowAssembly<'_>| {
+                        out.children(c.source)
+                    },
+                ),
             )
             .expect("distinct standard identity");
         registry
             .register(
                 BLOCK_CONTRIBUTION,
-                |p: &BlockContribution,
-                 c: &FlowContributionContext<'_>,
-                 out: &mut super::FlowAssembly<'_>| { out.block(c.source, p.0) },
+                super::reuse::declared_handler(
+                    |p: &BlockContribution,
+                     c: &FlowContributionContext<'_>,
+                     out: &mut super::FlowAssembly<'_>| {
+                        out.block(c.source, p.0)
+                    },
+                ),
             )
             .expect("distinct standard identity");
         registry
@@ -104,6 +114,7 @@ impl FlowContributionRegistry {
 
 #[derive(Clone)]
 pub struct FlowPageFigure {
+    reuse_identity: super::FlowReuseIdentity,
     bounds: Rectangle,
     style: FigureStyle,
     service: super::FlowLayoutService,
@@ -113,6 +124,7 @@ pub struct FlowPageFigure {
 impl FlowPageFigure {
     pub fn new(bounds: Rectangle) -> Result<Self, crate::figure::ShapeGeometryError> {
         Ok(Self {
+            reuse_identity: super::FlowReuseIdentity::new(),
             bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
             style: FigureStyle::default(),
             service: super::FlowLayoutService::default(),
@@ -142,6 +154,24 @@ impl FlowPageFigure {
     }
 }
 impl FlowContributor for FlowPageFigure {
+    fn assembly_reuse(
+        &self,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        context
+            .scene
+            .budget()
+            .allocate(
+                "flow declaration",
+                std::mem::size_of::<std::any::TypeId>() as u64,
+            )
+            .map_err(crate::text::TextError::from)?;
+        Ok(Some(
+            self.reuse_identity
+                .declaration(0)
+                .with_contribution(BLOCK_CONTRIBUTION),
+        ))
+    }
     fn contribute(
         &self,
         _: &FlowContributionContext<'_>,
@@ -216,6 +246,7 @@ impl FigureContainer for FlowPageFigure {
 
 #[derive(Clone)]
 pub struct BlockFlowFigure {
+    reuse_identity: super::FlowReuseIdentity,
     bounds: Rectangle,
     style: FigureStyle,
     block: FlowBlockStyle,
@@ -225,6 +256,7 @@ pub struct BlockFlowFigure {
 impl BlockFlowFigure {
     pub fn new(block: FlowBlockStyle) -> Result<Self, FlowError> {
         Ok(Self {
+            reuse_identity: super::FlowReuseIdentity::new(),
             bounds: Rectangle::ZERO,
             style: FigureStyle::default(),
             block: block.validate()?,
@@ -261,6 +293,27 @@ impl Default for BlockFlowFigure {
     }
 }
 impl FlowContributor for BlockFlowFigure {
+    fn assembly_reuse(
+        &self,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        if self.fragment_border.is_none() {
+            context
+                .scene
+                .budget()
+                .allocate(
+                    "flow declaration",
+                    std::mem::size_of::<std::any::TypeId>() as u64,
+                )
+                .map_err(crate::text::TextError::from)?;
+        }
+        // Fragment renderers have no reuse declaration yet.
+        Ok(self.fragment_border.is_none().then(|| {
+            self.reuse_identity
+                .declaration(0)
+                .with_contribution(BLOCK_CONTRIBUTION)
+        }))
+    }
     fn contribute(
         &self,
         _: &FlowContributionContext<'_>,
@@ -282,6 +335,7 @@ impl FlowContributor for BlockFlowFigure {
 }
 #[derive(Clone, Default)]
 pub struct InlineFlowFigure {
+    reuse_identity: super::FlowReuseIdentity,
     bounds: Rectangle,
     style: FigureStyle,
     border: Option<std::sync::Arc<dyn super::FlowFragmentBorder>>,
@@ -303,6 +357,26 @@ impl InlineFlowFigure {
     }
 }
 impl FlowContributor for InlineFlowFigure {
+    fn assembly_reuse(
+        &self,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        if self.border.is_none() {
+            context
+                .scene
+                .budget()
+                .allocate(
+                    "flow declaration",
+                    std::mem::size_of::<std::any::TypeId>() as u64,
+                )
+                .map_err(crate::text::TextError::from)?;
+        }
+        Ok(self.border.is_none().then(|| {
+            self.reuse_identity
+                .declaration(0)
+                .with_contribution(GROUP_CONTRIBUTION)
+        }))
+    }
     fn contribute(
         &self,
         _: &FlowContributionContext<'_>,
@@ -321,6 +395,7 @@ impl FlowContributor for InlineFlowFigure {
 }
 #[derive(Clone)]
 pub struct StructuredTextFigure {
+    reuse_identity: super::FlowReuseIdentity,
     bounds: Rectangle,
     style: FigureStyle,
     text: String,
@@ -328,6 +403,7 @@ pub struct StructuredTextFigure {
 impl StructuredTextFigure {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
+            reuse_identity: super::FlowReuseIdentity::new(),
             bounds: Rectangle::ZERO,
             style: FigureStyle::default(),
             text: text.into(),
@@ -342,6 +418,24 @@ impl StructuredTextFigure {
     }
 }
 impl FlowContributor for StructuredTextFigure {
+    fn assembly_reuse(
+        &self,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        context
+            .scene
+            .budget()
+            .allocate(
+                "flow declaration",
+                std::mem::size_of::<std::any::TypeId>() as u64,
+            )
+            .map_err(crate::text::TextError::from)?;
+        Ok(Some(
+            self.reuse_identity
+                .declaration(0)
+                .with_contribution(TEXT_CONTRIBUTION),
+        ))
+    }
     fn contribute(
         &self,
         _: &FlowContributionContext<'_>,
@@ -473,6 +567,7 @@ impl FigureComponentUpdate for SetStructuredFlowText {
     }
     fn commit(text: String, target: &mut Self::Figure) {
         target.text = text;
+        target.reuse_identity = super::FlowReuseIdentity::new();
     }
 }
 
@@ -495,5 +590,6 @@ impl FigureComponentUpdate for SetFlowBlockStyle {
     }
     fn commit(style: FlowBlockStyle, target: &mut Self::Figure) {
         target.block = style;
+        target.reuse_identity = super::FlowReuseIdentity::new();
     }
 }

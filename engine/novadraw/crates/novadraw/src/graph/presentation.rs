@@ -123,6 +123,10 @@ impl FigureTree {
         {
             return Err(RouteSceneQueryError::UnavailablePreparedScene(owner));
         }
+        scene
+            .retain_input_proofs(&prepared.input_proofs)
+            .and_then(|()| scene.validate_input_proofs("checked prepared snapshot"))
+            .map_err(|error| RouteSceneQueryError::PreparationInput(Box::new(error)))?;
         budget
             .allocate("checked snapshot clone", 1)
             .map_err(RouteSceneQueryError::PreparationBudget)?;
@@ -161,6 +165,7 @@ impl FigureTree {
         let mut candidates = Vec::new();
         let inputs =
             crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
+        let mut batch_input_proofs = Vec::new();
         drop(inputs_timing);
         for id in figures {
             let signature_timing = budget.time("prepare-signature");
@@ -183,7 +188,7 @@ impl FigureTree {
                 &geometries,
                 budget.clone(),
             );
-            if node.prepared.as_ref().is_some_and(|p| {
+            let reusable = node.prepared.as_ref().is_some_and(|p| {
                 use crate::connection::RouteSceneRead;
                 p.valid
                     && p.key == key
@@ -191,17 +196,57 @@ impl FigureTree {
                     && p.observations.iter().all(|observation| {
                         read.dependency_generation(&observation.subject) == observation.generation
                     })
-            }) {
-                continue;
+            });
+            if reusable {
+                let mut unchanged = true;
+                for proof in node
+                    .prepared
+                    .as_ref()
+                    .expect("reusable preparation")
+                    .input_proofs
+                    .iter()
+                {
+                    match proof.validate(&scene, "preparation cache") {
+                        Ok(()) => (),
+                        Err(TextError::PreparationInput(error))
+                            if matches!(
+                                error.kind,
+                                crate::figure::PreparationInputErrorKind::Changed { .. }
+                            ) =>
+                        {
+                            unchanged = false;
+                            break;
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
+                if unchanged {
+                    crate::figure::preparation::merge_proofs(
+                        &mut batch_input_proofs,
+                        &node
+                            .prepared
+                            .as_ref()
+                            .expect("reusable preparation")
+                            .input_proofs,
+                        budget,
+                    )?;
+                    continue;
+                }
             }
             drop(signature_timing);
             budget.check()?;
             let callback_timing = budget.time("prepare-callback");
             let mut context = crate::text::MeasureContext::new(text, style.font.clone());
-            let prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
+            let mut prepared_scene = preparation.prepare_scene(&mut context, bounds, &scene)?;
             drop(callback_timing);
             let _validation_timing = budget.time("prepare-candidate-validation");
             prepared_scene.validate(&scene)?;
+            prepared_scene.input_proofs = scene.input_proofs()?;
+            crate::figure::preparation::merge_proofs(
+                &mut batch_input_proofs,
+                &prepared_scene.input_proofs,
+                budget,
+            )?;
             if scene.revision()? != key.component || preparation.revision() != key.provider {
                 return Err(TextError::InvalidPreparedScene(
                     "input revision changed during preparation".into(),
@@ -288,6 +333,13 @@ impl FigureTree {
             )?;
         }
         budget.check()?;
+        // All extension-capable candidate and dependency checks have finished.
+        // Recheck the first values immediately before releasing input authority.
+        if !batch_input_proofs.is_empty() {
+            let scene = inputs.scene(self.root_id())?;
+            scene.retain_input_proofs(&batch_input_proofs)?;
+            scene.validate_input_proofs("preparation batch publication")?;
+        }
         drop(batch_timing);
         // Release immutable input authority before publishing any layout effects.
         drop(inputs);
@@ -339,6 +391,7 @@ impl FigureTree {
         }
         for (id, key, input_source, observations, candidate) in candidates {
             let observations: std::sync::Arc<[_]> = observations.into();
+            let input_proofs: std::sync::Arc<[_]> = candidate.input_proofs.into();
             let unchanged = self.blocks[id].prepared.as_ref().filter(|old| {
                 old.valid
                     && candidate.result_version.is_some()
@@ -378,6 +431,7 @@ impl FigureTree {
                         source: input_source.clone(),
                         result_version: candidate.result_version,
                         observations: observations.clone(),
+                        input_proofs: input_proofs.clone(),
                         required_routes: Vec::new(),
                     },
                     updates,
@@ -394,6 +448,7 @@ impl FigureTree {
                     source: input_source,
                     result_version: candidate.result_version,
                     observations,
+                    input_proofs,
                     required_routes: candidate.required_routes,
                 },
                 updates,
@@ -401,6 +456,92 @@ impl FigureTree {
             metrics_changed |= changed;
         }
         Ok(metrics_changed)
+    }
+
+    /// Reusing a layout requires its original inputs, even when refreshed
+    /// presentations report identical dimensions. This runs before callbacks in
+    /// a new stabilization; changes during that stabilization still fail the
+    /// publication check rather than being rebased.
+    pub(crate) fn invalidate_stale_layout_inputs(
+        &mut self,
+        updates: &mut UpdateManager,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<(), TextError> {
+        if !self
+            .blocks
+            .iter()
+            .any(|(_, node)| node.is_valid && !node.layout.input_proofs.is_empty())
+        {
+            return Ok(());
+        }
+        budget.allocate("cached layout input styles", self.blocks.len() as u64)?;
+        let (styles, _) = self.resolved_styles_for(|_| true);
+        let styles = styles.into_iter().collect();
+        let inputs =
+            crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
+        let scene = inputs.scene(self.root_id())?;
+        let mut stale = Vec::new();
+        for (id, node) in self.blocks.iter() {
+            if !node.is_valid || !styles.contains_key(&id) {
+                continue;
+            }
+            for proof in &node.layout.input_proofs {
+                match proof.validate(&scene, "layout cache") {
+                    Ok(()) => (),
+                    Err(TextError::PreparationInput(error))
+                        if matches!(
+                            error.kind,
+                            crate::figure::PreparationInputErrorKind::Changed { .. }
+                        ) =>
+                    {
+                        budget.allocate("stale layout input owner", 1)?;
+                        stale.push(id);
+                        break;
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+        }
+        budget.check()?;
+        drop(scene);
+        drop(inputs);
+        for id in stale {
+            self.mark_invalid(updates, id);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_preparation_inputs(
+        &self,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<(), TextError> {
+        if !self.blocks.iter().any(|(_, node)| {
+            !node.layout.input_proofs.is_empty()
+                || node
+                    .prepared
+                    .as_ref()
+                    .is_some_and(|p| !p.input_proofs.is_empty())
+        }) {
+            return Ok(());
+        }
+        budget.allocate("final input styles", self.blocks.len() as u64)?;
+        let (styles, _) = self.resolved_styles_for(|_| true);
+        let styles = styles.into_iter().collect();
+        let inputs =
+            crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
+        let scene = inputs.scene(self.root_id())?;
+        for (id, node) in self.blocks.iter() {
+            if !styles.contains_key(&id) {
+                continue;
+            }
+            scene.retain_input_proofs(&node.layout.input_proofs)?;
+            if let Some(prepared) = &node.prepared
+                && prepared.owner == id
+            {
+                scene.retain_input_proofs(&prepared.input_proofs)?;
+            }
+        }
+        scene.validate_input_proofs("runtime publication")
     }
 
     fn publish_prepared_figure(

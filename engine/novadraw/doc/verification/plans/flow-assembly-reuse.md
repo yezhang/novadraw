@@ -7,7 +7,10 @@
 状态：生产矩阵草案修订 1，2026-11-03；FR02-DR01～DR06 已回应，待复核。
 成本归因的既有完成范围保持，新生产行为仍未执行。
 
-用户已授权贡献组装内部成本归因、设计交付及本轮文档修订。生产复用实现尚未授权；
+2026-11-04 用户通过滚动方案修订 4 并授权开始执行。共享内容／request 已完成基础迁移，
+统一输入证明链与不可变 Flow 消费已通过基础门禁；
+[整页采用首片](../reviews/flow-assembly-adoption-implementation-2026-11-04.md)已接通并通过首轮 6 项反例，
+实验默认关闭，长文本驱动已接入；完整生产矩阵与成本尚未交付。
 现行 [精确 Flow 复用](../../design/architecture/exact-flow-layout-reuse.md) 的贡献重读合同保持有效。
 执行状态只在 [P2 backlog](../../roadmap/p2-delta-backlog.md) 维护。
 
@@ -81,11 +84,16 @@ release、锁文件、字体与驱动。两版均执行 timing-on／timing-off�
 | FA-R28 | 最后 service clone 销毁，外部长期持内容／asset／snapshot／proof lease 后依次释放 | 新生产关闭；账本不依赖 Runtime／服务存活，旧读取合法；每个唯一 backing／metadata 最后释放时扣账，无用户回调、无保活环 |
 | FA-R29 | 多个 service clone 同时持 cache／候选／旧 lease，缩容或采用跨责任域 backing | 同家族共享配置／账本，无容量倍增；同域唯一 charge 与分类重叠分别断言；跨域采用显式计入本域，不冒充全局去重 |
 
-拟新增 integration target：`flow_assembly_reuse_contract`；独立消费者需在实施前
-登记到既有消费者机制。目标尚不存在，不能声称通过或把拟议名称当可执行命令。
+integration target `flow_assembly_reuse_contract` 已建立，
+独立消费者位于 `tests/consumers/flow-assembly-reuse/`。
+现覆盖共享内容／request、容量基础和外部 root／handler 的 Runtime 发布；
+不能将该 target 的通过解释为完整矩阵通过。
+统一 Preparation 输入证明和不可变 Flow 消费的子范围证据见
+[实施记录](../reviews/flow-input-proof-implementation-2026-11-04.md)。
+基础反例不关闭 contributor／handler 声明、整页命中及服务家族容量相关行。
 只读 lease、foreign binding 和未声明行为还需独立 compile-fail／正向编译用例，
 在接口评审通过后冻结用例与公开 API 快照。
-新增 FA-R24～FA-R29 及修订 FA-R17／R19／R20／R21／R23 均未执行；
+FA-R24～FA-R29 及修订 FA-R17／R19／R20／R21／R23 的完整 Flow 生产范围均未完成；
 实施启动前冻结实际注入点、typed verifier 和 public metadata 接口，
 不把已有 30 项回归当作这些反例的通过证据。
 
@@ -112,9 +120,13 @@ release、锁文件、字体与驱动。两版均执行 timing-on／timing-off�
 | ID | 阶段 | 证据与退出要求 | 当前状态 |
 |---|---|---|---|
 | FA-G01 | 架构接受 | 评审共享 request 范围、typed proof 提交链、容量行为，以及独立 crate 通过公开入口接入的流程；无需先完成生产实现 | 待复核，不代表接受 |
-| FA-G02 | 实施启动 | 用户实施授权；签名／metadata、容量默认值／charges／淘汰规则、target、冷路径回退容限和启用判据冻结；接受时同步 ADR-051 关联条款 | 未完成，不进入生产 Execute |
-| FA-G03 | 实施完成 | 公开 API／消费者编译、FA-R／适用 FA-P 与既有回归；独立 crate 不改 Core 通过同注册、source 和 lease 通道 | 未执行 |
+| FA-G02 | 实施启动 | 用户实施授权；签名／metadata、容量默认值／charges／淘汰规则、target、冷路径回退容限和启用判据冻结；接受时同步 ADR-051 关联条款 | 授权已具备，共享内容基础迁移已启动；整页跳过所需接口／判据未全部冻结 |
+| FA-G03 | 实施完成 | 公开 API／消费者编译、FA-R／适用 FA-P 与既有回归；独立 crate 不改 Core 通过同注册、source 和 lease 通道 | 共享内容子范围已通过定向验证与调用成本对照；整批未完成 |
 | FA-G04 | 生产启用 | 重新冻结匹配基线，净收益、峰值／容量与回退达标；关闭路径的未解释变化经评审裁决 | 未执行 |
+
+2026-11-04 执行补录：用户实施授权已具备，共享内容／request 签名已冻结并开始迁移；
+FA-G02 的 assembly／proof 签名、服务家族容量与回退判据仍需补齐。
+FA-R23、R20／R21／R28／R29 中的内容子范围有实际测试，其余对象和提交反例仍未执行。
 
 当前不要求可编译原型，不把未授权的生产实现设为接受前置。
 需要原型时先单列隔离范围与授权，不据原型结果关闭 FA-G03／G04。

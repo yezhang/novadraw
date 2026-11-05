@@ -262,7 +262,29 @@ impl TextAnalysisRegistry {
             request.storage_bytes()?,
             add(std::mem::size_of::<Entry>(), RC_COUNTER_BYTES)?,
         )?;
-        let bytes = add(metadata, additional_bytes)?;
+        let content = request.content_backing();
+        context.charge(
+            "text-analysis-content-lower-bound",
+            TextStageCostPlan {
+                work: u64::try_from(self.ledger.borrow().backings.len())
+                    .map_err(|_| TextStageError::AccountingOverflow)?,
+                allocation: 0,
+            },
+        )?;
+        let retained_content = self
+            .ledger
+            .borrow()
+            .backings
+            .iter()
+            .any(|record| record.backing == content);
+        let bytes = add(
+            add(metadata, additional_bytes)?,
+            if retained_content {
+                0
+            } else {
+                content.retained_bytes
+            },
+        )?;
         Ok(TextAnalysisAdmissionCost {
             binding: *binding,
             request: request.clone(),
@@ -410,8 +432,20 @@ impl TextAnalysisRegistry {
         if !self.enabled {
             return Ok(None);
         }
-        let storage = payload.storage(context)?;
+        let mut storage = payload.storage(context)?;
         context.budget.check()?;
+        context.charge(
+            "text-analysis-content-backing",
+            TextStageCostPlan {
+                work: 1,
+                allocation: 1,
+            },
+        )?;
+        storage
+            .shared
+            .try_reserve_exact(1)
+            .map_err(|_| TextStageError::StorageReservation)?;
+        storage.shared.push(request.content_backing());
         context.charge("text-analysis-retained-request", request.copy_plan()?)?;
         // An entry owns a distinct request; session clones do not pin its metadata.
         // Complete all fallible storage work before committing any ledger mutation.

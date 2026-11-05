@@ -30,6 +30,19 @@ python3 tools/scripts/run_textflow_large_macos.py --release -- --scroll-replay -
 `--natural-damage` 可仅采自然 damage；普通模式仍保留原 full redraw 行为。
 自然 damage 的 Idle 单独记为 `no_damage`，不伪装为呈现成功。
 固定输入不是 OS 输入延迟；GPU 调用区间也不等于 GPU 执行时间。
+
+管线删减的交互对照使用 `--interaction-replay --timings`，覆盖滚动条按下／
+连续拖拽／释放、Winit 滚轮、连续窗口 resize、追加和稳定查询。
+`--timings` 独立记录主机耗时，关闭 tracing 也导出 `timings-<pid>.json`；
+`--gpu-wait` 将 GPU 队列完成等待纳入 latency。分析入口为
+`tools/scripts/analyze_textflow_interactions.py`，冻结 binary 的交替进程对照入口为
+`tools/scripts/run_textflow_interaction_comparison.py`。
+具体口径和当前结果见
+[逐项验证](../../../../../doc/verification/reviews/rich-text-pipeline-reduction-2026-11-05.md)。
+
+```sh
+python3 tools/scripts/run_textflow_large_macos.py --release --clt --target-dir /tmp/novadraw-text-stage-target -- --interaction-replay --cycles 2 --timings --gpu-wait --flow-assembly-reuse --natural-damage --exit-after-replay --output target/verification/text-pipeline-reduction/native
+```
 手动滚轮使用相同打点，记录来源、phase、delta、实际位移及关联 operation。
 本轮数字、有效 trace、SQL 和整改建议见
 [滚动诊断](../../../../../doc/verification/reviews/textflow-scroll-perfetto-2026-11-04.md)。
@@ -52,6 +65,40 @@ python3 tools/scripts/run_textflow_large_macos.py --release --clt --target-dir /
 
 启动脚本默认使用当前环境的 Rust 工具链；`--toolchain` 仅用于主动指定覆盖，
 常规启动不固定为历史采样使用的 Rust 1.96.0。
+
+Flow 组装复用实验使用 `--flow-assembly-reuse`，默认关闭，可与文字纹理缓存组合。
+自定义 InteractivePage 和标准文字组件使用同一公开声明入口。
+重置后保留开关配置；追加、样式或来源变化重新检查组装输入；
+宽度变化仍重新断行与定位。完整 source 证据较保守，改变 root 的 source bounds
+也会重新组装，当前不保证全部 resize 都命中。
+
+```sh
+python3 tools/scripts/run_textflow_large_macos.py --release --clt --target-dir /tmp/novadraw-text-stage-target -- --flow-assembly-reuse --natural-damage --output target/verification/text-fr02-manual
+```
+
+关闭窗口后，移除 `--flow-assembly-reuse` 启动对照组，保持其他参数相同。
+先上下滚动，再按 F2 追加文字、F4 反复改变宽度、F1 重置；
+检查文字、断行、光标与滚动位置，并比较两组响应。
+感受响应时先关闭 tracing；需要采证时，两组都加 `--trace`，避免观测配置不同。
+宿主 snapshot 记录累计 `assembly_builds`／`assembly_hits`／`assembly_ineligible`
+和服务实际留存。独立 `work_statistics()` 读取服务计数，避免把旧 snapshot
+自带的历史计数误当成本次工作。
+
+Native 宿主保留呈现结果的恢复类型。drawable 临时不可用的 `Skipped`
+以 100 ms 间隔等待并让出窗口事件处理，不计入失败预算；
+实际 `Retry` 仍保留 8 次上限。成功呈现或新操作重置恢复状态。
+窗口关闭前导出的 trace 才是操作／错误证据，启动脚本返回 0 不代表呈现成功。
+
+窗口失焦时释放 Core 焦点，重新聚焦时恢复研究场景的文字页。
+F2 执行前也先请求该页焦点；F1 创建新 Runtime 时同时更新目标，
+避免追加依赖失焦前的状态或旧 FigureId。手验时补充切走窗口、切回后按 F2，
+以及 F1 重置后再次按 F2。
+
+研究样例的组装 cache 上限为 16 × 1024² 逻辑单位，存活留存上限为
+64 × 1024²；每次 preparation 的 work／allocation 分别为 128 × 1024² 和
+64 × 1024²。关闭和开启路径使用同一有界配置；这些是研究配置，
+不是 Core 默认容量或实测 RSS。完整矩阵与成本状态见
+[整页采用实施记录](../../../../../doc/verification/reviews/flow-assembly-adoption-implementation-2026-11-04.md)。
 
 | 按键 | 操作 |
 |------|------|

@@ -24,6 +24,13 @@ struct MeasurementRecord {
     text_revision: u64,
     measurement: PreparationMeasurement,
     observations: Vec<crate::connection::DependencyObservation>,
+    input_proofs: Vec<super::InputProof>,
+}
+
+#[derive(Default)]
+struct InputProofLog {
+    ordered: Vec<super::InputProof>,
+    failure: Option<TextError>,
 }
 
 /// Keep the first read and its order while indexing typed subjects for deduplication.
@@ -40,6 +47,7 @@ struct RevisionBase {
 
 struct RootInputs {
     members: Rc<HashSet<FigureId>>,
+    route_members: HashSet<FigureId>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
     source: RefCell<Option<SourceInputs>>,
 }
@@ -84,21 +92,39 @@ impl<'a> PreparationInputs<'a> {
             inputs.clone()
         } else {
             // Root entry, membership, revision slots and source cache precede allocation.
-            self.budget.allocate("preparation root inputs", 4)?;
+            self.budget.allocate("preparation root inputs", 5)?;
             let mut members = HashSet::new();
-            self.budget.allocate("preparation subtree", 1)?;
-            let mut pending = vec![root];
-            while let Some(id) = pending.pop() {
+            let mut route_members = HashSet::new();
+            let mut ancestor = Some(root);
+            let mut inherited_route = false;
+            while let Some(id) = ancestor {
+                self.budget.consume("preparation root route ancestry", 1)?;
+                let node = self.tree.node(id).map_err(scene_error)?;
+                if node.connection().is_some() {
+                    inherited_route = true;
+                    break;
+                }
+                ancestor = node.parent;
+            }
+            self.budget.allocate("preparation subtree", 2)?;
+            let mut pending = vec![(root, inherited_route)];
+            while let Some((id, inherited_route)) = pending.pop() {
                 self.budget.allocate("preparation subtree", 1)?;
                 members.insert(id);
                 if let Ok(node) = self.tree.node(id) {
+                    let reads_route = inherited_route || node.connection().is_some();
+                    if reads_route {
+                        self.budget.allocate("preparation route member", 1)?;
+                        route_members.insert(id);
+                    }
                     self.budget
-                        .allocate("preparation subtree", node.children.len() as u64)?;
-                    pending.extend(node.children.iter().copied());
+                        .allocate("preparation subtree", 2 * node.children.len() as u64)?;
+                    pending.extend(node.children.iter().map(|&child| (child, reads_route)));
                 }
             }
             let inputs = Rc::new(RootInputs {
                 members: Rc::new(members),
+                route_members,
                 revision_bases: Rc::new(RefCell::new([None, None])),
                 source: RefCell::new(None),
             });
@@ -112,6 +138,7 @@ impl<'a> PreparationInputs<'a> {
             members: inputs.members.clone(),
             measurement_path: Rc::new(RefCell::new(Vec::new())),
             observations: Rc::new(RefCell::new(ObservationLog::default())),
+            input_proofs: Rc::new(RefCell::new(InputProofLog::default())),
             measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
             revision_bases: inputs.revision_bases.clone(),
@@ -144,6 +171,7 @@ pub struct PreparationScene<'a> {
     members: Rc<HashSet<FigureId>>,
     measurement_path: Rc<RefCell<Vec<FigureId>>>,
     observations: Rc<RefCell<ObservationLog>>,
+    input_proofs: Rc<RefCell<InputProofLog>>,
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
@@ -209,6 +237,7 @@ impl<'a> PreparationScene<'a> {
         let mut scene = self.inputs.scene(root)?;
         scene.measurement_path = self.measurement_path.clone();
         scene.observations = self.observations.clone();
+        scene.input_proofs = self.input_proofs.clone();
         scene.measurements = self.measurements.clone();
         scene.measurement_constraints = Some((outer, content));
         Ok(scene)
@@ -293,6 +322,10 @@ impl<'a> PreparationScene<'a> {
             .cloned();
         if let Some(record) = cached {
             self.retain_observations(&record.observations);
+            self.retain_input_proofs(&record.input_proofs)
+                .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
+            self.validate_input_proofs("measurement cache return")
+                .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
             self.budget.check().map_err(budget_failure)?;
             return Ok(record.measurement);
         }
@@ -316,6 +349,7 @@ impl<'a> PreparationScene<'a> {
             members: self.members.clone(),
             measurement_path: self.measurement_path.clone(),
             observations: Rc::new(RefCell::new(ObservationLog::default())),
+            input_proofs: Rc::new(RefCell::new(InputProofLog::default())),
             measurements: self.measurements.clone(),
             measurement_constraints: self.measurement_constraints,
             revision_bases: self.revision_bases.clone(),
@@ -337,6 +371,14 @@ impl<'a> PreparationScene<'a> {
         self.retain_observations(&observations);
         // A nested failure owns its subject and constraints, including budget errors.
         let measurement = result?;
+        measured_scene
+            .validate_input_proofs("measurement return")
+            .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
+        let input_proofs = measured_scene
+            .input_proofs()
+            .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
+        self.retain_input_proofs(&input_proofs)
+            .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?;
         self.budget.check().map_err(budget_failure)?;
         self.budget
             .allocate("measurement cache", 1)
@@ -348,6 +390,7 @@ impl<'a> PreparationScene<'a> {
             text_revision,
             measurement,
             observations,
+            input_proofs,
         });
         Ok(measurement)
     }
@@ -395,12 +438,14 @@ impl<'a> PreparationScene<'a> {
             .tree
             .checked_prepared_scene_with_budget(id, &self.budget)
             .map_err(|error| match error {
+                crate::connection::RouteSceneQueryError::PreparationInput(error) => *error,
                 crate::connection::RouteSceneQueryError::PreparationBudget(error) => {
                     TextError::from(error)
                 }
                 error => scene_error(error),
             })?;
         self.observe(subject);
+        self.retain_input_proofs(snapshot.input_proofs())?;
         Ok(snapshot)
     }
 
@@ -480,20 +525,13 @@ impl<'a> PreparationScene<'a> {
     // Raw capability/figure borrows can expose route or post-route derived data.
     // Treat access in that subtree as a calculation read; source membership has
     // separate children/parent queries and does not pass through this boundary.
-    fn observe_borrowed_route_output(&self, mut id: FigureId) -> Result<(), TextError> {
-        let subject = crate::connection::DependencySubject::FigureGeometry(id);
-        loop {
-            self.budget.consume("route ancestor query", 1)?;
-            let node = self.tree.node(id).map_err(scene_error)?;
-            if node.connection().is_some() {
-                self.observe(subject);
-                return Ok(());
-            }
-            let Some(parent) = node.parent else {
-                return Ok(());
-            };
-            id = parent;
+    fn observe_borrowed_route_output(&self, id: FigureId) -> Result<(), TextError> {
+        self.budget.consume("route membership query", 1)?;
+        if self.root_inputs.route_members.contains(&id) {
+            self.observe(crate::connection::DependencySubject::FigureGeometry(id));
         }
+        self.budget.check()?;
+        Ok(())
     }
 
     pub fn style(&self, id: FigureId) -> Result<&ResolvedStyle, TextError> {
@@ -655,6 +693,103 @@ impl<'a> PreparationScene<'a> {
             return Vec::new();
         }
         observations.ordered.clone()
+    }
+
+    /// Captures a registered external input and retains its first value for all consumers.
+    /// Repeated reads of the same subject must agree; ignoring a conflict cannot clear it.
+    pub fn input<P: super::PreparationInputPayload>(
+        &self,
+        registry: &super::PreparationInputRegistry,
+        key: super::PreparationInputKey<P>,
+        source: FigureId,
+    ) -> Result<super::PreparationInputSnapshot, TextError> {
+        if let Some(error) = &self.input_proofs.borrow().failure {
+            return Err(error.clone());
+        }
+        let proof = match self
+            .check(source)
+            .and_then(|()| registry.capture(key, source, self))
+        {
+            Ok(proof) => proof,
+            Err(error) => {
+                self.input_proofs.borrow_mut().failure = Some(error.clone());
+                return Err(error);
+            }
+        };
+        let value = proof.first.clone();
+        self.retain_input_proofs(&[proof])?;
+        Ok(value)
+    }
+
+    pub(crate) fn input_scope(
+        &self,
+        root: FigureId,
+        source: FigureId,
+        constraints: Option<(MeasureConstraints, MeasureConstraints)>,
+    ) -> Result<PreparationScene<'a>, TextError> {
+        self.check(root)?;
+        let mut scene = self.inputs.scene(root)?;
+        scene.check(source)?;
+        scene.measurement_constraints = constraints;
+        Ok(scene)
+    }
+
+    pub(crate) fn input_proofs(&self) -> Result<Vec<super::InputProof>, TextError> {
+        let proofs = self.input_proofs.borrow();
+        if let Some(error) = &proofs.failure {
+            return Err(error.clone());
+        }
+        if proofs.ordered.is_empty() {
+            return Ok(Vec::new());
+        }
+        self.budget.allocate(
+            "preparation input receipts",
+            proofs.ordered.len() as u64 * std::mem::size_of::<super::InputProof>() as u64,
+        )?;
+        Ok(proofs.ordered.clone())
+    }
+
+    pub(crate) fn retain_input_proofs(
+        &self,
+        incoming: &[super::InputProof],
+    ) -> Result<(), TextError> {
+        let mut proofs = self.input_proofs.borrow_mut();
+        if let Some(error) = &proofs.failure {
+            return Err(error.clone());
+        }
+        if incoming.is_empty() {
+            return Ok(());
+        }
+        if let Err(error) = super::merge_proofs(&mut proofs.ordered, incoming, &self.budget) {
+            proofs.failure = Some(error.clone());
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_input_proofs(&self, checkpoint: &'static str) -> Result<(), TextError> {
+        let _timing = self.budget.time("preparation-input-checkpoint");
+        let proofs = self.input_proofs.borrow();
+        if let Some(error) = &proofs.failure {
+            return Err(error.clone());
+        }
+        if proofs.ordered.is_empty() {
+            return Ok(());
+        }
+        // Validation readers receive an independent input_scope collector.
+        // They cannot append to this log, so the ordered first values can be
+        // borrowed for the entire check without allocating a receipt copy.
+        let result = proofs
+            .ordered
+            .iter()
+            .try_for_each(|proof| proof.validate(self, checkpoint));
+        drop(proofs);
+        if let Err(error) = result {
+            self.input_proofs.borrow_mut().failure = Some(error.clone());
+            return Err(error);
+        }
+        self.budget.check()?;
+        Ok(())
     }
 
     /// Frozen source prefix. Layout output bounds and cache generations are excluded.
@@ -875,6 +1010,7 @@ pub struct PreparedScene {
     pub(crate) descendants: Vec<(FigureId, FigurePresentation)>,
     pub(crate) result_version: Option<u64>,
     pub(crate) required_routes: Vec<super::RequiredRouteGroup>,
+    pub(crate) input_proofs: Vec<super::InputProof>,
 }
 
 impl PreparedScene {
@@ -885,6 +1021,7 @@ impl PreparedScene {
             descendants: Vec::new(),
             result_version: None,
             required_routes: Vec::new(),
+            input_proofs: Vec::new(),
         }
     }
 
@@ -1056,6 +1193,7 @@ impl PreparedScene {
                 .validate_layout_output(*parent, output)
                 .map_err(|error: LayoutError| scene_error(error))?;
         }
+        scene.validate_input_proofs("prepared candidate")?;
         Ok(())
     }
 }
@@ -1151,6 +1289,106 @@ mod tests {
         assert!(!Rc::ptr_eq(&owner.measurements, &narrow.measurements));
         assert!(!Rc::ptr_eq(&owner.observations, &narrow.observations));
         assert_ne!(parent.revision().unwrap(), first);
+    }
+
+    #[test]
+    fn shared_route_members_preserve_leaf_observations_and_refresh_after_reparent() {
+        use crate::connection::DependencySubject;
+        struct ExternalRoute(crate::PointList);
+        impl crate::ConnectionFigureBehavior for ExternalRoute {
+            fn route_points(&self) -> &crate::PointList {
+                &self.0
+            }
+            fn commit_route_points(&mut self, points: crate::PointList) {
+                self.0 = points;
+            }
+            fn connection_stroke_width(&self) -> f64 {
+                1.0
+            }
+            fn connection_stroke_color(&self) -> crate::Color {
+                crate::Color::BLACK
+            }
+        }
+        impl crate::FigureContainer for ExternalRoute {}
+        impl Figure for ExternalRoute {
+            fn initial_bounds(&self) -> Rectangle {
+                Rectangle::ZERO
+            }
+            fn name(&self) -> &'static str {
+                "ExternalRoute"
+            }
+            fn register_capabilities(
+                &self,
+                out: &mut crate::FigureCapabilityBuilder,
+            ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+                out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+                out.register(crate::CONNECTION, crate::ConnectionCapability::of::<Self>())
+            }
+        }
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let route = tree
+            .builder()
+            .add_child(root, Box::new(ExternalRoute(crate::PointList::new())))
+            .unwrap();
+        let leaf = tree
+            .builder()
+            .add_child(
+                route,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+            )
+            .unwrap();
+        let sibling = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+            )
+            .unwrap();
+        let styles = [root, route, leaf, sibling]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        {
+            let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+            scene.figure(sibling).unwrap();
+            assert!(scene.observations().is_empty());
+            scene.figure(leaf).unwrap();
+            let first = scene.observations();
+            assert_eq!(first.len(), 1);
+            assert_eq!(first[0].subject, DependencySubject::FigureGeometry(leaf));
+            // The connection ancestor is outside the restricted root.
+            let scoped = scene.input_scope(leaf, leaf, None).unwrap();
+            assert!(scoped.figure(route).is_err());
+            scoped.figure(leaf).unwrap();
+            scoped.capability(leaf, crate::CONNECTION).unwrap();
+            assert_eq!(scoped.observations(), first);
+            assert_eq!(scene.observations(), first);
+            let repeated = scene.input_scope(leaf, leaf, None).unwrap();
+            assert!(Rc::ptr_eq(&scoped.root_inputs, &repeated.root_inputs));
+            assert!(repeated.observations().is_empty());
+            repeated
+                .budget
+                .consume("force exhaustion", u64::MAX)
+                .unwrap_err();
+            assert!(repeated.figure(leaf).is_err());
+        }
+        let mut updates = crate::UpdateManager::new();
+        tree.reparent(&mut updates, leaf, root).unwrap();
+        let fresh = PreparationScene::new(&tree, root, &styles).unwrap();
+        fresh.figure(leaf).unwrap();
+        fresh.figure(sibling).unwrap();
+        assert!(fresh.observations().is_empty());
+        fresh.figure(route).unwrap();
+        assert_eq!(
+            fresh.observations()[0].subject,
+            DependencySubject::FigureGeometry(route)
+        );
     }
 
     #[test]

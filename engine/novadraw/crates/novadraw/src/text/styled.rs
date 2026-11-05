@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{FontDescriptor, TextConstraints, TextError, TextLayout};
+use super::{FontDescriptor, StyledTextContent, TextConstraints, TextError, TextLayout};
 use crate::{Rectangle, graphics::Color};
 
 /// Paragraph base direction, independent of the direction of individual runs.
@@ -71,9 +71,7 @@ pub struct TextInlineBox {
 /// Checked input shared by the default and external shaping engines.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StyledTextRequest {
-    text: Arc<str>,
-    default_style: TextStyle,
-    spans: Vec<TextStyleSpan>,
+    content: StyledTextContent,
     boxes: Vec<TextInlineBox>,
     constraints: TextConstraints,
     direction: ParagraphDirection,
@@ -85,32 +83,6 @@ pub struct StyledTextRequest {
 impl StyledTextRequest {
     pub(super) fn try_analysis_copy(&self) -> Result<Self, super::shaping::TextStageError> {
         use super::shaping::TextStageError;
-        fn copy_style(style: &TextStyle) -> Result<TextStyle, TextStageError> {
-            let mut family = String::new();
-            family
-                .try_reserve_exact(style.font.family.len())
-                .map_err(|_| TextStageError::StorageReservation)?;
-            family.push_str(&style.font.family);
-            Ok(TextStyle {
-                font: FontDescriptor {
-                    family,
-                    size: style.font.size,
-                    weight: style.font.weight,
-                    style: style.font.style,
-                },
-                color: style.color,
-            })
-        }
-        let mut spans = Vec::new();
-        spans
-            .try_reserve_exact(self.spans.len())
-            .map_err(|_| TextStageError::StorageReservation)?;
-        for span in &self.spans {
-            spans.push(TextStyleSpan {
-                range: span.range.clone(),
-                style: copy_style(&span.style)?,
-            });
-        }
         let mut boxes = Vec::new();
         boxes
             .try_reserve_exact(self.boxes.len())
@@ -118,9 +90,7 @@ impl StyledTextRequest {
         boxes.extend_from_slice(&self.boxes);
         // Start from the complete input so future dependencies remain included.
         let mut copy = Self {
-            text: self.text.clone(),
-            default_style: copy_style(&self.default_style)?,
-            spans,
+            content: self.content.clone(),
             boxes,
             constraints: self.constraints,
             direction: self.direction,
@@ -133,23 +103,11 @@ impl StyledTextRequest {
     }
 
     pub(super) fn analysis_storage_bytes(&self) -> Option<usize> {
-        let mut bytes = std::mem::size_of::<Self>()
-            .checked_add(self.text.len())?
-            .checked_add(2 * std::mem::size_of::<usize>())?
-            .checked_add(self.default_style.font.family.capacity())?
-            .checked_add(
-                self.spans
-                    .capacity()
-                    .checked_mul(std::mem::size_of::<TextStyleSpan>())?,
-            )?
-            .checked_add(
-                self.boxes
-                    .capacity()
-                    .checked_mul(std::mem::size_of::<TextInlineBox>())?,
-            )?;
-        for span in &self.spans {
-            bytes = bytes.checked_add(span.style.font.family.capacity())?;
-        }
+        let bytes = std::mem::size_of::<Self>().checked_add(
+            self.boxes
+                .capacity()
+                .checked_mul(std::mem::size_of::<TextInlineBox>())?,
+        )?;
         Some(bytes)
     }
 
@@ -162,18 +120,22 @@ impl StyledTextRequest {
     ) -> Result<Self, TextError> {
         let text = text.into();
         TextConstraints::new(constraints.max_width)?;
-        let mut end = 0;
-        for span in &spans {
-            if span.range.start < end
-                || span.range.start >= span.range.end
-                || span.range.end > text.len()
-                || !text.is_char_boundary(span.range.start)
-                || !text.is_char_boundary(span.range.end)
-            {
-                return Err(TextError::InvalidStyleRange);
-            }
-            end = span.range.end;
-        }
+        Self::from_content(
+            StyledTextContent::new(text, default_style, spans)?,
+            boxes,
+            constraints,
+        )
+    }
+
+    /// Combines previously checked immutable content with current measured boxes
+    /// and constraints. It never copies or revalidates the content's style spans.
+    pub fn from_content(
+        content: StyledTextContent,
+        boxes: Vec<TextInlineBox>,
+        constraints: TextConstraints,
+    ) -> Result<Self, TextError> {
+        TextConstraints::new(constraints.max_width)?;
+        let text = content.text();
         let mut ids = std::collections::HashSet::new();
         let mut offset = 0;
         for inline in &boxes {
@@ -193,9 +155,7 @@ impl StyledTextRequest {
             offset = inline.byte_offset;
         }
         Ok(Self {
-            text: text.into(),
-            default_style,
-            spans,
+            content,
             boxes,
             constraints,
             direction: ParagraphDirection::Auto,
@@ -216,7 +176,10 @@ impl StyledTextRequest {
         self
     }
     pub fn text(&self) -> &str {
-        &self.text
+        self.content.text()
+    }
+    pub fn content(&self) -> &StyledTextContent {
+        &self.content
     }
     pub fn with_layout_direction(mut self, direction: crate::figure::LayoutDirection) -> Self {
         self.layout_direction = direction;
@@ -226,10 +189,10 @@ impl StyledTextRequest {
         self.layout_direction
     }
     pub fn default_style(&self) -> &TextStyle {
-        &self.default_style
+        self.content.default_style()
     }
     pub fn spans(&self) -> &[TextStyleSpan] {
-        &self.spans
+        self.content.spans()
     }
     pub fn inline_boxes(&self) -> &[TextInlineBox] {
         &self.boxes
@@ -248,18 +211,18 @@ impl StyledTextRequest {
     }
     pub fn style(&self, index: usize) -> Option<&TextStyle> {
         if index == 0 {
-            Some(&self.default_style)
+            Some(self.default_style())
         } else {
-            self.spans.get(index - 1).map(|span| &span.style)
+            self.spans().get(index - 1).map(|span| &span.style)
         }
     }
     pub(crate) fn fingerprint(&self) -> u64 {
         // Private revision identity; never used as a portable serialization format.
         let mut hash = std::collections::hash_map::DefaultHasher::new();
-        self.text.hash(&mut hash);
-        self.default_style.hash_into(&mut hash);
-        self.spans.len().hash(&mut hash);
-        for span in &self.spans {
+        self.text().hash(&mut hash);
+        self.default_style().hash_into(&mut hash);
+        self.spans().len().hash(&mut hash);
+        for span in self.spans() {
             span.range.hash(&mut hash);
             span.style.hash_into(&mut hash);
         }
@@ -315,7 +278,7 @@ impl StyledTextLayout {
         placements: Vec<TextInlinePlacement>,
     ) -> Result<Self, TextError> {
         if layout.key().text() != request.text()
-            || layout.key().font() != request.default_style.font()
+            || layout.key().font() != request.default_style().font()
             || layout.key().constraints() != request.constraints()
             || runs.len() != layout.glyph_runs().len()
         {
@@ -323,17 +286,17 @@ impl StyledTextLayout {
         }
         for (run, glyphs) in runs.iter().zip(layout.glyph_runs()) {
             if run.source_range.start >= run.source_range.end
-                || run.source_range.end > request.text.len()
-                || !request.text.is_char_boundary(run.source_range.start)
-                || !request.text.is_char_boundary(run.source_range.end)
+                || run.source_range.end > request.text().len()
+                || !request.text().is_char_boundary(run.source_range.start)
+                || !request.text().is_char_boundary(run.source_range.end)
                 || request.style(run.style_index).is_none()
                 || if run.style_index == 0 {
-                    request.spans.iter().any(|span| {
+                    request.spans().iter().any(|span| {
                         run.source_range.start < span.range.end
                             && span.range.start < run.source_range.end
                     })
                 } else {
-                    request.spans.get(run.style_index - 1).is_none_or(|span| {
+                    request.spans().get(run.style_index - 1).is_none_or(|span| {
                         run.source_range.start < span.range.start
                             || run.source_range.end > span.range.end
                     })

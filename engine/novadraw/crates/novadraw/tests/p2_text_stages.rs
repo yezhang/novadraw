@@ -277,6 +277,15 @@ impl StagedTextLayoutEngine for Engine {
             .borrow()
             .fault
             .filter(|f| f.phase == Phase::Lower);
+        // Construct the checked value before injecting exhaustion. The matrix
+        // intentionally returns Value/None/Error after a fault; a charged Core
+        // query after exhaustion would turn the Value case into another Error.
+        let lower = self
+            .state
+            .borrow()
+            .lower_bytes
+            .map(|bytes| self.registry.admission_lower_bound(context, bytes, 1))
+            .transpose()?;
         if fault.is_some_and(|f| f.budget) {
             let _ = context
                 .budget()
@@ -288,11 +297,7 @@ impl StagedTextLayoutEngine for Engine {
         if fault.is_some_and(|f| matches!(f.returned, Return::None)) {
             return Ok(None);
         }
-        self.state
-            .borrow()
-            .lower_bytes
-            .map(|bytes| self.registry.admission_lower_bound(context, bytes, 1))
-            .transpose()
+        Ok(lower)
     }
     fn analyze(
         &mut self,
@@ -861,6 +866,37 @@ fn registry_metadata_and_arithmetic_are_bounded_before_allocation() {
         ),
         Err(TextStageError::CacheMetadataLimit)
     ));
+}
+
+#[test]
+fn shared_content_is_charged_once_across_distinct_analysis_entries() {
+    let request = input("abcdef", Some(2.0));
+    let shared =
+        request
+            .clone()
+            .with_paragraph(ParagraphDirection::Auto, ParagraphAlignment::Center, true);
+    let separate = StyledTextRequest::new(
+        request.text(),
+        request.default_style().clone(),
+        request.spans().to_vec(),
+        request.inline_boxes().to_vec(),
+        request.constraints(),
+    )
+    .unwrap()
+    .with_paragraph(ParagraphDirection::Auto, ParagraphAlignment::Center, true);
+    assert_eq!(shared, separate);
+    let retained = |second: &StyledTextRequest| {
+        let (engine, state) = Engine::new(LIMITS);
+        let mut system = TextSystem::with_engine(Box::new(engine));
+        run(&mut system, &request, &session()).unwrap();
+        run(&mut system, second, &session()).unwrap();
+        let usage = state.borrow().registry.as_ref().unwrap().usage();
+        assert_eq!(usage.entries, 2);
+        usage.retained_bytes
+    };
+    let shared_bytes = retained(&shared);
+    let separate_bytes = retained(&separate);
+    assert!(separate_bytes - shared_bytes >= separate.content().retained_units());
 }
 
 #[test]

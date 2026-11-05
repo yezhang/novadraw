@@ -782,6 +782,8 @@ fn coordinate_space_error(space: CoordinateSpace) -> RouteSceneQueryError {
 /// Failure produced by a read-only scene query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RouteSceneQueryError {
+    /// A registered preparation input or its reader failed during a checked snapshot query.
+    PreparationInput(Box<crate::text::TextError>),
     /// Reachability or source validation exhausted its preparation session.
     PreparationBudget(crate::figure::PreparationBudgetError),
     /// The query implementation does not expose preparation snapshots.
@@ -830,6 +832,7 @@ pub enum RouteSceneQueryError {
 impl fmt::Display for RouteSceneQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PreparationInput(error) => error.fmt(formatter),
             Self::PreparationBudget(error) => error.fmt(formatter),
             Self::UnsupportedPreparedSceneQuery(owner) => {
                 write!(formatter, "prepared scene query unsupported for {owner:?}")
@@ -884,6 +887,7 @@ impl fmt::Display for RouteSceneQueryError {
 impl Error for RouteSceneQueryError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::PreparationInput(error) => Some(error.as_ref()),
             Self::PreparationBudget(error) => Some(error),
             Self::Coordinate(error) => Some(error),
             _ => None,

@@ -48,20 +48,19 @@ ADR-059 A 使用 [text-stages 独立消费者](consumers/text-stages/README.md)
 公开入口为 `cargo test -p novadraw --test p2_text_stages`。
 该片不选择默认 Parley 的阶段能力，Flow 全输出等价与性能仍归后续 B／C／D。
 
-ADR-059 B 的[依赖消费者](consumers/parley-storage/README.md)验证容量、
-复制、对齐及候选断行准入；Core 会话预算入口为
-`cargo test -p novadraw --test p2_parley_operations_contract`。
-这些接口尚未用于生产 Flow，验证范围见
-[B 操作记录](../doc/verification/reviews/text-stages-b-operations-2026-11-02.md)与
-[B 断行记录](../doc/verification/reviews/text-stages-b-line-breaking-2026-11-02.md)。
+FR-02 的[共享内容消费者](consumers/flow-assembly-reuse/README.md)验证 owned／shared
+request、内容 lease、缩容及非法输入；新增 typed 输入登记和 Runtime 内实际读取用例。
+Core 入口为
+`cargo test -p novadraw --test flow_assembly_reuse_contract`；
+统一输入证明传递与不可变 Flow 消费正在验证；
+完整 Flow 声明与整页复用尚未接入，基础测试不关闭整批 FR-02。
 
-ADR-059 B1 的 [Harfrust 独立消费者](consumers/harfrust-admission/README.md)
-验证输入 buffer、规范化实例、错误 source、拒绝恢复、变量轴 spill、
-条件选择与普通输出对照。
-当前增量重放和原始版本／Native／portable oracle 由
-`tools/scripts/check_harfrust_instance_admission.py` 执行；
-输入单片的历史 receipt 与私有容量测试仍保留。
-完整 shaping 准入与 Core 阶段适配仍待完成。
+Parley 上游接口入口为
+`cargo test -p novadraw --test p2_parley_public_api_contract`，
+覆盖复制后宽度重排与新建布局等价，以及构建上下文／字体 collection
+复用后的布局独立性。Core 通用阶段预算继续由 `p2_text_stages` 验证。
+旧 Parley／Harfrust／Fontique 补丁消费者和重放工具已退役；
+替代边界与历史证据见[迁移记录](../doc/verification/reviews/parley-upstream-migration-2026-11-05.md)。
 
 ADR-057 首片使用 Animation 定向回归与独立消费者：
 

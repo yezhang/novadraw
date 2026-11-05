@@ -38,6 +38,8 @@ pub(crate) mod preparation;
 pub use preparation::{
     FigureDrawing, FigurePreparation, FigurePresentation, PreparationBudget,
     PreparationBudgetError, PreparationBudgetHandle, PreparationDependencyError,
+    PreparationInputError, PreparationInputErrorKind, PreparationInputKey, PreparationInputPayload,
+    PreparationInputReader, PreparationInputRegistry, PreparationInputSnapshot,
     PreparationMeasureError, PreparationMeasureErrorKind, PreparationMeasureStage,
     PreparationMeasurement, PreparationMetric, PreparationRouteError, PreparationRouteErrorKind,
     PreparationScene, PreparedScene, PreparedSceneIdentity, PreparedSceneSnapshot,

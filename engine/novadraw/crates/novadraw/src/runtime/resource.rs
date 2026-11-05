@@ -289,6 +289,19 @@ impl ResourceRegistry {
 
     /// Retains an immutable ready resource without consuming pending synchronization.
     pub fn snapshot_resource(&self, id: ResourceId) -> Result<ResourceUpdate, ResourceError> {
+        let (revision, payload) = self.borrow_resource(id)?;
+        Ok(ResourceUpdate {
+            id,
+            revision,
+            payload: payload.clone(),
+        })
+    }
+
+    /// The registry cannot change while a recording scope holds this borrow.
+    pub(crate) fn borrow_resource(
+        &self,
+        id: ResourceId,
+    ) -> Result<(u64, &ResourcePayload), ResourceError> {
         let key = self.key(id)?;
         let entry = self
             .entries
@@ -297,14 +310,13 @@ impl ResourceRegistry {
         let ResourceStatus::Ready { revision } = entry.status else {
             return Err(ResourceError::NotReady);
         };
-        Ok(ResourceUpdate {
-            id,
+        Ok((
             revision,
-            payload: entry
+            entry
                 .payload
-                .clone()
+                .as_ref()
                 .expect("ready resources own a payload"),
-        })
+        ))
     }
 
     pub(crate) fn image_ref(&self, id: ImageId) -> Option<ImageResourceRef> {

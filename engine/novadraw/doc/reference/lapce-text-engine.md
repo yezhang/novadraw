@@ -5,6 +5,8 @@
 日期：2026-10-27。范围：文本存储、编辑 delta、视觉行布局与绘制。
 本页记录外部源码和理论事实，不定义 Novadraw 行为。
 采用建议见[后续优化提案](../design/architecture/long-text-incremental-layout-proposal.md)。
+文中 Novadraw／Parley 比较基于 2026-10-27 的 0.7.0；
+默认适配器已迁移到 0.12.0，现状见[迁移记录](../verification/reviews/parley-upstream-migration-2026-11-05.md)。
 
 ## 来源版本
 

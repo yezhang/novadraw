@@ -8,6 +8,12 @@ use std::sync::Arc;
 mod budget;
 pub use budget::{PreparationBudget, PreparationBudgetError, PreparationBudgetHandle};
 mod dependency;
+mod input;
+pub(crate) use input::{InputProof, merge_proofs};
+pub use input::{
+    PreparationInputError, PreparationInputErrorKind, PreparationInputKey, PreparationInputPayload,
+    PreparationInputReader, PreparationInputRegistry, PreparationInputSnapshot,
+};
 mod measurement;
 mod routing;
 mod scene;
@@ -44,6 +50,7 @@ pub struct PreparedSceneSnapshot {
     identity: PreparedSceneIdentity,
     presentation: FigurePresentation,
     observations: Arc<[crate::connection::DependencyObservation]>,
+    input_proofs: Arc<[InputProof]>,
 }
 
 impl PreparedSceneSnapshot {
@@ -57,6 +64,10 @@ impl PreparedSceneSnapshot {
 
     pub(crate) fn observations(&self) -> &[crate::connection::DependencyObservation] {
         &self.observations
+    }
+
+    pub(crate) fn input_proofs(&self) -> &[InputProof] {
+        &self.input_proofs
     }
 }
 
@@ -236,6 +247,7 @@ pub(crate) struct PreparedFigure {
     pub source: PreparationSource,
     pub result_version: Option<u64>,
     pub observations: Arc<[crate::connection::DependencyObservation]>,
+    pub input_proofs: Arc<[InputProof]>,
     pub required_routes: Vec<RequiredRouteGroup>,
 }
 
@@ -245,6 +257,7 @@ impl PreparedFigure {
             identity: self.identity,
             presentation: self.presentation.clone(),
             observations: self.observations.clone(),
+            input_proofs: self.input_proofs.clone(),
         }
     }
 }

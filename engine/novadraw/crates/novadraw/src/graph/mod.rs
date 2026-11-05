@@ -282,7 +282,14 @@ impl fmt::Display for ValidationError {
     }
 }
 
-impl Error for ValidationError {}
+impl Error for ValidationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Layout(error) => Some(error),
+            Self::NonConvergingValidation { .. } => None,
+        }
+    }
+}
 
 impl From<LayoutError> for ValidationError {
     fn from(value: LayoutError) -> Self {
@@ -443,6 +450,7 @@ pub struct LayoutState {
     pub(crate) source_generation: u64,
     cache: RefCell<LayoutCache>,
     freeform: Option<FreeformState>,
+    pub(crate) input_proofs: Vec<crate::figure::preparation::InputProof>,
 }
 
 #[derive(Debug, Clone, Copy)]

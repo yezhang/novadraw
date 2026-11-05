@@ -3,9 +3,11 @@ mod assembly;
 mod border;
 mod nodes;
 mod protocol;
+mod reuse;
 mod snapshot;
+mod workspace;
 
-pub use assembly::{FlowAssembly, FlowBlockStyle, FlowSourceRange};
+pub use assembly::{FlowAssembly, FlowBlockStyle, FlowSourceRange, FlowSourceRanges};
 pub use border::{
     BORDER_CONTRIBUTION, BorderContribution, FlowBorderFragment, FlowBorderMetrics,
     FlowFragmentBorder,
@@ -20,6 +22,7 @@ pub use protocol::{
     ContributionKey, FLOW, FlowCapability, FlowContributionContext, FlowContributionHandler,
     FlowContributionPayload, FlowContributionRegistry, FlowContributionSink, FlowContributor,
 };
+pub use reuse::{DeclaredFlowHandler, FlowReuseDeclaration, FlowReuseIdentity};
 pub use snapshot::{
     FlowFragment, FlowLayoutService, FlowParagraphSnapshot, FlowSnapshot, FlowWorkStatistics,
     SourceTextPosition,
@@ -34,6 +37,7 @@ pub enum FlowError {
     InvalidContribution(&'static str),
     UnknownContribution(&'static str),
     MissingContributor(FigureId),
+    InvalidReuseDeclaration(FigureId),
     InvalidStructure,
     DepthLimit,
 }
@@ -50,6 +54,10 @@ impl std::fmt::Display for FlowError {
             Self::InvalidContribution(n) => write!(f, "invalid flow contribution: {n}"),
             Self::UnknownContribution(n) => write!(f, "unregistered flow contribution: {n}"),
             Self::MissingContributor(id) => write!(f, "missing flow contributor: {id:?}"),
+            Self::InvalidReuseDeclaration(id) => write!(
+                f,
+                "flow payload sequence disagrees with declaration: {id:?}"
+            ),
             Self::InvalidStructure => f.write_str("invalid flow structure"),
             Self::DepthLimit => f.write_str("flow nesting exceeds the tree depth limit"),
         }
@@ -57,7 +65,8 @@ impl std::fmt::Display for FlowError {
 }
 impl std::error::Error for FlowError {}
 impl FlowError {
-    pub(crate) fn into_text(self) -> TextError {
+    /// Preserves structured text and preparation failures across a Flow adapter.
+    pub fn into_text(self) -> TextError {
         match self {
             Self::Text(e) => e,
             e => TextError::InvalidPreparedScene(e.to_string()),

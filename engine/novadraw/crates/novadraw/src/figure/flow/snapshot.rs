@@ -17,7 +17,10 @@ use crate::{
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 type CachedFlow = (
@@ -30,6 +33,26 @@ type CachedFlow = (
 // A service retains recent exact-width assets, including measurement/preparation widths.
 // Old published snapshots keep their own immutable leases after cache eviction.
 const PARAGRAPH_CACHE_CAPACITY: usize = 256;
+// Bounded/unbounded demands and scrollbar feedback widths can alternate.
+const MEASUREMENT_CACHE_CAPACITY: usize = 4;
+
+#[derive(PartialEq)]
+struct FlowMeasurementKey {
+    input: crate::figure::PreparationInputSnapshot,
+    engine: crate::text::shaping::TextLayoutCacheIdentity,
+    engine_revision: u64,
+    bounds: Rectangle,
+    available_width: Option<f64>,
+    requested_constraints: Option<MeasureConstraints>,
+    constraints: Option<(MeasureConstraints, MeasureConstraints)>,
+}
+
+struct FlowMeasurementRecord {
+    key: FlowMeasurementKey,
+    size: Dimension,
+    observations: Vec<crate::connection::DependencyObservation>,
+    retention: crate::text::TextContentLease,
+}
 
 #[derive(Default)]
 struct FlowWork {
@@ -40,6 +63,13 @@ struct FlowWork {
     paragraph_lookup: HashMap<usize, Vec<usize>>,
     // Stable slots preserve FIFO eviction without moving every retained asset.
     oldest_paragraph: usize,
+    assembly: Option<(
+        crate::figure::PreparationInputSnapshot,
+        Arc<super::assembly::FrozenFlowPlan>,
+        Vec<crate::connection::DependencyObservation>,
+    )>,
+    measurements: Vec<FlowMeasurementRecord>,
+    assembly_workspace: super::workspace::AssemblyWorkspace,
 }
 
 struct ParagraphAsset {
@@ -158,6 +188,9 @@ pub struct FlowWorkStatistics {
     pub styled_layout_calls: u64,
     pub paragraph_hits: u64,
     pub source_geometry_calls: u64,
+    pub assembly_builds: u64,
+    pub assembly_hits: u64,
+    pub assembly_ineligible: u64,
 }
 
 fn flow_revision(
@@ -183,18 +216,106 @@ pub struct FlowLayoutService {
     registry: FlowContributionRegistry,
     cache: Arc<Mutex<Option<CachedFlow>>>,
     statistics: Arc<Mutex<FlowWork>>,
+    inputs: crate::figure::PreparationInputRegistry,
+    assembly_reuse: Arc<AtomicBool>,
+    retention: crate::text::TextContentStore,
+    cache_limit: Arc<Mutex<usize>>,
 }
 impl FlowLayoutService {
     pub fn new(registry: FlowContributionRegistry) -> Self {
+        let retention = crate::text::TextContentStore::new(usize::MAX);
+        let inputs = super::reuse::input_registry(registry.clone(), retention.clone());
+        let work = FlowWork {
+            assembly_workspace: super::workspace::AssemblyWorkspace::new(retention.clone()),
+            ..FlowWork::default()
+        };
         Self {
             registry,
             cache: Arc::new(Mutex::new(None)),
-            statistics: Arc::new(Mutex::new(FlowWork::default())),
+            statistics: Arc::new(Mutex::new(work)),
+            inputs,
+            assembly_reuse: Arc::new(AtomicBool::new(false)),
+            retention,
+            cache_limit: Arc::new(Mutex::new(usize::MAX)),
         }
+    }
+    /// Experimental assembly reuse. Defaults to disabled.
+    /// Cloned enabled services share their cache and registered proof reader.
+    pub fn with_assembly_reuse(self, enabled: bool) -> Self {
+        self.assembly_reuse.store(enabled, Ordering::Relaxed);
+        self
+    }
+    pub fn set_assembly_limits(
+        &self,
+        cache_units: usize,
+        retained_units: usize,
+    ) -> Result<(), FlowError> {
+        *self
+            .cache_limit
+            .lock()
+            .map_err(|_| FlowError::InvalidStructure)? = cache_units;
+        self.retention
+            .set_limit(retained_units)
+            .map_err(crate::text::TextError::from)?;
+        let mut work = self
+            .statistics
+            .lock()
+            .map_err(|_| FlowError::InvalidStructure)?;
+        work.assembly_workspace
+            .set_limit(cache_units.min(retained_units));
+        if work.assembly.as_ref().is_some_and(|(input, assembly, _)| {
+            assembly
+                .retained_units()
+                .saturating_add(super::reuse::input_units(input))
+                > cache_units
+        }) {
+            work.assembly = None;
+        }
+        work.measurements.retain(|record| {
+            record
+                .retention
+                .units()
+                .saturating_add(super::reuse::input_units(&record.key.input))
+                <= cache_units
+        });
+        Ok(())
+    }
+    pub fn assembly_usage(&self) -> Result<crate::text::TextContentUsage, FlowError> {
+        self.retention
+            .usage()
+            .map_err(crate::text::TextError::from)
+            .map_err(FlowError::from)
+    }
+    pub fn work_statistics(&self) -> Result<FlowWorkStatistics, FlowError> {
+        Ok(self
+            .statistics
+            .lock()
+            .map_err(|_| FlowError::InvalidStructure)?
+            .statistics)
     }
     /// Measures a frozen contribution tree without publishing placements or drawing.
     /// Unbounded width is passed to the text engine as an unbounded constraint.
     pub fn measure(
+        &self,
+        context: &mut MeasureContext<'_>,
+        constraints: MeasureConstraints,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparationMeasurement, PreparationMeasureError> {
+        self.release_failed_workspace(self.measure_inner(context, constraints, scene))
+    }
+
+    // Called after all temporary service locks and callback borrows have ended.
+    // Preserve the original failure, including budget/input proof errors.
+    fn release_failed_workspace<T, E>(&self, result: Result<T, E>) -> Result<T, E> {
+        if result.is_err()
+            && let Ok(mut work) = self.statistics.lock()
+        {
+            work.assembly_workspace.discard();
+        }
+        result
+    }
+
+    fn measure_inner(
         &self,
         context: &mut MeasureContext<'_>,
         constraints: MeasureConstraints,
@@ -208,19 +329,40 @@ impl FlowLayoutService {
             constraints.max_width(),
             scene,
             FlowBuildPurpose::Measure,
-            &mut *self
-                .statistics
-                .lock()
-                .map_err(|_| PreparationMeasureError {
-                    figure: scene.root(),
-                    outer_constraints: constraints,
-                    content_constraints: Some(constraints),
-                    kind: PreparationMeasureErrorKind::Text(Box::new(
-                        crate::text::TextError::InvalidPreparedScene(
-                            "flow statistics poisoned".into(),
-                        ),
-                    )),
-                })?,
+            FlowBuildCall {
+                requested_constraints: Some(constraints),
+                work: &mut *self
+                    .statistics
+                    .lock()
+                    .map_err(|_| PreparationMeasureError {
+                        figure: scene.root(),
+                        outer_constraints: constraints,
+                        content_constraints: Some(constraints),
+                        kind: PreparationMeasureErrorKind::Text(Box::new(
+                            crate::text::TextError::InvalidPreparedScene(
+                                "flow statistics poisoned".into(),
+                            ),
+                        )),
+                    })?,
+                reuse_inputs: self.assembly_reuse.load(Ordering::Relaxed).then_some(
+                    AssemblyReuseCall {
+                        inputs: &self.inputs,
+                        retention: &self.retention,
+                        cache_limit: *self.cache_limit.lock().map_err(|_| {
+                            PreparationMeasureError {
+                                figure: scene.root(),
+                                outer_constraints: constraints,
+                                content_constraints: Some(constraints),
+                                kind: PreparationMeasureErrorKind::Text(Box::new(
+                                    crate::text::TextError::InvalidPreparedScene(
+                                        "flow cache limit poisoned".into(),
+                                    ),
+                                )),
+                            }
+                        })?,
+                    },
+                ),
+            },
         )
         .map_err(|error| match error.into_text() {
             crate::text::TextError::PreparationMeasurement(error) => *error,
@@ -238,14 +380,40 @@ impl FlowLayoutService {
             },
         })?;
         match output {
-            FlowBuildOutput::Measurement(size) => Ok(PreparationMeasurement {
-                preferred: FigureMeasurement::new(size.width, size.height, None),
-                minimum: size,
-            }),
-            FlowBuildOutput::Snapshot(_, _) => unreachable!("measurement build purpose"),
+            FlowBuildOutput::Measurement(size, candidate) => {
+                if let Some(candidate) = candidate {
+                    self.statistics
+                        .lock()
+                        .map_err(|_| PreparationMeasureError {
+                            figure: scene.root(),
+                            outer_constraints: constraints,
+                            content_constraints: Some(constraints),
+                            kind: PreparationMeasureErrorKind::Text(Box::new(
+                                crate::text::TextError::InvalidPreparedScene(
+                                    "flow statistics poisoned".into(),
+                                ),
+                            )),
+                        })?
+                        .assembly = Some(candidate);
+                }
+                Ok(PreparationMeasurement {
+                    preferred: FigureMeasurement::new(size.width, size.height, None),
+                    minimum: size,
+                })
+            }
+            FlowBuildOutput::Snapshot(_, _, _) => unreachable!("measurement build purpose"),
         }
     }
     pub fn prepare(
+        &self,
+        context: &mut MeasureContext<'_>,
+        bounds: Rectangle,
+        scene: &PreparationScene<'_>,
+    ) -> Result<PreparedScene, FlowError> {
+        self.release_failed_workspace(self.prepare_inner(context, bounds, scene))
+    }
+
+    fn prepare_inner(
         &self,
         context: &mut MeasureContext<'_>,
         bounds: Rectangle,
@@ -258,23 +426,43 @@ impl FlowLayoutService {
             .map_err(|_| FlowError::InvalidStructure)?
             .clone();
         if let Some((revision, snapshot, members, observations)) = cached
+            && !self.assembly_reuse.load(Ordering::Relaxed)
             && revision == key
             && context.cache_identity().is_some()
             && scene.reuse_observations(&observations)?
         {
             return prepare_snapshot(snapshot, &members, bounds, scene);
         }
-        let (snapshot, members) = build_snapshot(
+        let (snapshot, members, candidate) = match build_flow(
             &self.registry,
             context,
             bounds,
             Some(bounds.width),
             scene,
-            &mut *self
-                .statistics
-                .lock()
-                .map_err(|_| FlowError::InvalidStructure)?,
-        )?;
+            FlowBuildPurpose::Prepare,
+            FlowBuildCall {
+                requested_constraints: None,
+                work: &mut *self
+                    .statistics
+                    .lock()
+                    .map_err(|_| FlowError::InvalidStructure)?,
+                reuse_inputs: self.assembly_reuse.load(Ordering::Relaxed).then_some(
+                    AssemblyReuseCall {
+                        inputs: &self.inputs,
+                        retention: &self.retention,
+                        cache_limit: *self
+                            .cache_limit
+                            .lock()
+                            .map_err(|_| FlowError::InvalidStructure)?,
+                    },
+                ),
+            },
+        )? {
+            FlowBuildOutput::Snapshot(snapshot, members, candidate) => {
+                (snapshot, members, candidate)
+            }
+            FlowBuildOutput::Measurement(_, _) => unreachable!("preparation build purpose"),
+        };
         let result = prepare_snapshot(snapshot.clone(), &members, bounds, scene)?;
         result.validate(scene)?;
         if flow_revision(context, bounds, scene)? != key {
@@ -283,8 +471,16 @@ impl FlowLayoutService {
             )
             .into());
         }
-        *self.cache.lock().map_err(|_| FlowError::InvalidStructure)? =
-            Some((key, snapshot, members, scene.observations()));
+        if let Some(candidate) = candidate {
+            self.statistics
+                .lock()
+                .map_err(|_| FlowError::InvalidStructure)?
+                .assembly = Some(candidate);
+        }
+        if !self.assembly_reuse.load(Ordering::Relaxed) {
+            *self.cache.lock().map_err(|_| FlowError::InvalidStructure)? =
+                Some((key, snapshot, members, scene.observations()));
+        }
         Ok(result)
     }
 }
@@ -306,7 +502,7 @@ pub struct FlowParagraphSnapshot {
     pub owner: FigureId,
     pub origin: Point,
     pub layout: StyledTextLayout,
-    pub sources: Vec<FlowSourceRange>,
+    pub sources: super::FlowSourceRanges,
 }
 /// Positions always identify their source Figure and immutable scene revision.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -329,6 +525,8 @@ pub struct FlowSnapshot {
     source_ranges: HashMap<FigureId, Vec<(usize, usize)>>,
     paint_index: crate::text::outline::paint_index::EnvelopeIndex,
     outline_visual_bounds: Option<Rectangle>,
+    // Preserve the assembly backing and its source maps for every published lease.
+    _assembly: Arc<super::assembly::FrozenFlowPlan>,
 }
 fn translated(b: Rectangle, origin: Point) -> Rectangle {
     Rectangle::new(b.x + origin.x(), b.y + origin.y(), b.width, b.height)
@@ -575,11 +773,17 @@ enum FlowBuildPurpose {
     Measure,
     Prepare,
 }
+type AssemblyCandidate = (
+    crate::figure::PreparationInputSnapshot,
+    Arc<super::assembly::FrozenFlowPlan>,
+    Vec<crate::connection::DependencyObservation>,
+);
 enum FlowBuildOutput {
-    Measurement(Dimension),
-    Snapshot(Arc<FlowSnapshot>, Vec<FigureId>),
+    Measurement(Dimension, Option<AssemblyCandidate>),
+    Snapshot(Arc<FlowSnapshot>, Vec<FigureId>, Option<AssemblyCandidate>),
 }
 
+#[cfg(test)]
 fn build_snapshot(
     registry: &FlowContributionRegistry,
     context: &mut MeasureContext<'_>,
@@ -595,13 +799,28 @@ fn build_snapshot(
         available_width,
         scene,
         FlowBuildPurpose::Prepare,
-        work,
+        FlowBuildCall {
+            requested_constraints: None,
+            work,
+            reuse_inputs: None,
+        },
     )? {
-        FlowBuildOutput::Snapshot(snapshot, members) => Ok((snapshot, members)),
-        FlowBuildOutput::Measurement(_) => unreachable!("preparation build purpose"),
+        FlowBuildOutput::Snapshot(snapshot, members, _) => Ok((snapshot, members)),
+        FlowBuildOutput::Measurement(_, _) => unreachable!("preparation build purpose"),
     }
 }
 
+#[derive(Clone, Copy)]
+struct AssemblyReuseCall<'a> {
+    inputs: &'a crate::figure::PreparationInputRegistry,
+    retention: &'a crate::text::TextContentStore,
+    cache_limit: usize,
+}
+struct FlowBuildCall<'a> {
+    requested_constraints: Option<MeasureConstraints>,
+    work: &'a mut FlowWork,
+    reuse_inputs: Option<AssemblyReuseCall<'a>>,
+}
 fn build_flow(
     registry: &FlowContributionRegistry,
     context: &mut MeasureContext<'_>,
@@ -609,10 +828,14 @@ fn build_flow(
     available_width: Option<f64>,
     scene: &PreparationScene<'_>,
     purpose: FlowBuildPurpose,
-    work: &mut FlowWork,
+    call: FlowBuildCall<'_>,
 ) -> Result<FlowBuildOutput, FlowError> {
+    let FlowBuildCall {
+        work,
+        reuse_inputs,
+        requested_constraints,
+    } = call;
     let _timing = scene.budget().time("flow-build");
-    work.statistics.builds += 1;
     let allocate = |entries: usize| {
         scene
             .budget()
@@ -623,8 +846,36 @@ fn build_flow(
                 )))
             })
     };
-    let contribution_timing = scene.budget().time("flow-contribution");
-    let assembly = {
+    let first = reuse_inputs
+        .map(|inputs| scene.input(inputs.inputs, super::reuse::ASSEMBLY_INPUT, scene.root()))
+        .transpose()?;
+    let eligible = first.as_ref().is_some_and(|value| {
+        value
+            .value(super::reuse::ASSEMBLY_INPUT)
+            .is_some_and(Option::is_some)
+    });
+    let reused = if eligible {
+        if let Some((input, assembly, observations)) = &work.assembly
+            && Some(input) == first.as_ref()
+            && scene.reuse_observations(observations)?
+        {
+            work.statistics.assembly_hits += 1;
+            Some(assembly.clone())
+        } else {
+            None
+        }
+    } else {
+        if reuse_inputs.is_some() {
+            work.statistics.assembly_ineligible += 1;
+        }
+        None
+    };
+    let was_hit = reused.is_some();
+    let assembly = if let Some(assembly) = reused {
+        assembly
+    } else {
+        let _contribution_timing = scene.budget().time("flow-contribution");
+        work.statistics.assembly_builds += 1;
         let mut measure_border = |source, border: Arc<dyn super::FlowFragmentBorder>| {
             let _border = scene.budget().time("flow-border");
             let resolved = scene.style(source)?;
@@ -641,11 +892,55 @@ fn build_flow(
             };
             Ok((metrics, renderer))
         };
-        let mut assembly = FlowAssembly::new(scene, registry, &mut measure_border);
+        let mut assembly = FlowAssembly::new(
+            scene,
+            registry,
+            &mut measure_border,
+            &mut work.assembly_workspace,
+        );
+        assembly.check_declarations = eligible;
         assembly.visit(scene.root())?;
-        assembly.finish()
+        assembly
+            .finish()?
+            .freeze_in(scene, reuse_inputs.map(|call| call.retention))?
     };
-    drop(contribution_timing);
+    if reuse_inputs.is_some() {
+        scene.validate_input_proofs("flow assembly adoption")?;
+    }
+    // No unproved inline measurement or fragment renderer callback may be omitted.
+    let measurement_key = if purpose == FlowBuildPurpose::Measure
+        && eligible
+        && assembly.decorations.is_empty()
+        && assembly
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph.boxes.is_empty())
+    {
+        context.cache_identity().map(|engine| FlowMeasurementKey {
+            input: first.as_ref().expect("eligible input").clone(),
+            engine,
+            engine_revision: context.revision(),
+            bounds,
+            available_width,
+            requested_constraints,
+            constraints: scene.measurement_constraints(),
+        })
+    } else {
+        None
+    };
+    if let Some(key) = &measurement_key
+        && let Some(record) = work.measurements.iter().find(|record| &record.key == key)
+        && scene.reuse_observations(&record.observations)?
+    {
+        let _timing = scene.budget().time("flow-measurement-reuse");
+        scene.validate_input_proofs("flow layout return")?;
+        scene
+            .budget()
+            .check()
+            .map_err(crate::text::TextError::from)?;
+        return Ok(FlowBuildOutput::Measurement(record.size, None));
+    }
+    work.statistics.builds += 1;
     allocate(
         assembly
             .paragraphs
@@ -665,6 +960,7 @@ fn build_flow(
         source_ranges: HashMap::new(),
         paint_index: crate::text::outline::paint_index::EnvelopeIndex::from_envelopes(&[]),
         outline_visual_bounds: None,
+        _assembly: assembly.clone(),
     };
     let mut y = bounds.y;
     let mut paragraph_padding = Vec::new();
@@ -688,12 +984,17 @@ fn build_flow(
             }
         }
     }
-    for (paragraph_index, mut p) in assembly.paragraphs.into_iter().enumerate() {
+    for (paragraph_index, p) in assembly.paragraphs.iter().enumerate() {
+        // Only inline work is mutable and width-dependent; paragraph content and
+        // source ancestry stay borrowed from the immutable assembly.
+        allocate(p.boxes.iter().map(|b| b.ancestors.len() + 1).sum())?;
+        let mut paragraph_boxes = p.boxes.clone();
         scene
             .budget()
             .allocate(
                 "flow paragraph shaping",
-                (p.text
+                (p.content
+                    .text()
                     .len()
                     .saturating_add(p.boxes.len())
                     .saturating_add(p.sources.len())) as u64,
@@ -781,17 +1082,17 @@ fn build_flow(
             };
             let extent = decoration_extents[&decoration.source];
             if paragraph_index == extent.0 {
-                let start = p.boxes.partition_point(|b| b.offset < leading.offset);
-                p.boxes.insert(start, leading);
+                let start = paragraph_boxes.partition_point(|b| b.offset < leading.offset);
+                paragraph_boxes.insert(start, leading);
             }
             if paragraph_index == extent.1 {
-                let end = p.boxes.partition_point(|b| b.offset <= trailing.offset);
-                p.boxes.insert(end, trailing);
+                let end = paragraph_boxes.partition_point(|b| b.offset <= trailing.offset);
+                paragraph_boxes.insert(end, trailing);
             }
         }
         // Equal byte offsets still have distinct opening/closing events in the tree.
         // In particular a parent's opening precedes its child's, and its closing follows it.
-        p.boxes.sort_by_key(|b| {
+        paragraph_boxes.sort_by_key(|b| {
             let order = if let Some((source, leading)) = b.border_marker {
                 let (opening, closing) = assembly.traversal_order[&source];
                 if leading { opening } else { closing }
@@ -804,11 +1105,12 @@ fn build_flow(
             .map(|width| (width - p.block.padding.width() - p.block.margin.width()).max(0.0));
         let constraints = TextConstraints::new(width.map(|width| width as f32))?;
         let mut boxes = Vec::new();
-        for (id, source) in p.boxes.iter().enumerate() {
+        for (id, source) in paragraph_boxes.iter().enumerate() {
             allocate(
-                p.text
+                p.content
+                    .text()
                     .len()
-                    .saturating_add(p.spans.len())
+                    .saturating_add(p.content.spans().len())
                     .saturating_add(boxes.len())
                     .saturating_add(1),
             )?;
@@ -824,9 +1126,10 @@ fn build_flow(
             let child = source.child.ok_or(FlowError::InvalidStructure)?;
             let inline_prefix_timing = scene.budget().time("flow-inline-prefix");
             // Shape the prefix through the same engine to find the current line's remaining width.
-            let prefix = &p.text[..source.offset];
+            let prefix = &p.content.text()[..source.offset];
             let prefix_spans = p
-                .spans
+                .content
+                .spans()
                 .iter()
                 .filter_map(|s| {
                     let end = s.range.end.min(source.offset);
@@ -838,7 +1141,7 @@ fn build_flow(
                 .collect();
             let request = StyledTextRequest::new(
                 prefix,
-                p.style.clone(),
+                p.content.default_style().clone(),
                 prefix_spans,
                 boxes.clone(),
                 constraints,
@@ -898,7 +1201,7 @@ fn build_flow(
                 height: measurement.height as f32,
             });
         }
-        let request = StyledTextRequest::new(p.text, p.style, p.spans, boxes, constraints)?
+        let request = StyledTextRequest::from_content(p.content.clone(), boxes, constraints)?
             .with_paragraph(
                 p.block.direction,
                 p.block
@@ -948,7 +1251,7 @@ fn build_flow(
                 }
             }
             for placement in layout.inline_placements() {
-                if p.boxes[placement.id as usize]
+                if paragraph_boxes[placement.id as usize]
                     .ancestors
                     .contains(&decoration.source)
                 {
@@ -963,7 +1266,7 @@ fn build_flow(
                     .find(|source| source.ancestors.contains(&decoration.source))
                     .map(|source| &source.ancestors)
                     .or_else(|| {
-                        p.boxes
+                        paragraph_boxes
                             .iter()
                             .find(|source| source.ancestors.contains(&decoration.source))
                             .map(|source| &source.ancestors)
@@ -1017,7 +1320,7 @@ fn build_flow(
         let index = snapshot.paragraphs.len();
         let first_fragment = snapshot.fragments.len();
         let geometry_timing = scene.budget().time("flow-source-geometry");
-        for source in &p.sources {
+        for source in p.sources.iter() {
             let range = TextRange::new(
                 TextPosition::new(source.range.start, TextAffinity::Downstream),
                 TextPosition::new(source.range.end, TextAffinity::Upstream),
@@ -1054,7 +1357,7 @@ fn build_flow(
         }
         drop(geometry_timing);
         for placement in layout.inline_placements() {
-            let source = &p.boxes[placement.id as usize];
+            let source = &paragraph_boxes[placement.id as usize];
             allocate(source.ancestors.len().saturating_add(1))?;
             let b = translated(placement.bounds, origin);
             if let Some(child) = source.child {
@@ -1125,7 +1428,7 @@ fn build_flow(
                 let marker = |leading| {
                     layout.inline_placements().iter().find_map(|placement| {
                         (placement.line_index == line
-                            && p.boxes[placement.id as usize].border_marker
+                            && paragraph_boxes[placement.id as usize].border_marker
                                 == Some((decoration.source, leading)))
                         .then(|| translated(placement.bounds, origin))
                     })
@@ -1169,12 +1472,50 @@ fn build_flow(
             owner: p.owner,
             origin,
             layout,
-            sources: p.sources,
+            sources: p.sources.clone(),
         });
     }
     snapshot.size.height = (y - bounds.y + assembly.trailing_margin).max(0.0);
     if purpose == FlowBuildPurpose::Measure {
-        return Ok(FlowBuildOutput::Measurement(snapshot.size));
+        let candidate =
+            assembly_candidate(first, eligible, was_hit, &assembly, scene, reuse_inputs)?;
+        if let (Some(key), Some(call)) = (measurement_key, reuse_inputs)
+            && context.cache_identity() == Some(key.engine)
+            && context.revision() == key.engine_revision
+        {
+            let observations = scene.observations();
+            let units = std::mem::size_of::<FlowMeasurementRecord>().saturating_add(
+                observations.capacity().saturating_mul(std::mem::size_of::<
+                    crate::connection::DependencyObservation,
+                >()),
+            );
+            scene
+                .budget()
+                .check()
+                .map_err(crate::text::TextError::from)?;
+            if units.saturating_add(super::reuse::input_units(&key.input)) <= call.cache_limit {
+                scene
+                    .budget()
+                    .allocate("flow measurement record", units as u64)
+                    .map_err(crate::text::TextError::from)?;
+                let retention = call
+                    .retention
+                    .reserve(units)
+                    .map_err(crate::text::TextError::from)?;
+                work.measurements.retain(|record| record.key != key);
+                if work.measurements.len() == MEASUREMENT_CACHE_CAPACITY {
+                    work.measurements.remove(0);
+                }
+                work.measurements.reserve_exact(1);
+                work.measurements.push(FlowMeasurementRecord {
+                    key,
+                    size: snapshot.size,
+                    observations,
+                    retention,
+                });
+            }
+        }
+        return Ok(FlowBuildOutput::Measurement(snapshot.size, candidate));
     }
     for block in &assembly.blocks {
         let first = &snapshot.paragraphs[block.paragraphs.start];
@@ -1270,10 +1611,47 @@ fn build_flow(
         .reduce(|a, b| a.union(b));
     snapshot.paint_index = EnvelopeIndex::from_envelopes(&envelopes);
     snapshot.statistics = work.statistics;
+    let candidate = assembly_candidate(first, eligible, was_hit, &assembly, scene, reuse_inputs)?;
     Ok(FlowBuildOutput::Snapshot(
         Arc::new(snapshot),
-        assembly.members,
+        assembly.members.clone(),
+        candidate,
     ))
+}
+
+fn assembly_candidate(
+    first: Option<crate::figure::PreparationInputSnapshot>,
+    eligible: bool,
+    was_hit: bool,
+    assembly: &Arc<super::assembly::FrozenFlowPlan>,
+    scene: &PreparationScene<'_>,
+    reuse: Option<AssemblyReuseCall<'_>>,
+) -> Result<Option<AssemblyCandidate>, FlowError> {
+    if first.is_some() {
+        scene.validate_input_proofs("flow layout return")?;
+        scene
+            .budget()
+            .check()
+            .map_err(crate::text::TextError::from)?;
+    }
+    // No renderer is reused without its own complete declaration.
+    if eligible
+        && !was_hit
+        && assembly.decorations.is_empty()
+        && reuse.is_some_and(|call| {
+            assembly
+                .retained_units()
+                .saturating_add(first.as_ref().map_or(0, super::reuse::input_units))
+                <= call.cache_limit
+        })
+    {
+        return Ok(Some((
+            first.expect("eligible input"),
+            assembly.clone(),
+            scene.observations(),
+        )));
+    }
+    Ok(None)
 }
 
 fn prepare_snapshot(
@@ -1515,6 +1893,188 @@ mod measurement_tests {
         ) -> Result<(), GraphicsError> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn exported_sources_keep_only_their_own_lease_after_all_other_owners_drop() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO).unwrap()))
+            .unwrap();
+        let text = tree
+            .builder()
+            .add_child(root, Box::new(StructuredTextFigure::new("shared source")))
+            .unwrap();
+        let styles = [root, text]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let mut system = TextSystem::new();
+        system.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let service = FlowLayoutService::default().with_assembly_reuse(true);
+        let store = service.retention.clone();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let prepared = service
+            .prepare(
+                &mut system.measure(FontDescriptor::default()),
+                Rectangle::new(0.0, 0.0, 100.0, 300.0),
+                &scene,
+            )
+            .unwrap();
+        let ranges = prepared
+            .root_presentation()
+            .data::<FlowSnapshot>()
+            .unwrap()
+            .paragraphs[0]
+            .sources
+            .clone();
+        drop(prepared);
+        drop(scene);
+        drop(service);
+        drop(system);
+        assert_eq!(ranges[0].source, text);
+        assert!(store.usage().unwrap().retained_units > 0);
+        assert_eq!(store.usage().unwrap().content_count, 0);
+        let peer = ranges.clone();
+        let usage = store.usage().unwrap();
+        drop(ranges);
+        assert_eq!(store.usage().unwrap(), usage);
+        drop(peer);
+        assert_eq!(store.usage().unwrap().retained_units, 0);
+    }
+
+    #[test]
+    fn snapshot_borrows_immutable_content_and_source_backing_after_service_drop() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO).unwrap()))
+            .unwrap();
+        let text = tree
+            .builder()
+            .add_child(root, Box::new(StructuredTextFigure::new("alpha 中 beta")))
+            .unwrap();
+        let styles = [root, text]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let mut system = TextSystem::new();
+        system.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let mut context = system.measure(FontDescriptor::default());
+        let service = FlowLayoutService::default();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let (snapshot, _) = build_snapshot(
+            &service.registry,
+            &mut context,
+            Rectangle::new(0.0, 0.0, 100.0, 300.0),
+            Some(100.0),
+            &scene,
+            &mut service.statistics.lock().unwrap(),
+        )
+        .unwrap();
+        let paragraph = &snapshot.paragraphs[0];
+        let assembly = &snapshot._assembly.paragraphs[0];
+        assert!(std::ptr::eq(
+            paragraph.sources.as_ptr(),
+            assembly.sources.as_ptr()
+        ));
+        assert!(std::ptr::eq(
+            paragraph.layout.request().text().as_ptr(),
+            assembly.content.text().as_ptr(),
+        ));
+        assert!(std::ptr::eq(
+            paragraph.layout.request().spans().as_ptr(),
+            assembly.content.spans().as_ptr(),
+        ));
+        assert!(std::ptr::eq(
+            paragraph.sources[0].ancestors.as_ptr(),
+            assembly.sources[0].ancestors.as_ptr(),
+        ));
+        let retained = snapshot.clone();
+        drop(snapshot);
+        drop(service);
+        assert_eq!(
+            retained.paragraphs[0].layout.request().text(),
+            "alpha 中 beta"
+        );
+        assert_eq!(retained.paragraphs[0].sources[0].source, text);
+        assert_eq!(retained.paragraphs[0].sources[0].ancestors, [root, text]);
+    }
+
+    #[test]
+    fn declared_text_measurements_reuse_full_inputs_and_reject_budget_failure() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(FlowPageFigure::new(Rectangle::ZERO).unwrap()))
+            .unwrap();
+        let text = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(StructuredTextFigure::new("alpha אבג beta wrap words")),
+            )
+            .unwrap();
+        let styles = [root, text]
+            .into_iter()
+            .map(|id| (id, tree.resolved_style(id).unwrap()))
+            .collect();
+        let mut system = TextSystem::new();
+        system.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let mut context = system.measure(FontDescriptor::default());
+        let service = FlowLayoutService::default().with_assembly_reuse(true);
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let narrow = MeasureConstraints::new(Some(75.0), None).unwrap();
+        let wide = MeasureConstraints::new(Some(240.0), None).unwrap();
+        let first = service.measure(&mut context, narrow, &scene).unwrap();
+        let second = service.measure(&mut context, wide, &scene).unwrap();
+        let builds = service.work_statistics().unwrap().builds;
+        assert_eq!(builds, 2);
+        let fresh = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert_eq!(
+            service.measure(&mut context, narrow, &fresh).unwrap(),
+            first
+        );
+        assert_eq!(service.measure(&mut context, wide, &fresh).unwrap(), second);
+        assert_eq!(service.work_statistics().unwrap().builds, builds);
+        assert_eq!(service.statistics.lock().unwrap().measurements.len(), 2);
+        let height_limited = MeasureConstraints::new(Some(75.0), Some(10.0)).unwrap();
+        assert_eq!(
+            service
+                .measure(&mut context, height_limited, &fresh)
+                .unwrap(),
+            first
+        );
+        assert_eq!(service.work_statistics().unwrap().builds, builds + 1);
+        // Equal revisions from another engine instance do not grant authority.
+        let mut other_system = TextSystem::new();
+        other_system
+            .register_builtin_font(BuiltinFont::Inter)
+            .unwrap();
+        service
+            .measure(
+                &mut other_system.measure(FontDescriptor::default()),
+                narrow,
+                &fresh,
+            )
+            .unwrap();
+        assert_eq!(service.work_statistics().unwrap().builds, builds + 2);
+        assert!(
+            scene
+                .budget()
+                .consume("exhaust measurement budget", u64::MAX)
+                .is_err()
+        );
+        assert!(service.measure(&mut context, narrow, &scene).is_err());
+        service.set_assembly_limits(0, usize::MAX).unwrap();
+        assert!(service.statistics.lock().unwrap().measurements.is_empty());
+        let uncached = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert_eq!(
+            service.measure(&mut context, narrow, &uncached).unwrap(),
+            first
+        );
+        assert!(service.statistics.lock().unwrap().measurements.is_empty());
     }
 
     #[test]

@@ -1281,6 +1281,50 @@ impl NdCanvas {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn final_font_validation_checks_later_runs_and_current_resource_status() {
+        use crate::graphics::GraphicsError;
+        use crate::render::text::{FontFaceRef, GlyphPaint, GlyphRange, GlyphRun};
+        use crate::text::outline::FontError;
+        let mut resources = ResourceRegistry::new();
+        let id = resources.register_font();
+        resources
+            .complete_font(
+                id,
+                crate::render::FontData::new(crate::text::BuiltinFont::Inter.bytes().to_vec()),
+            )
+            .unwrap();
+        let run = GlyphRun {
+            font: FontFaceRef::new(id.resource_id(), 1, 0),
+            font_size: 12.0,
+            normalized_coords: [].into(),
+            skew_degrees: None,
+            glyphs: GlyphRange::new(vec![]).unwrap(),
+        };
+        let mut canvas = NdCanvas::new();
+        let command = |run| RenderCommandKind::DrawGlyphRun {
+            antialias: crate::graphics::AntialiasMode::Default,
+            run,
+            origin: Point::ZERO,
+            paint: GlyphPaint::Fill(Color::BLACK.into()),
+        };
+        canvas.create_command(command(run.clone()));
+        canvas.create_command(command(run.clone()));
+        assert!(canvas.validate_recording(&resources).is_ok());
+        let mut stale = run;
+        stale.font = FontFaceRef::new(id.resource_id(), 2, 0);
+        canvas.create_command(command(stale));
+        assert_eq!(
+            canvas.validate_recording(&resources),
+            Err(GraphicsError::Font(FontError::ResourceMismatch)),
+        );
+        resources.fail(id.resource_id(), "removed").unwrap();
+        assert_eq!(
+            canvas.validate_recording(&resources),
+            Err(GraphicsError::Resource(crate::ResourceError::NotReady)),
+        );
+    }
     use crate::render::command::LineJoin;
 
     fn assert_transform_eq(actual: Affine2D, expected: Affine2D) {

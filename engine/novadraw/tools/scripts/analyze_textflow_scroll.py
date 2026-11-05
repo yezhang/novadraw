@@ -88,7 +88,8 @@ def analyze(args):
         if operation_id < first_mode:
             continue
         name = operation["operation"].split("(")[0]
-        if name not in ("Scroll", "Wheel", "Pointer", "Stable"):
+        if name not in ("Scroll", "Wheel", "Pointer", "Stable", "DragStart", "DragMove",
+                        "DragEnd", "Resize", "Append"):
             continue
         attempts = frames.get(operation_id, [])
         if len(attempts) != 1:
@@ -125,7 +126,7 @@ def analyze(args):
         groups[(sample["mode"], name)].append(sample)
     summary = {}
     for (mode, name), group in groups.items():
-        valid = [r for r in group if name not in ("Scroll", "Wheel") or abs(r["delta_y"]) > 1e-6]
+        valid = [r for r in group if name not in ("Scroll", "Wheel", "DragMove") or abs(r["delta_y"]) > 1e-6]
         if not valid:
             summary[f"{mode}/{name}"] = {"attempted": len(group), "successful_scrolls": 0}
             continue

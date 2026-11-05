@@ -62,3 +62,6 @@ Novadraw 继续由 Editor 持有草稿、选择与 composition，由应用持有
 
 本次完整技术判断见
 [quiet-md 富文本编辑适用性报告](../verification/reviews/quiet-md-rich-text-assessment-2026-11-05.md)。
+
+系统字体排版、近期行缓存、glyph 位图图集、GPU 实例绘制与长文滚动的进一步核对，
+见[富文本渲染与长文滚动技术分析](quiet-md-rendering.md)。

@@ -242,6 +242,10 @@ impl Gpu {
     }
 
     fn render(&mut self, scene: &vello::Scene) -> Vec<u8> {
+        self.render_with_aa(scene, AaConfig::Msaa16)
+    }
+
+    fn render_with_aa(&mut self, scene: &vello::Scene, antialiasing_method: AaConfig) -> Vec<u8> {
         self.renderer
             .render_to_texture(
                 &self.device,
@@ -252,7 +256,7 @@ impl Gpu {
                     base_color: VelloColor::TRANSPARENT,
                     width: 64,
                     height: 64,
-                    antialiasing_method: AaConfig::Msaa16,
+                    antialiasing_method,
                 },
             )
             .unwrap();
@@ -463,6 +467,294 @@ fn production_msaa_mask_alpha_gradient_clip_order_and_texture_rejection() {
         Err(RenderFailure::InvalidInput(_))
     ));
     assert_eq!(before, gpu.read());
+}
+
+// Proof-domain oracle only. No production capability or recording filter uses this helper.
+fn structurally_empty_native_glyf(font: &skrifa::FontRef<'_>, glyph: u32) -> bool {
+    use skrifa::{MetadataProvider, raw::TableProvider};
+    if (font.colr().is_ok() && font.cpal().is_ok()) || !font.bitmap_strikes().is_empty() {
+        return false;
+    }
+    let id = skrifa::GlyphId::new(glyph);
+    let Some(outline) = font.outline_glyphs().get(id) else {
+        return false;
+    };
+    if outline.format() != skrifa::outline::OutlineGlyphFormat::Glyf {
+        return false;
+    }
+    let Ok(head) = font.head() else {
+        return false;
+    };
+    let (Ok(loca), Ok(glyf)) = (
+        font.loca(Some(head.index_to_loc_format() == 1)),
+        font.glyf(),
+    ) else {
+        return false;
+    };
+    matches!(loca.get_glyf(id, &glyf), Ok(None))
+}
+
+#[test]
+fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
+    use novadraw::render::{
+        BuiltinFont, FontDescriptor, ParleyTextEngine, ResourceId, TextConstraints,
+    };
+    use novadraw::text::shaping::GlyphRange;
+    use skrifa::{
+        MetadataProvider,
+        instance::{NormalizedCoord, Size},
+        outline::{DrawSettings, OutlinePen},
+    };
+    struct CountPen(usize);
+    impl OutlinePen for CountPen {
+        fn move_to(&mut self, _: f32, _: f32) {
+            self.0 += 1;
+        }
+        fn line_to(&mut self, _: f32, _: f32) {
+            self.0 += 1;
+        }
+        fn quad_to(&mut self, _: f32, _: f32, _: f32, _: f32) {
+            self.0 += 1;
+        }
+        fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {
+            self.0 += 1;
+        }
+        fn close(&mut self) {
+            self.0 += 1;
+        }
+    }
+    let bytes = BuiltinFont::Inter.bytes();
+    let face = skrifa::FontRef::from_index(bytes, 0).unwrap();
+    let font_id = ResourceId::new(uuid::Uuid::nil(), 91);
+    let mut text = ParleyTextEngine::new();
+    text.register_font(font_id, 1, bytes).unwrap();
+    let layout = text
+        .layout(
+            "A A  B",
+            &FontDescriptor::default(),
+            TextConstraints::UNBOUNDED,
+        )
+        .unwrap();
+    assert_eq!(layout.glyph_runs().len(), 1);
+    let original = &layout.glyph_runs()[0];
+    let empty: Vec<_> = original
+        .glyphs
+        .iter()
+        .filter(|glyph| structurally_empty_native_glyf(&face, glyph.id))
+        .collect();
+    assert!(!empty.is_empty(), "the oracle must exercise deletions");
+    assert!(!structurally_empty_native_glyf(&face, u32::MAX));
+    for glyph in &empty {
+        let outline = face
+            .outline_glyphs()
+            .get(skrifa::GlyphId::new(glyph.id))
+            .unwrap();
+        for size in [0.125, 12.0, 72.0, 4096.0] {
+            for bits in [0, -16384, 16384] {
+                let coords = [NormalizedCoord::from_bits(bits)];
+                let mut pen = CountPen(0);
+                outline
+                    .draw(
+                        DrawSettings::unhinted(Size::new(size), coords.as_slice()),
+                        &mut pen,
+                    )
+                    .unwrap();
+                assert_eq!(pen.0, 0);
+            }
+        }
+    }
+    let mut compact = original.clone();
+    compact.glyphs = GlyphRange::new(
+        original
+            .glyphs
+            .iter()
+            .copied()
+            .filter(|glyph| !structurally_empty_native_glyf(&face, glyph.id))
+            .collect(),
+    )
+    .unwrap();
+    assert!(!compact.glyphs.is_empty());
+    assert_eq!(compact.glyphs.len() + empty.len(), original.glyphs.len());
+    let font = vello::peniko::FontData::new(bytes.to_vec().into(), 0);
+    let mask = native_empty::EmptyGlyphs::new(bytes, 0);
+    assert!(!mask.is_empty());
+    assert!(mask.storage_bytes() <= 8192);
+    assert!(!mask.contains(u32::MAX));
+    assert!(native_empty::EmptyGlyphs::new(bytes, u32::MAX).is_empty());
+    assert!(native_empty::EmptyGlyphs::new(&[0, 1, 2], 0).is_empty());
+    for glyph in &original.glyphs {
+        assert_eq!(
+            mask.contains(glyph.id),
+            structurally_empty_native_glyf(&face, glyph.id)
+        );
+    }
+    let mut all_empty = original.clone();
+    all_empty.glyphs = GlyphRange::new(empty.iter().map(|glyph| **glyph).collect()).unwrap();
+    let paint = GlyphPaint::Fill(Color::WHITE.into());
+    let mut gpu = Gpu::new();
+    for scale in [0.75, 1.0, 2.0] {
+        for skew in [None, Some(15.0)] {
+            let mut original = original.clone();
+            let mut compact = compact.clone();
+            original.skew_degrees = skew;
+            compact.skew_degrees = skew;
+            for transform in [Affine2D::IDENTITY, Affine2D::from_translation(3.25, -2.75)] {
+                let mut full = vello::Scene::new();
+                let mut filtered = vello::Scene::new();
+                let mut masked = vello::Scene::new();
+                append_glyph_run(
+                    &mut full,
+                    &original,
+                    &font,
+                    Point::new(3.5, 16.25),
+                    &paint,
+                    &transform,
+                    scale,
+                );
+                append_glyph_run(
+                    &mut filtered,
+                    &compact,
+                    &font,
+                    Point::new(3.5, 16.25),
+                    &paint,
+                    &transform,
+                    scale,
+                );
+                append_filtered_glyph_run(
+                    &mut masked,
+                    &original,
+                    (&font, Some(&mask)),
+                    Point::new(3.5, 16.25),
+                    &paint,
+                    &transform,
+                    scale,
+                );
+                let mut empty_reference = vello::Scene::new();
+                let mut empty_masked = vello::Scene::new();
+                append_glyph_run(
+                    &mut empty_reference,
+                    &all_empty,
+                    &font,
+                    Point::new(3.5, 16.25),
+                    &paint,
+                    &transform,
+                    scale,
+                );
+                append_filtered_glyph_run(
+                    &mut empty_masked,
+                    &all_empty,
+                    (&font, Some(&mask)),
+                    Point::new(3.5, 16.25),
+                    &paint,
+                    &transform,
+                    scale,
+                );
+                assert_eq!(
+                    masked.encoding().resources.glyphs.len(),
+                    compact.glyphs.len()
+                );
+                assert_eq!(masked.encoding().resources.glyph_runs.len(), 1);
+                assert!(empty_masked.encoding().resources.glyphs.is_empty());
+                for aa in [AaConfig::Area, AaConfig::Msaa8, AaConfig::Msaa16] {
+                    let expected = gpu.render_with_aa(&full, aa);
+                    assert!(expected.chunks_exact(4).any(|pixel| pixel[3] != 0));
+                    let filtered_pixels = gpu.render_with_aa(&filtered, aa);
+                    if filtered_pixels != expected {
+                        let repeated_full = gpu.render_with_aa(&full, aa);
+                        let repeated_filtered = gpu.render_with_aa(&filtered, aa);
+                        let differences: Vec<_> = expected
+                            .chunks_exact(4)
+                            .zip(filtered_pixels.chunks_exact(4))
+                            .enumerate()
+                            .filter(|(_, (a, b))| a != b)
+                            .map(|(index, (a, b))| (index % 64, index / 64, a, b))
+                            .collect();
+                        panic!(
+                            "compacted-scene pixels differ: scale={scale}, skew={skew:?}, transform={transform:?}, aa={aa:?}; full_repeat={}, filtered_repeat={}, repeated_pair={}; pixels={differences:?}",
+                            repeated_full == expected,
+                            repeated_filtered == filtered_pixels,
+                            repeated_full == repeated_filtered,
+                        );
+                    }
+                    assert_eq!(gpu.render_with_aa(&masked, aa), expected);
+                    let empty_pixels = gpu.render_with_aa(&empty_reference, aa);
+                    assert!(empty_pixels.iter().all(|byte| *byte == 0));
+                    assert_eq!(gpu.render_with_aa(&empty_masked, aa), empty_pixels);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn empty_native_glyf_cache_follows_resource_replacement_and_session_snapshot() {
+    use novadraw::render::{
+        BuiltinFont, FontData, FontDescriptor, ParleyTextEngine, ResourceDelta, ResourceId,
+        ResourceOp, ResourceUpdate, TextConstraints,
+    };
+    let bytes = BuiltinFont::Inter.bytes();
+    let font_id = ResourceId::new(uuid::Uuid::nil(), 93);
+    let mut text = ParleyTextEngine::new();
+    text.register_font(font_id, 1, bytes).unwrap();
+    let layout = text
+        .layout(
+            "A A",
+            &FontDescriptor::default(),
+            TextConstraints::UNBOUNDED,
+        )
+        .unwrap();
+    let run = layout.glyph_runs()[0].clone();
+    let mut frame = submission(
+        vec![command(Kind::DrawGlyphRun {
+            antialias: Aa::Default,
+            run,
+            origin: Point::new(3.5, 16.25),
+            paint: GlyphPaint::Fill(Color::WHITE.into()),
+        })],
+        1.0,
+    );
+    let update = ResourceUpdate {
+        id: font_id,
+        revision: 1,
+        payload: ResourcePayload::Font(Arc::new(FontData::new(bytes.to_vec()))),
+    };
+    frame.resources = ResourceSync::Snapshot(ResourceSnapshot {
+        ready: vec![update.clone()],
+    });
+    let mut encoder = SceneEncoder::new(1.0);
+    let mut gate = BackendSessionGate::default();
+    encoder.sync_resources(&mut gate, &frame).unwrap();
+    encoded(&mut encoder, &frame);
+    assert_eq!(encoder.empty_glyphs.len(), 1);
+    let storage: usize = encoder
+        .empty_glyphs
+        .values()
+        .map(|mask| mask.storage_bytes())
+        .sum();
+    assert!(storage > 0 && storage <= 8192);
+    frame.resources = ResourceSync::Delta(ResourceDelta {
+        ops: vec![ResourceOp::Upsert(update.clone())],
+    });
+    encoder.sync_resources(&mut gate, &frame).unwrap();
+    assert!(encoder.empty_glyphs.is_empty());
+    encoded(&mut encoder, &frame);
+    assert_eq!(encoder.empty_glyphs.len(), 1);
+    frame.resources = ResourceSync::Snapshot(ResourceSnapshot {
+        ready: vec![update.clone()],
+    });
+    encoder.sync_resources(&mut gate, &frame).unwrap();
+    assert!(encoder.empty_glyphs.is_empty());
+    encoded(&mut encoder, &frame);
+    frame.session_id = frame.session_id.next().unwrap();
+    encoder.sync_resources(&mut gate, &frame).unwrap();
+    assert!(encoder.empty_glyphs.is_empty());
+    encoded(&mut encoder, &frame);
+    frame.resources = ResourceSync::Delta(ResourceDelta {
+        ops: vec![ResourceOp::Remove(font_id)],
+    });
+    encoder.sync_resources(&mut gate, &frame).unwrap();
+    assert!(encoder.empty_glyphs.is_empty());
+    assert!(encoder.font_faces.is_empty());
 }
 
 #[test]

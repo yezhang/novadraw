@@ -1,7 +1,8 @@
 use crate::{
     Config,
     research::{
-        HEIGHT, INITIAL_WIDTH, NARROW_WIDTH, Operation, Research, SCROLL_STEP, TraceSession, replay,
+        FrameAttempt, HEIGHT, INITIAL_WIDTH, NARROW_WIDTH, Operation, Research, SCROLL_STEP,
+        TraceSession, replay,
     },
 };
 use anyhow::{Context, Result, bail};
@@ -33,6 +34,139 @@ use winit::{
 const GPU_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 const RESIZE_TIMEOUT: Duration = Duration::from_secs(5);
 const NATIVE_FRAME_ATTEMPTS: usize = 8;
+// A temporarily unavailable drawable must yield to window events. This host
+// recovery poll is deliberately slower than frame pacing and is not a failure.
+const SURFACE_RETRY_INTERVAL: Duration = Duration::from_millis(100);
+
+#[derive(Default)]
+struct FrameRecovery {
+    attempts: usize,
+    retries: usize,
+    redraw_after: Option<Instant>,
+}
+impl FrameRecovery {
+    fn reset(&mut self) {
+        *self = Self::default();
+    }
+    fn acknowledge(&mut self, outcome: FrameAttempt, now: Instant) -> Result<bool> {
+        self.attempts = self.attempts.saturating_add(1);
+        match outcome {
+            FrameAttempt::Complete => {
+                self.reset();
+                Ok(true)
+            }
+            FrameAttempt::SurfaceUnavailable => {
+                self.redraw_after = Some(now + SURFACE_RETRY_INTERVAL);
+                Ok(false)
+            }
+            FrameAttempt::Retry => {
+                self.retries += 1;
+                anyhow::ensure!(
+                    self.retries < NATIVE_FRAME_ATTEMPTS,
+                    "native frame retry limit reached"
+                );
+                self.redraw_after = None;
+                Ok(false)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn window_focus_and_append_recover_after_release_and_reset() {
+        let mut app = NativeApp::new(Config {
+            headless: false,
+            replay: false,
+            cycles: 1,
+            trace: false,
+            requests: false,
+            gpu_wait: false,
+            exit_after_replay: false,
+            screenshot: false,
+            scroll_replay: false,
+            interaction_replay: false,
+            timings: false,
+            natural_damage: true,
+            text_raster_cache: false,
+            flow_assembly_reuse: true,
+            raster_validation: false,
+            coarse_trace: false,
+            offscreen_gpu: false,
+            output: "target/verification/text-fr02-focus-test".into(),
+        })
+        .unwrap();
+        app.research
+            .apply(Operation::Stable, &mut app.trace)
+            .unwrap();
+        let old_page = app.research.runtime.input().state().focus_owner().unwrap();
+        for operation in [Operation::Append, Operation::Reset, Operation::Append] {
+            app.window_focus_changed(false).unwrap();
+            app.research
+                .apply(Operation::Stable, &mut app.trace)
+                .unwrap();
+            assert!(app.research.runtime.input().state().focus_owner().is_none());
+            app.window_focus_changed(true).unwrap();
+            assert!(app.research.runtime.input().state().focus_owner().is_some());
+            // The fixture shortcut must also work if an intervening event
+            // releases focus before the queued operation is executed.
+            app.window_focus_changed(false).unwrap();
+            app.research.apply(operation, &mut app.trace).unwrap();
+            assert!(app.research.runtime.input().state().focus_owner().is_some());
+            assert!(
+                app.research
+                    .runtime
+                    .take_deferred_mutation_errors()
+                    .is_empty()
+            );
+        }
+        assert_ne!(
+            app.research.runtime.input().state().focus_owner().unwrap(),
+            old_page
+        );
+    }
+
+    #[test]
+    fn unavailable_drawables_yield_without_exhausting_retry_budget() {
+        let mut recovery = FrameRecovery::default();
+        let start = Instant::now();
+        for step in 0..(NATIVE_FRAME_ATTEMPTS * 2) {
+            let now = start + SURFACE_RETRY_INTERVAL * step as u32;
+            assert!(
+                !recovery
+                    .acknowledge(FrameAttempt::SurfaceUnavailable, now)
+                    .unwrap()
+            );
+            assert_eq!(recovery.redraw_after, Some(now + SURFACE_RETRY_INTERVAL));
+            assert_eq!(recovery.retries, 0);
+        }
+        assert!(recovery.acknowledge(FrameAttempt::Complete, start).unwrap());
+        assert_eq!(recovery.attempts, 0);
+        assert!(recovery.redraw_after.is_none());
+    }
+
+    #[test]
+    fn surface_wait_preserves_actual_retry_limit_and_success_resets_it() {
+        let mut recovery = FrameRecovery::default();
+        let now = Instant::now();
+        for _ in 1..NATIVE_FRAME_ATTEMPTS {
+            assert!(!recovery.acknowledge(FrameAttempt::Retry, now).unwrap());
+            assert!(
+                !recovery
+                    .acknowledge(FrameAttempt::SurfaceUnavailable, now)
+                    .unwrap()
+            );
+        }
+        assert!(recovery.acknowledge(FrameAttempt::Retry, now).is_err());
+        recovery.reset();
+        assert!(!recovery.acknowledge(FrameAttempt::Retry, now).unwrap());
+        assert!(recovery.acknowledge(FrameAttempt::Complete, now).unwrap());
+        assert_eq!(recovery.retries, 0);
+    }
+}
 
 struct ResearchBackend<'a> {
     renderer: &'a mut VelloRenderer,
@@ -60,6 +194,9 @@ impl novadraw::render::RenderBackend for ResearchBackend<'_> {
 
 pub fn run(config: Config) -> Result<()> {
     let mut app = NativeApp::new(config)?;
+    if app.config.timings {
+        eprintln!("TextFlowLarge startup: creating event loop");
+    }
     let event_loop = match EventLoop::new() {
         Ok(event_loop) => event_loop,
         Err(error) => {
@@ -69,6 +206,9 @@ pub fn run(config: Config) -> Result<()> {
             return Err(error.into());
         }
     };
+    if app.config.timings {
+        eprintln!("TextFlowLarge startup: running event loop");
+    }
     let result = event_loop.run_app(&mut app);
     if let Err(error) = &result {
         app.trace
@@ -92,7 +232,7 @@ struct NativeApp {
     queue: VecDeque<Operation>,
     waiting_resize: Option<(Operation, Instant)>,
     frame_pending: bool,
-    frame_attempts: usize,
+    frame_recovery: FrameRecovery,
     occluded: bool,
     replay_active: bool,
     replay_finished: bool,
@@ -104,12 +244,13 @@ struct NativeApp {
     modifiers: KeyModifiers,
     clock: Instant,
     failure: Option<String>,
+    operation_started: Option<(Operation, Instant)>,
 }
 
 impl NativeApp {
     fn new(config: Config) -> Result<Self> {
         let replay_active = config.replay;
-        let mut research = Research::new(config.trace);
+        let mut research = Research::new(config.trace, config.flow_assembly_reuse);
         research.full_redraw = !config.natural_damage;
         Ok(Self {
             trace: TraceSession::new(&config)?,
@@ -117,6 +258,8 @@ impl NativeApp {
             queue: if config.replay {
                 if config.raster_validation {
                     crate::research::raster_validation().into()
+                } else if config.interaction_replay {
+                    crate::research::interaction_replay(config.cycles).into()
                 } else if config.scroll_replay {
                     crate::research::scroll_replay(config.cycles, config.natural_damage).into()
                 } else {
@@ -130,7 +273,7 @@ impl NativeApp {
             renderer: None,
             waiting_resize: None,
             frame_pending: false,
-            frame_attempts: 0,
+            frame_recovery: FrameRecovery::default(),
             occluded: false,
             replay_active,
             replay_finished: false,
@@ -142,6 +285,7 @@ impl NativeApp {
             modifiers: KeyModifiers::default(),
             clock: Instant::now(),
             failure: None,
+            operation_started: None,
         })
     }
 
@@ -188,7 +332,7 @@ impl NativeApp {
         }
         self.research.apply(operation, &mut self.trace)?;
         self.frame_pending = true;
-        self.frame_attempts = 0;
+        self.frame_recovery.reset();
         self.sync_effects();
         self.host
             .as_ref()
@@ -201,6 +345,19 @@ impl NativeApp {
         self.queue.push_back(operation);
     }
 
+    fn window_focus_changed(&mut self, focused: bool) -> Result<()> {
+        if focused {
+            self.research.focus_typing_page()?;
+        } else {
+            self.pointer.reset();
+            self.gestures.cancel_all();
+            self.research.runtime.input().cancel_gestures();
+            self.research.runtime.input().pointer_exited();
+            self.research.runtime.focus().release();
+        }
+        Ok(())
+    }
+
     fn next_operation(&mut self) -> Result<()> {
         if self.frame_pending || self.waiting_resize.is_some() {
             return Ok(());
@@ -208,6 +365,48 @@ impl NativeApp {
         let Some(operation) = self.queue.pop_front() else {
             return Ok(());
         };
+        self.operation_started = Some((operation, Instant::now()));
+        if matches!(
+            operation,
+            Operation::DragStart | Operation::DragMove(_) | Operation::DragEnd
+        ) {
+            if matches!(operation, Operation::DragStart) {
+                let point = self.research.scroll_thumb_center()?;
+                self.position = Some(point);
+                self.pointer.pointer_moved(point)?;
+                self.research
+                    .runtime
+                    .input()
+                    .dispatch_mouse_moved(point.x(), point.y());
+            }
+            let event = if let Operation::DragMove(delta) = operation {
+                let point = self.position.context("drag pointer missing")?;
+                let scale = self
+                    .host
+                    .as_ref()
+                    .context("window missing")?
+                    .window()
+                    .scale_factor();
+                WindowEvent::CursorMoved {
+                    device_id: DeviceId::dummy(),
+                    position: winit::dpi::PhysicalPosition::new(
+                        point.x() * scale,
+                        (point.y() + delta) * scale,
+                    ),
+                }
+            } else {
+                WindowEvent::MouseInput {
+                    device_id: DeviceId::dummy(),
+                    state: if matches!(operation, Operation::DragStart) {
+                        ElementState::Pressed
+                    } else {
+                        ElementState::Released
+                    },
+                    button: winit::event::MouseButton::Left,
+                }
+            };
+            return self.input_event(event, operation);
+        }
         if let Operation::Wheel(delta) = operation {
             let scale = self
                 .host
@@ -308,13 +507,18 @@ impl NativeApp {
 
     fn draw(&mut self) -> Result<()> {
         let _draw = self.trace.scope("host-redraw-callback");
-        if self.waiting_resize.is_some() {
+        if self.waiting_resize.is_some()
+            || self
+                .frame_recovery
+                .redraw_after
+                .is_some_and(|deadline| Instant::now() < deadline)
+        {
             return Ok(());
         }
         let host = self.host.as_ref().context("window missing")?;
         let renderer = self.renderer.as_mut().context("renderer missing")?;
         host.window().pre_present_notify();
-        let presented = self.research.render_attempt(
+        let outcome = self.research.render_attempt(
             &mut ResearchBackend {
                 renderer,
                 offscreen: self.config.offscreen_gpu,
@@ -325,20 +529,16 @@ impl NativeApp {
             } else {
                 "native_backend_presented"
             },
-            self.frame_attempts,
+            self.frame_recovery.attempts,
             &mut self.trace,
         )?;
-        self.frame_attempts += 1;
-        if !presented {
-            anyhow::ensure!(
-                self.frame_attempts < NATIVE_FRAME_ATTEMPTS,
-                "native frame retry limit reached"
-            );
+        if !self.frame_recovery.acknowledge(outcome, Instant::now())? {
             self.frame_pending = true;
-            host.request_redraw();
+            if self.frame_recovery.redraw_after.is_none() {
+                host.request_redraw();
+            }
             return Ok(());
         }
-        self.frame_attempts = 0;
         let cache = renderer.text_raster_statistics();
         self.research.note(
             "text_raster_cache",
@@ -381,6 +581,12 @@ impl NativeApp {
             self.screenshot_taken = true;
         }
         self.frame_pending = false;
+        if let Some((operation, start)) = self.operation_started.take() {
+            self.research.note("interaction_latency", json!({
+                "operation":format!("{operation:?}"),"elapsed_ns":start.elapsed().as_nanos(),
+                "includes":"event dispatch, query, resize acknowledgement, redraw scheduling, backend submit; GPU completion only with --gpu-wait"
+            }), &mut self.trace);
+        }
         host.window().set_title(&format!(
             "TextFlowLarge · {} · F1 Reset  F2 Z  F3 Scroll  F4 Resize  F6 Replay  F7 Export  F8 Timing",
             if self.research.capture_enabled { "capture on" } else { "capture off" }));
@@ -475,13 +681,7 @@ impl NativeApp {
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = adapt_modifiers(modifiers.state())
             }
-            WindowEvent::Focused(false) => {
-                self.pointer.reset();
-                self.gestures.cancel_all();
-                self.research.runtime.input().cancel_gestures();
-                self.research.runtime.input().pointer_exited();
-                self.research.runtime.focus().release();
-            }
+            WindowEvent::Focused(focused) => self.window_focus_changed(focused)?,
             WindowEvent::KeyboardInput { event, .. } => {
                 let pressed = event.state == ElementState::Pressed;
                 let key = if pressed {
@@ -535,7 +735,7 @@ impl NativeApp {
             WindowEvent::Occluded(occluded) => {
                 self.occluded = occluded;
                 if !occluded {
-                    self.frame_attempts = 0;
+                    self.frame_recovery.reset();
                     self.frame_pending = true;
                     self.host.as_ref().unwrap().request_redraw();
                 }
@@ -624,6 +824,9 @@ impl NativeApp {
 impl ApplicationHandler for NativeApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let result = (|| {
+            if self.config.timings {
+                eprintln!("TextFlowLarge startup: creating window");
+            }
             if self.host.is_none() {
                 let window = Arc::new(
                     event_loop.create_window(
@@ -637,7 +840,13 @@ impl ApplicationHandler for NativeApp {
                 self.host = Some(WinitPlatformHost::new(window));
             }
             let host = self.host.as_ref().unwrap();
+            if self.config.timings {
+                eprintln!("TextFlowLarge startup: creating GPU renderer");
+            }
             self.renderer = Some(VelloRenderer::new(host.window_arc(), host.surface_info())?);
+            if self.config.timings {
+                eprintln!("TextFlowLarge startup: GPU renderer ready");
+            }
             self.renderer
                 .as_mut()
                 .expect("renderer created")
@@ -715,8 +924,15 @@ impl ApplicationHandler for NativeApp {
                 }
             }
             if self.frame_pending || !self.queue.is_empty() {
-                event_loop.set_control_flow(ControlFlow::Poll);
-                self.host.as_ref().unwrap().request_redraw();
+                if let Some(deadline) = self.frame_recovery.redraw_after
+                    && Instant::now() < deadline
+                {
+                    event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+                } else {
+                    self.frame_recovery.redraw_after = None;
+                    event_loop.set_control_flow(ControlFlow::Poll);
+                    self.host.as_ref().unwrap().request_redraw();
+                }
             } else {
                 let now = MonotonicTime::from_micros(
                     self.clock

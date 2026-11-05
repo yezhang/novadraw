@@ -5,11 +5,7 @@ use crate::{
     geometry::{Dimension, Insets},
     text::{ParagraphAlignment, ParagraphDirection, TextStyle, TextStyleSpan},
 };
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Range,
-    sync::Arc,
-};
+use std::{collections::HashMap, ops::Range, sync::Arc};
 
 /// Paragraph boundaries and logical alignment belong to blocks, never to inline spans.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -60,6 +56,34 @@ pub struct FlowSourceRange {
     pub ancestors: Vec<FigureId>,
 }
 
+/// Shared immutable source ranges. Clones retain the accounting lease.
+#[derive(Clone)]
+pub struct FlowSourceRanges(Arc<SourceRangesStorage>);
+struct SourceRangesStorage {
+    values: Box<[FlowSourceRange]>,
+    _retention: Option<crate::text::TextContentLease>,
+}
+impl std::ops::Deref for FlowSourceRanges {
+    type Target = [FlowSourceRange];
+    fn deref(&self) -> &Self::Target {
+        &self.0.values
+    }
+}
+impl std::fmt::Debug for FlowSourceRanges {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.values.fmt(f)
+    }
+}
+impl FlowSourceRanges {
+    fn retained_units(&self) -> usize {
+        self.0
+            ._retention
+            .as_ref()
+            .map_or(0, crate::text::TextContentLease::units)
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct BoxSource {
     pub child: Option<FigureId>,
     pub metrics: Option<Dimension>,
@@ -104,9 +128,139 @@ pub(crate) struct FlowPlan {
     pub traversal_order: HashMap<FigureId, (usize, usize)>,
 }
 
+/// Immutable assembly storage. Width-dependent inline measurements are deliberately absent.
+pub(crate) struct FrozenParagraph {
+    pub owner: FigureId,
+    pub content: crate::text::StyledTextContent,
+    pub sources: FlowSourceRanges,
+    pub boxes: Vec<BoxSource>,
+    pub block: FlowBlockStyle,
+    pub before: f64,
+    pub top_padding: f64,
+    pub after: f64,
+}
+
+pub(crate) struct FrozenFlowPlan {
+    _retention: Option<crate::text::TextContentLease>,
+    pub paragraphs: Vec<FrozenParagraph>,
+    pub members: Vec<FigureId>,
+    pub decorations: Vec<super::border::Decoration>,
+    pub blocks: Vec<BlockBox>,
+    pub trailing_margin: f64,
+    pub traversal_order: HashMap<FigureId, (usize, usize)>,
+}
+
+impl std::fmt::Debug for FrozenFlowPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FrozenFlowPlan")
+            .field("paragraphs", &self.paragraphs.len())
+            .field("members", &self.members.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl FlowPlan {
+    pub(crate) fn freeze_in(
+        self,
+        scene: &PreparationScene<'_>,
+        store: Option<&crate::text::TextContentStore>,
+    ) -> Result<Arc<FrozenFlowPlan>, FlowError> {
+        let mut units = std::mem::size_of::<FrozenFlowPlan>()
+            + 2 * std::mem::size_of::<usize>()
+            + self.paragraphs.len() * std::mem::size_of::<FrozenParagraph>()
+            + self.members.capacity() * std::mem::size_of::<FigureId>()
+            + self.blocks.capacity() * std::mem::size_of::<BlockBox>()
+            + self.traversal_order.capacity() * std::mem::size_of::<(FigureId, (usize, usize))>()
+            + self.decorations.capacity() * std::mem::size_of::<super::border::Decoration>();
+        for p in &self.paragraphs {
+            units = units
+                .checked_add(
+                    p.boxes.capacity() * std::mem::size_of::<BoxSource>()
+                        + p.boxes
+                            .iter()
+                            .map(|b| b.ancestors.capacity() * std::mem::size_of::<FigureId>())
+                            .sum::<usize>(),
+                )
+                .ok_or(crate::text::TextContentError::AccountingOverflow)
+                .map_err(crate::text::TextError::from)?;
+        }
+        let retention = store
+            .map(|store| store.reserve(units))
+            .transpose()
+            .map_err(crate::text::TextError::from)?;
+        scene
+            .budget()
+            .allocate("flow immutable assembly", self.paragraphs.len() as u64 + 1)
+            .map_err(crate::text::TextError::from)?;
+        let paragraphs = self
+            .paragraphs
+            .into_iter()
+            .map(|p| {
+                let source_units = std::mem::size_of::<SourceRangesStorage>()
+                    + 2 * std::mem::size_of::<usize>()
+                    + p.sources.len() * std::mem::size_of::<FlowSourceRange>()
+                    + p.sources
+                        .iter()
+                        .map(|s| s.ancestors.capacity() * std::mem::size_of::<FigureId>())
+                        .sum::<usize>();
+                let source_retention = store
+                    .map(|store| store.reserve(source_units))
+                    .transpose()
+                    .map_err(crate::text::TextError::from)?;
+                scene
+                    .budget()
+                    .allocate("flow immutable source ranges", p.sources.len() as u64 + 1)
+                    .map_err(crate::text::TextError::from)?;
+                scene
+                    .budget()
+                    .allocate("flow immutable text record", 1)
+                    .map_err(crate::text::TextError::from)?;
+                Ok(FrozenParagraph {
+                    owner: p.owner,
+                    content: match store {
+                        Some(store) => store.create(p.text, p.style, p.spans)?,
+                        None => crate::text::StyledTextContent::new(p.text, p.style, p.spans)?,
+                    },
+                    sources: FlowSourceRanges(Arc::new(SourceRangesStorage {
+                        values: p.sources.into_boxed_slice(),
+                        _retention: source_retention,
+                    })),
+                    boxes: p.boxes,
+                    block: p.block,
+                    before: p.before,
+                    top_padding: p.top_padding,
+                    after: p.after,
+                })
+            })
+            .collect::<Result<Vec<_>, FlowError>>()?;
+        Ok(Arc::new(FrozenFlowPlan {
+            _retention: retention,
+            paragraphs,
+            members: self.members,
+            decorations: self.decorations,
+            blocks: self.blocks,
+            trailing_margin: self.trailing_margin,
+            traversal_order: self.traversal_order,
+        }))
+    }
+}
+impl FrozenFlowPlan {
+    pub(crate) fn retained_units(&self) -> usize {
+        self._retention
+            .as_ref()
+            .map_or(0, crate::text::TextContentLease::units)
+            + self
+                .paragraphs
+                .iter()
+                .map(|p| p.content.retained_units() + p.sources.retained_units())
+                .sum::<usize>()
+    }
+}
+
 /// Normalized paragraph builder used by every registered handler.
 /// It can only append contributions or traverse frozen direct children.
 pub struct FlowAssembly<'a> {
+    pub(crate) check_declarations: bool,
     scene: &'a PreparationScene<'a>,
     registry: &'a FlowContributionRegistry,
     measure_border: &'a mut BorderMeasurer<'a>,
@@ -116,14 +270,12 @@ pub struct FlowAssembly<'a> {
     pub(crate) blocks: Vec<BlockBox>,
     pub(crate) traversal_order: HashMap<FigureId, (usize, usize)>,
     next_order: usize,
-    visited: HashSet<FigureId>,
-    stack: Vec<FigureId>,
+    workspace: super::workspace::AssemblyWorkspaceUse<'a>,
     current: Option<Paragraph>,
     block: FlowBlockStyle,
     owner: FigureId,
     pending_margin: f64,
     pending_padding: f64,
-    source_offsets: HashMap<FigureId, usize>,
 }
 impl<'a> FlowAssembly<'a> {
     fn allocate(&self, entries: usize) -> Result<(), FlowError> {
@@ -141,8 +293,10 @@ impl<'a> FlowAssembly<'a> {
         scene: &'a PreparationScene<'a>,
         registry: &'a FlowContributionRegistry,
         measure_border: &'a mut BorderMeasurer<'a>,
+        workspace: &'a mut super::workspace::AssemblyWorkspace,
     ) -> Self {
         Self {
+            check_declarations: false,
             scene,
             registry,
             measure_border,
@@ -152,35 +306,33 @@ impl<'a> FlowAssembly<'a> {
             blocks: Vec::new(),
             traversal_order: HashMap::new(),
             next_order: 0,
-            visited: HashSet::new(),
-            stack: Vec::new(),
+            workspace: workspace.begin(),
             current: None,
             block: FlowBlockStyle::default(),
             owner: scene.root(),
             pending_margin: 0.0,
             pending_padding: 0.0,
-            source_offsets: HashMap::new(),
         }
     }
     pub fn visit(&mut self, source: FigureId) -> Result<(), FlowError> {
         let _visit = self.scene.budget().time("flow-visit");
         self.allocate(4)?;
-        if self.stack.last().copied() != self.scene.parent(source)? {
+        if self.workspace.stack.last().copied() != self.scene.parent(source)? {
             return Err(FlowError::InvalidStructure);
         }
-        if self.stack.len() >= 10_000 {
+        if self.workspace.stack.len() >= 10_000 {
             return Err(FlowError::DepthLimit);
         }
-        if !self.visited.insert(source) {
+        if !self.workspace.visited.insert(source) {
             return Err(FlowError::InvalidStructure);
         }
         self.members.push(source);
         let opening = self.next_order;
         self.next_order += 1;
-        self.stack.push(source);
+        self.workspace.stack.push(source);
         let registry = self.registry;
         let result = registry.dispatch(source, self.scene, self);
-        self.stack.pop();
+        self.workspace.stack.pop();
         self.traversal_order
             .insert(source, (opening, self.next_order));
         self.next_order += 1;
@@ -188,7 +340,7 @@ impl<'a> FlowAssembly<'a> {
     }
     pub fn children(&mut self, source: FigureId) -> Result<(), FlowError> {
         let _children = self.scene.budget().time("flow-children");
-        if self.stack.last() != Some(&source) {
+        if self.workspace.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
         for child in self.scene.children(source)? {
@@ -223,19 +375,20 @@ impl<'a> FlowAssembly<'a> {
     ) -> Result<(), FlowError> {
         let scene = self.scene;
         let _text = scene.budget().time("flow-text");
-        if self.stack.last() != Some(&source) {
+        if self.workspace.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
         self.allocate(
             text.len()
-                .saturating_add(self.stack.len())
+                .saturating_add(self.workspace.stack.len())
                 .saturating_add(4),
         )?;
         let (ancestors, source_offset) = {
             let _source = self.scene.budget().time("flow-source-map");
-            let ancestors = self.stack.clone();
-            let source_offset = *self.source_offsets.entry(source).or_default();
-            self.source_offsets
+            let ancestors = self.workspace.stack.clone();
+            let source_offset = *self.workspace.source_offsets.entry(source).or_default();
+            self.workspace
+                .source_offsets
                 .insert(source, source_offset + text.len());
             (ancestors, source_offset)
         };
@@ -268,11 +421,12 @@ impl<'a> FlowAssembly<'a> {
         style: TextStyle,
     ) -> Result<(), FlowError> {
         let _box = self.scene.budget().time("flow-box-intent");
-        if self.stack.last() != Some(&source) || self.scene.parent(child)? != Some(source) {
+        if self.workspace.stack.last() != Some(&source) || self.scene.parent(child)? != Some(source)
+        {
             return Err(FlowError::InvalidStructure);
         }
-        self.allocate(self.stack.len().saturating_add(2))?;
-        let ancestors = self.stack.clone();
+        self.allocate(self.workspace.stack.len().saturating_add(2))?;
+        let ancestors = self.workspace.stack.clone();
         let paragraph = self.paragraph(style);
         paragraph.boxes.push(BoxSource {
             child: Some(child),
@@ -289,7 +443,7 @@ impl<'a> FlowAssembly<'a> {
         border: Arc<dyn super::FlowFragmentBorder>,
     ) -> Result<(), FlowError> {
         let _decorate = self.scene.budget().time("flow-decorate");
-        if self.stack.last() != Some(&source) {
+        if self.workspace.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
         self.allocate(1)?;
@@ -306,7 +460,7 @@ impl<'a> FlowAssembly<'a> {
         let _block = self.scene.budget().time("flow-block");
         self.allocate(2)?;
         style.validate()?;
-        if self.stack.last() != Some(&source) {
+        if self.workspace.stack.last() != Some(&source) {
             return Err(FlowError::InvalidStructure);
         }
         self.flush();
@@ -379,15 +533,16 @@ impl<'a> FlowAssembly<'a> {
             self.paragraphs.push(paragraph);
         }
     }
-    pub(crate) fn finish(mut self) -> FlowPlan {
+    pub(crate) fn finish(mut self) -> Result<FlowPlan, FlowError> {
         self.flush();
-        FlowPlan {
+        self.workspace.retain()?;
+        Ok(FlowPlan {
             paragraphs: self.paragraphs,
             members: self.members,
             decorations: self.decorations,
             blocks: self.blocks,
             trailing_margin: self.pending_margin,
             traversal_order: self.traversal_order,
-        }
+        })
     }
 }

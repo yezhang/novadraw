@@ -66,6 +66,12 @@ impl FlowContributionContext<'_> {
 }
 
 pub trait FlowContributor {
+    fn assembly_reuse(
+        &self,
+        _context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        Ok(None)
+    }
     fn contribute(
         &self,
         context: &FlowContributionContext<'_>,
@@ -95,6 +101,12 @@ impl FlowCapability {
 pub const FLOW: CapabilityKey<FlowCapability> = CapabilityKey::new("novadraw.flow");
 
 pub trait FlowContributionHandler<P: FlowContributionPayload>: Send + Sync {
+    fn assembly_reuse(
+        &self,
+        _context: &FlowContributionContext<'_>,
+    ) -> Result<Option<super::FlowReuseDeclaration>, FlowError> {
+        Ok(None)
+    }
     fn process(
         &self,
         payload: &P,
@@ -127,10 +139,19 @@ type Handler = dyn Fn(
     + Send
     + Sync;
 
+type DeclarationReader = dyn Fn(&FlowContributionContext<'_>) -> Result<Option<super::FlowReuseDeclaration>, FlowError>
+    + Send
+    + Sync;
+struct HandlerEntry {
+    token: super::FlowReuseIdentity,
+    process: Box<Handler>,
+    declaration: Box<DeclarationReader>,
+}
+
 /// Instance-owned registry. Standard handlers are registered through this public API.
 #[derive(Clone, Default)]
 pub struct FlowContributionRegistry {
-    handlers: HashMap<TypeId, Arc<Handler>>,
+    handlers: HashMap<TypeId, Arc<HandlerEntry>>,
 }
 impl FlowContributionRegistry {
     pub fn new() -> Self {
@@ -144,19 +165,36 @@ impl FlowContributionRegistry {
         if self.handlers.contains_key(&TypeId::of::<P>()) {
             return Err(FlowError::DuplicateContribution(key.name));
         }
+        let handler = Arc::new(handler);
+        let declaration_handler = handler.clone();
         self.handlers.insert(
             TypeId::of::<P>(),
-            Arc::new(move |payload, context, output| {
-                handler.process(
-                    payload
-                        .downcast_ref::<P>()
-                        .ok_or(FlowError::InvalidContribution(key.name))?,
-                    context,
-                    output,
-                )
+            Arc::new(HandlerEntry {
+                token: super::FlowReuseIdentity::new(),
+                declaration: Box::new(move |context| declaration_handler.assembly_reuse(context)),
+                process: Box::new(move |payload, context, output| {
+                    handler.process(
+                        payload
+                            .downcast_ref::<P>()
+                            .ok_or(FlowError::InvalidContribution(key.name))?,
+                        context,
+                        output,
+                    )
+                }),
             }),
         );
         Ok(())
+    }
+
+    pub(crate) fn handler_declaration(
+        &self,
+        payload: TypeId,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<(super::FlowReuseIdentity, super::FlowReuseDeclaration)>, FlowError> {
+        let Some(entry) = self.handlers.get(&payload) else {
+            return Ok(None);
+        };
+        Ok((entry.declaration)(context)?.map(|declaration| (entry.token, declaration)))
     }
 
     pub(crate) fn dispatch(
@@ -183,13 +221,19 @@ impl FlowContributionRegistry {
             let _contributor = scene.budget().time("flow-contributor");
             contributor.contribute(&context, &mut sink)?;
         }
+        if output.check_declarations
+            && let Some(declaration) = contributor.assembly_reuse(&context)?
+            && !declaration.matches_contributions(sink.entries.iter().map(|entry| entry.0))
+        {
+            return Err(FlowError::InvalidReuseDeclaration(source));
+        }
         for (id, name, payload) in sink.entries {
             let handler = self
                 .handlers
                 .get(&id)
                 .ok_or(FlowError::UnknownContribution(name))?;
             let _handler = scene.budget().time("flow-handler");
-            handler(payload.as_ref(), &context, output)?;
+            (handler.process)(payload.as_ref(), &context, output)?;
         }
         Ok(())
     }

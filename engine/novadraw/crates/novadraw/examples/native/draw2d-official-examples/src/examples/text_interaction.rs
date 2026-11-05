@@ -10,8 +10,8 @@ use novadraw::{
         flow::{
             BLOCK_CONTRIBUTION, BlockContribution, FLOW, FlowBlockStyle, FlowCapability,
             FlowContributionContext, FlowContributionSink, FlowContributor, FlowError,
-            FlowLayoutService, FlowSnapshot, InlineFlowFigure, SetStructuredFlowText,
-            SourceTextPosition, StructuredTextFigure,
+            FlowLayoutService, FlowReuseDeclaration, FlowReuseIdentity, FlowSnapshot,
+            InlineFlowFigure, SetStructuredFlowText, SourceTextPosition, StructuredTextFigure,
         },
     },
     geometry::{Insets, Point, Rectangle},
@@ -35,6 +35,7 @@ enum Interaction {
 
 struct InteractivePage {
     service: FlowLayoutService,
+    reuse_identity: FlowReuseIdentity,
     interaction: Interaction,
     target: Option<FigureId>,
     pointer: Option<Point>,
@@ -45,6 +46,7 @@ impl InteractivePage {
     fn new(interaction: Interaction) -> Self {
         Self {
             service: FlowLayoutService::default(),
+            reuse_identity: FlowReuseIdentity::new(),
             interaction,
             target: None,
             pointer: None,
@@ -100,6 +102,26 @@ impl AccessibleFigure for InteractivePage {
     }
 }
 impl FlowContributor for InteractivePage {
+    fn assembly_reuse(
+        &self,
+        context: &FlowContributionContext<'_>,
+    ) -> Result<Option<FlowReuseDeclaration>, FlowError> {
+        context
+            .scene
+            .budget()
+            .allocate(
+                "flow declaration",
+                std::mem::size_of::<std::any::TypeId>() as u64,
+            )
+            .map_err(TextError::from)?;
+        // Pointer, focus and typing target affect projection only. The immutable
+        // interaction selects assembly alignment for the lifetime of this page.
+        Ok(Some(
+            self.reuse_identity
+                .declaration(0)
+                .with_contribution(BLOCK_CONTRIBUTION),
+        ))
+    }
     fn contribute(
         &self,
         _: &FlowContributionContext<'_>,
@@ -229,7 +251,7 @@ impl FigurePreparation for InteractivePage {
         let prepared = self
             .service
             .prepare(context, bounds, scene)
-            .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?;
+            .map_err(FlowError::into_text)?;
         let original = prepared.root_presentation();
         let snapshot = original.shared_data::<FlowSnapshot>().expect("flow data");
         let root = FigurePresentation::new(
@@ -394,12 +416,17 @@ pub fn caret_example() -> Runtime {
     runtime
 }
 pub fn text_flow_large_example() -> Runtime {
+    text_flow_large_example_with_service(FlowLayoutService::default())
+}
+pub fn text_flow_large_example_with_service(service: FlowLayoutService) -> Runtime {
     let TextFixture {
         mut runtime, pane, ..
     } = canvas();
+    let mut figure = InteractivePage::new(Interaction::Typing);
+    figure.service = service;
     let page = runtime
         .viewports()
-        .set_scroll_contents(&pane, Box::new(InteractivePage::new(Interaction::Typing)))
+        .set_scroll_contents(&pane, Box::new(figure))
         .expect("typing page");
     let target = populate_large(&mut runtime, page);
     runtime
@@ -445,6 +472,30 @@ mod tests {
     use super::*;
     use novadraw::event::KeyModifiers;
     use novadraw::text::TextAffinity;
+
+    #[test]
+    fn reused_large_flow_survives_focus_loss_without_measurement_changes() {
+        let service = FlowLayoutService::default().with_assembly_reuse(true);
+        let mut runtime = text_flow_large_example_with_service(service);
+        runtime
+            .frames()
+            .set_preparation_budget(novadraw::figure::PreparationBudget::new(
+                128 * 1024 * 1024,
+                64 * 1024 * 1024,
+            ));
+        runtime.frames().stabilize_for_query().unwrap();
+        let page = find_page(&runtime);
+        let before = snapshot(&runtime, page).clone();
+        runtime.focus().release();
+        runtime.frames().stabilize_for_query().unwrap();
+        let after = snapshot(&runtime, page);
+        assert_eq!(before.size, after.size);
+        assert_eq!(before.placements, after.placements);
+        runtime.focus().request(page).unwrap();
+        runtime.frames().stabilize_for_query().unwrap();
+        assert_eq!(before.size, snapshot(&runtime, page).size);
+        assert!(runtime.take_deferred_mutation_errors().is_empty());
+    }
 
     #[test]
     fn caret_hover_covers_combining_cluster_without_invalid_endpoint() {
@@ -590,6 +641,43 @@ mod tests {
         runtime.frames().stabilize_for_query().unwrap();
         assert_eq!(snapshot(&runtime, page).revision, revision);
         assert!(runtime.take_deferred_mutation_errors().is_empty());
+    }
+    #[test]
+    fn typing_after_window_focus_release_requires_a_restored_target() {
+        let mut runtime = text_flow_large_example_with_service(
+            FlowLayoutService::default().with_assembly_reuse(true),
+        );
+        runtime
+            .frames()
+            .set_preparation_budget(novadraw::figure::PreparationBudget::new(
+                128 * 1024 * 1024,
+                64 * 1024 * 1024,
+            ));
+        runtime.frames().stabilize_for_query().unwrap();
+        let page = find_page(&runtime);
+        runtime.focus().release();
+        runtime.frames().stabilize_for_query().unwrap();
+        assert!(
+            !runtime
+                .input()
+                .dispatch_key_pressed(Key::Character('Z'), KeyModifiers::default())
+                .is_handled()
+        );
+        runtime.focus().request(page).unwrap();
+        assert!(
+            runtime
+                .input()
+                .dispatch_key_pressed(Key::Character('Z'), KeyModifiers::default())
+                .is_handled()
+        );
+        runtime.frames().stabilize_for_query().unwrap();
+        assert!(
+            snapshot(&runtime, page).paragraphs[0]
+                .layout
+                .request()
+                .text()
+                .starts_with("Normal text.Z")
+        );
     }
     #[test]
     fn mouse_move_uses_admitted_fragment_and_preserves_source_geometry() {

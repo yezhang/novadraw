@@ -89,6 +89,45 @@ fn one_context_measures_and_records_a_retained_layout() {
 }
 
 #[test]
+fn repeated_text_across_scopes_retains_one_font_after_source_destruction() {
+    let mut text = text_system();
+    let layout = text
+        .measure(FontDescriptor::default())
+        .layout_text("office\nrepeat\nagain", TextConstraints::UNBOUNDED)
+        .unwrap();
+    assert!(layout.glyph_runs().len() > 1);
+    let mut recorder = CommandRecorder::new();
+    for y in [0.0, 80.0] {
+        let mut gc = Graphics::new(&mut text, &mut recorder);
+        gc.set_fill_paint(Color::BLACK);
+        gc.set_stroke_paint(Color::BLACK);
+        gc.fill_text(&layout, Point::new(0.0, y)).unwrap();
+        gc.stroke_text(&layout, Point::new(0.0, y)).unwrap();
+    }
+    drop(text);
+    let drawing = recorder.finish().unwrap();
+    assert_eq!(drawing.resources().ready.len(), 1);
+    for run in layout.glyph_runs() {
+        assert!(
+            FontInstanceRef::new(
+                &run.font,
+                &drawing.resources().ready[0],
+                &run.normalized_coords,
+            )
+            .is_ok()
+        );
+    }
+    assert_eq!(
+        drawing
+            .commands()
+            .iter()
+            .filter(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
+            .count(),
+        layout.glyph_runs().len() * 4,
+    );
+}
+
+#[test]
 fn graphics_rotation_names_degrees_and_rejects_non_finite_input_atomically() {
     let mut text = text_system();
     let mut recorder = CommandRecorder::new();

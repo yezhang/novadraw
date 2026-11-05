@@ -51,7 +51,9 @@ pub use scroll_pane_example::scroll_pane_example;
 pub use shape_styles::shape_styles_example;
 pub use simple_tree_example::simple_tree_example;
 pub use text_examples::{multi_line_label_example, text_flow_example};
-pub use text_interaction::{caret_example, text_flow_large_example};
+pub use text_interaction::{
+    caret_example, text_flow_large_example, text_flow_large_example_with_service,
+};
 pub use text_surrounding::text_surrounding_figure_example;
 pub use thumbnail::thumbnail_example;
 pub use thumbnail::verification_entries as thumbnail_verification_entries;

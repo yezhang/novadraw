@@ -12,7 +12,7 @@ impl LayoutMeasurementSession<'_> {
         container: FigureId,
         manager: &mut dyn LayoutManager,
         output: &mut LayoutOutput,
-    ) -> Result<(), LayoutError> {
+    ) -> Result<Vec<crate::figure::preparation::InputProof>, LayoutError> {
         let preparation_error = |error| {
             LayoutError::Preparation(Box::new(crate::figure::PreparationMeasureError {
                 figure: container,
@@ -41,9 +41,13 @@ impl LayoutMeasurementSession<'_> {
             context: RefCell::new(&mut context),
         };
         manager.layout(container, &LayoutSceneQuery::new(&read), output)?;
+        scene
+            .validate_input_proofs("layout consumption")
+            .map_err(preparation_error)?;
         self.budget
             .check()
-            .map_err(|error| preparation_error(error.into()))
+            .map_err(|error| preparation_error(error.into()))?;
+        scene.input_proofs().map_err(preparation_error)
     }
 }
 
@@ -714,17 +718,20 @@ impl FigureTree {
                     session.layout(self, container_id, layout_manager.as_mut(), &mut output)
                 } else {
                     let snapshot = LayoutSceneQuery::new(self);
-                    layout_manager.layout(container_id, &snapshot, &mut output)
+                    layout_manager
+                        .layout(container_id, &snapshot, &mut output)
+                        .map(|()| Vec::new())
                 }
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
                 block.layout.manager = Some(layout_manager);
             }
-            match result {
+            let input_proofs = match result {
                 Ok(result) => result?,
                 Err(payload) => std::panic::resume_unwind(payload),
-            }
+            };
             self.apply_layout_output(update_manager, container_id, output)?;
+            self.blocks[container_id].layout.input_proofs = input_proofs;
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -859,6 +866,7 @@ impl FigureTree {
                 Err(payload) => std::panic::resume_unwind(payload),
             }
             self.apply_layout_output_without_update(container_id, output)?;
+            self.blocks[container_id].layout.input_proofs.clear();
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -1239,6 +1247,9 @@ impl FigureTree {
             return false;
         }
         block.layout.manager = layout_manager;
+        // A replacement owns a new layout computation. In particular, clearing
+        // the manager changes the container to freeform and retires old reads.
+        block.layout.input_proofs.clear();
         block.layout.source_generation = block.layout.source_generation.wrapping_add(1);
         self.mark_validation_path_invalid_for(container, LayoutInvalidation::Structure);
         true
@@ -1876,6 +1887,7 @@ mod s07_query_failure_tests {
             source: crate::figure::preparation::PreparationSource::default(),
             result_version: None,
             observations: Vec::new().into(),
+            input_proofs: Vec::new().into(),
             required_routes: Vec::new(),
             key: PreparationKey {
                 component: 0,

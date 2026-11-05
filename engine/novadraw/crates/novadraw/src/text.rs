@@ -23,11 +23,15 @@ pub mod shaping {
     };
 }
 
+mod content;
+pub(crate) use content::TextContentLease;
 mod line_padding;
 pub(crate) mod mirror;
 pub mod outline;
+pub(crate) mod prefix_search;
 mod staged;
 mod styled;
+pub use content::{StyledTextContent, TextContentError, TextContentStore, TextContentUsage};
 pub use styled::{
     ParagraphAlignment, ParagraphDirection, StyledGlyphRun, StyledTextLayout, StyledTextRequest,
     TextInlineBox, TextInlinePlacement, TextStyle, TextStyleSpan,

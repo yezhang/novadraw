@@ -515,6 +515,10 @@ impl Runtime {
             crate::figure::PreparationBudgetHandle::new(self.preparation_budget)
                 .with_diagnostics(self.diagnostics.clone());
 
+        self.tree
+            .invalidate_stale_layout_inputs(&mut self.updates, &preparation_budget)
+            .map_err(FramePreparationError::Text)?;
+
         let mut work = DerivedWorkSet::default();
         let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
         work.insert(DerivedWorkKind::IntrinsicMetrics);
@@ -667,6 +671,9 @@ impl Runtime {
         preparation_budget
             .check()
             .map_err(|error| FramePreparationError::Text(error.into()))?;
+        self.tree
+            .validate_preparation_inputs(&preparation_budget)
+            .map_err(FramePreparationError::Text)?;
         self.stable_epoch = self.derivation_epoch;
         Ok(())
     }

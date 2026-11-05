@@ -135,7 +135,8 @@ style span、段落方向与对齐、内嵌盒，以及 `TextLayoutEngine::layou
 排版路径。`Graphics::fill_styled_text` 与 `PaintContext::fill_styled_text`
 同时支持 glyph 和轮廓绘制。分段颜色也参与交互 revision。
 
-Parley 0.7 的显式方向由适配层维护私有方向标记与原文偏移映射。
+Parley 0.12 的显式方向通过 builder 的 `set_base_direction` 设置；
+适配层直接保留原文偏移，不再插入私有方向标记。
 内嵌盒产生负 leading 时，适配层统一修正行、glyph、盒与交互坐标，
 保留相邻文字的 descent，不把修正交给示例。
 独立消费者与失败反例见

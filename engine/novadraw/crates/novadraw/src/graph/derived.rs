@@ -11,6 +11,7 @@ struct DerivedNode {
     visible: bool,
     measurement_generation: u64,
     freeform: Option<FreeformState>,
+    layout_input_proofs: Vec<crate::figure::preparation::InputProof>,
     prepared: Option<crate::figure::preparation::PreparedFigure>,
     route: Option<PointList>,
     decoration: Option<crate::connection::PreparedDecorationGeometry>,
@@ -24,6 +25,7 @@ impl DerivedNode {
             visible: node.is_visible,
             measurement_generation: node.layout.generation(),
             freeform: node.layout.freeform,
+            layout_input_proofs: node.layout.input_proofs.clone(),
             prepared: node.prepared.clone(),
             route: node
                 .connection()
@@ -204,6 +206,7 @@ impl FigureTree {
                 node.layout.invalidate(LayoutInvalidation::Geometry);
                 node.layout.cache.get_mut().generation = saved.measurement_generation;
                 node.layout.freeform = saved.freeform;
+                node.layout.input_proofs = saved.layout_input_proofs;
             }
         }
         for (_, effect) in prefix.viewports {

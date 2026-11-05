@@ -62,18 +62,18 @@ Novadraw 不复制 SWT/Draw2D 的全局服务和平台生命周期假设。
 
 | 依赖 | 版本 | 在这条链路中的职责 |
 |---|---|---|
-| Parley | 0.7.0 | 文本分段、双向文本、样式、换行、对齐、布局结果 |
-| Fontique | 0.7.0 | 字体集合、匹配与 fallback；Novadraw 仍须限定显式注册集合 |
-| HarfRust | Parley 使用 0.3.2 | shaping：字符序列到 glyph ID、advance、offset、cluster |
-| Swash | 0.2.10 | Parley 在此版本中使用其文本分析/cluster 等功能；不能据依赖名称认定它是该版本主 shaper |
-| Skrifa | Parley 使用 0.37.0；Vello 使用 0.44.0 | 字体指标、实例、轮廓、hinting 等；两版本类型不能直接互传 |
-| read-fonts / font-types | 对应 Skrifa 分别为 0.35.0/0.10.1、0.41.0/0.12.4 | 字体表与基础值解析 |
+| Parley / Parley Engine | 0.12.0 | 样式、文本分析、双向文本、塑形编排、换行、对齐、布局结果 |
+| Fontique | 0.12.0 | 字体集合、匹配与 fallback；Novadraw 仍须限定显式注册集合 |
+| HarfRust | Parley Engine 使用 0.12.0 | shaping：字符序列到 glyph ID、advance、offset、cluster |
+| ICU / Parley Data | ICU 2.3、Parley Data 0.12.0 | Unicode 属性、分段、边界等分析数据 |
+| Skrifa | Parley Engine 与 Vello 均使用 0.44.0 | 字体指标、实例、轮廓、hinting 等 |
+| read-fonts / font-types | 0.41.0 / 0.12.4 | 字体表与基础值解析 |
 | Vello / vello_encoding | 0.10.0 | glyph/path 编码、轮廓缓存、GPU 矢量绘制 |
 | Peniko / Kurbo | 0.6.1 / 0.13.1 | 后端 paint/style 数据与路径几何操作；不进入 Novadraw 中立签名 |
 
-Cargo.lock 中另有 HarfRust 0.12.0，不能将它误报为 Parley 0.7 的依赖版本。
-不同 Skrifa 版本通过字体字节、face index、规范化坐标和引擎自有值桥接；
-本设计不因版本重复而强制升级依赖。
+2026-11-05 已迁移到未打补丁的 Parley 0.12.0，旧依赖源码与补丁退役。
+可选 Masonry 仍通过自身依赖图使用 Parley 0.8.0，不属于 Core 默认文字链路。
+字体字节、face index、规范化坐标和引擎自有值继续构成中立桥接边界。
 
 ### Vello 字形入口已经属于同一 Scene
 
@@ -498,9 +498,9 @@ backend 的分网格只改变执行表示；若会改变几何或覆盖范围，
   cache key、Skrifa outline 与路径编码。
 - `skrifa-0.44.0/src/outline/mod.rs` 1–80、145–175：
   OutlinePen 二次/三次曲线、hinted adjusted metrics。
-- `parley-0.7.0/src/shape/mod.rs` 286–395：
-  HarfRust shaping 与实例、script/language；
-  `src/layout/data.rs` 359–427：字体实例与 Skrifa 行指标。
+- `parley-0.12.0/src/shape/mod.rs` 与 `parley_engine-0.12.0/src/shape/shaper.rs`：
+  字体选择、HarfRust shaping 与实例、script/language；
+  `parley-0.12.0/src/layout/line_break.rs`：字体实例与行指标。
 - SWT checkout：
   `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt/bundles/org.eclipse.swt/Eclipse SWT/cocoa/org/eclipse/swt/graphics/`，
   `GC.java` 和 `TextLayout.java`，语义范围见第 2 节。

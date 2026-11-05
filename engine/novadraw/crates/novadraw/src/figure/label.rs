@@ -5,7 +5,6 @@ use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
     FontDescriptor, ImageResourceRef, TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ImageId;
 
@@ -172,6 +171,9 @@ impl LabelFigure {
     }
 
     pub fn set_text(&mut self, text: String) {
+        if self.text == text {
+            return;
+        }
         self.text = text;
         self.text_revision = self.text_revision.wrapping_add(1);
         self.intrinsic = None;
@@ -179,28 +181,43 @@ impl LabelFigure {
     }
 
     pub fn set_icon(&mut self, icon: Option<ImageId>) {
+        if self.icon == icon {
+            return;
+        }
         self.icon = icon;
         self.intrinsic = None;
         self.presentation = None;
     }
 
     pub fn set_text_placement(&mut self, placement: TextPlacement) {
+        if self.text_placement == placement {
+            return;
+        }
         self.text_placement = placement;
         self.intrinsic = None;
         self.presentation = None;
     }
 
     pub fn set_label_alignment(&mut self, alignment: Alignment) {
+        if self.label_alignment == alignment {
+            return;
+        }
         self.label_alignment = alignment;
         self.presentation = None;
     }
 
     pub fn set_text_alignment(&mut self, alignment: Alignment) {
+        if self.text_alignment == alignment {
+            return;
+        }
         self.text_alignment = alignment;
         self.presentation = None;
     }
 
     pub fn set_icon_alignment(&mut self, alignment: Alignment) {
+        if self.icon_alignment == alignment {
+            return;
+        }
         self.icon_alignment = alignment;
         self.presentation = None;
     }
@@ -211,6 +228,9 @@ impl LabelFigure {
         }
         if gap < 0.0 {
             return Err(super::ShapeGeometryError::NegativeMetric);
+        }
+        if self.icon_text_gap == gap {
+            return Ok(());
         }
         self.icon_text_gap = gap;
         self.intrinsic = None;
@@ -616,32 +636,260 @@ fn truncate(
     if width < ellipsis.width() as f64 {
         return ellipsis.with_visibility(source, 0..0, true, full_width, constraints);
     }
-    let graphemes = source.graphemes(true).collect::<Vec<_>>();
-    let mut low = 0;
-    let mut high = graphemes.len();
-    while low < high {
-        let middle = (low + high).div_ceil(2);
-        let candidate = format!("{}{}", graphemes[..middle].concat(), ELLIPSIS);
-        if engine
-            .layout(&candidate, font, TextConstraints::UNBOUNDED)?
-            .width() as f64
-            <= width
-        {
-            low = middle;
-        } else {
-            high = middle - 1;
+    let (end, layout) = crate::text::prefix_search::fit_prefix(
+        source,
+        ELLIPSIS,
+        Some(ellipsis),
+        |candidate| engine.layout(candidate, font, TextConstraints::UNBOUNDED),
+        |layout| f64::from(layout.width()) <= width,
+    )?;
+    layout
+        .expect("the measured ellipsis is always retained for an empty prefix")
+        .with_visibility(source, 0..end, true, full_width, constraints)
+}
+
+#[cfg(test)]
+mod truncation_tests {
+    use super::*;
+    use crate::render::{BuiltinFont, ParleyTextEngine, ResourceId};
+    use std::time::Instant;
+    use unicode_segmentation::UnicodeSegmentation;
+
+    struct CountingEngine {
+        inner: ParleyTextEngine,
+        calls: usize,
+    }
+
+    impl CountingEngine {
+        fn new() -> Self {
+            let mut inner = ParleyTextEngine::new();
+            for (index, font) in BuiltinFont::ALL.into_iter().enumerate() {
+                inner
+                    .register_font(
+                        ResourceId::new(uuid::Uuid::nil(), index as u64 + 1),
+                        1,
+                        font.bytes(),
+                    )
+                    .unwrap();
+            }
+            Self { inner, calls: 0 }
         }
     }
-    let visible = graphemes[..low].concat();
-    engine
-        .layout(
-            &format!("{visible}{ELLIPSIS}"),
-            font,
-            TextConstraints::UNBOUNDED,
-        )
-        .and_then(|layout| {
-            layout.with_visibility(source, 0..visible.len(), true, full_width, constraints)
-        })
+
+    impl TextLayoutEngine for CountingEngine {
+        fn revision(&self) -> u64 {
+            self.inner.revision()
+        }
+
+        fn register_font(
+            &mut self,
+            id: ResourceId,
+            revision: u64,
+            bytes: &[u8],
+        ) -> Result<(), TextError> {
+            self.inner.register_font(id, revision, bytes)
+        }
+
+        fn remove_font(&mut self, id: ResourceId) {
+            self.inner.remove_font(id);
+        }
+
+        fn layout(
+            &mut self,
+            text: &str,
+            font: &FontDescriptor,
+            constraints: TextConstraints,
+        ) -> Result<TextLayout, TextError> {
+            self.calls += 1;
+            self.inner.layout(text, font, constraints)
+        }
+    }
+
+    #[test]
+    fn truncation_matches_legacy_search_and_real_layouts() {
+        let mut engine = CountingEngine::new();
+        let font = FontDescriptor::default();
+        for source in [
+            "iiiiWWWW",
+            "office fi ffi",
+            "e\u{301}👩‍💻中ab",
+            "中文 mixed",
+            "مرحبا world",
+        ] {
+            let full_width = engine
+                .layout(source, &font, TextConstraints::UNBOUNDED)
+                .unwrap()
+                .width();
+            let candidates = source
+                .grapheme_indices(true)
+                .map(|(end, _)| end)
+                .chain(std::iter::once(source.len()))
+                .map(|end| {
+                    let layout = engine
+                        .layout(
+                            &format!("{}...", &source[..end]),
+                            &font,
+                            TextConstraints::UNBOUNDED,
+                        )
+                        .unwrap();
+                    (end, layout)
+                })
+                .collect::<Vec<_>>();
+            let widths = candidates.iter().flat_map(|(_, layout)| {
+                [
+                    f64::from(layout.width()),
+                    (f64::from(layout.width()) - 0.01).max(0.0),
+                ]
+            });
+            for width in widths {
+                let actual = truncate(&mut engine, source, &font, width, full_width).unwrap();
+                let mut low = 0;
+                let mut high = candidates.len() - 1;
+                while low < high {
+                    let probe = (low + high).div_ceil(2);
+                    if f64::from(candidates[probe].1.width()) <= width {
+                        low = probe;
+                    } else {
+                        high = probe - 1;
+                    }
+                }
+                let (end, expected) = &candidates[low];
+                if candidates
+                    .windows(2)
+                    .all(|pair| pair[0].1.width() <= pair[1].1.width())
+                {
+                    let enumerated = candidates
+                        .iter()
+                        .rev()
+                        .find(|(_, layout)| f64::from(layout.width()) <= width)
+                        .unwrap_or(&candidates[0]);
+                    assert_eq!(*end, enumerated.0);
+                }
+                let expected = expected
+                    .clone()
+                    .with_visibility(
+                        source,
+                        0..*end,
+                        true,
+                        full_width,
+                        TextConstraints::new(Some(width as f32)).unwrap(),
+                    )
+                    .unwrap();
+                assert_eq!(actual, expected, "source={source:?}, width={width}");
+            }
+        }
+    }
+
+    #[test]
+    fn equal_label_updates_keep_layouts_and_real_changes_invalidate_the_right_cache() {
+        let mut engine = CountingEngine::new();
+        let font = FontDescriptor::default();
+        let bounds = Rectangle::new(0.0, 0.0, 40.0, 30.0);
+        let mut label = LabelFigure::new("office 中文");
+        label.refresh_intrinsic(&mut engine, &font, None).unwrap();
+        label.refresh_presentation(&mut engine, bounds).unwrap();
+        let intrinsic = label.intrinsic.clone();
+        let presentation = label.presentation.clone();
+        let revision = label.text_revision;
+        let calls = engine.calls;
+        label.set_text(label.text().to_owned());
+        label.set_icon(None);
+        label.set_text_placement(TextPlacement::East);
+        label.set_label_alignment(Alignment::Center);
+        label.set_text_alignment(Alignment::Center);
+        label.set_icon_alignment(Alignment::Center);
+        label.set_icon_text_gap(DEFAULT_ICON_TEXT_GAP).unwrap();
+        assert!(label.set_icon_text_gap(f64::NAN).is_err());
+        assert!(label.set_icon_text_gap(-1.0).is_err());
+        assert_eq!(label.intrinsic, intrinsic);
+        assert_eq!(label.presentation, presentation);
+        assert_eq!(label.text_revision, revision);
+        assert!(!label.refresh_intrinsic(&mut engine, &font, None).unwrap());
+        assert!(!label.refresh_presentation(&mut engine, bounds).unwrap());
+        assert_eq!(engine.calls, calls);
+        label.set_text_alignment(Alignment::Start);
+        assert_eq!(label.intrinsic, intrinsic);
+        assert!(label.presentation.is_none());
+        label.set_text("changed".to_owned());
+        assert_eq!(label.text_revision, revision + 1);
+        assert!(label.intrinsic.is_none());
+        label.refresh_intrinsic(&mut engine, &font, None).unwrap();
+        label
+            .set_icon_text_gap(DEFAULT_ICON_TEXT_GAP + 1.0)
+            .unwrap();
+        assert!(label.intrinsic.is_none());
+    }
+
+    #[test]
+    #[ignore = "release cost sample; run alone with --ignored --nocapture"]
+    fn draw2d_equal_label_updates_cost() {
+        const ITERATIONS: usize = 100;
+        let source = "Wi 中文 office ".repeat(160);
+        let bounds = Rectangle::new(0.0, 0.0, 300.0, 30.0);
+        let font = FontDescriptor::default();
+        let mut engine = CountingEngine::new();
+        let mut label = LabelFigure::new(source.clone());
+        label.refresh_intrinsic(&mut engine, &font, None).unwrap();
+        label.refresh_presentation(&mut engine, bounds).unwrap();
+        engine.calls = 0;
+        let start = Instant::now();
+        for _ in 0..ITERATIONS {
+            label.set_text(source.clone());
+            label.set_icon(None);
+            label.set_text_placement(TextPlacement::East);
+            label.set_label_alignment(Alignment::Center);
+            label.set_text_alignment(Alignment::Center);
+            label.set_icon_alignment(Alignment::Center);
+            label.set_icon_text_gap(DEFAULT_ICON_TEXT_GAP).unwrap();
+            label.refresh_intrinsic(&mut engine, &font, None).unwrap();
+            label.refresh_presentation(&mut engine, bounds).unwrap();
+            std::hint::black_box(label.text_layout());
+        }
+        println!(
+            "draw2d-equal-label iterations={ITERATIONS} calls={} elapsed_us={}",
+            engine.calls,
+            start.elapsed().as_micros()
+        );
+    }
+
+    #[test]
+    #[ignore = "release cost sample; run alone with --ignored --nocapture"]
+    fn draw2d_truncation_cost() {
+        const ITERATIONS: usize = 20;
+        let font = FontDescriptor::default();
+        let mut engine = CountingEngine::new();
+        let sources = [
+            ("uniform", "m".repeat(2048)),
+            ("mixed", "Wi e\u{301} 中文 office 👩‍💻 ".repeat(80)),
+            (
+                "uneven",
+                format!("{}{}", "i".repeat(1024), "W".repeat(1024)),
+            ),
+        ];
+        for (name, source) in sources {
+            let full_width = engine
+                .layout(&source, &font, TextConstraints::UNBOUNDED)
+                .unwrap()
+                .width();
+            for ratio in [0.1, 0.5, 0.9] {
+                let width = f64::from(full_width) * ratio;
+                // Warm the same font and shaping context on both versions.
+                truncate(&mut engine, &source, &font, width, full_width).unwrap();
+                engine.calls = 0;
+                let start = Instant::now();
+                for _ in 0..ITERATIONS {
+                    std::hint::black_box(
+                        truncate(&mut engine, &source, &font, width, full_width).unwrap(),
+                    );
+                }
+                println!(
+                    "draw2d-truncate {name} ratio={ratio} calls={} elapsed_us={}",
+                    engine.calls,
+                    start.elapsed().as_micros()
+                );
+            }
+        }
+    }
 }
 
 fn aligned(origin: f64, available: f64, used: f64, alignment: Alignment) -> f64 {

@@ -10,6 +10,10 @@
 不改变 [可选阶段文字协议](staged-text-width-reuse.md) 的既有授权与契约。
 执行队列仍由 [P2 backlog](../../roadmap/p2-delta-backlog.md)维护。
 
+2026-11-05 已授权并实施未打补丁的 Parley 0.12.0 迁移；
+最新接口与替代范围见[迁移记录](../../verification/reviews/parley-upstream-migration-2026-11-05.md)。
+下文 0.7.0 清单是原候选的历史基线，不代表当前依赖图。
+
 ## 候选要解决的问题
 
 技术上可以去掉 Parley，由 Novadraw 直接使用 Fontique、Swash、HarfRust 和
@@ -22,11 +26,11 @@ Skrifa。但这些库分别提供排版所需的部分能力，不会自动组�
 
 ## Parley 当前承担什么
 
-分析基线为项目使用的 Parley 0.7.0，来源与生产补丁见
+原分析基线为 Parley 0.7.0，来源与退役情况见
 [依赖说明](../../../dependencies/README.md)。以下描述基于该版本的
-[公开 API 说明](../../../dependencies/parley-0.7.0/src/lib.rs)、
-[shaping 编排](../../../dependencies/parley-0.7.0/src/shape/mod.rs)和
-[布局数据处理](../../../dependencies/parley-0.7.0/src/layout/data.rs)。
+[公开 API 说明](https://github.com/linebender/parley/blob/v0.7.0/parley/src/lib.rs)、
+[shaping 编排](https://github.com/linebender/parley/blob/v0.7.0/parley/src/shape/mod.rs)和
+[布局数据处理](https://github.com/linebender/parley/blob/v0.7.0/parley/src/layout/data.rs)。
 
 Parley 接收文字、样式和布局约束，输出行、字形、位置及文字几何。
 它支持样式区间和嵌套样式树，协调文本分析、字体选择、shaping、断行、
@@ -40,7 +44,7 @@ Parley 接收文字、样式和布局约束，输出行、字形、位置及文�
 ## 直接依赖底层库后需要接手什么
 
 以下版本为 Parley 0.7.0 的
-[依赖声明](../../../dependencies/parley-0.7.0/Cargo.toml)，
+[依赖声明](https://github.com/linebender/parley/blob/v0.7.0/parley/Cargo.toml)，
 最终解析版本由 Cargo.lock 决定。
 
 | 库 | 声明版本 | 当前提供的能力 | Core 需要接手的编排 |

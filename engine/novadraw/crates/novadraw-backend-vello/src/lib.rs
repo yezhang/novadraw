@@ -10,6 +10,7 @@ mod antialias_stroke;
 mod antialias_tests;
 mod diagnostics;
 mod glyph_outline;
+mod native_empty;
 mod text_raster;
 #[cfg(all(feature = "perfetto", not(target_arch = "wasm32")))]
 pub use diagnostics::register as register_perfetto_categories;
@@ -503,6 +504,7 @@ fn vello_paint(paint: &Paint, scale_factor: f64) -> vello::peniko::Brush {
     }
 }
 
+#[cfg(test)]
 fn append_glyph_run(
     scene: &mut vello::Scene,
     run: &GlyphRun,
@@ -512,6 +514,27 @@ fn append_glyph_run(
     transform: &Affine2D,
     scale_factor: f64,
 ) {
+    append_filtered_glyph_run(
+        scene,
+        run,
+        (font, None),
+        origin,
+        paint,
+        transform,
+        scale_factor,
+    );
+}
+
+fn append_filtered_glyph_run(
+    scene: &mut vello::Scene,
+    run: &GlyphRun,
+    font_input: (&vello::peniko::FontData, Option<&native_empty::EmptyGlyphs>),
+    origin: Point,
+    paint: &GlyphPaint,
+    transform: &Affine2D,
+    scale_factor: f64,
+) {
+    let (font, empty) = font_input;
     let _glyph = diagnostics::glyph_scope();
     if run.glyphs.is_empty() {
         return;
@@ -522,11 +545,17 @@ fn append_glyph_run(
         .skew_degrees
         .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
     let glyphs = || {
-        run.glyphs.iter().map(|glyph| vello::Glyph {
-            id: glyph.id,
-            x: ((origin.x() as f32) + glyph.x) * scale_factor as f32,
-            y: ((origin.y() as f32) + glyph.y) * scale_factor as f32,
-        })
+        run.glyphs
+            .iter()
+            .filter(|glyph| {
+                !matches!(paint, GlyphPaint::Fill(_))
+                    || !empty.is_some_and(|empty| empty.contains(glyph.id))
+            })
+            .map(|glyph| vello::Glyph {
+                id: glyph.id,
+                x: ((origin.x() as f32) + glyph.x) * scale_factor as f32,
+                y: ((origin.y() as f32) + glyph.y) * scale_factor as f32,
+            })
     };
     if let GlyphPaint::Stroke { stroke, .. } = paint
         && stroke.width() > 0.0
@@ -619,6 +648,7 @@ struct SceneEncoder {
     scale_factor: f64,
     state_stack: Vec<RenderState>,
     font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    empty_glyphs: HashMap<(novadraw::render::ResourceId, u64, u32), native_empty::EmptyGlyphs>,
     images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
     antialias_config: AntialiasConfig,
     antialias_cache: antialias_frame::Cache,
@@ -631,6 +661,7 @@ impl SceneEncoder {
             scale_factor,
             state_stack: vec![RenderState::default()],
             font_faces: HashMap::new(),
+            empty_glyphs: HashMap::new(),
             images: HashMap::new(),
             antialias_config: AntialiasConfig::default(),
             antialias_cache: antialias_frame::Cache::default(),
@@ -753,10 +784,27 @@ impl SceneEncoder {
         };
         if replaced {
             self.font_faces.clear();
+            self.empty_glyphs.clear();
             self.images.clear();
             self.antialias_cache = antialias_frame::Cache::default();
         }
         sync_font_face_cache(&mut self.font_faces, &submission.resources);
+        // A snapshot can replace the bytes even while retaining a resource's ID/revision.
+        if matches!(
+            submission.resources,
+            novadraw::render::ResourceSync::Snapshot(_)
+        ) {
+            self.empty_glyphs.clear();
+        } else if let novadraw::render::ResourceSync::Delta(delta) = &submission.resources {
+            for op in &delta.ops {
+                let id = match op {
+                    novadraw::render::ResourceOp::Upsert(update) => update.id,
+                    novadraw::render::ResourceOp::Remove(id) => *id,
+                };
+                self.empty_glyphs
+                    .retain(|(resource, _, _), _| *resource != id);
+            }
+        }
         sync_image_cache(&mut self.images, &submission.resources);
         Ok(replaced)
     }
@@ -1550,10 +1598,26 @@ impl SceneEncoder {
                 let font = vello::peniko::FontData::new(font_data, run.font.collection_index());
                 let transform = self.current_state().transform;
                 let scale_factor = self.scale_factor;
-                append_glyph_run(
+                let key = (
+                    run.font.resource_id(),
+                    run.font.revision(),
+                    run.font.collection_index(),
+                );
+                if matches!(paint, GlyphPaint::Fill(_))
+                    && self.empty_glyphs.len() < native_empty::MAX_CACHED_FACES
+                {
+                    self.empty_glyphs.entry(key).or_insert_with(|| {
+                        native_empty::EmptyGlyphs::new(font.data.data(), font.index)
+                    });
+                }
+                let empty = self
+                    .empty_glyphs
+                    .get(&key)
+                    .filter(|empty| !empty.is_empty());
+                append_filtered_glyph_run(
                     &mut self.scene,
                     run,
-                    &font,
+                    (&font, empty),
                     *origin,
                     paint,
                     &transform,

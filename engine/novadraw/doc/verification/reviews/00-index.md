@@ -11,11 +11,18 @@
 |---|---|
 | 文档内容质量 | [DQ01–DQ08 修订记录](documentation-quality-completion-2026-11-04.md)：确定问题已修正，FR-02 基线缺失及引用候选保留限制；[本轮分析](documentation-quality-follow-up-2026-11-04.md)与[前轮分析](documentation-content-quality-2026-11-03.md)保留原发现，Q07 的 ADR 压缩与本轮两组 design 去重已完成 |
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md)、[FR-02 内部归因与诊断扰动](flow-assembly-attribution-2026-11-03.md) |
+| 富文本管线删减 | [逐项实施与前后对照](rich-text-pipeline-reduction-2026-11-05.md)：关闭 tracing 的拖拽／滚轮／连续 resize 与 GPU 完成等待，Perfetto 分析另列；整体仍在实施 |
+| Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
+| Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |
-| Large 滚动专项 | [release 配对 trace 与方案](textflow-scroll-perfetto-2026-11-04.md)：96 个有效滚动样本，Flow 测量组装和整页文字提交为主要整改方向；观测开销、连续 OS 输入与 GPU／屏幕延迟待补验 |
+| Large 滚动专项 | [最新复用开关对照](flow-assembly-scroll-comparison-2026-11-05.md)：两组各 192 次滚动，开启后固定滚轮活跃中位 19.83 → 30.93 ms，新增成本集中在 Core 稳定化和帧准备；[前轮 release trace 与方案](textflow-scroll-perfetto-2026-11-04.md)保留原基线；无观测逐帧成本、连续 OS 输入与 GPU／屏幕延迟待补验 |
+| 滚动与 resize 修订 3／4 | [原评审](long-text-scroll-resize-revision-3-review-2026-11-04.md)与[修订 4 回应](long-text-scroll-resize-revision-4-response-2026-11-04.md)：回应已获用户通过并授权执行；各工作包分别验收 |
 | Large 纹理复用实验 | [GPU 离屏复用与像素对照](textflow-scroll-raster-experiment-2026-11-04.md)：默认关闭，匹配对照确认热块复用；上游 Flow 组装、冷块成本与少量字形边缘差异仍待整改 |
-| FR-02 复用合同评审 | [草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)：六项已回应，待复核；未接受、未进入生产实施；[基线核对](fr02-review-baseline-2026-11-04.md)明确可核对草案与合同／矩阵的缺失范围 |
+| FR-02 复用合同评审 | [草案评审](adr-060-draft-review-2026-11-03.md)、[修订 1 回应](adr-060-revision-1-response-2026-11-03.md)、[共享内容基础迁移](flow-shared-content-implementation-2026-11-04.md)与[输入证明及不可变 Flow 消费](flow-input-proof-implementation-2026-11-04.md)：基础门禁通过；[整页采用首片](flow-assembly-adoption-implementation-2026-11-04.md)已接通并通过首轮 6 项反例，家族容量及完整生产门禁仍待验；[基线核对](fr02-review-baseline-2026-11-04.md)保留历史缺失范围 |
 | 阶段文字引擎 | [ADR-059 与 B1 验证状态](text-stages-status.md)：范围、最新分母、未完成边界及原稿入口 |
+| Parley 上游与补丁必要性 | [0.12.0／main API 复核](parley-upstream-api-and-patch-necessity-2026-11-05.md)：公开分析／shaping 数据、重排及扁平样式输入；35 份补丁的退役条件与未满足的预算／容量合同，无补丁 Native 消费者通过 |
+| Parley 存储与预算边界 | [v0.12.0 再评估](parley-v012-storage-and-budget-reassessment-2026-11-05.md)：公开数组可构造自有计费快照，逐行控制已验证；建议保留 Core 累计工作与留存限额，重新裁决默认后端的深层逐操作预算，合同未修改 |
+| Parley 上游迁移 | [实施与回归验证](parley-upstream-migration-2026-11-05.md)：默认适配器使用未打补丁的 0.12.0；旧源码、35 份补丁及专用入口退役，Core 通用阶段合同保留 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |
 | quiet-md 工程样例 | [富文本编辑技术适用性分析](quiet-md-rich-text-assessment-2026-11-05.md)：固定源码的样式事务、行内对象、虚拟化、IME 与随机验证参考；性能为作者历史测量，采用建议未实施 |
 | 服务失败／Inspector | [ADR-057 与 S09 结论](service-failure-review-status.md)：A／B／C 完成，D 和整批待补验 |

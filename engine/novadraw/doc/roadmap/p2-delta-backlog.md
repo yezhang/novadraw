@@ -2,7 +2,7 @@
 
 类型：`roadmap`
 
-更新：2026-11-03。能力归属：Core、Editor、Inspector、backend、platform 和应用分别列项。
+更新：2026-11-05。能力归属：Core、Editor、Inspector、backend、platform 和应用分别列项。
 本页是 P2 的唯一执行队列，记录已确认增量、当前状态、阻塞和恢复条件；
 运行时契约由 design／ADR 定义，验证依据由 verification 保存。
 
@@ -19,7 +19,7 @@ Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失
 
 | owner／工作 | 当前状态 | 下一步与恢复条件 |
 |---|---|---|
-| Core 长文本 | FR-01 已实现并完成定向与匹配采样；[FR-02 内部归因](../verification/reviews/flow-assembly-attribution-2026-11-03.md)完成，[合同修订 1](../verification/reviews/adr-060-revision-1-response-2026-11-03.md)已回应六项评审，待复核。细诊断扰动及关闭路径尾延迟变化保留，整体延迟未达标，ADR-059 B1 扩张暂停 | 复核 [复用合同](../design/architecture/flow-assembly-reuse.md)与[验收矩阵](../verification/plans/flow-assembly-reuse.md)，ADR 未接受，生产复用 Execute 尚未启动；诊断关闭路径无回退仍需受控证据，恢复 B1 前明确端到端收益及推进顺序 |
+| Core 长文本 | FR-01 与 [FR-02 内部归因](../verification/reviews/flow-assembly-attribution-2026-11-03.md)已完成；滚动方案修订 4 已获用户通过并授权执行。唯一 Execute 为 FR-02：[共享内容基础迁移](../verification/reviews/flow-shared-content-implementation-2026-11-04.md)已完成，[输入证明与不可变 Flow 消费](../verification/reviews/flow-input-proof-implementation-2026-11-04.md)基础门禁通过；[整页采用](../verification/reviews/flow-assembly-adoption-implementation-2026-11-04.md)已接通长文本开关，来源独立 lease 与失败后安装已修正，仍默认关闭。整批 `in_progress`，家族容量、完整生产反例与成本仍待验；整体延迟未达标，B1 扩张暂停 | 按[复用合同](../design/architecture/flow-assembly-reuse.md)与[验收矩阵](../verification/plans/flow-assembly-reuse.md)推进匹配成本及人工滚动／编辑／变宽对照。Core 切片按适用门禁交付，平台采证后置；生产启用与依赖切换继续单独裁决 |
 | Editor E04 | 移动、创建／drop、单源 resize 已通过定向验证；E04-C／D 未关闭 | 补组合矩阵、完整事件成本和平台输入；校验成本整改提案待评审 |
 | Editor E03 | 开放容器协议、自动行为及部分 Native／Web 输入已验证 | 补 Native 系统 DnD、跨显示器 DPI、完整 Native 组合和内部工作量 |
 | 跨包 S09 | A／B／C 已完成，D 已实现并通过定向验证，整批未关闭 | 补 S09-D 最新 Wasm、成本及最终门禁；保留磁盘不足导致的失败证据 |
@@ -28,6 +28,43 @@ Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失
 不同 owner 的状态不是并行 Execute 指令。用户指定 Editor 范围时按 Editor 队列推进，
 不转入 Core 或应用开发。后续 Editor 候选为键盘导航、多视图协调、框选策略和可选编辑支持，
 接口尚未冻结。P2-L01、P2-T03 已完成，不再列为下一批。
+
+2026-11-05 用户已授权在唯一 FR-02 Execute 内按
+[管线删减方案](../design/architecture/rich-text-pipeline-reduction-proposal.md)逐项实施。
+每项改进先冻结前一版 release 产物，使用同一字体、内容、预算、拖拽、
+滚轮及连续 resize 回放比较输入／查询／帧准备／backend 提交的活跃总成本与端到端延迟。
+Perfetto 用于归因，独立计时用于关闭 tracing 的净成本比较。
+原生窗口无法呈现时，离屏 GPU 结果单列，屏幕呈现与平台证据保持未完成。
+
+用户追加授权采用适用的 Draw2D 文本优化。
+[本切片](../design/architecture/draw2d-text-algorithm-adoption.md)在同一 FR-02 内
+已完成临时缓冲区及最佳布局复用和当前字体指标缓存，45 项定向回归通过；
+交替 release 对照中截断合计耗时中位数下降 8.75%。
+平均宽度预测因非单调文本未采用。
+[验证范围](../verification/reviews/draw2d-text-algorithm-adoption-2026-11-05.md)限定 CPU
+截断与指标查询，不默认启用 assembly reuse 或关闭整体交互成本门禁。
+用户随后授权三项后续优化：
+[第二批记录](../verification/reviews/draw2d-text-followup-2026-11-05.md)维护 Label
+等值修改保护、Flow 独占工作区容量复用的实施与验证。
+默认 Parley 分析／重排分离尚未采用；用户于 2026-11-05 要求先复核上游
+`parley_data`／`parley_engine` 与本地补丁必要性，旧版补丁扩张暂停。
+Fontique family 匹配及私有 collection 的注册内存字体查询已通过原版对照与逐点拒绝；
+Parley 样式分段、边界分析和字体栈内部准入已通过 Native／portable 定向测试，
+普通入口完成原始 Parley 的 960 组输出对照；
+新增[上游 API 复核](../verification/reviews/parley-upstream-api-and-patch-necessity-2026-11-05.md)：
+无补丁 0.12.0 的分析／shaping 公开数据、150 次重排对照与扁平样式消费者通过；
+严格过程预算、真实留存容量与 Core 完整适配仍未完成。
+用户随后授权直接迁移并删除可替代补丁；
+[实施记录](../verification/reviews/parley-upstream-migration-2026-11-05.md)
+维护未打补丁的 Parley 0.12.0 适配、旧源码与补丁退役及回归验证。
+迁移实施已完成，Native／Wasm 编译与 workspace Clippy 通过；
+串行无跳过 workspace 测试为 1,963 通过、29 忽略；
+并发后端 Area 对照存在同 scene 重复输出波动，精确像素门禁未关闭。
+用户追加要求评估预算本身的价值；[v0.12.0 再评估](../verification/reviews/parley-v012-storage-and-budget-reassessment-2026-11-05.md)
+已验证公开数组自有快照与部分逐行停止，建议保留 Core 限额并重新裁决深层预算；
+深层预算合同调整尚未接受，现有 Core 通用阶段与外部引擎预算合同未修改。
+默认适配器的旧准入试验已退役，不将上游迁移记为 B／C／D 完成。
+本批没有扩大未授权的传递依赖补丁范围。
 
 ## 已完成批次
 
@@ -277,9 +314,48 @@ P99 上升；13 次贡献组装及 520 请求／514 命中的分母未变。
 支持局部复用有效，不支持稳定尾延迟已改善。
 
 FR-02 已完成组装内部归因、30 项定向回归和 3200 个正式样本；细诊断的阶段占比
-不能当作无诊断生产成本，关闭路径尾延迟变化尚未解释。ADR-060 修订 1 已回应
-FR02-DR01～DR06，下一步复核声明证明发布链、共享内容、留存容量与阶段门禁；
-合同未接受，生产矩阵未执行，不删布局反馈轮次或跳过外部重读。
+不能当作无诊断生产成本，关闭路径尾延迟变化尚未解释。修订 4 通过后已进入实施：
+受检共享内容与 request 已完成基础迁移；统一输入证明链和不可变 Flow 消费已通过
+定向验证，公开 API、Native／Wasm 和独立消费者门禁通过。后续已接通 contributor／handler
+声明与整页资产采用，首轮 6 项反例通过；实验默认关闭。
+2026-11-05 已接入研究开关与拖拽／连续 resize 回放，
+[管线删减逐项对照](../verification/reviews/rich-text-pipeline-reduction-2026-11-05.md)
+保存当前工作：证明列表复制已删除但没有净提速证据；
+资格 metadata 共享通过定向回归与逐项对照，resize active P50 下降 4.6%，
+Stable 尚有回退。纯文字完整输入尺寸复用已通过 60 项定向 lib 与 8 项消费者
+integration 回归；修订版匹配对照的拖拽／滚轮／resize active P50 分别下降
+0.9%／1.8%／1.1%，拖拽段落测量查询归零。该项仍重读私有输入，
+真实 inline 与 border 走完整路径；Stable latency 有回退。
+字体录制与帧末尾校验的临时资源副本已分别删除并完成独立前后对照，
+正确性门禁通过；首轮没有一致净收益，帧末尾校验复验仍未通过净性能验收。
+Perfetto 只测出帧末尾校验约 0.004～0.005 ms 的局部下降，
+不足以支撑整条管线提速结论。两项资源副本试验现已退役，生产构造恢复；
+版本冲突、后续 run 与资源状态回归继续保留。退役后 1 项定向 lib 与 12 项
+Graphics 消费者测试通过，release binary 已冻结；753 对独立对照拖拽／滚轮
+active P50 均下降约 0.3%，resize 上升 0.7%，退役也不构成明确性能提升。
+初始 baseline 至步骤 4B 的累计对照已完成，拖拽／滚轮／resize active P50
+分别下降 1.6%／1.7%／3.6%，但拖拽和滚轮 P95／P99 上升，保留全部原始样本，
+未通过整体尾延迟验收。首个贡献类型的独立数组分配试验已通过 11 项定向
+Flow reuse lib、8 项消费者、Core Clippy 和逐项对照；拖拽／滚轮 active P50
+分别上升 2.0%／2.5%，resize 下降 0.1%，尚未通过净性能验收。
+Perfetto 显示资格次数不变，局部阶段下降不能代替整体收益；
+该试验已退役，声明恢复完整有序数组，原始证据保留。
+不可变 metadata 计费摘要试验通过 12 项定向 lib、8 项消费者与 Core Clippy，
+逐项对照拖拽／滚轮 active P50 下降 0.6%／0.7%，resize 上升 1.3%；
+Perfetto 资格阶段未下降。该试验也已退役，源码与原始样本保留。
+同一不可变 tree/style 借用内的 route 结构摘要已通过 23 项 Preparation lib、
+8 项消费者、Core Clippy 和独立对照，取消 reader 借用 Figure 时的重复祖先查询；
+依赖 observation、私有输入重读与最终检查继续执行。753 对样本中拖拽／滚轮／resize
+active P50 分别下降 11.4%／10.8%／16.4%，active P95／P99 也下降；
+滚轮 latency P99 上升，原始样本保留。Perfetto 两份各 125 操作通过完整性检查，
+资格读取次数未变，拖拽资格 inclusive 平均 9.697 → 5.438 ms、
+resize 25.328 → 14.665 ms；分析 session 已关闭。累计对照待补。
+原生覆盖核验确认实际 Vello 0.10.0 使用 Euler 近似及强制细分终止；
+现有容差不足以构成证书，有限域证明尚未补齐。
+原生裁剪与重复路径退役仍未完成，整批继续 `in_progress`。
+家族容量、完整生产反例、公开消费者续验与净成本仍待完成。
+FR02-DR01～DR06 的整批生产矩阵仍未完成，不据基础迁移关闭 FA-G03／G04，
+不删布局反馈轮次或跳过外部重读。
 独立 TextFlowLarge 应用已实现，自动 CPU／Native
 两轮回放通过；人工交互、DPI、IME、AT 和屏幕呈现未验收。
 2026-11-04 用户授权[纯滚动纹理复用实验](../design/rendering/text-scroll-raster-reuse.md)：

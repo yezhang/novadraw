@@ -1,5 +1,3 @@
-use unicode_segmentation::UnicodeSegmentation;
-
 use std::ops::Range;
 
 use super::{
@@ -750,31 +748,16 @@ fn truncate_to_lines(
             constraints,
         );
     }
-    let graphemes = source.grapheme_indices(true).collect::<Vec<_>>();
-    let mut low = 0;
-    let mut high = graphemes.len();
-    while low < high {
-        let middle = (low + high).div_ceil(2);
-        let byte_end = graphemes
-            .get(middle)
-            .map_or(source.len(), |(index, _)| *index);
-        let candidate = format!("{}{}", &source[..byte_end], ELLIPSIS);
-        if context
-            .layout_text(&candidate, constraints)?
-            .line_metrics()
-            .len()
-            <= max_lines
-        {
-            low = middle;
-        } else {
-            high = middle - 1;
-        }
-    }
-    let visible_end = graphemes.get(low).map_or(source.len(), |(index, _)| *index);
-    context
-        .layout_text(
-            &format!("{}{}", &source[..visible_end], ELLIPSIS),
-            constraints,
-        )?
-        .with_visibility(source, 0..visible_end, true, full_width, constraints)
+    let (end, layout) = crate::text::prefix_search::fit_prefix(
+        source,
+        ELLIPSIS,
+        None,
+        |candidate| context.layout_text(candidate, constraints),
+        |layout| layout.line_metrics().len() <= max_lines,
+    )?;
+    let layout = match layout {
+        Some(layout) => layout,
+        None => context.layout_text(ELLIPSIS, constraints)?,
+    };
+    layout.with_visibility(source, 0..end, true, full_width, constraints)
 }

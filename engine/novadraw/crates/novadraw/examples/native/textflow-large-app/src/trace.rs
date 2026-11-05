@@ -21,7 +21,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 const TRACE_BUFFER_KB: u32 = 256 * 1024;
@@ -35,10 +35,24 @@ perfetto_sdk::track_event_categories! {
     }
 }
 
+type TimingRecords = Arc<Mutex<Vec<Value>>>;
+type ScopeTiming = (Instant, &'static str, TimingRecords);
+
 pub struct HostScope {
     _guard: Option<ScopeGuard<fn()>>,
     _name: Option<std::ffi::CString>,
     _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+    timing: Option<ScopeTiming>,
+}
+
+impl Drop for HostScope {
+    fn drop(&mut self) {
+        if let Some((start, name, records)) = &self.timing {
+            records.lock().unwrap().push(serde_json::json!({
+                "kind":"timing", "phase":name, "elapsed_ns":start.elapsed().as_nanos()
+            }));
+        }
+    }
 }
 
 /// Host-owned SDK session; retained export bytes are already encoded by Perfetto.
@@ -50,6 +64,7 @@ pub struct TraceSession {
     running: bool,
     activity: bool,
     metadata: Value,
+    timings: Option<TimingRecords>,
 }
 
 impl TraceSession {
@@ -78,6 +93,7 @@ impl TraceSession {
             requests: config.requests,
             running: false,
             activity: false,
+            timings: config.timings.then(|| Arc::new(Mutex::new(Vec::new()))),
             metadata: serde_json::json!({"kind":"config", "fixture":"text_flow_large_example",
                 "profile":env!("RESEARCH_PROFILE"),"rustc":env!("RESEARCH_RUSTC"),
                 "git":env!("RESEARCH_GIT"),"dirty":env!("RESEARCH_DIRTY"),
@@ -86,6 +102,10 @@ impl TraceSession {
                 "buffer_kb":TRACE_BUFFER_KB,"producer_shmem_kb":PRODUCER_SHMEM_KB,
                 "requested_damage":if config.natural_damage {"natural"} else {"full"},
                 "scroll_replay":config.scroll_replay,"text_raster_cache":config.text_raster_cache,
+                "interaction_replay":config.interaction_replay,"timings":config.timings,
+                "flow_assembly_reuse":config.flow_assembly_reuse,
+                "preparation_work_units":crate::research::PREPARATION_WORK_UNITS,
+                "preparation_allocation_units":crate::research::PREPARATION_ALLOCATION_UNITS,
                 "raster_validation":config.raster_validation,"coarse_trace":config.coarse_trace,
                 "offscreen_gpu":config.offscreen_gpu}),
         };
@@ -155,11 +175,20 @@ impl TraceSession {
     }
 
     pub fn has_records(&self) -> bool {
-        self.activity || self.pending.is_some() || (!self.running && self.session.is_some())
+        self.activity
+            || self.pending.is_some()
+            || (!self.running && self.session.is_some())
+            || self
+                .timings
+                .as_ref()
+                .is_some_and(|records| !records.lock().unwrap().is_empty())
     }
 
     pub fn push(&mut self, value: Value) {
         self.activity |= self.running;
+        if let Some(records) = &self.timings {
+            records.lock().unwrap().push(value.clone());
+        }
         Self::emit(&value);
     }
 
@@ -190,10 +219,30 @@ impl TraceSession {
             _guard: guard,
             _name: owned_name,
             _thread: Default::default(),
+            timing: self
+                .timings
+                .as_ref()
+                .map(|records| (Instant::now(), name, records.clone())),
         }
     }
 
     pub fn export(&mut self, directory: &Path) -> Result<PathBuf> {
+        if let Some(records) = &self.timings {
+            std::fs::create_dir_all(directory)?;
+            let path = directory.join(format!("timings-{}.json", std::process::id()));
+            let records = records.lock().unwrap();
+            let mut file = std::fs::File::create(&path)?;
+            serde_json::to_writer(
+                &mut file,
+                &serde_json::json!({
+                    "config":self.metadata,"records":*records
+                }),
+            )?;
+            file.flush()?;
+            if self.session.is_none() && self.pending.is_none() {
+                return Ok(path);
+            }
+        }
         if self.pending.is_none() {
             let mut session = self
                 .session
@@ -256,11 +305,20 @@ mod tests {
             gpu_wait: false,
             exit_after_replay: false,
             screenshot: false,
+            scroll_replay: false,
+            interaction_replay: false,
+            timings: false,
+            natural_damage: false,
+            text_raster_cache: false,
+            flow_assembly_reuse: false,
+            raster_validation: false,
+            coarse_trace: false,
+            offscreen_gpu: false,
             output: directory.clone(),
         };
         let mut trace = TraceSession::new(&config)?;
         let marker = trace.scope("perfetto-contract-marker");
-        let mut research = Research::new(true);
+        let mut research = Research::new(true, false);
         research.apply(Operation::Reset, &mut trace)?;
         let mut renderer = novadraw_backend_vello::scene::VelloSceneRenderer::new();
         let mut scene = novadraw_backend_vello::scene::Scene::new();

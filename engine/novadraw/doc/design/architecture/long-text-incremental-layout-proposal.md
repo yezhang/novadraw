@@ -8,6 +8,8 @@
 能力归属：Core 文本来源、分阶段排版与 Runtime 候选发布；
 backend 负责字形覆盖，Editor 消费来源和交互几何，不持有 shaping 缓存。
 修订 4 补入宽度复用隔离实测，未改变既有评审意见或生产准入状态。
+文中 0.7.0 的源码和微基准属于修订 4 的历史基线；
+2026-11-05 的未打补丁 0.12.0 迁移见[实施记录](../../verification/reviews/parley-upstream-migration-2026-11-05.md)。
 
 本轮采用[审计意见](../../verification/reviews/long-text-incremental-layout-review-2026-10-27.md)
 LTI-R01～R05。固定审计基线保持不变；正文补齐拼接证明、检查点恢复、

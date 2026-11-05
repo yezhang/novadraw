@@ -40,6 +40,10 @@ impl TextAnalysisRequest {
             .ok_or(TextStageError::AccountingOverflow)
     }
 
+    pub(super) fn content_backing(&self) -> TextAnalysisBacking {
+        self.0.content().analysis_backing()
+    }
+
     pub(super) fn comparison_work(&self) -> Result<u64, TextStageError> {
         // Font size/weight/style and RGBA components; source range endpoints;
         // inline id/offset/width/height; five paragraph/constraint values.
@@ -77,26 +81,14 @@ impl TextAnalysisRequest {
 }
 
 fn request_copy_plan(request: &StyledTextRequest) -> Result<TextStageCostPlan, TextStageError> {
-    let mut allocation = request
-        .default_style()
-        .font()
-        .family()
+    // The checked content keeps its original accounting lease. Only request
+    // metadata and measured boxes are copied into the analysis request.
+    let allocation = request
+        .inline_boxes()
         .len()
-        .checked_add(request.spans().len())
-        .and_then(|n| n.checked_add(request.inline_boxes().len()))
-        .and_then(|n| n.checked_add(1))
+        .checked_add(1)
         .ok_or(TextStageError::AccountingOverflow)?;
-    for span in request.spans() {
-        allocation = allocation
-            .checked_add(span.style.font().family().len())
-            .ok_or(TextStageError::AccountingOverflow)?;
-    }
-    let work = request
-        .text()
-        .len()
-        .checked_add(allocation)
-        .and_then(|n| u64::try_from(n).ok())
-        .ok_or(TextStageError::AccountingOverflow)?;
+    let work = u64::try_from(allocation).map_err(|_| TextStageError::AccountingOverflow)?;
     Ok(TextStageCostPlan {
         work,
         allocation: u64::try_from(allocation).map_err(|_| TextStageError::AccountingOverflow)?,

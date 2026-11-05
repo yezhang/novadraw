@@ -7,6 +7,11 @@
 Editor、backend、platform 不新增能力。
 `api_semantics`：`text.flow`、`text.interaction`。
 
+2026-11-05 用户授权迁移到未打补丁的 Parley 0.12.0，本文的旧版补丁实施路线
+已退役，见[上游迁移记录](../../verification/reviews/parley-upstream-migration-2026-11-05.md)。
+以下保留原方案的费用责任与历史前置条件，不再作为继续扩张依赖补丁的执行依据。
+Core 通用阶段与外部引擎预算合同保持；默认适配器未满足严格内部准入门禁。
+
 本文补充 [可选阶段文字协议](staged-text-width-reuse.md) 的 B 切片。
 已完成的复制、对齐和断行准入保持。下一步需要补齐 Fontique 与 Harfrust
 内部操作的费用依据和拒绝通道；仅修改 Parley 外层不能覆盖这些操作。

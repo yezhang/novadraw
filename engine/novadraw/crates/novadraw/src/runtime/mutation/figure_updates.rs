@@ -33,10 +33,10 @@ impl FigureComponentUpdate for SetLabelText {
         current: &Self::Figure,
         _context: FigureComponentContext,
     ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error> {
-        let old = current.text().to_owned();
-        if old == self.0 {
+        if current.text() == self.0 {
             return Ok(PreparedFigureUpdate::unchanged(self.0));
         }
+        let old = current.text().to_owned();
         Ok(
             PreparedFigureUpdate::layout_geometry_and_paint(self.0.clone()).with_property_change(
                 property::TEXT,
