@@ -10,7 +10,7 @@ Rust 图形与编辑框架，Core 对标 Draw2D，Editor 对标 GEF。
 
 | 目录 | 内容 |
 |---|---|
-| `crates/` | Core、Editor、Inspector、Vello 后端、平台适配和独立 winit Canvas 库 |
+| `crates/` | Core、Editor、Inspector、Vello 后端、平台适配、独立 winit Canvas 与 richtext 扩展组件 |
 | `crates/novadraw/examples/` | Core 示例与 Native/Web 共用的无平台场景 |
 | `crates/novadraw-editor/examples/` | Editor 示例，各应用保留独立 Cargo package |
 | `examples/` | 跨层集成示例、后端示例、共享宿主工具和全仓库样例导航 |

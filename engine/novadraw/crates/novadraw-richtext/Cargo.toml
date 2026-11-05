@@ -1,0 +1,11 @@
+[package]
+name = "novadraw-richtext"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Document-backed rich text component using Novadraw public Figure protocols"
+
+[dependencies]
+novadraw = { path = "../novadraw", default-features = false }
+ropey = "1.6.1"
+uuid.workspace = true

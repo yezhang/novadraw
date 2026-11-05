@@ -17,6 +17,20 @@ Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失
 
 ## 当前推进顺序
 
+2026-11-05 用户指定先构建
+[独立 RichTextFigure](../design/architecture/rich-text-figure-proposal.md)的数据结构与
+简单样例。本次作为当前单链中的扩展消费者基础切片执行，不另开并行 Execute。
+`novadraw-richtext` 文档快照、稳定段落、高度索引、typed update、
+内部 ScrollPane 与 `rich-text-figure-app` 已实现；
+app 已按用户后续要求支持单画布对象选择、双击富文本进入仅滚动的编辑模式，
+真实 Runtime 输入验证覆盖焦点互斥、滚轮与滑块 capture；文本输入和光标仍待后续切片。
+[基础验证](../verification/reviews/rich-text-figure-foundation-2026-11-05.md)
+覆盖 Native 图像、单元测试、实际 Runtime 源替换／滚动隔离／resize 与 Wasm 编译。
+Parley 官方 `complex-scripts` feature 已启用，缺失 ICU4X 分词模型告警已关闭，
+中文／日文词边界回归与修复后 Native／Headless 运行通过。
+完整方案仍未关闭：段落缓存、可见输出、样式树、真实拖拽、复杂文本完整正确性与性能
+比较保留待办；FR-02／LT 原状态保持，不将基础构造记为管线优化完成。
+
 | owner／工作 | 当前状态 | 下一步与恢复条件 |
 |---|---|---|
 | Core 长文本 | FR-01 与 [FR-02 内部归因](../verification/reviews/flow-assembly-attribution-2026-11-03.md)已完成；滚动方案修订 4 已获用户通过并授权执行。唯一 Execute 为 FR-02：[共享内容基础迁移](../verification/reviews/flow-shared-content-implementation-2026-11-04.md)已完成，[输入证明与不可变 Flow 消费](../verification/reviews/flow-input-proof-implementation-2026-11-04.md)基础门禁通过；[整页采用](../verification/reviews/flow-assembly-adoption-implementation-2026-11-04.md)已接通长文本开关，来源独立 lease 与失败后安装已修正，仍默认关闭。整批 `in_progress`，家族容量、完整生产反例与成本仍待验；整体延迟未达标，B1 扩张暂停 | 按[复用合同](../design/architecture/flow-assembly-reuse.md)与[验收矩阵](../verification/plans/flow-assembly-reuse.md)推进匹配成本及人工滚动／编辑／变宽对照。Core 切片按适用门禁交付，平台采证后置；生产启用与依赖切换继续单独裁决 |

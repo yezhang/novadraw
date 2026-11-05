@@ -1,6 +1,6 @@
 # Novadraw Examples
 
-本页是全仓库样例导航。Core 和 Editor 样例随各自 crate 维护，本目录保留跨层集成、
+本页是全仓库样例导航。Core、Editor 和 richtext 样例随各自 crate 维护，本目录保留跨层集成、
 后端样例和共享宿主工具。验证命令和证据入口见
 [`tests/README.md`](../tests/README.md)。性能基线独立放在
 [`benchmarks/`](../benchmarks/)。
@@ -12,6 +12,7 @@
 | [`../crates/novadraw/examples/native/`](../crates/novadraw/examples/native/) | Core 桌面示例 |
 | [`../crates/novadraw/examples/scenes/`](../crates/novadraw/examples/scenes/) | `novadraw-example-scenes`：Core Native/Web 共用的无平台场景 |
 | [`../crates/novadraw-editor/examples/native/`](../crates/novadraw-editor/examples/native/) | Editor 桌面示例 |
+| [`../crates/novadraw-richtext/examples/native/`](../crates/novadraw-richtext/examples/native/) | 独立富文本组件桌面示例 |
 | [`integration/`](integration/) | 跨层集成：Web 验证与双 Canvas 宿主 |
 | [`backend/`](backend/) | 渲染后端示例 |
 | `support/` | `novadraw-example-support`：示例共享宿主与工具 |
@@ -53,6 +54,7 @@ example target，也不将 GUI 依赖加入 Core／Editor 的 `dev-dependencies`
 | Core／Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | 后端／Native | [`vello-app`](backend/vello-app/) | Vello 原始 API | `cargo run -p vello-app` |
 | 集成／Native | [`winit-canvas-demo`](integration/winit-canvas-demo/README.md) | 双 Canvas、后端与平台桥接 | `cargo run -p winit-canvas-demo` |
+| Richtext／Native | [`rich-text-figure-app`](../crates/novadraw-richtext/examples/native/rich-text-figure-app/README.md) | 静态类图与独立文档型富文本、自有滚动条 | `cargo run -p rich-text-figure-app` |
 | 集成／Web | [`web-validation`](integration/web-validation/README.md) | Core 共享场景与 Editor 浏览器验证 | `./tools/scripts/build_web_validation.sh` |
 
 ## 共享场景

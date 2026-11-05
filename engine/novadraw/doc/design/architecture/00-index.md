@@ -70,6 +70,7 @@
 | [long-text-performance-proposal.md](long-text-performance-proposal.md) | 修订 2 首批设计通过，LT-00～LT-03 实施中；后续准入、预算与渐进协议待独立评审 |
 | [long-text-scroll-resize-optimization-proposal.md](long-text-scroll-resize-optimization-proposal.md) | 修订 4 已获通过并授权执行；按工作包分别验证组合、输入分母、覆盖和启用门禁 |
 | [rich-text-pipeline-reduction-proposal.md](rich-text-pipeline-reduction-proposal.md) | 待评审：富文本主线删减范围、共享资产、证明去重、纯投影与可见绘制的实施顺序和退出条件 |
+| [rich-text-figure-proposal.md](rich-text-figure-proposal.md) | 已授权实施：独立文档型 RichTextFigure 与双内容 app 基础切片已实现；段落资产缓存、完整交互与性能门禁待续验 |
 | [long-text-incremental-layout-proposal.md](long-text-incremental-layout-proposal.md) | 待评审：基于第四轮测量与 Lapce／Xi 的 source delta、分阶段排版、安全巨段增量及可见输出细化 |
 | [long-text-native-coverage-boundary.md](long-text-native-coverage-boundary.md) | 原生字形、数值转换与设备覆盖的定向核验；生产证书合同待复核 |
 | [basic-widgets.md](basic-widgets.md) | Clickable、Button 与 Toggle |

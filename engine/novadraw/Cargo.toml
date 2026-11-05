@@ -5,6 +5,8 @@ members = [
   "crates/novadraw-editor/examples/native/gef-editor-demo",
   "crates/novadraw-editor/examples/native/gef-logic-demo",
   "crates/novadraw",
+  "crates/novadraw-richtext",
+  "crates/novadraw-richtext/examples/native/rich-text-figure-app",
   "crates/novadraw-backend-vello",
   "crates/novadraw-platform-winit",
   "crates/novadraw-platform-web",
@@ -46,6 +48,8 @@ members = [
 # Keep the optional Masonry UI out of unqualified engine builds.
 default-members = [
   "crates/novadraw",
+  "crates/novadraw-richtext",
+  "crates/novadraw-richtext/examples/native/rich-text-figure-app",
   "crates/novadraw-backend-vello",
   "crates/novadraw-platform-winit",
   "crates/novadraw-platform-web",

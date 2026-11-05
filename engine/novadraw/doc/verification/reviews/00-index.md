@@ -12,6 +12,7 @@
 | 文档内容质量 | [DQ01–DQ08 修订记录](documentation-quality-completion-2026-11-04.md)：确定问题已修正，FR-02 基线缺失及引用候选保留限制；[本轮分析](documentation-quality-follow-up-2026-11-04.md)与[前轮分析](documentation-content-quality-2026-11-03.md)保留原发现，Q07 的 ADR 压缩与本轮两组 design 去重已完成 |
 | 长文本性能 | [优化验证与最新成本](../performance/text-optimization-validation.md)、[重复工作归因](flow-runtime-repeat-work-analysis-2026-11-03.md)、[FR-01 实施与匹配比较](flow-runtime-input-reuse-2026-11-03.md)、[FR-02 内部归因与诊断扰动](flow-assembly-attribution-2026-11-03.md) |
 | 富文本管线删减 | [逐项实施与前后对照](rich-text-pipeline-reduction-2026-11-05.md)：关闭 tracing 的拖拽／滚轮／连续 resize 与 GPU 完成等待，Perfetto 分析另列；整体仍在实施 |
+| 独立 RichTextFigure | [基础切片](rich-text-figure-foundation-2026-11-05.md)：文档快照、稳定段落、高度索引、typed update 与类图／正文双内容 app；Native 图像和定向检查通过，缓存、人工交互及性能仍待验收 |
 | Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
 | Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |
