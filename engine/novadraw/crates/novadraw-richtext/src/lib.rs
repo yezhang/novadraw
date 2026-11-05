@@ -1,6 +1,7 @@
 //! Document-backed rich text, independent of the Flow contributor tree.
 //! Source changes use Core typed updates; drawing uses Runtime's text service.
 
+mod cache;
 mod document;
 mod figure;
 mod index;

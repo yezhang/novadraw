@@ -8,7 +8,10 @@ use novadraw::{
     tree::{FigureId, FigureTree},
 };
 use novadraw_example_support::AppBuilder;
+mod fixtures;
 mod interaction;
+mod performance;
+use fixtures::Fixture;
 use interaction::{Canvas, Group, selection};
 use novadraw_richtext::{
     ParagraphInput, ReplaceRichTextDocument, RichTextDocumentBuilder, RichTextFigure,
@@ -83,7 +86,7 @@ impl LayoutManager for Columns {
     }
 }
 
-fn document() -> novadraw_richtext::RichTextDocumentSnapshot {
+fn basic_document() -> novadraw_richtext::RichTextDocumentSnapshot {
     let mut builder = RichTextDocumentBuilder::default();
     let mut title = ParagraphInput::new("独立富文本 Figure", style(HEADING_SIZE, "#15334b"));
     title.space_after = PARAGRAPH_SPACE;
@@ -191,7 +194,7 @@ fn class_card(
     )
 }
 
-fn scene() -> (Runtime, RichTextHandle, FigureId, Vec<FigureId>) {
+fn scene(fixture: Fixture) -> (Runtime, RichTextHandle, FigureId, Vec<FigureId>) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -302,7 +305,7 @@ fn scene() -> (Runtime, RichTextHandle, FigureId, Vec<FigureId>) {
         &mut tree.builder(),
         rich_group,
         Rectangle::new(0.0, 0.0, WINDOW_WIDTH / 2.0, WINDOW_HEIGHT),
-        document(),
+        fixture.document(),
     )
     .unwrap();
     let rich_selection = selection(&mut tree, rich_group, Rectangle::ZERO, true);
@@ -312,6 +315,20 @@ fn scene() -> (Runtime, RichTextHandle, FigureId, Vec<FigureId>) {
             .resources()
             .register_builtin_font(font)
             .expect("bundled sample font");
+    }
+    runtime.frames().set_preparation_budget(fixture.budget());
+    if fixture != Fixture::Basic {
+        // The text engine deliberately does not discover system fonts implicitly.
+        let bytes = std::fs::read(fixtures::EMOJI_FONT_PATH)
+            .expect("emoji stress fixtures require /System/Library/Fonts/Apple Color Emoji.ttc");
+        let id = runtime
+            .resources()
+            .register_font()
+            .expect("emoji font identity");
+        runtime
+            .resources()
+            .complete_font(id, novadraw::render::FontData::new(bytes))
+            .expect("load emoji font");
     }
     (
         runtime,
@@ -477,8 +494,9 @@ fn verify_input(
     Ok(())
 }
 
-fn verify() -> Result<(), Box<dyn std::error::Error>> {
-    let (mut runtime, handle, diagram, selections) = scene();
+fn verify(fixture: Fixture) -> Result<(), Box<dyn std::error::Error>> {
+    let expected = fixture.document().paragraphs().len();
+    let (mut runtime, handle, diagram, selections) = scene(fixture);
     runtime.frames().stabilize_for_query()?;
     verify_input(&mut runtime, &handle, diagram, &selections)?;
     let snapshot = runtime
@@ -489,7 +507,7 @@ fn verify() -> Result<(), Box<dyn std::error::Error>> {
     let pane = handle.scroll_pane();
     let viewport = pane.viewport();
     let range = viewport.vertical_range();
-    if snapshot.paragraph_count() != PARAGRAPH_COUNT + 3 || range.maximum <= range.extent {
+    if snapshot.paragraph_count() != expected || range.maximum <= range.extent {
         return Err("document does not exceed its viewport".into());
     }
     let diagram_transform = runtime.tree().local_to_surface_transform(diagram)?;
@@ -556,7 +574,7 @@ fn verify() -> Result<(), Box<dyn std::error::Error>> {
     if narrow.size().height <= edited.size().height {
         return Err("narrow resize did not reflow".into());
     }
-    let original = document();
+    let original = fixture.document();
     // A separate instance has a different identity, even at revision zero.
     let stale = runtime
         .figure(handle.content())?
@@ -578,13 +596,20 @@ fn verify() -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    let fixture = Fixture::from_args(&args)?;
+    if args.iter().any(|arg| arg == "--benchmark-resize") {
+        return performance::run(&args);
+    }
     if args.iter().any(|arg| arg == "--headless") {
-        return verify();
+        return verify(fixture);
     }
     let mut app = AppBuilder::new("Rich Text Figure")
         .with_app_name("rich-text-figure-app")
         .with_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .with_runtime_scenes_boxed(vec![("Document and diagram", Box::new(|| scene().0))]);
+        .with_runtime_scenes_boxed(vec![(
+            "Document and diagram",
+            Box::new(move || scene(fixture).0),
+        )]);
     if args.iter().any(|arg| arg == "--screenshot") {
         app = app.with_screenshot(true);
     }

@@ -31,10 +31,14 @@ pub const RICH_TEXT_DOCUMENT: PropertyKey<DocumentVersion> =
 /// Single source owner for the entire document, regardless of paragraph count.
 pub struct RichTextContentFigure {
     document: RichTextDocumentSnapshot,
+    cache: crate::cache::SnapshotCache,
 }
 impl RichTextContentFigure {
     pub fn new(document: RichTextDocumentSnapshot) -> Self {
-        Self { document }
+        Self {
+            document,
+            cache: Default::default(),
+        }
     }
     pub fn document(&self) -> &RichTextDocumentSnapshot {
         &self.document
@@ -75,7 +79,7 @@ impl FigurePreparation for RichTextContentFigure {
     ) -> Result<PreparationMeasurement, PreparationMeasureError> {
         let result = (|| {
             let style = scene.style(scene.root())?;
-            RichTextLayoutSnapshot::prepare(
+            self.cache.prepare(
                 &self.document,
                 context,
                 constraints.max_width(),
@@ -104,7 +108,7 @@ impl FigurePreparation for RichTextContentFigure {
         context: &mut MeasureContext<'_>,
         bounds: Rectangle,
     ) -> Result<FigurePresentation, TextError> {
-        Self::presentation(RichTextLayoutSnapshot::prepare(
+        Self::presentation(self.cache.prepare(
             &self.document,
             context,
             Some(bounds.width),
@@ -119,7 +123,7 @@ impl FigurePreparation for RichTextContentFigure {
         scene: &PreparationScene<'_>,
     ) -> Result<PreparedScene, TextError> {
         let direction = scene.style(scene.root())?.layout_direction;
-        Self::presentation(RichTextLayoutSnapshot::prepare(
+        Self::presentation(self.cache.prepare(
             &self.document,
             context,
             Some(bounds.width),

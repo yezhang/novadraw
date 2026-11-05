@@ -91,6 +91,8 @@ impl RichTextLayoutSnapshot {
         budget: PreparationBudgetHandle,
         direction: novadraw::figure::LayoutDirection,
     ) -> Result<Arc<Self>, TextError> {
+        let diagnostics = TextLayoutDiagnostics::default();
+        let _timing = diagnostics.time("richtext.snapshot");
         let width = width.map(|w| w as f32);
         let constraints = TextConstraints::new(width)?;
         budget.consume("richtext paragraphs", document.paragraphs().len() as u64)?;
@@ -105,6 +107,7 @@ impl RichTextLayoutSnapshot {
         let mut size = Dimension::ZERO;
         let mut visual = Rectangle::ZERO;
         for paragraph in document.paragraphs() {
+            let _paragraph = diagnostics.time("richtext.paragraph");
             budget.allocate(
                 "richtext input",
                 (paragraph.len_bytes() + std::mem::size_of_val(paragraph.spans())) as u64,

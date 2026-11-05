@@ -58,8 +58,22 @@ workspace 的 Parley 0.12.0 依赖启用官方 `complex-scripts` feature，
 修复后的无窗口和 Native 截图运行均未出现 ICU4X 告警。
 完整复杂文本断行与字体覆盖仍须单独验收。
 
-本版没有性能比较开关、Perfetto 采集或增量布局承诺。
-后续基线须同时覆盖正文、类图负载、真实滑块拖拽和连续 resize；
+## 缩放成本采样
+
+```sh
+cargo run --release -p rich-text-figure-app -- --benchmark-resize --output /tmp/richtext-resize
+cargo run --release -p rich-text-figure-app --features profiling -- --benchmark-resize --trace --output /tmp/richtext-resize-trace
+```
+
+固定回放包含连续宽度变化、仅高度变化与 Core 滑块拖拽事件，共 240 个操作。
+`samples.json` 记录 mutation／稳定化及绘制命令生成的 CPU 耗时；
+`--trace` 另生成 `resize.pftrace`。回放不创建窗口，也不执行 GPU 提交；
+其帧回执只是采样宿主对 CPU 命令记录的确认，不代表真实图像发布。
+计时对照须关闭 tracing，阶段归因另行采集。
+结果见[缩放优化验证](../../../../../doc/verification/reviews/rich-text-figure-resize-optimization-2026-11-05.md)。
+
+当前优化复用同一约束下的完整快照，没有跨宽度增量排版承诺。
+后续真实 Native 基线仍须覆盖类图负载、滑块拖拽和连续 resize；
 不能直接用它与纯 TextFlowLarge app 的总帧时间比较。
 实现范围见[组件 README](../../../README.md)，
 证据见[基础切片验证](../../../../../doc/verification/reviews/rich-text-figure-foundation-2026-11-05.md)。

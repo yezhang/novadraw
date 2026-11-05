@@ -117,6 +117,12 @@ owner freeze causal prefix
 `PaintContext` 与 `MeasureContext` 已直接表达阶段权限，不为了形式统一增加
 `PaintSceneQuery` 或万能 Context。
 
+`MeasureContext::cache_identity()` 只读返回文字引擎的可缓存实例身份，
+沿用 `TextLayoutEngine::cache_identity()` 的 opt-in 合同。外部组件只有在身份存在、
+`revision()` 相同且所有实际输入相同时才能复用布局；缺少身份时完整计算。
+身份区分独立引擎和字体集合，不能仅用相同 revision 跨引擎复用。
+该查询不授予修改文字服务、字体资源或阶段预算的权限。
+
 Query 是短生命周期只读借用；Snapshot 是可保存的 owned revision；Output 是待校验完整
 候选；Effects 是 callback 后按因果顺序提交的意图。Context 和 Query 不返回 Runtime、
 FigureTree、FigureNode 或同步 mutation closure。完整决策见

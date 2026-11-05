@@ -82,7 +82,10 @@ pub struct MeasureContext<'a> {
 }
 
 impl<'a> MeasureContext<'a> {
-    pub(crate) fn cache_identity(&self) -> Option<super::shaping::TextLayoutCacheIdentity> {
+    /// Optional engine instance identity for exact-input layout reuse.
+    /// Combine it with [`Self::revision`] and every input affecting the result.
+    /// `None` requires computation; different engines cannot share cache entries.
+    pub fn cache_identity(&self) -> Option<super::shaping::TextLayoutCacheIdentity> {
         self.engine.cache_identity()
     }
 

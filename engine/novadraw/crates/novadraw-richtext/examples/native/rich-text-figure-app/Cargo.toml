@@ -4,7 +4,12 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[features]
+profiling = ["novadraw/perfetto", "dep:perfetto-sdk"]
+
 [dependencies]
 novadraw = { path = "../../../../novadraw" }
 novadraw-richtext = { path = "../../.." }
 novadraw-example-support = { path = "../../../../../examples/support" }
+serde_json.workspace = true
+perfetto-sdk = { version = "1.2.1", optional = true }
