@@ -1,0 +1,31 @@
+[package]
+name = "novadraw-ui"
+version.workspace = true
+edition.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Locally maintained egui workbench components for Novadraw applications"
+
+[features]
+default = []
+serde = ["dep:serde"]
+native-windows = []
+testing = []
+
+[dependencies]
+egui = { version = "0.37", default-features = false }
+serde = { workspace = true, optional = true }
+uuid.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSApplication", "NSEvent", "NSResponder", "NSScreen", "NSWindow"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString"] }
+
+[dev-dependencies]
+egui = { version = "0.37", features = ["default_fonts", "serde"] }
+serde_json.workspace = true
+egui_extras = { version = "0.37", default-features = false, features = ["svg"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+egui_kittest = { version = "0.37", features = ["wgpu"] }

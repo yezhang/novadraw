@@ -14,6 +14,7 @@ members = [
   "crates/novadraw-editor",
   "crates/novadraw-inspector",
   "crates/winit-canvas",
+  "crates/novadraw-ui",
   "examples/support",
   "crates/novadraw/examples/scenes",
   "tools/xtask",
@@ -46,7 +47,7 @@ members = [
   "benchmarks/native-vello-perf",
 ]
 
-# Keep the optional Masonry UI out of unqualified engine builds.
+# Keep optional UI packages out of unqualified engine builds.
 default-members = [
   "crates/novadraw",
   "crates/novadraw-richtext",

@@ -1,0 +1,10 @@
+novadraw-ui contains locally maintained code derived from craft-libs.
+Copyright (c) 2026 ArtCraft Team and the craft-libs contributors.
+Licensed under the MIT License or the Apache License, Version 2.0, at your option.
+See LICENSE-MIT and LICENSE-APACHE.
+
+Source: https://github.com/storytold/craft-libs
+Revision: 9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb
+Imported modules: buttons, capture, combo, docking, focus, ime, layout, panes,
+tabs, text and theme; docking v1 JSON test fixtures.
+Novadraw modifications are described in SOURCE.md.
