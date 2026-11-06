@@ -23,6 +23,10 @@
 已实现的接口、范围和验证见
 [组件 README](../../../crates/novadraw-richtext/README.md)与
 [基础切片记录](../../verification/reviews/rich-text-figure-foundation-2026-11-05.md)。
+用户后续要求加入不同字号、emoji 与特别长文本；样例已提供四档确定性数据，
+其中长文档为默认值。数据规模、样例准备预算及实测范围见
+[压力验证](../../verification/reviews/rich-text-figure-stress-performance-2026-11-05.md)；
+这一样例变化不表示完整段落缓存、增量排版或可见输出已经实现。
 
 ## 要解决的问题
 

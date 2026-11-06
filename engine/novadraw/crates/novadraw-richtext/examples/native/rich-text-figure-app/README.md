@@ -16,11 +16,30 @@ cargo run -p rich-text-figure-app
 独立组件的 Wasm 编译已通过，app 本身是 Native package。
 需要支持 Rust 2024 Edition 的工具链及本仓库 Native 构建环境。
 字体由 app 显式注册，使用仓库内置的 Inter、Noto Sans SC、Noto Sans Arabic
-和 JetBrains Mono，不要求另装系统字体。
+和 JetBrains Mono。包含 emoji 的压力档额外加载 macOS 自带的
+`/System/Library/Fonts/Apple Color Emoji.ttc`，当前只支持该字体路径可用的环境；
+其他平台可先运行 `--text-load basic`。
 
 窗口只有一个 Runtime 和画布，类图背景透明。画布根包含类图和富文本对象组；
 富文本组容纳组件和选择面，没有独立画布。正文包含标题、局部粗体和颜色、斜体、中文／英文／阿拉伯文，
-以及 24 个普通段落。正文共 27 段，高度超过视口，垂直滚动条始终显示。
+默认显示多段长文压力档，高度超过视口，垂直滚动条始终显示。
+
+使用 `--text-load basic|mixed|large|giant` 选择数据：
+
+- `basic`：保留原来的 27 段，用于比较已有缩放基线。
+- `mixed`：14／18／28／36／40／64 px，包含同段混合字号，以及肤色、职业／家庭 ZWJ、
+  旗帜和键帽 emoji。
+- `large`（默认）：混合字号和 emoji 展示后，追加 128 个长段落及一个更长的段落。
+- `giant`：同样的展示区，加上 400 次重复语料构成的单个超长段落。
+
+```sh
+cargo run --release -p rich-text-figure-app -- --text-load mixed
+cargo run --release -p rich-text-figure-app -- --text-load giant
+```
+
+长文和超长单段档使用 app 的 preparation budget：work 80,000,000，
+allocation 32,000,000。其单位沿用 Core 的累计计费协议，不能把 allocation 直接当成
+实际内存字节。原样例和混合档保持 Core 默认预算；库默认策略没有改变。
 
 单击类框、关系线、标题、关系标签或富文本卡片可选择对象，显示蓝色边框。
 成员文字归属所在类框，点击它会选中整个类框。当前是互斥单选，
@@ -38,6 +57,7 @@ cargo run -p rich-text-figure-app
 
 ```sh
 cargo run -p rich-text-figure-app -- --headless
+cargo run -p rich-text-figure-app -- --headless --text-load mixed
 cargo run -p rich-text-figure-app -- --screenshot
 ```
 
@@ -62,15 +82,23 @@ workspace 的 Parley 0.12.0 依赖启用官方 `complex-scripts` feature，
 
 ```sh
 cargo run --release -p rich-text-figure-app -- --benchmark-resize --output /tmp/richtext-resize
+cargo run --release -p rich-text-figure-app -- --benchmark-resize --text-load basic --output /tmp/richtext-basic
 cargo run --release -p rich-text-figure-app --features profiling -- --benchmark-resize --trace --output /tmp/richtext-resize-trace
 ```
 
 固定回放包含连续宽度变化、仅高度变化与 Core 滑块拖拽事件，共 240 个操作。
 `samples.json` 记录 mutation／稳定化及绘制命令生成的 CPU 耗时；
+`metadata.json` 记录数据档、字符和字节数、最长段落、样式数量、准备预算，
+以及场景创建至首次稳定化的耗时（包含字体加载，不包含首次 GPU 绘制）；
 `--trace` 另生成 `resize.pftrace`。回放不创建窗口，也不执行 GPU 提交；
 其帧回执只是采样宿主对 CPU 命令记录的确认，不代表真实图像发布。
 计时对照须关闭 tracing，阶段归因另行采集。
 结果见[缩放优化验证](../../../../../doc/verification/reviews/rich-text-figure-resize-optimization-2026-11-05.md)。
+不同字号、emoji 与长文的实测见
+[压力验证](../../../../../doc/verification/reviews/rich-text-figure-stress-performance-2026-11-05.md)。
+当前 `mixed` 的 Native 图像已核对；`large` 的 Native 截图出现黑帧，
+虽然其无窗口回放和输入检查通过，仍不能视为绘制通过。需要查看已验证的字号和 emoji
+时先使用 `--text-load mixed`；长文档保留为暴露失败的压力数据。
 
 当前优化复用同一约束下的完整快照，没有跨宽度增量排版承诺。
 后续真实 Native 基线仍须覆盖类图负载、滑块拖拽和连续 resize；

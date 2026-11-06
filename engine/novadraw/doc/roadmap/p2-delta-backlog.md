@@ -33,6 +33,10 @@ Parley 官方 `complex-scripts` feature 已启用，缺失 ICU4X 分词模型告
 已实现，三轮匹配回放中连续变宽 CPU P50 从 17.491 降至 3.566 ms，
 仅高度变化和滑块拖拽分别下降 94.53%／86.54%；定向正确性与 Native 初始图像一致性通过。
 该结果不含真实窗口和 GPU 完成成本，不关闭 FR-02／LT。
+用户要求的[混合字号、emoji 与长文压力验证](../verification/reviews/rich-text-figure-stress-performance-2026-11-05.md)
+已完成四档 Runtime 检查、三轮 CPU 回放与 Perfetto 分析；混合档的彩色 emoji 图像通过，
+25 万字符长文最终补采的变宽 CPU P50 为 189.463 ms，Native 截图出现黑帧。
+长文绘制失败与真实交互验收继续保留；该结果不记为 Native 性能达标。
 完整方案仍未关闭：段落缓存、可见输出、样式树、真实拖拽、复杂文本完整正确性与性能
 比较保留待办；FR-02／LT 原状态保持，不将基础构造记为管线优化完成。
 

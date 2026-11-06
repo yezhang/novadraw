@@ -14,6 +14,7 @@
 | 富文本管线删减 | [逐项实施与前后对照](rich-text-pipeline-reduction-2026-11-05.md)：关闭 tracing 的拖拽／滚轮／连续 resize 与 GPU 完成等待，Perfetto 分析另列；整体仍在实施 |
 | 独立 RichTextFigure | [基础切片](rich-text-figure-foundation-2026-11-05.md)：文档快照、稳定段落、高度索引、typed update 与类图／正文双内容 app；Native 图像和定向检查通过，缓存、人工交互及性能仍待验收 |
 | RichTextFigure 缩放 | [快照复用与 CPU 成本](rich-text-figure-resize-optimization-2026-11-05.md)：测量／准备共享完整结果，连续变宽 CPU P50 从 17.491 降至 3.566 ms；Perfetto 快照次数下降 89.69%，真实 Native resize 和 GPU 完成待验 |
+| RichTextFigure 压力 | [混合字号、emoji 与长文](rich-text-figure-stress-performance-2026-11-05.md)：四档 Runtime／CPU 回放通过，混合字号和彩色 emoji 图像通过；25 万字符变宽 P50 189.463 ms，Native 黑帧，长文绘制未通过 |
 | Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
 | Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |

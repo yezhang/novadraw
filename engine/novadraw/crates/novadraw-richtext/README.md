@@ -88,3 +88,6 @@ cargo run -p rich-text-figure-app
 区分代码、截图与尚未完成的人工／性能验收。
 窗口缩放的 CPU 对照与 Perfetto 归因见
 [缩放优化验证](../../doc/verification/reviews/rich-text-figure-resize-optimization-2026-11-05.md)。
+样例默认打开长文压力档，也提供原始 27 段、混合字号／emoji 和超长单段；
+数据规模、样例预算与测量口径见
+[压力验证](../../doc/verification/reviews/rich-text-figure-stress-performance-2026-11-05.md)。
