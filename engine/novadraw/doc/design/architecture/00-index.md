@@ -78,6 +78,7 @@
 | [scrollbar-and-figure-activity.md](scrollbar-and-figure-activity.md) | 五部件 ScrollBar、RangeModel、repeat 与活动时钟 |
 | [property-scoped-layout-revalidation.md](property-scoped-layout-revalidation.md) | 待复核：typed 属性依赖声明、局部重验队列、未知父布局回退与纯投影成本门禁 |
 | [figure-tree-projection-separation.md](figure-tree-projection-separation.md) | 已授权实施：整棵 FigureTree 的内容／布局／投影分离；活动交接与能力成员工作集先行，坐标消费者、局部绘制复用及混合场景仍待验 |
+| [figure-drawing-recording.md](figure-drawing-recording.md) | 待独立复核：typed 局部录制、完整进入状态、不可变命令容器、文字效果限制及峰值留存 |
 | [tooltip-accessibility.md](tooltip-accessibility.md) | Tooltip 与 Accessibility Bridge |
 
 坐标、输入和渲染专题分别见
