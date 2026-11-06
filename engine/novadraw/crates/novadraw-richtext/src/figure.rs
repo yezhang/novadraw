@@ -25,10 +25,86 @@ use std::sync::Arc;
 
 const DEFAULT_CONTENT_PADDING: f64 = 16.0;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ParagraphInput, RichTextDocumentBuilder};
+    use novadraw::text::{BuiltinFont, FontDescriptor, TextStyle, TextSystem};
+
+    fn snapshot(
+        figure: &RichTextContentFigure,
+        system: &mut TextSystem,
+        width: f64,
+    ) -> Arc<RichTextLayoutSnapshot> {
+        figure
+            .prepare(
+                &mut system.measure(FontDescriptor::default()),
+                Rectangle::new(0.0, 0.0, width, 1000.0),
+            )
+            .unwrap()
+            .shared_data::<RichTextLayoutSnapshot>()
+            .unwrap()
+    }
+
+    #[test]
+    fn detached_feedback_clones_reuse_layout_and_changed_candidates_fork_cache() {
+        fn assert_send<T: Send>() {}
+        assert_send::<RichTextContentFigure>();
+        let mut builder = RichTextDocumentBuilder::default();
+        builder
+            .push(ParagraphInput::new(
+                "alpha beta gamma delta",
+                TextStyle::new(FontDescriptor::default(), Color::BLACK),
+            ))
+            .unwrap();
+        let document = builder.build();
+        let mut system = TextSystem::default();
+        system.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let active = RichTextContentFigure::new(document.clone());
+        let initial = snapshot(&active, &mut system, 200.0);
+        let feedback = active.clone().with_document(document.clone());
+        assert!(Arc::ptr_eq(
+            &initial,
+            &snapshot(&feedback, &mut system, 200.0)
+        ));
+        let changed = document
+            .edit_plain_paragraph(
+                document.version(),
+                document.paragraphs()[0].id(),
+                0..0,
+                "changed ",
+            )
+            .unwrap();
+        let candidate = feedback.with_document(changed);
+        assert!(!Arc::ptr_eq(
+            &initial,
+            &snapshot(&candidate, &mut system, 200.0)
+        ));
+        // A discarded candidate must not evict the active document's snapshot.
+        drop(candidate);
+        assert!(Arc::ptr_eq(
+            &initial,
+            &snapshot(&active, &mut system, 200.0)
+        ));
+        assert!(!Arc::ptr_eq(
+            &initial,
+            &snapshot(&active.clone(), &mut system, 70.0)
+        ));
+        system
+            .register_builtin_font(BuiltinFont::JetBrainsMono)
+            .unwrap();
+        assert!(!Arc::ptr_eq(
+            &initial,
+            &snapshot(&active, &mut system, 200.0)
+        ));
+    }
+}
+
 pub const RICH_TEXT_DOCUMENT: PropertyKey<DocumentVersion> =
     PropertyKey::new("novadraw-richtext", "document");
 
 /// Single source owner for the entire document, regardless of paragraph count.
+#[derive(Clone)]
 pub struct RichTextContentFigure {
     document: RichTextDocumentSnapshot,
     cache: crate::cache::SnapshotCache,
@@ -44,6 +120,16 @@ impl RichTextContentFigure {
     }
     pub fn document(&self) -> &RichTextDocumentSnapshot {
         &self.document
+    }
+    /// Constructs a detached replacement. Unchanged documents share the bounded
+    /// layout cache; changed documents fork it so rejected candidates cannot evict
+    /// the active document's prepared snapshots.
+    pub fn with_document(mut self, document: RichTextDocumentSnapshot) -> Self {
+        if self.document.version() != document.version() {
+            self.cache = self.cache.fork();
+        }
+        self.document = document;
+        self
     }
     /// Sets detached scene bounds; attached changes use Runtime mutation.
     pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
@@ -173,6 +259,9 @@ impl FigureComponentUpdate for ReplaceRichTextDocument {
         )
     }
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
+        if target.document.version() != prepared.version() {
+            target.cache = target.cache.fork();
+        }
         target.document = prepared;
     }
 }

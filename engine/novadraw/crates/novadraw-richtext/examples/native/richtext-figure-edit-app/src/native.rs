@@ -1,6 +1,6 @@
 use crate::{Config, Result, editor::PAYLOAD, embedded::Embedded};
 use novadraw::{
-    event::{KeyModifiers, MouseButton},
+    event::{KeyModifiers, MonotonicTime, MouseButton},
     geometry::Point,
     host::PlatformHost,
     render::RenderBackend,
@@ -269,6 +269,16 @@ fn io_result(result: Result<()>) -> io::Result<()> {
     result.map_err(|e| io::Error::other(e.to_string()))
 }
 impl WindowScene for Native {
+    fn advance_time(&mut self, now: MonotonicTime) -> io::Result<bool> {
+        self.editor
+            .viewer
+            .drive()
+            .advance_time(now)
+            .map_err(|e| io::Error::other(e.to_string()))
+    }
+    fn next_wake_deadline(&mut self) -> Option<MonotonicTime> {
+        self.editor.viewer.drive().next_wake_deadline()
+    }
     fn render(&mut self, present: bool) -> io::Result<()> {
         io_result(self.draw(present).map(|_| ()))
     }

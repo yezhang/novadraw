@@ -286,13 +286,32 @@ impl EditController for Controller {
         Self::transform_bounds(context, bounds)
     }
 }
-struct Plan;
+struct Plan {
+    content: RichTextContentFigure,
+}
 impl EditSessionPlan<Model, Controller> for Plan {
+    fn reuse_feedback(
+        &mut self,
+        previous: &Controller,
+        candidate: &Controller,
+        model: &Model,
+    ) -> std::result::Result<bool, PolicyError> {
+        Ok(
+            previous.0.document().version() == candidate.0.document().version()
+                && self.content.document().version() == candidate.0.document().version()
+                && self.content.initial_bounds() == model.bounds,
+        )
+    }
     fn feedback(
         &mut self,
         controller: &Controller,
         model: &Model,
     ) -> std::result::Result<DirectTextFeedback, PolicyError> {
+        self.content = self
+            .content
+            .clone()
+            .with_document(controller.0.document().clone())
+            .with_bounds(model.bounds);
         DirectTextFeedback::new(
             vec![
                 FeedbackVisual::scaled(Box::new(
@@ -305,10 +324,7 @@ impl EditSessionPlan<Model, Controller> for Plan {
                     )
                     .unwrap(),
                 )),
-                FeedbackVisual::scaled(Box::new(
-                    RichTextContentFigure::new(controller.0.document().clone())
-                        .with_bounds(model.bounds),
-                )),
+                FeedbackVisual::scaled(Box::new(self.content.clone())),
             ],
             1,
         )
@@ -369,7 +385,9 @@ impl Policy {
                 FocusLossPolicy::Accept,
             ),
             Controller(controller),
-            Plan,
+            Plan {
+                content: RichTextContentFigure::new(model.document.clone()),
+            },
         )))
     }
 }
@@ -512,20 +530,37 @@ impl Embedded {
         Ok(())
     }
     pub fn locate(&mut self, region: usize) -> Result<()> {
-        // Move through the typed controller's own admitted geometry using scene input.
-        self.start()?;
+        let point = self.location_point(region)?;
+        self.domain.pointer_pressed(
+            &mut self.viewer,
+            point,
+            novadraw::event::MouseButton::Left,
+            Default::default(),
+        )?;
+        self.domain.pointer_released(
+            &mut self.viewer,
+            point,
+            novadraw::event::MouseButton::Left,
+        )?;
+        Ok(())
+    }
+    pub fn prepared_layout(&self) -> Result<Arc<RichTextLayoutSnapshot>> {
         let target = self
             .viewer
             .runtime()
             .tree()
             .child_order(self.viewer.root_layers().scaled_feedback())?[1];
-        let layout = self
-            .viewer
+        self.viewer
             .runtime()
             .tree()
             .prepared_presentation(target)?
             .and_then(|p| p.shared_data::<RichTextLayoutSnapshot>())
-            .ok_or("missing layout")?;
+            .ok_or_else(|| "missing layout".into())
+    }
+    pub fn location_point(&mut self, region: usize) -> Result<Point> {
+        // Move through the typed controller's own admitted geometry using scene input.
+        self.start()?;
+        let layout = self.prepared_layout()?;
         let paragraphs = layout.document().paragraphs();
         let paragraph = &paragraphs[match region {
             0 => 0,
@@ -563,18 +598,7 @@ impl Embedded {
             .tree()
             .local_to_surface_transform(target)?;
         let point = transform.transform_point(Point::new(b.x, b.y + b.height / 2.0));
-        self.domain.pointer_pressed(
-            &mut self.viewer,
-            point,
-            novadraw::event::MouseButton::Left,
-            Default::default(),
-        )?;
-        self.domain.pointer_released(
-            &mut self.viewer,
-            point,
-            novadraw::event::MouseButton::Left,
-        )?;
-        Ok(())
+        Ok(point)
     }
     pub fn resize(&mut self, width: f64, height: f64) -> Result<()> {
         // Resize publication does not alter source revision captured by the session.
@@ -681,6 +705,80 @@ pub fn verify(config: &Config) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn pointer_and_drag_reuse_layout_and_blink_resets_on_input() {
+        use super::*;
+        use novadraw::event::{MonotonicTime, MouseButton};
+        let mut editor = Embedded::new(&crate::Config::parse(&[]).unwrap()).unwrap();
+        let now = MonotonicTime::from_micros(2_000_000);
+        editor.viewer.drive().advance_time(now).unwrap();
+        editor.start().unwrap();
+        let original = editor.prepared_layout().unwrap();
+        let point = editor.location_point(0).unwrap();
+        editor
+            .domain
+            .pointer_pressed(
+                &mut editor.viewer,
+                point,
+                MouseButton::Left,
+                Default::default(),
+            )
+            .unwrap();
+        editor
+            .domain
+            .pointer_moved(&mut editor.viewer, Point::new(point.x() + 30.0, point.y()))
+            .unwrap();
+        editor
+            .domain
+            .pointer_released(&mut editor.viewer, point, MouseButton::Left)
+            .unwrap();
+        assert!(Arc::ptr_eq(&original, &editor.prepared_layout().unwrap()));
+        assert_ne!(
+            editor.controller().unwrap().selection().anchor,
+            editor.controller().unwrap().selection().focus
+        );
+        editor.locate(0).unwrap();
+        let caret = *editor
+            .viewer
+            .runtime()
+            .tree()
+            .child_order(editor.viewer.root_layers().feedback())
+            .unwrap()
+            .last()
+            .unwrap();
+        assert!(editor.viewer.runtime().tree().is_visible(caret).unwrap());
+        let off = editor.viewer.drive().next_wake_deadline().unwrap();
+        let interval = off.as_micros() - now.as_micros();
+        assert_eq!(interval, 530_000);
+        editor
+            .viewer
+            .drive()
+            .advance_time(MonotonicTime::from_micros(off.as_micros() - 1))
+            .unwrap();
+        assert!(editor.viewer.runtime().tree().is_visible(caret).unwrap());
+        assert!(editor.viewer.drive().advance_time(off).unwrap());
+        assert!(!editor.viewer.runtime().tree().is_visible(caret).unwrap());
+        let on = editor.viewer.drive().next_wake_deadline().unwrap();
+        assert!(editor.viewer.drive().advance_time(on).unwrap());
+        assert!(editor.viewer.runtime().tree().is_visible(caret).unwrap());
+        assert!(Arc::ptr_eq(&original, &editor.prepared_layout().unwrap()));
+        editor
+            .input(TextInputEvent::InsertText("你".into()))
+            .unwrap();
+        assert!(!Arc::ptr_eq(&original, &editor.prepared_layout().unwrap()));
+        assert_eq!(
+            editor
+                .viewer
+                .drive()
+                .next_wake_deadline()
+                .unwrap()
+                .as_micros(),
+            on.as_micros() + interval
+        );
+        editor.input(TextInputEvent::Cancel).unwrap();
+        assert_eq!(editor.viewer.drive().next_wake_deadline(), None);
+    }
+
     #[test]
     fn embedded_contract() {
         super::verify(&crate::Config::parse(&[]).unwrap()).unwrap();

@@ -34,7 +34,11 @@ impl Config {
                 "--output" => config.output = iter.next().ok_or("missing --output value")?.into(),
                 "--trace" => config.trace = true,
                 "--replay-edit" => config.replay = true,
-                "--headless" | "--benchmark-edit" | "--benchmark-session" | "--screenshot" => {}
+                "--headless"
+                | "--benchmark-edit"
+                | "--benchmark-session"
+                | "--benchmark-pointer"
+                | "--screenshot" => {}
                 _ => return Err(format!("unknown argument {arg}").into()),
             }
         }
@@ -48,6 +52,9 @@ impl Config {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let config = Config::parse(&args)?;
+    if args.iter().any(|arg| arg == "--benchmark-pointer") {
+        return performance::run_pointer(&config);
+    }
     if args.iter().any(|arg| arg == "--benchmark-session") {
         return performance::run_session(&config);
     }

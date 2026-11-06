@@ -8,7 +8,7 @@ use novadraw::{
         TextLayoutDiagnostics, TextPosition, shaping::TextStageContext,
     },
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 /// Positions are tied to an immutable document AND layout, including width.
@@ -23,13 +23,17 @@ pub struct RichTextPosition {
 pub struct RichTextLayoutSnapshot {
     document: RichTextDocumentSnapshot,
     identity: Uuid,
-    layouts: Vec<StyledTextLayout>,
+    layouts: Vec<Arc<StyledTextLayout>>,
     heights: ParagraphHeightIndex,
     size: Dimension,
     visual: Rectangle,
 }
 
 impl RichTextLayoutSnapshot {
+    #[cfg(test)]
+    pub(crate) fn shares_paragraph_layout(&self, index: usize, other: &Self) -> bool {
+        Arc::ptr_eq(&self.layouts[index], &other.layouts[index])
+    }
     pub fn document_version(&self) -> DocumentVersion {
         self.document.version()
     }
@@ -138,30 +142,83 @@ impl RichTextLayoutSnapshot {
         ))
     }
     /// Visual navigation re-admitted into this document/layout publication.
-    pub fn move_position(&self, position: &RichTextPosition, movement: novadraw::text::TextMovement) -> Result<RichTextPosition, TextError> {
-        if !self.contains_position(position) { return Err(TextError::InvalidPreparedScene("stale rich text position".into())); }
-        let index = self.document.paragraphs().iter().position(|p| p.id() == position.paragraph).ok_or(TextError::InvalidMetric)?;
-        let text = self.layouts[index].layout().move_text_position(position.text, movement)
+    pub fn move_position(
+        &self,
+        position: &RichTextPosition,
+        movement: novadraw::text::TextMovement,
+    ) -> Result<RichTextPosition, TextError> {
+        if !self.contains_position(position) {
+            return Err(TextError::InvalidPreparedScene(
+                "stale rich text position".into(),
+            ));
+        }
+        let index = self
+            .document
+            .paragraphs()
+            .iter()
+            .position(|p| p.id() == position.paragraph)
+            .ok_or(TextError::InvalidMetric)?;
+        let text = self.layouts[index]
+            .layout()
+            .move_text_position(position.text, movement)
             .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?;
         self.position(position.paragraph, text)
     }
     /// Selection quads in content-local coordinates, across explicit paragraphs.
-    pub fn selection_geometry(&self, anchor: &RichTextPosition, focus: &RichTextPosition) -> Result<Vec<novadraw::render::SelectionQuad>, TextError> {
-        if !self.contains_position(anchor) || !self.contains_position(focus) { return Err(TextError::InvalidPreparedScene("stale rich text selection".into())); }
-        let a = self.document.paragraphs().iter().position(|p| p.id() == anchor.paragraph).ok_or(TextError::InvalidMetric)?;
-        let f = self.document.paragraphs().iter().position(|p| p.id() == focus.paragraph).ok_or(TextError::InvalidMetric)?;
-        let ((first, start), (last, end)) = if (a, anchor.text.byte_offset()) <= (f, focus.text.byte_offset()) {
-            ((a, anchor.text), (f, focus.text))
-        } else { ((f, focus.text), (a, anchor.text)) };
+    pub fn selection_geometry(
+        &self,
+        anchor: &RichTextPosition,
+        focus: &RichTextPosition,
+    ) -> Result<Vec<novadraw::render::SelectionQuad>, TextError> {
+        if !self.contains_position(anchor) || !self.contains_position(focus) {
+            return Err(TextError::InvalidPreparedScene(
+                "stale rich text selection".into(),
+            ));
+        }
+        let a = self
+            .document
+            .paragraphs()
+            .iter()
+            .position(|p| p.id() == anchor.paragraph)
+            .ok_or(TextError::InvalidMetric)?;
+        let f = self
+            .document
+            .paragraphs()
+            .iter()
+            .position(|p| p.id() == focus.paragraph)
+            .ok_or(TextError::InvalidMetric)?;
+        let ((first, start), (last, end)) =
+            if (a, anchor.text.byte_offset()) <= (f, focus.text.byte_offset()) {
+                ((a, anchor.text), (f, focus.text))
+            } else {
+                ((f, focus.text), (a, anchor.text))
+            };
         let mut result = Vec::new();
         for index in first..=last {
-            let start = if index == first { start } else { TextPosition::new(0, novadraw::text::TextAffinity::Downstream) };
-            let end = if index == last { end } else { TextPosition::new(self.document.paragraphs()[index].len_bytes(), novadraw::text::TextAffinity::Upstream) };
+            let start = if index == first {
+                start
+            } else {
+                TextPosition::new(0, novadraw::text::TextAffinity::Downstream)
+            };
+            let end = if index == last {
+                end
+            } else {
+                TextPosition::new(
+                    self.document.paragraphs()[index].len_bytes(),
+                    novadraw::text::TextAffinity::Upstream,
+                )
+            };
             let y = self.heights.offset(index).ok_or(TextError::InvalidMetric)?;
-            for q in self.layouts[index].layout().selection_geometry(novadraw::text::TextRange::new(start, end))
-                .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))? {
+            for q in self.layouts[index]
+                .layout()
+                .selection_geometry(novadraw::text::TextRange::new(start, end))
+                .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?
+            {
                 let b = q.bounds();
-                result.push(novadraw::render::SelectionQuad::new(Rectangle::new(b.x, b.y + y, b.width, b.height), q.line_index()));
+                result.push(novadraw::render::SelectionQuad::new(
+                    Rectangle::new(b.x, b.y + y, b.width, b.height),
+                    q.line_index(),
+                ));
             }
         }
         Ok(result)
@@ -172,6 +229,7 @@ impl RichTextLayoutSnapshot {
         width: Option<f64>,
         budget: PreparationBudgetHandle,
         direction: novadraw::figure::LayoutDirection,
+        previous: Option<&Self>,
     ) -> Result<Arc<Self>, TextError> {
         let diagnostics = TextLayoutDiagnostics::default();
         let _timing = diagnostics.time("richtext.snapshot");
@@ -184,26 +242,68 @@ impl RichTextLayoutSnapshot {
             2 * (std::mem::size_of::<Arc<()>>() * 2 + std::mem::size_of::<f64>() + std::mem::size_of::<usize>())
         )) as u64)?;
         let session = TextStageContext::new(budget.clone(), TextLayoutDiagnostics::default());
+        // ParagraphId locates a candidate; immutable Arc identity proves that
+        // text, spans and paragraph metrics all survived unchanged.
+        budget.allocate(
+            "richtext reuse index",
+            previous.map_or(0, |old| old.layouts.len()) as u64
+                * (std::mem::size_of::<ParagraphId>()
+                    + std::mem::size_of::<usize>()
+                    + std::mem::size_of::<usize>()) as u64
+                * 2,
+        )?;
+        let old_indices: HashMap<_, _> = previous
+            .into_iter()
+            .flat_map(|old| {
+                old.document
+                    .paragraphs()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| (p.id(), i))
+            })
+            .collect();
+        let same_order = previous.is_some_and(|old| {
+            old.document.paragraphs().len() == document.paragraphs().len()
+                && old
+                    .document
+                    .paragraphs()
+                    .iter()
+                    .zip(document.paragraphs())
+                    .all(|(a, b)| a.id() == b.id())
+        });
+        let mut persistent_heights = previous
+            .filter(|_| same_order)
+            .map(|old| old.heights.clone());
         let mut layouts = Vec::with_capacity(document.paragraphs().len());
         let mut heights = Vec::with_capacity(document.paragraphs().len());
         let mut size = Dimension::ZERO;
         let mut visual = Rectangle::ZERO;
-        for paragraph in document.paragraphs() {
+        for (index, paragraph) in document.paragraphs().iter().enumerate() {
             let _paragraph = diagnostics.time("richtext.paragraph");
-            budget.allocate(
-                "richtext input",
-                (paragraph.len_bytes() + std::mem::size_of_val(paragraph.spans())) as u64,
-            )?;
-            let request = StyledTextRequest::new(
-                paragraph.text(),
-                paragraph.style().clone(),
-                paragraph.spans().to_vec(),
-                Vec::new(),
-                constraints,
-            )?
-            .with_paragraph(paragraph.direction, paragraph.alignment, true)
-            .with_layout_direction(direction);
-            let layout = context.layout_styled_in_session(&request, &session)?;
+            let reused = previous.and_then(|old| {
+                old_indices.get(&paragraph.id()).and_then(|&i| {
+                    Arc::ptr_eq(paragraph, &old.document.paragraphs()[i])
+                        .then(|| old.layouts[i].clone())
+                })
+            });
+            let layout = if let Some(layout) = reused {
+                layout
+            } else {
+                budget.allocate(
+                    "richtext input",
+                    (paragraph.len_bytes() + std::mem::size_of_val(paragraph.spans())) as u64,
+                )?;
+                let request = StyledTextRequest::new(
+                    paragraph.text(),
+                    paragraph.style().clone(),
+                    paragraph.spans().to_vec(),
+                    Vec::new(),
+                    constraints,
+                )?
+                .with_paragraph(paragraph.direction, paragraph.alignment, true)
+                .with_layout_direction(direction);
+                Arc::new(context.layout_styled_in_session(&request, &session)?)
+            };
             let measured = layout.layout().size();
             if let Some(ink) = layout.layout().ink_bounds() {
                 let ink = Rectangle::new(ink.x, ink.y + size.height, ink.width, ink.height);
@@ -213,9 +313,28 @@ impl RichTextLayoutSnapshot {
             let height = measured.height + paragraph.space_after;
             size.height += height;
             heights.push(height);
+            if let Some(old) = persistent_heights.as_mut() {
+                let previous = previous.expect("persistent heights require a previous snapshot");
+                let old_height = previous.layouts[index].layout().size().height
+                    + previous.document.paragraphs()[index].space_after;
+                if old_height != height {
+                    budget.allocate(
+                        "richtext height update",
+                        (old.len().next_power_of_two().ilog2() as u64 + 1)
+                            * (std::mem::size_of::<Arc<()>>() * 2
+                                + std::mem::size_of::<f64>()
+                                + std::mem::size_of::<usize>())
+                                as u64,
+                    )?;
+                    *old = old.with_height(index, height)?;
+                }
+            }
             layouts.push(layout);
         }
-        let heights = ParagraphHeightIndex::new(&heights)?;
+        let heights = match persistent_heights {
+            Some(heights) => heights,
+            None => ParagraphHeightIndex::new(&heights)?,
+        };
         if !size.width.is_finite() || !size.height.is_finite() {
             return Err(TextError::InvalidMetric);
         }

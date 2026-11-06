@@ -5,6 +5,9 @@
 
 Native 使用 ADR-061 的统一会话。点击文字放置光标，拖动或 Shift+方向键选择，
 输入文字或中文 preedit，按 Ctrl+Enter 接受整个草稿，Esc 取消。
+光标由 Editor 计时器每 530 ms 切换显隐，窗口宿主按下一次截止时间唤醒。
+只改变选区时复用正文节点和同版排版快照，无选区时也保留 caret 节点。
+段内编辑只重排变化段落，未变段落共享布局；首次进入会话及宽度、字体变化仍需准备布局。
 Ctrl/Cmd+Z 先接受当前草稿再撤销文档命令，Shift+Ctrl/Cmd+Z 重做。
 IME Commit 只改草稿，接受会话才产生一项历史。取消和 NoChange 不增加历史。
 
@@ -32,13 +35,21 @@ F5 重放九次插入，F6/F7 定位首尾。窗口标题报告输入及反馈�
 ```sh
 cargo run --release -p richtext-figure-edit-app -- --benchmark-edit --output target/verification/text-adr061/component
 cargo run --release -p richtext-figure-edit-app -- --benchmark-session --output target/verification/text-adr061/session
+cargo run --release -p richtext-figure-edit-app -- --benchmark-pointer --output target/verification/text-richtext-pointer/mixed
 cargo run --release -p richtext-figure-edit-app --features profiling -- --benchmark-session --trace --output target/verification/text-adr061/trace
 ```
+
+`--benchmark-pointer` 在头、中、尾各测 8 次点击，计入选区反馈及准备，
+排除定位滚动和 GPU 提交；输出耗时及快照是否复用，首次会话准备另列。
 
 嵌入模型保存不可变文档，Command 只持有前后文档，模型通知刷新正文。
 草稿正文使用 `RichTextContentFigure`，不 flatten 成 TextFlow；caret、selection 和
 preedit 来自同版 `RichTextLayoutSnapshot`。应用白底遮盖反馈隔开旧正文和草稿；
 当前仍记录两份正文命令，这项成本包含在 Editor 回放中。
+节点复用缩小了点击 damage，但没有减少全文绘制和后端编码成本，
+点击呈现延迟仍开放。段落增量排版的
+[实施和匹配采样](../../../../../doc/verification/reviews/richtext-incremental-feedback-2026-11-06.md)
+区分输入成本、CPU 帧与 GPU 完成，large 的改善不能用于单一长段的 giant。
 
 回放注入的 preedit/commit、Native 截图和无窗口测试不能代替人工系统输入法验收。
 CPU 回放没有 GPU 提交；既有长文黑帧与全文装配成本继续开放。

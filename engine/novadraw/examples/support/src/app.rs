@@ -64,6 +64,14 @@ pub trait WindowScene {
     fn resume(&mut self) -> std::io::Result<()>;
     fn suspend(&mut self) -> std::io::Result<()>;
     fn screenshot(&mut self, path: &std::path::Path) -> std::io::Result<()>;
+    /// Advances scene timers using the shared host's monotonic clock.
+    fn advance_time(&mut self, _now: MonotonicTime) -> std::io::Result<bool> {
+        Ok(false)
+    }
+    /// Earliest scene timer deadline in the same host clock.
+    fn next_wake_deadline(&mut self) -> Option<MonotonicTime> {
+        None
+    }
 }
 
 type WindowSceneFactory =
@@ -800,6 +808,22 @@ impl ApplicationHandler<()> for DemoApp {
                     _ => {}
                 }
             }
+            if self.screenshot_mode.is_none() {
+                let now = self.monotonic_time();
+                match self.advance_window_scene_time(now) {
+                    Ok(true) => {
+                        if let Some(host) = &self.host {
+                            host.request_redraw();
+                        }
+                    }
+                    Ok(false) => {}
+                    Err(error) => {
+                        eprintln!("window scene clock failed: {error}");
+                        event_loop.exit();
+                        return;
+                    }
+                }
+            }
             if event == WindowEvent::RedrawRequested {
                 if self.screenshot_mode.is_none()
                     && let Err(error) = self.render()
@@ -1148,6 +1172,14 @@ impl ApplicationHandler<()> for DemoApp {
             return;
         }
         let now = self.monotonic_time();
+        let scene_changed = match self.advance_window_scene_time(now) {
+            Ok(changed) => changed,
+            Err(error) => {
+                eprintln!("window scene clock failed: {error}");
+                event_loop.exit();
+                return;
+            }
+        };
         let time_changed = self
             .runtime
             .as_mut()
@@ -1161,14 +1193,19 @@ impl ApplicationHandler<()> for DemoApp {
                 host.request_redraw();
                 return;
             }
-            if let Some(deadline) = host.wake_deadline() {
+            let deadline = if let Some(scene) = &mut self.window_scene {
+                scene.next_wake_deadline()
+            } else {
+                host.wake_deadline()
+            };
+            if let Some(deadline) = deadline {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(
                     self.clock_origin + Duration::from_micros(deadline.as_micros()),
                 ));
             } else {
                 event_loop.set_control_flow(ControlFlow::Wait);
             }
-            if time_changed {
+            if time_changed || scene_changed {
                 host.request_redraw();
             }
             #[cfg(feature = "egui-panel")]
@@ -1231,6 +1268,12 @@ fn panel_event_needs_redraw(repaint: bool, event: &WindowEvent) -> bool {
 }
 
 impl DemoApp {
+    fn advance_window_scene_time(&mut self, now: MonotonicTime) -> std::io::Result<bool> {
+        self.window_scene
+            .as_mut()
+            .map_or(Ok(false), |scene| scene.advance_time(now))
+    }
+
     fn record_interactive_frame_outcome(&mut self, result: &RenderResult) {
         if self.initial_frame_presented {
             return;
@@ -1601,6 +1644,58 @@ fn run_runtime_demo_app_with_options(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn custom_scene_receives_host_time_and_exposes_its_wake_deadline() {
+        use super::*;
+        struct Timer {
+            now: MonotonicTime,
+            fail: bool,
+        }
+        impl WindowScene for Timer {
+            fn render(&mut self, _: bool) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn window_event(&mut self, _: &WindowEvent) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn resume(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn suspend(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn screenshot(&mut self, _: &std::path::Path) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn advance_time(&mut self, now: MonotonicTime) -> std::io::Result<bool> {
+                if self.fail {
+                    return Err(std::io::Error::other("clock rejected"));
+                }
+                let changed = now != self.now;
+                self.now = now;
+                Ok(changed)
+            }
+            fn next_wake_deadline(&mut self) -> Option<MonotonicTime> {
+                Some(MonotonicTime::from_micros(self.now.as_micros() + 500_000))
+            }
+        }
+        let mut app = DemoApp::new("clock", vec![], 100.0, 100.0, "clock", None);
+        let now = MonotonicTime::from_micros(2_000_000);
+        assert!(!app.advance_window_scene_time(now).unwrap());
+        app.window_scene = Some(Box::new(Timer {
+            now: MonotonicTime::from_micros(0),
+            fail: false,
+        }));
+        assert!(app.advance_window_scene_time(now).unwrap());
+        assert!(!app.advance_window_scene_time(now).unwrap());
+        assert_eq!(
+            app.window_scene.as_mut().unwrap().next_wake_deadline(),
+            Some(MonotonicTime::from_micros(2_500_000))
+        );
+        app.window_scene = Some(Box::new(Timer { now, fail: true }));
+        assert!(app.advance_window_scene_time(now).is_err());
+    }
+
     #[test]
     fn single_window_scene_keeps_editing_navigation_keys() {
         use super::*;

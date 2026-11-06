@@ -13,6 +13,63 @@ use std::time::Instant;
 const ROUNDS: usize = 3;
 const STEPS: usize = 8;
 
+pub fn run_pointer(config: &Config) -> Result<()> {
+    use crate::embedded::Embedded;
+    use novadraw::event::MouseButton;
+    use std::sync::Arc;
+    std::fs::create_dir_all(&config.output)?;
+    let mut editor = Embedded::new(config)?;
+    let version = editor.viewer.model().document.version();
+    let start = Instant::now();
+    editor.start()?;
+    let activation_ns = start.elapsed().as_nanos();
+    let mut samples = Vec::new();
+    for region in 0..3 {
+        let point = editor.location_point(region)?;
+        for step in 0..STEPS {
+            let before = editor.prepared_layout()?;
+            let start = Instant::now();
+            editor.domain.pointer_pressed(
+                &mut editor.viewer,
+                point,
+                MouseButton::Left,
+                Default::default(),
+            )?;
+            editor
+                .domain
+                .pointer_released(&mut editor.viewer, point, MouseButton::Left)?;
+            let click_ns = start.elapsed().as_nanos();
+            let after = editor.prepared_layout()?;
+            samples.push(
+                json!({"region":(["head","middle","tail"][region]), "step":step,
+                "click_ns":click_ns, "snapshot_reused":Arc::ptr_eq(&before, &after)}),
+            );
+        }
+    }
+    assert_eq!(editor.viewer.model().document.version(), version);
+    let mut values: Vec<_> = samples
+        .iter()
+        .map(|s| s["click_ns"].as_u64().unwrap())
+        .collect();
+    values.sort_unstable();
+    let summary = json!({"load":config.load,"characters":editor.metadata["characters"],
+        "activation_ms":activation_ns as f64/1e6,"samples":samples.len(),
+        "click_p50_ms":values[values.len()/2] as f64/1e6,
+        "click_p95_ms":values[(values.len()*95).div_ceil(100)-1] as f64/1e6,
+        "snapshots_reused":samples.iter().filter(|s| s["snapshot_reused"] == true).count(),
+        "gpu_submission":false,"scope":"pointer press/release including selection feedback and preparation; viewport setup excluded"});
+    std::fs::write(
+        config.output.join("pointer-samples.json"),
+        serde_json::to_vec_pretty(&samples)?,
+    )?;
+    std::fs::write(
+        config.output.join("pointer-summary.json"),
+        serde_json::to_vec_pretty(&summary)?,
+    )?;
+    println!("{summary}");
+    Ok(())
+}
+
 pub fn run_session(config: &Config) -> Result<()> {
     use crate::embedded::Embedded;
     use novadraw_editor::{ExtendTextSelection, TextInputEvent};
