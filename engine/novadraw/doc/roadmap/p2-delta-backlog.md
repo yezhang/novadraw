@@ -34,6 +34,20 @@ Editor 公开控制器接入、plain 同槽适配、richtext 独立控制器和�
 成本已采样。当前执行与剩余项见[实施记录](../verification/reviews/specialized-edit-controller-2026-11-06.md)；
 人工系统输入法、完整 Bidi/DPI 组合与 giant 成本继续开放。
 此切片不关闭 Core FR-02、长文黑帧或平台发布门禁。
+2026-11-06 用户继续授权正文未变时的节点复用与增量排版。
+两个优先项已实施，[验证记录](../verification/reviews/richtext-incremental-feedback-2026-11-06.md)
+覆盖正文/caret 节点保持、段落资产和高度索引复用、35 项回归与匹配采样；
+large 插入输入与反馈 P50 106.983 → 1.520 ms。
+点击帧已从 Full 转为 Partial，但仍有 4,488 条命令，输入到 GPU 完成约 63 ms，
+未关闭点击呈现延迟、正文可见输出、giant 或 FR-02 整体门禁。
+2026-11-06 后续[后端局部修补](../verification/reviews/richtext-local-damage-2026-11-06.md)
+已限制编码前的字形选择并缩小 GPU 修补目标，离屏点击到 GPU 完成 P50
+61.644 → 7.614 ms；此前约 63 ms 是该优化前基线。
+[Core 局部轮廓记录](../verification/reviews/core-local-damage-recording-2026-11-06.md)
+已在现行覆盖声明下把查询限制到 damage 与 clip，并保护 Full 恢复；
+默认 native 全文记录仍保留，候选命令段继续等待独立复核。
+[技术采用清单](../verification/reviews/text-performance-adoption-inventory-2026-11-06.md)
+维护本轮核对范围；不据此启用阶段缓存、栅格实验或关闭 FR-02。
 [基础验证](../verification/reviews/rich-text-figure-foundation-2026-11-05.md)
 覆盖 Native 图像、单元测试、实际 Runtime 源替换／滚动隔离／resize 与 Wasm 编译。
 Parley 官方 `complex-scripts` feature 已启用，缺失 ICU4X 分词模型告警已关闭，
@@ -143,12 +157,132 @@ Wasm check 通过；五轮成员查询 P50 在 10000 个无活动节点时
 默认路径拖拽 active P50 上升 3.79%，reuse 开启时滚轮 P99 上升 30.11%。
 下一布局切片已补齐[具体合同复核](../design/architecture/property-scoped-layout-revalidation.md#定向复核布局私有输入必须进入证明链)：
 请求隔离 guard 与完整布局消费 proof 分开，拟给任意布局提供受检 input 查询，
-再统一即时失效、队列出队与内部 child resize 的范围。新公共接口和队列合同待确认；
+再统一即时失效、队列出队与内部 child resize 的范围。用户随后要求先提交最近修改，
+再继续通用投影分离，已授权按该顺序实施；通用输入查询已接入，正在验证普通布局
+与嵌套测量的证明和失败恢复。10 项公开合同及独立消费者、Wasm 检查通过；
+普通树嵌套测量的首轮 debug 阶段探针发现回退，100 个容器 P50 从
+110.458 升到 380.750 微秒。已恢复经受检查询计算且未准入私有输入的缓存；
+本轮准入 input 后仍执行真实测量回调，不能用 proof 相等证明未知回调没有副作用。
+阶段探针的 100 容器配对差异已从约 244.6% 降至约 1.3%。
+首轮 release reuse 路径仍回退，已移除重复缓存记录并重采；
+Perfetto 确认 qualification／input validate 次数尚未减少。
+当前缓存改为 FigureTree 持有的按需稀疏表，准入计费、身份退休和派生回滚已覆盖。
+匹配三轮的默认／reuse resize P50 仍分别上升 2.56%／1.39%，
+默认拖拽和滚轮尾部也回退。空表清理版三轮默认配置 active P50：
+拖拽／滚轮／resize 分别上升 3.44%／4.04%／4.15%；
+后续布局会话函数拆分仍未证明净收益，已撤回并保留匹配采样及独立 trace。
+这一输入切片的回退仍未关闭，不能把正确性通过写成生产性能验收完成。
+静态声明已接入 manager 替换和子树原子准入，11 项公开合同通过；
+collector 保留忽略错误，完整 child 身份、预算、旧表保留及 panic 路径已验证。
+请求 guard、队列范围和内部输出边界已接入真实事件与外部自有容器。
+19 项公开输入合同、11 项内部队列合同、11 项 ScrollBar 和 28 项 Viewport 合同通过；
+覆盖回调及生命周期冲突恢复、reparent、退休 focus 回调、构造期 session 与隐藏布局。
+ScrollBar／ScrollPane／Fill 已用同一协议接入，两配置三轮及独立 trace 已完成。
+消费者阶段默认拖拽／滚轮／resize P50 上升 5.55%／4.88%／1.09%；
+reuse resize P50／P99 上升 0.74%／5.85%，未证明净收益。
+上述消费者阶段的文本样例根 Stack 尚无独立声明，局部路径未激活。
+随后已核对并登记 Stack 独立性，真实事件与 range shape 反例通过。
+Stack 阶段两配置各三轮：默认拖拽／滚轮 active P50 下降 4.91%／6.54%，
+reuse 下降 10.20%／11.05%；默认 resize P50 上升 2.47%，
+默认拖拽 frame P99 上升 20.00%，仍未验收。
+独立 trace 确认每次拖拽／滚轮 Flow 测量从 2 次降到 0，
+qualification 从 29 次降到 18 次；新增普通 range proof 仍实际重验。
+已删减没有 proof 的节点的可见性父链检查，再次两配置各三轮：
+默认拖拽／滚轮 active P50 下降 9.06%／8.80%，resize 上升 4.76%，
+frame 中位数及部分尾部仍回退。两配置各 43 对长文本 GPU target 截图
+逐像素相等；混合树平移、resize／reparent 两项定向合同通过。
+下一片继续检查布局 proof 重验时的全树 style／scene 构造成本，
+不跳过原 reader 或跨 callback 复用校验成功结果。
+样式延后构造已接入，Core 511 项、21 项公开输入、独立消费者 59 项、
+既有几何回归 96 项、Clippy 和 Core／consumer Wasm 检查通过；
+两配置各 43 对长文本 GPU target 截图逐像素相等。
+总基线三轮 active P50：default 拖拽／滚轮／resize 下降 12.73%／13.66%／0.78%，
+reuse 下降 11.43%／11.94%／2.20%，但 default frame 尾部仍回退。
+独立相邻对照中 default active 改善约 6%–7%，reuse 拖拽却上升 2.22%，
+frame P99 上升 38.80%，本片净成本未验收。
+相邻 Perfetto 确认 layout 构造成本下降、qualification 均值上升；
+后续恢复通用 borrowed styles 的直接访问，保留未请求样式时的延后构造。
+这项修正不新增免检查资格，完整结果仍由上述实施记录维护。
+基础队列阶段的两配置三轮及独立 trace 已完成，默认 active P50：
+拖拽下降 0.48%、滚轮上升 0.27%、resize 上升 0.47%；
+reuse 拖拽 P99 上升 10.96%，尚未证明稳定净收益。
 未知私有输入、Freeform 与路由仍保守处理，没有新增免检查资格或新的性能结论。
-三份 Perfetto 健康检查通过；每次拖拽仍有 29 次 Flow 资格读取、
+基础队列阶段的三份 Perfetto 健康检查通过；当时每次拖拽仍有 29 次 Flow 资格读取、
 27 次输入重验及约 51232 个 glyph 提交。
-后续继续真实布局依赖工作集与可见录制；候选布局依赖 API 仍需复核，
-混合 Figure、Native、像素与 GPU 完成验收保持未完成。
+当前输入检查进展：冻结样式直接读取的两配置、三轮总基线与相邻对照已完成；
+总 active P50 拖拽／滚轮下降约 13%～15%，resize 下降约 3%～4%。
+相邻 reuse 拖拽三轮均改善，但部分 frame 分位数和 qualification 成本仍回退，
+未关闭整帧净收益门禁。两配置各 43 对 retained GPU target 截图逐像素相等。
+按需成员首轮的 default resize 相邻成本上升，未通过净收益验收。
+完整 source／revision 请求时冻结成员集合的修正已接入，
+Core 514 项、21 项公开输入、11 项 ScrollBar、2 项混合平移、
+96 项几何回归与独立消费者 59 项通过，Clippy、Core／消费者 Wasm 检查通过；
+修正的总与相邻两配置三轮成本及独立 trace 完成，相邻 reuse 的
+拖拽／滚轮／resize active P50 下降 4.17%／4.78%／6.85%。
+default 首组三轮 resize P50 上升 0.76%；追加三轮下降 1.74%，
+但部分 P95／P99 仍上升，保留全部不利样本，净成本与整帧门禁未关闭。
+两配置各 43 对 retained GPU target 截图逐像素相等。
+default 两-cycle trace 的 buffer overwrite 已被拒绝；
+有效一-cycle trace 完成，分析器新增显式 overwrite／skipped packet 拒绝并通过实际负例。
+完整证据由通用投影实施记录维护，FR-02 保持唯一 `in_progress`。
+后续继续按需投影、坐标消费者和可见录制；混合大树、Native、
+整树像素与 GPU 完成验收保持未完成。
+下一按需投影片的[受检 child transform 具体合同](../design/architecture/figure-tree-projection-separation.md#下一主线的公开合同候选受检-child-transform)
+已补齐，包含统一 projection capability、输入证明、未知容器实时路径、
+独立 FigureTree 查询失败与帧回滚边界。
+2026-11-06 [修订复审](../verification/reviews/figure-tree-projection-revision-review-2026-11-06.md)
+通过后，用户正式接受总体设计及受检投影行为合同，并授权按方案推进。
+当前继续在唯一 FR-02 Execute 中冻结精确公开 API、错误传播和预算，
+再实施受检投影与坐标消费者；录制／索引／backend 的具体接入仍按独立门禁复核。
+共享输入内核已按阶段参数化，补齐活动 input 环和嵌套 reader 错误锁存；
+preparation 继续通过原公开入口消费该内核。受限 `ProjectionScene`、
+独立 input registry、provider 类型与 container 关联准入已实现，
+验证 scope 的嵌套 proof 会回传并加入最终检查。
+随后补入 parent 范围路径、空及有序 children、独立 origin／size、insets、
+继承样式来源与 owner component revision 的首次事实日志，
+嵌套验证 scope 的 Core 读取也回传。历史 input 的重新捕获保持旧 snapshot，
+本次首次值冲突锁存；字体／tooltip／children backing 在复制前计费。
+11 项投影定向测试及 528 项 Core 回归通过，7 项既有忽略。
+随后五个独立坐标入口采用 projection provider，新增坐标错误的 Projection 包装，
+同次操作共享 input 首次值与锁存错误，各 contribution 分别维护最终消费集合。
+历史差异触发完整重算，失败不安装部分 contribution；有界逻辑字节留存及构造
+预算已接入。14 项输入／缓存定向测试与独立 crate 的 6 项坐标消费测试通过，
+Core 回归为 530 项通过、7 项既有忽略；Clippy、Wasm 消费者和公开 API 门禁通过。
+命中搜索与事件定位已返回坐标 Result，整次搜索及单个事件共享首次输入，
+搜索策略、事件处理器和末尾 Activity 结束后复核实际消费；
+失败输出保留 capture，合法 source effects 继续提交。
+Editor 目标查询／选择包装传播坐标错误；独立消费者增至 11 项通过。
+本片 Core 回归 531 项通过、7 项既有忽略，22 项 Core 集成与 28 项 Editor
+定向测试通过；Core／Editor Clippy、Wasm 消费者和公开 API 门禁通过。
+随后实现完整候选注册表的来源原子替换，以及按需 world prefix：
+失败保留旧组件／版本／来源，显式移除后恢复实时 callback；typed 成员索引同步更新。
+世界前缀仅省矩阵组合，不省输入检查；含实时祖先的链保留原回调顺序。
+Runtime 输入候选等末尾检查通过后再安装。13 项独立消费者已通过；
+Core 回归 534 项通过、7 项既有忽略；Clippy、Wasm 消费者及公开 API 门禁通过。
+随后接入树实例内 RAII operation：稳定化、坐标消费者和帧录制共享首次输入、
+累计预算与未发布候选，最终校验失败不消耗 FrameId／资源前缀，恢复脏区与无障碍快照。
+Freeform、动画几何、无障碍、损伤与 scene capture 已接入受检 child-content 边；
+录制使用现有表现快照覆盖入口，Viewport／两类 ScalablePane 通过公开输入模型准入。
+深树损伤采用每条父链一个会话，子树移除共用预算，耗尽后停止无效读取。
+Core 回归 536 项通过、7 项既有忽略，16 项独立消费者通过；
+Core／消费者 Clippy、Wasm 消费者与公开 API／文档门禁通过。
+随后实现独立稳定投影比较、必要坐标／后代通知和既有连接／extent 收敛入口；
+动画包络与输入敏感旧前缀身份在匹配 Presented 后晋升，
+一般外部绘制的未知旧包络采用 Full，不重新读取共享模型计算旧侧。
+本轮验证结果见[实施记录](../verification/reviews/figure-tree-projection-implementation-2026-11-05.md#稳定投影录制候选与呈现-damage)；
+随后补齐三项混合 Headless GPU 像素测试与一项跨 viewport 拒绝反例：
+shape／image／text、嵌套 pan、Freeform 极值与跨子树 route、
+未知 overflow、失败及 Skipped 后恢复均通过定向对照；
+见[混合像素记录](../verification/reviews/figure-tree-projection-implementation-2026-11-05.md#混合-headless-像素与路由恢复)。
+完整录制／包络资产资格、无 tracing 净成本、大树及 Native／Web 像素仍待验，
+不据此关闭总体状态。
+
+2026-11-06 已形成[局部录制具体协议](../design/architecture/figure-drawing-recording.md)
+与[验证矩阵](../verification/plans/figure-drawing-recording.md)，待按总体方案的
+独立门禁复核后接入。候选采用完整进入状态 proof 和不可变命令段；
+首片不承诺平移 paint 命中，文字统计非零效果不授予回调省略资格。
+公开 submission 命令容器与全部 backend 消费／拒绝路径须一起迁移；
+生产缓存默认值及位置无关录制资格仍待后续证据。FR-02 保持唯一 `in_progress`。
 
 ## 已完成批次
 

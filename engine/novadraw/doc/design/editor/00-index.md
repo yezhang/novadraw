@@ -73,6 +73,8 @@ Editor／GEF 框架能力补充（分批评审与实施）：
 - [ADR-061 统一会话协调与专用编辑控制器](../../adr/adr-061-edit-session-and-specialized-controller-boundary.md)：
   已接受并实施公开接入；[具体协议](specialized-edit-controller.md)与
   [验证矩阵](../../verification/plans/specialized-edit-controller.md)分别维护行为和验收范围。
+- [富文本正文反馈与段落布局复用](richtext-incremental-feedback.md)：
+  正文等价证明、只读候选几何、稳定 caret 发布、段落资产与高度索引的复用条件。
 
 - GEF 外部事实：[`../../reference/gef/`](../../reference/gef/00-index.md)
 - 语义采用账本：[`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)

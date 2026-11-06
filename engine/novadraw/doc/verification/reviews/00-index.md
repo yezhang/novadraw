@@ -17,8 +17,13 @@
 | RichTextFigure 压力 | [混合字号、emoji 与长文](rich-text-figure-stress-performance-2026-11-05.md)：四档 Runtime／CPU 回放通过，混合字号和彩色 emoji 图像通过；25 万字符变宽 P50 189.463 ms，Native 黑帧，长文绘制未通过 |
 | RichTextFigure 编辑 | [Native 编辑性能样例](richtext-figure-edit-app-2026-11-06.md)：段内输入、字素删除、受检光标和 IME 提交回放；混合档编辑后图像通过，完整输入法与长文绘制仍待验 |
 | ADR-061 会话与控制器 | [实施验证](specialized-edit-controller-2026-11-06.md)：统一活动槽、外部领域控制器、richtext 独立及嵌入接入；Native 回放和匹配 CPU 成本，平台与长文限制分别保留 |
+| 富文本点击与光标 | [修复及匹配验证](richtext-pointer-and-caret-2026-11-06.md)：同版选区反馈复用有界布局缓存，共享窗口宿主驱动 Editor 光标计时；首次会话准备和全文编辑成本另列 |
+| 富文本光标呈现延迟 | [后续诊断](richtext-click-presentation-diagnosis-2026-11-06.md)：选区快照已复用，但仍替换完整反馈并记录正文；GPU 离屏回放与 Perfetto 定位到后端编码成本，反馈增量发布和屏幕延迟验收未完成 |
+| 富文本节点与段落复用 | [实施及匹配验证](richtext-incremental-feedback-2026-11-06.md)：正文及 caret 节点复用、段落增量排版与高度索引更新；35 项回归通过，large 插入输入与反馈 P50 106.983 → 1.520 ms，点击 GPU 成本仍未明显改善 |
 | 富文本点击 GPU 瓶颈 | [63 ms 专项诊断](richtext-click-gpu-bottleneck-2026-11-06.md)：局部 damage 未约束全文记录与编码；Emoji 消融 P50 61.644 → 25.065 ms 证明无关绘制成本，整改优先打通局部绘制范围，GPU／屏幕呈现边界继续保留 |
 | 富文本后端局部修补 | [实施与完整输出复测](richtext-local-damage-2026-11-06.md)：编码前字形筛选、小纹理 GPU 修补；点击到 GPU 完成 P50 61.644 → 7.614 ms，Core 全文记录与屏幕呈现验收仍保留 |
+| Core 局部文字记录 | [damage 与轮廓查询](core-local-damage-recording-2026-11-06.md)：现行覆盖声明下限制输出范围、完整修补保护及 GPU 对照；默认 native 正文仍完整记录 |
+| 文字高性能技术采用 | [采用清单与剩余缺口](text-performance-adoption-inventory-2026-11-06.md)：区分已用 Rope／高度树／共享资产与未用 native 录制前索引、巨段检查点、默认阶段复用及自研字体预处理 |
 | Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
 | Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |
@@ -31,7 +36,7 @@
 | Parley 存储与预算边界 | [v0.12.0 再评估](parley-v012-storage-and-budget-reassessment-2026-11-05.md)：公开数组可构造自有计费快照，逐行控制已验证；建议保留 Core 累计工作与留存限额，重新裁决默认后端的深层逐操作预算，合同未修改 |
 | Parley 上游迁移 | [实施与回归验证](parley-upstream-migration-2026-11-05.md)：默认适配器使用未打补丁的 0.12.0；旧源码、35 份补丁及专用入口退役，Core 通用阶段合同保留 |
 | Parley 0.12 后续性能 | [新基线、输入检查与投影分离](parley012-input-scope-and-projection-2026-11-05.md)：已获按序推进授权，release 基线已冻结；交互采样与检查有效区间实施待完成 |
-| FigureTree 通用投影分离 | [实施记录](figure-tree-projection-implementation-2026-11-05.md)：活动交接删减与成员索引已验证；默认交接拖拽 P50 下降 7.17%，成员索引整帧收益不稳定；三份 Perfetto 仍显示重复输入检查和全量 glyph 提交，整树门禁未完成 |
+| FigureTree 通用投影分离 | [修订复审](figure-tree-projection-revision-review-2026-11-06.md)：建议通过总体设计及受检投影行为合同，精确 API／预算及后续录制／索引／backend 接入分别设门禁；[原评审](figure-tree-projection-design-review-2026-11-06.md)保留 FT01–FT10 原发现；[实施记录](figure-tree-projection-implementation-2026-11-05.md)维护匹配成本与定向验证，整帧净收益及整树门禁未完成 |
 | Large 研究宿主 | [独立应用验证](textflow-large-app-implementation-2026-11-03.md)、[有界富文本候选判断](bounded-rich-text-proposal-assessment-2026-11-03.md) |
 | quiet-md 工程样例 | [富文本编辑技术适用性分析](quiet-md-rich-text-assessment-2026-11-05.md)：固定源码的样式事务、行内对象、虚拟化、IME 与随机验证参考；性能为作者历史测量，采用建议未实施 |
 | 服务失败／Inspector | [ADR-057 与 S09 结论](service-failure-review-status.md)：A／B／C 完成，D 和整批待补验 |

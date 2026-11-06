@@ -73,6 +73,18 @@ Core 入口为
 统一输入证明传递与不可变 Flow 消费正在验证；
 完整 Flow 声明与整页复用尚未接入，基础测试不关闭整批 FR-02。
 
+FR-02 通用投影的[独立坐标消费者](consumers/figure-projection/README.md)验证共享
+模型、contribution 复用、非交换变换、失败查询原子性和原始错误传播。
+Core 输入／缓存入口为 `cargo test -p novadraw --lib figure::projection::tests`；
+外部入口为 `cargo test --manifest-path tests/consumers/figure-projection/Cargo.toml --locked --offline`。
+独立消费者还覆盖 Runtime 帧最终检查、共享输入通知与呈现恢复；
+实际范围见上述消费者说明，不证明移动净成本。
+混合 Headless 像素入口为
+`cargo test -p novadraw-backend-vello --test figure_projection_pixels -- --include-ignored --test-threads=1`，
+需 native GPU adapter；覆盖 shape／image／text、嵌套 pan、Freeform 与同链跨子树路由、
+未知 overflow 和失败／Skipped 后恢复。跨 viewport 链的拒绝反例不需 GPU。
+结果与平台限制见[混合像素记录](../doc/verification/reviews/figure-tree-projection-implementation-2026-11-05.md#混合-headless-像素与路由恢复)。
+
 Parley 上游接口入口为
 `cargo test -p novadraw --test p2_parley_public_api_contract`，
 覆盖复制后宽度重排与新建布局等价，以及构建上下文／字体 collection
