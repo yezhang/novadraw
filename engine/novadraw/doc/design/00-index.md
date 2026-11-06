@@ -19,6 +19,8 @@
 | [动画专题](animation/00-index.md) | 计划、触发、表现平面、领域集成 |
 | [Perfetto 观测](architecture/perfetto-observation.md) | Core SDK 埋点、Native 会话、trace 验证与采集边界 |
 | [Editor 架构](editor/00-index.md) | 模型、命令、投影、连接编辑及 IME |
+| [本地工作台](ui-workbench.md) | 独立 UI owner、停靠事务、GPU 版本及原生输入边界 |
+| [egui Editor Canvas](egui-editor-canvas.md) | 可复用画布、Editor 输入、会话及 eframe GPU 生命周期 |
 
 ## 核心设计
 

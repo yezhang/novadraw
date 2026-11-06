@@ -10,7 +10,7 @@ Rust 图形与编辑框架，Core 对标 Draw2D，Editor 对标 GEF。
 
 | 目录 | 内容 |
 |---|---|
-| `crates/` | Core、Editor、Inspector、Vello 后端、平台适配、独立 winit Canvas 与 richtext 扩展组件 |
+| `crates/` | Core、Editor、Inspector、Vello 后端、平台适配、独立 winit Canvas、richtext 与 UI 工作台组件 |
 | `crates/novadraw/examples/` | Core 示例与 Native/Web 共用的无平台场景 |
 | `crates/novadraw-editor/examples/` | Editor 示例，各应用保留独立 Cargo package |
 | `examples/` | 跨层集成示例、后端示例、共享宿主工具和全仓库样例导航 |
@@ -46,11 +46,16 @@ cargo xtask docs
 专项验证、外部消费者和性能采样说明见 [测试入口](tests/README.md)。
 脚本位于 `tools/scripts/`；临时输出写入 `target/`。
 
-在根目录执行 `cargo run -p gef-editor-demo` 可启动 Masonry/Xilem 编辑画布。
-UI 依赖固定的未修改上游 Git 提交，不需要本地 vendor；系统默认 Rust
-工具链须满足依赖的最低版本要求。
+在根目录执行 `cargo run -p gef-editor-demo` 可启动 egui 编辑画布。
+egui／eframe／winit 使用 crates.io 官方发布版，不使用定制分支。
+系统默认 Rust 工具链须满足依赖的最低版本要求。
 UI 包属于根 workspace，但不在 `default-members` 中；普通 `cargo build/test`
 保持原有范围，显式 `--workspace` 验证包含 UI 包。Core/Editor 不依赖 UI 包。
-接入见 [平台适配包](crates/novadraw-platform-masonry/README.md)，
-首批消费者见 [Shapes 编辑器](crates/novadraw-editor/examples/native/gef-editor-demo/README.md)；
-上游迁移、验证结果与剩余原生验收见 [迁移记录](doc/verification/reviews/masonry-upstream-migration-2026-10-28.md)。
+可选 Masonry/Xilem 宿主仍保留独立依赖，接入见
+[平台适配包](crates/novadraw-platform-masonry/README.md)；
+其历史迁移与原生验收记录见 [迁移记录](doc/verification/reviews/masonry-upstream-migration-2026-10-28.md)。
+
+本地 egui 工作台见 [novadraw-ui](crates/novadraw-ui/README.md)，运行
+`cargo run -p novadraw-workbench-app` 可验证停靠布局、原生浮窗和 Vello Canvas。
+共享 GPU 链路为官方 Vello 0.11／WGPU 30、egui 0.37 与 winit 0.30；
+工作台源码在仓库本地维护。

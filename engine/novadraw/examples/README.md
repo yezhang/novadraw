@@ -13,6 +13,7 @@
 | [`../crates/novadraw/examples/scenes/`](../crates/novadraw/examples/scenes/) | `novadraw-example-scenes`：Core Native/Web 共用的无平台场景 |
 | [`../crates/novadraw-editor/examples/native/`](../crates/novadraw-editor/examples/native/) | Editor 桌面示例 |
 | [`../crates/novadraw-richtext/examples/native/`](../crates/novadraw-richtext/examples/native/) | 独立富文本组件桌面示例 |
+| [`../crates/novadraw-ui/examples/native/`](../crates/novadraw-ui/examples/native/) | 独立工作台与停靠布局示例 |
 | [`integration/`](integration/) | 跨层集成：Web 验证与双 Canvas 宿主 |
 | [`backend/`](backend/) | 渲染后端示例 |
 | `support/` | `novadraw-example-support`：示例共享宿主与工具 |
@@ -54,6 +55,7 @@ example target，也不将 GUI 依赖加入 Core／Editor 的 `dev-dependencies`
 | Core／Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | 后端／Native | [`vello-app`](backend/vello-app/) | Vello 原始 API | `cargo run -p vello-app` |
 | 集成／Native | [`winit-canvas-demo`](integration/winit-canvas-demo/README.md) | 双 Canvas、后端与平台桥接 | `cargo run -p winit-canvas-demo` |
+| UI／Native | [`novadraw-workbench-app`](../crates/novadraw-ui/examples/native/workbench-app/README.md) | 本地停靠布局、原生浮窗与可复用 Editor Canvas | `cargo run -p novadraw-workbench-app` |
 | Richtext／Native | [`rich-text-figure-app`](../crates/novadraw-richtext/examples/native/rich-text-figure-app/README.md) | 静态类图与独立文档型富文本、自有滚动条 | `cargo run -p rich-text-figure-app` |
 | Richtext／Editor／Native | [`richtext-figure-edit-app`](../crates/novadraw-richtext/examples/native/richtext-figure-edit-app/README.md) | 统一会话、专用控制器、选区、composition、文档撤销与编辑成本回放 | `cargo run --release -p richtext-figure-edit-app` |
 | 集成／Web | [`web-validation`](integration/web-validation/README.md) | Core 共享场景与 Editor 浏览器验证 | `./tools/scripts/build_web_validation.sh` |

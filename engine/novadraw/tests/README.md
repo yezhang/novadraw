@@ -5,6 +5,16 @@ Novadraw 直接使用 Cargo 完成常规编译和测试。xtask 只保留项目�
 
 ## xtask
 
+独立 UI 工作台使用
+`cargo test -p novadraw-ui --features serde,native-windows,testing,editor-canvas`，
+覆盖停靠事务、原生窗口模拟、权限、IME 和外部面板消费者。
+迁移与 GPU 验证见
+[工作台记录](../doc/verification/reviews/ui-workbench-migration-2026-11-06.md)。
+Editor Canvas 的独立输入消费者使用
+`cargo test -p novadraw-workbench-app --bin novadraw-workbench-app`，
+验证图形输入、统一历史、文本会话与失败取消；Native 阻塞和平台限制见
+[Canvas 记录](../doc/verification/reviews/egui-editor-canvas-2026-11-06.md)。
+
 ```bash
 cargo xtask list
 cargo xtask docs

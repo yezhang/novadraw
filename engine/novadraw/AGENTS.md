@@ -197,6 +197,12 @@
   WGPU 实现窗口内 Canvas；不属于 backend-neutral Core。
   接入与验证入口见 `crates/winit-canvas/README.md`，Novadraw 离屏接入在
   `novadraw-backend-vello::texture`。
+- **本地工作台**：`novadraw-ui` 本地维护 craft-ui 的停靠布局、浮窗和工作台组件，
+  不依赖 craft crate；Core／Editor 不依赖 UI。共享 Vello／Canvas／egui 链路为
+  WGPU 30；egui 全族／eframe／winit 使用 crates.io 官方发布版，禁止其他项目定制分支
+  或 Git patch；样例与适配边界见 `crates/novadraw-ui/README.md`。
+  可选 `canvas`／`editor-canvas` 单向接入 Core、Vello 和 Editor，提供 egui／eframe
+  Canvas、输入、IME 及帧驱动；契约见 `doc/design/egui-editor-canvas.md`。
 - **Canvas 宿主桥接**：`novadraw-platform-winit` 的可选 `canvas` feature 提供
   `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`，按区域协调 Host 服务；
   原 `WinitPlatformHost` 保留整窗语义，接入见 `crates/novadraw-platform-winit/README.md`。

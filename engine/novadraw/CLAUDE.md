@@ -22,6 +22,7 @@ crates/novadraw-platform-web/    - Web 平台适配
 crates/novadraw-editor/          - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
 crates/novadraw-inspector/       - 只读诊断与观测
 crates/winit-canvas/             - 独立 winit Canvas UI 组件，不依赖 Novadraw/Vello
+crates/novadraw-ui/              - 本地 egui 工作台、停靠布局与浮窗；Core/Editor 不依赖此包
 crates/novadraw/examples/native/ - Core 桌面示例，保留独立 Cargo package
 crates/novadraw/examples/scenes/ - Core Native/Web 共用的无平台场景
 crates/novadraw-editor/examples/ - Editor 示例，保留独立 Cargo package
@@ -51,6 +52,13 @@ dependencies/                   - 第三方依赖与补丁退役说明，不属�
 Novadraw 渲染通过 `novadraw-backend-vello::texture` 在消费者侧接入，
 不得将 Novadraw 或 Vello 依赖加回 Canvas 库。契约与验证入口见
 `crates/winit-canvas/README.md`。
+`novadraw-ui` 本地维护 craft-ui 工作台源码，不依赖 craft crate；UI 允许公开 egui
+类型，Core／Editor 中立边界不变。Vello／Canvas／egui 的共享 GPU 链路使用 WGPU 30，
+egui 全族／eframe／winit 必须使用 crates.io 官方发布版，不引用其他项目的定制分支
+或 Git patch。官方接口适配和验收边界见 `crates/novadraw-ui/README.md`。
+可选 `canvas`／`editor-canvas` feature 单向接入 Core、Vello 和 Editor，提供共享
+eframe GPU 的 Canvas、输入、IME 及帧驱动；Core／Editor 不依赖 UI。
+默认停靠组件保持独立，接入契约见 `doc/design/egui-editor-canvas.md`。
 `novadraw-platform-winit` 的可选 `canvas` feature 单向依赖 `winit-canvas`，
 提供 `canvas::WinitCanvasHost` 与 `WinitCanvasCoordinator`。原 WinitPlatformHost
 保留整窗语义；子 Canvas 接入见 `crates/novadraw-platform-winit/README.md`。

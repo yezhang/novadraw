@@ -10,11 +10,17 @@ default = []
 serde = ["dep:serde"]
 native-windows = []
 testing = []
+canvas = ["dep:egui-wgpu", "dep:novadraw", "dep:novadraw-backend-vello"]
+editor-canvas = ["canvas", "dep:novadraw-editor"]
 
 [dependencies]
 egui = { version = "0.37", default-features = false }
 serde = { workspace = true, optional = true }
 uuid.workspace = true
+egui-wgpu = { version = "0.37", default-features = false, optional = true }
+novadraw = { path = "../novadraw", optional = true }
+novadraw-backend-vello = { path = "../novadraw-backend-vello", optional = true }
+novadraw-editor = { path = "../novadraw-editor", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

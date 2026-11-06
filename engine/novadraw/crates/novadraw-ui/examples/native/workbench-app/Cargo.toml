@@ -1,0 +1,17 @@
+[package]
+name = "novadraw-workbench-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+novadraw-ui = { path = "../../..", features = ["serde", "native-windows", "editor-canvas"] }
+novadraw = { path = "../../../../novadraw" }
+novadraw-editor = { path = "../../../../novadraw-editor" }
+gef-editor-demo = { path = "../../../../novadraw-editor/examples/native/gef-editor-demo" }
+eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland", "default_fonts"] }
+egui = "0.37"
+serde.workspace = true
+serde_json.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }

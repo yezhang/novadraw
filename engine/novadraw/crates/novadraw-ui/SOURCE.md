@@ -23,3 +23,7 @@ v1 JSON 夹具保持原内容。未迁入字体、国际化、印刷和屏幕快
 
 后续修复在本包实施；对比上游时以此提交为起点，逐项审核协议和测试变化，
 避免用上游最新代码覆盖本地修改。
+
+`canvas.rs`／`editor_canvas.rs` 是本项目新增的宿主适配，不来自 craft-ui。
+Composer 的有序输入接口用于同一条 Editor 会话链路，沿用原有 composition 状态机。
+边界见 [Canvas 契约](../../doc/design/egui-editor-canvas.md)。

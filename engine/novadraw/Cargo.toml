@@ -15,6 +15,7 @@ members = [
   "crates/novadraw-inspector",
   "crates/winit-canvas",
   "crates/novadraw-ui",
+  "crates/novadraw-ui/examples/native/workbench-app",
   "examples/support",
   "crates/novadraw/examples/scenes",
   "tools/xtask",

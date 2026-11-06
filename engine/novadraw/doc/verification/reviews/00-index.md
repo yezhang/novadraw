@@ -44,6 +44,8 @@
 | 语义整改 | [Draw2D／GEF 整改状态](draw2d-gef-semantic-remediation-2026-09-16.md)、[Core 公开 API 审计](core-public-api-audit-2026-09-22.md) |
 | 长期架构 | [目标／设计／实现审计](goal-design-code-audit-2026-09-30.md)、[架构契约修订](framework-architecture-contract-revision-2026-10-12.md)、[API／架构审计](api-architecture-review-2026-10-09.md) |
 | Flow／图布局文档 | [证据导航](flow-and-graph-design-evidence-2026-11-04.md)：完成事实、实施前缺口与当前合同分别阅读 |
+| UI 与共享 GPU | [官方 crate 切换](ui-official-crates-2026-11-06.md)：egui 全族／winit 官方发布版、本地协议适配与验收；[首轮迁移基线](ui-workbench-migration-2026-11-06.md)保留历史结果 |
+| egui Editor Canvas | [组件与输入验证](egui-editor-canvas-2026-11-06.md)：可复用 GPU Canvas、统一 Editor 会话及工作台消费者；定向测试通过，六图形 Native 受 Core 投影预算阻塞 |
 
 ## 历史追溯
 
