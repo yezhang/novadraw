@@ -264,6 +264,19 @@ pub trait EditController: Clone + 'static {
 pub trait EditSessionPlan<A: ModelAdapter, C: EditController>: 'static {
     /// Builds domain feedback through the ordinary Figure publication path.
     fn feedback(&mut self, controller: &C, model: &A) -> Result<DirectTextFeedback, PolicyError>;
+    /// Proves all domain feedback is unchanged between the two controllers.
+    ///
+    /// On `true`, geometry reads the existing target without mutation and only
+    /// Viewer decorations are replaced. Include every content/style/layout
+    /// dependency in this proof. Transform synchronization always rebuilds.
+    fn reuse_feedback(
+        &mut self,
+        _previous: &C,
+        _candidate: &C,
+        _model: &A,
+    ) -> Result<bool, PolicyError> {
+        Ok(false)
+    }
     /// Checks acceptance before releasing input and feedback.
     fn validate(&mut self, _controller: &C, _model: &A) -> Result<(), PolicyError> {
         Ok(())
@@ -343,6 +356,12 @@ impl<C: EditController> StoredController for C {
 }
 
 pub(crate) trait StoredPlan<A: ModelAdapter> {
+    fn reuse_feedback(
+        &mut self,
+        previous: &EditSessionState,
+        candidate: &EditSessionState,
+        model: &A,
+    ) -> Result<bool, PolicyError>;
     fn feedback(
         &mut self,
         state: &EditSessionState,
@@ -362,6 +381,22 @@ struct TypedPlan<C: EditController, P> {
 impl<A: ModelAdapter, C: EditController, P: EditSessionPlan<A, C>> StoredPlan<A>
     for TypedPlan<C, P>
 {
+    fn reuse_feedback(
+        &mut self,
+        previous: &EditSessionState,
+        candidate: &EditSessionState,
+        model: &A,
+    ) -> Result<bool, PolicyError> {
+        self.plan.reuse_feedback(
+            previous
+                .controller(self.key)
+                .ok_or_else(|| PolicyError::operation("controller identity mismatch"))?,
+            candidate
+                .controller(self.key)
+                .ok_or_else(|| PolicyError::operation("controller identity mismatch"))?,
+            model,
+        )
+    }
     fn feedback(&mut self, s: &EditSessionState, a: &A) -> Result<DirectTextFeedback, PolicyError> {
         self.plan.feedback(
             s.controller(self.key)

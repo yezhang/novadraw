@@ -751,7 +751,7 @@ fn layer_visibility_and_lock_are_undoable_and_gate_canvas_editing() {
     command(&mut session, &mut app, UiCommand::ToggleVisibility(FIRST));
     assert!(!session.viewer.model().presentation(FIRST).visible);
     assert!(matches!(
-        session.viewer.target_at(90.0, 100.0),
+        session.viewer.target_at(90.0, 100.0).unwrap(),
         novadraw_editor::ViewerTarget::Contents(_)
     ));
     command(&mut session, &mut app, UiCommand::Undo);

@@ -10,7 +10,7 @@ use std::{
 use novadraw::figure::{
     Alignment, FlowPage, FlowTextPosition, FlowTextRange, FlowWrapping, RootFigure, TextFlowFigure,
 };
-use novadraw::render::{BuiltinFont, TextAffinity, command::RenderCommandKind};
+use novadraw::render::{BuiltinFont, DamageMode, TextAffinity, command::RenderCommandKind};
 use novadraw::text::TextMovement;
 use novadraw::{
     figure::Figure, figure::FigureStyle, figure::RectangleFigure, geometry::Rectangle,
@@ -479,14 +479,16 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         assert!(bounds.y + bounds.height <= 160.0);
     }
     let frame = prepare_next_submission(&mut viewer).unwrap();
-    let damage = frame
-        .damage
-        .union()
-        .expect("selection replacement must damage the edit viewport");
-    assert!(damage.x >= 40.0);
-    assert!(damage.x + damage.width <= 280.0);
-    assert!(damage.y >= 40.0);
-    assert!(damage.y + damage.height <= 160.0);
+    if let Some(damage) = frame.damage.union() {
+        assert!(damage.x >= 40.0);
+        assert!(damage.x + damage.width <= 280.0);
+        assert!(damage.y >= 40.0);
+        assert!(damage.y + damage.height <= 160.0);
+    } else {
+        // Retiring an external text projection has no complete old ink
+        // envelope; Core conservatively repairs the full surface.
+        assert_eq!(frame.damage.mode(), DamageMode::Full);
+    }
     let before_scale = viewer.direct_text_caret_geometry().unwrap().bounds();
     assert!(viewer.set_viewport_scale_at(1.25, None).unwrap());
     assert!(viewer.synchronize_direct_text_input_area().unwrap());
@@ -544,14 +546,15 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     assert!(caret.y >= new_bounds.y);
     assert!(caret.y <= new_bounds.y + new_bounds.height);
 
-    let damage = prepare_next_submission(&mut viewer)
-        .unwrap()
-        .damage
-        .union()
-        .unwrap();
-    for bounds in [old_bounds, new_bounds] {
-        assert!(damage.contains(bounds.top_left()));
-        assert!(damage.contains(bounds.bottom_right()));
+    let frame = prepare_next_submission(&mut viewer).unwrap();
+    if let Some(damage) = frame.damage.union() {
+        for bounds in [old_bounds, new_bounds] {
+            assert!(damage.contains(bounds.top_left()));
+            assert!(damage.contains(bounds.bottom_right()));
+        }
+    } else {
+        // Full repairs both locations when old projection coverage is unknown.
+        assert_eq!(frame.damage.mode(), DamageMode::Full);
     }
 }
 

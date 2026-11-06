@@ -89,6 +89,26 @@ const DIRECT_TEXT_PREEDIT_THICKNESS: f64 = 1.5;
 const DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS: u64 = 530_000;
 const DIRECT_TEXT_REVEAL_MARGIN: f64 = 2.0;
 
+fn direct_text_area(geometry: &crate::EditGeometry) -> Rectangle {
+    let bounds = geometry.caret.bounds();
+    let viewport = geometry.viewport;
+    Rectangle::new(
+        bounds.x,
+        bounds.y,
+        bounds.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+        bounds.height,
+    )
+    .intersection(viewport)
+    .unwrap_or_else(|| {
+        Rectangle::new(
+            viewport.x,
+            viewport.y,
+            DIRECT_TEXT_CARET_MINIMUM_WIDTH.min(viewport.width),
+            viewport.height,
+        )
+    })
+}
+
 pub(crate) fn reveal_horizontal_caret(
     previous: f64,
     natural_caret: Rectangle,
@@ -238,7 +258,7 @@ where
         if update_selection {
             self.dispatch_mouse_pressed(location.x(), location.y(), button, modifiers)
         } else {
-            Ok(self.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button))
+            self.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button)
         }
     }
 
@@ -250,7 +270,7 @@ where
         self.dispatch_mouse_released(location.x(), location.y(), button)
     }
 
-    fn target_at(&self, location: Point) -> ViewerTarget {
+    fn target_at(&self, location: Point) -> Result<ViewerTarget, ViewerError> {
         self.target_at(location.x(), location.y())
     }
 
@@ -379,6 +399,7 @@ type FeedbackInstallInput = (
 
 struct AttachedDirectTextFeedback {
     figures: Vec<FigureId>,
+    domain_feedback_count: usize,
     text_feedback: FigureId,
     caret_feedback: Option<FigureId>,
     area: Rectangle,
@@ -522,8 +543,8 @@ pub struct ViewerInputOutcome {
 
 impl ViewerInputOutcome {
     /// Returns the underlying Figure dispatch result.
-    pub const fn dispatch(&self) -> DispatchOutcome {
-        self.dispatch
+    pub const fn dispatch(&self) -> &DispatchOutcome {
+        &self.dispatch
     }
 
     /// Returns the Editor target resolved at the entry point.
@@ -2243,40 +2264,41 @@ where
     }
 
     /// Resolves a surface point with handle priority and contents fallback.
-    pub fn target_at(&self, x: f64, y: f64) -> ViewerTarget {
+    pub fn target_at(&self, x: f64, y: f64) -> Result<ViewerTarget, ViewerError> {
         let mut excluded = Vec::new();
         loop {
             let Some((figure, _)) = self
                 .runtime
                 .tree()
                 .hit_test_excluding((x, y), excluded.iter().copied())
+                .map_err(ViewerError::Coordinate)?
             else {
-                return ViewerTarget::Contents(self.contents());
+                return Ok(ViewerTarget::Contents(self.contents()));
             };
             match self.visual_owner_or_ancestor(figure) {
                 Some((_, owner)) if owner.handle_parts().is_some() => {
                     let (id, owner, action) = owner
                         .handle_parts()
                         .expect("matched handle owner must expose handle parts");
-                    return ViewerTarget::Handle {
+                    return Ok(ViewerTarget::Handle {
                         id,
                         owner,
                         action: action.clone(),
-                    };
+                    });
                 }
                 Some((_, owner)) if owner.is_part() => {
                     let part = owner
                         .owner_part()
                         .expect("part owner must expose its EditPart");
                     if part != self.root() && part != self.contents() {
-                        return ViewerTarget::Part(part);
+                        return Ok(ViewerTarget::Part(part));
                     }
-                    return ViewerTarget::Contents(self.contents());
+                    return Ok(ViewerTarget::Contents(self.contents()));
                 }
                 Some((owner_figure, _)) => {
                     excluded.push(owner_figure);
                 }
-                None => return ViewerTarget::Contents(self.contents()),
+                None => return Ok(ViewerTarget::Contents(self.contents())),
             }
         }
     }
@@ -2291,7 +2313,10 @@ where
     ) -> Result<ViewerInputOutcome, ViewerError> {
         self.ensure_ready()?;
         let dispatch = self.runtime.input().dispatch_mouse_pressed(x, y, button);
-        let target = self.target_at(x, y);
+        if let Some(error) = dispatch.error() {
+            return Err(ViewerError::Coordinate(error.clone()));
+        }
+        let target = self.target_at(x, y)?;
         let selection = if dispatch.is_handled() || button != MouseButton::Left {
             None
         } else {
@@ -2331,19 +2356,17 @@ where
         x: f64,
         y: f64,
         button: MouseButton,
-    ) -> ViewerInputOutcome {
-        if self.ensure_ready().is_err() {
-            return ViewerInputOutcome {
-                dispatch: DispatchOutcome::default(),
-                target: ViewerTarget::Contents(self.contents()),
-                selection: None,
-            };
+    ) -> Result<ViewerInputOutcome, ViewerError> {
+        self.ensure_ready()?;
+        let dispatch = self.runtime.input().dispatch_mouse_pressed(x, y, button);
+        if let Some(error) = dispatch.error() {
+            return Err(ViewerError::Coordinate(error.clone()));
         }
-        ViewerInputOutcome {
-            dispatch: self.runtime.input().dispatch_mouse_pressed(x, y, button),
-            target: self.target_at(x, y),
+        Ok(ViewerInputOutcome {
+            dispatch,
+            target: self.target_at(x, y)?,
             selection: None,
-        }
+        })
     }
 
     /// Dispatches pointer movement while preserving any Figure-owned capture.
@@ -2742,6 +2765,7 @@ where
             state,
             plan,
             feedback: Vec::new(),
+            domain_feedback_count: 0,
             text_feedback: self.root_layers.root(),
             caret_feedback: None,
             caret_visible: false,
@@ -2752,6 +2776,7 @@ where
             .map_err(|error| error.at_operation("direct_text.feedback"))?;
         let attached = self.attach_direct_text_feedback(source, &mut active.state, projection)?;
         active.feedback = attached.figures;
+        active.domain_feedback_count = attached.domain_feedback_count;
         active.text_feedback = attached.text_feedback;
         active.caret_feedback = attached.caret_feedback;
         active.caret_visible = attached.caret_feedback.is_some();
@@ -3010,6 +3035,7 @@ where
             return Err(error);
         }
         active.feedback = attached.figures;
+        active.domain_feedback_count = attached.domain_feedback_count;
         active.state = state;
         active.text_feedback = attached.text_feedback;
         active.caret_feedback = attached.caret_feedback;
@@ -3166,6 +3192,7 @@ where
             projection,
         )?;
         prepared.active.feedback = attached.figures;
+        prepared.active.domain_feedback_count = attached.domain_feedback_count;
         prepared.active.text_feedback = attached.text_feedback;
         prepared.active.caret_feedback = attached.caret_feedback;
         prepared.active.caret_visible = attached.caret_feedback.is_some();
@@ -3200,6 +3227,81 @@ where
             .as_mut()
             .ok_or(DirectTextEditError::NoActiveSession)?;
         let mut state = state;
+        if active
+            .plan
+            .reuse_feedback(&active.state, &state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.reuse_feedback"))?
+        {
+            let target = active.text_feedback;
+            let domain = active.feedback[..active.domain_feedback_count].to_vec();
+            let old_decorations = active.feedback[active.domain_feedback_count..].to_vec();
+            let geometry = state.geometry(&mut crate::EditGeometryContext {
+                runtime: &mut self.runtime,
+                target,
+                writable: false,
+            })?;
+            geometry.validate()?;
+            // The Viewer publishes prepared geometry, never a candidate callback.
+            // Keeping the ordinary caret node also keeps Core's old projection
+            // coverage available instead of triggering removal's Full safeguard.
+            if geometry.selection.is_empty()
+                && geometry.preedit.is_empty()
+                && geometry.caret_visible
+                && old_decorations.len() == 1
+                && self
+                    .direct_text_edit
+                    .as_ref()
+                    .and_then(|a| a.caret_feedback)
+                    == Some(old_decorations[0])
+            {
+                let caret = old_decorations[0];
+                let area = direct_text_area(&geometry);
+                let bounds = Rectangle::new(
+                    area.x,
+                    area.y,
+                    area.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+                    area.height,
+                );
+                let old_bounds = self.runtime.tree().figure_bounds(caret)?;
+                self.runtime.figure(caret)?.set_bounds(bounds)?;
+                if let Err(error) = self.runtime.figure(caret)?.set_visible(true) {
+                    self.runtime
+                        .figure(caret)?
+                        .set_bounds(old_bounds)
+                        .map_err(|_| ViewerError::InconsistentState)?;
+                    return Err(error.into());
+                }
+                let active = self.direct_text_edit.as_mut().expect("registered session");
+                active.state = state;
+                active.caret_visible = true;
+                self.text_input_effects.push(TextInputEffect::SetArea {
+                    session: active.state.session(),
+                    area,
+                });
+                self.reset_direct_text_blink();
+                return Ok(());
+            }
+            let mut attached =
+                self.attach_direct_text_geometry(state.source(), target, Vec::new(), geometry)?;
+            if let Err(error) = self.remove_direct_text_feedback(&old_decorations) {
+                let _ = self.remove_direct_text_feedback(&attached.figures);
+                return Err(error);
+            }
+            attached.domain_feedback_count = domain.len();
+            let mut figures = domain;
+            figures.append(&mut attached.figures);
+            let active = self.direct_text_edit.as_mut().expect("registered session");
+            active.feedback = figures;
+            active.state = state;
+            active.caret_feedback = attached.caret_feedback;
+            active.caret_visible = attached.caret_feedback.is_some();
+            self.text_input_effects.push(TextInputEffect::SetArea {
+                session: active.state.session(),
+                area: attached.area,
+            });
+            self.reset_direct_text_blink();
+            return Ok(());
+        }
         let projection = active
             .plan
             .feedback(&state, &self.model)
@@ -3215,6 +3317,7 @@ where
             return Err(error);
         }
         active.feedback = attached.figures;
+        active.domain_feedback_count = attached.domain_feedback_count;
         active.state = state;
         active.text_feedback = attached.text_feedback;
         active.caret_feedback = attached.caret_feedback;
@@ -3235,7 +3338,7 @@ where
         feedback: DirectTextFeedback,
     ) -> Result<AttachedDirectTextFeedback, ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
-        let mut figures = self.add_feedback_batch(
+        let figures = self.add_feedback_batch(
             visuals
                 .into_iter()
                 .map(|visual| (Some(owner), visual))
@@ -3265,23 +3368,19 @@ where
                 resume_unwind(panic);
             }
         };
+        self.attach_direct_text_geometry(owner, text_feedback, figures, geometry)
+    }
+
+    fn attach_direct_text_geometry(
+        &mut self,
+        owner: EditPartId,
+        text_feedback: FigureId,
+        mut figures: Vec<FigureId>,
+        geometry: crate::EditGeometry,
+    ) -> Result<AttachedDirectTextFeedback, ViewerError> {
+        let domain_feedback_count = figures.len();
         let edit_viewport = geometry.viewport;
-        let bounds = geometry.caret.bounds();
-        let area = Rectangle::new(
-            bounds.x,
-            bounds.y,
-            bounds.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
-            bounds.height,
-        )
-        .intersection(edit_viewport)
-        .unwrap_or_else(|| {
-            Rectangle::new(
-                edit_viewport.x,
-                edit_viewport.y,
-                DIRECT_TEXT_CARET_MINIMUM_WIDTH.min(edit_viewport.width),
-                edit_viewport.height,
-            )
-        });
+        let area = direct_text_area(&geometry);
         let selection = geometry.selection;
         let preedit = geometry.preedit;
 
@@ -3344,6 +3443,7 @@ where
         };
         Ok(AttachedDirectTextFeedback {
             figures,
+            domain_feedback_count,
             text_feedback,
             caret_feedback,
             area,

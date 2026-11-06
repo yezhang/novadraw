@@ -716,7 +716,7 @@ fn selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup() {
         Rectangle::new(90.0, 95.0, 100.0, 80.0)
     );
     assert!(matches!(
-        viewer.target_at(110.0, 115.0),
+        viewer.target_at(110.0, 115.0).unwrap(),
         novadraw_editor::ViewerTarget::Part(_)
     ));
 }

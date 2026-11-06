@@ -101,7 +101,7 @@ fn command_error_preserves_model(error: &CommandStackError) -> bool {
 }
 
 /// Pointer release result after optional command execution.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct DomainPointerRelease {
     dispatch: DispatchOutcome,
     command_executed: bool,
@@ -109,12 +109,12 @@ pub struct DomainPointerRelease {
 
 impl DomainPointerRelease {
     /// Returns Figure dispatch state after release.
-    pub const fn dispatch(self) -> DispatchOutcome {
-        self.dispatch
+    pub const fn dispatch(&self) -> &DispatchOutcome {
+        &self.dispatch
     }
 
     /// Returns whether release committed a model Command.
-    pub const fn command_executed(self) -> bool {
+    pub const fn command_executed(&self) -> bool {
         self.command_executed
     }
 }
@@ -774,7 +774,7 @@ where
         self.autoexpose_requested = false;
         if viewer.edit_session().is_some() {
             let targets_handle = matches!(
-                viewer.target_at(location.x(), location.y()),
+                viewer.target_at(location.x(), location.y())?,
                 ViewerTarget::Handle { .. }
             );
             if button == MouseButton::Left
@@ -787,7 +787,7 @@ where
                     location.x(),
                     location.y(),
                     button,
-                ));
+                )?);
             }
             self.direct_text_focus_lost(viewer)?;
             if viewer.edit_session().is_some() {
@@ -795,7 +795,7 @@ where
                     location.x(),
                     location.y(),
                     button,
-                ));
+                )?);
             }
         }
         if self.active_tool.accepts_handle_activation() {
@@ -803,7 +803,7 @@ where
                 self.cancel_active_tools(viewer)?;
             }
             if let ViewerTarget::Handle { owner, action, .. } =
-                viewer.target_at(location.x(), location.y())
+                viewer.target_at(location.x(), location.y())?
                 && let Some(factory) = self.handle_tools.remove(&action.type_id())
             {
                 let created = catch_unwind(AssertUnwindSafe(|| {

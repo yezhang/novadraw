@@ -73,6 +73,7 @@ impl<A: ModelAdapter, F: EditPartFactory<A>> GraphicalViewer<A, F> {
                 .runtime
                 .tree()
                 .hit_test_excluding((location.x(), location.y()), excluded.iter().copied())
+                .map_err(ViewerError::Coordinate)?
             else {
                 return Ok(self.contents());
             };

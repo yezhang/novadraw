@@ -25,6 +25,11 @@ enum Fault {
     GeometryPanic,
     InvalidGeometry,
     PlanReject,
+    Reuse,
+    ReuseReject,
+    ReuseGeometryReject,
+    ReuseGeometryWrites,
+    ReuseGeometryPanic,
 }
 struct Model {
     value: i32,
@@ -98,16 +103,20 @@ impl EditController for Counter {
     }
     fn select_at(
         &mut self,
-        _: Point,
+        point: Point,
         _: bool,
         _: &mut EditGeometryContext<'_>,
     ) -> Result<(), ViewerError> {
+        self.value = point.x() as i32;
         Ok(())
     }
     fn geometry(&mut self, c: &mut EditGeometryContext<'_>) -> Result<EditGeometry, ViewerError> {
         match self.fault.get() {
-            Fault::GeometryReject => return Err(PolicyError::operation("geometry rejected").into()),
-            Fault::GeometryPanic => panic!("external geometry panic"),
+            Fault::GeometryReject | Fault::ReuseGeometryReject => {
+                return Err(PolicyError::operation("geometry rejected").into());
+            }
+            Fault::GeometryPanic | Fault::ReuseGeometryPanic => panic!("external geometry panic"),
+            Fault::ReuseGeometryWrites => c.set_bounds(Rectangle::new(0.0, 0.0, 1.0, 1.0))?,
             _ => {}
         }
         let mut bounds = c.viewport()?;
@@ -115,7 +124,10 @@ impl EditController for Counter {
             bounds.x = f64::NAN;
         }
         Ok(EditGeometry {
-            caret: CaretGeometry::new(Rectangle::new(bounds.x, bounds.y, 2.0, 20.0), 0),
+            caret: CaretGeometry::new(
+                Rectangle::new(bounds.x + f64::from(self.value), bounds.y, 2.0, 20.0),
+                0,
+            ),
             viewport: bounds,
             selection: vec![],
             preedit: vec![],
@@ -144,6 +156,23 @@ impl EditController for Counter {
 }
 struct Plan;
 impl EditSessionPlan<Model, Counter> for Plan {
+    fn reuse_feedback(
+        &mut self,
+        _: &Counter,
+        candidate: &Counter,
+        _: &Model,
+    ) -> Result<bool, PolicyError> {
+        if matches!(candidate.fault.get(), Fault::ReuseReject) {
+            return Err(PolicyError::operation("reuse proof rejected"));
+        }
+        Ok(matches!(
+            candidate.fault.get(),
+            Fault::Reuse
+                | Fault::ReuseGeometryReject
+                | Fault::ReuseGeometryWrites
+                | Fault::ReuseGeometryPanic
+        ))
+    }
     fn feedback(&mut self, state: &Counter, _: &Model) -> Result<DirectTextFeedback, PolicyError> {
         if matches!(state.fault.get(), Fault::PlanReject) {
             return Err(PolicyError::operation("feedback rejected"));
@@ -361,6 +390,138 @@ fn candidate_input_feedback_and_geometry_rejections_preserve_session() {
         );
         assert!(v.take_text_input_effects().is_empty());
     }
+}
+
+#[test]
+fn external_feedback_reuse_preserves_body_and_publishes_new_caret() {
+    let (mut v, mut d, control, _) = setup();
+    start(&mut v, &mut d);
+    let body = v
+        .runtime()
+        .tree()
+        .child_order(v.root_layers().scaled_feedback())
+        .unwrap()
+        .to_vec();
+    let decorations = v
+        .runtime()
+        .tree()
+        .child_order(v.root_layers().feedback())
+        .unwrap()
+        .to_vec();
+    control.set(Fault::Reuse);
+    d.pointer_pressed(
+        &mut v,
+        Point::new(50.0, 30.0),
+        novadraw::event::MouseButton::Left,
+        Default::default(),
+    )
+    .unwrap();
+    d.pointer_released(
+        &mut v,
+        Point::new(50.0, 30.0),
+        novadraw::event::MouseButton::Left,
+    )
+    .unwrap();
+    assert_eq!(
+        body,
+        v.runtime()
+            .tree()
+            .child_order(v.root_layers().scaled_feedback())
+            .unwrap()
+    );
+    assert_eq!(value(&v), 50);
+    assert_eq!(
+        decorations,
+        v.runtime()
+            .tree()
+            .child_order(v.root_layers().feedback())
+            .unwrap()
+    );
+    assert_eq!(v.direct_text_caret_geometry().unwrap().bounds().x, 70.0);
+}
+
+#[test]
+fn reuse_proof_and_read_only_geometry_failures_preserve_published_feedback() {
+    for fault in [
+        Fault::ReuseReject,
+        Fault::ReuseGeometryReject,
+        Fault::ReuseGeometryWrites,
+    ] {
+        let (mut v, mut d, control, _) = setup();
+        let session = start(&mut v, &mut d);
+        v.take_text_input_effects();
+        let body = v
+            .runtime()
+            .tree()
+            .child_order(v.root_layers().scaled_feedback())
+            .unwrap()
+            .to_vec();
+        let decorations = v
+            .runtime()
+            .tree()
+            .child_order(v.root_layers().feedback())
+            .unwrap()
+            .to_vec();
+        control.set(fault);
+        assert!(
+            d.pointer_pressed(
+                &mut v,
+                Point::new(50.0, 30.0),
+                novadraw::event::MouseButton::Left,
+                Default::default()
+            )
+            .is_err()
+        );
+        assert_eq!(value(&v), 10);
+        assert_eq!(v.edit_session().unwrap().session(), session);
+        assert!(!v.is_faulted());
+        assert_eq!(
+            body,
+            v.runtime()
+                .tree()
+                .child_order(v.root_layers().scaled_feedback())
+                .unwrap()
+        );
+        assert_eq!(
+            decorations,
+            v.runtime()
+                .tree()
+                .child_order(v.root_layers().feedback())
+                .unwrap()
+        );
+        assert!(v.take_text_input_effects().is_empty());
+    }
+}
+
+#[test]
+fn reused_geometry_panic_cleans_body_and_releases_lease() {
+    let (mut v, mut d, control, _) = setup();
+    let session = start(&mut v, &mut d);
+    v.take_text_input_effects();
+    control.set(Fault::ReuseGeometryPanic);
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| d.pointer_pressed(
+            &mut v,
+            Point::new(50.0, 30.0),
+            novadraw::event::MouseButton::Left,
+            Default::default()
+        )))
+        .is_err()
+    );
+    assert!(v.is_faulted());
+    assert!(v.edit_session().is_none());
+    assert!(
+        v.runtime()
+            .tree()
+            .child_order(v.root_layers().scaled_feedback())
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        v.take_text_input_effects()
+            .iter()
+            .any(|e| matches!(e, TextInputEffect::Release { session: s } if *s == session))
+    );
 }
 #[test]
 fn snapshot_panic_uses_viewer_fault_boundary() {

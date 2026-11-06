@@ -166,13 +166,19 @@ fn viewport_scroll_changes_targeting_through_the_shared_transform_chain() {
     let first = viewer.part_for_model(NodeId(2)).unwrap();
     let second = viewer.part_for_model(NodeId(3)).unwrap();
 
-    assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(first));
+    assert_eq!(
+        viewer.target_at(50.0, 40.0).unwrap(),
+        ViewerTarget::Part(first)
+    );
     assert!(
         viewer
             .set_viewport_origin(novadraw::geometry::Point::new(100.0, 0.0))
             .unwrap()
     );
-    assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(second));
+    assert_eq!(
+        viewer.target_at(50.0, 40.0).unwrap(),
+        ViewerTarget::Part(second)
+    );
 }
 
 #[test]
@@ -267,7 +273,10 @@ fn handles_win_targeting_and_feedback_is_transparent() {
         )
         .unwrap();
 
-    assert_eq!(viewer.target_at(30.0, 30.0), ViewerTarget::Part(owner));
+    assert_eq!(
+        viewer.target_at(30.0, 30.0).unwrap(),
+        ViewerTarget::Part(owner)
+    );
 
     let (handle, _) = viewer
         .add_handle_visual(
@@ -279,7 +288,7 @@ fn handles_win_targeting_and_feedback_is_transparent() {
         id,
         owner: target_owner,
         action,
-    } = viewer.target_at(30.0, 30.0)
+    } = viewer.target_at(30.0, 30.0).unwrap()
     else {
         panic!("expected handle target");
     };

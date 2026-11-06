@@ -207,7 +207,7 @@ pub(crate) trait ToolHost<A: ModelAdapter> {
     ) -> Result<ViewerInputOutcome, ViewerError>;
     fn dispatch_moved(&mut self, location: Point) -> DispatchOutcome;
     fn dispatch_released(&mut self, location: Point, button: MouseButton) -> DispatchOutcome;
-    fn target_at(&self, location: Point) -> ViewerTarget;
+    fn target_at(&self, location: Point) -> Result<ViewerTarget, ViewerError>;
     fn selection(&self) -> &[EditPartId];
     fn contents(&self) -> EditPartId;
     fn parts_enclosed_by(&self, bounds: novadraw::geometry::Rectangle) -> Vec<EditPartId>;
@@ -540,8 +540,8 @@ impl<'a, A: ModelAdapter + 'static> ToolContext<'a, A> {
     }
 
     /// Resolves the topmost Editor target at a surface point.
-    pub fn target_at(&self, location: Point) -> ViewerTarget {
-        self.host.target_at(location)
+    pub fn target_at(&self, location: Point) -> Result<ViewerTarget, ToolError> {
+        Ok(self.host.target_at(location)?)
     }
 
     /// Returns the current ordered Viewer selection.
@@ -1375,7 +1375,7 @@ impl<A: ModelAdapter + 'static> Tool<A> for ConnectionEndpointTool<A> {
         if event.button() == MouseButton::Left
             && (event.location() - gesture.start).length() >= DRAG_START_DISTANCE
         {
-            let candidate = match context.target_at(event.location()) {
+            let candidate = match context.target_at(event.location())? {
                 ViewerTarget::Part(part) => Some(part),
                 ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
             };
@@ -1417,7 +1417,7 @@ impl<A: ModelAdapter + 'static> Tool<A> for ConnectionEndpointTool<A> {
             return Ok(());
         }
         gesture.drag_started = true;
-        let candidate = match context.target_at(location) {
+        let candidate = match context.target_at(location)? {
             ViewerTarget::Part(part) => Some(part),
             ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
         };
@@ -1554,7 +1554,7 @@ impl<A: ModelAdapter + 'static> Tool<A> for ConnectionCreationTool<A> {
         let Some(gesture) = &mut self.gesture else {
             return Ok(());
         };
-        let target = match context.target_at(location) {
+        let target = match context.target_at(location)? {
             ViewerTarget::Part(part) => Some(part),
             ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
         };

@@ -550,6 +550,16 @@ pub trait DirectTextEdit<A: ModelAdapter> {
         model: &A,
     ) -> Result<DirectTextFeedback, PolicyError>;
 
+    /// Proves that the domain feedback can be queried without changing it.
+    fn reuse_feedback(
+        &mut self,
+        _previous: &DirectTextEditState,
+        _candidate: &DirectTextEditState,
+        _model: &A,
+    ) -> Result<bool, PolicyError> {
+        Ok(false)
+    }
+
     /// Validates the final draft before stable feedback is removed.
     fn validate(&mut self, _state: &DirectTextEditState, _model: &A) -> Result<(), PolicyError> {
         Ok(())
@@ -567,6 +577,7 @@ pub(crate) struct ActiveDirectTextEdit<A: ModelAdapter> {
     pub(crate) state: crate::EditSessionState,
     pub(crate) plan: Box<dyn crate::edit_session::StoredPlan<A>>,
     pub(crate) feedback: Vec<FigureId>,
+    pub(crate) domain_feedback_count: usize,
     pub(crate) text_feedback: FigureId,
     pub(crate) caret_feedback: Option<FigureId>,
     pub(crate) caret_visible: bool,
@@ -577,6 +588,14 @@ pub(crate) struct PlainTextPlan<A: ModelAdapter>(pub(crate) Box<dyn DirectTextEd
 impl<A: ModelAdapter + 'static> crate::EditSessionPlan<A, DirectTextEditState>
     for PlainTextPlan<A>
 {
+    fn reuse_feedback(
+        &mut self,
+        previous: &DirectTextEditState,
+        candidate: &DirectTextEditState,
+        model: &A,
+    ) -> Result<bool, PolicyError> {
+        self.0.reuse_feedback(previous, candidate, model)
+    }
     fn feedback(
         &mut self,
         state: &DirectTextEditState,

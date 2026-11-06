@@ -226,7 +226,7 @@ impl<A: ModelAdapter + 'static, P: ContainerMoveProtocol<A>> Tool<A> for Contain
     ) -> Result<(ToolDirective, ViewerInputOutcome), ToolError> {
         self.cancel(ctx)?;
         ctx.synchronize_model()?;
-        let target = ctx.target_at(event.location());
+        let target = ctx.target_at(event.location())?;
         let pressed = match target {
             ViewerTarget::Part(part) => Some(part),
             _ => None,

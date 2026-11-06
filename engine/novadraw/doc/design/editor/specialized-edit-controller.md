@@ -76,6 +76,11 @@ Release effect。直接丢弃 Rust 对象会释放领域资产，但不能替宿
 只修改文本选区；落在其他对象或 handle 上先按 focus-loss 结束会话。
 切换遇到可恢复拒绝时保留旧会话，新的 Tool 和 controller 不激活。
 
+正文贡献未变时，Plan 可以通过 `reuse_feedback` 证明整组领域反馈等价。
+Viewer 以只读 geometry 准备候选装饰，保留正文节点；无选区和 preedit 时也保留
+已有 caret 节点并在发布阶段更新 bounds。详细失败语义和段落布局复用条件见
+[增量协议](richtext-incremental-feedback.md)。布局及变换同步仍重建候选反馈。
+
 ## 成本与验收
 
 分别测 controller mutation、草稿准备、会话反馈、accept、模型投影与 backend。
