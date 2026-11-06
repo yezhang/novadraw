@@ -32,16 +32,23 @@ pub const RICH_TEXT_DOCUMENT: PropertyKey<DocumentVersion> =
 pub struct RichTextContentFigure {
     document: RichTextDocumentSnapshot,
     cache: crate::cache::SnapshotCache,
+    bounds: Rectangle,
 }
 impl RichTextContentFigure {
     pub fn new(document: RichTextDocumentSnapshot) -> Self {
         Self {
             document,
             cache: Default::default(),
+            bounds: Rectangle::ZERO,
         }
     }
     pub fn document(&self) -> &RichTextDocumentSnapshot {
         &self.document
+    }
+    /// Sets detached scene bounds; attached changes use Runtime mutation.
+    pub fn with_bounds(mut self, bounds: Rectangle) -> Self {
+        self.bounds = bounds;
+        self
     }
     fn presentation(
         snapshot: Arc<RichTextLayoutSnapshot>,
@@ -58,7 +65,7 @@ impl RichTextContentFigure {
 }
 impl Figure for RichTextContentFigure {
     fn initial_bounds(&self) -> Rectangle {
-        Rectangle::ZERO
+        self.bounds
     }
     fn name(&self) -> &'static str {
         "RichTextContentFigure"

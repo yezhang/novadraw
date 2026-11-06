@@ -274,6 +274,91 @@ impl RichTextDocumentSnapshot {
         input.text.replace_range(range, replacement);
         self.replace_paragraph(expected, id, input)
     }
+
+    /// Edits one paragraph while preserving surviving spans. Inserted text inherits
+    /// the span covering the replacement start (right affinity at span boundaries).
+    pub fn edit_paragraph(
+        &self,
+        expected: DocumentVersion,
+        id: ParagraphId,
+        range: Range<usize>,
+        replacement: &str,
+    ) -> Result<Self, DocumentError> {
+        if expected != self.version {
+            return Err(DocumentError::StaleVersion);
+        }
+        let paragraph = self
+            .paragraphs
+            .iter()
+            .find(|p| p.id == id)
+            .ok_or(DocumentError::MissingParagraph)?;
+        let mut input = paragraph.input();
+        if range.start > range.end
+            || range.end > input.text.len()
+            || !input.text.is_char_boundary(range.start)
+            || !input.text.is_char_boundary(range.end)
+        {
+            return Err(DocumentError::InvalidRange);
+        }
+        if self
+            .bytes
+            .checked_sub(range.len())
+            .and_then(|n| n.checked_add(replacement.len()))
+            .is_none_or(|bytes| bytes > self.limits.bytes)
+        {
+            return Err(DocumentError::LimitExceeded);
+        }
+        let inserted_style = input
+            .spans
+            .iter()
+            .find(|s| s.range.contains(&range.start))
+            .map(|s| s.style.clone());
+        let mut spans = Vec::new();
+        for span in &input.spans {
+            if span.range.start < range.start {
+                let end = span.range.end.min(range.start);
+                if span.range.start < end {
+                    spans.push(TextStyleSpan {
+                        range: span.range.start..end,
+                        style: span.style.clone(),
+                    });
+                }
+            }
+        }
+        if !replacement.is_empty()
+            && let Some(style) = inserted_style
+        {
+            spans.push(TextStyleSpan {
+                range: range.start..range.start + replacement.len(),
+                style,
+            });
+        }
+        for span in &input.spans {
+            if span.range.end > range.end {
+                let start =
+                    span.range.start.max(range.end) - range.end + range.start + replacement.len();
+                let end = span.range.end - range.end + range.start + replacement.len();
+                spans.push(TextStyleSpan {
+                    range: start..end,
+                    style: span.style.clone(),
+                });
+            }
+        }
+        let mut merged: Vec<TextStyleSpan> = Vec::new();
+        for span in spans {
+            if let Some(last) = merged.last_mut()
+                && last.range.end == span.range.start
+                && last.style == span.style
+            {
+                last.range.end = span.range.end;
+            } else {
+                merged.push(span);
+            }
+        }
+        input.text.replace_range(range, replacement);
+        input.spans = merged;
+        self.replace_paragraph(expected, id, input)
+    }
 }
 
 pub struct RichTextDocumentBuilder {

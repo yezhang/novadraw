@@ -84,6 +84,88 @@ impl RichTextLayoutSnapshot {
                             .is_ok()
                 })
     }
+    /// Admits a paragraph byte position into this immutable layout. The text
+    /// engine validates byte/grapheme boundaries and any supplied revision.
+    pub fn position(
+        &self,
+        paragraph: ParagraphId,
+        text: TextPosition,
+    ) -> Result<RichTextPosition, TextError> {
+        let index = self
+            .document
+            .paragraphs()
+            .iter()
+            .position(|p| p.id() == paragraph)
+            .ok_or_else(|| TextError::InvalidPreparedScene("missing paragraph".into()))?;
+        self.layouts[index]
+            .layout()
+            .caret_geometry(text)
+            .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?;
+        Ok(RichTextPosition {
+            document: self.document.version(),
+            layout: self.identity,
+            paragraph,
+            text,
+        })
+    }
+
+    /// Returns a caret rectangle in content-local coordinates. Both document
+    /// and layout identities must match; callers must re-admit after an edit
+    /// or reflow rather than reusing an old layout position.
+    pub fn caret_bounds(&self, position: &RichTextPosition) -> Result<Rectangle, TextError> {
+        if position.document != self.document.version() || position.layout != self.identity {
+            return Err(TextError::InvalidPreparedScene(
+                "stale rich text position".into(),
+            ));
+        }
+        let index = self
+            .document
+            .paragraphs()
+            .iter()
+            .position(|p| p.id() == position.paragraph)
+            .ok_or_else(|| TextError::InvalidPreparedScene("missing paragraph".into()))?;
+        let bounds = self.layouts[index]
+            .layout()
+            .caret_geometry(position.text)
+            .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?
+            .bounds();
+        let y = self.heights.offset(index).ok_or(TextError::InvalidMetric)?;
+        Ok(Rectangle::new(
+            bounds.x,
+            bounds.y + y,
+            bounds.width,
+            bounds.height,
+        ))
+    }
+    /// Visual navigation re-admitted into this document/layout publication.
+    pub fn move_position(&self, position: &RichTextPosition, movement: novadraw::text::TextMovement) -> Result<RichTextPosition, TextError> {
+        if !self.contains_position(position) { return Err(TextError::InvalidPreparedScene("stale rich text position".into())); }
+        let index = self.document.paragraphs().iter().position(|p| p.id() == position.paragraph).ok_or(TextError::InvalidMetric)?;
+        let text = self.layouts[index].layout().move_text_position(position.text, movement)
+            .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))?;
+        self.position(position.paragraph, text)
+    }
+    /// Selection quads in content-local coordinates, across explicit paragraphs.
+    pub fn selection_geometry(&self, anchor: &RichTextPosition, focus: &RichTextPosition) -> Result<Vec<novadraw::render::SelectionQuad>, TextError> {
+        if !self.contains_position(anchor) || !self.contains_position(focus) { return Err(TextError::InvalidPreparedScene("stale rich text selection".into())); }
+        let a = self.document.paragraphs().iter().position(|p| p.id() == anchor.paragraph).ok_or(TextError::InvalidMetric)?;
+        let f = self.document.paragraphs().iter().position(|p| p.id() == focus.paragraph).ok_or(TextError::InvalidMetric)?;
+        let ((first, start), (last, end)) = if (a, anchor.text.byte_offset()) <= (f, focus.text.byte_offset()) {
+            ((a, anchor.text), (f, focus.text))
+        } else { ((f, focus.text), (a, anchor.text)) };
+        let mut result = Vec::new();
+        for index in first..=last {
+            let start = if index == first { start } else { TextPosition::new(0, novadraw::text::TextAffinity::Downstream) };
+            let end = if index == last { end } else { TextPosition::new(self.document.paragraphs()[index].len_bytes(), novadraw::text::TextAffinity::Upstream) };
+            let y = self.heights.offset(index).ok_or(TextError::InvalidMetric)?;
+            for q in self.layouts[index].layout().selection_geometry(novadraw::text::TextRange::new(start, end))
+                .map_err(|e| TextError::InvalidPreparedScene(e.to_string()))? {
+                let b = q.bounds();
+                result.push(novadraw::render::SelectionQuad::new(Rectangle::new(b.x, b.y + y, b.width, b.height), q.line_index()));
+            }
+        }
+        Ok(result)
+    }
     pub(crate) fn prepare(
         document: &RichTextDocumentSnapshot,
         context: &mut MeasureContext<'_>,

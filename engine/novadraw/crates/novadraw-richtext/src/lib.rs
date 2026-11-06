@@ -3,6 +3,7 @@
 
 mod cache;
 mod document;
+mod edit;
 mod figure;
 mod index;
 mod layout;
@@ -11,6 +12,7 @@ pub use document::{
     DocumentError, DocumentLimits, DocumentVersion, ParagraphId, ParagraphInput,
     RichTextDocumentBuilder, RichTextDocumentSnapshot, RichTextParagraph,
 };
+pub use edit::{RichTextComposition, RichTextCursor, RichTextEditController, RichTextSelection};
 pub use figure::{
     RICH_TEXT_DOCUMENT, ReplaceRichTextDocument, RichTextContentFigure, RichTextFigure,
     RichTextHandle,

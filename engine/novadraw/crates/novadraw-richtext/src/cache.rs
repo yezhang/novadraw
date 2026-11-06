@@ -152,6 +152,47 @@ mod tests {
     }
 
     #[test]
+    fn caret_queries_require_current_layout_and_translate_paragraph_origin() {
+        use novadraw::text::{TextAffinity, TextPosition};
+        let (mut system, _) = system(true);
+        let cache = SnapshotCache::default();
+        let mut builder = RichTextDocumentBuilder::default();
+        for text in ["alpha beta gamma delta", "second paragraph"] {
+            let mut input = ParagraphInput::new(
+                text,
+                novadraw::text::TextStyle::new(FontDescriptor::default(), Color::BLACK),
+            );
+            input.space_after = 11.0;
+            builder.push(input).unwrap();
+        }
+        let document = builder.build();
+        let second = document.paragraphs()[1].id();
+        let direction = LayoutDirection::LeftToRight;
+        let wide = prepare(&cache, &mut system, &document, 200.0, direction);
+        let position = wide
+            .position(second, TextPosition::new(0, TextAffinity::Downstream))
+            .unwrap();
+        let bounds = wide.caret_bounds(&position).unwrap();
+        assert_eq!(bounds.y, wide.height_index().offset(1).unwrap());
+        assert!(bounds.height > 0.0);
+        assert!(
+            wide.position(
+                second,
+                TextPosition::new(usize::MAX, TextAffinity::Downstream)
+            )
+            .is_err()
+        );
+        let narrow = prepare(&cache, &mut system, &document, 50.0, direction);
+        assert!(narrow.caret_bounds(&position).is_err());
+        let changed = document
+            .edit_plain_paragraph(document.version(), second, 0..0, "new ")
+            .unwrap();
+        let edited = prepare(&cache, &mut system, &changed, 200.0, direction);
+        assert!(edited.caret_bounds(&position).is_err());
+        assert!(wide.caret_bounds(&position).is_ok()); // Original immutable snapshot stays valid.
+    }
+
+    #[test]
     fn engine_identity_generation_and_opt_out_control_reuse() {
         let (mut first, first_calls) = system(true);
         let (mut second, second_calls) = system(true);

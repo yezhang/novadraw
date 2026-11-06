@@ -9,3 +9,4 @@ description = "Document-backed rich text component using Novadraw public Figure 
 novadraw = { path = "../novadraw", default-features = false }
 ropey = "1.6.1"
 uuid.workspace = true
+unicode-segmentation.workspace = true
