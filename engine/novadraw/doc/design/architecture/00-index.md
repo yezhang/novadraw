@@ -20,6 +20,7 @@
 | [query-identity-and-failure.md](query-identity-and-failure.md) | 查询身份、合法缺失、坐标和测量失败 |
 | [engine-value-contract.md](engine-value-contract.md) | 受检 Color、几何词汇、圆弧与可执行命令 |
 | [third-party-dependency-boundaries.md](third-party-dependency-boundaries.md) | 中立签名、私有算法、interop 与依赖检查 |
+| [backend-local-damage-selection.md](backend-local-damage-selection.md) | Vello 私有字形选择与局部 GPU 修补目标 |
 
 ## 核心协议
 
