@@ -779,12 +779,18 @@ mod tests {
             crate::FocusLossPolicy::Cancel,
         );
         let session = DirectTextEditSessionId::new(viewer.namespace(), 1);
+        let contribution = crate::EditSessionContribution::new(
+            crate::EditControllerKey::new(),
+            crate::EditSessionDescriptor::new(descriptor.feature().clone(), descriptor.source_revision(), descriptor.mode(), descriptor.focus_loss()),
+            DirectTextEditState::new(session, viewer.contents(), &descriptor),
+            crate::direct_edit::PlainTextPlan(Box::new(Plan(descriptor))),
+        );
+        let (state, plan) = contribution.activate(session, viewer.contents());
         viewer.direct_text_edit = Some(ActiveDirectTextEdit {
-            state: DirectTextEditState::new(session, viewer.contents(), &descriptor),
-            plan: Box::new(Plan(descriptor)),
+            state,
+            plan,
             feedback: vec![feedback],
             text_feedback: feedback,
-            horizontal_scroll: 0.0,
             caret_feedback: None,
             caret_visible: false,
         });

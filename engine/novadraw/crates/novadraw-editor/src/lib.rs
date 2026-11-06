@@ -39,6 +39,11 @@ pub use direct_edit::{
     TextEditMode,
 };
 pub use domain::{DomainPointerRelease, EditorDomain, EditorDomainError};
+mod edit_session;
+pub use edit_session::{
+    EditController, EditControllerKey, EditGeometry, EditGeometryContext, EditSessionContribution,
+    EditSessionDescriptor, EditSessionPlan, EditSessionState,
+};
 pub use model::{ModelAdapter, ModelConnection, ModelEvent, ModelRevision, ModelRevisionError};
 pub(crate) use overlay::{
     BendpointCreateAction, BendpointHandleSite, BendpointMoveAction, ConnectionEndpointAction,
@@ -66,7 +71,7 @@ pub use request::{
     CreateRequest, CreationType, CreationTypeError, DeleteParts, DeleteRequest, EditBendpoint,
     InteractionRevision, InteractionRevisionError, ReconnectConnection, ReconnectConnectionRequest,
     RequestKey, RequestMetadata, RequestModifiers, RequestPayload, RequestProtocol,
-    RequestResolution, ResizeDirection, StartDirectTextEdit,
+    RequestResolution, ResizeDirection, StartDirectTextEdit, StartEditSession,
 };
 pub use selection::{SelectionDelta, SelectionModel};
 pub use text_input::{

@@ -18,12 +18,12 @@ use crate::{
     AutoexposeTick, BendpointCreateAction, BendpointMoveAction, BendpointOperation, Command,
     CommandStack, CommandStackError, ConnectionBendpointTool, ConnectionCreationTool,
     ConnectionEndpointAction, ConnectionEndpointTool, CreationType, DirectTextEditRequest,
-    DirectTextEditSessionId, DirectTextEditState, DirectTextFeature, EditPartFactory, EditPartId,
-    EditingContribution, ErasedToolKey, ExtendTextSelection, GraphicalViewer, HandleAction,
-    HandleActionProtocol, InteractionRevision, InteractionRevisionError, ModelAdapter,
-    RequestMetadata, RequestProtocol, SelectionTool, SessionTextInputEvent, TextDelete,
-    TextInputEvent, Tool, ToolContext, ToolDirective, ToolError, ToolKey, ToolMouseEvent,
-    ViewerError, ViewerInputOutcome, ViewerTarget, autoexpose,
+    DirectTextEditSessionId, DirectTextFeature, EditPartFactory, EditPartId, EditingContribution,
+    ErasedToolKey, ExtendTextSelection, GraphicalViewer, HandleAction, HandleActionProtocol,
+    InteractionRevision, InteractionRevisionError, ModelAdapter, RequestMetadata, RequestProtocol,
+    SelectionTool, SessionTextInputEvent, TextDelete, TextInputEvent, Tool, ToolContext,
+    ToolDirective, ToolError, ToolKey, ToolMouseEvent, ViewerError, ViewerInputOutcome,
+    ViewerTarget, autoexpose,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -135,6 +135,7 @@ pub struct EditorDomain<A: ModelAdapter> {
     handle_tools: HashMap<TypeId, HandleToolFactory<A>>,
     next_revision: InteractionRevision,
     pointer: Option<Point>,
+    text_pointer_session: Option<DirectTextEditSessionId>,
     autoexpose_requested: bool,
 }
 
@@ -153,6 +154,7 @@ impl<A: ModelAdapter + 'static> EditorDomain<A> {
             handle_tools: HashMap::new(),
             next_revision: InteractionRevision::initial(),
             pointer: None,
+            text_pointer_session: None,
             autoexpose_requested: false,
         };
         domain
@@ -371,7 +373,7 @@ impl<A: ModelAdapter + 'static> EditorDomain<A> {
     where
         F: EditPartFactory<A>,
     {
-        viewer.direct_text_edit().is_some()
+        viewer.edit_session().is_some()
     }
 
     /// Allocates the next request revision.
@@ -496,6 +498,24 @@ where
         let metadata = RequestMetadata::new(self.next_interaction_revision()?, vec![source]);
         Ok(viewer
             .start_direct_text_edit(&metadata, &DirectTextEditRequest::new(source, feature))?)
+    }
+
+    /// Starts a policy-contributed controller through the open session protocol.
+    pub fn start_edit_session<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        source: EditPartId,
+        feature: DirectTextFeature,
+    ) -> Result<DirectTextEditSessionId, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        if viewer.edit_session().is_some() {
+            self.direct_text_focus_lost(viewer)?;
+        }
+        self.cancel_active_tools(viewer)?;
+        let metadata = RequestMetadata::new(self.next_interaction_revision()?, vec![source]);
+        Ok(viewer.start_edit_session(&metadata, &DirectTextEditRequest::new(source, feature))?)
     }
 
     /// Replaces the current text selection with committed draft text.
@@ -631,7 +651,7 @@ where
         F: EditPartFactory<A>,
     {
         let focus_loss = viewer
-            .direct_text_edit()
+            .edit_session()
             .ok_or(ViewerError::DirectTextEdit(
                 crate::DirectTextEditError::NoActiveSession,
             ))?
@@ -651,7 +671,7 @@ where
     where
         F: EditPartFactory<A>,
     {
-        let active = viewer.direct_text_edit().map(DirectTextEditState::session);
+        let active = viewer.edit_session().map(crate::EditSessionState::session);
         if active != Some(input.session()) {
             return Err(ViewerError::DirectTextEdit(
                 crate::DirectTextEditError::TextInputLeaseLost,
@@ -659,25 +679,6 @@ where
             .into());
         }
         match input.into_event() {
-            TextInputEvent::Synchronize(snapshot) => {
-                viewer.synchronize_direct_text_input(&snapshot)?;
-            }
-            TextInputEvent::Preedit { text, selection } => {
-                self.set_direct_text_preedit(viewer, &text, selection)?;
-            }
-            TextInputEvent::CancelComposition => {
-                self.cancel_direct_text_preedit(viewer)?;
-            }
-            TextInputEvent::InsertText(text) => {
-                self.insert_direct_text(viewer, &text)?;
-            }
-            TextInputEvent::Delete(deletion) => {
-                self.delete_direct_text(viewer, deletion)?;
-            }
-            TextInputEvent::Move { movement, extend } => {
-                self.move_direct_text(viewer, movement, extend)?;
-            }
-            TextInputEvent::SelectAll => viewer.select_all_direct_text()?,
             TextInputEvent::Accept => {
                 self.accept_direct_text_edit(viewer)?;
             }
@@ -689,6 +690,9 @@ where
             }
             TextInputEvent::LeaseLost => {
                 self.cancel_direct_text_edit(viewer)?;
+            }
+            event => {
+                viewer.apply_edit_session_input(&event)?;
             }
         }
         Ok(())
@@ -765,9 +769,10 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.text_pointer_session = None;
         self.pointer = Some(location);
         self.autoexpose_requested = false;
-        if viewer.direct_text_edit().is_some() {
+        if viewer.edit_session().is_some() {
             let targets_handle = matches!(
                 viewer.target_at(location.x(), location.y()),
                 ViewerTarget::Handle { .. }
@@ -776,7 +781,8 @@ where
                 && !targets_handle
                 && viewer.direct_text_feedback_contains(location)
             {
-                viewer.hit_test_direct_text(location, modifiers.shift)?;
+                viewer.select_edit_session_at(location, modifiers.shift)?;
+                self.text_pointer_session = viewer.edit_session().map(|state| state.session());
                 return Ok(viewer.dispatch_mouse_pressed_without_selection(
                     location.x(),
                     location.y(),
@@ -784,7 +790,7 @@ where
                 ));
             }
             self.direct_text_focus_lost(viewer)?;
-            if viewer.direct_text_edit().is_some() {
+            if viewer.edit_session().is_some() {
                 return Ok(viewer.dispatch_mouse_pressed_without_selection(
                     location.x(),
                     location.y(),
@@ -835,7 +841,10 @@ where
     where
         F: EditPartFactory<A>,
     {
-        if viewer.direct_text_edit().is_some() {
+        if viewer.edit_session().is_some() {
+            if self.text_pointer_session == viewer.edit_session().map(|state| state.session()) {
+                viewer.select_edit_session_at(location, true)?;
+            }
             self.pointer = Some(location);
             self.autoexpose_requested = false;
             return Ok(viewer.dispatch_mouse_moved(location.x(), location.y()));
@@ -871,6 +880,11 @@ where
     where
         F: EditPartFactory<A>,
     {
+        if viewer.edit_session().is_some() {
+            // Semantic text input is delivered through the session-tagged platform bridge.
+            // Raw keyboard events must not also drive an object Tool.
+            return Ok(ToolDirective::Continue);
+        }
         let (directive, command) =
             self.call_active_tool(viewer, |tool, context| tool.key_event(context, event))?;
         self.apply_tool_directive(viewer, directive)?;
@@ -963,6 +977,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.text_pointer_session = None;
         self.pointer = None;
         self.autoexpose_requested = false;
         viewer.pointer_exited();
@@ -978,9 +993,10 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.text_pointer_session = None;
         self.pointer = None;
         self.autoexpose_requested = false;
-        if viewer.direct_text_edit().is_some() {
+        if viewer.edit_session().is_some() {
             return Ok(DomainPointerRelease {
                 dispatch: viewer.dispatch_mouse_released(location.x(), location.y(), button),
                 command_executed: false,
@@ -1022,6 +1038,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.text_pointer_session = None;
         self.pointer = None;
         self.autoexpose_requested = false;
         self.call_active_tool(viewer, |tool, context| {
@@ -1048,6 +1065,9 @@ where
         T: Tool<A>,
         F: EditPartFactory<A>,
     {
+        if viewer.edit_session().is_some() {
+            self.direct_text_focus_lost(viewer)?;
+        }
         self.pointer = None;
         self.autoexpose_requested = false;
         self.call_active_tool(viewer, |tool, context| tool.cancel(context))?;

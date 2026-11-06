@@ -200,6 +200,9 @@ pub struct EditBendpoint;
 /// Built-in direct text editing request family.
 pub struct StartDirectTextEdit;
 
+/// Open editing-controller request family, using the ordinary Policy registry.
+pub struct StartEditSession;
+
 /// Monotonic identity of one interaction update.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct InteractionRevision(u64);

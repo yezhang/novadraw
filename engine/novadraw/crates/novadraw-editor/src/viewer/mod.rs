@@ -30,7 +30,7 @@ use novadraw::event::{
 };
 use novadraw::figure::{
     Border, Figure, FigureStyle, FlowTextPosition, FlowTextRange, RectangleFigure,
-    ShapeMutationError, TextFlowFigure, TextFlowViewport,
+    ShapeMutationError,
 };
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::graphics::Color;
@@ -40,10 +40,10 @@ use novadraw::render::{
     SurfaceInfo, TextLayout,
 };
 use novadraw::runtime::{
-    BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
-    FigureComponentUpdate, FontId, FramePreparation, FramePreparationError,
-    LogicalViewportResizeError, PreparedFigureUpdate, ReplaceFigureBorder, ResourceError, Runtime,
-    RuntimeMutationError, SubmissionAcknowledgement, SubmissionCompletionError, TextFlowQueryError,
+    BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentUpdate,
+    FontId, FramePreparation, FramePreparationError, LogicalViewportResizeError,
+    ReplaceFigureBorder, ResourceError, Runtime, RuntimeMutationError, SubmissionAcknowledgement,
+    SubmissionCompletionError, TextFlowQueryError,
 };
 use novadraw::text::TextMovement;
 use novadraw::tree::{FigureId, FigureTree};
@@ -61,10 +61,8 @@ use crate::{
     PartTreeError, PolicyError, PolicyHost, ReconnectConnection, ReconnectConnectionRequest,
     RequestMetadata, RequestProtocol, RequestResolution, SelectionAction, SelectionDelta,
     SelectionModel, StartDirectTextEdit, TextEditMode, TextInputEffect, TextInputPurpose,
-    TextInputSnapshot, VisualBuildContext, VisualOwner, VisualUpdateContext,
-    direct_edit::{
-        ActiveDirectTextEdit, PreparedDirectTextEdit, position_from_offset, position_to_offset,
-    },
+    VisualBuildContext, VisualOwner, VisualUpdateContext,
+    direct_edit::{ActiveDirectTextEdit, PreparedDirectTextEdit},
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
     request::ErasedRequestKey,
@@ -91,7 +89,7 @@ const DIRECT_TEXT_PREEDIT_THICKNESS: f64 = 1.5;
 const DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS: u64 = 530_000;
 const DIRECT_TEXT_REVEAL_MARGIN: f64 = 2.0;
 
-fn reveal_horizontal_caret(
+pub(crate) fn reveal_horizontal_caret(
     previous: f64,
     natural_caret: Rectangle,
     viewport_width: f64,
@@ -384,40 +382,6 @@ struct AttachedDirectTextFeedback {
     text_feedback: FigureId,
     caret_feedback: Option<FigureId>,
     area: Rectangle,
-    horizontal_scroll: f64,
-}
-
-struct SetDirectTextViewport(TextFlowViewport);
-
-impl FigureComponentUpdate for SetDirectTextViewport {
-    type Figure = TextFlowFigure;
-    type Prepared = TextFlowViewport;
-    type Error = &'static str;
-
-    fn prepare(
-        self,
-        _current: &Self::Figure,
-        _context: FigureComponentContext,
-    ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error> {
-        let offset = self.0.content_offset();
-        if !offset.x().is_finite() || !offset.y().is_finite() {
-            return Err("direct-edit TextFlow viewport offset must be finite");
-        }
-        Ok(PreparedFigureUpdate::paint(self.0))
-    }
-
-    fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
-        target.set_viewport(prepared);
-    }
-}
-
-fn direct_text_viewport_error(error: ComponentUpdateError<&'static str>) -> ViewerError {
-    match error {
-        ComponentUpdateError::Runtime(error) | ComponentUpdateError::Effect(error) => error.into(),
-        ComponentUpdateError::WrongFigureType { .. }
-        | ComponentUpdateError::RevisionExhausted(_)
-        | ComponentUpdateError::Rejected(_) => DirectTextEditError::InvalidFeedbackTarget.into(),
-    }
 }
 
 /// Stable Figure identities for the standard graphical Viewer layer topology.
@@ -1442,6 +1406,24 @@ where
             return Err(ResourceError::Faulted);
         }
         self.viewer.runtime.resources().register_builtin_font(font)
+    }
+
+    /// Registers complete host font bytes without exposing mutable Runtime access.
+    pub fn register_font_data(
+        &mut self,
+        data: novadraw::render::FontData,
+    ) -> Result<FontId, ResourceError> {
+        self.viewer
+            .ensure_ready()
+            .map_err(|_| ResourceError::Faulted)?;
+        let id = self.viewer.runtime.resources().register_font()?;
+        self.viewer.runtime.resources().complete_font(id, data)?;
+        Ok(id)
+    }
+
+    /// Sets the host's explicit preparation resource budget.
+    pub fn set_preparation_budget(&mut self, budget: novadraw::figure::PreparationBudget) {
+        self.viewer.runtime.frames().set_preparation_budget(budget);
     }
 
     /// Advances Runtime timers and the active direct-edit caret blink from host time.
@@ -2652,6 +2634,12 @@ where
 
     /// Returns a snapshot of the active direct text edit session.
     pub fn direct_text_edit(&self) -> Option<&DirectTextEditState> {
+        self.edit_session()?
+            .controller(crate::EditControllerKey::new())
+    }
+
+    /// Returns the one active editing session, regardless of controller implementation.
+    pub fn edit_session(&self) -> Option<&crate::EditSessionState> {
         self.direct_text_edit.as_ref().map(|active| &active.state)
     }
 
@@ -2703,13 +2691,58 @@ where
             .checked_add(1)
             .ok_or(DirectTextEditError::SessionIdentityExhausted)?;
         let session = DirectTextEditSessionId::new(self.namespace(), sequence);
-        let state = DirectTextEditState::new(session, request.source(), &descriptor);
+        let contribution = crate::EditSessionContribution::plain(plan);
+        self.activate_edit_contribution(session, request.source(), contribution)
+    }
+
+    pub(crate) fn start_edit_session(
+        &mut self,
+        metadata: &RequestMetadata,
+        request: &DirectTextEditRequest,
+    ) -> Result<DirectTextEditSessionId, ViewerError>
+    where
+        A: 'static,
+    {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.ensure_ready()?;
+            if viewer.direct_text_edit.is_some() {
+                return Err(DirectTextEditError::SessionAlreadyActive.into());
+            }
+            viewer
+                .validate_selectable(request.source())
+                .map_err(|_| DirectTextEditError::ForeignOrRetiredPart)?;
+            let contribution = viewer
+                .dispatch_request_inner::<crate::StartEditSession>(metadata, request)?
+                .into_contributions()
+                .pop()
+                .ok_or(DirectTextEditError::UnsupportedFeature)?;
+            if contribution.descriptor.feature() != request.feature() {
+                return Err(DirectTextEditError::UnsupportedFeature.into());
+            }
+            if contribution.descriptor.source_revision() != viewer.model.revision() {
+                return Err(DirectTextEditError::StaleSourceRevision.into());
+            }
+            let sequence = viewer.next_direct_text_edit_session;
+            viewer.next_direct_text_edit_session = sequence
+                .checked_add(1)
+                .ok_or(DirectTextEditError::SessionIdentityExhausted)?;
+            let session = DirectTextEditSessionId::new(viewer.namespace(), sequence);
+            viewer.activate_edit_contribution(session, request.source(), contribution)
+        })
+    }
+
+    fn activate_edit_contribution(
+        &mut self,
+        session: DirectTextEditSessionId,
+        source: EditPartId,
+        contribution: crate::EditSessionContribution<A>,
+    ) -> Result<DirectTextEditSessionId, ViewerError> {
+        let (state, plan) = contribution.activate(session, source);
         let mut active = ActiveDirectTextEdit {
             state,
             plan,
             feedback: Vec::new(),
             text_feedback: self.root_layers.root(),
-            horizontal_scroll: 0.0,
             caret_feedback: None,
             caret_visible: false,
         };
@@ -2717,15 +2750,9 @@ where
             .plan
             .feedback(&active.state, &self.model)
             .map_err(|error| error.at_operation("direct_text.feedback"))?;
-        let attached = self.attach_direct_text_feedback(
-            request.source(),
-            &active.state,
-            projection,
-            active.horizontal_scroll,
-        )?;
+        let attached = self.attach_direct_text_feedback(source, &mut active.state, projection)?;
         active.feedback = attached.figures;
         active.text_feedback = attached.text_feedback;
-        active.horizontal_scroll = attached.horizontal_scroll;
         active.caret_feedback = attached.caret_feedback;
         active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
@@ -2751,7 +2778,12 @@ where
             .ok_or(DirectTextEditError::NoActiveSession)?
             .state
             .clone();
-        state.set_selection(selection)?;
+        let mut plain = state
+            .controller(crate::EditControllerKey::<DirectTextEditState>::new())
+            .ok_or(DirectTextEditError::UnsupportedFeature)?
+            .clone();
+        plain.set_selection(selection)?;
+        state.replace_controller(crate::EditControllerKey::new(), plain)?;
         self.replace_direct_text_state(state)
     }
 
@@ -2764,54 +2796,76 @@ where
             .direct_text_edit
             .as_ref()
             .ok_or(DirectTextEditError::NoActiveSession)?;
-        let position = self
-            .runtime
-            .text()
-            .flow_hit_test(active.text_feedback, point)
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
         let mut state = active.state.clone();
-        state.set_selection(if extend {
-            FlowTextRange::new(state.selection().anchor(), position)
-        } else {
-            FlowTextRange::new(position, position)
-        })?;
+        state.select_at(
+            point,
+            extend,
+            &mut crate::EditGeometryContext {
+                runtime: &mut self.runtime,
+                target: active.text_feedback,
+                writable: false,
+            },
+        )?;
+        let position = state
+            .controller(crate::EditControllerKey::<DirectTextEditState>::new())
+            .ok_or(DirectTextEditError::UnsupportedFeature)?
+            .selection()
+            .focus();
         self.replace_direct_text_state(state)?;
         Ok(position)
     }
 
-    pub(crate) fn insert_direct_text(&mut self, text: &str) -> Result<bool, ViewerError> {
-        let mut state = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?
-            .state
-            .clone();
-        let changed = if state.composition().is_some() {
-            state.commit_preedit(text)?
-        } else {
-            state.replace_selection(text)?
-        };
-        if changed {
-            self.replace_direct_text_state(state)?;
-        }
-        Ok(changed)
+    pub(crate) fn select_edit_session_at(
+        &mut self,
+        point: Point,
+        extend: bool,
+    ) -> Result<(), ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            let active = viewer
+                .direct_text_edit
+                .as_ref()
+                .ok_or(DirectTextEditError::NoActiveSession)?;
+            let mut state = active.state.clone();
+            state.select_at(
+                point,
+                extend,
+                &mut crate::EditGeometryContext {
+                    runtime: &mut viewer.runtime,
+                    target: active.text_feedback,
+                    writable: false,
+                },
+            )?;
+            viewer.replace_direct_text_state_inner(state)
+        })
     }
 
-    pub(crate) fn synchronize_direct_text_input(
+    pub(crate) fn apply_edit_session_input(
         &mut self,
-        snapshot: &TextInputSnapshot,
+        event: &crate::TextInputEvent,
     ) -> Result<bool, ViewerError> {
-        let mut state = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?
-            .state
-            .clone();
-        let changed = state.synchronize_input(snapshot)?;
-        if changed {
-            self.replace_direct_text_state(state)?;
-        }
-        Ok(changed)
+        self.with_extension_fault_boundary(|viewer| {
+            let active = viewer
+                .direct_text_edit
+                .as_ref()
+                .ok_or(DirectTextEditError::NoActiveSession)?;
+            let mut state = active.state.clone();
+            let changed = state.input(
+                event,
+                &mut crate::EditGeometryContext {
+                    runtime: &mut viewer.runtime,
+                    target: active.text_feedback,
+                    writable: false,
+                },
+            )?;
+            if changed {
+                viewer.replace_direct_text_state_inner(state)?;
+            }
+            Ok(changed)
+        })
+    }
+
+    pub(crate) fn insert_direct_text(&mut self, text: &str) -> Result<bool, ViewerError> {
+        self.apply_edit_session_input(&crate::TextInputEvent::InsertText(text.to_owned()))
     }
 
     pub(crate) fn set_direct_text_preedit(
@@ -2819,71 +2873,64 @@ where
         text: &str,
         selection: Option<std::ops::Range<usize>>,
     ) -> Result<bool, ViewerError> {
-        let mut state = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?
-            .state
-            .clone();
-        let changed = state.set_preedit(text, selection)?;
-        self.replace_direct_text_state(state)?;
-        Ok(changed)
+        self.apply_edit_session_input(&crate::TextInputEvent::Preedit {
+            text: text.to_owned(),
+            selection,
+        })
     }
 
     pub(crate) fn cancel_direct_text_preedit(&mut self) -> Result<bool, ViewerError> {
-        let mut state = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?
-            .state
-            .clone();
-        let changed = state.cancel_preedit();
-        if changed {
-            self.replace_direct_text_state(state)?;
-        }
-        Ok(changed)
+        self.apply_edit_session_input(&crate::TextInputEvent::CancelComposition)
     }
 
-    pub(crate) fn select_all_direct_text(&mut self) -> Result<(), ViewerError> {
-        let mut state = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?
-            .state
-            .clone();
-        state.select_all();
-        self.replace_direct_text_state(state)
+    /// Projects the active controller's host buffer through the extension failure boundary.
+    pub fn edit_input_snapshot(&mut self) -> Result<crate::TextInputSnapshot, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer
+                .direct_text_edit
+                .as_ref()
+                .ok_or(DirectTextEditError::NoActiveSession)?
+                .state
+                .input_snapshot()
+        })
     }
 
     /// Returns the active draft caret rectangle in logical surface coordinates.
     pub fn direct_text_caret_geometry(&mut self) -> Result<CaretGeometry, ViewerError> {
-        let active = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?;
-        let caret = active.state.caret_position()?;
-        self.runtime
-            .text()
-            .flow_caret_geometry(active.text_feedback, caret)
-            .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
+        Ok(self.edit_geometry()?.caret)
+    }
+
+    fn edit_geometry(&mut self) -> Result<crate::EditGeometry, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            let active = viewer
+                .direct_text_edit
+                .as_ref()
+                .ok_or(DirectTextEditError::NoActiveSession)?;
+            let mut state = active.state.clone();
+            let geometry = state.geometry(&mut crate::EditGeometryContext {
+                runtime: &mut viewer.runtime,
+                target: active.text_feedback,
+                writable: true,
+            })?;
+            geometry.validate()?;
+            viewer
+                .direct_text_edit
+                .as_mut()
+                .expect("registered session")
+                .state = state;
+            Ok(geometry)
+        })
     }
 
     /// Returns active draft selection quads in logical surface coordinates.
     pub fn direct_text_selection_geometry(&mut self) -> Result<Vec<SelectionQuad>, ViewerError> {
-        let active = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?;
-        let viewport = self.direct_text_viewport_in_surface(active.text_feedback)?;
-        let selection = self
-            .runtime
-            .text()
-            .flow_selection_geometry(active.text_feedback, active.state.selection())
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
+        let geometry = self.edit_geometry()?;
+        let selection = geometry
+            .selection
             .into_iter()
             .filter_map(|quad| {
                 quad.bounds()
-                    .intersection(viewport)
+                    .intersection(geometry.viewport)
                     .map(|bounds| SelectionQuad::new(bounds, quad.line_index()))
             })
             .collect();
@@ -2895,39 +2942,20 @@ where
         &mut self,
         range: std::ops::Range<usize>,
     ) -> Result<Rectangle, ViewerError> {
-        let active = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?;
-        if range.start > range.end {
-            return Err(DirectTextEditError::InvalidTextPosition.into());
-        }
-        let start = position_from_offset(active.state.draft(), range.start)?;
-        let end = position_from_offset(active.state.draft(), range.end)?;
-        let bounds = self
-            .runtime
-            .text()
-            .flow_selection_geometry(active.text_feedback, FlowTextRange::new(start, end))
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
-            .into_iter()
-            .map(|quad| quad.bounds())
-            .reduce(Rectangle::union);
-        if let Some(bounds) = bounds {
-            return Ok(bounds);
-        }
-
-        let caret = self
-            .runtime
-            .text()
-            .flow_caret_geometry(active.text_feedback, start)
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
-            .bounds();
-        Ok(Rectangle::new(
-            caret.x,
-            caret.y,
-            caret.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
-            caret.height,
-        ))
+        self.with_extension_fault_boundary(|viewer| {
+            let active = viewer
+                .direct_text_edit
+                .as_ref()
+                .ok_or(DirectTextEditError::NoActiveSession)?;
+            active.state.range_bounds(
+                range,
+                &mut crate::EditGeometryContext {
+                    runtime: &mut viewer.runtime,
+                    target: active.text_feedback,
+                    writable: false,
+                },
+            )
+        })
     }
 
     pub(crate) fn direct_text_feedback_contains(&self, point: Point) -> bool {
@@ -2962,22 +2990,12 @@ where
             .plan
             .feedback(&active.state, &self.model)
             .map_err(|error| error.at_operation("direct_text.feedback"))?;
+        let mut state = active.state.clone();
+        let attached = self.attach_direct_text_feedback(state.source(), &mut state, projection)?;
         let mut active = self
             .direct_text_edit
             .take()
-            .expect("direct text edit must remain active after feedback");
-        let attached = match self.attach_direct_text_feedback(
-            active.state.source(),
-            &active.state,
-            projection,
-            active.horizontal_scroll,
-        ) {
-            Ok(attached) => attached,
-            Err(error) => {
-                self.direct_text_edit = Some(active);
-                return Err(error);
-            }
-        };
+            .expect("session remains registered during controller callbacks");
         if !active.caret_visible
             && let Some(caret) = attached.caret_feedback
             && let Err(error) = self.runtime.figure(caret)?.set_visible(false)
@@ -2992,8 +3010,8 @@ where
             return Err(error);
         }
         active.feedback = attached.figures;
+        active.state = state;
         active.text_feedback = attached.text_feedback;
-        active.horizontal_scroll = attached.horizontal_scroll;
         active.caret_feedback = attached.caret_feedback;
         active.caret_visible &= attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::SetArea {
@@ -3002,21 +3020,6 @@ where
         });
         self.direct_text_edit = Some(active);
         Ok(true)
-    }
-
-    fn direct_text_viewport_in_surface(
-        &self,
-        text_feedback: FigureId,
-    ) -> Result<Rectangle, ViewerError> {
-        let bounds = self.runtime.tree().figure_bounds(text_feedback)?;
-        let transform = self
-            .runtime
-            .tree()
-            .local_to_surface_transform(text_feedback)
-            .map_err(ViewerError::Coordinate)?;
-        let mut viewport = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        viewport.transform(transform);
-        Ok(viewport)
     }
 
     pub(crate) fn move_direct_text(
@@ -3028,58 +3031,33 @@ where
             .direct_text_edit
             .as_ref()
             .ok_or(DirectTextEditError::NoActiveSession)?;
-        let position = self
-            .runtime
-            .text()
-            .flow_move_position(
-                active.text_feedback,
-                active.state.selection().focus(),
-                movement,
-            )
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
-        let mut state = active.state.clone();
-        state.set_selection(if extend {
-            FlowTextRange::new(state.selection().anchor(), position)
-        } else {
-            FlowTextRange::new(position, position)
+        if active
+            .state
+            .controller(crate::EditControllerKey::<DirectTextEditState>::new())
+            .is_none()
+        {
+            return Err(DirectTextEditError::UnsupportedFeature.into());
+        }
+        self.apply_edit_session_input(&crate::TextInputEvent::Move {
+            movement,
+            extend: if extend {
+                crate::ExtendTextSelection::Yes
+            } else {
+                crate::ExtendTextSelection::No
+            },
         })?;
-        self.replace_direct_text_state(state)?;
-        Ok(position)
+        Ok(self
+            .direct_text_edit()
+            .ok_or(DirectTextEditError::UnsupportedFeature)?
+            .selection()
+            .focus())
     }
 
     pub(crate) fn delete_direct_text(
         &mut self,
         deletion: crate::TextDelete,
     ) -> Result<bool, ViewerError> {
-        let active = self
-            .direct_text_edit
-            .as_ref()
-            .ok_or(DirectTextEditError::NoActiveSession)?;
-        let mut state = active.state.clone();
-        let anchor = position_to_offset(state.draft(), state.selection().anchor())?;
-        let focus = position_to_offset(state.draft(), state.selection().focus())?;
-        let changed = if anchor != focus {
-            state.replace_selection("")?
-        } else {
-            let moved = self
-                .runtime
-                .text()
-                .flow_move_position(
-                    active.text_feedback,
-                    state.selection().focus(),
-                    deletion.movement(),
-                )
-                .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
-            if deletion.is_backward() {
-                state.delete_range(moved, state.selection().focus())?
-            } else {
-                state.delete_range(state.selection().focus(), moved)?
-            }
-        };
-        if changed {
-            self.replace_direct_text_state(state)?;
-        }
-        Ok(changed)
+        self.apply_edit_session_input(&crate::TextInputEvent::Delete(deletion))
     }
 
     pub(crate) fn cancel_direct_text_edit(&mut self) -> Result<bool, ViewerError> {
@@ -3118,16 +3096,19 @@ where
             .is_none_or(|part| !part.is_active())
         {
             let feedback = active.feedback.clone();
+            let session = active.state.session();
             let _ = active;
             self.direct_text_blink_deadline = None;
             self.remove_direct_text_feedback(&feedback)?;
             self.direct_text_edit = None;
+            self.text_input_effects
+                .push(TextInputEffect::Release { session });
             return Err(DirectTextEditError::ForeignOrRetiredPart.into());
         }
         if active.state.source_revision() != self.model.revision() {
             return Err(DirectTextEditError::StaleSourceRevision.into());
         }
-        if active.state.composition().is_some() {
+        if active.state.has_composition() {
             return Err(DirectTextEditError::ActiveComposition.into());
         }
         active
@@ -3181,13 +3162,11 @@ where
             .map_err(|error| error.at_operation("direct_text.feedback"))?;
         let attached = self.attach_direct_text_feedback(
             prepared.active.state.source(),
-            &prepared.active.state,
+            &mut prepared.active.state,
             projection,
-            prepared.active.horizontal_scroll,
         )?;
         prepared.active.feedback = attached.figures;
         prepared.active.text_feedback = attached.text_feedback;
-        prepared.active.horizontal_scroll = attached.horizontal_scroll;
         prepared.active.caret_feedback = attached.caret_feedback;
         prepared.active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
@@ -3203,7 +3182,10 @@ where
         Ok(())
     }
 
-    fn replace_direct_text_state(&mut self, state: DirectTextEditState) -> Result<(), ViewerError> {
+    fn replace_direct_text_state(
+        &mut self,
+        state: crate::EditSessionState,
+    ) -> Result<(), ViewerError> {
         self.with_extension_fault_boundary(move |viewer| {
             viewer.replace_direct_text_state_inner(state)
         })
@@ -3211,46 +3193,30 @@ where
 
     fn replace_direct_text_state_inner(
         &mut self,
-        state: DirectTextEditState,
+        state: crate::EditSessionState,
     ) -> Result<(), ViewerError> {
         let active = self
             .direct_text_edit
             .as_mut()
             .ok_or(DirectTextEditError::NoActiveSession)?;
-        let previous_state = std::mem::replace(&mut active.state, state);
-        let projection = match active.plan.feedback(&active.state, &self.model) {
-            Ok(projection) => projection,
-            Err(error) => {
-                active.state = previous_state;
-                return Err(error.at_operation("direct_text.feedback").into());
-            }
-        };
+        let mut state = state;
+        let projection = active
+            .plan
+            .feedback(&state, &self.model)
+            .map_err(|error| error.at_operation("direct_text.feedback"))?;
+        let attached = self.attach_direct_text_feedback(state.source(), &mut state, projection)?;
         let mut active = self
             .direct_text_edit
             .take()
             .expect("direct text edit must remain active after feedback");
-        let attached = match self.attach_direct_text_feedback(
-            active.state.source(),
-            &active.state,
-            projection,
-            active.horizontal_scroll,
-        ) {
-            Ok(attached) => attached,
-            Err(error) => {
-                active.state = previous_state;
-                self.direct_text_edit = Some(active);
-                return Err(error);
-            }
-        };
         if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
             let _ = self.remove_direct_text_feedback(&attached.figures);
-            active.state = previous_state;
             self.direct_text_edit = Some(active);
             return Err(error);
         }
         active.feedback = attached.figures;
+        active.state = state;
         active.text_feedback = attached.text_feedback;
-        active.horizontal_scroll = attached.horizontal_scroll;
         active.caret_feedback = attached.caret_feedback;
         active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::SetArea {
@@ -3265,9 +3231,8 @@ where
     fn attach_direct_text_feedback(
         &mut self,
         owner: EditPartId,
-        state: &DirectTextEditState,
+        state: &mut crate::EditSessionState,
         feedback: DirectTextFeedback,
-        previous_horizontal_scroll: f64,
     ) -> Result<AttachedDirectTextFeedback, ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
         let mut figures = self.add_feedback_batch(
@@ -3276,153 +3241,49 @@ where
                 .map(|visual| (Some(owner), visual))
                 .collect(),
         )?;
-        let text_feedback = figures
-            .get(text_visual)
-            .copied()
-            .ok_or(DirectTextEditError::InvalidFeedbackTarget)?;
-        if let Err(error) =
-            self.runtime
-                .figure(text_feedback)?
-                .update_component(SetDirectTextViewport(TextFlowViewport::clipped(
-                    Point::new(-previous_horizontal_scroll, 0.0),
-                )))
-        {
-            let _ = self.remove_direct_text_feedback(&figures);
-            return Err(direct_text_viewport_error(error));
-        }
-        self.runtime.frames().stabilize_for_query()?;
-        if self.runtime.text().flow_layout(text_feedback).is_err() {
-            let _ = self.remove_direct_text_feedback(&figures);
-            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-        }
-        let caret = match state.caret_position() {
-            Ok(caret) => caret,
-            Err(error) => {
-                let _ = self.remove_direct_text_feedback(&figures);
-                return Err(error.into());
-            }
-        };
-        let Ok(text_bounds) = self.runtime.tree().figure_bounds(text_feedback) else {
+        let Some(text_feedback) = figures.get(text_visual).copied() else {
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
         };
-        if text_bounds.is_empty() {
-            let _ = self.remove_direct_text_feedback(&figures);
-            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-        }
-        let local_caret = match self
-            .runtime
-            .text()
-            .flow_local_caret_geometry(text_feedback, caret)
-        {
-            Ok(caret) => caret.bounds(),
-            Err(_) => {
-                let _ = self.remove_direct_text_feedback(&figures);
-                return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-            }
-        };
-        let content_width = self
-            .runtime
-            .text()
-            .flow_layout(text_feedback)
-            .map(|layout| f64::from(layout.full_width()))
-            .map_err(|_| DirectTextEditError::InvalidFeedbackTarget)?;
-        let natural_caret = Rectangle::new(
-            local_caret.x + previous_horizontal_scroll,
-            local_caret.y,
-            local_caret.width,
-            local_caret.height,
-        );
-        let content_width = content_width
-            .max(natural_caret.x + natural_caret.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH));
-        let horizontal_scroll = reveal_horizontal_caret(
-            previous_horizontal_scroll,
-            natural_caret,
-            text_bounds.width,
-            content_width,
-        );
-        if horizontal_scroll != previous_horizontal_scroll {
-            if let Err(error) =
-                self.runtime
-                    .figure(text_feedback)?
-                    .update_component(SetDirectTextViewport(TextFlowViewport::clipped(
-                        Point::new(-horizontal_scroll, 0.0),
-                    )))
-            {
-                let _ = self.remove_direct_text_feedback(&figures);
-                return Err(direct_text_viewport_error(error));
-            }
-            // Publish the source viewport offset before reading immutable text geometry.
+        let geometry = match catch_unwind(AssertUnwindSafe(|| {
             self.runtime.frames().stabilize_for_query()?;
-        }
-        let Ok(transform) = self
-            .runtime
-            .tree()
-            .local_to_surface_transform(text_feedback)
-        else {
-            let _ = self.remove_direct_text_feedback(&figures);
-            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-        };
-        let mut edit_viewport = Rectangle::new(0.0, 0.0, text_bounds.width, text_bounds.height);
-        edit_viewport.transform(transform);
-        let area = match self
-            .runtime
-            .text()
-            .flow_caret_geometry(text_feedback, caret)
-        {
-            Ok(caret) => {
-                let bounds = caret.bounds();
-                Rectangle::new(
-                    bounds.x,
-                    bounds.y,
-                    bounds.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
-                    bounds.height,
-                )
-                .intersection(edit_viewport)
-                .unwrap_or_else(|| {
-                    Rectangle::new(
-                        edit_viewport.x,
-                        edit_viewport.y,
-                        DIRECT_TEXT_CARET_MINIMUM_WIDTH.min(edit_viewport.width),
-                        edit_viewport.height,
-                    )
-                })
-            }
-            Err(_) => {
+            let geometry = state.geometry(&mut crate::EditGeometryContext {
+                runtime: &mut self.runtime,
+                target: text_feedback,
+                writable: true,
+            })?;
+            geometry.validate()?;
+            Ok::<_, ViewerError>(geometry)
+        })) {
+            Ok(Ok(geometry)) => geometry,
+            Ok(Err(error)) => {
                 let _ = self.remove_direct_text_feedback(&figures);
-                return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+                return Err(error);
+            }
+            Err(panic) => {
+                let _ = self.remove_direct_text_feedback(&figures);
+                resume_unwind(panic);
             }
         };
-        let selection = match state.composition() {
-            Some(_) => Vec::new(),
-            None => match self
-                .runtime
-                .text()
-                .flow_selection_geometry(text_feedback, state.selection())
-            {
-                Ok(selection) => selection,
-                Err(_) => {
-                    let _ = self.remove_direct_text_feedback(&figures);
-                    return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-                }
-            },
-        };
-        let preedit = match state.composition() {
-            Some(composition) => {
-                match self
-                    .runtime
-                    .text()
-                    .flow_selection_geometry(text_feedback, composition.range())
-                {
-                    Ok(preedit) => preedit,
-                    Err(_) => {
-                        let _ = self.remove_direct_text_feedback(&figures);
-                        return Err(DirectTextEditError::InvalidFeedbackTarget.into());
-                    }
-                }
-            }
-            None => Vec::new(),
-        };
+        let edit_viewport = geometry.viewport;
+        let bounds = geometry.caret.bounds();
+        let area = Rectangle::new(
+            bounds.x,
+            bounds.y,
+            bounds.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+            bounds.height,
+        )
+        .intersection(edit_viewport)
+        .unwrap_or_else(|| {
+            Rectangle::new(
+                edit_viewport.x,
+                edit_viewport.y,
+                DIRECT_TEXT_CARET_MINIMUM_WIDTH.min(edit_viewport.width),
+                edit_viewport.height,
+            )
+        });
+        let selection = geometry.selection;
+        let preedit = geometry.preedit;
 
         for quad in selection {
             let Some(bounds) = quad.bounds().intersection(edit_viewport) else {
@@ -3458,9 +3319,7 @@ where
                 return Err(error);
             }
         }
-        let caret_visible = state
-            .composition()
-            .is_none_or(|composition| composition.selection().is_some());
+        let caret_visible = geometry.caret_visible;
         let caret_feedback = if caret_visible {
             let caret_bounds = Rectangle::new(
                 area.x,
@@ -3488,7 +3347,6 @@ where
             text_feedback,
             caret_feedback,
             area,
-            horizontal_scroll,
         })
     }
 
@@ -3850,6 +3708,10 @@ where
         self.ensure_ready()?;
         let call_site = std::panic::Location::caller();
         match catch_unwind(AssertUnwindSafe(|| operation(self))) {
+            Ok(Err(error @ ViewerError::InconsistentState)) => {
+                self.mark_faulted_with_cause(&error.to_string());
+                Err(error)
+            }
             Ok(result) => result,
             Err(payload) => {
                 self.record_panic_at(payload.as_ref(), "viewer.extension", call_site);

@@ -240,6 +240,7 @@ pub struct DirectTextEditState {
     selection: FlowTextRange,
     composition: Option<DirectTextComposition>,
     composition_base: Option<CompositionBase>,
+    horizontal_scroll_bits: u64,
     mode: TextEditMode,
     focus_loss: FocusLossPolicy,
 }
@@ -262,6 +263,7 @@ impl DirectTextEditState {
             selection: FlowTextRange::new(focus, focus),
             composition: None,
             composition_base: None,
+            horizontal_scroll_bits: 0,
             mode: descriptor.mode,
             focus_loss: descriptor.focus_loss,
         }
@@ -518,7 +520,7 @@ pub struct DirectTextFeedback {
 }
 
 impl DirectTextFeedback {
-    /// Creates feedback and identifies the TextFlow visual used for interaction queries.
+    /// Creates feedback and identifies the controller's Figure used for interaction queries.
     pub fn new(visuals: Vec<FeedbackVisual>, text_visual: usize) -> Result<Self, PolicyError> {
         if text_visual >= visuals.len() {
             return Err(PolicyError::operation(
@@ -562,13 +564,213 @@ pub trait DirectTextEdit<A: ModelAdapter> {
 }
 
 pub(crate) struct ActiveDirectTextEdit<A: ModelAdapter> {
-    pub(crate) state: DirectTextEditState,
-    pub(crate) plan: Box<dyn DirectTextEdit<A>>,
+    pub(crate) state: crate::EditSessionState,
+    pub(crate) plan: Box<dyn crate::edit_session::StoredPlan<A>>,
     pub(crate) feedback: Vec<FigureId>,
     pub(crate) text_feedback: FigureId,
-    pub(crate) horizontal_scroll: f64,
     pub(crate) caret_feedback: Option<FigureId>,
     pub(crate) caret_visible: bool,
+}
+
+pub(crate) struct PlainTextPlan<A: ModelAdapter>(pub(crate) Box<dyn DirectTextEdit<A>>);
+
+impl<A: ModelAdapter + 'static> crate::EditSessionPlan<A, DirectTextEditState>
+    for PlainTextPlan<A>
+{
+    fn feedback(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &A,
+    ) -> Result<DirectTextFeedback, PolicyError> {
+        self.0.feedback(state, model)
+    }
+    fn validate(&mut self, state: &DirectTextEditState, model: &A) -> Result<(), PolicyError> {
+        self.0.validate(state, model)
+    }
+    fn command(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &A,
+    ) -> Result<Box<dyn Command<A>>, PolicyError> {
+        self.0.command(state, model)
+    }
+}
+
+impl crate::EditController for DirectTextEditState {
+    fn input(
+        &mut self,
+        event: &crate::TextInputEvent,
+        context: &mut crate::EditGeometryContext<'_>,
+    ) -> Result<bool, crate::ViewerError> {
+        use crate::TextInputEvent;
+        Ok(match event {
+            TextInputEvent::InsertText(text) => {
+                if self.composition().is_some() {
+                    self.commit_preedit(text)?
+                } else {
+                    self.replace_selection(text)?
+                }
+            }
+            TextInputEvent::Synchronize(snapshot) => self.synchronize_input(snapshot)?,
+            TextInputEvent::Preedit { text, selection } => {
+                self.set_preedit(text, selection.clone())?
+            }
+            TextInputEvent::CancelComposition => self.cancel_preedit(),
+            TextInputEvent::SelectAll => {
+                self.select_all();
+                true
+            }
+            TextInputEvent::Move { movement, extend } => {
+                let position = context.flow_move(self.selection().focus(), *movement)?;
+                self.set_selection(if matches!(extend, crate::ExtendTextSelection::Yes) {
+                    FlowTextRange::new(self.selection().anchor(), position)
+                } else {
+                    FlowTextRange::new(position, position)
+                })?;
+                true
+            }
+            TextInputEvent::Delete(deletion) => {
+                let anchor = position_to_offset(self.draft(), self.selection().anchor())?;
+                let focus = position_to_offset(self.draft(), self.selection().focus())?;
+                if anchor != focus {
+                    self.replace_selection("")?
+                } else {
+                    let moved = context.flow_move(self.selection().focus(), deletion.movement())?;
+                    if deletion.is_backward() {
+                        self.delete_range(moved, self.selection().focus())?
+                    } else {
+                        self.delete_range(self.selection().focus(), moved)?
+                    }
+                }
+            }
+            _ => return Err(DirectTextEditError::UnsupportedFeature.into()),
+        })
+    }
+    fn select_at(
+        &mut self,
+        point: novadraw::geometry::Point,
+        extend: bool,
+        context: &mut crate::EditGeometryContext<'_>,
+    ) -> Result<(), crate::ViewerError> {
+        let position = context.flow_hit(point)?;
+        self.set_selection(if extend {
+            FlowTextRange::new(self.selection().anchor(), position)
+        } else {
+            FlowTextRange::new(position, position)
+        })?;
+        Ok(())
+    }
+    fn geometry(
+        &mut self,
+        context: &mut crate::EditGeometryContext<'_>,
+    ) -> Result<crate::EditGeometry, crate::ViewerError> {
+        use novadraw::{figure::TextFlowViewport, geometry::Point};
+        const CARET_MIN: f64 = 1.5;
+        let caret = self.caret_position()?;
+        // Query natural geometry first, then publish this revision's reveal offset.
+        context.update(SetPlainViewport(TextFlowViewport::clipped(Point::ZERO)))?;
+        context.stabilize()?;
+        let bounds = context.tree().figure_bounds(context.target())?;
+        if bounds.is_empty() {
+            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+        }
+        let local = context
+            .runtime
+            .text()
+            .flow_local_caret_geometry(context.target, caret)
+            .map_err(|_| DirectTextEditError::InvalidFeedbackTarget)?
+            .bounds();
+        let width = context
+            .runtime
+            .text()
+            .flow_layout(context.target)
+            .map_err(|_| DirectTextEditError::InvalidFeedbackTarget)?
+            .full_width();
+        let content_width = f64::from(width).max(local.x + local.width.max(CARET_MIN));
+        let scroll = crate::viewer::reveal_horizontal_caret(
+            f64::from_bits(self.horizontal_scroll_bits),
+            local,
+            bounds.width,
+            content_width,
+        );
+        self.horizontal_scroll_bits = scroll.to_bits();
+        context.update(SetPlainViewport(TextFlowViewport::clipped(Point::new(
+            -scroll, 0.0,
+        ))))?;
+        context.stabilize()?;
+        let viewport = context.viewport()?;
+        let caret = context.flow_caret(caret)?;
+        let selection = if self.composition().is_none() {
+            context.flow_selection(self.selection())?
+        } else {
+            Vec::new()
+        };
+        let preedit = if let Some(composition) = self.composition() {
+            context.flow_selection(composition.range())?
+        } else {
+            Vec::new()
+        };
+        Ok(crate::EditGeometry {
+            caret,
+            viewport,
+            selection,
+            preedit,
+            caret_visible: self.composition().is_none_or(|c| c.selection().is_some()),
+        })
+    }
+    fn is_changed(&self) -> bool {
+        DirectTextEditState::is_changed(self)
+    }
+    fn has_composition(&self) -> bool {
+        self.composition().is_some()
+    }
+    fn input_snapshot(&self) -> Result<TextInputSnapshot, crate::ViewerError> {
+        Ok(DirectTextEditState::input_snapshot(self)?)
+    }
+    fn range_bounds(
+        &self,
+        range: Range<usize>,
+        context: &mut crate::EditGeometryContext<'_>,
+    ) -> Result<novadraw::geometry::Rectangle, crate::ViewerError> {
+        use novadraw::geometry::Rectangle;
+        if range.start > range.end {
+            return Err(DirectTextEditError::InvalidTextPosition.into());
+        }
+        let start = position_from_offset(self.draft(), range.start)?;
+        let end = position_from_offset(self.draft(), range.end)?;
+        if let Some(bounds) = context
+            .flow_selection(FlowTextRange::new(start, end))?
+            .into_iter()
+            .map(|q| q.bounds())
+            .reduce(Rectangle::union)
+        {
+            return Ok(bounds);
+        }
+        let caret = context.flow_caret(start)?.bounds();
+        Ok(Rectangle::new(
+            caret.x,
+            caret.y,
+            caret.width.max(1.5),
+            caret.height,
+        ))
+    }
+}
+
+struct SetPlainViewport(novadraw::figure::TextFlowViewport);
+impl novadraw::runtime::FigureComponentUpdate for SetPlainViewport {
+    type Figure = novadraw::figure::TextFlowFigure;
+    type Prepared = novadraw::figure::TextFlowViewport;
+    type Error = &'static str;
+    fn prepare(
+        self,
+        _: &Self::Figure,
+        _: novadraw::runtime::FigureComponentContext,
+    ) -> Result<novadraw::runtime::PreparedFigureUpdate<Self::Prepared>, Self::Error> {
+        Ok(novadraw::runtime::PreparedFigureUpdate::paint(self.0))
+    }
+    fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
+        target.set_viewport(prepared);
+    }
 }
 
 pub(crate) struct PreparedDirectTextEdit<A: ModelAdapter> {
@@ -629,7 +831,7 @@ impl fmt::Display for DirectTextEditError {
                 formatter.write_str("direct text edit session identity is exhausted")
             }
             Self::InvalidFeedbackTarget => {
-                formatter.write_str("direct edit feedback has no TextFlow target")
+                formatter.write_str("edit feedback has no valid geometry target")
             }
             Self::InvalidPreeditRange => formatter.write_str("preedit range is invalid"),
             Self::ActiveComposition => {

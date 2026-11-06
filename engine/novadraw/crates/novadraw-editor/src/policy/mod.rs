@@ -400,6 +400,19 @@ impl<A: ModelAdapter + 'static> RequestProtocol<A> for StartDirectTextEdit {
     }
 }
 
+impl<A: ModelAdapter + 'static> RequestProtocol<A> for crate::StartEditSession {
+    type Payload = DirectTextEditRequest;
+    type Contribution = crate::EditSessionContribution<A>;
+    fn key() -> RequestKey<Self> {
+        RequestKey::new("start-edit-session")
+    }
+    fn reduce(
+        contributions: Vec<Self::Contribution>,
+    ) -> Result<RequestResolution<Self::Contribution>, PolicyError> {
+        RequestResolution::at_most_one(contributions, "start-edit-session")
+    }
+}
+
 /// Typed policy request callback.
 pub type PolicyHandler<A, P, R> =
     fn(
