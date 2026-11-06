@@ -108,7 +108,7 @@ xilem = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5c
 masonry_testing = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
 masonry_winit = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
 masonry_imaging = { git = "https://github.com/linebender/xilem", rev = "66c8893f12232b9d5cdf4296f773aa3dc07ee776" }
-vello = "0.10.0"
+vello = "0.11.0"
 slotmap = "1.0.7"
 uuid = { version = "1.18.1", features = ["v4", "serde", "js"] }
 serde = { version = "1.0.228", features = ["derive"] }

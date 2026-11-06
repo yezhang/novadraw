@@ -23,6 +23,8 @@
 
 #[cfg(feature = "native")]
 pub mod app;
+#[cfg(any(feature = "egui-panel", feature = "egui-workbench"))]
+pub mod egui_testing;
 #[cfg(feature = "egui-panel")]
 pub mod panel;
 pub mod prelude;

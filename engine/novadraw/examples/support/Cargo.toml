@@ -29,7 +29,10 @@ winit = { workspace = true, optional = true }
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-egui = { version = "0.35", optional = true }
+egui = { version = "0.37", features = ["default_fonts"], optional = true }
 egui-phosphor = { version = "0.13", default-features = false, features = ["regular"], optional = true }
-egui-winit = { version = "0.35", default-features = false, features = ["clipboard", "x11", "wayland"], optional = true }
-egui-wgpu = { version = "0.35", default-features = false, optional = true }
+egui-winit = { version = "0.37", default-features = false, features = ["clipboard", "x11", "wayland"], optional = true }
+egui-wgpu = { version = "0.37", default-features = false, optional = true }
+
+[dev-dependencies]
+pollster.workspace = true

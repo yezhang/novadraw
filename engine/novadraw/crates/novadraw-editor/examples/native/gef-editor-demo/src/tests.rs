@@ -10,6 +10,7 @@ use novadraw::geometry::{Point, Rectangle};
 use novadraw::render::{
     BackendCapabilities, RenderBackend, RenderDisposition, RenderResult, RenderSubmission,
 };
+use novadraw_example_support::egui_testing::run_headless_ui;
 
 fn session() -> Session {
     let session = session_from_model(Diagram::minimal()).expect("valid minimal diagram");
@@ -60,7 +61,8 @@ fn egui_frame(
     events: Vec<Event>,
 ) -> UiOutput {
     let mut output = None;
-    let _ = context.run_ui(
+    let _ = run_headless_ui(
+        context,
         RawInput {
             screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(1180.0, 820.0))),
             events,

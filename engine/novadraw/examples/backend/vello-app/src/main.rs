@@ -165,7 +165,7 @@ impl VelloDemo {
         );
 
         device_handle.queue.submit([encoder.finish()]);
-        surface_texture.present();
+        device_handle.queue.present(surface_texture);
         if reconfigure_after_present {
             render_context.configure_surface(surface);
         }

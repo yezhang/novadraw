@@ -294,7 +294,7 @@ impl Gpu {
             })
             .unwrap();
         rx.recv().unwrap().unwrap();
-        buffer.get_mapped_range(..).to_vec()
+        buffer.get_mapped_range(..).expect("mapped pixels").to_vec()
     }
 }
 

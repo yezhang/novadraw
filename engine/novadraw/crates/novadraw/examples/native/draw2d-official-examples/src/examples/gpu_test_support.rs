@@ -116,7 +116,7 @@ impl GpuCanvas {
             })
             .unwrap();
         rx.recv().unwrap().unwrap();
-        buffer.get_mapped_range(..).to_vec()
+        buffer.get_mapped_range(..).expect("mapped pixels").to_vec()
     }
     pub fn save(&self, path: impl AsRef<std::path::Path>, pixels: &[u8]) {
         let path = path.as_ref();

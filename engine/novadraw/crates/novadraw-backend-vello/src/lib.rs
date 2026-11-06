@@ -1952,7 +1952,7 @@ impl RenderBackend for VelloRenderer {
         device_handle.queue.submit([encoder.finish()]);
         drop(queue);
         let present = diagnostics::scope(c"backend-present");
-        surface_texture.present();
+        device_handle.queue.present(surface_texture);
         drop(present);
         #[cfg(all(target_os = "macos", feature = "native"))]
         if is_resize_frame {
@@ -2228,7 +2228,9 @@ impl VelloRenderer {
         receiver.recv().unwrap().unwrap();
 
         // 获取像素数据
-        let data = buffer_slice.get_mapped_range();
+        let data = buffer_slice
+            .get_mapped_range()
+            .map_err(std::io::Error::other)?;
         let data: Vec<u8> = data
             .chunks_exact(padded_row_bytes as usize)
             .flat_map(|row| row[..row_bytes as usize].iter().copied())

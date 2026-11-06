@@ -40,7 +40,7 @@ impl Driver {
             .show(&self.context, |ui| {
                 self.panel.show(ui, &mut self.runtime);
             });
-        let _ = self.context.end_pass();
+        self.context.end_pass().textures_delta.clear();
         self.runtime.frames().stabilize_for_query().unwrap();
     }
 

@@ -63,7 +63,13 @@ pub fn viewport(title: &str, size: [f32; 2], minimum: [f32; 2]) -> ViewportBuild
 
 pub fn configure_style(context: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
-    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+    fonts.font_data.insert(
+        "phosphor".into(),
+        egui::FontData::from_static(egui_phosphor::Variant::Regular.font_bytes()).into(),
+    );
+    if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+        family.insert(family.len().min(1), "phosphor".into());
+    }
     context.set_fonts(fonts);
     context.set_visuals(egui::Visuals::light());
     context.style_mut_of(egui::Theme::Light, |style| {
@@ -163,7 +169,10 @@ pub fn toolbar(root: &mut egui::Ui, id: &'static str, contents: impl FnOnce(&mut
 
 pub fn document_label(ui: &mut egui::Ui, title: &str, dirty: bool) -> egui::Response {
     ui.label(RichText::new(icons::FILE).size(18.0).color(SECONDARY));
-    let response = ui.label(RichText::new(title).strong());
+    let response = ui.add_sized(
+        Vec2::new(0.0, ui.spacing().interact_size.y),
+        egui::Label::new(RichText::new(title).strong()).extend(),
+    );
     ui.label(
         RichText::new(if dirty { "Edited" } else { "Saved" })
             .size(12.0)
@@ -197,7 +206,7 @@ pub fn icon_button(
             .min_size(Vec2::new(TOOL_SIZE, height))
             .selected(selected),
     );
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     response.on_hover_text(label)
 }
 

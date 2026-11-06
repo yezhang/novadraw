@@ -10,8 +10,8 @@ novadraw-example-support = { path = "../../../../../examples/support", default-f
 novadraw = { path = "../../../../novadraw" }
 novadraw-editor = { path = "../../.." }
 novadraw-backend-vello = { path = "../../../../novadraw-backend-vello" }
-eframe = { version = "0.35", default-features = false, features = ["wgpu", "x11", "wayland"] }
-egui = "0.35"
-egui-wgpu = { version = "0.35", default-features = false }
+eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland"] }
+egui = { version = "0.37", features = ["default_fonts"] }
+egui-wgpu = { version = "0.37", default-features = false }
 serde.workspace = true
 serde_json.workspace = true

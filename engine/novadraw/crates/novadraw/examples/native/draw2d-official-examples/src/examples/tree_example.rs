@@ -574,7 +574,7 @@ mod tests {
                     modifiers: egui::Modifiers::default(),
                 });
             }
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 context,
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(

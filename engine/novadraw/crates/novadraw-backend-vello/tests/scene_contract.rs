@@ -364,6 +364,7 @@ fn pixels(
     rx.recv().unwrap().unwrap();
     buffer
         .get_mapped_range(..)
+        .expect("mapped pixels")
         .chunks(stride as usize)
         .flat_map(|row| row[..texture.width() as usize * 4].iter().copied())
         .collect()

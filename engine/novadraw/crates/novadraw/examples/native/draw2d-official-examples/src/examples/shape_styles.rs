@@ -654,7 +654,7 @@ mod tests {
                     })
                     .unwrap();
                 rx.recv().unwrap().unwrap();
-                let bytes = buffer.get_mapped_range(..);
+                let bytes = buffer.get_mapped_range(..).expect("mapped pixels");
                 assert!(
                     shape == 4
                         || bytes

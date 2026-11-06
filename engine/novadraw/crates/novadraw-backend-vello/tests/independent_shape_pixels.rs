@@ -282,7 +282,7 @@ fn render(
         })
         .unwrap();
     rx.recv().unwrap().unwrap();
-    let data = buffer.get_mapped_range(..);
+    let data = buffer.get_mapped_range(..).expect("mapped pixels");
     data.chunks(row as usize)
         .flat_map(|r| r[..surface.pixel_width as usize * 4].iter().copied())
         .collect()

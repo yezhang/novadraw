@@ -300,7 +300,11 @@ fn native_gpu_zoom_uses_replaced_svg_pixels_and_restores_original_layout() {
     let low_density = submit(&mut runtime, &mut renderer, &device, &queue, &target);
     save("ZoomExample", "zoom-low-density", &low_density);
     let context = novadraw_example_support::panel::egui::Context::default();
-    let _ = context.run_ui(Default::default(), |ui| panel.show(ui, &mut runtime));
+    let _ = novadraw_example_support::egui_testing::run_headless_ui(
+        &context,
+        Default::default(),
+        |ui| panel.show(ui, &mut runtime),
+    );
     let high_density = submit(&mut runtime, &mut renderer, &device, &queue, &target);
     save("ZoomExample", "zoom-high-density", &high_density);
     assert_ne!(
@@ -308,7 +312,11 @@ fn native_gpu_zoom_uses_replaced_svg_pixels_and_restores_original_layout() {
         "replacement pixels must reach Vello"
     );
     runtime.viewports().set_scale(zoom, 1.0).unwrap();
-    let _ = context.run_ui(Default::default(), |ui| panel.show(ui, &mut runtime));
+    let _ = novadraw_example_support::egui_testing::run_headless_ui(
+        &context,
+        Default::default(),
+        |ui| panel.show(ui, &mut runtime),
+    );
     let restored = submit(&mut runtime, &mut renderer, &device, &queue, &target);
     save("ZoomExample", "restored", &restored);
     assert_eq!(
@@ -371,6 +379,7 @@ fn submit(
     rx.recv().unwrap().unwrap();
     buffer
         .get_mapped_range(..)
+        .expect("mapped pixels")
         .chunks(stride as usize)
         .flat_map(|row| row[..target.width() as usize * 4].iter().copied())
         .collect()

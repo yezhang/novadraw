@@ -92,6 +92,18 @@ impl Panel {
             controls.show(root.ctx(), |ui| self.show(ui, runtime));
         })
     }
+
+    /// UI-only replay without a renderer; deliberately retire texture uploads.
+    pub fn prepare_ui_headless(
+        &mut self,
+        context: &egui::Context,
+        input: egui::RawInput,
+        runtime: &mut Runtime,
+    ) -> egui::FullOutput {
+        let mut output = self.prepare_ui(context, input, runtime);
+        output.textures_delta.clear();
+        output
+    }
 }
 pub type PanelScene = (Runtime, Option<Panel>);
 pub type PanelSceneEntry = (&'static str, Box<dyn FnMut() -> PanelScene>);
@@ -101,6 +113,13 @@ struct Frame {
     primitives: Vec<egui::ClippedPrimitive>,
     textures: egui::TexturesDelta,
     pixels_per_point: f32,
+}
+
+impl Drop for Frame {
+    fn drop(&mut self) {
+        // The host is closing, so unsent uploads have no live rendering destination.
+        self.textures.clear();
+    }
 }
 
 pub(crate) struct PanelHost {
@@ -213,8 +232,10 @@ impl NativeOverlay for Overlay {
             egui_wgpu::Renderer::new(device, format, egui_wgpu::RendererOptions::default())
         });
         let mut frame = self.frame.lock().expect("panel frame");
-        for (id, delta) in &frame.textures.set {
-            renderer.update_texture(device, queue, *id, delta);
+        for (id, deltas) in &frame.textures.set {
+            for delta in deltas {
+                renderer.update_texture(device, queue, *id, delta);
+            }
         }
         let screen = egui_wgpu::ScreenDescriptor {
             size_in_pixels: size,
@@ -241,20 +262,72 @@ impl NativeOverlay for Overlay {
         for id in &frame.textures.free {
             renderer.free_texture(id);
         }
-        frame.textures = Default::default();
+        frame.textures.clear();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::egui_testing::run_headless_ui;
     use std::time::{Duration, Instant};
+
+    #[test]
+    #[ignore = "requires a native GPU adapter"]
+    fn overlay_consumes_texture_deltas_before_the_next_paint() {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+        let context = egui::Context::default();
+        let output = context.run_ui(egui::RawInput::default(), |ui| {
+            ui.label("Texture upload");
+        });
+        assert!(!output.textures_delta.set.is_empty());
+        let frame = Arc::new(Mutex::new(Frame {
+            primitives: context.tessellate(output.shapes, output.pixels_per_point),
+            textures: output.textures_delta,
+            pixels_per_point: output.pixels_per_point,
+        }));
+        let mut overlay = Overlay {
+            frame: frame.clone(),
+            renderer: None,
+        };
+        let target = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("egui delta regression"),
+            size: wgpu::Extent3d {
+                width: 64,
+                height: 64,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let view = target.create_view(&Default::default());
+        for _ in 0..2 {
+            let mut encoder = device.create_command_encoder(&Default::default());
+            overlay.paint(
+                &device,
+                &queue,
+                &mut encoder,
+                &view,
+                target.format(),
+                [64, 64],
+            );
+            queue.submit([encoder.finish()]);
+            assert!(frame.lock().unwrap().textures.is_empty());
+        }
+    }
 
     #[test]
     fn native_panel_fonts_cover_chinese_labels_and_launch_errors() {
         let context = panel_context();
         let text = "打开双 Canvas 样例当前窗口展示透明文字内容橙色继承渐变背景无法启动请先构建：关闭后可再次打开。";
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             ui.label(text);
             context.fonts_mut(|fonts| {
                 for font in [
@@ -293,7 +366,7 @@ mod tests {
             ui.label("Zoom icons");
         });
         for _ in 0..4 {
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 &context,
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
@@ -331,10 +404,10 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..4 {
-            let _ = panel.prepare_ui(&context, input(vec![]), &mut runtime);
+            let _ = panel.prepare_ui_headless(&context, input(vec![]), &mut runtime);
         }
         let position = slider_rect.get().left_center() + egui::vec2(40.0, 0.0);
-        let _ = panel.prepare_ui(
+        let _ = panel.prepare_ui_headless(
             &context,
             input(vec![
                 egui::Event::PointerMoved(position),
@@ -359,7 +432,7 @@ mod tests {
             ui.label("Controls");
         });
         for _ in 0..4 {
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 &context,
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
@@ -378,7 +451,7 @@ mod tests {
         );
         assert!(panel.owns_pointer_input(&context, egui::pos2(900.0, 60.0)));
         for _ in 0..4 {
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 &context,
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
@@ -409,9 +482,9 @@ mod tests {
             ui.ctx().request_discard("control sizing");
         });
         // Settle the floating window's first invisible sizing pass.
-        let _ = panel.prepare_ui(&context, egui::RawInput::default(), &mut runtime);
+        let _ = panel.prepare_ui_headless(&context, egui::RawInput::default(), &mut runtime);
         calls.set(0);
-        let _ = panel.prepare_ui(&context, egui::RawInput::default(), &mut runtime);
+        let _ = panel.prepare_ui_headless(&context, egui::RawInput::default(), &mut runtime);
         assert_eq!(
             calls.get(),
             1,
@@ -438,17 +511,17 @@ mod tests {
     fn idle_panel_settles_and_text_caret_retains_delayed_repaint() {
         let context = egui::Context::default();
         let mut text = String::from("12");
-        let id = egui::Id::new("numeric-input");
+        let id = egui::Id::unique("numeric-input");
         let mut idle_delay = Duration::ZERO;
         for _ in 0..5 {
-            let output = context.run_ui(egui::RawInput::default(), |ui| {
+            let output = run_headless_ui(&context, egui::RawInput::default(), |ui| {
                 ui.add(egui::TextEdit::singleline(&mut text).id(id));
             });
             idle_delay = output.viewport_output[&egui::ViewportId::ROOT].repaint_delay;
         }
         assert_eq!(idle_delay, Duration::MAX);
         context.memory_mut(|memory| memory.request_focus(id));
-        let output = context.run_ui(egui::RawInput::default(), |ui| {
+        let output = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             ui.add(egui::TextEdit::singleline(&mut text).id(id));
         });
         assert!(output.viewport_output[&egui::ViewportId::ROOT].repaint_delay < Duration::MAX);

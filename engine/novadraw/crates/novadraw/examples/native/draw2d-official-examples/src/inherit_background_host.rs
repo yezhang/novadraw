@@ -350,7 +350,7 @@ impl Live {
             );
             gpu.queue.submit([encoder.finish()]);
             self.window.pre_present_notify();
-            frame.present();
+            gpu.queue.present(frame);
             if reconfigure {
                 self.context.configure_surface(surface);
                 self.window.request_redraw();
@@ -446,7 +446,7 @@ impl Live {
             timeout: Some(std::time::Duration::from_secs(10)),
         })?;
         rx.recv()??;
-        let bytes = buffer.get_mapped_range(..);
+        let bytes = buffer.get_mapped_range(..)?;
         let mut image = image::RgbaImage::new(width, height);
         for (src, dst) in bytes
             .chunks_exact(row as usize)

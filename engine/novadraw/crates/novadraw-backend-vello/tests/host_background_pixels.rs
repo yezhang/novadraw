@@ -219,5 +219,5 @@ fn read_pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &wgpu::Textu
         })
         .unwrap();
     rx.recv().unwrap().unwrap();
-    buffer.get_mapped_range(..).to_vec()
+    buffer.get_mapped_range(..).expect("mapped pixels").to_vec()
 }

@@ -68,7 +68,7 @@ pub fn capture(
         timeout: Some(std::time::Duration::from_secs(10)),
     })?;
     rx.recv()??;
-    let mapped = buffer.get_mapped_range(..);
+    let mapped = buffer.get_mapped_range(..)?;
     let rgba = mapped
         .chunks_exact(row as usize)
         .flat_map(|row| row[..width as usize * 4].iter().copied())

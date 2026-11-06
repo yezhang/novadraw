@@ -384,7 +384,7 @@ impl Demo {
             );
             gpu.queue.submit([encoder.finish()]);
             self.window.pre_present_notify();
-            frame.present();
+            gpu.queue.present(frame);
             drop(presentation);
             gpu.pending_resize_present = false;
             if reconfigure {

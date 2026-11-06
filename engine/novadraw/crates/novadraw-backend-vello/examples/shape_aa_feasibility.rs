@@ -120,7 +120,7 @@ impl Gpu {
             timeout: Some(std::time::Duration::from_secs(10)),
         })?;
         rx.recv()??;
-        let pixels = buffer.get_mapped_range(..).to_vec();
+        let pixels = buffer.get_mapped_range(..).expect("mapped pixels").to_vec();
         std::fs::write(Path::new(OUTPUT).join(format!("{name}.rgba")), &pixels)?;
         Ok(pixels)
     }

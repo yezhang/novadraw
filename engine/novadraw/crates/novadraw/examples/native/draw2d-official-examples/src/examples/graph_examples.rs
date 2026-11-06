@@ -492,10 +492,18 @@ mod tests {
                 )),
                 ..Default::default()
             };
-            let _ = context.run_ui(raw.clone(), |ui| panel.show(ui, &mut runtime));
+            let _ = novadraw_example_support::egui_testing::run_headless_ui(
+                &context,
+                raw.clone(),
+                |ui| panel.show(ui, &mut runtime),
+            );
             let click = |id: &str, runtime: &mut Runtime, panel: &mut Panel| {
                 for _ in 0..2 {
-                    let _ = context.run_ui(raw.clone(), |ui| panel.show(ui, runtime));
+                    let _ = novadraw_example_support::egui_testing::run_headless_ui(
+                        &context,
+                        raw.clone(),
+                        |ui| panel.show(ui, runtime),
+                    );
                 }
                 let pos = context
                     .data(|data| data.get_temp::<egui::Rect>(egui::Id::new(id)))
@@ -512,7 +520,11 @@ mod tests {
                             modifiers: egui::Modifiers::default(),
                         },
                     ];
-                    let _ = context.run_ui(input, |ui| panel.show(ui, runtime));
+                    let _ = novadraw_example_support::egui_testing::run_headless_ui(
+                        &context,
+                        input,
+                        |ui| panel.show(ui, runtime),
+                    );
                 }
             };
             let old = runtime.tree().contents().unwrap();

@@ -1589,7 +1589,9 @@ mod tests {
         };
         // Build the panel, then find and focus its numeric editor through real pointer input.
         let draw = |context: &egui::Context, panel: &mut Panel, runtime: &mut Runtime, input| {
-            context.run_ui(input, |ui| panel.show(ui, runtime))
+            novadraw_example_support::egui_testing::run_headless_ui(context, input, |ui| {
+                panel.show(ui, runtime)
+            })
         };
         draw(&context, panel, &mut runtime, input.clone());
         let position = context

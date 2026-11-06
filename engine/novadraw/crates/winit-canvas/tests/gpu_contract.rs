@@ -118,7 +118,7 @@ fn independent_textures_compose_in_order_with_clip_alpha_and_old_area_erasure() 
             })
             .unwrap();
         rx.recv().unwrap().unwrap();
-        let bytes = buffer.get_mapped_range(..);
+        let bytes = buffer.get_mapped_range(..).expect("mapped pixels");
         let pixel = |x: usize, y: usize| &bytes[y * 256 + x * 4..y * 256 + x * 4 + 4];
         assert_eq!(
             pixel(10, 2),

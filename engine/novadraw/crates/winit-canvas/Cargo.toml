@@ -11,7 +11,7 @@ gpu = ["dep:wgpu", "dep:objc2-core-graphics", "dep:objc2-quartz-core"]
 
 [dependencies]
 winit = "0.30.12"
-wgpu = { version = "29.0.4", optional = true }
+wgpu = { version = "30", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-graphics = { version = "0.3.2", features = ["CGColor"], optional = true }

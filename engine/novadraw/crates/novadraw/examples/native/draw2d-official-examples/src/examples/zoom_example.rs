@@ -831,7 +831,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..4 {
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 &context,
                 input(vec![egui::Event::PointerMoved(panel_position)]),
                 &mut runtime,
@@ -852,7 +852,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(runtime.input().state().captured(), Some(bar));
-        let _ = panel.prepare_ui(
+        let _ = panel.prepare_ui_headless(
             &context,
             input(vec![
                 egui::Event::PointerMoved(start_position),
@@ -872,7 +872,7 @@ mod tests {
                 .advance_time(MonotonicTime::from_micros(step * 16_000))
                 .unwrap();
             let position = Point::new(start.x() + step as f64 * 30.0, start.y());
-            let _ = panel.prepare_ui(
+            let _ = panel.prepare_ui_headless(
                 &context,
                 input(vec![egui::Event::PointerMoved(egui::pos2(
                     position.x() as f32,
@@ -907,7 +907,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(runtime.input().state().captured(), None);
-        let _ = panel.prepare_ui(
+        let _ = panel.prepare_ui_headless(
             &context,
             input(vec![
                 egui::Event::PointerMoved(panel_position),

@@ -436,7 +436,7 @@ impl EditorUi {
                         [width, FILTER_FIELD_HEIGHT],
                         TextEdit::singleline(&mut self.outline_filter)
                             .hint_text("Filter name or id")
-                            .vertical_align(Align::Center)
+                            .align(egui::Align2::LEFT_CENTER)
                             .margin(Margin::symmetric(8, 4)),
                     );
                     if !self.outline_filter.is_empty()
@@ -1147,9 +1147,8 @@ fn rail_button(
         egui::Button::selectable(selected, RichText::new(icon).size(18.0))
             .min_size(Vec2::splat(workbench::TOOL_SIZE)),
     );
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
-    });
+    response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, response.enabled(), tooltip));
     if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
@@ -1185,9 +1184,8 @@ fn context_icon(
         enabled,
         egui::Button::new(RichText::new(icon).size(16.0)).min_size(Vec2::new(28.0, 24.0)),
     );
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
-    });
+    response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, response.enabled(), tooltip));
     if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
@@ -1201,9 +1199,8 @@ fn status_command(
     command: UiCommand,
 ) {
     let response = ui.button(label);
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
-    });
+    response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, response.enabled(), tooltip));
     if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
@@ -1293,9 +1290,8 @@ fn command_button(
         egui::Button::new(RichText::new(icon).size(FILE_ICON_SIZE))
             .min_size(Vec2::new(COMMAND_BUTTON_WIDTH, DOCUMENT_CONTROL_HEIGHT)),
     );
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), tooltip)
-    });
+    response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, response.enabled(), tooltip));
     if response.on_hover_text(tooltip).clicked() {
         app.pending.push_back(command);
     }
@@ -1306,7 +1302,7 @@ fn document_path_field(ui: &mut egui::Ui, path: &mut String) -> Response {
         [240.0, DOCUMENT_CONTROL_HEIGHT],
         TextEdit::singleline(path)
             .hint_text("Document path")
-            .vertical_align(Align::Center)
+            .align(egui::Align2::LEFT_CENTER)
             .margin(Margin::symmetric(6, 3)),
     )
 }
@@ -1362,9 +1358,8 @@ fn file_action_button(
             .min_size(Vec2::new(FILE_BUTTON_WIDTH, FILE_BUTTON_HEIGHT))
             .corner_radius(corner_radius),
     );
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), label)
-    });
+    response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, response.enabled(), label));
     let response = response.on_hover_text(label);
     if response.clicked() {
         app.pending.push_back(command);
@@ -1388,7 +1383,7 @@ fn alignment_group(ui: &mut egui::Ui, app: &mut AppState, modes: [Alignment; 3])
                 );
                 response.widget_info(|| {
                     egui::WidgetInfo::labeled(
-                        egui::WidgetType::Button,
+                        egui::Role::Button,
                         response.enabled(),
                         alignment.label(),
                     )
@@ -1426,6 +1421,7 @@ fn grouped_corner_radius(index: usize, len: usize) -> egui::CornerRadius {
 #[cfg(test)]
 mod file_action_button_tests {
     use super::*;
+    use novadraw_example_support::egui_testing::run_headless_ui;
 
     #[test]
     fn titlebar_controls_share_the_native_row_centerline() {
@@ -1433,7 +1429,7 @@ mod file_action_button_tests {
         workbench::configure_style(&context);
         let mut controls = None;
         let mut center_y = 0.0;
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             center_y = ui.max_rect().top() + workbench::TITLEBAR_HEIGHT / 2.0;
             workbench::titlebar(ui, "titlebar_alignment_test", |ui| {
                 let title = document_title(ui, false);
@@ -1456,7 +1452,7 @@ mod file_action_button_tests {
         let mut title = None;
         let mut field = None;
         let mut buttons = None;
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             ui.allocate_ui_with_layout(
                 Vec2::new(600.0, DOCUMENT_CONTROL_HEIGHT),
                 Layout::left_to_right(Align::Center),
@@ -1482,7 +1478,7 @@ mod file_action_button_tests {
             let context = egui::Context::default();
             let mut app = AppState::default();
             let mut buttons = None;
-            let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
                 buttons = Some(file_action_group(ui, &mut app));
             });
             let buttons = buttons.unwrap();
@@ -1490,7 +1486,8 @@ mod file_action_button_tests {
             assert_eq!(buttons[1].rect.right(), buttons[2].rect.left());
             let position = buttons[index].rect.center();
             for pressed in [true, false] {
-                let _ = context.run_ui(
+                let _ = run_headless_ui(
+                    &context,
                     egui::RawInput {
                         events: vec![
                             Event::PointerMoved(position),
@@ -1516,7 +1513,7 @@ mod file_action_button_tests {
             ));
             assert!(app.pending.is_empty());
             app.disabled = true;
-            let _ = context.run_ui(egui::RawInput::default(), |ui| {
+            let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
                 for button in file_action_group(ui, &mut app) {
                     assert!(!button.enabled());
                 }
@@ -1528,7 +1525,7 @@ mod file_action_button_tests {
     fn discard_and_open_requires_dirty_enabled_document() {
         let context = egui::Context::default();
         let mut app = AppState::default();
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             let response = file_action_button(
                 ui,
                 icons::FOLDER_SIMPLE_MINUS,
@@ -1543,7 +1540,7 @@ mod file_action_button_tests {
 
         app.canvas.dirty = true;
         let mut response = None;
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             response = Some(file_action_button(
                 ui,
                 icons::FOLDER_SIMPLE_MINUS,
@@ -1556,7 +1553,8 @@ mod file_action_button_tests {
         });
         let position = response.unwrap().rect.center();
         for pressed in [true, false] {
-            let _ = context.run_ui(
+            let _ = run_headless_ui(
+                &context,
                 egui::RawInput {
                     events: vec![
                         Event::PointerMoved(position),
@@ -1593,6 +1591,7 @@ mod file_action_button_tests {
 #[cfg(test)]
 mod alignment_button_tests {
     use super::*;
+    use novadraw_example_support::egui_testing::run_headless_ui;
 
     #[test]
     fn toolbar_buttons_and_groups_are_centered_in_the_complete_bar() {
@@ -1601,7 +1600,7 @@ mod alignment_button_tests {
         let mut app = AppState::default();
         let mut controls = None;
         let mut center_y = 0.0;
-        let _ = context.run_ui(egui::RawInput::default(), |ui| {
+        let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
             center_y = ui.max_rect().top() + workbench::TOOLBAR_HEIGHT / 2.0;
             workbench::toolbar(ui, "toolbar_alignment_test", |ui| {
                 let button = ui.add(
@@ -1643,7 +1642,7 @@ mod alignment_button_tests {
                     ..Default::default()
                 };
                 let mut buttons = None;
-                let _ = context.run_ui(egui::RawInput::default(), |ui| {
+                let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
                     buttons = Some(alignment_group(ui, &mut app, modes));
                 });
                 let buttons = buttons.unwrap();
@@ -1651,7 +1650,8 @@ mod alignment_button_tests {
                 assert_eq!(buttons[0].rect.right(), buttons[1].rect.left());
                 let position = buttons[index].rect.center();
                 for pressed in [true, false] {
-                    let _ = context.run_ui(
+                    let _ = run_headless_ui(
+                        &context,
                         egui::RawInput {
                             events: vec![
                                 Event::PointerMoved(position),
@@ -1674,7 +1674,7 @@ mod alignment_button_tests {
                 );
                 assert!(app.pending.is_empty());
                 app.can_align = false;
-                let _ = context.run_ui(egui::RawInput::default(), |ui| {
+                let _ = run_headless_ui(&context, egui::RawInput::default(), |ui| {
                     for button in alignment_group(ui, &mut app, modes) {
                         assert!(!button.enabled());
                     }
