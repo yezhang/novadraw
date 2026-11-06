@@ -29,6 +29,7 @@
 //! `repair` 模块负责 DamageSet 写入与 repair phase 的脏区处理逻辑。
 
 mod deferred;
+pub(crate) use deferred::LocalLayoutRequest;
 mod listener;
 pub mod property;
 mod repair;

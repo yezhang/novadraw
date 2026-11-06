@@ -67,7 +67,7 @@ fn transparent_layer_returns_descendant_but_never_itself() {
         ))
         .expect("valid FigureTree construction");
 
-    assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
+    assert_eq!(tree.hit_test_simple((50.0, 50.0)).unwrap(), None);
 
     let child = tree
         .builder()
@@ -76,7 +76,7 @@ fn transparent_layer_returns_descendant_but_never_itself() {
             Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0).expect("valid figure bounds")),
         )
         .expect("valid FigureTree construction");
-    assert_eq!(tree.hit_test_simple((25.0, 25.0)), Some(child));
+    assert_eq!(tree.hit_test_simple((25.0, 25.0)).unwrap(), Some(child));
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn layer_order_drives_reverse_z_hit_testing() {
         .expect("valid Runtime mutation");
 
     assert_eq!(
-        runtime.tree().hit_test_simple((20.0, 20.0)),
+        runtime.tree().hit_test_simple((20.0, 20.0)).unwrap(),
         Some(upper_child)
     );
 
@@ -256,7 +256,7 @@ fn layer_order_drives_reverse_z_hit_testing() {
         .expect("move should succeed");
 
     assert_eq!(
-        runtime.tree().hit_test_simple((20.0, 20.0)),
+        runtime.tree().hit_test_simple((20.0, 20.0)).unwrap(),
         Some(lower_child)
     );
 }

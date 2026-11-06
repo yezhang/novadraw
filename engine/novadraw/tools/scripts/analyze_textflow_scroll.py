@@ -45,6 +45,12 @@ def analyze(args):
         tables.append(list(csv.DictReader(io.StringIO(result.stdout))))
         if index == 2 and any(r["severity"] in ("error", "data_loss") for r in tables[-1]):
             raise ValueError("Trace has error/data_loss statistics. Rejecting full attribution.")
+        if index == 2 and any(
+                int(r["value"]) > 0 and (
+                    "overwritten" in r["name"]
+                    or r["name"] == "packet_skipped_seq_needs_incremental_state_invalid"
+                ) for r in tables[-1]):
+            raise ValueError("Trace buffer overwrote or skipped packets. Rejecting full attribution.")
         if index in (3, 4) and any(int(value) != 0 for row in tables[-1] for value in row.values()):
             raise ValueError("Trace has unfinished scopes or negative exclusive duration.")
     records, roots, stages = tables[-3:]

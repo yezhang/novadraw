@@ -402,6 +402,14 @@ pub struct ScrollPaneLayout {
 }
 
 impl LayoutManager for ScrollPaneLayout {
+    fn register_child_layout_dependencies(
+        &self,
+        out: &mut crate::layout::LayoutDependencyDeclaration,
+    ) -> Result<(), crate::layout::LayoutDependencyRegistrationError> {
+        out.independent_child_property_for(self.horizontal_scroll_bar, super::SCROLL_VALUE)?;
+        out.independent_child_property_for(self.vertical_scroll_bar, super::SCROLL_VALUE)
+    }
+
     fn preferred_measurement(
         &self,
         _container: FigureId,
@@ -562,7 +570,10 @@ impl FigureTree {
             let (inserted, _) = self.insert_subtree(
                 pane_id,
                 description.subtree.nodes,
-                None,
+                crate::graph::SubtreeAdmission {
+                    replacing: None,
+                    layout_budget: &crate::figure::PreparationBudgetHandle::default(),
+                },
                 |_, _, _| Ok::<_, ScrollPaneError>(()),
                 |_, error| error,
                 |_, _| Ok(()),

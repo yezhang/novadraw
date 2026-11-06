@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    cell::{OnceCell, RefCell},
     collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
     rc::Rc,
@@ -46,10 +46,16 @@ struct RevisionBase {
 }
 
 struct RootInputs {
-    members: Rc<HashSet<FigureId>>,
-    route_members: HashSet<FigureId>,
+    // Presence means membership was confirmed; the value includes inherited route ownership.
+    members: RefCell<HashMap<FigureId, bool>>,
+    frozen_members: OnceCell<FrozenMembers>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
     source: RefCell<Option<SourceInputs>>,
+}
+
+struct FrozenMembers {
+    members: HashSet<FigureId>,
+    route_members: HashSet<FigureId>,
 }
 
 struct SourceInputs {
@@ -60,10 +66,12 @@ struct SourceInputs {
 /// Cache authority is the immutable tree/style borrow, never the budget's lifetime.
 pub(crate) struct PreparationInputs<'a> {
     tree: &'a FigureTree,
-    styles: &'a HashMap<FigureId, ResolvedStyle>,
+    styles: Option<&'a HashMap<FigureId, ResolvedStyle>>,
+    resolved_styles: OnceCell<Result<HashMap<FigureId, ResolvedStyle>, TextError>>,
     budget: super::PreparationBudgetHandle,
     roots: RefCell<HashMap<FigureId, Rc<RootInputs>>>,
     fonts: Rc<RefCell<HashSet<crate::text::FontDescriptor>>>,
+    input_read_path: super::input::InputReadPath,
 }
 
 impl<'a> PreparationInputs<'a> {
@@ -75,11 +83,39 @@ impl<'a> PreparationInputs<'a> {
         budget.allocate("preparation input cache", 2)?;
         Ok(Rc::new(Self {
             tree,
-            styles,
+            styles: Some(styles),
+            resolved_styles: OnceCell::new(),
             budget,
             roots: RefCell::new(HashMap::new()),
             fonts: Rc::new(RefCell::new(HashSet::new())),
+            input_read_path: super::input::InputReadPath::default(),
         }))
+    }
+
+    pub(crate) fn lazy(
+        tree: &'a FigureTree,
+        budget: super::PreparationBudgetHandle,
+    ) -> Result<Rc<Self>, TextError> {
+        budget.allocate("preparation input cache", 2)?;
+        Ok(Rc::new(Self {
+            tree,
+            styles: None,
+            resolved_styles: OnceCell::new(),
+            budget,
+            roots: RefCell::new(HashMap::new()),
+            fonts: Rc::new(RefCell::new(HashSet::new())),
+            input_read_path: super::input::InputReadPath::default(),
+        }))
+    }
+
+    fn styles(&self) -> Result<&HashMap<FigureId, ResolvedStyle>, TextError> {
+        if let Some(styles) = self.styles {
+            return Ok(styles);
+        }
+        self.resolved_styles
+            .get_or_init(|| self.tree.preparation_input_styles(&self.budget))
+            .as_ref()
+            .map_err(Clone::clone)
     }
 
     pub(crate) fn scene(
@@ -91,10 +127,8 @@ impl<'a> PreparationInputs<'a> {
         let inputs = if let Some(inputs) = roots.get(&root) {
             inputs.clone()
         } else {
-            // Root entry, membership, revision slots and source cache precede allocation.
+            // Root entry, membership storage, revision slots and source cache.
             self.budget.allocate("preparation root inputs", 5)?;
-            let mut members = HashSet::new();
-            let mut route_members = HashSet::new();
             let mut ancestor = Some(root);
             let mut inherited_route = false;
             while let Some(id) = ancestor {
@@ -106,25 +140,10 @@ impl<'a> PreparationInputs<'a> {
                 }
                 ancestor = node.parent;
             }
-            self.budget.allocate("preparation subtree", 2)?;
-            let mut pending = vec![(root, inherited_route)];
-            while let Some((id, inherited_route)) = pending.pop() {
-                self.budget.allocate("preparation subtree", 1)?;
-                members.insert(id);
-                if let Ok(node) = self.tree.node(id) {
-                    let reads_route = inherited_route || node.connection().is_some();
-                    if reads_route {
-                        self.budget.allocate("preparation route member", 1)?;
-                        route_members.insert(id);
-                    }
-                    self.budget
-                        .allocate("preparation subtree", 2 * node.children.len() as u64)?;
-                    pending.extend(node.children.iter().map(|&child| (child, reads_route)));
-                }
-            }
+            self.budget.allocate("preparation root member", 1)?;
             let inputs = Rc::new(RootInputs {
-                members: Rc::new(members),
-                route_members,
+                members: RefCell::new(HashMap::from([(root, inherited_route)])),
+                frozen_members: OnceCell::new(),
                 revision_bases: Rc::new(RefCell::new([None, None])),
                 source: RefCell::new(None),
             });
@@ -135,10 +154,10 @@ impl<'a> PreparationInputs<'a> {
             tree: self.tree,
             root,
             styles: self.styles,
-            members: inputs.members.clone(),
             measurement_path: Rc::new(RefCell::new(Vec::new())),
             observations: Rc::new(RefCell::new(ObservationLog::default())),
             input_proofs: Rc::new(RefCell::new(InputProofLog::default())),
+            input_read_path: self.input_read_path.clone(),
             measurements: Rc::new(RefCell::new(Vec::new())),
             measurement_constraints: None,
             revision_bases: inputs.revision_bases.clone(),
@@ -167,11 +186,11 @@ impl ObservationLog {
 pub struct PreparationScene<'a> {
     tree: &'a FigureTree,
     root: FigureId,
-    styles: &'a HashMap<FigureId, ResolvedStyle>,
-    members: Rc<HashSet<FigureId>>,
+    styles: Option<&'a HashMap<FigureId, ResolvedStyle>>,
     measurement_path: Rc<RefCell<Vec<FigureId>>>,
     observations: Rc<RefCell<ObservationLog>>,
     input_proofs: Rc<RefCell<InputProofLog>>,
+    input_read_path: super::input::InputReadPath,
     measurements: Rc<RefCell<Vec<MeasurementRecord>>>,
     measurement_constraints: Option<(MeasureConstraints, MeasureConstraints)>,
     revision_bases: Rc<RefCell<[Option<RevisionBase>; 2]>>,
@@ -205,13 +224,115 @@ impl<'a> PreparationScene<'a> {
         PreparationInputs::new(tree, styles, budget)?.scene(root)
     }
 
+    pub(crate) fn with_lazy_styles(
+        tree: &'a FigureTree,
+        root: FigureId,
+        budget: super::PreparationBudgetHandle,
+    ) -> Result<Self, TextError> {
+        PreparationInputs::lazy(tree, budget)?.scene(root)
+    }
+
     /// Shares this stabilization's accounting with an external producer or solver.
     pub fn budget(&self) -> super::PreparationBudgetHandle {
         self.budget.clone()
     }
 
+    pub(crate) fn input_read_path(&self) -> super::input::InputReadPath {
+        self.input_read_path.clone()
+    }
+
+    pub(crate) fn check_input_reader(&self) -> Result<(), TextError> {
+        if let Some(error) = &self.input_proofs.borrow().failure {
+            return Err(error.clone());
+        }
+        self.budget.check()?;
+        Ok(())
+    }
+
     pub fn root(&self) -> FigureId {
         self.root
+    }
+
+    pub(crate) fn contains_frozen_member(&self, id: FigureId) -> Result<bool, TextError> {
+        self.budget.consume("preparation membership query", 1)?;
+        self.is_member(id)
+    }
+
+    fn is_member(&self, id: FigureId) -> Result<bool, TextError> {
+        if let Some(frozen) = self.root_inputs.frozen_members.get() {
+            return Ok(frozen.members.contains(&id));
+        }
+        Ok(self.member_route(id)?.is_some())
+    }
+
+    /// A full source read already consumes the subtree; later reads use a frozen set.
+    fn freeze_members(&self) -> Result<(), TextError> {
+        self.budget.check()?;
+        if self.root_inputs.frozen_members.get().is_some() {
+            return Ok(());
+        }
+        let inherited_route = self.root_inputs.members.borrow()[&self.root];
+        self.budget.allocate("preparation subtree", 2)?;
+        let mut members = HashSet::new();
+        let mut route_members = HashSet::new();
+        let mut pending = vec![(self.root, inherited_route)];
+        while let Some((id, inherited_route)) = pending.pop() {
+            self.budget.allocate("preparation subtree", 1)?;
+            members.insert(id);
+            let node = self.tree.node(id).map_err(scene_error)?;
+            let reads_route = inherited_route || node.connection().is_some();
+            if reads_route {
+                self.budget.allocate("preparation route member", 1)?;
+                route_members.insert(id);
+            }
+            self.budget
+                .allocate("preparation subtree", 2 * node.children.len() as u64)?;
+            pending.extend(node.children.iter().map(|&child| (child, reads_route)));
+        }
+        self.budget.check()?;
+        let _ = self.root_inputs.frozen_members.set(FrozenMembers {
+            members,
+            route_members,
+        });
+        Ok(())
+    }
+
+    /// Only immutable ancestry facts are retained; provider and reader values stay live.
+    fn member_route(&self, id: FigureId) -> Result<Option<bool>, TextError> {
+        let mut members = self.root_inputs.members.borrow_mut();
+        if let Some(&route) = members.get(&id) {
+            return Ok(Some(route));
+        }
+        let mut path = Vec::new();
+        let mut ancestor = Some(id);
+        let mut inherited_route = loop {
+            let Some(current) = ancestor else {
+                return Ok(None);
+            };
+            self.budget.consume("preparation membership ancestry", 1)?;
+            if let Some(&route) = members.get(&current) {
+                break route;
+            }
+            let Ok(node) = self.tree.node(current) else {
+                return Ok(None);
+            };
+            if path.len() >= crate::graph::MAX_TREE_DEPTH {
+                return Err(TextError::InvalidPreparedScene(
+                    "preparation membership depth exceeded".into(),
+                ));
+            }
+            self.budget.allocate("preparation membership ancestry", 1)?;
+            path.push((current, node.connection().is_some()));
+            ancestor = node.parent;
+        };
+        // Charge the complete insertion before changing the shared facts.
+        self.budget
+            .allocate("preparation member facts", path.len() as u64)?;
+        for (current, owns_route) in path.into_iter().rev() {
+            inherited_route |= owns_route;
+            members.insert(current, inherited_route);
+        }
+        Ok(Some(inherited_route))
     }
 
     // Diagnostics read already frozen nodes; no provider callbacks, dependency writes or charges.
@@ -280,7 +401,10 @@ impl<'a> PreparationScene<'a> {
                 LayoutError::Identity(error),
             )))
         })?;
-        if !self.members.contains(&id) {
+        if !self
+            .is_member(id)
+            .map_err(|error| failure(PreparationMeasureErrorKind::Text(Box::new(error))))?
+        {
             return Err(failure(PreparationMeasureErrorKind::Layout(Box::new(
                 LayoutError::InvalidChild {
                     container: self.root,
@@ -346,10 +470,10 @@ impl<'a> PreparationScene<'a> {
             tree: self.tree,
             root: self.root,
             styles: self.styles,
-            members: self.members.clone(),
             measurement_path: self.measurement_path.clone(),
             observations: Rc::new(RefCell::new(ObservationLog::default())),
             input_proofs: Rc::new(RefCell::new(InputProofLog::default())),
+            input_read_path: self.input_read_path.clone(),
             measurements: self.measurements.clone(),
             measurement_constraints: self.measurement_constraints,
             revision_bases: self.revision_bases.clone(),
@@ -395,9 +519,9 @@ impl<'a> PreparationScene<'a> {
         Ok(measurement)
     }
 
-    fn check(&self, id: FigureId) -> Result<(), TextError> {
+    pub(super) fn check(&self, id: FigureId) -> Result<(), TextError> {
         self.budget.consume("preparation query", 1)?;
-        if self.members.contains(&id) {
+        if self.is_member(id)? {
             return Ok(());
         }
         Err(TextError::InvalidPreparedScene(
@@ -545,7 +669,11 @@ impl<'a> PreparationScene<'a> {
     // separate children/parent queries and does not pass through this boundary.
     fn observe_borrowed_route_output(&self, id: FigureId) -> Result<(), TextError> {
         self.budget.consume("route membership query", 1)?;
-        if self.root_inputs.route_members.contains(&id) {
+        let reads_route = match self.root_inputs.frozen_members.get() {
+            Some(frozen) => frozen.route_members.contains(&id),
+            None => self.member_route(id)? == Some(true),
+        };
+        if reads_route {
             self.observe(crate::connection::DependencySubject::FigureGeometry(id));
         }
         self.budget.check()?;
@@ -554,7 +682,13 @@ impl<'a> PreparationScene<'a> {
 
     pub fn style(&self, id: FigureId) -> Result<&ResolvedStyle, TextError> {
         self.check(id)?;
-        self.styles
+        // Borrowed and deferred snapshots obey the same scope and budget checks.
+        // Preserve direct access when the caller already owns the frozen map.
+        let styles = match self.styles {
+            Some(styles) => styles,
+            None => self.inputs.styles()?,
+        };
+        styles
             .get(&id)
             .ok_or_else(|| TextError::InvalidPreparedScene("missing resolved style".into()))
     }
@@ -691,7 +825,10 @@ impl<'a> PreparationScene<'a> {
                 }))
             })?;
         self.tree.validate_identity(id)?;
-        if self.members.contains(&id) {
+        if self
+            .is_member(id)
+            .map_err(|error| LayoutError::Input(Box::new(error)))?
+        {
             Ok(())
         } else {
             Err(LayoutError::InvalidChild {
@@ -794,14 +931,19 @@ impl<'a> PreparationScene<'a> {
         if proofs.ordered.is_empty() {
             return Ok(());
         }
-        // Validation readers receive an independent input_scope collector.
-        // They cannot append to this log, so the ordered first values can be
-        // borrowed for the entire check without allocating a receipt copy.
-        let result = proofs
-            .ordered
-            .iter()
-            .try_for_each(|proof| proof.validate(self, checkpoint));
         drop(proofs);
+        // Nested verification reads merge back into this log. Never hold a
+        // borrow across a reader; newly discovered subjects join this closure.
+        let result = (|| {
+            let mut index = 0;
+            loop {
+                let proof = self.input_proofs.borrow().ordered.get(index).cloned();
+                let Some(proof) = proof else { break };
+                proof.validate(self, checkpoint)?;
+                index += 1;
+            }
+            Ok::<(), TextError>(())
+        })();
         if let Err(error) = result {
             self.input_proofs.borrow_mut().failure = Some(error.clone());
             return Err(error);
@@ -858,6 +1000,7 @@ impl<'a> PreparationScene<'a> {
     }
 
     fn build_source_inputs(&self) -> Result<SourceInputs, TextError> {
+        self.freeze_members()?;
         let mut prefix = Vec::new();
         let mut providers = Vec::new();
         let mut pending = vec![self.root];
@@ -937,6 +1080,7 @@ impl<'a> PreparationScene<'a> {
     }
 
     fn build_revision_base(&self, include_derived: bool) -> Result<RevisionBase, TextError> {
+        self.freeze_members()?;
         let mut hash = std::collections::hash_map::DefaultHasher::new();
         let mut providers = Vec::new();
         let mut stack = vec![self.root];
@@ -1294,7 +1438,7 @@ mod tests {
         assert_eq!(repeated.revision().unwrap(), first);
         repeated.parsed_font(child).unwrap();
         assert_eq!(parent.budget.used().allocation, before.allocation);
-        assert!(Rc::ptr_eq(&narrow.members, &repeated.members));
+        assert!(Rc::ptr_eq(&narrow.root_inputs, &repeated.root_inputs));
         assert!(Rc::ptr_eq(&parent.parsed_fonts, &repeated.parsed_fonts));
         assert!(narrow.check(root).is_err());
         assert!(narrow.check(sibling).is_err());
@@ -1303,7 +1447,7 @@ mod tests {
         assert_eq!(narrow.measurement_constraints(), Some((outer, outer)));
         // Independent owner scenes share inputs, never measurement results or observations.
         let owner = parent.inputs.scene(child).unwrap();
-        assert!(Rc::ptr_eq(&owner.members, &narrow.members));
+        assert!(Rc::ptr_eq(&owner.root_inputs, &narrow.root_inputs));
         assert!(!Rc::ptr_eq(&owner.measurements, &narrow.measurements));
         assert!(!Rc::ptr_eq(&owner.observations, &narrow.observations));
         assert_ne!(parent.revision().unwrap(), first);
@@ -1473,6 +1617,47 @@ mod tests {
     }
 
     #[test]
+    fn lazy_styles_share_only_the_frozen_borrow_and_keep_budget_failure() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let budget = super::super::PreparationBudgetHandle::default();
+        let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+        let scene = inputs.scene(root).unwrap();
+        let admission_allocation = budget.used().allocation;
+        assert!(inputs.resolved_styles.get().is_none());
+        let first = scene.style(root).unwrap();
+        let style_allocation = budget.used().allocation;
+        assert!(style_allocation > admission_allocation);
+        let another = inputs.scene(root).unwrap();
+        assert!(std::ptr::eq(first, another.style(root).unwrap()));
+        assert_eq!(budget.used().allocation, style_allocation);
+
+        // Input admission fits; the first actual style read cannot allocate.
+        let budget = super::super::PreparationBudgetHandle::new(
+            super::super::PreparationBudget::new(u64::MAX, admission_allocation),
+        );
+        let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+        let scene = inputs.scene(root).unwrap();
+        let error = scene.style(root).unwrap_err();
+        assert!(inputs.resolved_styles.get().unwrap().is_err());
+        assert_eq!(scene.style(root).unwrap_err(), error);
+        assert!(budget.check().is_err());
+        // A fresh immutable session does not inherit a rejected style snapshot.
+        let fresh = PreparationScene::with_lazy_styles(
+            &tree,
+            root,
+            super::super::PreparationBudgetHandle::default(),
+        )
+        .unwrap();
+        assert!(fresh.style(root).is_ok());
+    }
+
+    #[test]
     fn failed_input_build_never_installs_a_partial_root() {
         let mut tree = FigureTree::new();
         let root = tree
@@ -1490,6 +1675,143 @@ mod tests {
         assert!(inputs.roots.borrow().is_empty());
         assert!(budget.check().is_err());
         assert!(inputs.scene(root).is_err());
+    }
+
+    #[test]
+    fn single_input_scope_does_not_build_unrelated_members() {
+        fn query_cost(siblings: usize) -> super::super::PreparationBudget {
+            let mut tree = FigureTree::new();
+            let root = tree
+                .builder()
+                .set_contents(Box::new(
+                    RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+                ))
+                .unwrap();
+            let branch = tree
+                .builder()
+                .add_child(
+                    root,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+                )
+                .unwrap();
+            let leaf = tree
+                .builder()
+                .add_child(
+                    branch,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+                )
+                .unwrap();
+            for _ in 0..siblings {
+                tree.builder()
+                    .add_child(
+                        root,
+                        Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+                    )
+                    .unwrap();
+            }
+            let budget = super::super::PreparationBudgetHandle::default();
+            let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+            let scene = inputs.scene(root).unwrap();
+            let scoped = scene.input_scope(leaf, leaf, None).unwrap();
+            scoped.figure(leaf).unwrap();
+            assert!(scoped.figure(branch).is_err());
+            assert!(inputs.resolved_styles.get().is_none());
+            assert!(scene.root_inputs.frozen_members.get().is_none());
+            budget.used()
+        }
+        assert_eq!(query_cost(0), query_cost(512));
+    }
+
+    #[test]
+    fn failed_membership_query_never_installs_partial_ancestry() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let branch = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+            )
+            .unwrap();
+        let leaf = tree
+            .builder()
+            .add_child(
+                branch,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0).unwrap()),
+            )
+            .unwrap();
+        let unlimited = super::super::PreparationBudgetHandle::default();
+        let probe = PreparationInputs::lazy(&tree, unlimited.clone()).unwrap();
+        let scene = probe.scene(root).unwrap();
+        scene.check(leaf).unwrap();
+        let budget = super::super::PreparationBudgetHandle::new(
+            super::super::PreparationBudget::new(u64::MAX, unlimited.used().allocation - 1),
+        );
+        let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+        let scene = inputs.scene(root).unwrap();
+        let root_inputs = inputs.roots.borrow()[&root].clone();
+        let before = root_inputs.members.borrow().clone();
+        assert!(scene.check(leaf).is_err());
+        assert_eq!(*root_inputs.members.borrow(), before);
+        assert!(budget.check().is_err());
+        assert!(scene.check(root).is_err());
+        assert_eq!(*root_inputs.members.borrow(), before);
+        let fresh = PreparationScene::with_lazy_styles(
+            &tree,
+            root,
+            super::super::PreparationBudgetHandle::default(),
+        )
+        .unwrap();
+        assert!(fresh.check(leaf).is_ok());
+    }
+
+    #[test]
+    fn full_source_read_freezes_all_members_and_does_not_install_a_failed_set() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+            ))
+            .unwrap();
+        let child = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+            )
+            .unwrap();
+        let budget = super::super::PreparationBudgetHandle::default();
+        let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+        let scene = inputs.scene(root).unwrap();
+        let initial_allocation = budget.used().allocation;
+        assert!(scene.root_inputs.frozen_members.get().is_none());
+        let source = scene.source_prefix().unwrap();
+        let frozen = scene.root_inputs.frozen_members.get().unwrap();
+        assert_eq!(frozen.members.len(), 2);
+        assert!(frozen.members.contains(&child));
+        assert_eq!(source.0.len(), 2);
+        let after = budget.used().allocation;
+        assert!(scene.source_prefix().unwrap() == source);
+        scene.check(child).unwrap();
+        assert_eq!(budget.used().allocation, after);
+
+        // The pending stack fits, but the full member set cannot complete.
+        let budget = super::super::PreparationBudgetHandle::new(
+            super::super::PreparationBudget::new(u64::MAX, initial_allocation + 2),
+        );
+        let inputs = PreparationInputs::lazy(&tree, budget.clone()).unwrap();
+        let scene = inputs.scene(root).unwrap();
+        assert!(scene.source_prefix().is_err());
+        assert!(scene.root_inputs.frozen_members.get().is_none());
+        assert!(scene.root_inputs.source.borrow().is_none());
+        assert!(budget.check().is_err());
+        assert!(scene.check(root).is_err());
     }
 
     #[test]

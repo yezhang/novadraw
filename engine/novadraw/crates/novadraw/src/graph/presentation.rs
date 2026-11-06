@@ -466,22 +466,22 @@ impl FigureTree {
         updates: &mut UpdateManager,
         budget: &crate::figure::PreparationBudgetHandle,
     ) -> Result<(), TextError> {
-        if !self
-            .blocks
-            .iter()
-            .any(|(_, node)| node.is_valid && !node.layout.input_proofs.is_empty())
-        {
+        if !self.blocks.iter().any(|(id, node)| {
+            node.is_valid
+                && !node.layout.input_proofs.is_empty()
+                && self.is_effectively_visible(id) == Ok(true)
+        }) {
             return Ok(());
         }
-        budget.allocate("cached layout input styles", self.blocks.len() as u64)?;
-        let (styles, _) = self.resolved_styles_for(|_| true);
-        let styles = styles.into_iter().collect();
-        let inputs =
-            crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
+        let inputs = crate::figure::preparation::PreparationInputs::lazy(self, budget.clone())?;
         let scene = inputs.scene(self.root_id())?;
         let mut stale = Vec::new();
         for (id, node) in self.blocks.iter() {
-            if !node.is_valid || !styles.contains_key(&id) {
+            if !node.is_valid
+                || node.layout.input_proofs.is_empty()
+                || !scene.contains_frozen_member(id)?
+                || self.is_effectively_visible(id) != Ok(true)
+            {
                 continue;
             }
             for proof in &node.layout.input_proofs {
@@ -523,17 +523,26 @@ impl FigureTree {
         }) {
             return Ok(());
         }
-        budget.allocate("final input styles", self.blocks.len() as u64)?;
-        let (styles, _) = self.resolved_styles_for(|_| true);
-        let styles = styles.into_iter().collect();
-        let inputs =
-            crate::figure::preparation::PreparationInputs::new(self, &styles, budget.clone())?;
+        let inputs = crate::figure::preparation::PreparationInputs::lazy(self, budget.clone())?;
         let scene = inputs.scene(self.root_id())?;
         for (id, node) in self.blocks.iter() {
-            if !styles.contains_key(&id) {
+            let owns_prepared_inputs = node
+                .prepared
+                .as_ref()
+                .is_some_and(|prepared| prepared.owner == id && !prepared.input_proofs.is_empty());
+            if node.layout.input_proofs.is_empty() && !owns_prepared_inputs {
                 continue;
             }
-            scene.retain_input_proofs(&node.layout.input_proofs)?;
+            if !scene.contains_frozen_member(id)? {
+                continue;
+            }
+            // Hidden placements are not consumed by this publication. If a
+            // visible parent measures a hidden child, its own query retains
+            // those proofs independently. Showing the owner checks its cache
+            // inputs before any visible layout can reuse the placements.
+            if node.is_valid && self.is_effectively_visible(id) == Ok(true) {
+                scene.retain_input_proofs(&node.layout.input_proofs)?;
+            }
             if let Some(prepared) = &node.prepared
                 && prepared.owner == id
             {
@@ -611,11 +620,20 @@ impl FigureTree {
         presentation: Option<&crate::animation::PresentationSnapshot>,
         coverage_outset: Option<f64>,
     ) -> NdCanvas {
+        self.try_render_with_paint_coverage(presentation, coverage_outset)
+            .expect("test recording requires valid projection inputs")
+    }
+
+    pub(crate) fn try_render_with_paint_coverage(
+        &self,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+        coverage_outset: Option<f64>,
+    ) -> Result<NdCanvas, CoordinateQueryError> {
         let mut gc = NdCanvas::new();
         gc.set_coverage_outset(coverage_outset);
         gc.damage_mut().set_full();
-        self.render_to_with_presentation(&mut gc, presentation);
-        gc
+        self.try_render_to_with_presentation(&mut gc, presentation)?;
+        Ok(gc)
     }
 
     #[allow(dead_code)]
@@ -630,12 +648,15 @@ impl FigureTree {
         rect: Rectangle,
         style: &crate::ResolvedStyle,
         font: crate::text::FontDescriptor,
-    ) {
+    ) -> Result<(), CoordinateQueryError> {
+        let projection = self.begin_projection_scope();
+        let snapshot = crate::animation::PresentationSnapshot::for_recording(self, root, None)?;
         let scene = FigureTreeRenderRef {
             blocks: &self.blocks,
-            presentation: None,
+            presentation: Some(&snapshot),
         };
         FigureRenderer::new(&scene, gc).capture(root, rect, style, font);
+        projection.finish(self, "scene capture return")
     }
 
     pub(crate) fn render_to_with_presentation(
@@ -643,16 +664,29 @@ impl FigureTree {
         gc: &mut NdCanvas,
         presentation: Option<&crate::animation::PresentationSnapshot>,
     ) {
+        self.try_render_to_with_presentation(gc, presentation)
+            .expect("test recording requires valid projection inputs");
+    }
+
+    pub(crate) fn try_render_to_with_presentation(
+        &self,
+        gc: &mut NdCanvas,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+    ) -> Result<(), CoordinateQueryError> {
+        let projection = self.begin_projection_scope();
         let start_id = self.contents.unwrap_or(self.root);
+        let snapshot =
+            crate::animation::PresentationSnapshot::for_recording(self, start_id, presentation)?;
         let scene_ref = FigureTreeRenderRef {
             blocks: &self.blocks,
-            presentation,
+            presentation: Some(&snapshot),
         };
         let mut renderer = FigureRenderer::new(&scene_ref, gc);
         renderer.render(start_id);
         if let Some(presentation) = presentation {
             presentation.paint_temporaries(gc);
         }
+        projection.finish(self, "recording return")
     }
 
     pub(crate) fn refresh_label_intrinsic_layouts(

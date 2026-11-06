@@ -8,7 +8,8 @@ use std::sync::Arc;
 mod budget;
 pub use budget::{PreparationBudget, PreparationBudgetError, PreparationBudgetHandle};
 mod dependency;
-mod input;
+pub(crate) mod input;
+pub use input::LayoutRevalidationGuard;
 pub(crate) use input::{InputProof, merge_proofs};
 pub use input::{
     PreparationInputError, PreparationInputErrorKind, PreparationInputKey, PreparationInputPayload,

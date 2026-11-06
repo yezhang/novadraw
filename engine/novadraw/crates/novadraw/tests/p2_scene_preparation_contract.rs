@@ -517,12 +517,15 @@ fn fragment_blank_does_not_hit_but_normal_descendants_remain_reachable() {
     let (mut runtime, page, children, _) = fixture();
     assert!(frame(&mut runtime));
     assert_eq!(
-        runtime.tree().hit_test_simple((5.0, 5.0)),
+        runtime.tree().hit_test_simple((5.0, 5.0)).unwrap(),
         Some(children[0])
     );
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 15.0)), Some(page));
     assert_eq!(
-        runtime.tree().hit_test_simple((50.0, 25.0)),
+        runtime.tree().hit_test_simple((30.0, 15.0)).unwrap(),
+        Some(page)
+    );
+    assert_eq!(
+        runtime.tree().hit_test_simple((50.0, 25.0)).unwrap(),
         Some(children[0])
     );
     let grandchild = runtime
@@ -535,7 +538,7 @@ fn fragment_blank_does_not_hit_but_normal_descendants_remain_reachable() {
         .unwrap();
     assert!(frame(&mut runtime));
     assert_eq!(
-        runtime.tree().hit_test_simple((30.0, 15.0)),
+        runtime.tree().hit_test_simple((30.0, 15.0)).unwrap(),
         Some(grandchild)
     );
 }

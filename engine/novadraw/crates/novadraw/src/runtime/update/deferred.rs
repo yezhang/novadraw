@@ -56,6 +56,7 @@ pub struct UpdateManager {
     pub(crate) frozen_surface_regions: Vec<Rectangle>,
     /// 失效 Figure 队列
     pub(crate) invalid_figures: Vec<FigureId>,
+    local_layout_requests: std::collections::HashMap<FigureId, LocalLayoutRequest>,
     /// 是否有更新待处理
     pub(crate) update_queued: bool,
     pub(crate) updating: bool,
@@ -75,11 +76,25 @@ pub struct UpdateManager {
     dispatching: bool,
     publication_epoch: u64,
     last_validation_error: Option<ValidationError>,
+    damage_projection_error: Option<crate::tree::CoordinateQueryError>,
+    display_damage_pending: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct LocalLayoutRequest {
+    pub(crate) change: crate::PropertyChangeEvent,
+    pub(crate) guard: crate::layout::LayoutRevalidationGuard,
 }
 
 pub(crate) struct PreparationUpdateCheckpoint {
     effects: NotificationQueue,
     animation_cursor: usize,
+}
+
+pub(crate) struct RecordingDamageCheckpoint {
+    dirty: std::collections::HashMap<FigureId, Rectangle>,
+    frozen: Vec<Rectangle>,
+    display_damage_pending: bool,
 }
 
 impl Default for UpdateManager {
@@ -89,6 +104,44 @@ impl Default for UpdateManager {
 }
 
 impl UpdateManager {
+    pub(crate) fn take_display_damage_pending(&mut self) -> bool {
+        std::mem::take(&mut self.display_damage_pending)
+    }
+
+    pub(crate) fn take_damage_projection_error(
+        &mut self,
+    ) -> Option<crate::tree::CoordinateQueryError> {
+        self.damage_projection_error.take()
+    }
+
+    pub(crate) fn recording_damage_checkpoint(
+        &self,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<RecordingDamageCheckpoint, crate::figure::PreparationBudgetError> {
+        budget.allocate(
+            "recording damage recovery",
+            (self.dirty_regions.len() * std::mem::size_of::<(FigureId, Rectangle)>()
+                + self.frozen_surface_regions.len() * std::mem::size_of::<Rectangle>())
+                as u64,
+        )?;
+        Ok(RecordingDamageCheckpoint {
+            dirty: self.dirty_regions.clone(),
+            frozen: self.frozen_surface_regions.clone(),
+            display_damage_pending: self.display_damage_pending,
+        })
+    }
+
+    pub(crate) fn restore_recording_damage(&mut self, checkpoint: RecordingDamageCheckpoint) {
+        self.display_damage_pending |= checkpoint.display_damage_pending;
+        self.restore_dirty_snapshot(checkpoint.dirty);
+        for region in checkpoint.frozen {
+            if !self.frozen_surface_regions.contains(&region) {
+                self.frozen_surface_regions.push(region);
+            }
+        }
+        self.clear_dirty_and_flag();
+    }
+
     pub(crate) fn preparation_checkpoint(&mut self) -> PreparationUpdateCheckpoint {
         PreparationUpdateCheckpoint {
             effects: self.notification_effects.clone(),
@@ -120,6 +173,7 @@ impl UpdateManager {
         self.notification_effects = prefix.effects;
         self.animation_effect_cursor = prefix.animation_cursor;
         self.invalid_figures = tree.invalid_figure_ids();
+        self.local_layout_requests.clear();
         self.update_queued = true;
     }
 
@@ -129,32 +183,66 @@ impl UpdateManager {
         id: FigureId,
         local_region: Rectangle,
     ) -> bool {
-        let Some(surface_region) = super::repair::propagate_damage_to_root(tree, id, local_region)
-        else {
+        if tree.has_projection_ancestor(id) {
+            // A source transaction does not own the display's old projection.
+            // Unknown old envelopes require Full; reading today's provider here
+            // would associate old pixels with a different shared input.
+            self.display_damage_pending = true;
+            self.update_queued = true;
             return false;
+        }
+        let surface_region = match super::repair::propagate_damage_to_root(tree, id, local_region) {
+            Ok(Some(region)) => region,
+            Ok(None) => return false,
+            Err(error) => {
+                self.damage_projection_error.get_or_insert(error);
+                self.update_queued = true;
+                return false;
+            }
         };
         self.add_frozen_surface_region(surface_region);
         true
     }
 
     pub(crate) fn freeze_removed_damage(
-        &self,
+        &mut self,
         tree: &crate::FigureTree,
         ids: &[FigureId],
     ) -> Vec<Rectangle> {
-        ids.iter()
-            .flat_map(|id| {
-                let visual = tree.node(*id).map(|node| node.visual_bounds());
-                visual
-                    .into_iter()
-                    .chain(self.dirty_regions.get(id).copied())
-                    .filter_map(|rect| super::repair::propagate_damage_to_root(tree, *id, rect))
-            })
-            .collect()
+        let projection = tree.begin_projection_scope();
+        let mut regions = Vec::new();
+        for id in ids {
+            if tree.has_projection_ancestor(*id) {
+                self.display_damage_pending = true;
+                self.update_queued = true;
+                continue;
+            }
+            let visual = tree.node(*id).map(|node| node.visual_bounds());
+            for rect in visual
+                .into_iter()
+                .chain(self.dirty_regions.get(id).copied())
+            {
+                match super::repair::propagate_damage_to_root(tree, *id, rect) {
+                    Ok(Some(region)) => regions.push(region),
+                    Ok(None) => {}
+                    Err(error) => {
+                        self.damage_projection_error.get_or_insert(error);
+                        self.update_queued = true;
+                        return regions;
+                    }
+                }
+            }
+        }
+        if let Err(error) = projection.finish(tree, "removed damage collection") {
+            self.damage_projection_error.get_or_insert(error);
+            self.update_queued = true;
+        }
+        regions
     }
 
     pub(crate) fn forget_figures(&mut self, ids: &std::collections::HashSet<FigureId>) {
         self.invalid_figures.retain(|id| !ids.contains(id));
+        self.local_layout_requests.retain(|id, _| !ids.contains(id));
         self.dirty_regions.retain(|id, _| !ids.contains(id));
     }
 
@@ -216,6 +304,7 @@ impl UpdateManager {
             dirty_regions: std::collections::HashMap::new(),
             frozen_surface_regions: Vec::new(),
             invalid_figures: Vec::new(),
+            local_layout_requests: std::collections::HashMap::new(),
             update_queued: false,
             updating: false,
             notification_effects: NotificationQueue::new(),
@@ -234,6 +323,8 @@ impl UpdateManager {
             dispatching: false,
             publication_epoch: 0,
             last_validation_error: None,
+            damage_projection_error: None,
+            display_damage_pending: false,
         }
     }
 
@@ -551,6 +642,7 @@ impl UpdateManager {
     ///
     /// * `figure_id` - 需要重新布局的块 ID
     pub fn add_invalid_figure(&mut self, figure_id: FigureId) {
+        self.local_layout_requests.remove(&figure_id);
         // 检查是否已在队列中
         if self.invalid_figures.contains(&figure_id) {
             return;
@@ -558,6 +650,41 @@ impl UpdateManager {
 
         self.invalid_figures.push(figure_id);
         self.update_queued = true;
+    }
+
+    /// Returns false when an existing ordinary request wins or properties differ.
+    pub(crate) fn has_local_layout_request(&self, source: FigureId) -> bool {
+        self.local_layout_requests.contains_key(&source)
+    }
+
+    pub(crate) fn add_local_layout_request(&mut self, request: LocalLayoutRequest) -> bool {
+        let source = request.change.figure_id();
+        if self.invalid_figures.contains(&source) {
+            let Some(first) = self.local_layout_requests.get_mut(&source) else {
+                return false;
+            };
+            if first.change.property() != request.change.property() {
+                self.local_layout_requests.remove(&source);
+                return false;
+            }
+            first.change.merge_latest(request.change);
+            // The first guard is never replaced by a later request.
+            return true;
+        }
+        self.invalid_figures.push(source);
+        self.local_layout_requests.insert(source, request);
+        self.update_queued = true;
+        true
+    }
+
+    pub(crate) fn drain_layout_requests(
+        &mut self,
+    ) -> (
+        Vec<FigureId>,
+        std::collections::HashMap<FigureId, LocalLayoutRequest>,
+    ) {
+        let local = std::mem::take(&mut self.local_layout_requests);
+        (self.drain_invalid_figures(), local)
     }
 
     /// 检查是否有待处理的布局
@@ -613,9 +740,11 @@ impl UpdateManager {
         self.dirty_regions.clear();
         self.frozen_surface_regions.clear();
         self.invalid_figures.clear();
+        self.local_layout_requests.clear();
         self.update_queued = false;
         self.updating = false;
         self.last_validation_error = None;
+        self.damage_projection_error = None;
         self.notification_effects.drain();
         self.animation_effect_cursor = 0;
     }
@@ -646,6 +775,7 @@ impl UpdateManager {
     /// 对应 draw2d: performValidation 中对 invalidFigures 的 drain。
     /// FigureTree 使用此方法获取需要验证的块列表。
     pub fn drain_invalid_figures(&mut self) -> Vec<FigureId> {
+        self.local_layout_requests.clear();
         // Keep queue capacity for the next validation batch.
         let mut invalid_figures = Vec::with_capacity(self.invalid_figures.len());
         invalid_figures.append(&mut self.invalid_figures);
@@ -659,7 +789,8 @@ impl UpdateManager {
     pub fn clear_dirty_and_flag(&mut self) {
         self.update_queued = !self.invalid_figures.is_empty()
             || !self.dirty_regions.is_empty()
-            || !self.frozen_surface_regions.is_empty();
+            || !self.frozen_surface_regions.is_empty()
+            || self.display_damage_pending;
     }
 
     fn restore_dirty_snapshot(
@@ -697,7 +828,8 @@ impl UpdateManager {
             canvas,
             snapshot.iter(),
             frozen_surface.iter().copied(),
-        );
+        )
+        .map_err(|error| ValidationError::Layout(crate::layout::LayoutError::Coordinate(error)))?;
 
         if !snapshot.is_empty() || !frozen_surface.is_empty() {
             let reported_damage = damage.unwrap_or_else(|| Rectangle::new(0.0, 0.0, 0.0, 0.0));
@@ -706,7 +838,11 @@ impl UpdateManager {
                     damage: reported_damage,
                 });
             if damage.is_some() {
-                graph.render_to_with_presentation(canvas, presentation);
+                graph
+                    .try_render_to_with_presentation(canvas, presentation)
+                    .map_err(|error| {
+                        ValidationError::Layout(crate::layout::LayoutError::Coordinate(error))
+                    })?;
             }
             self.notification_effects.emit_update(UpdateEvent::Painted {
                 damage: reported_damage,
@@ -796,6 +932,12 @@ impl UpdateManager {
         match result {
             Ok(Ok(())) => {}
             Ok(Err(error)) => {
+                if let Some(snapshot) = dirty_snapshot {
+                    self.restore_dirty_snapshot(snapshot);
+                }
+                if let Some(snapshot) = frozen_surface_snapshot {
+                    self.frozen_surface_regions.extend(snapshot);
+                }
                 self.last_validation_error = Some(error);
                 for figure_id in graph.invalid_figure_ids() {
                     self.add_invalid_figure(figure_id);

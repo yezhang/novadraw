@@ -153,6 +153,7 @@ enum RuntimeEffect {
     },
     Notification(NotificationEffect),
     Invalidate(FigureId),
+    RevalidateLayout(crate::runtime::update::LocalLayoutRequest),
     Mutation(PendingMutation),
     SetPressed {
         figure_id: FigureId,
@@ -227,6 +228,11 @@ impl<'a> EventContext<'a> {
                 }
                 RuntimeEffect::Invalidate(id) if tree.is_attached(id) == Ok(true) => {
                     tree.mark_invalid(updates, id);
+                }
+                RuntimeEffect::RevalidateLayout(request)
+                    if tree.is_attached(request.change.figure_id()) == Ok(true) =>
+                {
+                    tree.request_property_layout(updates, request);
                 }
                 // Input state requests for a disposed target cannot revive it.
                 _ => {}
@@ -378,6 +384,26 @@ impl EventEffects<'_> {
     /// Invalidates the callback target.
     pub fn invalidate(&mut self) {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
+    }
+
+    /// Request internal layout while preserving the owner's external geometry
+    /// and measurement inputs. Values must be owned immutable facts. This does
+    /// not emit a property notification. Unknown ancestor dependencies retain
+    /// ordinary invalidation; a guard for another source also falls back.
+    pub fn revalidate_layout_for_property<V: crate::PropertyValueType>(
+        &mut self,
+        key: crate::PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+        guard: crate::layout::LayoutRevalidationGuard,
+    ) {
+        self.effects.push(RuntimeEffect::RevalidateLayout(
+            crate::runtime::update::LocalLayoutRequest {
+                change: crate::TypedPropertyChange::new(self.target_id, key, old_value, new_value)
+                    .erase(),
+                guard,
+            },
+        ));
     }
 
     /// Enqueues an owned typed update for the current callback target.
@@ -647,6 +673,8 @@ pub struct SceneDispatchContext<'a> {
     interaction: &'a mut InteractionState,
     update_manager: &'a mut UpdateManager,
     pending_mutations: &'a mut PendingMutations,
+    projection: crate::figure::projection::ProjectionOperation,
+    coordinate_failure: std::cell::RefCell<Option<crate::tree::CoordinateQueryError>>,
 }
 
 impl<'a> SceneDispatchContext<'a> {
@@ -656,12 +684,53 @@ impl<'a> SceneDispatchContext<'a> {
         update_manager: &'a mut UpdateManager,
         pending_mutations: &'a mut PendingMutations,
     ) -> Self {
+        let projection = scene.projection_operation();
         Self {
             scene,
             interaction,
             update_manager,
             pending_mutations,
+            projection,
+            coordinate_failure: std::cell::RefCell::new(None),
         }
+    }
+
+    fn coordinate<T>(
+        &self,
+        query: impl FnOnce(
+            &crate::graph::CoordinateQuerySession<'_>,
+        ) -> Result<T, crate::tree::CoordinateQueryError>,
+    ) -> Result<T, crate::tree::CoordinateQueryError> {
+        if let Some(error) = self.coordinate_failure.borrow().as_ref() {
+            return Err(error.clone());
+        }
+        let result = (|| {
+            let session =
+                crate::graph::CoordinateQuerySession::in_operation(self.scene, &self.projection)?;
+            session.finish(query(&session))
+        })();
+        if let Err(error) = &result {
+            *self.coordinate_failure.borrow_mut() = Some(error.clone());
+        }
+        result
+    }
+
+    pub(crate) fn into_coordinate_operation(
+        self,
+    ) -> (
+        crate::figure::projection::ProjectionOperation,
+        Option<crate::tree::CoordinateQueryError>,
+    ) {
+        (self.projection, self.coordinate_failure.into_inner())
+    }
+
+    fn surface_to_local(
+        &self,
+        figure: FigureId,
+    ) -> Result<Option<crate::geometry::Affine2D>, crate::tree::CoordinateQueryError> {
+        self.coordinate(|session| {
+            crate::graph::checked_coordinate_inverse(figure, session.local_to_surface(figure)?)
+        })
     }
 
     pub(crate) fn poll_activities(&mut self, now: super::MonotonicTime) -> bool {
@@ -707,6 +776,10 @@ impl<'a> SceneDispatchContext<'a> {
                 }
                 RuntimeEffect::Invalidate(figure_id) => {
                     self.scene.mark_invalid(self.update_manager, figure_id)
+                }
+                RuntimeEffect::RevalidateLayout(request) => {
+                    self.scene
+                        .request_property_layout(self.update_manager, request);
                 }
                 RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
                 RuntimeEffect::SetPressed { figure_id, pressed } => {
@@ -834,7 +907,7 @@ impl<'a> SceneDispatchContext<'a> {
                 return false;
             };
             let insets = block.state().insets();
-            let Ok(Some(transform)) = self.scene.surface_to_local_transform(viewport_id) else {
+            let Ok(Some(transform)) = self.surface_to_local(viewport_id) else {
                 return false;
             };
             let point = transform.transform_point(event.entry_point());
@@ -854,23 +927,66 @@ impl<'a> SceneDispatchContext<'a> {
 }
 
 impl DispatchContext for SceneDispatchContext<'_> {
-    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.scene.find_mouse_event_target_at(x, y)
+    fn begin_coordinate_operation(&mut self) {
+        self.projection = self.scene.projection_operation();
+        *self.coordinate_failure.get_mut() = None;
     }
 
-    fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.scene.hit_test_simple((x, y))
+    fn find_mouse_event_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, crate::tree::CoordinateQueryError> {
+        self.coordinate(|session| {
+            self.scene
+                .hit_test_in_session((x, y), &mut crate::graph::MouseEventTargetSearch, session)
+                .map(|hit| hit.map(|(target, _)| target))
+        })
     }
 
-    fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.scene
-            .hit_test_simple((x, y))
-            .and_then(|hit| self.scene.tooltip_source(hit))
-            .map(|(source, _)| source)
+    fn find_cursor_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, crate::tree::CoordinateQueryError> {
+        self.coordinate(|session| {
+            self.scene
+                .hit_test_in_session((x, y), &mut crate::graph::IdentitySearch, session)
+                .map(|hit| hit.map(|(target, _)| target))
+        })
     }
 
-    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.scene.hit_test_simple((x, y))
+    fn find_hover_source_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, crate::tree::CoordinateQueryError> {
+        self.find_cursor_target_at(x, y).map(|hit| {
+            hit.and_then(|hit| self.scene.tooltip_source(hit))
+                .map(|(source, _)| source)
+        })
+    }
+
+    fn find_gesture_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, crate::tree::CoordinateQueryError> {
+        self.find_cursor_target_at(x, y)
+    }
+
+    fn validate_coordinates(&self) -> Result<(), crate::tree::CoordinateQueryError> {
+        if let Some(error) = self.coordinate_failure.borrow().as_ref() {
+            return Err(error.clone());
+        }
+        let result = self
+            .projection
+            .validate(self.scene, "event callback return")
+            .map_err(crate::tree::CoordinateQueryError::from);
+        if let Err(error) = &result {
+            *self.coordinate_failure.borrow_mut() = Some(error.clone());
+        }
+        result
     }
 
     fn mouse_target(&self) -> Option<FigureId> {
@@ -989,8 +1105,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
             match event {
                 Event::Mouse(mouse_event) => {
-                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
-                    else {
+                    let Ok(Some(transform)) = self.surface_to_local(target_id) else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(mouse_event.x, mouse_event.y));
@@ -1011,8 +1126,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     }
                 }
                 Event::Wheel(wheel_event) => {
-                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
-                    else {
+                    let Ok(Some(transform)) = self.surface_to_local(target_id) else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(wheel_event.x, wheel_event.y));
@@ -1020,8 +1134,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     handler.on_mouse_wheel(&local_event, &mut ctx)
                 }
                 Event::Zoom(zoom_event) => {
-                    let Ok(Some(transform)) = self.scene.surface_to_local_transform(target_id)
-                    else {
+                    let Ok(Some(transform)) = self.surface_to_local(target_id) else {
                         return false;
                     };
                     let point = transform.transform_point(Point::new(zoom_event.x, zoom_event.y));
@@ -1047,9 +1160,12 @@ impl DispatchContext for SceneDispatchContext<'_> {
             }
         };
 
+        // Shared model writes inside a handler cannot escape as a successful
+        // dispatch. Legal recorded effects still commit at this boundary.
+        let valid = self.validate_coordinates().is_ok();
         self.apply_effects(effects);
 
-        handled
+        handled && valid
     }
 }
 

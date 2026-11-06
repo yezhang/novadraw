@@ -1,18 +1,109 @@
 use super::*;
+use std::collections::HashMap;
+
+pub(super) fn admit_layout_dependencies(
+    container: FigureId,
+    manager: &dyn LayoutManager,
+    budget: &crate::figure::PreparationBudgetHandle,
+    is_child: impl Fn(FigureId) -> bool,
+) -> Result<Option<Box<crate::layout::LayoutDependencyTable>>, LayoutError> {
+    let mut declarations = crate::layout::LayoutDependencyDeclaration::new(budget.clone());
+    manager
+        .register_child_layout_dependencies(&mut declarations)
+        .map_err(LayoutError::DependencyRegistration)?;
+    declarations
+        .finish(container, is_child)
+        .map_err(LayoutError::DependencyRegistration)
+}
 
 pub(crate) struct LayoutMeasurementSession<'a> {
     pub(crate) text: &'a mut dyn TextLayoutEngine,
     pub(crate) budget: &'a crate::figure::PreparationBudgetHandle,
 }
 
+pub(super) struct LocalLayoutValidation {
+    source: FigureId,
+    property: crate::runtime::update::ErasedPropertyKey,
+    proof: crate::figure::preparation::InputProof,
+    request: crate::runtime::update::LocalLayoutRequest,
+}
+
 impl LayoutMeasurementSession<'_> {
+    fn validate_guard(
+        &self,
+        tree: &FigureTree,
+        proof: &crate::figure::preparation::InputProof,
+    ) -> Result<(), LayoutError> {
+        let scene = crate::figure::PreparationScene::with_lazy_styles(
+            tree,
+            tree.root_id(),
+            self.budget.clone(),
+        )
+        .map_err(|error| LayoutError::Input(Box::new(error)))?;
+        proof
+            .validate(&scene, "local layout return")
+            .map_err(|error| LayoutError::Input(Box::new(error)))
+    }
+
+    fn guard_proof(
+        &self,
+        tree: &FigureTree,
+        guard: &crate::layout::LayoutRevalidationGuard,
+    ) -> Result<Option<crate::figure::preparation::InputProof>, LayoutError> {
+        let scene = crate::figure::PreparationScene::with_lazy_styles(
+            tree,
+            tree.root_id(),
+            self.budget.clone(),
+        )
+        .map_err(|error| LayoutError::Input(Box::new(error)))?;
+        guard
+            .admit(&scene)
+            .map_err(|error| LayoutError::Input(Box::new(error)))
+    }
+
     fn layout(
         &mut self,
         tree: &FigureTree,
         container: FigureId,
         manager: &mut dyn LayoutManager,
         output: &mut LayoutOutput,
+        guard: Option<&crate::figure::preparation::InputProof>,
     ) -> Result<Vec<crate::figure::preparation::InputProof>, LayoutError> {
+        if !tree
+            .capability_ids(PREPARATION)
+            .any(|id| tree.blocks[id].preparation().is_some())
+        {
+            // Ordinary geometry queries need no style snapshot or subtree input log.
+            // The storage outlives the read wrapper, without self-referential ownership.
+            let scene = std::cell::OnceCell::new();
+            let read = RuntimeLayoutRead {
+                tree,
+                scene: &scene,
+                budget: self.budget,
+                failure: RefCell::new(None),
+            };
+            if let Some(proof) = guard {
+                read.checked_scene()?
+                    .retain_input_proofs(std::slice::from_ref(proof))
+                    .map_err(|error| LayoutError::Input(Box::new(error)))?;
+            }
+            manager.layout(container, &LayoutSceneQuery::new(&read), output)?;
+            if let Some(error) = read.failure.into_inner() {
+                return Err(error);
+            }
+            if let Some(scene) = scene.get() {
+                scene
+                    .validate_input_proofs("layout consumption")
+                    .map_err(|error| LayoutError::Input(Box::new(error)))?;
+                return scene
+                    .input_proofs()
+                    .map_err(|error| LayoutError::Input(Box::new(error)));
+            }
+            self.budget
+                .check()
+                .map_err(|error| LayoutError::Input(Box::new(error.into())))?;
+            return Ok(Vec::new());
+        }
         let preparation_error = |error| {
             LayoutError::Preparation(Box::new(crate::figure::PreparationMeasureError {
                 figure: container,
@@ -21,18 +112,17 @@ impl LayoutMeasurementSession<'_> {
                 kind: crate::figure::PreparationMeasureErrorKind::Text(Box::new(error)),
             }))
         };
-        self.budget
-            .allocate("layout measurement styles", tree.blocks.len() as u64)
-            .map_err(|error| preparation_error(error.into()))?;
-        let (styles, _) = tree.resolved_styles_for(|_| true);
-        let styles = styles.into_iter().collect();
-        let scene = crate::figure::PreparationScene::with_budget(
+        let scene = crate::figure::PreparationScene::with_lazy_styles(
             tree,
             tree.root_id(),
-            &styles,
             self.budget.clone(),
         )
         .map_err(preparation_error)?;
+        if let Some(proof) = guard {
+            scene
+                .retain_input_proofs(std::slice::from_ref(proof))
+                .map_err(preparation_error)?;
+        }
         let mut context =
             crate::text::MeasureContext::new(self.text, crate::text::FontDescriptor::default());
         let read = PreparationLayoutRead {
@@ -74,6 +164,16 @@ struct PreparationLayoutRead<'a, 'tree, 'text> {
 }
 
 impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
+    fn read_input(
+        &self,
+        _source: FigureId,
+        read: &dyn Fn(
+            &crate::figure::PreparationScene<'_>,
+        )
+            -> Result<crate::figure::PreparationInputSnapshot, crate::text::TextError>,
+    ) -> Result<crate::figure::PreparationInputSnapshot, LayoutError> {
+        read(self.scene).map_err(|error| LayoutError::Input(Box::new(error)))
+    }
     fn layout_direction(
         &self,
         figure: FigureId,
@@ -177,7 +277,196 @@ impl crate::layout::LayoutSceneRead for PreparationLayoutRead<'_, '_, '_> {
     }
 }
 
+/// A checked Runtime query for trees without preparation producers. Private input
+/// admission is lazy; nested manager measurements retain this same query.
+struct RuntimeLayoutRead<'a> {
+    tree: &'a FigureTree,
+    scene: &'a std::cell::OnceCell<crate::figure::PreparationScene<'a>>,
+    budget: &'a crate::figure::PreparationBudgetHandle,
+    failure: RefCell<Option<LayoutError>>,
+}
+
+impl RuntimeLayoutRead<'_> {
+    fn measurement(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+        minimum: bool,
+    ) -> Result<FigureMeasurement, LayoutError> {
+        self.tree.validate_identity(figure)?;
+        let cache_key = slotmap::DefaultKey::from(figure.local());
+        let node = &self.tree.blocks[figure];
+        let slot = usize::from(minimum);
+        let cacheable = node.layout.manager.is_some()
+            && if minimum {
+                node.minimum_size.is_none()
+            } else {
+                node.preferred_size.is_none()
+            };
+        let content = if cacheable {
+            node.layout_content_constraints(figure, constraints)?
+        } else {
+            constraints
+        };
+        let generation = node.layout.generation();
+        if cacheable && self.scene.get().is_none() {
+            // Borrow the receipt: the checked reader cannot replace this cache.
+            let cache = self.tree.input_free_measurements.borrow();
+            let cached = cache.get(cache_key).and_then(|records| records[slot]);
+            if let Some(record) = cached
+                && record.matches(generation, content)
+                // Once private inputs are admitted, callbacks remain observable.
+                // A cached size cannot certify an unknown callback's side effects.
+                && self.scene.get().is_none()
+            {
+                return Ok(record.measurement);
+            }
+        }
+        let query = LayoutSceneQuery::new(self);
+        let measurement = if minimum {
+            let size = self
+                .tree
+                .minimum_size_in(figure, constraints, Some(&query))?;
+            FigureMeasurement::new(size.width, size.height, None)
+        } else {
+            self.tree
+                .preferred_measurement_in(figure, constraints, Some(&query))?
+        };
+        if cacheable && self.scene.get().is_none() {
+            let record = Some(CachedMeasurement {
+                generation,
+                constraints: content,
+                measurement,
+            });
+            let mut cache = self.tree.input_free_measurements.borrow_mut();
+            if !cache.contains_key(cache_key) {
+                self.budget
+                    .allocate(
+                        "ordinary measurement cache",
+                        (std::mem::size_of::<slotmap::DefaultKey>()
+                            + std::mem::size_of::<[Option<CachedMeasurement>; 2]>()
+                            + 2 * std::mem::size_of::<usize>()) as u64,
+                    )
+                    .map_err(|error| LayoutError::Input(Box::new(error.into())))?;
+            }
+            cache.entry(cache_key).expect("live arena key").or_default()[slot] = record;
+        }
+        Ok(measurement)
+    }
+
+    fn checked_scene(&self) -> Result<&crate::figure::PreparationScene<'_>, LayoutError> {
+        if let Some(error) = self.failure.borrow().as_ref() {
+            return Err(error.clone());
+        }
+        let result: Result<_, LayoutError> = (|| {
+            if self.scene.get().is_none() {
+                let scene = crate::figure::PreparationScene::with_lazy_styles(
+                    self.tree,
+                    self.tree.root_id(),
+                    self.budget.clone(),
+                )
+                .map_err(|error| LayoutError::Input(Box::new(error)))?;
+                let _ = self.scene.set(scene);
+            }
+            Ok(self.scene.get().expect("scene initialized"))
+        })();
+        if let Err(error) = &result {
+            *self.failure.borrow_mut() = Some(error.clone());
+        }
+        result
+    }
+}
+
+impl crate::layout::LayoutSceneRead for RuntimeLayoutRead<'_> {
+    fn read_input(
+        &self,
+        _source: FigureId,
+        read: &dyn Fn(
+            &crate::figure::PreparationScene<'_>,
+        )
+            -> Result<crate::figure::PreparationInputSnapshot, crate::text::TextError>,
+    ) -> Result<crate::figure::PreparationInputSnapshot, LayoutError> {
+        read(self.checked_scene()?).map_err(|error| LayoutError::Input(Box::new(error)))
+    }
+
+    fn layout_direction(
+        &self,
+        figure: FigureId,
+    ) -> Result<crate::figure::LayoutDirection, LayoutError> {
+        crate::layout::LayoutSceneRead::layout_direction(self.tree, figure)
+    }
+    fn get_children(&self, parent: FigureId) -> Result<Vec<(FigureId, Rectangle)>, LayoutError> {
+        crate::layout::LayoutSceneRead::get_children(self.tree, parent)
+    }
+    fn get_constraint(
+        &self,
+        child: FigureId,
+    ) -> Result<Option<&dyn LayoutConstraint>, LayoutError> {
+        crate::layout::LayoutSceneRead::get_constraint(self.tree, child)
+    }
+    fn preferred_measurement(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<FigureMeasurement, LayoutError> {
+        self.measurement(figure, constraints, false)
+    }
+    fn minimum_size(
+        &self,
+        figure: FigureId,
+        constraints: MeasureConstraints,
+    ) -> Result<Dimension, LayoutError> {
+        self.measurement(figure, constraints, true)
+            .map(|measurement| measurement.size())
+    }
+    fn maximum_size(&self, figure: FigureId) -> Result<Dimension, LayoutError> {
+        self.tree.maximum_size(figure)
+    }
+    fn get_container_bounds(&self, figure: FigureId) -> Result<Rectangle, LayoutError> {
+        crate::layout::LayoutSceneRead::get_container_bounds(self.tree, figure)
+    }
+    fn get_freeform_extent(&self, figure: FigureId) -> Result<Option<Rectangle>, LayoutError> {
+        crate::layout::LayoutSceneRead::get_freeform_extent(self.tree, figure)
+    }
+    fn get_content_scale(&self, figure: FigureId) -> Result<Option<f64>, LayoutError> {
+        crate::layout::LayoutSceneRead::get_content_scale(self.tree, figure)
+    }
+}
+
 impl FigureTree {
+    /// Construction validation owns a bounded input session just like Runtime
+    /// validation. Standalone read queries still have no publication session.
+    pub(super) fn validate_subtree_with_inputs(
+        &mut self,
+        container: FigureId,
+    ) -> Result<(), LayoutError> {
+        self.validate_identity(container)?;
+        let mut updates = UpdateManager::with_namespace(self.namespace());
+        let mut text = crate::text::TextSystem::default();
+        let budget = crate::figure::PreparationBudgetHandle::default();
+        let mut measurement = LayoutMeasurementSession {
+            text: text.parts().0,
+            budget: &budget,
+        };
+        self.begin_derived_preparation(true);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.invalidate_stale_layout_inputs(&mut updates, &budget)
+                .map_err(|error| LayoutError::Input(Box::new(error)))?;
+            self.revalidate_with_update(&mut updates, container, Some(&mut measurement), None)?;
+            self.validate_preparation_inputs(&budget)
+                .map_err(|error| LayoutError::Input(Box::new(error)))
+        }));
+        let success = matches!(&result, Ok(Ok(())));
+        let recovery = self.finish_derived_preparation(success);
+        match result {
+            Ok(result) => {
+                recovery?;
+                result
+            }
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    }
+
     pub(crate) fn measure_preparation_figure(
         &self,
         context: &mut crate::text::MeasureContext<'_>,
@@ -417,9 +706,12 @@ impl FigureTree {
         if state.extent_generation.is_none() {
             return Err(FreeformError::Unvalidated(figure_id));
         }
-        Ok(self
+        let projection = self.begin_projection_scope();
+        let extent = self
             .derive_freeform_extent_excluding(figure_id, excluded)?
-            .unwrap_or(Rectangle::ZERO))
+            .unwrap_or(Rectangle::ZERO);
+        projection.finish(self, "freeform extent query return")?;
+        Ok(extent)
     }
 
     fn derive_freeform_extent_excluding(
@@ -440,7 +732,7 @@ impl FigureTree {
                     .unwrap_or(Rectangle::ZERO);
                 let bounds = child.figure_bounds();
                 let transform = Affine2D::from_translation(bounds.x, bounds.y)
-                    * child.child_transform().affine();
+                    * self.checked_child_transform(child_id)?;
                 transform_rectangle(transform, child_extent)
                     .ok_or(FreeformError::NonFiniteGeometry(child_id))?
             } else {
@@ -482,7 +774,7 @@ impl FigureTree {
                 let child_extent = state.cached_extent;
                 let bounds = child.figure_bounds();
                 let transform = Affine2D::from_translation(bounds.x, bounds.y)
-                    * child.child_transform().affine();
+                    * self.checked_child_transform(child_id)?;
                 transform_rectangle(transform, child_extent)
                     .ok_or(LayoutError::NonFiniteGeometry { figure: child_id })?
             } else {
@@ -551,16 +843,10 @@ impl FigureTree {
         budget: usize,
         mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
     ) -> Result<(), ValidationError> {
-        if !self
-            .capability_ids(PREPARATION)
-            .any(|id| self.blocks[id].preparation().is_some())
-        {
-            measurement = None;
-        }
         let mut processed = 0;
         let mut invalidation_chain = Vec::new();
         loop {
-            let figure_ids = update_manager.drain_invalid_figures();
+            let (figure_ids, requests) = update_manager.drain_layout_requests();
             if figure_ids.is_empty() {
                 return Ok(());
             }
@@ -579,21 +865,74 @@ impl FigureTree {
             invalidation_chain.extend(figure_ids.iter().copied());
 
             for figure_id in &figure_ids {
-                self.mark_validation_path_invalid(*figure_id);
+                if !requests.contains_key(figure_id) {
+                    self.mark_validation_path_invalid(*figure_id);
+                }
+            }
+
+            let mut local_requests = HashMap::new();
+            for (source, request) in requests {
+                if request.guard.source() == source
+                    && self.property_layout_chain_permits(source, request.change.property())
+                    && measurement.is_some()
+                {
+                    local_requests.insert(source, request);
+                } else {
+                    self.mark_validation_path_invalid(source);
+                }
             }
 
             let mut validation_roots: Vec<FigureId> = figure_ids
-                .into_iter()
+                .iter()
+                .copied()
                 .filter_map(|figure_id| self.validation_root(figure_id))
                 .collect();
             validation_roots.sort_by_key(|id| self.depth(*id).unwrap_or(usize::MAX));
             validation_roots.dedup();
 
             for root_id in validation_roots {
-                if let Err(error) =
-                    self.revalidate_with_update(update_manager, root_id, measurement.as_deref_mut())
+                // Qualification occurs immediately before this subtree's first
+                // callback, after any earlier root has finished its callbacks.
+                let request = local_requests.remove(&root_id);
+                let was_local = request.is_some();
+                let local = if let Some(request) = request
+                    && self.property_layout_chain_permits(root_id, request.change.property())
+                    && let Some(session) = measurement.as_deref_mut()
                 {
-                    update_manager.add_invalid_figure(root_id);
+                    match session.guard_proof(self, &request.guard) {
+                        Ok(proof) => proof.map(|proof| LocalLayoutValidation {
+                            source: root_id,
+                            property: request.change.property(),
+                            proof,
+                            request,
+                        }),
+                        Err(error) => {
+                            for id in &figure_ids {
+                                self.mark_invalid(update_manager, *id);
+                            }
+                            return Err(error.into());
+                        }
+                    }
+                } else {
+                    None
+                };
+                let root_id = if local.is_some() {
+                    root_id
+                } else {
+                    if was_local {
+                        self.mark_validation_path_invalid(root_id);
+                    }
+                    self.validation_root(root_id).unwrap_or(root_id)
+                };
+                if let Err(error) = self.revalidate_with_update(
+                    update_manager,
+                    root_id,
+                    measurement.as_deref_mut(),
+                    local.as_ref(),
+                ) {
+                    for id in &figure_ids {
+                        self.mark_invalid(update_manager, *id);
+                    }
                     return Err(error.into());
                 }
             }
@@ -617,11 +956,87 @@ impl FigureTree {
         }
     }
 
+    pub(crate) fn request_property_layout(
+        &mut self,
+        updates: &mut UpdateManager,
+        request: crate::runtime::update::LocalLayoutRequest,
+    ) {
+        let source = request.change.figure_id();
+        if request.guard.source() != source
+            || self
+                .blocks
+                .get(source)
+                .is_none_or(|node| !node.is_valid && !updates.has_local_layout_request(source))
+            || !self.property_layout_chain_permits(source, request.change.property())
+            || !updates.add_local_layout_request(request)
+        {
+            self.mark_invalid(updates, source);
+            return;
+        }
+        self.mark_validation_path_invalid_until(source, LayoutInvalidation::Geometry, Some(source));
+    }
+
+    fn property_layout_chain_permits(
+        &self,
+        source: FigureId,
+        property: crate::runtime::update::ErasedPropertyKey,
+    ) -> bool {
+        let Some(source_node) = self.blocks.get(source) else {
+            return false;
+        };
+        if source_node.layout.freeform.is_some() {
+            return false;
+        }
+        let mut child = source;
+        let mut parent = source_node.parent;
+        while let Some(id) = parent {
+            let Some(node) = self.blocks.get(id) else {
+                return false;
+            };
+            if !node.is_valid
+                || node.layout.freeform.is_some()
+                || node.capabilities.get(LIFECYCLE).ok().flatten().is_some()
+                || node.capabilities.get(PREPARATION).ok().flatten().is_some()
+            {
+                return false;
+            }
+            if node.layout.manager.is_some()
+                && !node
+                    .layout
+                    .child_dependencies
+                    .as_ref()
+                    .is_some_and(|table| table.permits(child, property))
+            {
+                return false;
+            }
+            child = id;
+            parent = node.parent;
+        }
+        true
+    }
+
+    pub(super) fn mark_internal_layout_geometry(
+        &mut self,
+        updates: &mut UpdateManager,
+        child: FigureId,
+        local: &LocalLayoutValidation,
+    ) {
+        self.mark_validation_path_invalid_until(
+            child,
+            LayoutInvalidation::Geometry,
+            Some(local.source),
+        );
+        if !updates.add_local_layout_request(local.request.clone()) {
+            self.mark_invalid(updates, local.source);
+        }
+    }
+
     fn revalidate_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
         container_id: FigureId,
         measurement: Option<&mut LayoutMeasurementSession<'_>>,
+        local: Option<&LocalLayoutValidation>,
     ) -> Result<(), LayoutError> {
         let ancestors_visible = match self.parent_id(container_id)? {
             Some(parent) => self.is_effectively_visible(parent)?,
@@ -633,6 +1048,7 @@ impl FigureTree {
             ancestors_visible,
             0,
             measurement,
+            local,
         )
     }
 
@@ -643,6 +1059,7 @@ impl FigureTree {
         ancestors_visible: bool,
         depth: usize,
         measurement: Option<&mut LayoutMeasurementSession<'_>>,
+        local: Option<&LocalLayoutValidation>,
     ) -> Result<(), LayoutError> {
         if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
             return stacker::maybe_grow(
@@ -655,6 +1072,7 @@ impl FigureTree {
                         ancestors_visible,
                         depth,
                         measurement,
+                        local,
                     )
                 },
             );
@@ -665,6 +1083,7 @@ impl FigureTree {
             ancestors_visible,
             depth,
             measurement,
+            local,
         )
     }
 
@@ -675,6 +1094,7 @@ impl FigureTree {
         ancestors_visible: bool,
         depth: usize,
         mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
+        local: Option<&LocalLayoutValidation>,
     ) -> Result<(), LayoutError> {
         if self
             .blocks
@@ -698,6 +1118,7 @@ impl FigureTree {
                 container_id,
                 depth,
                 measurement.as_deref_mut(),
+                local,
             )?;
         }
 
@@ -714,7 +1135,13 @@ impl FigureTree {
             let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 if let Some(session) = measurement.as_deref_mut() {
-                    session.layout(self, container_id, layout_manager.as_mut(), &mut output)
+                    session.layout(
+                        self,
+                        container_id,
+                        layout_manager.as_mut(),
+                        &mut output,
+                        local.map(|local| &local.proof),
+                    )
                 } else {
                     let snapshot = LayoutSceneQuery::new(self);
                     layout_manager
@@ -729,7 +1156,7 @@ impl FigureTree {
                 Ok(result) => result?,
                 Err(payload) => std::panic::resume_unwind(payload),
             };
-            self.apply_layout_output(update_manager, container_id, output)?;
+            self.apply_layout_output_scoped(update_manager, container_id, output, local)?;
             self.blocks[container_id].layout.input_proofs = input_proofs;
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
@@ -738,13 +1165,33 @@ impl FigureTree {
             });
         }
 
-        self.revalidate_children_with_update(update_manager, container_id, depth, measurement)?;
+        self.revalidate_children_with_update(
+            update_manager,
+            container_id,
+            depth,
+            measurement.as_deref_mut(),
+            local,
+        )?;
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
             if let Some(lifecycle) = block.lifecycle() {
                 lifecycle.validate(bounds);
             }
+        }
+        if let Some(local) = local
+            && local.source == container_id
+            && let Some(session) = measurement
+        {
+            session.validate_guard(self, &local.proof)?;
+            crate::figure::preparation::merge_proofs(
+                &mut self.blocks[container_id].layout.input_proofs,
+                std::slice::from_ref(&local.proof),
+                session.budget,
+            )
+            .map_err(|error| LayoutError::Input(Box::new(error)))?;
+        }
+        if let Some(block) = self.blocks.get_mut(container_id) {
             block.is_valid = true;
             block.layout.mark_validated();
         }
@@ -757,6 +1204,7 @@ impl FigureTree {
         parent_id: FigureId,
         parent_depth: usize,
         mut measurement: Option<&mut LayoutMeasurementSession<'_>>,
+        local: Option<&LocalLayoutValidation>,
     ) -> Result<(), LayoutError> {
         let children = self
             .blocks
@@ -770,6 +1218,7 @@ impl FigureTree {
                 true,
                 parent_depth + 1,
                 measurement.as_deref_mut(),
+                local,
             )?;
         }
         Ok(())
@@ -780,7 +1229,7 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         container_id: FigureId,
     ) -> Result<(), LayoutError> {
-        self.revalidate_with_update(update_manager, container_id, None)
+        self.revalidate_with_update(update_manager, container_id, None, None)
     }
 
     #[cfg(test)]
@@ -789,6 +1238,7 @@ impl FigureTree {
             .expect("layout validation failed");
     }
 
+    #[cfg(test)]
     pub(crate) fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
         let ancestors_visible = match self.parent_id(container_id)? {
             Some(parent) => self.is_effectively_visible(parent)?,
@@ -797,6 +1247,7 @@ impl FigureTree {
         self.try_revalidate_inner(container_id, ancestors_visible, 0)
     }
 
+    #[cfg(test)]
     fn try_revalidate_inner(
         &mut self,
         container_id: FigureId,
@@ -813,6 +1264,7 @@ impl FigureTree {
         self.try_revalidate_body(container_id, ancestors_visible, depth)
     }
 
+    #[cfg(test)]
     fn try_revalidate_body(
         &mut self,
         container_id: FigureId,
@@ -960,7 +1412,39 @@ impl FigureTree {
         container_id: FigureId,
         output: LayoutOutput,
     ) -> Result<(), LayoutError> {
+        self.apply_layout_output_scoped(update_manager, container_id, output, None)
+    }
+
+    fn apply_layout_output_scoped(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        container_id: FigureId,
+        output: LayoutOutput,
+        local: Option<&LocalLayoutValidation>,
+    ) -> Result<(), LayoutError> {
         self.validate_layout_output(container_id, &output)?;
+        // Decide the entire output's range before any geometry is written.
+        // Visibility and arbitrary effects cannot certify external measurements.
+        let requested_local = local.is_some();
+        let local = local.filter(|local| {
+            self.property_layout_chain_permits(local.source, local.property)
+                && output.changes.iter().all(|change| {
+                    match change {
+                        LayoutChange::Bounds(_, _)
+                        | LayoutChange::Repaint(_)
+                        | LayoutChange::RepaintParent(_) => true,
+                        // An unchanged visibility write has no invalidation,
+                        // notification or measurement effect.
+                        LayoutChange::Visibility(id, visible) => {
+                            self.blocks[*id].is_visible == *visible
+                        }
+                        _ => false,
+                    }
+                })
+        });
+        if requested_local && local.is_none() {
+            self.mark_invalid(update_manager, container_id);
+        }
         for change in output.changes {
             match change {
                 LayoutChange::Bounds(child_id, bounds) => {
@@ -969,14 +1453,7 @@ impl FigureTree {
                     if self.blocks[child_id].connection().is_some() {
                         continue;
                     }
-                    self.set_bounds_with_update(
-                        update_manager,
-                        child_id,
-                        bounds.x,
-                        bounds.y,
-                        bounds.width,
-                        bounds.height,
-                    );
+                    self.set_bounds_with_update_scoped(update_manager, child_id, bounds, local);
                 }
                 LayoutChange::Visibility(child_id, visible) => {
                     self.set_visible_with_update(update_manager, child_id, visible);
@@ -1007,6 +1484,7 @@ impl FigureTree {
         Ok(())
     }
 
+    #[cfg(test)]
     fn apply_layout_output_without_update(
         &mut self,
         container_id: FigureId,
@@ -1064,6 +1542,15 @@ impl FigureTree {
         figure_id: FigureId,
         constraints: MeasureConstraints,
     ) -> Result<FigureMeasurement, LayoutError> {
+        self.preferred_measurement_in(figure_id, constraints, None)
+    }
+
+    fn preferred_measurement_in(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+        query: Option<&LayoutSceneQuery<'_>>,
+    ) -> Result<FigureMeasurement, LayoutError> {
         self.validate_identity(figure_id)?;
         let block = &self.blocks[figure_id];
         if let Some(size) = block.preferred_size {
@@ -1079,7 +1566,8 @@ impl FigureTree {
         if let Some(layout) = block.layout.manager.as_deref() {
             let constraints = block.layout_content_constraints(figure_id, constraints)?;
             let generation = block.layout.generation();
-            if let Some(cached) = block.layout.cache.borrow().preferred
+            if query.is_none()
+                && let Some(cached) = block.layout.cache.borrow().preferred
                 && cached.matches(generation, constraints)
             {
                 return Ok(cached.measurement);
@@ -1087,14 +1575,16 @@ impl FigureTree {
             let snapshot = LayoutSceneQuery::new(self);
             let raw = crate::layout::validate_measurement(
                 figure_id,
-                layout.preferred_measurement(figure_id, constraints, &snapshot)?,
+                layout.preferred_measurement(figure_id, constraints, query.unwrap_or(&snapshot))?,
             )?;
             let measurement = block.project_layout_preferred_measurement(figure_id, raw)?;
-            block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
-                generation,
-                constraints,
-                measurement,
-            });
+            if query.is_none() {
+                block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
+                    generation,
+                    constraints,
+                    measurement,
+                });
+            }
             return Ok(measurement);
         }
         let constraints = block.layout_constraints(constraints);
@@ -1121,6 +1611,15 @@ impl FigureTree {
         figure_id: FigureId,
         constraints: MeasureConstraints,
     ) -> Result<Dimension, LayoutError> {
+        self.minimum_size_in(figure_id, constraints, None)
+    }
+
+    fn minimum_size_in(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+        query: Option<&LayoutSceneQuery<'_>>,
+    ) -> Result<Dimension, LayoutError> {
         self.validate_identity(figure_id)?;
         let block = &self.blocks[figure_id];
         if let Some(size) = block.minimum_size {
@@ -1130,20 +1629,23 @@ impl FigureTree {
         if let Some(layout) = block.layout.manager.as_deref() {
             let constraints = block.layout_content_constraints(figure_id, constraints)?;
             let generation = block.layout.generation();
-            if let Some(cached) = block.layout.cache.borrow().minimum
+            if query.is_none()
+                && let Some(cached) = block.layout.cache.borrow().minimum
                 && cached.matches(generation, constraints)
             {
                 return Ok(cached.measurement.size());
             }
             let snapshot = LayoutSceneQuery::new(self);
-            let raw = layout.minimum_size(figure_id, constraints, &snapshot)?;
+            let raw = layout.minimum_size(figure_id, constraints, query.unwrap_or(&snapshot))?;
             crate::layout::validate_measurement_size(figure_id, raw, false)?;
             let size = block.project_layout_minimum_size(figure_id, raw)?;
-            block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
-                generation,
-                constraints,
-                measurement: FigureMeasurement::new(size.width, size.height, None),
-            });
+            if query.is_none() {
+                block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
+                    generation,
+                    constraints,
+                    measurement: FigureMeasurement::new(size.width, size.height, None),
+                });
+            }
             return Ok(size);
         }
         let constraints = block.layout_constraints(constraints);
@@ -1239,19 +1741,45 @@ impl FigureTree {
         container: FigureId,
         layout_manager: Option<Box<dyn LayoutManager>>,
     ) -> bool {
+        self.try_replace_layout_manager(
+            container,
+            layout_manager,
+            &crate::figure::PreparationBudgetHandle::default(),
+        )
+        .expect("internal layout manager admission")
+    }
+
+    pub(crate) fn try_replace_layout_manager(
+        &mut self,
+        container: FigureId,
+        layout_manager: Option<Box<dyn LayoutManager>>,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<bool, LayoutError> {
+        self.validate_identity(container)?;
+        let dependencies = if let Some(manager) = layout_manager.as_deref() {
+            self.validate_layout_manager_constraints(container, manager)?;
+            admit_layout_dependencies(container, manager, budget, |child| {
+                self.blocks
+                    .get(child)
+                    .is_some_and(|node| node.parent == Some(container))
+            })?
+        } else {
+            None
+        };
         let Some(block) = self.blocks.get_mut(container) else {
-            return false;
+            unreachable!("validated layout owner");
         };
         if block.layout.manager.is_none() && layout_manager.is_none() {
-            return false;
+            return Ok(false);
         }
         block.layout.manager = layout_manager;
+        block.layout.child_dependencies = dependencies;
         // A replacement owns a new layout computation. In particular, clearing
         // the manager changes the container to freeform and retires old reads.
         block.layout.input_proofs.clear();
         block.layout.source_generation = block.layout.source_generation.wrapping_add(1);
         self.mark_validation_path_invalid_for(container, LayoutInvalidation::Structure);
-        true
+        Ok(true)
     }
 
     pub(crate) fn validate_layout_manager_constraints(
@@ -1396,11 +1924,24 @@ impl FigureTree {
 
     pub(super) fn mark_validation_path_invalid_for(
         &mut self,
+        figure_id: FigureId,
+        reason: LayoutInvalidation,
+    ) {
+        self.mark_validation_path_invalid_until(figure_id, reason, None);
+    }
+
+    fn mark_validation_path_invalid_until(
+        &mut self,
         mut figure_id: FigureId,
         reason: LayoutInvalidation,
+        boundary: Option<FigureId>,
     ) {
         let mut invalidated = Vec::new();
         loop {
+            let measurements = self.input_free_measurements.get_mut();
+            if !measurements.is_empty() {
+                measurements.remove(slotmap::DefaultKey::from(figure_id.local()));
+            }
             let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(figure_id) {
                 let was_valid = block.is_valid;
                 block.is_valid = false;
@@ -1415,6 +1956,9 @@ impl FigureTree {
 
             if was_valid {
                 invalidated.push(figure_id);
+            }
+            if boundary == Some(figure_id) {
+                break;
             }
             match parent {
                 Some(parent_id) => figure_id = parent_id,
@@ -1631,6 +2175,316 @@ mod connection_placement_tests {
 }
 
 #[cfg(test)]
+mod property_layout_tests {
+    use super::*;
+    use crate::figure::{
+        PreparationInputKey, PreparationInputPayload, PreparationInputRegistry, PreparationScene,
+    };
+    use std::sync::{
+        Arc,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+    };
+
+    const VALUE: PropertyKey<f64> = PropertyKey::new("external.local", "value");
+    const OTHER: PropertyKey<f64> = PropertyKey::new("external.local", "other");
+    #[derive(Eq, PartialEq)]
+    struct NonTarget(u64);
+    impl PreparationInputPayload for NonTarget {
+        fn retained_units(&self) -> u64 {
+            0
+        }
+    }
+    const INPUT: PreparationInputKey<NonTarget> = PreparationInputKey::new("external.non-target");
+
+    struct Placement {
+        independent: bool,
+        calls: Arc<AtomicUsize>,
+        width: Arc<AtomicU64>,
+        visibility: bool,
+    }
+    impl LayoutManager for Placement {
+        fn register_child_layout_dependencies(
+            &self,
+            out: &mut crate::layout::LayoutDependencyDeclaration,
+        ) -> Result<(), crate::layout::LayoutDependencyRegistrationError> {
+            if self.independent {
+                out.independent_child_property(VALUE)?;
+            }
+            Ok(())
+        }
+        fn preferred_measurement(
+            &self,
+            _: FigureId,
+            _: MeasureConstraints,
+            _: &LayoutSceneQuery<'_>,
+        ) -> Result<FigureMeasurement, LayoutError> {
+            Ok(FigureMeasurement::new(100.0, 100.0, None))
+        }
+        fn minimum_size(
+            &self,
+            _: FigureId,
+            _: MeasureConstraints,
+            _: &LayoutSceneQuery<'_>,
+        ) -> Result<Dimension, LayoutError> {
+            Ok(Dimension::ZERO)
+        }
+        fn layout(
+            &mut self,
+            owner: FigureId,
+            query: &LayoutSceneQuery<'_>,
+            out: &mut LayoutOutput,
+        ) -> Result<(), LayoutError> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            for (child, _) in query.children(owner)? {
+                out.set_child_bounds(
+                    child,
+                    Rectangle::new(0.0, 0.0, self.width.load(Ordering::Relaxed) as f64, 10.0),
+                );
+                if self.visibility {
+                    out.set_child_visible(child, false);
+                }
+            }
+            Ok(())
+        }
+    }
+    struct Fixture {
+        tree: FigureTree,
+        updates: UpdateManager,
+        owner: FigureId,
+        source: FigureId,
+        child: FigureId,
+        inputs: PreparationInputRegistry,
+        non_target: Arc<AtomicU64>,
+        width: Arc<AtomicU64>,
+        ancestor_calls: Arc<AtomicUsize>,
+    }
+    impl Fixture {
+        fn new(independent: bool, visibility: bool) -> Self {
+            let mut tree = FigureTree::new();
+            let rectangle =
+                || Box::new(crate::RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap());
+            let owner = tree.set_contents(rectangle());
+            let source = tree.add_child_to(owner, rectangle());
+            let child = tree.add_child_to(source, rectangle());
+            let ancestor_calls = Arc::new(AtomicUsize::new(0));
+            let width = Arc::new(AtomicU64::new(10));
+            tree.try_replace_layout_manager(
+                owner,
+                Some(Box::new(Placement {
+                    independent,
+                    calls: ancestor_calls.clone(),
+                    width: Arc::new(AtomicU64::new(100)),
+                    visibility: false,
+                })),
+                &crate::figure::PreparationBudgetHandle::new(Default::default()),
+            )
+            .unwrap();
+            tree.try_replace_layout_manager(
+                source,
+                Some(Box::new(Placement {
+                    independent: false,
+                    calls: Arc::new(AtomicUsize::new(0)),
+                    width: width.clone(),
+                    visibility,
+                })),
+                &crate::figure::PreparationBudgetHandle::new(Default::default()),
+            )
+            .unwrap();
+            let updates = UpdateManager::with_namespace(tree.namespace());
+            let non_target = Arc::new(AtomicU64::new(1));
+            let observed = non_target.clone();
+            let mut inputs = PreparationInputRegistry::new();
+            inputs
+                .register(INPUT, move |_, _: &PreparationScene<'_>| {
+                    Ok(NonTarget(observed.load(Ordering::Relaxed)))
+                })
+                .unwrap();
+            let mut fixture = Self {
+                tree,
+                updates,
+                owner,
+                source,
+                child,
+                inputs,
+                non_target,
+                width,
+                ancestor_calls,
+            };
+            fixture.tree.mark_invalid(&mut fixture.updates, owner);
+            fixture.validate().unwrap();
+            fixture.ancestor_calls.store(0, Ordering::Relaxed);
+            fixture
+        }
+        fn request(&mut self, property: PropertyKey<f64>, first: u64) {
+            let guard = crate::layout::LayoutRevalidationGuard::new(
+                &self.inputs,
+                INPUT,
+                self.source,
+                NonTarget(first),
+            )
+            .unwrap();
+            self.tree.request_property_layout(
+                &mut self.updates,
+                crate::runtime::update::LocalLayoutRequest {
+                    change: crate::TypedPropertyChange::new(self.source, property, 10.0, 20.0)
+                        .erase(),
+                    guard,
+                },
+            );
+        }
+        fn validate(&mut self) -> Result<(), ValidationError> {
+            let mut text = crate::text::TextSystem::default();
+            let budget = crate::figure::PreparationBudgetHandle::new(Default::default());
+            let mut session = LayoutMeasurementSession {
+                text: text.parts().0,
+                budget: &budget,
+            };
+            self.tree
+                .perform_validation_cycle_measured(&mut self.updates, 100, Some(&mut session))
+        }
+    }
+
+    #[test]
+    fn local_child_resize_converges_without_reinvalidating_declared_ancestors() {
+        let mut f = Fixture::new(true, false);
+        f.width.store(20, Ordering::Relaxed);
+        f.request(VALUE, 1);
+        assert!(f.tree.blocks[f.owner].is_valid);
+        assert!(!f.tree.blocks[f.source].is_valid);
+        f.validate().unwrap();
+        assert_eq!(f.ancestor_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(f.tree.figure_bounds(f.child).unwrap().width, 20.0);
+        assert!(f.tree.blocks[f.source].is_valid);
+        assert!(!f.updates.has_pending_layout());
+    }
+    #[test]
+    fn unknown_ancestor_and_changed_guard_preserve_full_invalidation() {
+        for independent in [false, true] {
+            let mut f = Fixture::new(independent, false);
+            f.request(VALUE, 1);
+            f.non_target.store(2, Ordering::Relaxed);
+            f.validate().unwrap();
+            assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+        }
+    }
+    #[test]
+    fn ordinary_request_and_different_typed_property_both_win() {
+        for ordinary in [false, true] {
+            let mut f = Fixture::new(true, false);
+            f.request(VALUE, 1);
+            if ordinary {
+                f.tree.mark_invalid(&mut f.updates, f.source);
+            } else {
+                f.request(OTHER, 1);
+            }
+            f.validate().unwrap();
+            assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+        }
+    }
+    #[test]
+    fn same_property_keeps_the_original_non_target_value() {
+        let mut f = Fixture::new(true, false);
+        f.request(VALUE, 1);
+        f.non_target.store(2, Ordering::Relaxed);
+        f.request(VALUE, 2);
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+    #[test]
+    fn visibility_effect_upgrades_the_complete_output_before_geometry() {
+        let mut f = Fixture::new(true, true);
+        f.tree.set_visible(f.child, true);
+        f.request(VALUE, 1);
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+    #[test]
+    fn unchanged_visibility_output_has_no_external_layout_effect() {
+        let mut f = Fixture::new(true, true);
+        f.request(VALUE, 1);
+        f.validate().unwrap();
+        assert_eq!(f.ancestor_calls.load(Ordering::Relaxed), 0);
+        assert!(!f.tree.is_visible(f.child).unwrap());
+    }
+    #[test]
+    fn retired_registration_is_an_error_and_pending_work_survives() {
+        let mut f = Fixture::new(true, false);
+        f.request(VALUE, 1);
+        f.inputs = PreparationInputRegistry::new();
+        assert!(f.validate().is_err());
+        assert!(f.updates.has_pending_layout());
+        assert!(!f.tree.blocks[f.owner].is_valid);
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+    #[test]
+    fn cleared_drained_and_deleted_queues_do_not_leave_local_metadata() {
+        for operation in 0..3 {
+            let mut f = Fixture::new(true, false);
+            f.request(VALUE, 1);
+            match operation {
+                0 => f.updates.clear(),
+                1 => {
+                    assert_eq!(f.updates.drain_invalid_figures(), vec![f.source]);
+                }
+                _ => f
+                    .updates
+                    .forget_figures(&std::collections::HashSet::from([f.source])),
+            }
+            assert!(!f.updates.has_local_layout_request(f.source));
+            assert!(!f.updates.has_pending_layout());
+            f.updates.add_invalid_figure(f.source);
+            f.validate().unwrap();
+            assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+        }
+    }
+    #[test]
+    fn checkpoint_restore_conservatively_requeues_local_work_as_ordinary() {
+        let mut f = Fixture::new(true, false);
+        f.request(VALUE, 1);
+        let checkpoint = f.updates.preparation_checkpoint();
+        f.updates
+            .restore_preparation_checkpoint(checkpoint, &f.tree);
+        assert!(!f.updates.has_local_layout_request(f.source));
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+    #[test]
+    fn declaration_replacement_is_rechecked_at_dequeue() {
+        let mut f = Fixture::new(true, false);
+        f.request(VALUE, 1);
+        f.tree
+            .try_replace_layout_manager(
+                f.owner,
+                Some(Box::new(Placement {
+                    independent: false,
+                    calls: f.ancestor_calls.clone(),
+                    width: Arc::new(AtomicU64::new(100)),
+                    visibility: false,
+                })),
+                &crate::figure::PreparationBudgetHandle::new(Default::default()),
+            )
+            .unwrap();
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+    #[test]
+    fn exhausted_validation_budget_preserves_requests_as_ordinary() {
+        let mut f = Fixture::new(true, false);
+        f.request(VALUE, 1);
+        assert!(
+            f.tree
+                .perform_validation_cycle_with_budget(&mut f.updates, 0)
+                .is_err()
+        );
+        assert!(f.updates.has_pending_layout());
+        assert!(!f.updates.has_local_layout_request(f.source));
+        f.validate().unwrap();
+        assert!(f.ancestor_calls.load(Ordering::Relaxed) > 0);
+    }
+}
+
+#[cfg(test)]
 mod s07_query_failure_tests {
     use super::*;
     use crate::RectangleFigure;
@@ -1643,6 +2497,257 @@ mod s07_query_failure_tests {
             RectangleFigure::new(0.0, 0.0, 0.0, 0.0).expect("valid figure bounds"),
         ));
         (tree, id)
+    }
+
+    #[test]
+    fn ordinary_geometry_layout_does_not_allocate_an_input_session() {
+        let (mut tree, root) = subject();
+        tree.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+        );
+        let mut text = crate::text::TextSystem::default();
+        let budget = crate::figure::PreparationBudgetHandle::new(
+            crate::figure::PreparationBudget::new(0, 0),
+        );
+        let mut session = LayoutMeasurementSession {
+            text: text.parts().0,
+            budget: &budget,
+        };
+        let mut output = LayoutOutput::new();
+        let proofs = session
+            .layout(
+                &tree,
+                root,
+                &mut crate::layout::FillLayout,
+                &mut output,
+                None,
+            )
+            .unwrap();
+        assert!(proofs.is_empty());
+        assert!(!output.is_empty());
+        assert_eq!(budget.used(), crate::figure::PreparationBudget::new(0, 0));
+    }
+
+    #[test]
+    fn lazy_layout_input_admission_failure_is_latched_before_the_reader() {
+        #[derive(Eq, PartialEq)]
+        struct Value;
+        impl crate::figure::PreparationInputPayload for Value {
+            fn retained_units(&self) -> u64 {
+                0
+            }
+        }
+        let key = crate::figure::PreparationInputKey::<Value>::new("lazy-admission");
+        let mut inputs = crate::figure::PreparationInputRegistry::new();
+        inputs
+            .register(
+                key,
+                |_: FigureId,
+                 _: &crate::figure::PreparationScene<'_>|
+                 -> Result<Value, crate::text::TextError> {
+                    panic!("reader must not run after rejected session admission");
+                },
+            )
+            .unwrap();
+        let (tree, root) = subject();
+        let scene = std::cell::OnceCell::new();
+        let budget = crate::figure::PreparationBudgetHandle::new(
+            crate::figure::PreparationBudget::new(0, 0),
+        );
+        let read = RuntimeLayoutRead {
+            tree: &tree,
+            scene: &scene,
+            budget: &budget,
+            failure: RefCell::new(None),
+        };
+        let query = LayoutSceneQuery::new(&read);
+        let first = query.input(&inputs, key, root).unwrap_err();
+        assert!(matches!(&first, LayoutError::Input(error)
+            if matches!(error.as_ref(), crate::text::TextError::PreparationDependency(dependency)
+                if matches!(dependency.as_ref(), crate::figure::PreparationDependencyError::Budget(_)))));
+        assert_eq!(query.input(&inputs, key, root).unwrap_err(), first);
+        assert_eq!(read.failure.into_inner(), Some(first));
+        assert!(scene.get().is_none());
+    }
+
+    #[test]
+    fn ordinary_cache_does_not_skip_callbacks_after_private_input_admission() {
+        use crate::figure::{
+            PreparationInputKey, PreparationInputPayload, PreparationInputRegistry,
+        };
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        struct Count(Arc<AtomicUsize>);
+        impl LayoutManager for Count {
+            fn preferred_measurement(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<FigureMeasurement, LayoutError> {
+                self.0.fetch_add(1, Ordering::Relaxed);
+                Ok(FigureMeasurement::default())
+            }
+            fn minimum_size(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<Dimension, LayoutError> {
+                Ok(Dimension::ZERO)
+            }
+            fn layout(
+                &mut self,
+                _: FigureId,
+                _: &LayoutSceneQuery<'_>,
+                _: &mut LayoutOutput,
+            ) -> Result<(), LayoutError> {
+                Ok(())
+            }
+        }
+        #[derive(Eq, PartialEq)]
+        struct Value;
+        impl PreparationInputPayload for Value {
+            fn retained_units(&self) -> u64 {
+                0
+            }
+        }
+        let (mut tree, root) = subject();
+        let calls = Arc::new(AtomicUsize::new(0));
+        tree.replace_layout_manager(root, Some(Box::new(Count(calls.clone()))));
+        let scene = std::cell::OnceCell::new();
+        let budget = crate::figure::PreparationBudgetHandle::default();
+        let read = RuntimeLayoutRead {
+            tree: &tree,
+            scene: &scene,
+            budget: &budget,
+            failure: RefCell::new(None),
+        };
+        let query = LayoutSceneQuery::new(&read);
+        for _ in 0..2 {
+            query
+                .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+                .unwrap();
+        }
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+        assert!(scene.get().is_none());
+        let key = PreparationInputKey::<Value>::new("cache.admission");
+        let mut inputs = PreparationInputRegistry::new();
+        inputs
+            .register(
+                key,
+                |_: FigureId, _: &crate::figure::PreparationScene<'_>| Ok(Value),
+            )
+            .unwrap();
+        query.input(&inputs, key, root).unwrap();
+        query
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .unwrap();
+        assert_eq!(calls.load(Ordering::Relaxed), 2);
+        // Admitted input sessions never overwrite the earlier input-free receipt.
+        assert!(
+            tree.input_free_measurements.borrow()[slotmap::DefaultKey::from(root.local())][0]
+                .is_some()
+        );
+        tree.mark_validation_path_invalid(root);
+        assert!(
+            !tree
+                .input_free_measurements
+                .borrow()
+                .contains_key(slotmap::DefaultKey::from(root.local()))
+        );
+    }
+
+    #[test]
+    #[ignore = "manual no-trace ordinary nested-measurement cost evidence"]
+    fn ordinary_layout_input_query_cost() {
+        struct Probe;
+        impl LayoutManager for Probe {
+            fn preferred_measurement(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<FigureMeasurement, LayoutError> {
+                Ok(FigureMeasurement::default())
+            }
+            fn minimum_size(
+                &self,
+                _: FigureId,
+                _: MeasureConstraints,
+                _: &LayoutSceneQuery<'_>,
+            ) -> Result<Dimension, LayoutError> {
+                Ok(Dimension::ZERO)
+            }
+            fn layout(
+                &mut self,
+                owner: FigureId,
+                query: &LayoutSceneQuery<'_>,
+                _: &mut LayoutOutput,
+            ) -> Result<(), LayoutError> {
+                for (child, _) in query.children(owner)? {
+                    std::hint::black_box(
+                        query.preferred_measurement(child, MeasureConstraints::UNBOUNDED)?,
+                    );
+                    std::hint::black_box(query.minimum_size(child, MeasureConstraints::UNBOUNDED)?);
+                }
+                Ok(())
+            }
+        }
+        for count in [1, 100] {
+            let (mut tree, root) = subject();
+            for _ in 0..count {
+                let child = tree.add_child_to(
+                    root,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+                );
+                tree.add_child_to(
+                    child,
+                    Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0).unwrap()),
+                );
+                tree.replace_layout_manager(child, Some(Box::new(crate::layout::FillLayout)));
+            }
+            let mut text = crate::text::TextSystem::default();
+            let budget = crate::figure::PreparationBudgetHandle::default();
+            let mut session = LayoutMeasurementSession {
+                text: text.parts().0,
+                budget: &budget,
+            };
+            let mut probe = Probe;
+            let mut samples = [Vec::new(), Vec::new()];
+            for iteration in 0..220 {
+                let order = if iteration % 2 == 0 { [0, 1] } else { [1, 0] };
+                for side in order {
+                    let mut output = LayoutOutput::new();
+                    let start = std::time::Instant::now();
+                    if side == 0 {
+                        probe
+                            .layout(root, &LayoutSceneQuery::new(&tree), &mut output)
+                            .unwrap();
+                    } else {
+                        session
+                            .layout(&tree, root, &mut probe, &mut output, None)
+                            .unwrap();
+                    }
+                    if iteration >= 20 {
+                        samples[side].push(start.elapsed().as_nanos());
+                    }
+                }
+            }
+            for (side, mut values) in samples.into_iter().enumerate() {
+                values.sort_unstable();
+                println!(
+                    "ordinary children={count} side={side} n={} p50_ns={} p95_ns={} p99_ns={}",
+                    values.len(),
+                    values[values.len() / 2],
+                    values[values.len() * 95 / 100],
+                    values[values.len() * 99 / 100],
+                );
+            }
+        }
     }
 
     #[test]

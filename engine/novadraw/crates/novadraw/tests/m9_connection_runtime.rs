@@ -949,7 +949,10 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
         (source_point.y() + target_point.y()) / 2.0,
     );
     assert_eq!(
-        runtime.tree().hit_test_simple((midpoint.x(), midpoint.y())),
+        runtime
+            .tree()
+            .hit_test_simple((midpoint.x(), midpoint.y()))
+            .unwrap(),
         Some(connection_figure)
     );
     assert!(

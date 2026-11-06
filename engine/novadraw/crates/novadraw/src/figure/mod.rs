@@ -33,6 +33,12 @@ mod graph_projection;
 mod image;
 mod label;
 mod polygon;
+pub(crate) mod projection;
+pub use projection::{
+    FigureProjection, PROJECTION, ProjectionCapability, ProjectionContribution, ProjectionError,
+    ProjectionInputKey, ProjectionInputPayload, ProjectionInputReader, ProjectionInputRegistry,
+    ProjectionScene,
+};
 mod polyline;
 pub(crate) mod preparation;
 pub use preparation::{

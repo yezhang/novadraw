@@ -110,11 +110,17 @@ pub(crate) struct DerivedCheckpoint {
 }
 
 impl FigureTree {
-    /// Only a preparation owner needs a rollback prefix across feedback rounds.
-    pub(crate) fn begin_derived_preparation(&mut self) -> bool {
-        if self
-            .capability_ids(PREPARATION)
-            .any(|id| self.blocks[id].preparation().is_some())
+    /// Pending layout callbacks can admit private inputs even without a
+    /// preparation capability. Their output shares the same rollback prefix.
+    pub(crate) fn begin_derived_preparation(&mut self, pending_layout: bool) -> bool {
+        if pending_layout
+            || self
+                .capability_ids(PREPARATION)
+                .any(|id| self.blocks[id].preparation().is_some())
+            || self
+                .blocks
+                .iter()
+                .any(|(_, node)| !node.layout.input_proofs.is_empty())
         {
             self.derived_checkpoint = Some(self.capture_derived_prefix());
         }
@@ -226,6 +232,7 @@ impl FigureTree {
         if success {
             return Ok(());
         }
+        self.input_free_measurements.get_mut().clear();
         for (id, mut saved) in prefix.nodes {
             saved.prepared = saved
                 .prepared

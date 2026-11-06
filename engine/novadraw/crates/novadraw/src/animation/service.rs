@@ -299,6 +299,91 @@ pub(crate) struct PresentationSnapshot {
 }
 
 impl PresentationSnapshot {
+    /// Supplies checked committed transforms only where the existing frozen
+    /// presentation geometry or an explicit child-transform patch does not.
+    /// The renderer consumes these through its unchanged snapshot override.
+    pub(crate) fn for_recording(
+        tree: &FigureTree,
+        root: FigureId,
+        presentation: Option<&Self>,
+    ) -> Result<Self, crate::tree::CoordinateQueryError> {
+        let scope = tree.begin_projection_scope();
+        let budget = scope.operation.budget();
+        let count = presentation.map_or(0, |snapshot| {
+            snapshot.figures.len() * std::mem::size_of::<(FigureId, FigurePresentationEffect)>()
+                + snapshot.temporaries.len() * std::mem::size_of::<TemporaryVisualSnapshot>()
+        });
+        budget
+            .allocate("projection recording snapshot", count as u64)
+            .map_err(crate::figure::ProjectionError::from)?;
+        let mut snapshot = presentation.cloned().unwrap_or_default();
+        for id in tree.capability_ids(crate::figure::PROJECTION) {
+            let mut current = Some(id);
+            let mut member = false;
+            while let Some(ancestor) = current {
+                budget
+                    .consume("projection recording ancestry", 1)
+                    .map_err(crate::figure::ProjectionError::from)?;
+                let node = tree.node(ancestor)?;
+                let visible = snapshot
+                    .geometry
+                    .as_ref()
+                    .and_then(|geometry| geometry.data.nodes.get(&ancestor))
+                    .map_or_else(
+                        || {
+                            snapshot
+                                .figures
+                                .get(&ancestor)
+                                .and_then(|effect| effect.geometry.visible)
+                                .unwrap_or(node.is_visible)
+                        },
+                        |geometry| geometry.effective_visible,
+                    );
+                if !visible {
+                    break;
+                }
+                if ancestor == root {
+                    member = true;
+                    break;
+                }
+                current = node.parent;
+            }
+            if !member
+                || snapshot
+                    .geometry
+                    .as_ref()
+                    .is_some_and(|geometry| geometry.data.nodes.contains_key(&id))
+                || snapshot
+                    .figures
+                    .get(&id)
+                    .is_some_and(|effect| effect.geometry.child_transform.is_some())
+            {
+                continue;
+            }
+            let insets = tree.node(id)?.state().insets;
+            let child_transform = Affine2D::from_translation(-insets.left, -insets.top)
+                * tree.checked_child_transform(id)?;
+            budget
+                .allocate(
+                    "projection recording entry",
+                    std::mem::size_of::<(FigureId, FigurePresentationEffect)>() as u64,
+                )
+                .map_err(crate::figure::ProjectionError::from)?;
+            snapshot
+                .figures
+                .entry(id)
+                .or_default()
+                .geometry
+                .child_transform = Some(child_transform);
+        }
+        // A nested frame owns publication. Standalone recording validates now,
+        // but its caller must also validate after paint callbacks.
+        scope
+            .operation
+            .checked_validate(tree, "recording projection inputs")?;
+        Ok(snapshot)
+    }
+
     pub(crate) fn figure(&self, id: FigureId) -> Option<FigurePresentationEffect> {
         self.figures.get(&id).cloned()
     }
@@ -399,9 +484,11 @@ struct PreparedAnimation {
     derived_fields: HashMap<FigureId, super::geometry::GeometryFields>,
 }
 
-struct RecordedGeometry {
+pub(crate) struct DisplayedGeometry {
     version: super::PresentationVersion,
+    data: std::sync::Weak<super::geometry_view::PresentationGeometryData>,
     envelopes: Vec<(FigureId, Option<crate::Rectangle>)>,
+    _retention: super::storage::CaptureStorageLease,
 }
 
 pub(crate) struct AnimationService {
@@ -429,7 +516,7 @@ pub(crate) struct AnimationService {
     binding_revision: u64,
     geometry_cache: Option<Arc<super::PresentationGeometry>>,
     snapshot_cache: Option<(super::PresentationVersion, Option<PresentationSnapshot>)>,
-    recorded_geometry: Option<RecordedGeometry>,
+    displayed_geometry: Option<DisplayedGeometry>,
     stats: AnimationStats,
 }
 
@@ -464,7 +551,7 @@ impl AnimationService {
             binding_revision: 0,
             geometry_cache: None,
             snapshot_cache: None,
-            recorded_geometry: None,
+            displayed_geometry: None,
             stats: AnimationStats::default(),
         }
     }
@@ -597,7 +684,7 @@ impl AnimationService {
         }
         let snapshot = self.snapshot(tree, resources, source_epoch)?;
         if let Ok(geometry) = self.geometry(source_epoch)
-            && geometry.sources_valid(tree, resources)
+            && geometry.sources_valid(tree, resources)?
             && dependencies
                 .iter()
                 .all(|figure| geometry.data.covered.contains(figure))
@@ -793,23 +880,25 @@ impl AnimationService {
             .collect()
     }
 
-    /// Compares against the last recorded geometry, never against a capture-only materialization.
+    /// Compares against the last acknowledged display, never against a
+    /// capture-only or merely recorded materialization.
     pub(crate) fn geometry_damage(
         &self,
         tree: &FigureTree,
         source_epoch: u64,
         snapshot: Option<&PresentationSnapshot>,
         updates: &mut UpdateManager,
-    ) -> Result<(), AnimationError> {
-        let old = self.recorded_geometry.as_ref();
+    ) -> Result<bool, AnimationError> {
+        let old = self.displayed_geometry.as_ref();
         let new = snapshot.and_then(|snapshot| snapshot.geometry.as_deref());
         if old.is_none() && new.is_none() {
-            return Ok(());
+            return Ok(false);
         }
         if let (Some(old), Some(new)) = (old, new)
             && old.version == new.version()
+            && old.data.ptr_eq(&Arc::downgrade(&new.data))
         {
-            return Ok(());
+            return Ok(false);
         }
         let fallback;
         let new = if new.is_none() {
@@ -830,10 +919,13 @@ impl AnimationService {
         } else {
             new
         };
+        let mut unknown_envelope = false;
         if let Some(old) = old {
             for (_, envelope) in &old.envelopes {
                 if let Some(envelope) = envelope {
                     updates.add_frozen_surface_region(*envelope);
+                } else {
+                    unknown_envelope = true;
                 }
             }
         }
@@ -846,33 +938,55 @@ impl AnimationService {
                     .and_then(|geometry| geometry.visual_envelope)
                 {
                     updates.add_frozen_surface_region(envelope);
+                } else {
+                    unknown_envelope = true;
                 }
             }
         }
-        Ok(())
+        Ok(unknown_envelope)
     }
 
-    pub(crate) fn record_geometry(&mut self, snapshot: Option<&PresentationSnapshot>) {
-        self.recorded_geometry = snapshot
-            .and_then(|snapshot| snapshot.geometry.as_ref())
-            .map(|geometry| RecordedGeometry {
-                version: geometry.version(),
-                envelopes: geometry
-                    .data
-                    .roots
-                    .iter()
-                    .map(|root| {
-                        (
-                            *root,
-                            geometry
-                                .data
-                                .nodes
-                                .get(root)
-                                .and_then(|node| node.visual_envelope),
-                        )
-                    })
-                    .collect(),
-            });
+    pub(crate) fn submission_geometry(
+        &self,
+        snapshot: Option<&PresentationSnapshot>,
+    ) -> Result<Option<DisplayedGeometry>, AnimationError> {
+        let Some(geometry) = snapshot.and_then(|snapshot| snapshot.geometry.as_ref()) else {
+            return Ok(None);
+        };
+        let bytes = geometry
+            .data
+            .roots
+            .len()
+            .checked_mul(std::mem::size_of::<(FigureId, Option<crate::Rectangle>)>())
+            .and_then(|bytes| bytes.checked_add(std::mem::size_of::<DisplayedGeometry>()))
+            .ok_or(AnimationError::BudgetExceeded(
+                super::AnimationBudgetKind::SnapshotBytes,
+            ))?;
+        let retention = self.submission_storage.acquire(bytes)?;
+        Ok(Some(DisplayedGeometry {
+            version: geometry.version(),
+            data: Arc::downgrade(&geometry.data),
+            envelopes: geometry
+                .data
+                .roots
+                .iter()
+                .map(|root| {
+                    (
+                        *root,
+                        geometry
+                            .data
+                            .nodes
+                            .get(root)
+                            .and_then(|node| node.visual_envelope),
+                    )
+                })
+                .collect(),
+            _retention: retention,
+        }))
+    }
+
+    pub(crate) fn present_geometry(&mut self, geometry: Option<DisplayedGeometry>) {
+        self.displayed_geometry = geometry;
     }
 
     pub(crate) fn retain_submission(
@@ -905,6 +1019,7 @@ impl AnimationService {
         resources: &crate::runtime::ResourceRegistry,
         source_epoch: u64,
     ) -> Result<Option<PresentationSnapshot>, AnimationError> {
+        let projection = tree.begin_projection_scope();
         let mut successful = HashMap::new();
         loop {
             let result =
@@ -915,7 +1030,9 @@ impl AnimationService {
                 },
             ) = &result
             else {
-                return result;
+                let snapshot = result?;
+                projection.finish(tree, "animation snapshot return")?;
+                return Ok(snapshot);
             };
             if *value_type != TypeId::of::<crate::figure::BoundsDrawing>() {
                 return result;
@@ -948,29 +1065,38 @@ impl AnimationService {
         source_epoch: u64,
         successful: &mut HashMap<AnimationId, super::provider::ProviderEvaluation>,
     ) -> Result<Option<PresentationSnapshot>, AnimationError> {
-        let invalid: Vec<_> = self
-            .active
-            .iter()
-            .filter_map(|(id, animation)| {
-                animation
-                    .geometry_source
-                    .as_ref()
-                    .is_some_and(|source| !source.is_valid(tree, resources))
-                    .then_some(id)
-            })
-            .collect();
+        let mut invalid = Vec::new();
+        for (id, animation) in self.active.iter() {
+            if let Some(source) = &animation.geometry_source
+                && !source.is_valid(tree, resources)?
+            {
+                invalid.push(id);
+            }
+        }
         for id in invalid {
             self.finish(id, AnimationState::Cancelled);
         }
         let version = self.geometry_version(source_epoch);
+        let projection_valid = if let Some(geometry) = self
+            .snapshot_cache
+            .as_ref()
+            .and_then(|(_, snapshot)| snapshot.as_ref())
+            .and_then(|snapshot| snapshot.geometry.as_ref())
+        {
+            geometry.projection_sources_valid(tree)?
+        } else {
+            true
+        };
         if let Some((cached_version, snapshot)) = &self.snapshot_cache
             && *cached_version == version
+            && projection_valid
         {
             return Ok(snapshot.clone());
         }
         if let Some((cached_version, snapshot)) = &self.snapshot_cache
             && cached_version.sample == version.sample
             && cached_version.binding_revision == version.binding_revision
+            && projection_valid
             && self.active.len() != 0
             && self
                 .active
@@ -989,9 +1115,9 @@ impl AnimationService {
             return Ok(snapshot);
         }
         if self.active.len() == 0 {
-            if self.geometry_cache.as_ref().is_some_and(|geometry| {
-                geometry.version() != version || !geometry.sources_valid(tree, resources)
-            }) {
+            if let Some(geometry) = &self.geometry_cache
+                && (geometry.version() != version || !geometry.sources_valid(tree, resources)?)
+            {
                 self.geometry_cache = None;
             }
             return Ok(None);
@@ -1343,16 +1469,16 @@ impl AnimationService {
         &mut self,
         tree: &FigureTree,
         resources: &crate::runtime::ResourceRegistry,
-    ) -> bool {
+    ) -> Result<bool, AnimationError> {
         let ids: Vec<_> = self.active.iter().map(|(id, _)| id).collect();
         let mut changed = false;
         for id in ids {
-            if self.active.get(id).is_some_and(|animation| {
-                animation
-                    .geometry_source
-                    .as_ref()
-                    .is_some_and(|source| !source.is_valid(tree, resources))
-            }) {
+            if let Some(source) = self
+                .active
+                .get(id)
+                .and_then(|animation| animation.geometry_source.as_ref())
+                && !source.is_valid(tree, resources)?
+            {
                 changed |= self.finish(id, AnimationState::Cancelled);
                 continue;
             }
@@ -1403,7 +1529,7 @@ impl AnimationService {
             });
             changed |= self.set_suspension_reason(id, None, Some(target_hidden));
         }
-        changed
+        Ok(changed)
     }
 
     pub(crate) fn set_surface_suspended(&mut self, suspended: bool) -> bool {
@@ -2682,14 +2808,16 @@ impl AnimationMut<'_> {
         Ok(changed)
     }
 
-    pub(crate) fn reconcile_visibility(&mut self) -> bool {
+    pub(crate) fn reconcile_visibility(&mut self) -> Result<bool, AnimationError> {
         if self.service.active.len() == 0 {
-            return false;
+            return Ok(false);
         }
         let before = self.service.damage_state(self.tree);
-        let changed = self.service.reconcile_visibility(self.tree, self.resources);
+        let changed = self
+            .service
+            .reconcile_visibility(self.tree, self.resources)?;
         self.reconcile_damage(before);
-        changed
+        Ok(changed)
     }
 
     pub(crate) fn set_surface_suspended(
@@ -2989,8 +3117,9 @@ impl AnimationMut<'_> {
                 AnimationBudgetKind::Channels,
             ));
         }
+        let projection = tree.begin_projection_scope();
         let committed = self.guarded_service(|_| {
-            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(node))
+            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(tree, figure)?)
         })?;
         let erased = binding.erased();
         let fields = self.guarded_service(|_| erased.patch(&committed))?.fields();
@@ -3004,6 +3133,7 @@ impl AnimationMut<'_> {
             },
         );
         self.guarded_service(|_| state.validate_value(state.committed::<V>()?))?;
+        projection.finish(tree, "geometry channel admission")?;
         let channel = self.service.channels.insert(state);
         self.service.geometry_channels.insert(key, channel);
         self.service.binding_revision = self.service.binding_revision.saturating_add(1);
@@ -3021,23 +3151,29 @@ impl AnimationMut<'_> {
         self.ensure_not_faulted()?;
         let tree = self.tree;
         let node = tree.node(figure)?;
+        let projection = tree.begin_projection_scope();
         let committed = self.guarded_service(|_| {
-            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(node))
+            (binding.committed)(node.figure.as_ref(), super::geometry::inputs(tree, figure)?)
         })?;
         let channel = self.bind_geometry(figure, binding)?;
-        self.guarded_service(|service| {
+        let changed = self.guarded_service(|service| -> Result<bool, AnimationError> {
             let state = service
                 .channels
                 .get_mut(channel.id())
                 .ok_or(AnimationError::UnknownChannel)?;
             state.validate_value(&committed)?;
+            projection
+                .operation
+                .checked_validate(tree, "geometry source commit")?;
             let source_changed = state.committed::<V>()? != &committed;
             let changed = state.set_committed(committed)?;
             if source_changed {
                 service.binding_revision = service.binding_revision.saturating_add(1);
             }
-            Ok(changed)
-        })
+            Ok::<_, AnimationError>(changed)
+        })?;
+        projection.finish(tree, "geometry source refresh return")?;
+        Ok(changed)
     }
 
     /// Creates or returns a Runtime-managed typed content-presentation channel.

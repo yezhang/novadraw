@@ -157,7 +157,10 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
         ))
         .unwrap();
 
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
+    assert_eq!(
+        runtime.tree().hit_test_simple((30.0, 25.0)).unwrap(),
+        Some(polygon)
+    );
     assert!(
         runtime
             .figure(polygon)
@@ -168,7 +171,10 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
             .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert_ne!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
+    assert_ne!(
+        runtime.tree().hit_test_simple((30.0, 25.0)).unwrap(),
+        Some(polygon)
+    );
     assert!(
         runtime
             .figure(polygon)
@@ -180,7 +186,10 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
             .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
+    assert_eq!(
+        runtime.tree().hit_test_simple((30.0, 25.0)).unwrap(),
+        Some(polygon)
+    );
     assert!(
         runtime
             .figure(polygon)

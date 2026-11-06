@@ -23,6 +23,99 @@ pub(crate) struct PreparedChild {
 }
 
 impl FigureTree {
+    pub(crate) fn validate_capability_replacement(
+        &self,
+        id: FigureId,
+        capabilities: &FigureCapabilitySet,
+    ) -> Result<(), GraphMutationError> {
+        let node = &self.blocks[id];
+        capabilities
+            .validate(node.figure.as_ref())
+            .map_err(GraphMutationError::CapabilityRegistration)?;
+        // These roles have separately owned attachment state. A descriptor
+        // replacement cannot silently create or retire those domain objects.
+        macro_rules! preserve_role {
+            ($key:expr) => {
+                if capabilities.get($key).expect("typed descriptor").is_some()
+                    != node
+                        .capabilities
+                        .get($key)
+                        .expect("typed descriptor")
+                        .is_some()
+                {
+                    return Err(GraphMutationError::CapabilityRegistration(
+                        FigureCapabilityRegistrationError::InvalidCapability {
+                            capability: $key.name(),
+                            reason: "change attachment-owned roles through a subtree transaction",
+                        },
+                    ));
+                }
+            };
+        }
+        preserve_role!(CONNECTION);
+        preserve_role!(CONNECTION_DECORATION);
+        preserve_role!(crate::figure::RESOURCE_DEPENDENCIES);
+        preserve_role!(crate::figure::BORDER);
+        preserve_role!(LAYER);
+        preserve_role!(FREEFORM);
+        preserve_role!(crate::figure::SCALE);
+        let container = capabilities
+            .get(CONTAINER)
+            .expect("typed descriptor")
+            .and_then(|descriptor| descriptor.resolve(node.figure.as_ref()));
+        let policy = container.map_or(ChildPolicy::Multiple, |value| value.child_policy());
+        if policy != node.child_policy() {
+            return Err(GraphMutationError::CapabilityRegistration(
+                FigureCapabilityRegistrationError::InvalidCapability {
+                    capability: CONTAINER.name(),
+                    reason: "replace child policy through a subtree transaction",
+                },
+            ));
+        }
+        if node
+            .parent
+            .is_some_and(|parent| self.blocks[parent].child_policy() == ChildPolicy::Layered)
+            && capabilities.get(LAYER).expect("typed marker").is_none()
+        {
+            return Err(GraphMutationError::LayerChildRequired);
+        }
+        Ok(())
+    }
+
+    /// No extension callbacks occur while the registry and its membership index
+    /// are changed. Return old descriptors so their destructors run afterwards.
+    pub(crate) fn commit_capability_replacement(
+        &mut self,
+        id: FigureId,
+        capabilities: FigureCapabilitySet,
+    ) -> FigureCapabilitySet {
+        let previous = std::mem::replace(&mut self.blocks[id].capabilities, capabilities);
+        for identity in previous.identities() {
+            if let Some(members) = self.capability_members.get_mut(&identity) {
+                members.remove(&id);
+                if members.is_empty() {
+                    self.capability_members.remove(&identity);
+                }
+            }
+        }
+        for identity in self.blocks[id].capabilities.identities() {
+            self.capability_members
+                .entry(identity)
+                .or_default()
+                .insert(id);
+        }
+        let freeform = self.blocks[id]
+            .capabilities
+            .get(FREEFORM)
+            .expect("typed marker")
+            .is_some();
+        self.blocks[id].layout.freeform = freeform.then(FreeformState::default);
+        self.blocks[id].prepared = None;
+        self.projection_contributions.get_mut().remove(&id);
+        self.projection_prefixes.get_mut().remove(&id);
+        previous
+    }
+
     pub(crate) fn take_child_constraint(
         &mut self,
         parent: FigureId,
@@ -921,6 +1014,12 @@ impl FigureTree {
 
     fn remove_node(&mut self, id: FigureId) -> Option<FigureNode> {
         let node = self.blocks.remove(id)?;
+        self.projection_contributions.get_mut().remove(&id);
+        self.projection_prefixes.get_mut().remove(&id);
+        let measurements = self.input_free_measurements.get_mut();
+        if !measurements.is_empty() {
+            measurements.remove(slotmap::DefaultKey::from(id.local()));
+        }
         for identity in node.capabilities.identities() {
             if let Some(members) = self.capability_members.get_mut(&identity) {
                 members.remove(&id);
@@ -970,7 +1069,7 @@ impl FigureTree {
         &mut self,
         parent: FigureId,
         nodes: Vec<crate::tree::SubtreeNode>,
-        replacing: Option<FigureId>,
+        admission: SubtreeAdmission<'_>,
         mut admit: impl FnMut(
             &dyn Figure,
             &FigureCapabilitySet,
@@ -982,6 +1081,10 @@ impl FigureTree {
     where
         E: From<GraphMutationError> + From<LayoutError>,
     {
+        let SubtreeAdmission {
+            replacing,
+            layout_budget,
+        } = admission;
         let removed = replacing
             .map(|root| self.disposal_ids(root))
             .transpose()?
@@ -1029,6 +1132,29 @@ impl FigureTree {
                     manager
                         .validate_constraint(*target, *id, constraint.as_ref())
                         .map_err(|error| reject(index, error.into()))?;
+                }
+            }
+            layout_budget
+                .allocate("layout pending child identities", ids.len() as u64)
+                .map_err(|error| LayoutError::Input(Box::new(error.into())))?;
+            let pending_parents: std::collections::HashMap<_, _> =
+                ids.iter().copied().zip(parents.iter().copied()).collect();
+            for (index, id) in ids.iter().copied().enumerate() {
+                if let Some(manager) = self.blocks[id].layout.manager.as_deref() {
+                    let declarations = super::layout_measurement::admit_layout_dependencies(
+                        id,
+                        manager,
+                        layout_budget,
+                        |child| {
+                            pending_parents.get(&child) == Some(&id)
+                                || self
+                                    .blocks
+                                    .get(child)
+                                    .is_some_and(|node| node.parent == Some(id))
+                        },
+                    )
+                    .map_err(|error| reject(index, error.into()))?;
+                    self.blocks[id].layout.child_dependencies = declarations;
                 }
             }
             prepare_bindings(self, &ids)?;

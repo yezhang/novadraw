@@ -533,11 +533,21 @@ pub enum FigureCapabilityRegistrationError {
         registered: &'static str,
         attempted: &'static str,
     },
+    InvalidCapability {
+        capability: &'static str,
+        reason: &'static str,
+    },
 }
 
 impl fmt::Display for FigureCapabilityRegistrationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidCapability { capability, reason } => {
+                write!(
+                    formatter,
+                    "invalid Figure capability {capability}: {reason}"
+                )
+            }
             Self::DuplicateCapability {
                 registered,
                 attempted,
@@ -593,7 +603,34 @@ impl FigureCapabilitySet {
     pub(crate) fn build(figure: &dyn Figure) -> Result<Self, FigureCapabilityRegistrationError> {
         let mut builder = FigureCapabilityBuilder::new();
         figure.register_capabilities(&mut builder)?;
-        Ok(builder.finish())
+        let set = builder.finish();
+        set.validate(figure)?;
+        Ok(set)
+    }
+
+    pub(crate) fn validate(
+        &self,
+        figure: &dyn Figure,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        if let Some(projection) = self.get(super::PROJECTION).map_err(|_| {
+            FigureCapabilityRegistrationError::InvalidCapability {
+                capability: super::PROJECTION.name(),
+                reason: "descriptor type mismatch",
+            }
+        })? {
+            let container = self.get(CONTAINER).ok().flatten();
+            if projection.resolve(figure).is_none()
+                || container
+                    .and_then(|container| container.resolve(figure))
+                    .is_none()
+            {
+                return Err(FigureCapabilityRegistrationError::InvalidCapability {
+                    capability: super::PROJECTION.name(),
+                    reason: "projection requires matching provider and container adapters",
+                });
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn get<C: 'static>(

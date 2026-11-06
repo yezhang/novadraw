@@ -119,6 +119,7 @@ pub struct PreparedFigureUpdate<T> {
     pub(crate) invalidation: ComponentInvalidation,
     changed: bool,
     pub(crate) effects: Vec<Box<dyn FigureUpdateEffect>>,
+    pub(crate) capabilities: Option<crate::figure::capability::FigureCapabilitySet>,
 }
 
 /// A prepared capability value and its required derived-state invalidation.
@@ -135,6 +136,7 @@ impl<T> PreparedFigureUpdate<T> {
             invalidation: ComponentInvalidation::Paint,
             changed: true,
             effects: Vec::new(),
+            capabilities: None,
         }
     }
 
@@ -144,6 +146,7 @@ impl<T> PreparedFigureUpdate<T> {
             invalidation: ComponentInvalidation::GeometryAndPaint,
             changed: true,
             effects: Vec::new(),
+            capabilities: None,
         }
     }
 
@@ -153,6 +156,7 @@ impl<T> PreparedFigureUpdate<T> {
             invalidation: ComponentInvalidation::LayoutGeometryAndPaint,
             changed: true,
             effects: Vec::new(),
+            capabilities: None,
         }
     }
 
@@ -162,11 +166,23 @@ impl<T> PreparedFigureUpdate<T> {
             invalidation: ComponentInvalidation::Paint,
             changed: false,
             effects: Vec::new(),
+            capabilities: None,
         }
     }
 
     pub fn with_effect(mut self, effect: impl FigureUpdateEffect) -> Self {
         self.effects.push(Box::new(effect));
+        self
+    }
+
+    /// Replaces the complete descriptor registry together with this component
+    /// update. Omitted capabilities are explicitly removed. Runtime validates
+    /// admission before committing; registration is never rerun after commit.
+    /// Resource changes still require the corresponding declared update effects.
+    pub fn with_capabilities(mut self, capabilities: crate::FigureCapabilityBuilder) -> Self {
+        self.capabilities = Some(capabilities.finish());
+        self.changed = true;
+        self.invalidation = ComponentInvalidation::LayoutGeometryAndPaint;
         self
     }
 

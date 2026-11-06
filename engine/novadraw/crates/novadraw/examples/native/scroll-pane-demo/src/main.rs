@@ -289,14 +289,19 @@ fn verify_freeform_layer_hit_order() -> Result<VerificationMetrics, String> {
     let target = demo
         .runtime
         .tree()
-        .hit_test_simple((overlap.x(), overlap.y()));
+        .hit_test_simple((overlap.x(), overlap.y()))
+        .map_err(|error| error.to_string())?;
     if target != Some(demo.upper_overlap) {
         return Err(format!(
             "top layer did not win reverse-Z hit test: target={target:?}"
         ));
     }
     let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
-    let empty_target = demo.runtime.tree().hit_test_simple((empty.x(), empty.y()));
+    let empty_target = demo
+        .runtime
+        .tree()
+        .hit_test_simple((empty.x(), empty.y()))
+        .map_err(|error| error.to_string())?;
     if empty_target == Some(demo.content_layer) || empty_target == Some(demo.overlay_layer) {
         return Err("transparent layer became a hit target".to_string());
     }

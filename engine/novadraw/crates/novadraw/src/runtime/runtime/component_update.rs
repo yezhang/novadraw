@@ -22,10 +22,11 @@ impl Runtime {
         &mut self,
         figure: FigureId,
         context: FigureUpdateRevisionContext,
-        prepared: PreparedFigureUpdate<T>,
+        mut prepared: PreparedFigureUpdate<T>,
         effects: Vec<ValidatedFigureEffect>,
         commit: impl FnOnce(T, &mut crate::FigureNode),
     ) -> Result<ComponentUpdateReceipt, RuntimeMutationError> {
+        let capabilities = prepared.capabilities.take();
         let (value, invalidation, changed, _) = prepared.into_parts();
         if !changed {
             return Ok(ComponentUpdateReceipt {
@@ -89,6 +90,12 @@ impl Runtime {
             commit(value, node);
             node.component_revision = context.revision;
         }
+        let retired_capabilities = capabilities.map(|capabilities| {
+            self.tree
+                .commit_capability_replacement(figure, capabilities)
+        });
+        self.retain_interactive_figures();
+        drop(retired_capabilities);
 
         for effect in remaining {
             self.commit_figure_effect(figure, effect);
@@ -216,6 +223,10 @@ impl Runtime {
     ) -> Result<Vec<ValidatedFigureEffect>, RuntimeMutationError> {
         if !prepared.changed() {
             return Ok(Vec::new());
+        }
+        if let Some(capabilities) = &prepared.capabilities {
+            self.tree
+                .validate_capability_replacement(figure, capabilities)?;
         }
         let parent = self
             .tree

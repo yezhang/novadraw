@@ -367,12 +367,12 @@ fn test_hit_test_prefers_topmost_deepest_child() {
     let nested = RectangleFigure::new(20.0, 20.0, 40.0, 40.0).expect("valid figure bounds");
     let nested_id = scene.add_child_to(top_id, Box::new(nested));
 
-    assert_eq!(scene.find_mouse_event_target_at(70.0, 70.0), None);
-    assert_eq!(scene.hit_test_simple((70.0, 70.0)), Some(nested_id));
-    assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(top_id));
-    assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(bottom_id));
-    assert_eq!(scene.hit_test_simple((190.0, 190.0)), Some(root_id));
-    assert_eq!(scene.hit_test_simple((260.0, 260.0)), None);
+    assert_eq!(scene.find_mouse_event_target_at(70.0, 70.0), Ok(None));
+    assert_eq!(scene.hit_test_simple((70.0, 70.0)), Ok(Some(nested_id)));
+    assert_eq!(scene.hit_test_simple((50.0, 50.0)), Ok(Some(top_id)));
+    assert_eq!(scene.hit_test_simple((30.0, 30.0)), Ok(Some(bottom_id)));
+    assert_eq!(scene.hit_test_simple((190.0, 190.0)), Ok(Some(root_id)));
+    assert_eq!(scene.hit_test_simple((260.0, 260.0)), Ok(None));
 }
 
 /// 测试：prim_translate 保持子节点的 parent-local bounds

@@ -100,6 +100,8 @@ pub struct PresentedFigureGeometry {
     pub(crate) children: Vec<FigureId>,
     pub(crate) content: Option<FigurePresentation>,
     pub(crate) border: Option<FigurePresentation>,
+    /// A live admitted projection consumed without an animation/frozen override.
+    projection_child_source: Option<Affine2D>,
 }
 
 impl PresentedFigureGeometry {
@@ -145,12 +147,34 @@ impl PresentationGeometry {
         &self,
         tree: &FigureTree,
         resources: &crate::runtime::ResourceRegistry,
-    ) -> bool {
+    ) -> Result<bool, AnimationError> {
+        if !self.projection_sources_valid(tree)? {
+            return Ok(false);
+        }
         let mut seen = HashSet::new();
-        self.data
-            .sources
-            .values()
-            .all(|source| !seen.insert(Arc::as_ptr(source)) || source.is_valid(tree, resources))
+        for source in self.data.sources.values() {
+            if seen.insert(Arc::as_ptr(source)) && !source.is_valid(tree, resources)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn projection_sources_valid(
+        &self,
+        tree: &FigureTree,
+    ) -> Result<bool, AnimationError> {
+        for (id, node) in &self.data.nodes {
+            if let Some(expected) = node.projection_child_source {
+                if !tree.contains(*id) {
+                    return Ok(false);
+                }
+                if tree.checked_child_transform(*id)? != expected {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
     }
 
     pub(crate) fn frozen_node(&self, id: FigureId) -> Option<&super::frozen::FrozenGeometryNode> {
@@ -313,6 +337,7 @@ impl PresentationGeometry {
         values: GeometryValues,
         sources: &[Arc<super::frozen::FrozenGeometrySource>],
     ) -> Result<Self, AnimationError> {
+        let projection = tree.begin_projection_scope();
         let mut selected = HashSet::new();
         let mut descendants = Vec::new();
         let mut roots: Vec<_> = dependencies.into_iter().collect();
@@ -423,6 +448,7 @@ impl PresentationGeometry {
                 super::AnimationBudgetKind::GeometryOperations,
             ));
         }
+        projection.finish(tree, "presentation geometry return")?;
         Ok(view)
     }
 
@@ -504,17 +530,26 @@ impl PresentationGeometry {
             (bounds.width - insets.width()).max(0.0),
             (bounds.height - insets.height()).max(0.0),
         );
-        let child_transform = checked(
-            patch
-                .child_transform
-                .map(|transform| Affine2D::from_translation(insets.left, insets.top) * transform)
-                .unwrap_or_else(|| {
-                    frozen.map_or_else(
-                        || node.child_transform().affine(),
-                        super::frozen::FrozenGeometryNode::child_transform,
-                    )
-                }),
-        )?;
+        let child_transform = checked(if let Some(transform) = patch.child_transform {
+            Affine2D::from_translation(insets.left, insets.top) * transform
+        } else if let Some(frozen) = frozen {
+            frozen.child_transform()
+        } else {
+            tree.checked_child_transform(id)?
+        })?;
+        let projection_child_source = if frozen.is_none()
+            && patch.child_transform.is_none()
+            && tree
+                .capability(id, crate::figure::PROJECTION)
+                .map_err(|error| {
+                    AnimationError::Coordinate(crate::figure::ProjectionError::from(error).into())
+                })?
+                .is_some()
+        {
+            Some(child_transform)
+        } else {
+            None
+        };
         if patch.child_transform.is_some() {
             matrices += 1;
         }
@@ -656,6 +691,7 @@ impl PresentationGeometry {
                     client_box,
                     local_transform,
                     child_transform,
+                    projection_child_source,
                     local_to_surface: world,
                     effective_visible,
                     effective_clip: incoming_clip,

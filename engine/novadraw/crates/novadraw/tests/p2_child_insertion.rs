@@ -374,7 +374,10 @@ fn index_boundaries_are_checked_before_constraint_validation() {
         runtime.tree().child_order(parent),
         Ok(vec![first, last, appended])
     );
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(appended));
+    assert_eq!(
+        runtime.tree().hit_test_simple((30.0, 30.0)).unwrap(),
+        Some(appended)
+    );
 }
 
 #[test]

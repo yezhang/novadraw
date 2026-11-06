@@ -3,7 +3,8 @@ use super::{DefaultRangeModel, RangeModel, RangeModelSnapshot, ScrollOrientation
 use crate::figure::{
     ACTIVITY, ActivityCapability, CONTAINER, ContainerCapability, Figure, FigureActivity,
     FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer,
-    FigureEventHandler, INPUT, InputCapability, RectangleFigure,
+    FigureEventHandler, INPUT, InputCapability, PreparationInputKey, PreparationInputPayload,
+    PreparationInputRegistry, PreparationScene, RectangleFigure,
 };
 use crate::geometry::{Dimension, Point, Rectangle};
 use crate::graphics::{Color, GraphicsError, PaintContext, Path};
@@ -50,6 +51,78 @@ const PARTS: [ScrollBarPart; 5] = [
     ScrollBarPart::PageIncrement,
     ScrollBarPart::Increment,
 ];
+
+/// Finite normalized values retain exact field identity, including signed zero.
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct LayoutRange([u64; 4]);
+impl LayoutRange {
+    fn checked(value: RangeModelSnapshot) -> Result<Self, crate::text::TextError> {
+        let normalized = super::range_model::normalize_range(
+            value.minimum,
+            value.extent,
+            value.maximum,
+            value.value,
+        )
+        .map_err(|error| crate::text::TextError::InvalidPreparedScene(error.to_string()))?;
+        if normalized != value {
+            return Err(crate::text::TextError::InvalidPreparedScene(
+                "scrollbar range snapshot is not normalized".into(),
+            ));
+        }
+        Ok(Self([
+            value.minimum.to_bits(),
+            value.maximum.to_bits(),
+            value.extent.to_bits(),
+            value.value.to_bits(),
+        ]))
+    }
+    fn snapshot(self) -> RangeModelSnapshot {
+        RangeModelSnapshot {
+            minimum: f64::from_bits(self.0[0]),
+            maximum: f64::from_bits(self.0[1]),
+            extent: f64::from_bits(self.0[2]),
+            value: f64::from_bits(self.0[3]),
+        }
+    }
+    fn shape(self) -> RangeShape {
+        RangeShape([self.0[0], self.0[1], self.0[2]])
+    }
+}
+impl PreparationInputPayload for LayoutRange {
+    fn retained_units(&self) -> u64 {
+        0
+    }
+}
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct RangeShape([u64; 3]);
+impl PreparationInputPayload for RangeShape {
+    fn retained_units(&self) -> u64 {
+        0
+    }
+}
+const LAYOUT_RANGE: PreparationInputKey<LayoutRange> =
+    PreparationInputKey::new("scrollbar.layout-range");
+const RANGE_SHAPE: PreparationInputKey<RangeShape> =
+    PreparationInputKey::new("scrollbar.non-value-range");
+
+fn range_inputs(state: &Arc<Mutex<State>>) -> PreparationInputRegistry {
+    let mut inputs = PreparationInputRegistry::new();
+    let full = state.clone();
+    inputs
+        .register(LAYOUT_RANGE, move |_, _: &PreparationScene<'_>| {
+            let model = lock(&full).model.clone();
+            LayoutRange::checked(model.snapshot())
+        })
+        .expect("unique scrollbar layout input");
+    let shape = state.clone();
+    inputs
+        .register(RANGE_SHAPE, move |_, _: &PreparationScene<'_>| {
+            let model = lock(&shape).model.clone();
+            LayoutRange::checked(model.snapshot()).map(LayoutRange::shape)
+        })
+        .expect("unique scrollbar non-value input");
+    inputs
+}
 
 /// Value consumption runs with the same checked effects as any Figure callback.
 pub trait ScrollBarValueConsumer: Send + Sync {
@@ -239,6 +312,7 @@ pub struct ScrollBarFigure {
     bounds: Rectangle,
     config: ScrollBarConfig,
     state: Arc<Mutex<State>>,
+    inputs: PreparationInputRegistry,
     consumer: Option<Arc<dyn ScrollBarValueConsumer>>,
     parts: Vec<(ScrollBarPart, Box<dyn Figure>)>,
 }
@@ -252,16 +326,19 @@ impl Default for ScrollBarFigure {
 impl ScrollBarFigure {
     pub fn new(model: Arc<dyn RangeModel>) -> Self {
         let observed = model.snapshot();
+        let state = Arc::new(Mutex::new(State {
+            model,
+            observed,
+            minimum_thumb_length: MIN_THUMB,
+            session: None,
+            now: MonotonicTime::ZERO,
+        }));
+        let inputs = range_inputs(&state);
         Self {
             bounds: Rectangle::ZERO,
             config: ScrollBarConfig::default(),
-            state: Arc::new(Mutex::new(State {
-                model,
-                observed,
-                minimum_thumb_length: MIN_THUMB,
-                session: None,
-                now: MonotonicTime::ZERO,
-            })),
+            state,
+            inputs,
             consumer: None,
             parts: Vec::new(),
         }
@@ -305,6 +382,7 @@ impl ScrollBarFigure {
     pub fn into_subtree(mut self) -> ScrollBarSubtree {
         let config = self.config;
         let state = Arc::clone(&self.state);
+        let inputs = self.inputs.clone();
         let mut parts = std::mem::take(&mut self.parts);
         let mut subtree = FigureSubtree::new(Box::new(self));
         let root = subtree.root();
@@ -322,7 +400,14 @@ impl ScrollBarFigure {
             nodes.push((role, child));
         }
         subtree
-            .set_layout_manager(root, Box::new(ScrollBarLayout { config, state }))
+            .set_layout_manager(
+                root,
+                Box::new(ScrollBarLayout {
+                    config,
+                    state,
+                    inputs,
+                }),
+            )
             .expect("own root");
         ScrollBarSubtree {
             subtree,
@@ -359,7 +444,32 @@ impl ScrollBarFigure {
             state.observed = current;
             (old, current)
         };
-        context.effects().invalidate();
+        let guard = LayoutRange::checked(change.0)
+            .and_then(|old| {
+                let current = LayoutRange::checked(change.1)?;
+                Ok((old.shape() == current.shape()).then_some(current.shape()))
+            })
+            .ok()
+            .flatten()
+            .and_then(|shape| {
+                crate::layout::LayoutRevalidationGuard::new(
+                    &self.inputs,
+                    RANGE_SHAPE,
+                    context.target_id(),
+                    shape,
+                )
+                .ok()
+            });
+        if let Some(guard) = guard {
+            context.effects().revalidate_layout_for_property(
+                SCROLL_VALUE,
+                change.0.value,
+                change.1.value,
+                guard,
+            );
+        } else {
+            context.effects().invalidate();
+        }
         context.effects().repaint(None);
         if change.0.value != change.1.value {
             let id = context.target_id();
@@ -586,6 +696,7 @@ impl FigureActivity for ScrollBarFigure {
 pub struct ScrollBarLayout {
     config: ScrollBarConfig,
     state: Arc<Mutex<State>>,
+    inputs: PreparationInputRegistry,
 }
 impl LayoutManager for ScrollBarLayout {
     fn validate_constraint(
@@ -638,6 +749,12 @@ impl LayoutManager for ScrollBarLayout {
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let area = scene.container_bounds(container)?;
+        // Capture complete source data before a replaceable thumb callback.
+        let range = scene.input(&self.inputs, LAYOUT_RANGE, container)?;
+        let range = range
+            .value(LAYOUT_RANGE)
+            .expect("typed scrollbar layout input")
+            .snapshot();
         let mut config = self.config;
         for (id, _) in scene.children(container)? {
             if scene.constraint_as::<ScrollBarPart>(container, id)? == Some(&ScrollBarPart::Thumb) {
@@ -649,7 +766,7 @@ impl LayoutManager for ScrollBarLayout {
                 config.minimum_thumb_length = config.minimum_thumb_length.max(length);
             }
         }
-        let geometry = Geometry::new(config, area, lock(&self.state).model.snapshot());
+        let geometry = Geometry::new(config, area, range);
         for (id, _) in scene.children(container)? {
             if let Some(role) = scene.constraint_as::<ScrollBarPart>(container, id)? {
                 let (start, length) = geometry.placement(*role);

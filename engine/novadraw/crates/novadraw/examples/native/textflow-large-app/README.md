@@ -100,6 +100,13 @@ F2 执行前也先请求该页焦点；F1 创建新 Runtime 时同时更新目�
 不是 Core 默认容量或实测 RSS。完整矩阵与成本状态见
 [整页采用实施记录](../../../../../doc/verification/reviews/flow-assembly-adoption-implementation-2026-11-04.md)。
 
+FigureTree 投影操作与 Runtime preparation 使用独立预算。研究样例现在在构造树时，
+同时配置投影 work／allocation 为 128 × 1024²／64 × 1024²，
+contribution 留存上限为 64 × 1024² 逻辑字节；关闭组装复用与 F1 重置也使用相同配置。
+只调用 `Runtime::frames().set_preparation_budget` 不会改变树的投影预算。
+这修复了启动时仍受默认 2,000,000 allocation 限额约束的问题，
+不改变 Core 默认值，也不代表投影证明收集成本已经优化。
+
 | 按键 | 操作 |
 |------|------|
 | F1 | 新建 Runtime，恢复原文、滚动位置和 600 × 500 视口 |

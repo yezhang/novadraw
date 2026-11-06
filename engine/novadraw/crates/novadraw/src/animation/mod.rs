@@ -51,7 +51,9 @@ pub use provider::{
     GeometryProvider, GeometryProviderContext, GeometryProviderDependency, GeometryProviderKey,
 };
 pub use service::AnimationMut;
-pub(crate) use service::{AnimationService, FigurePresentationEffect, PresentationSnapshot};
+pub(crate) use service::{
+    AnimationService, DisplayedGeometry, FigurePresentationEffect, PresentationSnapshot,
+};
 pub use timeline::{AnimationPlan, RepeatBehavior};
 pub use value::{
     AnimationValue, Decay, Easing, Keyframe, Keyframes, Motion, Procedural, Spring, Tween,
@@ -598,6 +600,11 @@ impl std::error::Error for AnimationError {
 impl From<crate::tree::TreeQueryError> for AnimationError {
     fn from(error: crate::tree::TreeQueryError) -> Self {
         Self::Identity(error)
+    }
+}
+impl From<crate::tree::CoordinateQueryError> for AnimationError {
+    fn from(error: crate::tree::CoordinateQueryError) -> Self {
+        Self::Coordinate(error)
     }
 }
 

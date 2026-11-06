@@ -3,6 +3,7 @@
 //! 提供 LayoutManager 接口和常用布局器实现，参考 Eclipse Draw2D 设计。
 
 mod border_layout;
+mod dependencies;
 mod fill_layout;
 mod flow_layout;
 mod freeform_layout;
@@ -12,7 +13,10 @@ mod stack_layout;
 mod toolbar_layout;
 mod xy_layout;
 
+pub use crate::figure::preparation::LayoutRevalidationGuard;
 pub use border_layout::{BorderConstraint, BorderLayout, BorderRegion};
+pub(crate) use dependencies::LayoutDependencyTable;
+pub use dependencies::{LayoutDependencyDeclaration, LayoutDependencyRegistrationError};
 pub use fill_layout::FillLayout;
 pub use flow_layout::{FlowAlignment, FlowDirection, FlowLayout};
 pub use freeform_layout::{FreeformConstraint, FreeformConstraintError, FreeformLayout};
@@ -55,6 +59,16 @@ impl<T: Any> LayoutConstraint for T {
 /// data. Layout managers only receive the concrete immutable query wrapper and cannot mutate the
 /// Figure tree.
 pub(crate) trait LayoutSceneRead {
+    fn read_input(
+        &self,
+        source: FigureId,
+        _read: &dyn Fn(
+            &crate::figure::PreparationScene<'_>,
+        )
+            -> Result<crate::figure::PreparationInputSnapshot, crate::text::TextError>,
+    ) -> Result<crate::figure::PreparationInputSnapshot, LayoutError> {
+        Err(LayoutError::InputSessionUnavailable { source })
+    }
     fn layout_direction(
         &self,
         figure: FigureId,
@@ -118,6 +132,21 @@ pub struct LayoutSceneQuery<'a> {
 impl<'a> LayoutSceneQuery<'a> {
     pub(crate) fn new(source: &'a dyn LayoutSceneRead) -> Self {
         Self { source }
+    }
+
+    /// Reads an owned private model value into this calculation's input proof log.
+    ///
+    /// Readers, budgets, first-value comparisons and registration lifetime follow
+    /// [`crate::figure::PreparationScene::input`]. Use the returned value to compute
+    /// output; reading the mutable model again does not carry the same evidence.
+    pub fn input<P: crate::figure::PreparationInputPayload>(
+        &self,
+        registry: &crate::figure::PreparationInputRegistry,
+        key: crate::figure::PreparationInputKey<P>,
+        source: FigureId,
+    ) -> Result<crate::figure::PreparationInputSnapshot, LayoutError> {
+        self.source
+            .read_input(source, &|scene| scene.input(registry, key, source))
     }
     pub fn layout_direction(
         &self,
@@ -194,6 +223,14 @@ impl<'a> LayoutSceneQuery<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayoutError {
+    Coordinate(crate::tree::CoordinateQueryError),
+    DependencyRegistration(LayoutDependencyRegistrationError),
+    /// Original private-input reader, registration or budget failure.
+    Input(Box<crate::text::TextError>),
+    /// Compatibility queries without a Runtime-owned checked session.
+    InputSessionUnavailable {
+        source: FigureId,
+    },
     /// Original constrained measurement failure from a nested preparation query.
     Preparation(Box<crate::figure::PreparationMeasureError>),
     ConstraintTypeMismatch {
@@ -237,6 +274,12 @@ impl From<crate::graph::TreeQueryError> for LayoutError {
     }
 }
 
+impl From<crate::tree::CoordinateQueryError> for LayoutError {
+    fn from(error: crate::tree::CoordinateQueryError) -> Self {
+        Self::Coordinate(error)
+    }
+}
+
 pub(crate) fn validate_measurement(
     figure: FigureId,
     measurement: FigureMeasurement,
@@ -273,6 +316,12 @@ pub(crate) fn validate_measurement_size(
 impl fmt::Display for LayoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Coordinate(error) => error.fmt(f),
+            Self::DependencyRegistration(error) => error.fmt(f),
+            Self::Input(error) => error.fmt(f),
+            Self::InputSessionUnavailable { source } => {
+                write!(f, "no checked layout input session for {source:?}")
+            }
             Self::Preparation(error) => error.fmt(f),
             Self::Freeform(error) => error.fmt(f),
             Self::Capability(error) => error.fmt(f),
@@ -313,6 +362,9 @@ impl fmt::Display for LayoutError {
 impl Error for LayoutError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Coordinate(error) => Some(error),
+            Self::DependencyRegistration(error) => Some(error),
+            Self::Input(error) => Some(error.as_ref()),
             Self::Preparation(error) => Some(error.as_ref()),
             Self::Identity(error) => Some(error),
             Self::Freeform(error) => Some(error),
@@ -408,6 +460,16 @@ impl LayoutOutput {
 /// 参考 draw2d: LayoutManager
 /// 用于计算和设置子元素的位置。
 pub trait LayoutManager {
+    /// Register immutable independence declarations once during manager admission.
+    /// The default preserves complete parent-chain invalidation. The collector
+    /// rejects ignored errors and checks specific children before publication.
+    fn register_child_layout_dependencies(
+        &self,
+        _out: &mut LayoutDependencyDeclaration,
+    ) -> Result<(), LayoutDependencyRegistrationError> {
+        Ok(())
+    }
+
     /// Validates one parent-owned child constraint before a Runtime transaction commits it.
     ///
     /// Managers that consume constraints must override this method and accept every concrete

@@ -108,6 +108,7 @@ pub enum FramePreparationError {
     Faulted,
     EpochExhausted,
     Text(TextError),
+    Coordinate(crate::tree::CoordinateQueryError),
     Graphics(crate::graphics::GraphicsError),
     Validation(ValidationError),
     Animation(crate::animation::AnimationError),
@@ -124,6 +125,7 @@ impl fmt::Display for FramePreparationError {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::EpochExhausted => formatter.write_str("stable scene epoch exhausted"),
             Self::Text(error) => error.fmt(formatter),
+            Self::Coordinate(error) => error.fmt(formatter),
             Self::Graphics(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
             Self::Animation(error) => error.fmt(formatter),
@@ -140,6 +142,7 @@ impl std::error::Error for FramePreparationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Text(error) => Some(error),
+            Self::Coordinate(error) => Some(error),
             Self::Animation(error) => Some(error),
             Self::Validation(error) => Some(error),
             _ => None,
@@ -369,6 +372,7 @@ pub struct Runtime {
     deferred_mutation_errors: VecDeque<RuntimeMutationError>,
     derivation_epoch: u64,
     stable_epoch: u64,
+    stable_projections: std::collections::BTreeMap<FigureId, std::rc::Rc<StableProjection>>,
     scenes: crate::scene::SceneProducer,
     background: crate::host::BackgroundState,
     last_stabilization_error: Option<FramePreparationError>,
@@ -389,6 +393,14 @@ struct InFlightFrame {
     resources: ResourceSync,
     retention: Option<crate::render::submission::SubmissionRetention>,
     import_leases: Vec<std::sync::Arc<crate::scene::import::ImportLease>>,
+    geometry: Option<crate::animation::DisplayedGeometry>,
+    projection_inputs: crate::graph::DisplayProjectionInputs,
+}
+
+struct StableProjection {
+    child_transform: crate::Affine2D,
+    input_sensitive: bool,
+    _retention: crate::text::TextContentLease,
 }
 
 impl FigureMut<'_> {
@@ -676,6 +688,7 @@ impl Runtime {
             deferred_mutation_errors: VecDeque::new(),
             derivation_epoch: 0,
             stable_epoch: 0,
+            stable_projections: std::collections::BTreeMap::new(),
             scenes: crate::scene::SceneProducer::new(namespace),
             background: crate::host::BackgroundState::default(),
             last_stabilization_error: None,
@@ -1388,10 +1401,14 @@ impl Runtime {
                 runtime.updates.freeze_removed_damage(&runtime.tree, &ids)
             })
             .unwrap_or_default();
+        let layout_budget = crate::figure::PreparationBudgetHandle::new(runtime.preparation_budget);
         let (inserted, retired) = runtime.tree.insert_subtree(
             parent,
             subtree.nodes,
-            replacing,
+            crate::graph::SubtreeAdmission {
+                replacing,
+                layout_budget: &layout_budget,
+            },
             |figure, capabilities, explicit| {
                 let resources =
                     Self::admit_resources(&runtime.resources, figure, capabilities, explicit)?;
@@ -1987,11 +2004,11 @@ impl Runtime {
         manager: Option<Box<dyn LayoutManager>>,
     ) -> Result<bool, RuntimeMutationError> {
         self.validate_attached_figure(container)?;
-        if let Some(manager) = manager.as_deref() {
-            self.tree
-                .validate_layout_manager_constraints(container, manager)?;
-        }
-        if !self.tree.replace_layout_manager(container, manager) {
+        let budget = crate::figure::PreparationBudgetHandle::new(self.preparation_budget);
+        if !self
+            .tree
+            .try_replace_layout_manager(container, manager, &budget)?
+        {
             return Ok(false);
         }
         self.tree.mark_invalid(&mut self.updates, container);
@@ -2382,11 +2399,15 @@ impl Runtime {
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
             runtime.validate_attached_figure(id)?;
-            Ok(runtime.set_visible_inner(id, visible))
+            runtime.set_visible_inner(id, visible)
         })
     }
 
-    fn set_visible_inner(&mut self, id: FigureId, visible: bool) -> bool {
+    fn set_visible_inner(
+        &mut self,
+        id: FigureId,
+        visible: bool,
+    ) -> Result<bool, RuntimeMutationError> {
         let changed = self
             .tree
             .set_visible_with_update(&mut self.updates, id, visible);
@@ -2399,10 +2420,11 @@ impl Runtime {
                     &mut self.full_redraw_pending,
                     &mut self.faulted,
                 )
-                .reconcile_visibility();
+                .reconcile_visibility()
+                .map_err(RuntimeMutationError::Animation)?;
         }
         self.retain_interactive_figures();
-        changed
+        Ok(changed)
     }
 
     pub(crate) fn set_enabled(
@@ -2957,7 +2979,8 @@ impl Runtime {
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
+        let outcome =
+            self.dispatch_event(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
         self.sync_tooltip();
         outcome
     }
@@ -2973,8 +2996,8 @@ impl Runtime {
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        let outcome =
-            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
+        let outcome = self
+            .dispatch_event(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
         self.tooltip_controller.dismiss();
         outcome
     }
@@ -2990,8 +3013,9 @@ impl Runtime {
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        let outcome =
-            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_released(ctx, x, y, button));
+        let outcome = self.dispatch_event(|dispatcher, ctx| {
+            dispatcher.dispatch_mouse_released(ctx, x, y, button)
+        });
         self.tooltip_controller.dismiss();
         outcome
     }
@@ -3007,7 +3031,7 @@ impl Runtime {
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        let outcome = self.dispatch(|dispatcher, ctx| {
+        let outcome = self.dispatch_event(|dispatcher, ctx| {
             dispatcher.dispatch_mouse_double_clicked(ctx, x, y, button)
         });
         self.tooltip_controller.dismiss();
@@ -3020,7 +3044,8 @@ impl Runtime {
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
+        let outcome =
+            self.dispatch_event(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
         self.sync_tooltip();
         outcome
     }
@@ -3029,7 +3054,7 @@ impl Runtime {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
-        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
+        let outcome = self.dispatch_event(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
         self.tooltip_controller.dismiss();
         outcome
     }
@@ -3132,7 +3157,7 @@ impl Runtime {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event))
+        self.dispatch_event(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event))
     }
 
     pub(crate) fn dispatch_key_pressed(
@@ -3143,8 +3168,8 @@ impl Runtime {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
-        let outcome =
-            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
+        let outcome = self
+            .dispatch_event(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
         self.tooltip_controller.dismiss();
         outcome
     }
@@ -3157,8 +3182,9 @@ impl Runtime {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
-        let outcome =
-            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
+        let outcome = self.dispatch_event(|dispatcher, ctx| {
+            dispatcher.dispatch_key_released(ctx, key, modifiers)
+        });
         self.tooltip_controller.dismiss();
         outcome
     }
@@ -3261,29 +3287,53 @@ impl Runtime {
         action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
     ) -> R {
         assert!(!self.faulted, "cannot dispatch into a faulted Runtime");
-        self.guarded(|runtime| runtime.dispatch_inner(action))
+        self.guarded(|runtime| runtime.dispatch_inner(action).0)
+    }
+
+    fn dispatch_event(
+        &mut self,
+        action: impl FnOnce(
+            &mut EventDispatcher,
+            &mut SceneDispatchContext<'_>,
+        ) -> crate::DispatchOutcome,
+    ) -> crate::DispatchOutcome {
+        self.guarded(|runtime| {
+            let (outcome, verification) = runtime.dispatch_inner(action);
+            match verification {
+                Ok(()) => outcome,
+                Err(error) => crate::DispatchOutcome::failed(error, runtime.interaction.captured()),
+            }
+        })
     }
 
     fn dispatch_inner<R>(
         &mut self,
         action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
-    ) -> R {
+    ) -> (R, Result<(), crate::tree::CoordinateQueryError>) {
+        let scope = self.tree.begin_projection_scope();
         self.poll_activities();
-        let result = {
+        let (result, _projection, coordinate_failure) = {
             let mut context = SceneDispatchContext::new(
                 &mut self.tree,
                 &mut self.interaction,
                 &mut self.updates,
                 &mut self.mutations,
             );
-            action(&mut self.interaction_dispatcher, &mut context)
+            let result = action(&mut self.interaction_dispatcher, &mut context);
+            let (projection, failure) = context.into_coordinate_operation();
+            (result, projection, failure)
         };
         let mutations = self.mutations.drain();
         self.apply_runtime_mutations(mutations);
         self.retain_interactive_figures();
         self.sync_clickable_visuals();
         self.poll_activities();
-        result
+        let verification = if let Some(error) = coordinate_failure {
+            Err(error)
+        } else {
+            scope.finish(&self.tree, "Runtime dispatch return")
+        };
+        (result, verification)
     }
 
     fn poll_activities(&mut self) -> bool {
@@ -5464,7 +5514,10 @@ mod adr014_tests {
             .prepare_frame()
             .expect("deep tree validation and render must complete");
         assert!(!initial.commands().is_empty());
-        assert_eq!(runtime.tree().hit_test_simple((0.5, 0.5)), Some(deepest));
+        assert_eq!(
+            runtime.tree().hit_test_simple((0.5, 0.5)),
+            Ok(Some(deepest))
+        );
         assert!(
             runtime
                 .set_bounds(deepest, Rectangle::new(0.0, 0.0, 0.75, 0.75))

@@ -289,14 +289,18 @@ impl<V: AnimationValue + Copy> ErasedGeometryBinding for GeometryBinding<V> {
     }
 }
 
-pub(crate) fn inputs(node: &crate::graph::FigureNode) -> GeometryInputs {
-    GeometryInputs {
+pub(crate) fn inputs(
+    tree: &crate::FigureTree,
+    figure: crate::FigureId,
+) -> Result<GeometryInputs, AnimationError> {
+    let node = tree.node(figure)?;
+    Ok(GeometryInputs {
         bounds: node.figure_bounds(),
         visible: node.is_visible,
         insets: node.state().insets,
         child_transform: Affine2D::from_translation(
             -node.state().insets.left,
             -node.state().insets.top,
-        ) * node.child_transform().affine(),
-    }
+        ) * tree.checked_child_transform(figure)?,
+    })
 }

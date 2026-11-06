@@ -1,4 +1,4 @@
-use super::text_examples::{TextFixture, add, canvas, font, populate_large};
+use super::text_examples::{TextFixture, add, canvas, canvas_with_tree, font, populate_large};
 use novadraw::{
     event::{EventContext, FigureEventHandler, FocusEvent, Key, KeyEvent, MouseEvent},
     figure::{
@@ -419,9 +419,17 @@ pub fn text_flow_large_example() -> Runtime {
     text_flow_large_example_with_service(FlowLayoutService::default())
 }
 pub fn text_flow_large_example_with_service(service: FlowLayoutService) -> Runtime {
+    text_flow_large_example_with_service_and_tree(service, novadraw::tree::FigureTree::new())
+}
+
+/// Uses an empty tree carrying the research host's explicit projection policy.
+pub fn text_flow_large_example_with_service_and_tree(
+    service: FlowLayoutService,
+    tree: novadraw::tree::FigureTree,
+) -> Runtime {
     let TextFixture {
         mut runtime, pane, ..
-    } = canvas();
+    } = canvas_with_tree(tree);
     let mut figure = InteractivePage::new(Interaction::Typing);
     figure.service = service;
     let page = runtime

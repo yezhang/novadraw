@@ -28,12 +28,14 @@ fn public_search_strategy_filters_hit_test_without_changing_geometry_order() {
         )
         .expect("valid FigureTree construction");
 
-    let hit = tree.hit_test_with(
-        (20.0, 20.0),
-        &mut NamedFigureSearch {
-            name: "RectangleFigure",
-        },
-    );
+    let hit = tree
+        .hit_test_with(
+            (20.0, 20.0),
+            &mut NamedFigureSearch {
+                name: "RectangleFigure",
+            },
+        )
+        .unwrap();
 
     assert_eq!(hit.map(|(target, _)| target), Some(child));
 }
@@ -58,6 +60,7 @@ fn public_exclusion_search_prunes_by_figure_id() {
 
     assert_eq!(
         tree.hit_test_with((20.0, 20.0), &mut search)
+            .unwrap()
             .map(|(target, _)| target),
         Some(root)
     );

@@ -6,7 +6,9 @@ use crate::geometry::{Dimension, Insets, Rectangle};
 
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
-    FigureMeasurement, HitParticipation, MeasureConstraints, border::Border,
+    FigureMeasurement, FigureProjection, HitParticipation, MeasureConstraints, PROJECTION,
+    ProjectionCapability, ProjectionContribution, ProjectionError, ProjectionInputKey,
+    ProjectionInputPayload, ProjectionInputRegistry, ProjectionScene, border::Border,
 };
 use crate::runtime::update::property::standard as property;
 use crate::{
@@ -14,6 +16,35 @@ use crate::{
     FigureTreeBuilder, FreeformCapability, GraphMutationError, LAYER, LayerCapability, SCALE,
     ScaleCapability, UpdateManager,
 };
+
+const SCALE_PROJECTION_INPUT_BYTES: usize = 64 * 1024;
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct ScaleInput(u64);
+impl ProjectionInputPayload for ScaleInput {
+    fn retained_units(&self) -> u64 {
+        0
+    }
+}
+const SCALE_INPUT: ProjectionInputKey<ScaleInput> = ProjectionInputKey::new("novadraw.scale");
+fn scale_projection_inputs(model: ScaleModel) -> ProjectionInputRegistry {
+    let mut registry = ProjectionInputRegistry::new(SCALE_PROJECTION_INPUT_BYTES);
+    registry
+        .register(SCALE_INPUT, move |_, _: &ProjectionScene<'_>| {
+            Ok(ScaleInput(model.scale().to_bits()))
+        })
+        .expect("one scale input registration");
+    registry
+}
+fn scale_projection(
+    registry: &ProjectionInputRegistry,
+    scene: &ProjectionScene<'_>,
+) -> Result<ProjectionContribution, ProjectionError> {
+    let snapshot = scene.input(registry, SCALE_INPUT, scene.root())?;
+    let scale = f64::from_bits(snapshot.value(SCALE_INPUT).expect("typed scale input").0);
+    Ok(ProjectionContribution::new(ChildTransform::uniform(
+        scale, 0.0, 0.0,
+    )))
+}
 
 fn valid_scale(scale: f64) -> bool {
     scale.is_finite() && scale > 0.0
@@ -155,6 +186,7 @@ impl ScaleHandle {
 pub struct ScalableLayeredPaneFigure {
     bounds: Rectangle,
     scale_model: ScaleModel,
+    projection_inputs: ProjectionInputRegistry,
     child_clipping_strategy: ChildClippingStrategy,
     border: Option<Arc<dyn Border>>,
 }
@@ -175,6 +207,7 @@ impl ScalableLayeredPaneFigure {
     ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Ok(Self {
             bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
+            projection_inputs: scale_projection_inputs(scale_model.clone()),
             scale_model,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
@@ -183,6 +216,7 @@ impl ScalableLayeredPaneFigure {
 
     pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
         self.scale_model = ScaleModel::with_scale(scale)?;
+        self.projection_inputs = scale_projection_inputs(self.scale_model.clone());
         Ok(self)
     }
 
@@ -315,7 +349,17 @@ impl Figure for ScalableLayeredPaneFigure {
         out: &mut FigureCapabilityBuilder,
     ) -> Result<(), FigureCapabilityRegistrationError> {
         out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(PROJECTION, ProjectionCapability::of::<Self>())?;
         out.register(SCALE, ScaleCapability::new(self.scale_model.clone()))
+    }
+}
+
+impl FigureProjection for ScalableLayeredPaneFigure {
+    fn project(
+        &self,
+        scene: &ProjectionScene<'_>,
+    ) -> Result<ProjectionContribution, ProjectionError> {
+        scale_projection(&self.projection_inputs, scene)
     }
 }
 
@@ -345,6 +389,7 @@ impl FigureContainer for ScalableLayeredPaneFigure {
 pub struct ScalableFreeformLayeredPane {
     bounds: Rectangle,
     scale_model: ScaleModel,
+    projection_inputs: ProjectionInputRegistry,
     border: Option<Arc<dyn Border>>,
 }
 
@@ -364,6 +409,7 @@ impl ScalableFreeformLayeredPane {
     ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Ok(Self {
             bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
+            projection_inputs: scale_projection_inputs(scale_model.clone()),
             scale_model,
             border: None,
         })
@@ -371,6 +417,7 @@ impl ScalableFreeformLayeredPane {
 
     pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
         self.scale_model = ScaleModel::with_scale(scale)?;
+        self.projection_inputs = scale_projection_inputs(self.scale_model.clone());
         Ok(self)
     }
 
@@ -505,9 +552,19 @@ impl Figure for ScalableFreeformLayeredPane {
         out: &mut FigureCapabilityBuilder,
     ) -> Result<(), FigureCapabilityRegistrationError> {
         out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(PROJECTION, ProjectionCapability::of::<Self>())?;
         out.register(LAYER, LayerCapability)?;
         out.register(FREEFORM, FreeformCapability)?;
         out.register(SCALE, ScaleCapability::new(self.scale_model.clone()))
+    }
+}
+
+impl FigureProjection for ScalableFreeformLayeredPane {
+    fn project(
+        &self,
+        scene: &ProjectionScene<'_>,
+    ) -> Result<ProjectionContribution, ProjectionError> {
+        scale_projection(&self.projection_inputs, scene)
     }
 }
 

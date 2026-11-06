@@ -114,7 +114,17 @@ impl fmt::Display for ZoomError {
     }
 }
 
-impl Error for ZoomError {}
+impl Error for ZoomError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Layout(error) => Some(error),
+            Self::Freeform(error) => Some(error),
+            Self::Scale(error) => Some(error),
+            Self::Viewport(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl From<ScaleError> for ZoomError {
     fn from(value: ScaleError) -> Self {

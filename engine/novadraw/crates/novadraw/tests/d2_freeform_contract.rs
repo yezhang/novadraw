@@ -326,7 +326,7 @@ fn overflow_visible_allows_hits_outside_freeform_border_box() {
         )
         .expect("valid FigureTree construction");
 
-    assert_eq!(tree.hit_test_simple((-35.0, -25.0)), Some(child));
+    assert_eq!(tree.hit_test_simple((-35.0, -25.0)).unwrap(), Some(child));
 }
 
 #[test]
@@ -355,7 +355,7 @@ fn normal_ancestor_still_clips_freeform_overflow() {
         )
         .expect("valid FigureTree construction");
 
-    assert_eq!(tree.hit_test_simple((135.0, 15.0)), None);
+    assert_eq!(tree.hit_test_simple((135.0, 15.0)).unwrap(), None);
 }
 
 #[test]

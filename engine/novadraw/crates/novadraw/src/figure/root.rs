@@ -132,13 +132,25 @@ impl Figure for RootFigure {
         &self,
         out: &mut crate::FigureCapabilityBuilder,
     ) -> Result<(), crate::FigureCapabilityRegistrationError> {
-        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(super::PROJECTION, super::ProjectionCapability::of::<Self>())
     }
 }
 
 impl FigureContainer for RootFigure {
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         self.child_clipping_strategy
+    }
+}
+
+impl super::FigureProjection for RootFigure {
+    fn project(
+        &self,
+        _: &super::ProjectionScene<'_>,
+    ) -> Result<super::ProjectionContribution, super::ProjectionError> {
+        Ok(super::ProjectionContribution::new(
+            super::ChildTransform::IDENTITY,
+        ))
     }
 }
 

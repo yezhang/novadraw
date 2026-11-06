@@ -17,7 +17,9 @@ use crate::graphics::{GraphicsError, PaintContext};
 use super::range_model::normalize_range;
 use crate::figure::{
     BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure,
-    FigureContainer, FigureMeasurement, MeasureConstraints, border::Border,
+    FigureContainer, FigureMeasurement, FigureProjection, MeasureConstraints, PROJECTION,
+    ProjectionCapability, ProjectionContribution, ProjectionError, ProjectionInputKey,
+    ProjectionInputPayload, ProjectionInputRegistry, ProjectionScene, border::Border,
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::runtime::update::property::standard as property;
@@ -27,6 +29,34 @@ use crate::{
 };
 
 const DEFAULT_RANGE_MAXIMUM: f64 = i32::MAX as f64;
+const VIEWPORT_PROJECTION_INPUT_BYTES: usize = 64 * 1024;
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct ViewportProjectionInput([u64; 3]);
+impl ProjectionInputPayload for ViewportProjectionInput {
+    fn retained_units(&self) -> u64 {
+        0
+    }
+}
+const VIEWPORT_PROJECTION_INPUT: ProjectionInputKey<ViewportProjectionInput> =
+    ProjectionInputKey::new("novadraw.viewport.projection");
+fn viewport_projection_inputs(runtime: Arc<Mutex<ViewportRuntime>>) -> ProjectionInputRegistry {
+    let mut registry = ProjectionInputRegistry::new(VIEWPORT_PROJECTION_INPUT_BYTES);
+    registry
+        .register(
+            VIEWPORT_PROJECTION_INPUT,
+            move |_, _: &ProjectionScene<'_>| {
+                let runtime = lock_unpoisoned(&runtime);
+                let origin = runtime.view_location();
+                Ok(ViewportProjectionInput([
+                    origin.x().to_bits(),
+                    origin.y().to_bits(),
+                    runtime.content_scale.to_bits(),
+                ]))
+            },
+        )
+        .expect("one viewport projection input registration");
+    registry
+}
 
 struct ViewportRuntime {
     horizontal: Arc<dyn RangeModel>,
@@ -568,6 +598,7 @@ impl LayoutManager for ViewportLayout {
 pub struct ViewportFigure {
     bounds: Rectangle,
     runtime: Arc<Mutex<ViewportRuntime>>,
+    projection_inputs: ProjectionInputRegistry,
     child_clipping_strategy: ChildClippingStrategy,
     border: Option<Arc<dyn Border>>,
 }
@@ -592,6 +623,7 @@ impl ViewportFigure {
     ) -> Result<Self, crate::figure::ShapeGeometryError> {
         Ok(Self {
             bounds: crate::figure::ShapeGeometryError::validate_bounds(bounds)?,
+            projection_inputs: viewport_projection_inputs(runtime.clone()),
             runtime,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
@@ -715,7 +747,30 @@ impl Figure for ViewportFigure {
         out: &mut crate::FigureCapabilityBuilder,
     ) -> Result<(), crate::FigureCapabilityRegistrationError> {
         out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(PROJECTION, ProjectionCapability::of::<Self>())?;
         out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
+    }
+}
+
+impl FigureProjection for ViewportFigure {
+    fn project(
+        &self,
+        scene: &ProjectionScene<'_>,
+    ) -> Result<ProjectionContribution, ProjectionError> {
+        let snapshot = scene.input(
+            &self.projection_inputs,
+            VIEWPORT_PROJECTION_INPUT,
+            scene.root(),
+        )?;
+        let [x, y, scale] = snapshot
+            .value(VIEWPORT_PROJECTION_INPUT)
+            .expect("typed viewport input")
+            .0
+            .map(f64::from_bits);
+        Ok(ProjectionContribution::new(ChildTransform::translation(
+            -x * scale,
+            -y * scale,
+        )))
     }
 }
 

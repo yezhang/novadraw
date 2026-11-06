@@ -117,6 +117,104 @@ owner freeze causal prefix
 `PaintContext` 与 `MeasureContext` 已直接表达阶段权限，不为了形式统一增加
 `PaintSceneQuery` 或万能 Context。
 
+`LayoutSceneQuery::input` 将布局实际使用的私有模型读入 Runtime 受检会话，
+返回 `figure::PreparationInputSnapshot`；内置和外部布局共用
+`PreparationInputRegistry`。完整首次值、注册弱引用、预算和不可清除的读取失败
+沿用 preparation 输入证明。普通 Figure 不需要声明 preparation capability。
+Runtime 的嵌套 preferred／minimum 测量保留同一查询，不能退回无证明的 manager
+调用；缺少输入证明的旧测量缓存不能为这一调用提供发布依据。
+经受检查询计算且没有准入私有输入的尺寸缓存，只在本轮 input scene 尚未准入时
+保留旧的纯几何复用行为。准入以后继续真实测量回调与完整 input 检查，
+不能由已存 proof 相等推断未知回调没有副作用。
+没有受检会话的兼容查询返回 `LayoutError::InputSessionUnavailable`，
+不会直接执行无预算 reader。实际输入错误由 `LayoutError::Input` 保留原始原因。
+该接口不授予局部失效资格，具体队列合同见
+[按属性依赖限定布局重验](property-scoped-layout-revalidation.md)。
+
+输入证明内核按阶段参数化 reader 的 scene 与错误类型。preparation 保留现有公开
+`PreparationInputRegistry`，受检投影使用独立的受限 reader；二者共用完整值比较、
+注册弱引用、首次证明合并、活动读取环检测与留存 lease。阶段参数化不开放新的读取
+权限，也不授予未知回调省略权。活动读取环返回
+`PreparationInputErrorKind::DependencyCycle`；reader 在返回前检查本 scope 的锁存
+失败，嵌套错误被忽略时仍拒绝外层成功值。验证 scope 的嵌套 proof 回传调用方，
+新出现的 subject 加入本次最终检查，不跨 reader 持有收集器借用。
+受检投影的公开入口和错误包装随
+[通用投影实施](figure-tree-projection-separation.md#下一主线的公开合同候选受检-child-transform)
+继续落定；独立坐标与命中／事件已采用 provider，Runtime 帧消费仍待接入。
+
+`figure::FigureProjection::project(&self, &ProjectionScene<'_>)`
+返回 `Result<ProjectionContribution, ProjectionError>`。
+`ProjectionContribution::new(ChildTransform)` 只保存额外 child transform，
+不包含 placement、insets 或 world transform。`ProjectionCapability::of::<T>()`
+经 `PROJECTION` typed key 注册；只有匹配的 provider 与 `CONTAINER` adapter
+同时解析成功才准入，否则返回
+`FigureCapabilityRegistrationError::InvalidCapability { capability, reason }`。
+缺失与非法注册不是同一种情况。
+
+`runtime::PreparedFigureUpdate::with_capabilities(FigureCapabilityBuilder)` 把完整
+descriptor 注册表作为更新候选；省略的 capability 表示显式移除，未调用此方法则
+保留当前注册表。此方法使更新成为 changed，并要求 layout／geometry／paint 失效。
+Runtime 在组件及 effects 提交前检查 projection／container 关联、现有 child policy
+与附着角色。child policy 变更，以及 Connection、decoration、resource、border、
+layer、Freeform、scale 等附着角色的新增／移除，继续使用对应子树事务；
+本入口不创建或退休其他领域对象。resource 值变化仍须声明原有 resource effects。
+检查失败经 `ComponentUpdateError::Effect`／`CapabilityUpdateError::Effect` 中的
+`RuntimeMutationError::Graph` 保留 registration 原因，不写入组件、版本或注册表。
+成功时组件和注册表共用一个 component revision，typed 成员索引同步更新，
+旧 descriptor 在内部写入结束后释放；不在 commit 后重新调用注册回调。
+projection 显式移除成功后才恢复实时 container 来源。
+
+`ProjectionScene` 由 Core 建立，外部只接收借用。当前读取方法为
+`root`、`budget`、`parent_id`、`children`、`origin`、`size`、`insets`、
+`resolved_style` 和 `input`。任意 ID 先验证身份，再验证 owner 子树范围；
+owner 的 parent 只返回关系身份。它不提供原始 tree／Figure、mutation、
+坐标、命中、route、prepared drawing 或 measurement 入口。
+Core 事实现记录完整身份、成员检查的 parent 路径、有序 children（含空集合）、
+origin、size、insets、逐级原始样式与 provider owner 的 component revision。
+origin 与 size 分开登记；相同解析样式下的继承来源变化仍可识别。
+独立 reader 验证 scope 的 Core 事实也回传消费闭包。
+独立坐标、命中与 Runtime 输入已接入；局部表现变换读取及 Runtime 帧消费仍待完成，
+当前不可变借用不授予跨查询复用权。
+
+`ProjectionInputKey<P>` 与 `ProjectionInputPayload` 复用 preparation 的 typed
+key／payload 合同；`ProjectionInputReader<P>` 只接收 `ProjectionScene`，
+返回 `Result<P, ProjectionError>`，不能直接绑定旧 preparation reader。
+`ProjectionInputRegistry::new(retained_bytes)` 显式设置 owned snapshot／proof 的
+逻辑字节留存限额；`register(key, reader)` 返回 `PreparationInputError`，
+`retention_usage()` 返回 `Result<TextContentUsage, ProjectionError>`。
+clone 共用注册身份与留存账本，旧 proof 只持有 reader 弱引用。
+当前 `ProjectionError` 保留 `Identity`、`OutsideRoot`、`Input`、`Budget`、
+`Retention`、`InvalidTransform` 与 `CoreChanged { figure, fact }` 原因；
+CoreChanged 表示本次首次 Core 事实被冲突值替换，fact 仅为诊断文本。
+字体 family、tooltip 与 children backing 在复制前计入本次预算。
+坐标包装、来源替换和独立查询预算已经冻结；
+整帧预算与其实际消费者继续在接入前冻结。此处不代表整片验收完成。
+
+`LayoutManager::register_child_layout_dependencies` 在 manager 准入时接收
+`layout::LayoutDependencyDeclaration`。外部和内置布局使用相同 typed property
+声明入口；表由 `LayoutState` 持有，重复声明、非法 child 与预算错误经
+`LayoutError::DependencyRegistration` 拒绝原子安装。
+子树中预留的直接 child 可在整体发布前验证，所有 manager 共用准入预算。
+声明只描述依赖，不直接改变失效范围；局部请求仍需按上述方案提供 guard，
+并在执行前确认当前父链与完整输入。
+
+`layout::LayoutRevalidationGuard::new(registry, key, source, first_input)` 记录
+owned 首次输入和原注册的弱引用，构造时不调用 reader。
+`EventEffects::revalidate_layout_for_property(key, old_value, new_value, guard)`
+只记录内部布局请求，不自动发送属性通知。未知祖先依赖或 source 不匹配时
+保持完整父链失效；普通失效优先，同属性合并保留首次 guard。
+执行前在本轮预算内准入首次值并重读，值不同则升级普通失效，原始读取错误仍传播。
+采用以后沿原 first proof 检查布局消费及发布，不能读新 first 来接受旧输出。
+已接入真实事件入口及 ScrollBar／ScrollPane／Fill／Stack 消费者。
+完整 range 输入在可替换 thumb 的测量回调之前读取；非 value 请求 guard 与实际
+消费 proof 分开。重复可见值写入不扩大范围，实际可见性改变继续完整传播。
+Runtime 的既有恢复机制覆盖普通布局的晚期输入冲突；
+`FigureTreeBuilder::validate_subtree` 同样使用有预算的输入 session，
+独立的无 session measurement 查询继续拒绝私有输入读取。
+隐藏布局的旧 proof 不参与当前发布；可见父布局实际测量取得的 proof 仍检查。
+生产净成本与混合 FigureTree 验收尚未完成，证据见
+[实施记录](../../verification/reviews/figure-tree-projection-implementation-2026-11-05.md)。
+
 `MeasureContext::cache_identity()` 只读返回文字引擎的可缓存实例身份，
 沿用 `TextLayoutEngine::cache_identity()` 的 opt-in 合同。外部组件只有在身份存在、
 `revision()` 相同且所有实际输入相同时才能复用布局；缺少身份时完整计算。
@@ -223,6 +321,58 @@ scoped facade 的有效范围受一次 Runtime 借用限制。它只持有受限
 不能比 Runtime 活得更久，不能保存第二份树或更新队列；获取及 Drop 都不提交操作。
 借用结束后状态仍归 Runtime。具体组件提交顺序见
 [组件更新协议](component-update.md)，生命周期见 [原编号 019 的批准依据](../../archive/adr-consolidation-2026-11-03/original/doc/adr/adr-019-composable-api-and-scoped-editors.md.txt)。
+
+## 受检投影的独立坐标查询增量（2026-11-06）
+
+能力归属：Core FigureTree。五个 transform 返回类别保持不变，
+`CoordinateQueryError` 新增 `Projection(Box<ProjectionError>)` 并保留 Error source；
+错误支持 Clone，不再支持 Copy。ProjectionError 的 Capability 变体保留
+描述符读取的原始 CapabilityQueryError。
+
+`FigureTree::with_projection_budget(PreparationBudget, retained_bytes)` 配置每次独立
+坐标查询的 work／allocation 累计限额和整树 contribution 留存字节上限。
+默认 new() 使用 PreparationBudget 默认值，树留存上限使用默认 allocation 字节值。
+input registry 仍有自己的显式 snapshot／proof 留存域。有限奇异正向合法，
+逆向保持 Ok(None)；非有限和计算溢出继续区分数值原因。
+
+命中及事件定位入口返回坐标 Result；DispatchOutcome 新增借用错误访问器，
+不再实现 Copy，target／handled／capture 访问器改为借用。
+一次命中搜索在全部搜索策略与 Figure 命中回调结束后复核实际消费证明。
+一次事件的定位、投递与 Runtime 最终返回共享首次输入；失败输出不报告 target
+或 handled，保留真实 capture，合法 source effects 仍提交。
+
+Editor 的目标查询及无选择 press 包装相应返回 Result，并用已有 ViewerError
+传播坐标原因；相关分发结果访问器返回借用。
+LayoutError 和 FramePreparationError 新增 Coordinate 包装并保留 source，
+FreeformError 和 AccessibilityError 也保留 Coordinate source，支持 Clone，
+不再支持 Copy。动画几何读取沿 AnimationError::Coordinate 传播，
+注册退休或预算错误不能解释为动画源自然失效／取消。
+
+Runtime 帧准备、稳定查询、嵌套坐标消费及输入分发共享树实例内的临时 operation。
+开始 source callback 前建立 scope，各不可变消费借用内重验 Core facts；
+共享 input 首次值贯穿整个操作。派生状态采用、录制返回和 submission 采用
+分别验证，只有最外层成功边界安装 contribution／world prefix。
+忽略数值／输入错误不能恢复该 operation。失败保留脏区和旧无障碍快照，
+不消耗 FrameId 或资源同步前缀，并请求完整重绘。
+Prepared／Submitted 通知在 operation 结束后分发。
+
+Freeform、动画 GeometryInputs／表现几何、无障碍、损伤修复和 scene capture
+消费同一受检 child-content 边。GeometryInputs 仍剥离 Core insets，
+GeometryPatch 按原次序恢复；动画 local transform 不被 identity 代替。
+录制通过既有 PresentationSnapshot override 消费准入贡献；
+未知 container 保留实时 callback。Viewport 与两类 ScalablePane 使用同一
+公开 projection trait／registry，私有输入按完整浮点位值保存 origin／scale。
+各内置 registry 的 snapshot／proof 留存上限为 64 KiB，独立于树的累计预算。
+来源原子替换沿 PreparedFigureUpdate::with_capabilities 的完整候选表执行。
+
+Runtime 的稳定投影另存，独立查询不能替换它；显式推进时，共享贡献变化也生成
+必要坐标／后代事实并进入既有派生收敛。动画旧包络及一般绘制的输入敏感前缀身份
+只在匹配 Presented 后晋升；后者仅用于保守 Full，不充当实际录制矩阵的证明。
+source 变更前遇到上一显示帧的输入敏感前缀，不重新读取共享模型重建旧 damage。
+完整录制／包络资格、净成本与混合像素验收尚未完成。
+外部模型仍通过已批准的 full redraw／事件失效
+入口请求 Runtime 推进，不新增自动轮询或信号 API；
+上述领域接入不代表总体 FR-02 关闭。
 
 ## 历史批准依据
 

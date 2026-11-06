@@ -5,17 +5,41 @@ use novadraw::{
     text::FontDescriptor,
 };
 
+#[derive(Eq, PartialEq)]
+pub struct LayoutInputValue(pub u64);
+
+impl novadraw::figure::PreparationInputPayload for LayoutInputValue {
+    fn retained_units(&self) -> u64 {
+        0
+    }
+}
+
+/// Compile the private-model query in both Native and Wasm consumer libraries.
+pub fn read_layout_input(
+    query: &novadraw::layout::LayoutSceneQuery<'_>,
+    inputs: &novadraw::figure::PreparationInputRegistry,
+    key: novadraw::figure::PreparationInputKey<LayoutInputValue>,
+    owner: novadraw::tree::FigureId,
+) -> Result<u64, novadraw::layout::LayoutError> {
+    let snapshot = query.input(inputs, key, owner)?;
+    Ok(snapshot.value(key).expect("typed snapshot payload").0)
+}
+
 /// A mounted style update followed by inherited font and opacity queries.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_workload(size: f32, alpha: f64, updates: usize) -> f64 {
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds")))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let child = runtime
         .figure(root)
         .unwrap()
-        .add(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid figure bounds")))
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 80.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut result = 0.0;
     for index in 0..updates {
@@ -104,6 +128,11 @@ mod contracts {
 }
 
 #[cfg(test)]
+mod layout_input_contracts {
+    include!("../../../../crates/novadraw/tests/p2_layout_input_contract.rs");
+}
+
+#[cfg(test)]
 mod border_contracts {
     include!("../../../../crates/novadraw/tests/p2_s08_border_input_contract.rs");
 }
@@ -142,19 +171,24 @@ pub extern "C" fn frame_workload(mode: u32, updates: usize) -> u64 {
     );
     let mut runtime = Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds")))
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 800.0, 600.0).expect("valid figure bounds"),
+        ))
         .unwrap();
     let mut nodes = Vec::with_capacity(NODES);
     for index in 0..NODES {
         let id = runtime
             .figure(root)
             .unwrap()
-            .add(Box::new(RectangleFigure::new(
-                (index % 8) as f64 * 90.0,
-                (index / 8) as f64 * 65.0,
-                80.0,
-                55.0,
-            ).expect("valid figure bounds")))
+            .add(Box::new(
+                RectangleFigure::new(
+                    (index % 8) as f64 * 90.0,
+                    (index / 8) as f64 * 65.0,
+                    80.0,
+                    55.0,
+                )
+                .expect("valid figure bounds"),
+            ))
             .unwrap();
         runtime
             .figure(id)

@@ -102,6 +102,61 @@ mod capability_workset_tests {
         assert!(tree.capability_ids(EXTERNAL).next().is_none());
     }
 
+    struct ReplaceCapabilities(bool);
+    impl crate::FigureComponentUpdate for ReplaceCapabilities {
+        type Figure = ExternalFigure;
+        type Prepared = ();
+        type Error = FigureCapabilityRegistrationError;
+        fn prepare(
+            self,
+            _: &ExternalFigure,
+            _: crate::FigureComponentContext,
+        ) -> Result<crate::runtime::PreparedFigureUpdate<()>, Self::Error> {
+            let mut capabilities = FigureCapabilityBuilder::new();
+            if self.0 {
+                capabilities.register(EXTERNAL, ExternalDescriptor)?;
+                capabilities.register(ACTIVITY, ActivityCapability::of::<ExternalFigure>())?;
+            }
+            Ok(crate::runtime::PreparedFigureUpdate::paint(()).with_capabilities(capabilities))
+        }
+        fn commit(_: (), _: &mut ExternalFigure) {}
+    }
+
+    #[test]
+    fn capability_replacement_updates_all_typed_member_sets_with_the_revision() {
+        let mut tree = FigureTree::new();
+        let owner = tree.add_child_to(tree.root, Box::new(ExternalFigure));
+        let mut runtime = crate::Runtime::new(tree);
+        let revision = runtime.tree().component_revision(owner).unwrap();
+        runtime
+            .figure(owner)
+            .unwrap()
+            .update_component(ReplaceCapabilities(false))
+            .unwrap();
+        assert_scan_matches(runtime.tree());
+        assert!(runtime.tree().capability_ids(EXTERNAL).next().is_none());
+        assert!(runtime.tree().activity_ids().is_empty());
+        assert_eq!(
+            runtime.tree().component_revision(owner).unwrap(),
+            revision + 1
+        );
+        runtime
+            .figure(owner)
+            .unwrap()
+            .update_component(ReplaceCapabilities(true))
+            .unwrap();
+        assert_scan_matches(runtime.tree());
+        assert_eq!(
+            runtime.tree().capability_ids(EXTERNAL).collect::<Vec<_>>(),
+            vec![owner]
+        );
+        assert_eq!(runtime.tree().activity_ids(), vec![owner]);
+        assert_eq!(
+            runtime.tree().component_revision(owner).unwrap(),
+            revision + 2
+        );
+    }
+
     #[test]
     #[ignore = "release-only capability query cost evidence"]
     fn capability_query_cost() {
@@ -243,11 +298,12 @@ mod s07_tree_identity_tests {
     }
 }
 
-/// Identity or geometry failure of a checked Figure coordinate query.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Identity, geometry or projection failure of a checked Figure coordinate query.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CoordinateQueryError {
     /// The requested identity does not belong to the live tree.
     Identity(TreeQueryError),
+    Projection(Box<crate::figure::ProjectionError>),
     /// Transform calculation failed for an otherwise valid identity.
     Geometry {
         /// Identity whose requested transform could not be calculated.
@@ -261,6 +317,7 @@ impl std::fmt::Display for CoordinateQueryError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Identity(error) => error.fmt(formatter),
+            Self::Projection(error) => error.fmt(formatter),
             Self::Geometry { figure, reason } => {
                 write!(
                     formatter,
@@ -275,6 +332,7 @@ impl std::error::Error for CoordinateQueryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Identity(error) => Some(error),
+            Self::Projection(error) => Some(error.as_ref()),
             Self::Geometry { .. } => None,
         }
     }
@@ -283,6 +341,11 @@ impl std::error::Error for CoordinateQueryError {
 impl From<TreeQueryError> for CoordinateQueryError {
     fn from(error: TreeQueryError) -> Self {
         Self::Identity(error)
+    }
+}
+impl From<crate::figure::ProjectionError> for CoordinateQueryError {
+    fn from(error: crate::figure::ProjectionError) -> Self {
+        Self::Projection(Box::new(error))
     }
 }
 
@@ -315,7 +378,661 @@ pub(crate) fn checked_coordinate_inverse(
         })
 }
 
+/// One coordinate operation, including callbacks and inverse calculation.
+/// Temporary results are not published before the final proof check.
+/// A composed prefix only memoizes matrix work. It never grants input-reader
+/// or provider omission authority. Weak parent identity avoids owning a deep
+/// chain and recursive destruction when a 10,000-level tree retires.
+pub(crate) struct WorldPrefix {
+    parent: Option<std::rc::Weak<WorldPrefix>>,
+    local: Affine2D,
+    incoming: Affine2D,
+    transform: Affine2D,
+    _retention: crate::text::TextContentLease,
+}
+
+#[cfg(test)]
+mod projection_prefix_tests {
+    use super::*;
+
+    struct LocalFigure(Rectangle);
+    impl crate::Figure for LocalFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            self.0
+        }
+        fn name(&self) -> &'static str {
+            "CoreOnlyPrefixFigure"
+        }
+    }
+
+    #[test]
+    fn warm_prefix_reuses_matrices_and_parent_move_rebuilds_descendant_prefix() {
+        let mut tree = FigureTree::new();
+        let owner = tree.add_child_to(
+            tree.root,
+            Box::new(LocalFigure(Rectangle::new(10.0, 20.0, 100.0, 100.0))),
+        );
+        let child = tree.add_child_to(
+            owner,
+            Box::new(LocalFigure(Rectangle::new(3.0, 4.0, 10.0, 10.0))),
+        );
+        assert_eq!(
+            tree.local_to_surface_transform(child)
+                .unwrap()
+                .transform_point(Point::ZERO),
+            Point::new(13.0, 24.0)
+        );
+        let old = tree.projection_prefixes.borrow()[&child].clone();
+        let root = tree.projection_prefixes.borrow()[&tree.root].clone();
+        tree.local_to_surface_transform(child).unwrap();
+        assert!(std::rc::Rc::ptr_eq(
+            &old,
+            &tree.projection_prefixes.borrow()[&child]
+        ));
+        tree.set_bounds(owner, 30.0, 40.0, 100.0, 100.0);
+        assert_eq!(
+            tree.local_to_surface_transform(child)
+                .unwrap()
+                .transform_point(Point::ZERO),
+            Point::new(33.0, 44.0)
+        );
+        assert!(!std::rc::Rc::ptr_eq(
+            &old,
+            &tree.projection_prefixes.borrow()[&child]
+        ));
+        assert!(std::rc::Rc::ptr_eq(
+            &root,
+            &tree.projection_prefixes.borrow()[&tree.root]
+        ));
+        assert_eq!(
+            tree.figure_bounds(child).unwrap(),
+            Rectangle::new(3.0, 4.0, 10.0, 10.0)
+        );
+    }
+
+    #[test]
+    fn unpublished_operation_keeps_old_prefixes_until_final_verification() {
+        let mut tree = FigureTree::new();
+        let child = tree.add_child_to(
+            tree.root,
+            Box::new(crate::RectangleFigure::new(3.0, 4.0, 10.0, 10.0).unwrap()),
+        );
+        tree.local_to_surface_transform(child).unwrap();
+        let old = tree.projection_prefixes.borrow()[&child].clone();
+        tree.set_bounds(child, 30.0, 40.0, 10.0, 10.0);
+        let operation = tree.projection_operation();
+        let session = CoordinateQuerySession::in_operation(&tree, &operation).unwrap();
+        session.finish(session.local_to_surface(child)).unwrap();
+        assert!(std::rc::Rc::ptr_eq(
+            &old,
+            &tree.projection_prefixes.borrow()[&child]
+        ));
+        operation.publish(&tree, "test publication").unwrap();
+        assert!(!std::rc::Rc::ptr_eq(
+            &old,
+            &tree.projection_prefixes.borrow()[&child]
+        ));
+    }
+
+    #[test]
+    fn nested_scope_shares_budget_without_publishing_and_other_tree_is_independent() {
+        let sample = FigureTree::new();
+        let sample_scope = sample.begin_projection_scope();
+        sample.local_to_surface_transform(sample.root).unwrap();
+        let limit = sample_scope.operation.budget().used();
+        let tree = FigureTree::with_projection_budget(limit, 1_000_000);
+        let outer = tree.begin_projection_scope();
+        tree.local_to_surface_transform(tree.root).unwrap();
+        assert!(tree.projection_prefixes.borrow().is_empty());
+        let nested = tree.begin_projection_scope();
+        let error = tree.local_to_surface_transform(tree.root).unwrap_err();
+        assert!(matches!(error, CoordinateQueryError::Projection(_)));
+        drop(nested);
+        let other = FigureTree::new();
+        other.local_to_surface_transform(other.root).unwrap();
+        assert!(!other.projection_prefixes.borrow().is_empty());
+        assert!(outer.finish(&tree, "failed outer scope").is_err());
+        assert!(tree.projection_prefixes.borrow().is_empty());
+        drop(outer);
+        assert!(tree.active_projection.borrow().is_none());
+        tree.local_to_surface_transform(tree.root).unwrap();
+    }
+
+    #[test]
+    fn scope_survives_committed_geometry_and_unwind_releases_the_slot() {
+        let mut tree = FigureTree::new();
+        let child = tree.add_child_to(
+            tree.root,
+            Box::new(LocalFigure(Rectangle::new(3.0, 4.0, 10.0, 10.0))),
+        );
+        let scope = tree.begin_projection_scope();
+        tree.local_to_surface_transform(child).unwrap();
+        tree.set_bounds(child, 30.0, 40.0, 10.0, 10.0);
+        let current = tree.local_to_surface_transform(child).unwrap();
+        assert_eq!(current.transform_point(Point::ZERO), Point::new(30.0, 40.0));
+        scope.finish(&tree, "committed geometry").unwrap();
+        drop(scope);
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _scope = tree.begin_projection_scope();
+                panic!("extension panic");
+            }))
+            .is_err()
+        );
+        assert!(tree.active_projection.borrow().is_none());
+        tree.local_to_surface_transform(child).unwrap();
+    }
+}
+
+impl WorldPrefix {
+    fn matches(
+        &self,
+        parent: Option<&std::rc::Rc<Self>>,
+        local: Affine2D,
+        incoming: Affine2D,
+    ) -> bool {
+        let same_parent = match (&self.parent, parent) {
+            (None, None) => true,
+            (Some(old), Some(current)) => old.ptr_eq(&std::rc::Rc::downgrade(current)),
+            _ => false,
+        };
+        same_parent && self.local == local && self.incoming == incoming
+    }
+}
+
+pub(crate) struct CoordinateQuerySession<'a> {
+    tree: &'a FigureTree,
+    scene: crate::figure::ProjectionScene<'a>,
+    operation: Option<crate::figure::projection::ProjectionOperation>,
+    consumers: RefCell<Vec<(FigureId, crate::figure::ProjectionScene<'a>)>>,
+    candidates: RefCell<
+        std::collections::BTreeMap<
+            FigureId,
+            std::rc::Rc<crate::figure::projection::ProjectionReceipt>,
+        >,
+    >,
+    prefixes: RefCell<std::collections::BTreeMap<FigureId, std::rc::Rc<WorldPrefix>>>,
+}
+
+impl<'a> CoordinateQuerySession<'a> {
+    pub(crate) fn new(
+        tree: &'a FigureTree,
+        budget: crate::figure::PreparationBudgetHandle,
+    ) -> Result<Self, CoordinateQueryError> {
+        if let Some(operation) = tree.active_projection.borrow().as_ref() {
+            return Self::in_operation(tree, operation);
+        }
+        Ok(Self {
+            tree,
+            scene: crate::figure::ProjectionScene::new(tree, tree.root, budget)?,
+            operation: None,
+            consumers: RefCell::new(Vec::new()),
+            candidates: RefCell::new(std::collections::BTreeMap::new()),
+            prefixes: RefCell::new(std::collections::BTreeMap::new()),
+        })
+    }
+
+    pub(crate) fn in_operation(
+        tree: &'a FigureTree,
+        operation: &crate::figure::projection::ProjectionOperation,
+    ) -> Result<Self, CoordinateQueryError> {
+        if let Some(error) = operation.coordinate_error() {
+            return Err(error);
+        }
+        Ok(Self {
+            tree,
+            scene: operation.scene(tree)?,
+            operation: Some(operation.clone()),
+            consumers: RefCell::new(Vec::new()),
+            candidates: RefCell::new(std::collections::BTreeMap::new()),
+            prefixes: RefCell::new(std::collections::BTreeMap::new()),
+        })
+    }
+
+    pub(crate) fn local_to_parent(
+        &self,
+        figure: FigureId,
+    ) -> Result<Affine2D, CoordinateQueryError> {
+        self.tree.validate_identity(figure)?;
+        self.scene
+            .budget()
+            .consume("coordinate edge", 1)
+            .map_err(crate::figure::ProjectionError::from)?;
+        let bounds = self.tree.blocks[figure].figure_bounds();
+        checked_transform(
+            figure,
+            Affine2D::from_translation(bounds.x, bounds.y),
+            CoordinateFailure::NonFiniteInput,
+        )
+    }
+
+    pub(crate) fn child_transform(
+        &self,
+        figure: FigureId,
+    ) -> Result<Affine2D, CoordinateQueryError> {
+        self.tree.validate_identity(figure)?;
+        self.scene
+            .budget()
+            .consume("child projection edge", 1)
+            .map_err(crate::figure::ProjectionError::from)?;
+        let node = &self.tree.blocks[figure];
+        let projection = node
+            .capabilities
+            .get(crate::figure::PROJECTION)
+            .map_err(crate::figure::ProjectionError::from)?;
+        let extra = if let Some(descriptor) = projection {
+            let adopted = self.candidates.borrow().get(&figure).cloned();
+            if let Some(receipt) = adopted {
+                // Repeated consumers in this operation use the same output.
+                // Its one live scope is still checked after every callback.
+                receipt.contribution.child_transform.affine()
+            } else {
+                let provider = descriptor.resolve(node.figure.as_ref()).ok_or(
+                    crate::figure::ProjectionError::Capability(
+                        CapabilityQueryError::DescriptorTypeMismatch {
+                            capability: crate::figure::PROJECTION.name(),
+                        },
+                    ),
+                )?;
+                let historical = self
+                    .operation
+                    .as_ref()
+                    .and_then(|operation| operation.contributions.borrow().get(&figure).cloned())
+                    .or_else(|| {
+                        self.tree
+                            .projection_contributions
+                            .borrow()
+                            .get(&figure)
+                            .cloned()
+                    });
+                let qualified = historical
+                    .as_ref()
+                    .map(|receipt| receipt.qualify(&self.scene))
+                    .transpose()?
+                    .flatten();
+                let (scope, receipt) = if let Some(scope) = qualified {
+                    (scope, historical.expect("qualified receipt exists"))
+                } else {
+                    let scope = self.scene.owner_scope(figure)?;
+                    let contribution = scope.evaluate(provider)?;
+                    let receipt = std::rc::Rc::new(
+                        scope.receipt(contribution, &self.tree.projection_retention)?,
+                    );
+                    (scope, receipt)
+                };
+                self.scene
+                    .budget()
+                    .allocate(
+                        "coordinate projection consumer",
+                        (std::mem::size_of::<crate::figure::ProjectionScene<'_>>()
+                            + std::mem::size_of::<(
+                                FigureId,
+                                std::rc::Rc<crate::figure::projection::ProjectionReceipt>,
+                            )>()) as u64,
+                    )
+                    .map_err(crate::figure::ProjectionError::from)?;
+                let transform = receipt.contribution.child_transform.affine();
+                self.consumers.borrow_mut().push((figure, scope));
+                self.candidates.borrow_mut().insert(figure, receipt);
+                transform
+            }
+        } else {
+            // Unqualified extensions retain their actual callback. They receive
+            // no contribution reuse authority.
+            node.container().map_or(Affine2D::IDENTITY, |container| {
+                container.child_transform().affine()
+            })
+        };
+        let extra = checked_transform(figure, extra, CoordinateFailure::NonFiniteInput)?;
+        let insets = node.state.insets;
+        checked_transform(
+            figure,
+            Affine2D::from_translation(insets.left, insets.top) * extra,
+            CoordinateFailure::DerivedOverflow,
+        )
+    }
+
+    pub(crate) fn local_to_surface(
+        &self,
+        figure: FigureId,
+    ) -> Result<Affine2D, CoordinateQueryError> {
+        self.tree.validate_identity(figure)?;
+        let result = (|| {
+            let mut path = Vec::new();
+            let mut current = Some(figure);
+            let mut qualified = true;
+            while let Some(id) = current {
+                self.scene
+                    .budget()
+                    .allocate(
+                        "coordinate prefix ancestry",
+                        std::mem::size_of::<FigureId>() as u64,
+                    )
+                    .map_err(crate::figure::ProjectionError::from)?;
+                path.push(id);
+                let node = &self.tree.blocks[id];
+                current = node.parent;
+                // The requested node's children mapping is not consumed.
+                if id != figure
+                    && node.container().is_some()
+                    && node
+                        .capabilities
+                        .get(crate::figure::PROJECTION)
+                        .map_err(crate::figure::ProjectionError::from)?
+                        .is_none()
+                {
+                    qualified = false;
+                }
+            }
+            if qualified {
+                return self.qualified_local_to_surface(figure, &path);
+            }
+            // Live callbacks preserve the original bottom-up call order, and
+            // the entire prefix containing them remains uncached.
+            let mut transform = Affine2D::IDENTITY;
+            let mut current = figure;
+            loop {
+                transform = checked_transform(
+                    figure,
+                    self.local_to_parent(current)? * transform,
+                    CoordinateFailure::DerivedOverflow,
+                )?;
+                let Some(parent) = self.tree.blocks[current].parent else {
+                    break;
+                };
+                transform = checked_transform(
+                    figure,
+                    self.child_transform(parent)? * transform,
+                    CoordinateFailure::DerivedOverflow,
+                )?;
+                current = parent;
+            }
+            Ok(transform)
+        })();
+        result.map_err(|error| match error {
+            // Numerical errors retain the requested transform's subject.
+            // Projection errors retain the provider/input's original source.
+            CoordinateQueryError::Geometry { reason, .. } => {
+                CoordinateQueryError::Geometry { figure, reason }
+            }
+            other => other,
+        })
+    }
+
+    fn qualified_local_to_surface(
+        &self,
+        figure: FigureId,
+        path: &[FigureId],
+    ) -> Result<Affine2D, CoordinateQueryError> {
+        let mut parent: Option<std::rc::Rc<WorldPrefix>> = None;
+        let mut parent_id = None;
+        for &id in path.iter().rev() {
+            let local = self.local_to_parent(id)?;
+            let incoming =
+                parent_id.map_or(Ok(Affine2D::IDENTITY), |id| self.child_transform(id))?;
+            let cached = self.prefixes.borrow().get(&id).cloned().or_else(|| {
+                self.operation
+                    .as_ref()
+                    .and_then(|operation| operation.prefixes.borrow().get(&id).cloned())
+                    .or_else(|| self.tree.projection_prefixes.borrow().get(&id).cloned())
+            });
+            let prefix = if let Some(cached) =
+                cached.filter(|cached| cached.matches(parent.as_ref(), local, incoming))
+            {
+                cached
+            } else {
+                let base = parent
+                    .as_ref()
+                    .map_or(Affine2D::IDENTITY, |parent| parent.transform);
+                let transform = checked_transform(
+                    figure,
+                    base * incoming * local,
+                    CoordinateFailure::DerivedOverflow,
+                )?;
+                let bytes = std::mem::size_of::<WorldPrefix>()
+                    + 2 * std::mem::size_of::<usize>()
+                    + std::mem::size_of::<(FigureId, std::rc::Rc<WorldPrefix>)>()
+                    + 4 * std::mem::size_of::<usize>();
+                self.scene
+                    .budget()
+                    .allocate("coordinate world prefix", bytes as u64)
+                    .map_err(crate::figure::ProjectionError::from)?;
+                std::rc::Rc::new(WorldPrefix {
+                    parent: parent.as_ref().map(std::rc::Rc::downgrade),
+                    local,
+                    incoming,
+                    transform,
+                    _retention: self
+                        .tree
+                        .projection_retention
+                        .reserve(bytes)
+                        .map_err(crate::figure::ProjectionError::from)?,
+                })
+            };
+            if !self.prefixes.borrow().contains_key(&id) {
+                self.scene
+                    .budget()
+                    .allocate(
+                        "coordinate prefix candidate entry",
+                        (std::mem::size_of::<(FigureId, std::rc::Rc<WorldPrefix>)>()
+                            + 4 * std::mem::size_of::<usize>()) as u64,
+                    )
+                    .map_err(crate::figure::ProjectionError::from)?;
+            }
+            self.prefixes.borrow_mut().insert(id, prefix.clone());
+            parent = Some(prefix);
+            parent_id = Some(id);
+        }
+        Ok(parent
+            .expect("validated Figure supplies a nonempty path")
+            .transform)
+    }
+
+    pub(crate) fn finish<T>(
+        &self,
+        result: Result<T, CoordinateQueryError>,
+    ) -> Result<T, CoordinateQueryError> {
+        let result = self.finish_inner(result);
+        if let Some(operation) = &self.operation {
+            operation.remember(&result);
+        }
+        result
+    }
+    fn finish_inner<T>(
+        &self,
+        result: Result<T, CoordinateQueryError>,
+    ) -> Result<T, CoordinateQueryError> {
+        let value = result?;
+        for (_, consumer) in self.consumers.borrow().iter() {
+            consumer.validate("coordinate query return")?;
+        }
+        self.scene.check()?;
+        // Verification can discover new nested subjects. Persist the completed
+        // closure before installing, not only the provider-return receipt.
+        for (figure, consumer) in self.consumers.borrow().iter().rev() {
+            let receipt = self.candidates.borrow()[figure].clone();
+            if !receipt.matches_consumption(consumer)? {
+                let completed =
+                    consumer.receipt(receipt.contribution, &self.tree.projection_retention)?;
+                self.candidates
+                    .borrow_mut()
+                    .insert(*figure, std::rc::Rc::new(completed));
+            }
+        }
+        self.scene.check()?;
+        if let Some(operation) = &self.operation {
+            for (_, consumer) in self.consumers.borrow().iter() {
+                operation.retain(consumer)?;
+            }
+            operation
+                .contributions
+                .borrow_mut()
+                .extend(std::mem::take(&mut *self.candidates.borrow_mut()));
+            operation
+                .prefixes
+                .borrow_mut()
+                .extend(std::mem::take(&mut *self.prefixes.borrow_mut()));
+            return Ok(value);
+        }
+        // Install together only after the requested forward/inverse result and
+        // all adopted consumer proofs have succeeded.
+        self.tree
+            .projection_contributions
+            .borrow_mut()
+            .extend(std::mem::take(&mut *self.candidates.borrow_mut()));
+        self.tree
+            .projection_prefixes
+            .borrow_mut()
+            .extend(std::mem::take(&mut *self.prefixes.borrow_mut()));
+        Ok(value)
+    }
+}
+
+/// Owns only the tree's scope slot, so source transactions can borrow the tree
+/// mutably while their readers retain the same operation. Unwinding clears it.
+pub(crate) struct ProjectionScope {
+    slot: std::rc::Rc<RefCell<Option<crate::figure::projection::ProjectionOperation>>>,
+    pub(crate) operation: crate::figure::projection::ProjectionOperation,
+    owns_slot: bool,
+}
+
+pub(crate) struct DisplayProjectionInputs {
+    figures: Vec<FigureId>,
+    _retention: crate::text::TextContentLease,
+}
+impl Drop for ProjectionScope {
+    fn drop(&mut self) {
+        if self.owns_slot {
+            self.slot.borrow_mut().take();
+        }
+    }
+}
+impl ProjectionScope {
+    pub(crate) fn finish(
+        &self,
+        tree: &FigureTree,
+        checkpoint: &'static str,
+    ) -> Result<(), CoordinateQueryError> {
+        if self.owns_slot {
+            self.operation.publish(tree, checkpoint)?;
+        } else {
+            self.operation.checked_validate(tree, checkpoint)?;
+        }
+        Ok(())
+    }
+}
+
 impl FigureTree {
+    pub(crate) fn retain_projection_state(
+        &self,
+        bytes: usize,
+    ) -> Result<crate::text::TextContentLease, crate::figure::ProjectionError> {
+        self.projection_retention.reserve(bytes).map_err(Into::into)
+    }
+
+    pub(crate) fn projection_has_input_proofs(&self, figure: FigureId) -> bool {
+        let operation = self.projection_operation();
+        if let Some(receipt) = operation.contributions.borrow().get(&figure) {
+            return receipt.has_input_proofs();
+        }
+        self.projection_contributions
+            .borrow()
+            .get(&figure)
+            .is_some_and(|receipt| receipt.has_input_proofs())
+    }
+
+    pub(crate) fn display_projection_inputs(
+        &self,
+        figures: impl Iterator<Item = FigureId> + Clone,
+    ) -> Result<DisplayProjectionInputs, crate::figure::ProjectionError> {
+        let count = figures.clone().count();
+        let bytes = count
+            .checked_mul(std::mem::size_of::<FigureId>())
+            .and_then(|bytes| bytes.checked_add(std::mem::size_of::<DisplayProjectionInputs>()))
+            .ok_or(crate::text::TextContentError::AccountingOverflow)?;
+        self.projection_operation()
+            .budget()
+            .allocate("display projection input identities", bytes as u64)?;
+        let retention = self.retain_projection_state(bytes)?;
+        let mut ids = Vec::with_capacity(count);
+        ids.extend(figures);
+        Ok(DisplayProjectionInputs {
+            figures: ids,
+            _retention: retention,
+        })
+    }
+
+    pub(crate) fn present_projection_inputs(&mut self, inputs: DisplayProjectionInputs) {
+        self.displayed_projection_inputs = Some(inputs);
+    }
+
+    pub(crate) fn has_projection_ancestor(&self, figure: FigureId) -> bool {
+        let Some(inputs) = &self.displayed_projection_inputs else {
+            return false;
+        };
+        let mut current = Some(figure);
+        while let Some(id) = current {
+            let Some(node) = self.blocks.get(id) else {
+                break;
+            };
+            if inputs.figures.binary_search(&id).is_ok() {
+                return true;
+            }
+            current = node.parent;
+        }
+        false
+    }
+
+    pub(crate) fn begin_projection_scope(&self) -> ProjectionScope {
+        let operation = self.projection_operation();
+        let mut slot = self.active_projection.borrow_mut();
+        let owns_slot = slot.is_none();
+        if owns_slot {
+            *slot = Some(operation.clone());
+        }
+        ProjectionScope {
+            slot: self.active_projection.clone(),
+            operation,
+            owns_slot,
+        }
+    }
+
+    /// The complete Core client-origin and checked extra container transform.
+    /// Presentation effects are applied by their own geometry consumer.
+    pub(crate) fn checked_child_transform(
+        &self,
+        figure: FigureId,
+    ) -> Result<Affine2D, CoordinateQueryError> {
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(session.child_transform(figure))
+    }
+
+    pub(crate) fn publish_projection_candidates(
+        &self,
+        contributions: std::collections::BTreeMap<
+            FigureId,
+            std::rc::Rc<crate::figure::projection::ProjectionReceipt>,
+        >,
+        prefixes: std::collections::BTreeMap<FigureId, std::rc::Rc<WorldPrefix>>,
+    ) {
+        self.projection_contributions
+            .borrow_mut()
+            .extend(contributions);
+        self.projection_prefixes.borrow_mut().extend(prefixes);
+    }
+
+    pub(crate) fn projection_operation(&self) -> crate::figure::projection::ProjectionOperation {
+        if let Some(operation) = self.active_projection.borrow().as_ref() {
+            return operation.clone();
+        }
+        crate::figure::projection::ProjectionOperation::new(
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )
+    }
+
     /// Returns membership in this tree's live identity set without reading facts.
     pub fn contains(&self, id: FigureId) -> bool {
         id.namespace() == self.namespace() && self.blocks.contains_key(id)
@@ -342,7 +1059,7 @@ impl FigureTree {
             .map(|prepared| &prepared.presentation))
     }
 
-    /// Queries one attach-time capability descriptor without causing mutation.
+    /// Queries one currently admitted capability descriptor without causing mutation.
     pub fn capability<C: 'static>(
         &self,
         figure: FigureId,
@@ -564,6 +1281,15 @@ impl FigureTree {
         Some((result, node_visits))
     }
 
+    pub(crate) fn preparation_input_styles(
+        &self,
+        budget: &crate::figure::PreparationBudgetHandle,
+    ) -> Result<std::collections::HashMap<FigureId, ResolvedStyle>, TextError> {
+        budget.allocate("preparation input styles", self.blocks.len() as u64)?;
+        let (styles, _) = self.resolved_styles_for(|_| true);
+        Ok(styles.into_iter().collect())
+    }
+
     pub(super) fn resolved_styles_for(
         &self,
         mut include: impl FnMut(&FigureNode) -> bool,
@@ -687,12 +1413,11 @@ impl FigureTree {
         figure_id: FigureId,
     ) -> Result<Affine2D, CoordinateQueryError> {
         self.validate_identity(figure_id)?;
-        let bounds = self.blocks[figure_id].figure_bounds();
-        checked_transform(
-            figure_id,
-            Affine2D::from_translation(bounds.x, bounds.y),
-            CoordinateFailure::NonFiniteInput,
-        )
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(session.local_to_parent(figure_id))
     }
 
     /// 返回 parent content domain 到 node-local 的变换。
@@ -700,7 +1425,16 @@ impl FigureTree {
         &self,
         figure_id: FigureId,
     ) -> Result<Option<Affine2D>, CoordinateQueryError> {
-        checked_coordinate_inverse(figure_id, self.local_to_parent_transform(figure_id)?)
+        self.validate_identity(figure_id)?;
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(
+            session
+                .local_to_parent(figure_id)
+                .and_then(|transform| checked_coordinate_inverse(figure_id, transform)),
+        )
     }
 
     /// 返回 node-local 到 logical surface 的完整父链变换。
@@ -709,35 +1443,11 @@ impl FigureTree {
         figure_id: FigureId,
     ) -> Result<Affine2D, CoordinateQueryError> {
         self.validate_identity(figure_id)?;
-        let mut transform = Affine2D::IDENTITY;
-        let mut current_id = figure_id;
-
-        loop {
-            let current = &self.blocks[current_id];
-            transform = checked_transform(
-                figure_id,
-                self.local_to_parent_transform(current_id)? * transform,
-                CoordinateFailure::DerivedOverflow,
-            )?;
-
-            let Some(parent_id) = current.parent else {
-                break;
-            };
-            let parent = &self.blocks[parent_id];
-            let child_transform = checked_transform(
-                figure_id,
-                parent.child_transform().affine(),
-                CoordinateFailure::NonFiniteInput,
-            )?;
-            transform = checked_transform(
-                figure_id,
-                child_transform * transform,
-                CoordinateFailure::DerivedOverflow,
-            )?;
-            current_id = parent_id;
-        }
-
-        Ok(transform)
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(session.local_to_surface(figure_id))
     }
 
     /// 返回 logical surface domain 到 node-local 的完整父链变换。
@@ -745,7 +1455,16 @@ impl FigureTree {
         &self,
         figure_id: FigureId,
     ) -> Result<Option<Affine2D>, CoordinateQueryError> {
-        checked_coordinate_inverse(figure_id, self.local_to_surface_transform(figure_id)?)
+        self.validate_identity(figure_id)?;
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(
+            session
+                .local_to_surface(figure_id)
+                .and_then(|transform| checked_coordinate_inverse(figure_id, transform)),
+        )
     }
 
     /// Returns the complete child-content to logical-surface transform.
@@ -753,17 +1472,19 @@ impl FigureTree {
         &self,
         figure_id: FigureId,
     ) -> Result<Affine2D, CoordinateQueryError> {
-        let local_to_surface = self.local_to_surface_transform(figure_id)?;
-        let child_transform = checked_transform(
-            figure_id,
-            self.blocks[figure_id].child_transform().affine(),
-            CoordinateFailure::NonFiniteInput,
+        self.validate_identity(figure_id)?;
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
         )?;
-        checked_transform(
-            figure_id,
-            local_to_surface * child_transform,
-            CoordinateFailure::DerivedOverflow,
-        )
+        session.finish((|| {
+            let local_to_surface = session.local_to_surface(figure_id)?;
+            checked_transform(
+                figure_id,
+                local_to_surface * session.child_transform(figure_id)?,
+                CoordinateFailure::DerivedOverflow,
+            )
+        })())
     }
 
     pub(crate) fn presentation_envelope(

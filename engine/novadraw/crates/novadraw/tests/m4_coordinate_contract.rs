@@ -113,19 +113,19 @@ fn coordinate_transform_queries_reject_foreign_figures_without_mutating_geometry
     );
     assert_eq!(
         graph.local_to_parent_transform(foreign_figure),
-        Err(expected)
+        Err(expected.clone())
     );
     assert_eq!(
         graph.parent_to_local_transform(foreign_figure),
-        Err(expected)
+        Err(expected.clone())
     );
     assert_eq!(
         graph.local_to_surface_transform(foreign_figure),
-        Err(expected)
+        Err(expected.clone())
     );
     assert_eq!(
         graph.surface_to_local_transform(foreign_figure),
-        Err(expected)
+        Err(expected.clone())
     );
     assert_eq!(
         graph.child_content_to_surface_transform(foreign_figure),
@@ -297,7 +297,9 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let entry = Point::new(161.0, 125.0);
 
     assert_eq!(
-        graph.find_mouse_event_target_at(entry.x(), entry.y()),
+        graph
+            .find_mouse_event_target_at(entry.x(), entry.y())
+            .unwrap(),
         Some(target)
     );
 

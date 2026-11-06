@@ -94,8 +94,9 @@ impl AccessibilityUpdate {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccessibilityError {
+    Coordinate(crate::tree::CoordinateQueryError),
     UnknownNode(AccessibilityNodeId),
     ForeignRuntime(AccessibilityNodeId),
     Unavailable(AccessibilityNodeId),
@@ -111,6 +112,7 @@ pub enum AccessibilityError {
 impl fmt::Display for AccessibilityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Coordinate(error) => error.fmt(formatter),
             Self::UnknownNode(node) => write!(formatter, "unknown accessibility node: {node:?}"),
             Self::ForeignRuntime(node) => {
                 write!(
@@ -136,7 +138,14 @@ impl fmt::Display for AccessibilityError {
     }
 }
 
-impl std::error::Error for AccessibilityError {}
+impl std::error::Error for AccessibilityError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Coordinate(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct AccessibilityManager {
@@ -146,7 +155,29 @@ pub(crate) struct AccessibilityManager {
     force_snapshot: bool,
 }
 
+pub(crate) struct AccessibilityCheckpoint {
+    revision: u64,
+    published: Option<Arc<AccessibilitySnapshot>>,
+    updates_len: usize,
+    force_snapshot: bool,
+}
+
 impl AccessibilityManager {
+    pub(crate) fn checkpoint(&self) -> AccessibilityCheckpoint {
+        AccessibilityCheckpoint {
+            revision: self.revision,
+            published: self.published.clone(),
+            updates_len: self.updates.len(),
+            force_snapshot: self.force_snapshot,
+        }
+    }
+    pub(crate) fn restore(&mut self, checkpoint: AccessibilityCheckpoint) {
+        self.revision = checkpoint.revision;
+        self.published = checkpoint.published;
+        self.updates.truncate(checkpoint.updates_len);
+        self.force_snapshot = checkpoint.force_snapshot;
+    }
+
     pub(crate) fn reset(&mut self) {
         self.published = None;
         self.updates.clear();
@@ -314,7 +345,10 @@ fn append_subtree_inner(
     let figure_bounds = block.figure_bounds();
     let local_to_surface = frame.parent_content_to_surface
         * Affine2D::from_translation(figure_bounds.x, figure_bounds.y);
-    let child_content_to_surface = local_to_surface * block.child_transform().affine();
+    let child_content_to_surface = local_to_surface
+        * tree
+            .checked_child_transform(frame.figure)
+            .map_err(AccessibilityError::Coordinate)?;
     let current_parent = if let Some(accessible) = block.accessible() {
         let id = AccessibilityNodeId::Figure(frame.figure);
         let mut bounds = Rectangle::new(0.0, 0.0, figure_bounds.width, figure_bounds.height);

@@ -1250,7 +1250,7 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
         )
     }));
     assert_eq!(
-        runtime.tree().hit_test_simple((15.0, 15.0)),
+        runtime.tree().hit_test_simple((15.0, 15.0)).unwrap(),
         Some(child),
         "committed interaction geometry must not follow the presentation transform"
     );

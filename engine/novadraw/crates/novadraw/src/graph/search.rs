@@ -2,7 +2,8 @@ use std::{collections::HashSet, error::Error, fmt};
 
 use crate::geometry::Point;
 
-use super::{FigureId, FigureTree, NodeState, point_in_rect};
+use super::query::{CoordinateQuerySession, checked_coordinate_inverse};
+use super::{CoordinateQueryError, FigureId, FigureTree, NodeState, point_in_rect};
 use crate::{ChildClippingStrategy, Figure, HitParticipation};
 
 const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
@@ -95,7 +96,7 @@ impl fmt::Display for TreeQueryError {
 
 impl Error for TreeQueryError {}
 
-struct MouseEventTargetSearch;
+pub(crate) struct MouseEventTargetSearch;
 
 impl TreeSearch for MouseEventTargetSearch {
     fn accept(&mut self, candidate: TreeSearchContext<'_>) -> bool {
@@ -117,7 +118,10 @@ impl FigureTree {
     }
 
     /// Returns the topmost deepest Figure at a logical surface point.
-    pub fn hit_test(&self, point: (f64, f64)) -> Option<(FigureId, Vec<FigureId>)> {
+    pub fn hit_test(
+        &self,
+        point: (f64, f64),
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
         self.hit_test_with(point, &mut IdentitySearch)
     }
 
@@ -126,10 +130,23 @@ impl FigureTree {
         &self,
         point: (f64, f64),
         search: &mut dyn TreeSearch,
-    ) -> Option<(FigureId, Vec<FigureId>)> {
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
+        let session = CoordinateQuerySession::new(
+            self,
+            crate::figure::PreparationBudgetHandle::new(self.projection_budget),
+        )?;
+        session.finish(self.hit_test_in_session(point, search, &session))
+    }
+
+    pub(crate) fn hit_test_in_session(
+        &self,
+        point: (f64, f64),
+        search: &mut dyn TreeSearch,
+        session: &CoordinateQuerySession<'_>,
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
         let start_id = self.contents.unwrap_or(self.root);
         let mut path = Vec::new();
-        self.hit_test_from_with(start_id, point, &mut path, search, 0)
+        self.hit_test_from_with(start_id, point, &mut path, search, session, 0)
     }
 
     /// Runs hit-testing while excluding complete subtrees rooted at the given IDs.
@@ -137,18 +154,26 @@ impl FigureTree {
         &self,
         point: (f64, f64),
         excluded: impl IntoIterator<Item = FigureId>,
-    ) -> Option<(FigureId, Vec<FigureId>)> {
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
         self.hit_test_with(point, &mut ExclusionSearch::new(excluded))
     }
 
     /// Returns only the target from [`Self::hit_test`].
-    pub fn hit_test_simple(&self, point: (f64, f64)) -> Option<FigureId> {
-        self.hit_test(point).map(|(target, _)| target)
+    pub fn hit_test_simple(
+        &self,
+        point: (f64, f64),
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
+        self.hit_test(point)
+            .map(|hit| hit.map(|(target, _)| target))
     }
 
-    pub fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+    pub fn find_mouse_event_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
         self.hit_test_with((x, y), &mut MouseEventTargetSearch)
-            .map(|(target, _)| target)
+            .map(|hit| hit.map(|(target, _)| target))
     }
 
     /// Returns ancestor IDs from the direct parent towards the public contents root.
@@ -231,14 +256,15 @@ impl FigureTree {
         point: (f64, f64),
         path: &mut Vec<FigureId>,
         search: &mut dyn TreeSearch,
+        session: &CoordinateQuerySession<'_>,
         depth: usize,
-    ) -> Option<(FigureId, Vec<FigureId>)> {
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
         if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
             return stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
-                self.hit_test_from_with_inner(id, point, path, search, depth)
+                self.hit_test_from_with_inner(id, point, path, search, session, depth)
             });
         }
-        self.hit_test_from_with_inner(id, point, path, search, depth)
+        self.hit_test_from_with_inner(id, point, path, search, session, depth)
     }
 
     fn hit_test_from_with_inner(
@@ -247,17 +273,18 @@ impl FigureTree {
         point: (f64, f64),
         path: &mut Vec<FigureId>,
         search: &mut dyn TreeSearch,
+        session: &CoordinateQuerySession<'_>,
         depth: usize,
-    ) -> Option<(FigureId, Vec<FigureId>)> {
-        let node = self.blocks.get(id)?;
+    ) -> Result<Option<(FigureId, Vec<FigureId>)>, CoordinateQueryError> {
+        let node = self.node(id)?;
         if !node.is_visible || !node.is_enabled {
-            return None;
+            return Ok(None);
         }
 
-        let local_point = self
-            .parent_to_local_transform(id)
-            .ok()??
-            .transform_point(Point::new(point.0, point.1));
+        let Some(inverse) = checked_coordinate_inverse(id, session.local_to_parent(id)?)? else {
+            return Ok(None);
+        };
+        let local_point = inverse.transform_point(Point::new(point.0, point.1));
         let envelope_hit =
             node.figure
                 .precise_hit(local_point.x(), local_point.y(), node.figure_bounds());
@@ -269,29 +296,31 @@ impl FigureTree {
         let overflow_visible =
             node.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
         if !envelope_hit && !overflow_visible {
-            return None;
+            return Ok(None);
         }
 
         let context = TreeSearchContext::new(self, id);
         if search.prune(context) {
-            return None;
+            return Ok(None);
         }
 
         path.push(id);
         let client_area = node.client_area();
-        if overflow_visible || point_in_rect(local_point, &client_area) {
-            let mut child_point = local_point;
-            if node.child_transform().apply_inverse_to(&mut child_point) {
-                for &child_id in node.children.iter().rev() {
-                    if let Some(hit) = self.hit_test_from_with(
-                        child_id,
-                        child_point.into(),
-                        path,
-                        search,
-                        depth + 1,
-                    ) {
-                        return Some(hit);
-                    }
+        if (overflow_visible || point_in_rect(local_point, &client_area))
+            && !node.children.is_empty()
+            && let Some(inverse) = checked_coordinate_inverse(id, session.child_transform(id)?)?
+        {
+            let child_point = inverse.transform_point(local_point);
+            for &child_id in node.children.iter().rev() {
+                if let Some(hit) = self.hit_test_from_with(
+                    child_id,
+                    child_point.into(),
+                    path,
+                    search,
+                    session,
+                    depth + 1,
+                )? {
+                    return Ok(Some(hit));
                 }
             }
         }
@@ -301,7 +330,7 @@ impl FigureTree {
             && search.accept(context))
         .then(|| (id, path.clone()));
         path.pop();
-        result
+        Ok(result)
     }
 }
 
@@ -348,7 +377,7 @@ mod tests {
             ..RecordingSearch::default()
         };
 
-        let hit = tree.hit_test_with((20.0, 20.0), &mut search);
+        let hit = tree.hit_test_with((20.0, 20.0), &mut search).unwrap();
 
         assert_eq!(hit.map(|(target, _)| target), Some(parent));
         assert_eq!(search.pruned_calls, vec![parent, child]);
@@ -374,7 +403,7 @@ mod tests {
             Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0).expect("valid figure bounds")),
         );
 
-        let hit = tree.hit_test_excluding((20.0, 20.0), [excluded]);
+        let hit = tree.hit_test_excluding((20.0, 20.0), [excluded]).unwrap();
 
         assert_eq!(hit.map(|(target, _)| target), Some(lower));
     }

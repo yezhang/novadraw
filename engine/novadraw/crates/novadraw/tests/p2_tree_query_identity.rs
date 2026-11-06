@@ -72,7 +72,7 @@ fn assert_identity_queries(tree: &FigureTree, id: FigureId, error: TreeQueryErro
         TreeQueryError::ForeignFigure(id) => FreeformError::ForeignFigure(id),
         TreeQueryError::UnknownFigure(id) => FreeformError::UnknownFigure(id),
     };
-    assert_eq!(tree.freeform_extent(id), Err(freeform));
+    assert_eq!(tree.freeform_extent(id), Err(freeform.clone()));
     assert_eq!(tree.freeform_extent_excluding(id, &[]), Err(freeform));
 }
 

@@ -21,14 +21,25 @@ const RASTER_VALIDATION_STEPS: usize = 16;
 const RASTER_VALIDATION_STEP: f64 = 200.0;
 const ASSEMBLY_CACHE_UNITS: usize = 16 * 1024 * 1024;
 const ASSEMBLY_RETAINED_UNITS: usize = 64 * 1024 * 1024;
+const PROJECTION_RETAINED_BYTES: usize = 64 * 1024 * 1024;
 // This research fixture performs repeated whole-document stabilization. Both
 // control and reuse runs use this explicit bounded session policy.
 pub const PREPARATION_WORK_UNITS: u64 = 128 * 1024 * 1024;
 pub const PREPARATION_ALLOCATION_UNITS: u64 = 64 * 1024 * 1024;
 
 fn flow_runtime(service: &FlowLayoutService) -> Runtime {
-    let mut runtime =
-        draw2d_official_examples::text_flow_large_example_with_service(service.clone());
+    let budget = novadraw::figure::PreparationBudget::new(
+        PREPARATION_WORK_UNITS,
+        PREPARATION_ALLOCATION_UNITS,
+    );
+    // Projection scopes have a separate policy from Runtime preparation.
+    // Configure it before fixture construction and keep it on every reset.
+    let tree =
+        novadraw::tree::FigureTree::with_projection_budget(budget, PROJECTION_RETAINED_BYTES);
+    let mut runtime = draw2d_official_examples::text_flow_large_example_with_service_and_tree(
+        service.clone(),
+        tree,
+    );
     runtime
         .frames()
         .set_preparation_budget(novadraw::figure::PreparationBudget::new(
@@ -499,6 +510,27 @@ impl Research {
 #[cfg(test)]
 mod replay_tests {
     use super::*;
+
+    #[test]
+    fn large_scene_projection_policy_survives_reset_without_assembly_reuse() {
+        let mut research = Research::new(false, false);
+        research.full_redraw = false;
+        for operation in [
+            Operation::Stable,
+            Operation::Reset,
+            Operation::Scroll(SCROLL_STEP),
+            Operation::Resize(NARROW_WIDTH),
+            Operation::Append,
+            Operation::Reset,
+        ] {
+            research.mutate(operation).unwrap();
+            research.runtime.frames().stabilize_for_query().unwrap();
+            let snapshot = research.snapshot_summary().unwrap();
+            assert!(snapshot["bytes"].as_u64().unwrap() >= 51_232);
+            let point = research.scroll_thumb_center().unwrap();
+            assert!(point.x() > 0.0 && point.x() < research.width);
+        }
+    }
 
     #[test]
     fn interaction_replay_uses_a_visible_thumb_and_balanced_input() {

@@ -141,6 +141,7 @@ impl FrozenGeometrySource {
         roots: Vec<FigureId>,
         limits: super::AnimationWork,
     ) -> Result<Arc<Self>, AnimationError> {
+        let projection = tree.begin_projection_scope();
         let mut selected = HashSet::new();
         let mut pending = Vec::new();
         for root in &roots {
@@ -333,7 +334,7 @@ impl FrozenGeometrySource {
             nodes.insert(
                 id,
                 FrozenGeometryNode {
-                    inputs: super::geometry::inputs(node),
+                    inputs: super::geometry::inputs(tree, id)?,
                     parent: node.parent,
                     children: node.children.clone(),
                     clipping: node.child_clipping_strategy(),
@@ -363,6 +364,7 @@ impl FrozenGeometrySource {
                 },
             );
         }
+        projection.finish(tree, "animation source capture return")?;
         Ok(Arc::new(Self {
             roots,
             nodes,
@@ -376,42 +378,61 @@ impl FrozenGeometrySource {
         &self,
         tree: &FigureTree,
         resources: &crate::runtime::ResourceRegistry,
-    ) -> bool {
-        self.retained_versions.iter().all(|(id, revision)| {
+    ) -> Result<bool, AnimationError> {
+        let projection = tree.begin_projection_scope();
+        let valid = self.is_valid_in_scope(tree, resources)?;
+        projection.finish(tree, "animation source validation return")?;
+        Ok(valid)
+    }
+
+    fn is_valid_in_scope(
+        &self,
+        tree: &FigureTree,
+        resources: &crate::runtime::ResourceRegistry,
+    ) -> Result<bool, AnimationError> {
+        if !self.retained_versions.iter().all(|(id, revision)| {
             resources
                 .snapshot_resource(*id)
                 .is_ok_and(|resource| resource.revision == *revision)
-        }) && self.nodes.iter().all(|(id, frozen)| {
-            tree.node(*id).is_ok_and(|node| {
-                frozen.parent == node.parent
-                    && (!frozen.ancestor_only || frozen.inputs.bounds == node.figure_bounds())
-                    && frozen.children == node.children
-                    && frozen.component == node.component_revision
-                    && frozen.inputs.insets == node.state().insets
-                    && if let Some(scale) = frozen.viewport_scale {
-                        tree.viewport_handle(*id).is_ok_and(|handle| {
-                            handle.is_some_and(|handle| {
-                                handle.content_scale() == scale
-                                    && Some(
-                                        [handle.horizontal_range(), handle.vertical_range()].map(
-                                            |range| (range.minimum, range.maximum, range.extent),
-                                        ),
-                                    ) == frozen.viewport_ranges
-                            })
-                        })
-                    } else {
-                        frozen.inputs.child_transform
-                            == super::geometry::inputs(node).child_transform
-                    }
-                    && frozen.clipping == node.child_clipping_strategy()
-                    && frozen.style == node.state().style
-                    && frozen.opaque == node.state().is_opaque()
-                    && frozen.resources == node.resource_inputs
-                    && frozen.preparation == preparation(node)
-                    && frozen.content_revision == content_revision(node)
-                    && frozen.bounds_revision == bounds_revision(node)
-            })
-        })
+        }) {
+            return Ok(false);
+        }
+        for (id, frozen) in &self.nodes {
+            let Ok(node) = tree.node(*id) else {
+                return Ok(false);
+            };
+            let current_inputs = super::geometry::inputs(tree, *id)?;
+            let transform_valid = if let Some(scale) = frozen.viewport_scale {
+                tree.viewport_handle(*id).is_ok_and(|handle| {
+                    handle.is_some_and(|handle| {
+                        handle.content_scale() == scale
+                            && Some(
+                                [handle.horizontal_range(), handle.vertical_range()]
+                                    .map(|range| (range.minimum, range.maximum, range.extent)),
+                            ) == frozen.viewport_ranges
+                    })
+                })
+            } else {
+                frozen.inputs.child_transform == current_inputs.child_transform
+            };
+            if !(frozen.parent == node.parent
+                && (!frozen.ancestor_only || frozen.inputs.bounds == node.figure_bounds())
+                && frozen.children == node.children
+                && frozen.component == node.component_revision
+                && frozen.inputs.insets == node.state().insets
+                && transform_valid
+                && frozen.clipping == node.child_clipping_strategy()
+                && frozen.style == node.state().style
+                && frozen.opaque == node.state().is_opaque()
+                && frozen.resources == node.resource_inputs
+                && frozen.preparation == preparation(node)
+                && frozen.content_revision == content_revision(node)
+                && frozen.bounds_revision == bounds_revision(node))
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }
 

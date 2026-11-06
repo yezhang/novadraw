@@ -1,9 +1,11 @@
 use std::{
     any::{Any, TypeId},
+    cell::RefCell,
     collections::HashMap,
     error::Error,
     fmt,
     marker::PhantomData,
+    rc::Rc,
     sync::{Arc, Weak},
 };
 
@@ -105,6 +107,7 @@ pub enum PreparationInputErrorKind {
     DuplicateRegistration,
     UnknownRegistration,
     RetiredRegistration,
+    DependencyCycle,
     Changed {
         first: PreparationInputSnapshot,
         current: PreparationInputSnapshot,
@@ -136,23 +139,182 @@ impl From<PreparationInputError> for TextError {
     }
 }
 
-type Reader = dyn Fn(FigureId, &PreparationScene<'_>) -> Result<PreparationInputSnapshot, TextError>
+/// One input protocol, with separate stage-specific read permissions and errors.
+pub(crate) trait InputFamily: 'static {
+    type Scene<'a>;
+    type Error: From<PreparationInputError>
+        + From<super::PreparationBudgetError>
+        + From<crate::text::TextContentError>;
+    fn root(scene: &Self::Scene<'_>) -> FigureId;
+    fn constraints(
+        scene: &Self::Scene<'_>,
+    ) -> Option<(crate::MeasureConstraints, crate::MeasureConstraints)>;
+    fn budget(scene: &Self::Scene<'_>) -> super::PreparationBudgetHandle;
+    fn read_path(scene: &Self::Scene<'_>) -> InputReadPath;
+    fn check_reader(scene: &Self::Scene<'_>) -> Result<(), Self::Error>;
+    /// Transfer nested reads from the independent verification scope.
+    fn complete_scope(
+        scene: &Self::Scene<'_>,
+        scoped: &Self::Scene<'_>,
+    ) -> Result<(), Self::Error> {
+        Self::check_reader(scoped)?;
+        Self::check_reader(scene)
+    }
+    fn scope<'a>(
+        scene: &Self::Scene<'a>,
+        root: FigureId,
+        source: FigureId,
+        constraints: Option<(crate::MeasureConstraints, crate::MeasureConstraints)>,
+    ) -> Result<Self::Scene<'a>, Self::Error>
+    where
+        Self: 'a;
+}
+
+pub(crate) struct PreparationInputFamily;
+impl InputFamily for PreparationInputFamily {
+    type Scene<'a> = PreparationScene<'a>;
+    type Error = TextError;
+    fn root(scene: &PreparationScene<'_>) -> FigureId {
+        scene.root()
+    }
+    fn constraints(
+        scene: &PreparationScene<'_>,
+    ) -> Option<(crate::MeasureConstraints, crate::MeasureConstraints)> {
+        scene.measurement_constraints()
+    }
+    fn budget(scene: &PreparationScene<'_>) -> super::PreparationBudgetHandle {
+        scene.budget()
+    }
+    fn read_path(scene: &PreparationScene<'_>) -> InputReadPath {
+        scene.input_read_path()
+    }
+    fn check_reader(scene: &PreparationScene<'_>) -> Result<(), TextError> {
+        scene.check_input_reader()
+    }
+    fn complete_scope(
+        scene: &PreparationScene<'_>,
+        scoped: &PreparationScene<'_>,
+    ) -> Result<(), TextError> {
+        scoped.check_input_reader()?;
+        scene.retain_input_proofs(&scoped.input_proofs()?)
+    }
+    fn scope<'a>(
+        scene: &PreparationScene<'a>,
+        root: FigureId,
+        source: FigureId,
+        constraints: Option<(crate::MeasureConstraints, crate::MeasureConstraints)>,
+    ) -> Result<PreparationScene<'a>, TextError>
+    where
+        Self: 'a,
+    {
+        scene.input_scope(root, source, constraints)
+    }
+}
+
+/// The active path is shared across independent verification scopes, never held
+/// borrowed while a reader executes. Dropping the guard also unwinds after panic.
+#[derive(Clone, Default)]
+pub(crate) struct InputReadPath(Rc<RefCell<Vec<InputSubject>>>);
+
+#[derive(PartialEq)]
+struct InputSubject {
+    root: FigureId,
+    source: FigureId,
+    registration: uuid::Uuid,
+}
+
+struct InputReadGuard(InputReadPath);
+impl Drop for InputReadGuard {
+    fn drop(&mut self) {
+        self.0.0.borrow_mut().pop();
+    }
+}
+
+impl InputReadPath {
+    fn enter<F: InputFamily>(
+        &self,
+        registration: &Registration<F>,
+        source: FigureId,
+        scene: &F::Scene<'_>,
+    ) -> Result<InputReadGuard, F::Error> {
+        let subject = InputSubject {
+            root: F::root(scene),
+            source,
+            registration: registration.identity,
+        };
+        let mut path = self.0.borrow_mut();
+        F::budget(scene).consume("input active path", path.len() as u64 + 1)?;
+        if path.contains(&subject) {
+            return Err(PreparationInputError {
+                source: Some(source),
+                payload_type: registration.payload_type,
+                name: registration.name,
+                checkpoint: "reader entry",
+                kind: PreparationInputErrorKind::DependencyCycle,
+            }
+            .into());
+        }
+        F::budget(scene).allocate(
+            "input active path",
+            std::mem::size_of::<InputSubject>() as u64,
+        )?;
+        path.push(subject);
+        Ok(InputReadGuard(self.clone()))
+    }
+}
+
+type Reader<F> = dyn Fn(
+        FigureId,
+        &<F as InputFamily>::Scene<'_>,
+    ) -> Result<PreparationInputSnapshot, <F as InputFamily>::Error>
     + Send
     + Sync;
 
-struct Registration {
+struct Registration<F: InputFamily> {
+    identity: uuid::Uuid,
     payload_type: TypeId,
     name: &'static str,
-    reader: Box<Reader>,
+    reader: Box<Reader<F>>,
     store: Option<crate::text::TextContentStore>,
+}
+impl<F: InputFamily> Registration<F> {
+    fn read(
+        &self,
+        source: FigureId,
+        scene: &F::Scene<'_>,
+    ) -> Result<PreparationInputSnapshot, F::Error> {
+        F::check_reader(scene)?;
+        let _guard = F::read_path(scene).enter(self, source, scene)?;
+        let value = (self.reader)(source, scene)?;
+        F::check_reader(scene)?;
+        Ok(value)
+    }
 }
 
 /// Instance-owned readers. Clones retain the same registration identities.
 /// Dropping the last registry owner retires its readers; old evidence remains readable.
-#[derive(Clone, Default)]
-pub struct PreparationInputRegistry {
-    entries: HashMap<TypeId, Arc<Registration>>,
+pub(crate) struct TypedInputRegistry<F: InputFamily> {
+    entries: HashMap<TypeId, Arc<Registration<F>>>,
 }
+impl<F: InputFamily> Clone for TypedInputRegistry<F> {
+    fn clone(&self) -> Self {
+        Self {
+            entries: self.entries.clone(),
+        }
+    }
+}
+impl<F: InputFamily> Default for TypedInputRegistry<F> {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+        }
+    }
+}
+
+/// Preparation-stage readers. Clones share registration identities; snapshots
+/// retain owned values without keeping the registry or its readers alive.
+#[derive(Clone, Default)]
+pub struct PreparationInputRegistry(TypedInputRegistry<PreparationInputFamily>);
 impl PreparationInputRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -171,6 +333,27 @@ impl PreparationInputRegistry {
         reader: impl PreparationInputReader<P> + 'static,
         store: Option<crate::text::TextContentStore>,
     ) -> Result<(), PreparationInputError> {
+        self.0
+            .register(key, move |source, scene| reader.read(source, scene), store)
+    }
+
+    pub(crate) fn capture<P: PreparationInputPayload>(
+        &self,
+        key: PreparationInputKey<P>,
+        source: FigureId,
+        scene: &PreparationScene<'_>,
+    ) -> Result<InputProof, TextError> {
+        self.0.capture(key, source, scene)
+    }
+}
+
+impl<F: InputFamily> TypedInputRegistry<F> {
+    pub(crate) fn register<P: PreparationInputPayload>(
+        &mut self,
+        key: PreparationInputKey<P>,
+        reader: impl Fn(FigureId, &F::Scene<'_>) -> Result<P, F::Error> + Send + Sync + 'static,
+        store: Option<crate::text::TextContentStore>,
+    ) -> Result<(), PreparationInputError> {
         let payload_type = TypeId::of::<P>();
         if self.entries.contains_key(&payload_type) {
             // Registration errors have no Figure owner.
@@ -186,11 +369,12 @@ impl PreparationInputRegistry {
         self.entries.insert(
             payload_type,
             Arc::new(Registration {
+                identity: registration,
                 payload_type,
                 name: key.name,
                 store: store.clone(),
                 reader: Box::new(move |source, scene| {
-                    let value = reader.read(source, scene)?;
+                    let value = reader(source, scene)?;
                     let units = value
                         .retained_units()
                         .checked_add(
@@ -199,7 +383,7 @@ impl PreparationInputRegistry {
                                 + 4 * std::mem::size_of::<usize>() as u64,
                         )
                         .ok_or_else(|| {
-                            TextError::from(PreparationInputError {
+                            F::Error::from(PreparationInputError {
                                 source: Some(source),
                                 payload_type,
                                 name: key.name,
@@ -207,9 +391,7 @@ impl PreparationInputRegistry {
                                 kind: PreparationInputErrorKind::AccountingOverflow,
                             })
                         })?;
-                    scene
-                        .budget()
-                        .allocate("preparation input snapshot", units)?;
+                    F::budget(scene).allocate("preparation input snapshot", units)?;
                     // Incoming payload buffers are reader-owned temporary work.
                     // The shared immutable snapshot is admitted before its allocation.
                     let retention = store
@@ -236,10 +418,10 @@ impl PreparationInputRegistry {
         &self,
         key: PreparationInputKey<P>,
         source: FigureId,
-        scene: &PreparationScene<'_>,
-    ) -> Result<InputProof, TextError> {
+        scene: &F::Scene<'_>,
+    ) -> Result<TypedInputProof<F>, F::Error> {
         let entry = self.entries.get(&TypeId::of::<P>()).ok_or_else(|| {
-            TextError::from(PreparationInputError {
+            F::Error::from(PreparationInputError {
                 source: Some(source),
                 payload_type: TypeId::of::<P>(),
                 name: key.name,
@@ -247,53 +429,209 @@ impl PreparationInputRegistry {
                 kind: PreparationInputErrorKind::UnknownRegistration,
             })
         })?;
-        scene.budget().allocate(
+        F::budget(scene).allocate(
             "preparation input proof",
-            (std::mem::size_of::<InputProofRecord>() + 2 * std::mem::size_of::<usize>()) as u64,
+            (std::mem::size_of::<InputProofRecord<F>>() + 2 * std::mem::size_of::<usize>()) as u64,
         )?;
-        let first = (entry.reader)(source, scene)?;
+        let first = entry.read(source, scene)?;
         let retention = entry
             .store
             .as_ref()
             .map(|store| {
                 store.reserve(
-                    std::mem::size_of::<InputProofRecord>() + 2 * std::mem::size_of::<usize>(),
+                    std::mem::size_of::<InputProofRecord<F>>() + 2 * std::mem::size_of::<usize>(),
                 )
             })
             .transpose()?;
-        Ok(InputProof(Arc::new(InputProofRecord {
+        Ok(TypedInputProof(Arc::new(InputProofRecord {
             _retention: retention,
-            root: scene.root(),
+            root: F::root(scene),
             source,
             payload_type: entry.payload_type,
             name: entry.name,
             registration: Arc::downgrade(entry),
             first,
-            constraints: scene.measurement_constraints(),
+            constraints: F::constraints(scene),
         })))
     }
 }
 
+/// Deferred evidence for a property-scoped layout request.
+///
+/// `first` must be an owned immutable value read by the owner when recording
+/// the request. Construction neither reads the model nor grants publication
+/// authority. The original registration is held weakly, including across clones.
 #[derive(Clone)]
-pub(crate) struct InputProof(Arc<InputProofRecord>);
-impl std::ops::Deref for InputProof {
-    type Target = InputProofRecord;
+pub struct LayoutRevalidationGuard {
+    source: FigureId,
+    registration: Weak<Registration<PreparationInputFamily>>,
+    payload_type: TypeId,
+    name: &'static str,
+    first: Arc<dyn InputValue>,
+    units: u64,
+}
+
+impl fmt::Debug for LayoutRevalidationGuard {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LayoutRevalidationGuard")
+            .field("source", &self.source)
+            .field("name", &self.name)
+            .finish_non_exhaustive()
+    }
+}
+
+impl LayoutRevalidationGuard {
+    pub fn new<P: PreparationInputPayload>(
+        registry: &PreparationInputRegistry,
+        key: PreparationInputKey<P>,
+        source: FigureId,
+        first: P,
+    ) -> Result<Self, PreparationInputError> {
+        let error = |kind| PreparationInputError {
+            source: Some(source),
+            payload_type: TypeId::of::<P>(),
+            name: key.name,
+            checkpoint: "layout request",
+            kind,
+        };
+        let entry = registry
+            .0
+            .entries
+            .get(&TypeId::of::<P>())
+            .ok_or_else(|| error(PreparationInputErrorKind::UnknownRegistration))?;
+        let units = first
+            .retained_units()
+            .checked_add(
+                std::mem::size_of::<P>() as u64
+                    + std::mem::size_of::<SnapshotValue>() as u64
+                    + 4 * std::mem::size_of::<usize>() as u64,
+            )
+            .ok_or_else(|| error(PreparationInputErrorKind::AccountingOverflow))?;
+        Ok(Self {
+            source,
+            registration: Arc::downgrade(entry),
+            payload_type: entry.payload_type,
+            name: entry.name,
+            first: Arc::new(first),
+            units,
+        })
+    }
+
+    pub fn source(&self) -> FigureId {
+        self.source
+    }
+
+    /// Admit the pending value before checking the original reader. A changed
+    /// value rejects only the local candidate; errors retain their original kind.
+    pub(crate) fn admit(
+        &self,
+        scene: &PreparationScene<'_>,
+    ) -> Result<Option<InputProof>, TextError> {
+        let error = |kind| PreparationInputError {
+            source: Some(self.source),
+            payload_type: self.payload_type,
+            name: self.name,
+            checkpoint: "layout request admission",
+            kind,
+        };
+        scene.check(self.source)?;
+        let entry = self.registration.upgrade().ok_or_else(|| {
+            TextError::from(error(PreparationInputErrorKind::RetiredRegistration))
+        })?;
+        scene
+            .budget()
+            .allocate("preparation input snapshot", self.units)?;
+        let proof_units = (std::mem::size_of::<InputProofRecord<PreparationInputFamily>>()
+            + 2 * std::mem::size_of::<usize>()) as u64;
+        scene
+            .budget()
+            .allocate("preparation input proof", proof_units)?;
+        let reserve = |units| {
+            entry
+                .store
+                .as_ref()
+                .map(|store| {
+                    let units = usize::try_from(units)
+                        .map_err(|_| crate::text::TextContentError::AccountingOverflow)?;
+                    store.reserve(units)
+                })
+                .transpose()
+        };
+        let first = PreparationInputSnapshot(Arc::new(SnapshotValue {
+            value: self.first.clone(),
+            registration: entry.identity,
+            units: self.units,
+            _retention: reserve(self.units)?,
+        }));
+        let proof = TypedInputProof(Arc::new(InputProofRecord {
+            _retention: reserve(proof_units)?,
+            root: scene.root(),
+            source: self.source,
+            payload_type: self.payload_type,
+            name: self.name,
+            registration: self.registration.clone(),
+            first,
+            constraints: scene.measurement_constraints(),
+        }));
+        let current = proof.read_current(scene, "layout request qualification")?;
+        Ok((current == proof.first).then_some(proof))
+    }
+}
+
+pub(crate) type InputProof = TypedInputProof<PreparationInputFamily>;
+pub(crate) struct TypedInputProof<F: InputFamily>(Arc<InputProofRecord<F>>);
+impl<F: InputFamily> Clone for TypedInputProof<F> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<F: InputFamily> std::ops::Deref for TypedInputProof<F> {
+    type Target = InputProofRecord<F>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-pub(crate) struct InputProofRecord {
+pub(crate) struct InputProofRecord<F: InputFamily> {
     _retention: Option<crate::text::TextContentLease>,
     pub(crate) root: FigureId,
     source: FigureId,
     payload_type: TypeId,
     name: &'static str,
-    registration: Weak<Registration>,
+    registration: Weak<Registration<F>>,
     pub(crate) first: PreparationInputSnapshot,
     constraints: Option<(crate::MeasureConstraints, crate::MeasureConstraints)>,
 }
-impl InputProof {
-    fn error(&self, checkpoint: &'static str, kind: PreparationInputErrorKind) -> TextError {
+impl<F: InputFamily> TypedInputProof<F> {
+    /// Capture a new first value for a historical subject. The caller compares
+    /// it with history, then merges it into this operation's first-value log.
+    pub(crate) fn refreshed(
+        &self,
+        scene: &F::Scene<'_>,
+        checkpoint: &'static str,
+    ) -> Result<Self, F::Error> {
+        let first = self.read_current(scene, checkpoint)?;
+        let registration = self.registration.upgrade().ok_or_else(|| {
+            self.error(checkpoint, PreparationInputErrorKind::RetiredRegistration)
+        })?;
+        let units = std::mem::size_of::<InputProofRecord<F>>() + 2 * std::mem::size_of::<usize>();
+        F::budget(scene).allocate("refreshed input proof", units as u64)?;
+        let retention = registration
+            .store
+            .as_ref()
+            .map(|store| store.reserve(units))
+            .transpose()?;
+        Ok(Self(Arc::new(InputProofRecord {
+            _retention: retention,
+            root: self.root,
+            source: self.source,
+            payload_type: self.payload_type,
+            name: self.name,
+            registration: self.registration.clone(),
+            first,
+            constraints: self.constraints,
+        })))
+    }
+    fn error(&self, checkpoint: &'static str, kind: PreparationInputErrorKind) -> F::Error {
         PreparationInputError {
             source: Some(self.source),
             payload_type: self.payload_type,
@@ -303,7 +641,7 @@ impl InputProof {
         }
         .into()
     }
-    fn same_subject(&self, other: &Self) -> bool {
+    pub(crate) fn same_subject(&self, other: &Self) -> bool {
         self.root == other.root
             && self.source == other.source
             && self.constraints == other.constraints
@@ -311,18 +649,10 @@ impl InputProof {
     }
     pub(crate) fn validate(
         &self,
-        scene: &PreparationScene<'_>,
+        scene: &F::Scene<'_>,
         checkpoint: &'static str,
-    ) -> Result<(), TextError> {
-        let _timing = scene.budget().time("preparation-input-validate");
-        scene
-            .budget()
-            .consume("preparation input verification", 1)?;
-        let reader = self.registration.upgrade().ok_or_else(|| {
-            self.error(checkpoint, PreparationInputErrorKind::RetiredRegistration)
-        })?;
-        let scoped = scene.input_scope(self.root, self.source, self.constraints)?;
-        let current = (reader.reader)(self.source, &scoped)?;
+    ) -> Result<(), F::Error> {
+        let current = self.read_current(scene, checkpoint)?;
         if current != self.first {
             return Err(self.error(
                 checkpoint,
@@ -332,17 +662,33 @@ impl InputProof {
                 },
             ));
         }
-        scene.budget().check()?;
         Ok(())
+    }
+
+    pub(crate) fn read_current(
+        &self,
+        scene: &F::Scene<'_>,
+        checkpoint: &'static str,
+    ) -> Result<PreparationInputSnapshot, F::Error> {
+        let _timing = F::budget(scene).time("preparation-input-validate");
+        F::budget(scene).consume("preparation input verification", 1)?;
+        let reader = self.registration.upgrade().ok_or_else(|| {
+            self.error(checkpoint, PreparationInputErrorKind::RetiredRegistration)
+        })?;
+        let scoped = F::scope(scene, self.root, self.source, self.constraints)?;
+        let current = reader.read(self.source, &scoped)?;
+        F::complete_scope(scene, &scoped)?;
+        F::budget(scene).check()?;
+        Ok(current)
     }
 }
 
 /// Merge is all-or-nothing and never replaces the first value on conflict.
-pub(crate) fn merge_proofs(
-    existing: &mut Vec<InputProof>,
-    incoming: &[InputProof],
+pub(crate) fn merge_proofs<F: InputFamily>(
+    existing: &mut Vec<TypedInputProof<F>>,
+    incoming: &[TypedInputProof<F>],
     budget: &super::PreparationBudgetHandle,
-) -> Result<(), TextError> {
+) -> Result<(), F::Error> {
     let _timing = budget.time("preparation-input-merge");
     for proof in incoming {
         budget.consume(
@@ -378,7 +724,7 @@ pub(crate) fn merge_proofs(
         .count();
     budget.allocate(
         "preparation input merge",
-        count as u64 * std::mem::size_of::<InputProof>() as u64,
+        count as u64 * std::mem::size_of::<TypedInputProof<F>>() as u64,
     )?;
     for proof in incoming {
         if !existing.iter().any(|first| first.same_subject(proof)) {
@@ -416,6 +762,100 @@ mod tests {
     }
     const VERSION: PreparationInputKey<Version> = PreparationInputKey::new("test.version");
 
+    /// A second stage supplies no tree, Figure, measurement or preparation access.
+    struct RestrictedFamily;
+    struct RestrictedScene<'a> {
+        root: FigureId,
+        value: &'a AtomicU64,
+        budget: super::super::PreparationBudgetHandle,
+        path: InputReadPath,
+    }
+    impl InputFamily for RestrictedFamily {
+        type Scene<'a> = RestrictedScene<'a>;
+        type Error = TextError;
+        fn root(scene: &RestrictedScene<'_>) -> FigureId {
+            scene.root
+        }
+        fn constraints(
+            _: &RestrictedScene<'_>,
+        ) -> Option<(MeasureConstraints, MeasureConstraints)> {
+            None
+        }
+        fn budget(scene: &RestrictedScene<'_>) -> super::super::PreparationBudgetHandle {
+            scene.budget.clone()
+        }
+        fn read_path(scene: &RestrictedScene<'_>) -> InputReadPath {
+            scene.path.clone()
+        }
+        fn check_reader(scene: &RestrictedScene<'_>) -> Result<(), TextError> {
+            scene.budget.check()?;
+            Ok(())
+        }
+        fn scope<'a>(
+            scene: &RestrictedScene<'a>,
+            root: FigureId,
+            source: FigureId,
+            _: Option<(MeasureConstraints, MeasureConstraints)>,
+        ) -> Result<RestrictedScene<'a>, TextError>
+        where
+            Self: 'a,
+        {
+            if root != scene.root || source != root {
+                return Err(TextError::InvalidMetric);
+            }
+            Ok(RestrictedScene {
+                root,
+                value: scene.value,
+                budget: scene.budget.clone(),
+                path: scene.path.clone(),
+            })
+        }
+    }
+
+    #[test]
+    fn second_stage_shares_equality_retirement_and_retention_without_preparation_access() {
+        let (_, root, _) = scene_fixture();
+        let value = AtomicU64::new(1);
+        let scene = RestrictedScene {
+            root,
+            value: &value,
+            budget: super::super::PreparationBudgetHandle::default(),
+            path: InputReadPath::default(),
+        };
+        let store = crate::text::TextContentStore::new(4096);
+        let mut registry = TypedInputRegistry::<RestrictedFamily>::default();
+        registry
+            .register(
+                VERSION,
+                |_, scene: &RestrictedScene<'_>| Ok(Version(scene.value.load(Ordering::Relaxed))),
+                Some(store.clone()),
+            )
+            .unwrap();
+        let proof = registry.capture(VERSION, root, &scene).unwrap();
+        let units = store.usage().unwrap().retained_units;
+        assert!(units > 0);
+        let evidence = proof.first.clone();
+        assert_eq!(store.usage().unwrap().retained_units, units);
+        let mut merged = Vec::new();
+        merge_proofs(&mut merged, &[proof.clone()], &scene.budget).unwrap();
+        proof.validate(&scene, "second stage").unwrap();
+        value.store(2, Ordering::Relaxed);
+        let current = registry.capture(VERSION, root, &scene).unwrap();
+        assert!(merge_proofs(&mut merged, &[current], &scene.budget).is_err());
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].first.value(VERSION).unwrap().0, 1);
+        drop(registry);
+        assert!(matches!(proof.validate(&scene, "retired"),
+            Err(TextError::PreparationInput(error))
+                if error.kind == PreparationInputErrorKind::RetiredRegistration));
+        drop(merged);
+        drop(proof);
+        assert_eq!(evidence.value(VERSION).unwrap().0, 1);
+        assert!(store.usage().unwrap().retained_units > 0);
+        drop(evidence);
+        assert_eq!(store.usage().unwrap().retained_units, 0);
+    }
+
     fn registry(version: &Arc<AtomicU64>) -> PreparationInputRegistry {
         let version = version.clone();
         let mut registry = PreparationInputRegistry::new();
@@ -425,6 +865,74 @@ mod tests {
             })
             .unwrap();
         registry
+    }
+
+    #[test]
+    fn recursive_input_is_rejected_before_reentering_reader_and_retry_is_clean() {
+        let (tree, root, styles) = scene_fixture();
+        let holder = Arc::new(std::sync::Mutex::new(None::<PreparationInputRegistry>));
+        let weak = Arc::downgrade(&holder);
+        let recursive = Arc::new(AtomicBool::new(true));
+        let mode = recursive.clone();
+        let calls = Arc::new(AtomicU64::new(0));
+        let observed = calls.clone();
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(VERSION, move |source, scene: &PreparationScene<'_>| {
+                observed.fetch_add(1, Ordering::Relaxed);
+                if mode.load(Ordering::Relaxed) {
+                    let registry = weak
+                        .upgrade()
+                        .unwrap()
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .clone();
+                    // Ignoring the nested result must not make this value admissible.
+                    let _ = scene.input(&registry, VERSION, source);
+                }
+                Ok(Version(1))
+            })
+            .unwrap();
+        *holder.lock().unwrap() = Some(registry.clone());
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(matches!(
+            scene.input(&registry, VERSION, root),
+            Err(TextError::PreparationInput(error))
+                if error.kind == PreparationInputErrorKind::DependencyCycle
+        ));
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+        recursive.store(false, Ordering::Relaxed);
+        assert!(scene.input(&registry, VERSION, root).is_err());
+        let retry = PreparationScene::new(&tree, root, &styles).unwrap();
+        retry.input(&registry, VERSION, root).unwrap();
+        retry.validate_input_proofs("retry").unwrap();
+        assert_eq!(calls.load(Ordering::Relaxed), 3);
+    }
+
+    #[test]
+    fn ignored_nested_error_in_final_reader_cannot_publish_outer_value() {
+        let (tree, root, styles) = scene_fixture();
+        let failed = Arc::new(AtomicBool::new(false));
+        let mode = failed.clone();
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(VERSION, move |source, scene: &PreparationScene<'_>| {
+                if mode.load(Ordering::Relaxed) {
+                    let _ = scene.input(&PreparationInputRegistry::new(), VERSION, source);
+                }
+                Ok(Version(1))
+            })
+            .unwrap();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        scene.input(&registry, VERSION, root).unwrap();
+        failed.store(true, Ordering::Relaxed);
+        let error = scene.validate_input_proofs("final").unwrap_err();
+        assert!(matches!(&error, TextError::PreparationInput(error)
+            if error.kind == PreparationInputErrorKind::UnknownRegistration));
+        failed.store(false, Ordering::Relaxed);
+        assert_eq!(scene.validate_input_proofs("retry").unwrap_err(), error);
     }
     fn scene_fixture() -> (
         FigureTree,
@@ -444,6 +952,147 @@ mod tests {
             if error.checkpoint == checkpoint
             && matches!(&error.kind, PreparationInputErrorKind::Changed { first, current }
                 if first.value(VERSION).unwrap().0 == 1 && current.value(VERSION).unwrap().0 == 2)));
+    }
+
+    #[test]
+    fn deferred_guard_does_not_read_until_budgeted_admission() {
+        let (tree, root, styles) = scene_fixture();
+        let reads = Arc::new(AtomicU64::new(0));
+        let observed = reads.clone();
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(VERSION, move |_, _: &PreparationScene<'_>| {
+                observed.fetch_add(1, Ordering::Relaxed);
+                Ok(Version(1))
+            })
+            .unwrap();
+        let guard = LayoutRevalidationGuard::new(&registry, VERSION, root, Version(1)).unwrap();
+        assert_eq!(reads.load(Ordering::Relaxed), 0);
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let proof = guard.admit(&scene).unwrap().unwrap();
+        assert_eq!(reads.load(Ordering::Relaxed), 1);
+        assert_eq!(proof.first.value(VERSION).unwrap().0, 1);
+        assert!(scene.input_proofs().unwrap().is_empty());
+        scene.retain_input_proofs(&[proof]).unwrap();
+        scene.validate_input_proofs("layout return").unwrap();
+        assert_eq!(reads.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn deferred_guard_changes_before_adoption_upgrade_without_poisoning_scene() {
+        let (tree, root, styles) = scene_fixture();
+        let version = Arc::new(AtomicU64::new(2));
+        let registry = registry(&version);
+        let guard = LayoutRevalidationGuard::new(&registry, VERSION, root, Version(1)).unwrap();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(guard.admit(&scene).unwrap().is_none());
+        assert!(scene.input_proofs().unwrap().is_empty());
+        let current = scene.input(&registry, VERSION, root).unwrap();
+        assert_eq!(current.value(VERSION).unwrap().0, 2);
+        scene.validate_input_proofs("ordinary layout").unwrap();
+    }
+
+    #[test]
+    fn adopted_guard_preserves_first_value_and_late_failure_is_sticky() {
+        let (tree, root, styles) = scene_fixture();
+        let version = Arc::new(AtomicU64::new(1));
+        let registry = registry(&version);
+        let guard = LayoutRevalidationGuard::new(&registry, VERSION, root, Version(1)).unwrap();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        let proof = guard.admit(&scene).unwrap().unwrap();
+        scene.retain_input_proofs(&[proof]).unwrap();
+        version.store(2, Ordering::Relaxed);
+        let error = scene
+            .validate_input_proofs("layout consumption")
+            .unwrap_err();
+        changed(&error, "layout consumption");
+        version.store(1, Ordering::Relaxed);
+        assert_eq!(scene.validate_input_proofs("publish").unwrap_err(), error);
+    }
+
+    #[test]
+    fn deferred_guard_does_not_bind_a_replacement_registry() {
+        let (tree, root, styles) = scene_fixture();
+        let version = Arc::new(AtomicU64::new(1));
+        let original = registry(&version);
+        let guard = LayoutRevalidationGuard::new(&original, VERSION, root, Version(1)).unwrap();
+        let clone = original.clone();
+        drop(original);
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(guard.admit(&scene).unwrap().is_some());
+        drop(clone);
+        let _replacement = registry(&version);
+        assert!(
+            matches!(guard.admit(&scene), Err(TextError::PreparationInput(error))
+            if error.kind == PreparationInputErrorKind::RetiredRegistration)
+        );
+    }
+
+    #[test]
+    fn deferred_guard_unknown_registration_is_a_typed_error() {
+        let (_, root, _) = scene_fixture();
+        let error = LayoutRevalidationGuard::new(
+            &PreparationInputRegistry::new(),
+            VERSION,
+            root,
+            Version(1),
+        )
+        .unwrap_err();
+        assert_eq!(error.source, Some(root));
+        assert_eq!(error.payload_type, TypeId::of::<Version>());
+        assert_eq!(error.kind, PreparationInputErrorKind::UnknownRegistration);
+    }
+
+    #[test]
+    fn deferred_guard_budget_failure_precedes_the_reader() {
+        let (tree, root, styles) = scene_fixture();
+        let reads = Arc::new(AtomicU64::new(0));
+        let observed = reads.clone();
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(VERSION, move |_, _: &PreparationScene<'_>| {
+                observed.fetch_add(1, Ordering::Relaxed);
+                Ok(Version(1))
+            })
+            .unwrap();
+        let guard = LayoutRevalidationGuard::new(&registry, VERSION, root, Version(1)).unwrap();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(scene.budget().allocate("exhaust", u64::MAX).is_err());
+        assert!(guard.admit(&scene).is_err());
+        assert_eq!(reads.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn deferred_guard_reader_failure_is_not_a_local_mismatch() {
+        let (tree, root, styles) = scene_fixture();
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(VERSION, |_, _: &PreparationScene<'_>| {
+                Err(TextError::InvalidMetric)
+            })
+            .unwrap();
+        let guard = LayoutRevalidationGuard::new(&registry, VERSION, root, Version(1)).unwrap();
+        let scene = PreparationScene::new(&tree, root, &styles).unwrap();
+        assert!(matches!(guard.admit(&scene), Err(TextError::InvalidMetric)));
+    }
+
+    #[test]
+    fn deferred_guard_rejects_accounting_overflow_before_pending_allocation() {
+        #[derive(Eq, PartialEq)]
+        struct Oversized;
+        impl PreparationInputPayload for Oversized {
+            fn retained_units(&self) -> u64 {
+                u64::MAX
+            }
+        }
+        let (_, root, _) = scene_fixture();
+        let key = PreparationInputKey::<Oversized>::new("oversized");
+        let mut registry = PreparationInputRegistry::new();
+        registry
+            .register(key, |_, _: &PreparationScene<'_>| Ok(Oversized))
+            .unwrap();
+        let error = LayoutRevalidationGuard::new(&registry, key, root, Oversized).unwrap_err();
+        assert_eq!(error.kind, PreparationInputErrorKind::AccountingOverflow);
     }
 
     #[test]

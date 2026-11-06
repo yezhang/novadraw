@@ -108,10 +108,10 @@ fn coordinate_queries_revalidate_foreign_and_retired_identity() {
     ] {
         let expected = CoordinateQueryError::Identity(identity);
         let tree = runtime.tree();
-        assert_eq!(tree.local_to_parent_transform(id), Err(expected));
-        assert_eq!(tree.parent_to_local_transform(id), Err(expected));
-        assert_eq!(tree.local_to_surface_transform(id), Err(expected));
-        assert_eq!(tree.surface_to_local_transform(id), Err(expected));
+        assert_eq!(tree.local_to_parent_transform(id), Err(expected.clone()));
+        assert_eq!(tree.parent_to_local_transform(id), Err(expected.clone()));
+        assert_eq!(tree.local_to_surface_transform(id), Err(expected.clone()));
+        assert_eq!(tree.surface_to_local_transform(id), Err(expected.clone()));
         assert_eq!(tree.child_content_to_surface_transform(id), Err(expected));
     }
 }

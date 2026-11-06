@@ -5,8 +5,8 @@ use super::{
     CoordinateSpace, DERIVED_STATE_FEEDBACK_LIMIT, DERIVED_WORK_KIND_COUNT, DamageMode,
     DerivedWorkKind, DerivedWorkSet, FigureTreeRouteSceneRead, FrameId, FramePreparation,
     FramePreparationError, InFlightFrame, NdCanvas, RenderDisposition, RenderFailure, RenderResult,
-    ResourceSync, Runtime, SubmissionAcknowledgement, SubmissionCompletionError, SurfaceInfo,
-    UpdateEvent,
+    ResourceSync, Runtime, StableProjection, SubmissionAcknowledgement, SubmissionCompletionError,
+    SurfaceInfo, UpdateEvent,
 };
 use crate::FigureId;
 use crate::animation::{
@@ -36,12 +36,17 @@ impl Runtime {
             return Err(FramePreparationError::Faulted);
         }
         self.guarded(|runtime| {
+            let projection = runtime.tree.begin_projection_scope();
             runtime.apply_pending_mutations_for_frame();
             runtime.try_stabilize()?;
             runtime.process_animation_behaviors()?;
             runtime
                 .updates
                 .flush_notifications_at(&mut runtime.tree, runtime.stable_epoch);
+            if let Err(error) = projection.finish(&runtime.tree, "stable query return") {
+                runtime.full_redraw_pending = true;
+                return Err(FramePreparationError::Coordinate(error));
+            }
             Ok(())
         })
     }
@@ -427,12 +432,11 @@ impl Runtime {
         let contents = tree_viewport
             .contents(&self.tree)?
             .ok_or(crate::animation::AnimationError::MissingViewportContents)?;
-        let viewport_node = self.tree.node(viewport_id)?;
         let contents_node = self.tree.node(contents)?;
         let bounds = contents_node.figure_bounds();
-        let prefix = viewport_node.child_transform().affine()
+        let prefix = self.tree.checked_child_transform(viewport_id)?
             * Affine2D::from_translation(bounds.x, bounds.y);
-        let suffix = contents_node.child_transform().affine();
+        let suffix = self.tree.checked_child_transform(contents)?;
         Ok((contents, prefix, suffix))
     }
 
@@ -505,12 +509,18 @@ impl Runtime {
     fn stabilize(
         &mut self,
         mut prefix: Option<&mut crate::runtime::update::PreparationUpdateCheckpoint>,
+        projection_changes: &[FigureId],
     ) -> Result<(), FramePreparationError> {
         self.derivation_epoch = self
             .derivation_epoch
             .checked_add(1)
             .ok_or(FramePreparationError::EpochExhausted)?;
         self.last_stabilization_error = None;
+        for figure in projection_changes {
+            self.tree
+                .record_projection_changed(&mut self.updates, *figure);
+            self.invalidate_connection_figure_change(*figure, false);
+        }
         let preparation_budget =
             crate::figure::PreparationBudgetHandle::new(self.preparation_budget)
                 .with_diagnostics(self.diagnostics.clone());
@@ -694,12 +704,106 @@ impl Runtime {
         Ok(())
     }
 
+    fn capture_stable_projections(
+        &self,
+    ) -> Result<
+        std::collections::BTreeMap<FigureId, std::rc::Rc<StableProjection>>,
+        FramePreparationError,
+    > {
+        let operation = self.tree.projection_operation();
+        let budget = operation.budget();
+        let mut values = std::collections::BTreeMap::new();
+        for figure in self.tree.capability_ids(crate::figure::PROJECTION) {
+            if !self
+                .tree
+                .is_attached(figure)
+                .map_err(|error| FramePreparationError::Coordinate(error.into()))?
+            {
+                continue;
+            }
+            let bytes = std::mem::size_of::<StableProjection>()
+                + std::mem::size_of::<(FigureId, std::rc::Rc<StableProjection>)>()
+                + 4 * std::mem::size_of::<usize>();
+            budget
+                .allocate("stable projection entry", bytes as u64)
+                .map_err(|error| {
+                    FramePreparationError::Coordinate(
+                        crate::figure::ProjectionError::from(error).into(),
+                    )
+                })?;
+            let child_transform = self
+                .tree
+                .checked_child_transform(figure)
+                .map_err(FramePreparationError::Coordinate)?;
+            let input_sensitive = self.tree.projection_has_input_proofs(figure);
+            let value = match self.stable_projections.get(&figure) {
+                Some(old)
+                    if old.child_transform == child_transform
+                        && old.input_sensitive == input_sensitive =>
+                {
+                    old.clone()
+                }
+                _ => std::rc::Rc::new(StableProjection {
+                    child_transform,
+                    input_sensitive,
+                    _retention: self
+                        .tree
+                        .retain_projection_state(bytes)
+                        .map_err(|error| FramePreparationError::Coordinate(error.into()))?,
+                }),
+            };
+            values.insert(figure, value);
+        }
+        Ok(values)
+    }
+
     pub(super) fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
         let _timing = self.diagnostics.time("stabilization");
+        let projection = self.tree.begin_projection_scope();
         self.poll_activities();
+        self.full_redraw_pending |= self.updates.take_display_damage_pending();
+        let candidate = self.capture_stable_projections().inspect_err(|_| {
+            self.full_redraw_pending = true;
+        })?;
+        projection
+            .operation
+            .budget()
+            .allocate(
+                "stable projection changes",
+                (candidate.len() * std::mem::size_of::<FigureId>()) as u64,
+            )
+            .map_err(|error| {
+                self.full_redraw_pending = true;
+                FramePreparationError::Coordinate(
+                    crate::figure::ProjectionError::from(error).into(),
+                )
+            })?;
+        let projection_changes = candidate
+            .iter()
+            .filter_map(|(figure, value)| {
+                self.stable_projections
+                    .get(figure)
+                    .filter(|old| old.child_transform != value.child_transform)
+                    .map(|_| *figure)
+            })
+            .collect::<Vec<_>>();
+        if !projection_changes.is_empty()
+            || self
+                .stable_projections
+                .keys()
+                .any(|id| !candidate.contains_key(id))
+        {
+            // No complete visual-envelope/clip contract exists for arbitrary
+            // external painters yet. Never reconstruct the old display using
+            // a newly read shared transform.
+            self.full_redraw_pending = true;
+        }
+        drop(candidate);
         let checkpoint_timing = self.diagnostics.time("checkpoint-capture");
         // Commit source activities before opening the unpublished derived transaction.
-        let mut prefix = if self.tree.begin_derived_preparation() {
+        let mut prefix = if self.tree.begin_derived_preparation(
+            self.updates.has_pending_layout() || !projection_changes.is_empty(),
+        ) {
             Some(self.updates.preparation_checkpoint())
         } else {
             None
@@ -708,8 +812,21 @@ impl Runtime {
             .as_ref()
             .map(|_| self.connections.preparation_checkpoint());
         drop(checkpoint_timing);
-        match self.stabilize(prefix.as_mut()) {
-            Ok(()) => {
+        let stabilized = self
+            .stabilize(prefix.as_mut(), &projection_changes)
+            .and_then(|()| {
+                if let Some(error) = self.updates.take_damage_projection_error() {
+                    return Err(FramePreparationError::Coordinate(error));
+                }
+                let candidate = self.capture_stable_projections()?;
+                projection
+                    .operation
+                    .checked_validate(&self.tree, "derived state adoption")
+                    .map_err(FramePreparationError::Coordinate)?;
+                Ok(candidate)
+            });
+        match stabilized {
+            Ok(candidate) => {
                 let _timing = self.diagnostics.time("checkpoint-publish");
                 self.tree
                     .finish_derived_preparation(true)
@@ -722,6 +839,12 @@ impl Runtime {
                         .into_iter()
                         .flat_map(|(_, group)| group.connections.iter().copied()),
                 );
+                projection
+                    .finish(&self.tree, "stable state return")
+                    .map_err(FramePreparationError::Coordinate)?;
+                // This is committed/stable state, independent of the query
+                // cache and of the backend's eventual display acknowledgement.
+                self.stable_projections = candidate;
                 Ok(())
             }
             Err(error) => {
@@ -792,7 +915,13 @@ impl Runtime {
         if self.faulted {
             return FramePreparation::Error(FramePreparationError::Faulted);
         }
-        self.guarded(|runtime| runtime.prepare_submission_inner(surface, capabilities))
+        self.guarded(|runtime| {
+            let result = runtime.prepare_submission_inner(surface, capabilities);
+            if matches!(result, FramePreparation::Error(_)) {
+                runtime.full_redraw_pending = true;
+            }
+            result
+        })
     }
 
     fn prepare_submission_inner(
@@ -804,7 +933,12 @@ impl Runtime {
             return FramePreparation::AwaitingCompletion;
         }
 
+        let projection = self.tree.begin_projection_scope();
         self.apply_pending_mutations_for_frame();
+        if let Some(error) = self.updates.take_damage_projection_error() {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::Coordinate(error));
+        }
 
         let surface_changed = self.last_surface != Some(surface);
         self.last_surface = Some(surface);
@@ -826,6 +960,9 @@ impl Runtime {
                 return FramePreparation::Error(FramePreparationError::Animation(error));
             }
             self.full_redraw_pending = true;
+            if let Err(error) = projection.finish(&self.tree, "suspended frame return") {
+                return FramePreparation::Error(FramePreparationError::Coordinate(error));
+            }
             return FramePreparation::Suspended;
         }
         if let Err(error) = self
@@ -860,7 +997,8 @@ impl Runtime {
         if let Err(error) = self.process_animation_behaviors() {
             return FramePreparation::Error(error);
         }
-        self.animations
+        if let Err(error) = self
+            .animations
             .access_mut(
                 &self.tree,
                 &self.resources,
@@ -868,7 +1006,10 @@ impl Runtime {
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
-            .reconcile_visibility();
+            .reconcile_visibility()
+        {
+            return FramePreparation::Error(FramePreparationError::Animation(error));
+        }
         let presentation =
             match self
                 .animations
@@ -879,142 +1020,222 @@ impl Runtime {
                     return FramePreparation::Error(FramePreparationError::Animation(error));
                 }
             };
-        if let Err(error) = self.animations.geometry_damage(
+        match self.animations.geometry_damage(
             &self.tree,
             self.stable_epoch,
             presentation.as_ref(),
             &mut self.updates,
         ) {
-            return FramePreparation::Error(FramePreparationError::Animation(error));
+            Ok(full) => self.full_redraw_pending |= full,
+            Err(error) => return FramePreparation::Error(FramePreparationError::Animation(error)),
         }
+        let accessibility_checkpoint = self.accessibility.checkpoint();
         if let Err(error) =
             self.accessibility
                 .publish(&self.tree, &self.interaction, self.stable_epoch, surface)
         {
             return FramePreparation::Error(FramePreparationError::Accessibility(error));
         }
-        self.updates.set_publication_epoch(self.stable_epoch);
-
-        let has_resource_delta = self.resources.has_pending_delta();
-        let force_full_frame = self.full_redraw_pending || self.session_sync_pending;
-        let coverage_outset = capabilities
-            .filled_path_coverage_outset_pixels
-            .map(|pixels| f64::from(pixels) / surface.scale_factor);
-        let recording_timing = self.diagnostics.time("ir-record");
-        let mut canvas = if self.updates.is_update_queued() {
-            self.tree.perform_update_with_paint_coverage(
-                &mut self.updates,
-                presentation.as_ref(),
-                coverage_outset,
-            )
-        } else if force_full_frame {
-            self.tree
-                .render_with_paint_coverage(presentation.as_ref(), coverage_outset)
-        } else if has_resource_delta {
-            NdCanvas::new()
-        } else {
-            self.updates
-                .flush_notifications_at(&mut self.tree, self.stable_epoch);
-            return FramePreparation::Idle;
-        };
-        if let Some(error) = self.updates.last_validation_error().cloned() {
-            self.full_redraw_pending = true;
-            return FramePreparation::Error(FramePreparationError::Validation(error));
-        }
-        let promote_partial = canvas.damage().mode() == DamageMode::Partial
-            && !capabilities.supports_partial_damage();
-        if force_full_frame || promote_partial {
-            if canvas.damage().mode() == DamageMode::None {
-                canvas = self
-                    .tree
-                    .render_with_paint_coverage(presentation.as_ref(), coverage_outset);
-            } else {
-                canvas.damage_mut().set_full();
+        let repair_checkpoint = match self
+            .updates
+            .recording_damage_checkpoint(&projection.operation.budget())
+        {
+            Ok(checkpoint) => checkpoint,
+            Err(error) => {
+                self.accessibility.restore(accessibility_checkpoint);
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::Coordinate(
+                    crate::figure::ProjectionError::from(error).into(),
+                ));
             }
-        }
-        if self.background.base.is_some() {
-            // Clearing/compositing a host background requires a complete Canvas repair.
-            // Do not promote a partial command list to Full while leaving siblings unrecorded.
-            canvas = self
-                .tree
-                .render_with_paint_coverage(presentation.as_ref(), coverage_outset);
-            if let Err(error) = self.compose_background(&mut canvas, surface) {
+        };
+        let result = (|| {
+            self.updates.set_publication_epoch(self.stable_epoch);
+
+            let has_resource_delta = self.resources.has_pending_delta();
+            self.full_redraw_pending |= self.updates.take_display_damage_pending();
+            let force_full_frame = self.full_redraw_pending || self.session_sync_pending;
+            let coverage_outset = capabilities
+                .filled_path_coverage_outset_pixels
+                .map(|pixels| f64::from(pixels) / surface.scale_factor);
+            let recording_timing = self.diagnostics.time("ir-record");
+            let mut canvas = if self.updates.is_update_queued() {
+                self.tree.perform_update_with_paint_coverage(
+                    &mut self.updates,
+                    presentation.as_ref(),
+                    coverage_outset,
+                )
+            } else if force_full_frame {
+                match self
+                    .tree
+                    .try_render_with_paint_coverage(presentation.as_ref(), coverage_outset)
+                {
+                    Ok(canvas) => canvas,
+                    Err(error) => {
+                        self.full_redraw_pending = true;
+                        return FramePreparation::Error(FramePreparationError::Coordinate(error));
+                    }
+                }
+            } else if has_resource_delta {
+                NdCanvas::new()
+            } else {
+                self.updates
+                    .flush_notifications_at(&mut self.tree, self.stable_epoch);
+                if let Err(error) = projection.finish(&self.tree, "idle frame return") {
+                    self.full_redraw_pending = true;
+                    return FramePreparation::Error(FramePreparationError::Coordinate(error));
+                }
+                return FramePreparation::Idle;
+            };
+            if let Some(error) = self.updates.last_validation_error().cloned() {
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::Validation(error));
+            }
+            let promote_partial = canvas.damage().mode() == DamageMode::Partial
+                && !capabilities.supports_partial_damage();
+            if force_full_frame || promote_partial {
+                if canvas.damage().mode() == DamageMode::None {
+                    canvas = match self
+                        .tree
+                        .try_render_with_paint_coverage(presentation.as_ref(), coverage_outset)
+                    {
+                        Ok(canvas) => canvas,
+                        Err(error) => {
+                            self.full_redraw_pending = true;
+                            return FramePreparation::Error(FramePreparationError::Coordinate(
+                                error,
+                            ));
+                        }
+                    };
+                } else {
+                    canvas.damage_mut().set_full();
+                }
+            }
+            if self.background.base.is_some() {
+                // Clearing/compositing a host background requires a complete Canvas repair.
+                // Do not promote a partial command list to Full while leaving siblings unrecorded.
+                canvas = match self
+                    .tree
+                    .try_render_with_paint_coverage(presentation.as_ref(), coverage_outset)
+                {
+                    Ok(canvas) => canvas,
+                    Err(error) => {
+                        self.full_redraw_pending = true;
+                        return FramePreparation::Error(FramePreparationError::Coordinate(error));
+                    }
+                };
+                if let Err(error) = self.compose_background(&mut canvas, surface) {
+                    self.full_redraw_pending = true;
+                    return FramePreparation::Error(FramePreparationError::Graphics(error));
+                }
+            }
+            drop(recording_timing);
+            let validation_timing = self.diagnostics.time("ir-validate");
+            if let Err(error) = canvas.validate_recording(&self.resources) {
                 self.full_redraw_pending = true;
                 return FramePreparation::Error(FramePreparationError::Graphics(error));
             }
-        }
-        drop(recording_timing);
-        let validation_timing = self.diagnostics.time("ir-validate");
-        if let Err(error) = canvas.validate_recording(&self.resources) {
-            self.full_redraw_pending = true;
-            return FramePreparation::Error(FramePreparationError::Graphics(error));
-        }
-        if let Err(error) = capabilities.validate_capabilities(canvas.commands()) {
-            self.full_redraw_pending = true;
-            return FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(
-                error,
-            ));
-        }
-
-        if let Err(error) =
-            crate::render::validate_graphics_input(canvas.commands(), surface.scale_factor)
-        {
-            self.full_redraw_pending = true;
-            return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
-        }
-        drop(validation_timing);
-
-        let resources_timing = self.diagnostics.time("submission-retention-resources");
-        // Acquire independent ownership before consuming a frame identity or resource prefix.
-        // Capacity failure leaves the current sample, active owners, and recovery prefix intact.
-        let retention = match self.animations.retain_submission(presentation.as_ref()) {
-            Ok(retention) => retention,
-            Err(error) => {
+            if let Err(error) = capabilities.validate_capabilities(canvas.commands()) {
                 self.full_redraw_pending = true;
-                return FramePreparation::Error(FramePreparationError::Animation(error));
+                return FramePreparation::Error(
+                    FramePreparationError::UnsupportedRenderCapability(error),
+                );
             }
-        };
-        let import_leases = self.scenes.imports.retain_commands(canvas.commands());
-        // Successful preparation has transferred every needed recovery lease to
-        // either installed/prepared CPU state or this new in-flight prefix.
-        self.scenes.imports.recovery.clear();
-        self.submission_recovery = None;
-        self.scenes.imports.collect(&mut self.resources);
-        let frame_id = self.next_frame_id;
-        self.next_frame_id = self.next_frame_id.next();
-        let resources = if self.session_sync_pending {
-            ResourceSync::Snapshot(self.resources.take_ready_snapshot())
-        } else {
-            ResourceSync::Delta(self.resources.take_delta())
-        };
-        drop(resources_timing);
-        let submission_timing = self.diagnostics.time("submission-build");
-        let mut submission = canvas.to_submission_for_session(
-            surface,
-            resources.clone(),
-            self.backend_session_id,
-            frame_id,
-        );
-        drop(submission_timing);
-        submission.clear_color = self.background.base;
-        submission.background_input = self.background.input.map(Box::new);
-        submission.retention = retention.clone();
-        self.full_redraw_pending = false;
-        self.in_flight = Some(InFlightFrame {
-            session_id: self.backend_session_id,
-            id: frame_id,
-            resources,
-            retention,
-            import_leases,
-        });
-        self.animations.record_geometry(presentation.as_ref());
-        self.updates.emit_update_event(UpdateEvent::Prepared {
-            frame_id,
-            damage: submission.damage.mode(),
-        });
-        self.updates
-            .flush_notifications_at(&mut self.tree, self.stable_epoch);
-        FramePreparation::Ready(submission)
+
+            if let Err(error) =
+                crate::render::validate_graphics_input(canvas.commands(), surface.scale_factor)
+            {
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
+            }
+            drop(validation_timing);
+
+            let resources_timing = self.diagnostics.time("submission-retention-resources");
+            // Acquire independent ownership before consuming a frame identity or resource prefix.
+            // Capacity failure leaves the current sample, active owners, and recovery prefix intact.
+            let retention = match self.animations.retain_submission(presentation.as_ref()) {
+                Ok(retention) => retention,
+                Err(error) => {
+                    self.full_redraw_pending = true;
+                    return FramePreparation::Error(FramePreparationError::Animation(error));
+                }
+            };
+            let geometry = match self.animations.submission_geometry(presentation.as_ref()) {
+                Ok(geometry) => geometry,
+                Err(error) => {
+                    self.full_redraw_pending = true;
+                    return FramePreparation::Error(FramePreparationError::Animation(error));
+                }
+            };
+            let projection_inputs = match self.tree.display_projection_inputs(
+                self.stable_projections
+                    .iter()
+                    .filter_map(|(figure, value)| value.input_sensitive.then_some(*figure)),
+            ) {
+                Ok(inputs) => inputs,
+                Err(error) => {
+                    self.full_redraw_pending = true;
+                    return FramePreparation::Error(FramePreparationError::Coordinate(
+                        error.into(),
+                    ));
+                }
+            };
+            if let Err(error) = projection.finish(&self.tree, "render submission adoption") {
+                // Recording may already have drained repair regions. Preserve a
+                // complete recovery request without consuming resources or FrameId.
+                self.full_redraw_pending = true;
+                return FramePreparation::Error(FramePreparationError::Coordinate(error));
+            }
+            drop(projection);
+            let import_leases = self.scenes.imports.retain_commands(canvas.commands());
+            // Successful preparation has transferred every needed recovery lease to
+            // either installed/prepared CPU state or this new in-flight prefix.
+            self.scenes.imports.recovery.clear();
+            self.submission_recovery = None;
+            self.scenes.imports.collect(&mut self.resources);
+            let frame_id = self.next_frame_id;
+            self.next_frame_id = self.next_frame_id.next();
+            let resources = if self.session_sync_pending {
+                ResourceSync::Snapshot(self.resources.take_ready_snapshot())
+            } else {
+                ResourceSync::Delta(self.resources.take_delta())
+            };
+            drop(resources_timing);
+            let submission_timing = self.diagnostics.time("submission-build");
+            let mut submission = canvas.to_submission_for_session(
+                surface,
+                resources.clone(),
+                self.backend_session_id,
+                frame_id,
+            );
+            drop(submission_timing);
+            submission.clear_color = self.background.base;
+            submission.background_input = self.background.input.map(Box::new);
+            submission.retention = retention.clone();
+            self.full_redraw_pending = false;
+            self.in_flight = Some(InFlightFrame {
+                session_id: self.backend_session_id,
+                id: frame_id,
+                resources,
+                retention,
+                import_leases,
+                geometry,
+                projection_inputs,
+            });
+            self.updates.emit_update_event(UpdateEvent::Prepared {
+                frame_id,
+                damage: submission.damage.mode(),
+            });
+            self.updates
+                .flush_notifications_at(&mut self.tree, self.stable_epoch);
+            FramePreparation::Ready(submission)
+        })();
+        if matches!(result, FramePreparation::Error(_)) {
+            self.accessibility.restore(accessibility_checkpoint);
+            self.updates.restore_recording_damage(repair_checkpoint);
+            self.full_redraw_pending = true;
+        }
+        result
     }
 
     /// Completes the in-flight frame and restores work when presentation failed.
@@ -1057,6 +1278,11 @@ impl Runtime {
             .expect("validated in-flight submission must remain present");
 
         let presented = result == Ok(RenderDisposition::Presented);
+        if presented {
+            self.animations.present_geometry(in_flight.geometry);
+            self.tree
+                .present_projection_inputs(in_flight.projection_inputs);
+        }
         if !presented {
             self.scenes.imports.recovery.extend(in_flight.import_leases);
             self.submission_recovery = in_flight.retention;
@@ -1136,12 +1362,14 @@ impl Runtime {
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
-            .reconcile_visibility();
+            .reconcile_visibility()
+            .ok()?;
         let presentation = self
             .animations
             .snapshot(&self.tree, &self.resources, self.stable_epoch)
             .ok()?;
-        self.animations
+        self.full_redraw_pending |= self
+            .animations
             .geometry_damage(
                 &self.tree,
                 self.stable_epoch,
@@ -1166,9 +1394,6 @@ impl Runtime {
         };
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
-        if frame.is_some() {
-            self.animations.record_geometry(presentation.as_ref());
-        }
         frame
     }
 
@@ -1194,12 +1419,14 @@ impl Runtime {
                 &mut self.full_redraw_pending,
                 &mut self.faulted,
             )
-            .reconcile_visibility();
+            .reconcile_visibility()
+            .expect("full-frame recording requires valid projection inputs");
         let presentation = self
             .animations
             .snapshot(&self.tree, &self.resources, self.stable_epoch)
             .expect("full-frame recording requires valid presentation geometry");
-        self.animations
+        self.full_redraw_pending |= self
+            .animations
             .geometry_damage(
                 &self.tree,
                 self.stable_epoch,
@@ -1211,7 +1438,6 @@ impl Runtime {
         let frame = self.tree.render_with_presentation(presentation.as_ref());
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
-        self.animations.record_geometry(presentation.as_ref());
         frame
     }
 }
@@ -1221,6 +1447,175 @@ mod s09_tests {
     use super::*;
     use crate::animation::AnimationError;
     use std::error::Error;
+
+    #[test]
+    fn display_damage_advances_only_after_matching_presented_acknowledgement() {
+        use crate::animation::{AnimationPlan, GeometryBinding, LayoutBounds};
+        use crate::figure::RectangleFigure;
+        let mut tree = crate::FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(
+                RectangleFigure::new(0.0, 0.0, 200.0, 200.0).unwrap(),
+            ))
+            .unwrap();
+        let final_bounds = Rectangle::new(20.0, 20.0, 10.0, 10.0);
+        let child = tree
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::from_bounds(final_bounds).unwrap()),
+            )
+            .unwrap();
+        let mut runtime = Runtime::new(tree);
+        let channel = runtime
+            .animation()
+            .timeline()
+            .bind_geometry(child, GeometryBinding::layout_bounds())
+            .unwrap();
+        runtime
+            .animation()
+            .timeline()
+            .start(
+                AnimationPlan::track(
+                    channel,
+                    Motion::Tween(
+                        Tween::between(
+                            LayoutBounds::try_new(Rectangle::new(120.0, 20.0, 10.0, 10.0)).unwrap(),
+                            LayoutBounds::try_new(final_bounds).unwrap(),
+                            std::time::Duration::from_millis(100),
+                        )
+                        .unwrap(),
+                    ),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let surface = SurfaceInfo {
+            logical_width: 200.0,
+            logical_height: 200.0,
+            pixel_width: 200,
+            pixel_height: 200,
+            scale_factor: 1.0,
+        };
+        let FramePreparation::Ready(first) =
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        else {
+            panic!("initial animation must record")
+        };
+        let _ = runtime
+            .complete_submission(
+                first.session_id,
+                first.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .unwrap();
+        let first_snapshot = runtime
+            .animations
+            .snapshot(&runtime.tree, &runtime.resources, runtime.stable_epoch)
+            .unwrap()
+            .unwrap();
+        let old_envelope = first_snapshot.geometry.as_ref().unwrap().data.nodes[&child]
+            .visual_envelope
+            .unwrap();
+        assert_eq!(old_envelope.x, 120.0);
+        runtime
+            .animation()
+            .advance_time(crate::event::MonotonicTime::from_micros(50_000))
+            .unwrap();
+        let FramePreparation::Ready(second) =
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        else {
+            panic!("next animation sample must record")
+        };
+        let candidate = runtime
+            .animations
+            .snapshot(&runtime.tree, &runtime.resources, runtime.stable_epoch)
+            .unwrap();
+        runtime.updates.frozen_surface_regions.clear();
+        runtime
+            .animations
+            .geometry_damage(
+                &runtime.tree,
+                runtime.stable_epoch,
+                candidate.as_ref(),
+                &mut runtime.updates,
+            )
+            .unwrap();
+        assert!(
+            runtime
+                .updates
+                .frozen_surface_regions
+                .contains(&old_envelope),
+            "recording B must still repair the displayed A"
+        );
+        assert!(
+            runtime
+                .complete_submission(
+                    second.session_id,
+                    second.frame_id.next(),
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_err()
+        );
+        let _ = runtime
+            .complete_submission(
+                second.session_id,
+                second.frame_id,
+                Ok(RenderDisposition::Skipped),
+            )
+            .unwrap();
+        runtime.updates.frozen_surface_regions.clear();
+        runtime
+            .animations
+            .geometry_damage(
+                &runtime.tree,
+                runtime.stable_epoch,
+                candidate.as_ref(),
+                &mut runtime.updates,
+            )
+            .unwrap();
+        assert!(
+            runtime
+                .updates
+                .frozen_surface_regions
+                .contains(&old_envelope),
+            "skipping B must preserve the displayed A"
+        );
+        let FramePreparation::Ready(retry) =
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        else {
+            panic!("skipped display must retry")
+        };
+        let _ = runtime
+            .complete_submission(
+                retry.session_id,
+                retry.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .unwrap();
+        let current = runtime
+            .animations
+            .snapshot(&runtime.tree, &runtime.resources, runtime.stable_epoch)
+            .unwrap();
+        runtime.updates.frozen_surface_regions.clear();
+        runtime
+            .animations
+            .geometry_damage(
+                &runtime.tree,
+                runtime.stable_epoch,
+                current.as_ref(),
+                &mut runtime.updates,
+            )
+            .unwrap();
+        assert!(
+            !runtime
+                .updates
+                .frozen_surface_regions
+                .contains(&old_envelope),
+            "only matching Presented may retire A"
+        );
+    }
 
     #[test]
     fn s09_internal_frame_paths_propagate_animation_fault_before_shortcuts() {

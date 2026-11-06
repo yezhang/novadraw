@@ -83,7 +83,12 @@ impl Runtime {
         let mut recorder = CommandRecorder::new();
         if !rectangle.is_empty() {
             self.tree
-                .capture_to(&mut recorder.canvas, root, rectangle, &style, font);
+                .capture_to(&mut recorder.canvas, root, rectangle, &style, font)
+                .map_err(|error| {
+                    SceneError::Stabilization(crate::runtime::FramePreparationError::Coordinate(
+                        error,
+                    ))
+                })?;
         }
         recorder
             .canvas

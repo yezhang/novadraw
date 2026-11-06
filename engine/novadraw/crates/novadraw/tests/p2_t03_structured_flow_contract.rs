@@ -426,7 +426,10 @@ fn multi_line_inline_blank_is_not_a_hit_and_caret_rejects_old_revision() {
             .any(|f| f.source == inline && f.bounds.contains(blank))
     );
     assert_ne!(
-        runtime.tree().hit_test_simple((blank.x(), blank.y())),
+        runtime
+            .tree()
+            .hit_test_simple((blank.x(), blank.y()))
+            .unwrap(),
         Some(inline)
     );
     let old = position(&s, text, 2);
@@ -629,7 +632,8 @@ fn adapter_remeasures_at_full_width_and_preserves_child_identity() {
     assert_eq!(
         runtime
             .tree()
-            .hit_test_simple((placement.x + 2.0, placement.y + 2.0)),
+            .hit_test_simple((placement.x + 2.0, placement.y + 2.0))
+            .unwrap(),
         Some(child)
     );
 }
@@ -871,7 +875,8 @@ fn nested_ordinary_borders_reserve_each_inset_once_and_keep_coordinates() {
     assert_eq!(
         runtime
             .tree()
-            .hit_test_simple((fragment.bounds.x + 1.0, fragment.bounds.y + 1.0)),
+            .hit_test_simple((fragment.bounds.x + 1.0, fragment.bounds.y + 1.0))
+            .unwrap(),
         Some(text)
     );
     let old_revision = s.revision;

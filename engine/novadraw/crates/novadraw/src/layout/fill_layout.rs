@@ -27,6 +27,13 @@ impl Default for FillLayout {
 }
 
 impl LayoutManager for FillLayout {
+    fn register_child_layout_dependencies(
+        &self,
+        out: &mut super::LayoutDependencyDeclaration,
+    ) -> Result<(), super::LayoutDependencyRegistrationError> {
+        out.independent_child_property(crate::container::SCROLL_VALUE)
+    }
+
     fn preferred_measurement(
         &self,
         container: FigureId,

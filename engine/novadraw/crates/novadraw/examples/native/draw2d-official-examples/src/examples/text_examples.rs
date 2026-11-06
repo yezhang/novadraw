@@ -28,7 +28,10 @@ pub(super) struct TextFixture {
 }
 
 pub(super) fn canvas() -> TextFixture {
-    let mut tree = FigureTree::new();
+    canvas_with_tree(FigureTree::new())
+}
+
+pub(super) fn canvas_with_tree(mut tree: FigureTree) -> TextFixture {
     let root = tree
         .builder()
         .set_contents(Box::new(

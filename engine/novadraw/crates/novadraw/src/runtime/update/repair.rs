@@ -60,6 +60,7 @@ pub(crate) fn compute_damage_union<'a>(
     rects.fold(*first, |acc, rect| union_rectangles(acc, *rect))
 }
 
+#[cfg(test)]
 pub(crate) fn propagate_damage_through_parent_chain(
     mut contribution: Rectangle,
     steps: &[DamagePropagationStep],
@@ -78,9 +79,43 @@ pub(crate) fn propagate_damage_to_root(
     graph: &FigureTree,
     figure_id: FigureId,
     contribution: Rectangle,
-) -> Option<Rectangle> {
-    let steps = collect_parent_chain_steps(graph, figure_id)?;
-    propagate_damage_through_parent_chain(contribution, &steps)
+) -> Result<Option<Rectangle>, crate::tree::CoordinateQueryError> {
+    let projection = graph.begin_projection_scope();
+    let steps = collect_parent_chain_steps_checked(graph, figure_id)?;
+    let result = propagate_checked(figure_id, contribution, &steps)?;
+    projection.finish(graph, "frozen damage return")?;
+    Ok(result)
+}
+
+fn propagate_checked(
+    figure: FigureId,
+    mut contribution: Rectangle,
+    steps: &[DamagePropagationStep],
+) -> Result<Option<Rectangle>, crate::tree::CoordinateQueryError> {
+    for step in steps {
+        contribution.transform(step.transform);
+        if ![
+            contribution.x,
+            contribution.y,
+            contribution.width,
+            contribution.height,
+        ]
+        .into_iter()
+        .all(f64::is_finite)
+        {
+            return Err(crate::tree::CoordinateQueryError::Geometry {
+                figure,
+                reason: crate::tree::CoordinateFailure::DerivedOverflow,
+            });
+        }
+        if let Some(clip) = step.clip {
+            let Some(clipped) = contribution.intersection(clip) else {
+                return Ok(None);
+            };
+            contribution = clipped;
+        }
+    }
+    Ok(Some(contribution))
 }
 
 pub(crate) fn write_damage_set(canvas: &mut NdCanvas, rects: Vec<Rectangle>) -> Option<Rectangle> {
@@ -99,65 +134,65 @@ pub(crate) fn prepare_damage_set<'a>(
     canvas: &mut NdCanvas,
     dirty_regions: impl IntoIterator<Item = (&'a FigureId, &'a Rectangle)>,
     frozen_surface_regions: impl IntoIterator<Item = Rectangle>,
-) -> Option<Rectangle> {
-    let propagated_regions: Vec<Rectangle> = dirty_regions
-        .into_iter()
-        .filter_map(|(figure_id, rect)| propagate_damage_to_root(graph, *figure_id, *rect))
-        .chain(frozen_surface_regions)
-        .collect();
-    write_damage_set(canvas, propagated_regions)
+) -> Result<Option<Rectangle>, crate::tree::CoordinateQueryError> {
+    let projection = graph.begin_projection_scope();
+    let mut propagated_regions = Vec::new();
+    for (figure_id, rect) in dirty_regions {
+        let steps = collect_parent_chain_steps_checked(graph, *figure_id)?;
+        if let Some(region) = propagate_checked(*figure_id, *rect, &steps)? {
+            propagated_regions.push(region);
+        }
+    }
+    propagated_regions.extend(frozen_surface_regions);
+    projection.finish(graph, "damage projection return")?;
+    Ok(write_damage_set(canvas, propagated_regions))
 }
 
-fn collect_parent_chain_steps(
+fn collect_parent_chain_steps_checked(
     graph: &FigureTree,
     figure_id: FigureId,
-) -> Option<Vec<DamagePropagationStep>> {
+) -> Result<Vec<DamagePropagationStep>, crate::tree::CoordinateQueryError> {
+    let operation = graph.projection_operation();
+    let budget = operation.budget();
+    let session = crate::graph::CoordinateQuerySession::in_operation(graph, &operation)?;
     let mut steps = Vec::new();
-    let current = graph.node(figure_id).ok()?;
+    let current = graph.node(figure_id)?;
     let contents_id = graph.contents();
     steps.push(DamagePropagationStep {
         transform: Affine2D::IDENTITY,
         clip: Some(current.visual_bounds()),
     });
-    if Some(figure_id) == contents_id {
-        let bounds = current.figure_bounds();
-        steps.push(DamagePropagationStep {
-            transform: Affine2D::from_translation(bounds.x, bounds.y),
-            clip: None,
-        });
-        return Some(steps);
-    }
     let mut walker_id = figure_id;
-
     loop {
-        let walker = graph.node(walker_id).ok()?;
+        budget
+            .allocate(
+                "damage propagation step",
+                std::mem::size_of::<DamagePropagationStep>() as u64,
+            )
+            .map_err(crate::figure::ProjectionError::from)?;
+        budget
+            .consume("damage parent edge", 1)
+            .map_err(crate::figure::ProjectionError::from)?;
+        let walker = graph.node(walker_id)?;
         let bounds = walker.figure_bounds();
-        let Some(parent_id) = walker.parent else {
+        if Some(walker_id) == contents_id || walker.parent.is_none() {
             steps.push(DamagePropagationStep {
                 transform: Affine2D::from_translation(bounds.x, bounds.y),
                 clip: None,
             });
             break;
-        };
-        let parent = graph.node(parent_id).ok()?;
+        }
+        let parent_id = walker.parent.expect("parent checked above");
+        let parent = graph.node(parent_id)?;
         steps.push(DamagePropagationStep {
-            transform: parent.child_transform().affine()
+            transform: session.child_transform(parent_id)?
                 * Affine2D::from_translation(bounds.x, bounds.y),
             clip: (parent.child_clipping_strategy() != ChildClippingStrategy::OverflowVisible)
                 .then(|| parent.client_area()),
         });
-        if Some(parent_id) == contents_id {
-            let parent_bounds = parent.figure_bounds();
-            steps.push(DamagePropagationStep {
-                transform: Affine2D::from_translation(parent_bounds.x, parent_bounds.y),
-                clip: None,
-            });
-            break;
-        }
         walker_id = parent_id;
     }
-
-    Some(steps)
+    session.finish(Ok(steps))
 }
 
 fn normalize_damage_regions(mut rects: Vec<Rectangle>) -> Vec<Rectangle> {
@@ -485,7 +520,8 @@ mod tests {
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0))
+                .unwrap();
 
         assert_eq!(actual, Some(Rectangle::new(120.0, 80.0, 20.0, 10.0)));
     }
@@ -504,7 +540,8 @@ mod tests {
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0))
+                .unwrap();
 
         assert_eq!(actual, Some(Rectangle::new(220.0, 130.0, 20.0, 10.0)));
     }
@@ -523,7 +560,8 @@ mod tests {
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 30.0, 30.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 30.0, 30.0))
+                .unwrap();
 
         assert_eq!(actual, Some(Rectangle::new(90.0, 70.0, 10.0, 10.0)));
     }

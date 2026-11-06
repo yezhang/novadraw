@@ -315,6 +315,7 @@ module.figure constant INPUT
 module.figure constant LAYER
 module.figure constant LIFECYCLE
 module.figure constant PREPARATION
+module.figure constant PROJECTION
 module.figure constant RESOURCE_DEPENDENCIES
 module.figure constant SCALE
 module.figure enum Alignment
@@ -338,6 +339,7 @@ module.figure enum PreparationMeasureErrorKind
 module.figure enum PreparationMeasureStage
 module.figure enum PreparationMetric
 module.figure enum PreparationRouteErrorKind
+module.figure enum ProjectionError
 module.figure enum ScalablePolygonError
 module.figure enum ShapeGeometryError
 module.figure enum ShapeMutationError
@@ -398,6 +400,11 @@ module.figure struct PreparationScene
 module.figure struct PreparedScene
 module.figure struct PreparedSceneIdentity
 module.figure struct PreparedSceneSnapshot
+module.figure struct ProjectionCapability
+module.figure struct ProjectionContribution
+module.figure struct ProjectionInputKey
+module.figure struct ProjectionInputRegistry
+module.figure struct ProjectionScene
 module.figure struct RectangleBorderGeometry
 module.figure struct RectangleCorners
 module.figure struct RectangleEdges
@@ -429,9 +436,12 @@ module.figure trait FigureDrawing
 module.figure trait FigureEventHandler
 module.figure trait FigureLifecycle
 module.figure trait FigurePreparation
+module.figure trait FigureProjection
 module.figure trait FigureResourceDependencies
 module.figure trait PreparationInputPayload
 module.figure trait PreparationInputReader
+module.figure trait ProjectionInputPayload
+module.figure trait ProjectionInputReader
 module.figure trait Shape
 module.figure.border constant DEFAULT_BORDER_WIDTH
 module.figure.border enum BevelStyle
@@ -515,6 +525,7 @@ module.layout enum FlowAlignment
 module.layout enum FlowDirection
 module.layout enum FreeformConstraintError
 module.layout enum GridAlignment
+module.layout enum LayoutDependencyRegistrationError
 module.layout enum LayoutError
 module.layout enum LayoutInvalidation
 module.layout enum MeasurementFailure
@@ -529,7 +540,9 @@ module.layout struct FreeformConstraint
 module.layout struct FreeformLayout
 module.layout struct GridConstraint
 module.layout struct GridLayout
+module.layout struct LayoutDependencyDeclaration
 module.layout struct LayoutOutput
+module.layout struct LayoutRevalidationGuard
 module.layout struct LayoutSceneQuery
 module.layout struct StackLayout
 module.layout struct ToolbarLayout

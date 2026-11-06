@@ -6,14 +6,17 @@
 失效范围、队列、预算和失败恢复；ScrollBar／ScrollPane 是普通消费者。
 Editor、backend 和 platform 的职责不变。
 
-日期：2026-11-05。状态：具体机制草案，尚未接受或实现。属于 FR-02 已授权的
-纯投影分离目标；本文新增布局输入读取、队列失效范围与父布局依赖声明，
-实施前需确认这组具体契约。
-不将已有总体方案的授权写成本文已通过。
+日期：2026-11-05。状态：用户在具体合同补齐后要求“提交最近修改，然后继续通用
+投影分离”，已授权按下述顺序实施。属于唯一 FR-02 Execute，仍在实施中。
+通用布局输入查询与父布局静态依赖声明的原子准入已接入；
+请求 guard、队列范围与内部输出边界已接入真实事件入口；
+ScrollBar／ScrollPane／Fill／Stack 与外部自有容器共用该协议。
+晚期输入冲突恢复、构造期受检验证与隐藏布局合同已通过定向测试；
+生产消费者成本和混合 FigureTree 验收仍待完成。
 
-本轮定向复核补充了布局私有输入的读取接口。待确认范围为：布局输入如何进入
+本轮定向复核补充了布局私有输入的读取接口。已确认的实施范围为：布局输入如何进入
 现有证明链、父布局声明何时允许停止传播、局部队列如何覆盖内部几何反馈和失败。
-此前总体实施授权保持有效；活动交接与能力成员索引不依赖这组新接口。
+活动交接与能力成员索引不依赖这组新接口；各片的正确性和性能证据分别记录。
 
 2026-11-05 范围修正：纯投影分离的总体对象是整个 FigureTree。
 总体设计由 [FigureTree 内容、布局与投影分离](figure-tree-projection-separation.md)维护；
@@ -63,16 +66,35 @@ RangeModel，并按 value 更新 sibling 位置；它不能仅因 child 的首�
 “本次只改变该属性及 owner 内部布局”的请求，使用既有 `PropertyKey<V>` 和
 `PropertyValueType`，按完整 typed key 匹配，不按裸字符串、Figure 名称或事件名称分支。
 
-拟议调用面如下，签名在接受前均为候选：
+局部请求与依赖声明的调用面如下，具体签名随对应实现切片冻结：
 
 ```rust
 EventEffects::revalidate_layout_for_property(key, old_value, new_value, guard);
-LayoutRevalidationGuard::new(&input_registry, input_key, first_input);
+LayoutRevalidationGuard::new(&input_registry, input_key, source, first_input);
 LayoutDependencyDeclaration::independent_child_property(key);
 LayoutDependencyDeclaration::independent_child_property_for(child, key);
 LayoutManager::register_child_layout_dependencies(&self, out)
     -> Result<(), LayoutDependencyRegistrationError>;
 ```
+
+静态声明准入切片已实现。`LayoutDependencyDeclaration` 只能由 Core 在安装 manager
+时构造；外部实现通过上述注册 callback 填写声明，不能在运行时修改已准入的表。
+重复条目和预算错误会保留在 collector 中，即使 callback 忽略错误也拒绝安装。
+指定 child 的完整身份和直接归属在发布前检查；全体 child 声明与指定 child
+声明重叠时，先验证指定身份，再删除重复结论。
+错误由 `LayoutError::DependencyRegistration` 保留；callback panic 沿现有
+Runtime mutation／子树准入路径传播，旧 manager 和旧表不被替换。
+
+声明表由 `LayoutState` 持有，空表不分配存储。Runtime manager 替换使用当前
+preparation work／allocation 限额；整支子树的多个 manager 共用一个准入预算，
+包含尚未发布的 child 身份索引。Builder 和内部构造沿用默认限额。
+计费单位是逻辑集合条目与表 metadata，不代表 allocator 字节或进程 RSS。
+`LayoutState::child_dependency_count` 提供已准入条目数供核对，
+`declares_child_property_independent` 只查询静态声明；
+执行方仍须检查当前直接归属、外部输入和整条声明链。
+11 项公开准入合同已通过，范围见
+[实施记录](../../verification/reviews/figure-tree-projection-implementation-2026-11-05.md#静态布局依赖声明准入)。
+本切片尚未缩小任何失效范围，也不构成性能收益证据。
 
 `revalidate_layout_for_property` 记录已有 typed property payload 模型的 old/current
 值及 source。请求者必须保证 owner 自身的外部几何、任意约束下的 preferred／minimum／
@@ -167,6 +189,22 @@ checkpoint、队列清空、source 删除、drain、重试和失败恢复都必�
 不能丢失 pending source 或留下一个实际上无效的祖先。
 本方案不引入第二个 UpdateManager、全局 epoch 或跨回调校验成功缓存。
 
+首片允许重复写入 child 当前可见值：完整 output 检查确认该值没有变化时，
+`set_visible_with_update` 不产生状态变化、通知或失效，因此不扩大局部范围。
+实际可见性变化仍在第一项几何写入前升级整份 output。
+
+普通布局也可能首次读取私有模型。Runtime 在待执行布局之前开启既有派生恢复前缀，
+已有布局输入证明的场景也保留前缀；该条件不再只依赖 preparation capability。
+生命周期在内部几何提交后改变输入时，错误仍恢复几何、通知与 damage。
+恢复不克隆或回滚任意扩展的私有模型。
+`FigureTreeBuilder::validate_subtree` 使用有预算的构造期输入 session 和同一恢复机制；
+没有 session 的独立 measurement 查询继续返回 `InputSessionUnavailable`。
+
+隐藏 owner 的内部 placements 不属于当前发布消费，因而不校验其旧布局 proof。
+可见父布局若测量隐藏 child，仍由父布局的实际 query 保存完整证明。
+owner 再次显示时，缓存输入检查在可见布局复用之前发现变化并触发重验；
+不能用隐藏状态让父布局已读取的输入失去检查。
+
 ## 定向复核：布局私有输入必须进入证明链
 
 现行 `PreparationLayoutRead` 已记录部分几何和测量依赖，但它不是任意布局的
@@ -195,7 +233,7 @@ reader 必须满足既有不可变值、纯读取、容量计费和禁止稳定�
 包含浮点字段的 payload 需先遵守 RangeModel 的有效值规则，并提供明确的完整
 相等语义，不能为实现 `Eq` 而把非法数值视为有效输入。
 
-拟议新增公共查询如下；这些签名尚未实现：
+通用公共查询已接入如下；此接口本身不缩小任何失效范围：
 
 ```rust
 LayoutSceneQuery::input<P: PreparationInputPayload>(
@@ -343,6 +381,7 @@ qualification、input validation、layout、assembly、shaping 和 source geomet
 且局部重验不会成为 ScrollBar 的特权路径。
 依赖和状态 owner 不变，具体协议进入设计专题，不为本方案自动分配 ADR 编号。
 
-接受本方案表示同意请求资格、父链声明、队列范围及回滚规则；
-本轮还需确认通用布局输入读取与完整首次值的消费／发布规则。
-实现完成和生产启用仍需上述验证。当前没有实施本文的新 API。
+用户已授权本方案的请求资格、父链声明、队列范围及回滚规则，
+以及通用布局输入读取与完整首次值的消费／发布规则。
+输入查询已实现；局部请求、依赖声明与队列尚待实施。
+实现完成和生产启用仍需上述验证。

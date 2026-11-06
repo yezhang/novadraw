@@ -27,7 +27,7 @@ use super::layout::{
 use crate::figure::border::BorderSnapshot;
 use crate::figure::capability::FigureCapabilitySet;
 pub use crate::identity::FigureId;
-use crate::identity::{RuntimeArena, RuntimeNamespace};
+use crate::identity::{RuntimeArena, RuntimeHandle, RuntimeNamespace};
 #[cfg(test)]
 use crate::mutation::PendingMutation;
 use crate::mutation::PendingMutationKind;
@@ -45,14 +45,22 @@ mod layout_measurement;
 pub(crate) use layout_measurement::LayoutMeasurementSession;
 mod presentation;
 mod query;
-pub(crate) use query::checked_coordinate_inverse;
 pub use query::{CoordinateFailure, CoordinateQueryError};
+pub(crate) use query::{
+    CoordinateQuerySession, DisplayProjectionInputs, WorldPrefix, checked_coordinate_inverse,
+};
 mod render_recursive;
 mod search;
 mod topology;
 pub(crate) use topology::commit_scene_admission;
 
+pub(crate) struct SubtreeAdmission<'a> {
+    pub(crate) replacing: Option<FigureId>,
+    pub(crate) layout_budget: &'a crate::figure::PreparationBudgetHandle,
+}
+
 use render_recursive::{FigureRenderer, FigureTreeRenderRef};
+pub(crate) use search::MouseEventTargetSearch;
 pub use search::{ExclusionSearch, IdentitySearch, TreeQueryError, TreeSearch, TreeSearchContext};
 
 #[cfg(test)]
@@ -233,8 +241,9 @@ pub enum ValidationError {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FreeformError {
+    Coordinate(CoordinateQueryError),
     UnknownFigure(FigureId),
     ForeignFigure(FigureId),
     NotFreeform(FigureId),
@@ -245,6 +254,7 @@ pub enum FreeformError {
 impl fmt::Display for FreeformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Coordinate(error) => error.fmt(formatter),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
             Self::ForeignFigure(id) => write!(formatter, "foreign Figure ID: {id:?}"),
             Self::NotFreeform(id) => write!(formatter, "Figure is not freeform: {id:?}"),
@@ -256,7 +266,19 @@ impl fmt::Display for FreeformError {
     }
 }
 
-impl Error for FreeformError {}
+impl Error for FreeformError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Coordinate(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+impl From<CoordinateQueryError> for FreeformError {
+    fn from(error: CoordinateQueryError) -> Self {
+        Self::Coordinate(error)
+    }
+}
 
 impl From<TreeQueryError> for FreeformError {
     fn from(error: TreeQueryError) -> Self {
@@ -446,6 +468,7 @@ impl NodeState {
 #[derive(Default)]
 pub struct LayoutState {
     pub(crate) manager: Option<Box<dyn LayoutManager>>,
+    pub(crate) child_dependencies: Option<Box<crate::layout::LayoutDependencyTable>>,
     pub(crate) constraints: std::collections::HashMap<FigureId, Box<dyn LayoutConstraint>>,
     pub(crate) source_generation: u64,
     cache: RefCell<LayoutCache>,
@@ -523,6 +546,25 @@ impl LayoutState {
 
     pub fn constraint_count(&self) -> usize {
         self.constraints.len()
+    }
+
+    /// Number of admitted dependency entries owned by the current manager.
+    pub fn child_dependency_count(&self) -> usize {
+        self.child_dependencies
+            .as_ref()
+            .map_or(0, |table| table.entry_count())
+    }
+
+    /// A static declaration only; callers must separately establish unchanged
+    /// external inputs and verify the current direct-child relation.
+    pub fn declares_child_property_independent<V: PropertyValueType>(
+        &self,
+        child: FigureId,
+        property: PropertyKey<V>,
+    ) -> bool {
+        self.child_dependencies
+            .as_ref()
+            .is_some_and(|table| table.permits(child, property.erase()))
     }
 
     pub fn generation(&self) -> u64 {
@@ -980,6 +1022,21 @@ pub struct FigureTree {
     blocks: RuntimeArena<FigureId, FigureNode>,
     capability_members:
         std::collections::HashMap<std::any::TypeId, std::collections::BTreeSet<FigureId>>,
+    /// Input-free Runtime measurements, allocated only by ordinary measurement sessions.
+    input_free_measurements:
+        RefCell<slotmap::SparseSecondaryMap<slotmap::DefaultKey, [Option<CachedMeasurement>; 2]>>,
+    projection_contributions: RefCell<
+        std::collections::BTreeMap<
+            FigureId,
+            std::rc::Rc<crate::figure::projection::ProjectionReceipt>,
+        >,
+    >,
+    projection_retention: crate::text::TextContentStore,
+    projection_prefixes:
+        RefCell<std::collections::BTreeMap<FigureId, std::rc::Rc<query::WorldPrefix>>>,
+    projection_budget: crate::figure::PreparationBudget,
+    active_projection: std::rc::Rc<RefCell<Option<crate::figure::projection::ProjectionOperation>>>,
+    displayed_projection_inputs: Option<query::DisplayProjectionInputs>,
     uuid_map: std::collections::HashMap<Uuid, FigureId>,
     /// 根块（内部使用）
     root: FigureId,
@@ -1096,9 +1153,11 @@ impl<'a> FigureTreeBuilder<'a> {
         container: FigureId,
         manager: Box<dyn LayoutManager>,
     ) -> Result<bool, LayoutError> {
-        self.tree
-            .validate_layout_manager_constraints(container, manager.as_ref())?;
-        Ok(self.tree.replace_layout_manager(container, Some(manager)))
+        self.tree.try_replace_layout_manager(
+            container,
+            Some(manager),
+            &crate::figure::PreparationBudgetHandle::default(),
+        )
     }
 
     pub fn set_layout_constraint<C>(
@@ -1211,7 +1270,7 @@ impl<'a> FigureTreeBuilder<'a> {
     }
 
     pub fn validate_subtree(&mut self, container: FigureId) -> Result<(), LayoutError> {
-        self.tree.try_revalidate(container)
+        self.tree.validate_subtree_with_inputs(container)
     }
 
     pub fn move_child_to_index(
@@ -1272,7 +1331,7 @@ impl FigureTree {
         bounds: Rectangle,
     ) -> bool {
         if self.blocks[self.root].layout.manager.is_none() {
-            self.blocks[self.root].layout.manager = Some(Box::new(crate::StackLayout));
+            self.replace_layout_manager(self.root, Some(Box::new(crate::StackLayout)));
         }
         self.set_bounds_with_update(
             updates,
@@ -1290,6 +1349,17 @@ impl FigureTree {
 
     /// 创建新场景图
     pub fn new() -> Self {
+        let budget = crate::figure::PreparationBudget::default();
+        Self::with_projection_budget(budget, budget.allocation as usize)
+    }
+
+    /// Constructs a tree with explicit per-coordinate-operation work/allocation
+    /// limits and a tree-owned contribution retention limit in logical bytes.
+    /// Input registries retain their separately configured snapshot leases.
+    pub fn with_projection_budget(
+        budget: crate::figure::PreparationBudget,
+        retained_bytes: usize,
+    ) -> Self {
         let mut blocks = RuntimeArena::new(RuntimeNamespace::new());
         let uuid = Uuid::new_v4();
         let root_bounds = Rectangle::ZERO;
@@ -1331,6 +1401,13 @@ impl FigureTree {
         FigureTree {
             blocks,
             capability_members,
+            input_free_measurements: RefCell::new(slotmap::SparseSecondaryMap::new()),
+            projection_contributions: RefCell::new(std::collections::BTreeMap::new()),
+            projection_retention: crate::text::TextContentStore::new(retained_bytes),
+            projection_prefixes: RefCell::new(std::collections::BTreeMap::new()),
+            active_projection: std::rc::Rc::new(RefCell::new(None)),
+            displayed_projection_inputs: None,
+            projection_budget: budget,
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
@@ -1418,6 +1495,35 @@ impl FigureTree {
             old_bounds: bounds,
             new_bounds: bounds,
         });
+    }
+
+    pub(crate) fn record_projection_changed(
+        &mut self,
+        updates: &mut UpdateManager,
+        figure_id: FigureId,
+    ) {
+        self.record_coordinate_system_changed(figure_id);
+        self.emit_ancestor_moved(figure_id);
+        // Extents are a real projection consumer. Other layouts retain their
+        // own declared input checks rather than inheriting a blanket invalidation.
+        if self
+            .blocks
+            .get(figure_id)
+            .is_some_and(|node| node.layout.freeform.is_some())
+        {
+            self.mark_invalid(updates, figure_id);
+        }
+        let mut current = self.blocks.get(figure_id).and_then(|node| node.parent);
+        while let Some(id) = current {
+            let Some(node) = self.blocks.get(id) else {
+                break;
+            };
+            if node.layout.freeform.is_none() {
+                break;
+            }
+            current = node.parent;
+            self.mark_invalid(updates, id);
+        }
     }
 
     fn emit_layout_event(&mut self, event: LayoutEvent) {
@@ -2010,6 +2116,27 @@ impl FigureTree {
         width: f64,
         height: f64,
     ) -> bool {
+        self.set_bounds_with_update_scoped(
+            update_manager,
+            figure_id,
+            Rectangle::new(x, y, width, height),
+            None,
+        )
+    }
+
+    fn set_bounds_with_update_scoped(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        figure_id: FigureId,
+        bounds: Rectangle,
+        local: Option<&layout_measurement::LocalLayoutValidation>,
+    ) -> bool {
+        let Rectangle {
+            x,
+            y,
+            width,
+            height,
+        } = bounds;
         let Some(block) = self.blocks.get(figure_id) else {
             return false;
         };
@@ -2035,7 +2162,11 @@ impl FigureTree {
         self.set_bounds(figure_id, x, y, width, height);
 
         if resize {
-            self.mark_invalid(update_manager, figure_id);
+            if let Some(local) = local {
+                self.mark_internal_layout_geometry(update_manager, figure_id, local);
+            } else {
+                self.mark_invalid(update_manager, figure_id);
+            }
         } else if let Some(freeform_ancestor) = freeform_ancestor {
             update_manager.add_invalid_figure(freeform_ancestor);
         }
@@ -2851,7 +2982,7 @@ mod tests {
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0).expect("valid figure bounds"),
         ));
 
-        assert_eq!(scene.find_mouse_event_target_at(10.0, 10.0), None);
+        assert_eq!(scene.find_mouse_event_target_at(10.0, 10.0), Ok(None));
     }
 
     #[test]
@@ -2871,11 +3002,11 @@ mod tests {
 
         assert_eq!(
             scene.find_mouse_event_target_at(15.0, 15.0),
-            Some(interactive_parent)
+            Ok(Some(interactive_parent))
         );
         assert_eq!(
             scene.find_mouse_event_target_at(35.0, 35.0),
-            Some(interactive_child)
+            Ok(Some(interactive_child))
         );
     }
 
@@ -2894,8 +3025,8 @@ mod tests {
             Box::new(RectangleFigure::new(-5.0, -5.0, 20.0, 20.0).expect("valid figure bounds")),
         );
 
-        assert_eq!(scene.hit_test_simple((105.0, 105.0)), Some(parent_id));
-        assert_eq!(scene.hit_test_simple((111.0, 111.0)), Some(child_id));
+        assert_eq!(scene.hit_test_simple((105.0, 105.0)), Ok(Some(parent_id)));
+        assert_eq!(scene.hit_test_simple((111.0, 111.0)), Ok(Some(child_id)));
     }
 
     #[test]
@@ -2913,10 +3044,10 @@ mod tests {
             Box::new(TestInteractiveFigure::new(-5.0, -5.0, 20.0, 20.0)),
         );
 
-        assert_eq!(scene.find_mouse_event_target_at(105.0, 105.0), None);
+        assert_eq!(scene.find_mouse_event_target_at(105.0, 105.0), Ok(None));
         assert_eq!(
             scene.find_mouse_event_target_at(111.0, 111.0),
-            Some(child_id)
+            Ok(Some(child_id))
         );
     }
 
@@ -3057,15 +3188,15 @@ mod tests {
             Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0).expect("valid figure bounds")),
         );
 
-        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(top));
+        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Ok(Some(top)));
 
         assert!(scene.bring_child_to_front(root_id, bottom));
         assert_eq!(scene.child_order(root_id), Ok(vec![middle, top, bottom]));
-        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(bottom));
+        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Ok(Some(bottom)));
 
         assert!(scene.send_child_to_back(root_id, bottom));
         assert_eq!(scene.child_order(root_id), Ok(vec![bottom, middle, top]));
-        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Some(top));
+        assert_eq!(scene.hit_test_simple((30.0, 30.0)), Ok(Some(top)));
     }
 
     #[test]
@@ -3109,12 +3240,12 @@ mod tests {
             Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 40.0).expect("valid figure bounds")),
         );
 
-        assert_eq!(scene.hit_test_simple((130.0, 90.0)), Some(child_id));
+        assert_eq!(scene.hit_test_simple((130.0, 90.0)), Ok(Some(child_id)));
         assert_eq!(
             scene.hit_test_simple((115.0, 65.0)),
-            Some(coordinate_root_id)
+            Ok(Some(coordinate_root_id))
         );
-        assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(contents_id));
+        assert_eq!(scene.hit_test_simple((50.0, 50.0)), Ok(Some(contents_id)));
     }
 
     #[test]
@@ -3146,9 +3277,9 @@ mod tests {
             Box::new(RectangleFigure::new(30.0, 20.0, 20.0, 20.0).expect("valid figure bounds")),
         );
 
-        assert_eq!(scene.hit_test_simple((120.0, 70.0)), Some(child_id));
-        assert_eq!(scene.hit_test_simple((105.0, 55.0)), Some(scalable_id));
-        assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(contents_id));
+        assert_eq!(scene.hit_test_simple((120.0, 70.0)), Ok(Some(child_id)));
+        assert_eq!(scene.hit_test_simple((105.0, 55.0)), Ok(Some(scalable_id)));
+        assert_eq!(scene.hit_test_simple((50.0, 50.0)), Ok(Some(contents_id)));
     }
 
     #[test]
@@ -3168,9 +3299,9 @@ mod tests {
 
         assert_eq!(
             scene.find_mouse_event_target_at(130.0, 90.0),
-            Some(interactive_child)
+            Ok(Some(interactive_child))
         );
-        assert_eq!(scene.find_mouse_event_target_at(115.0, 65.0), None);
+        assert_eq!(scene.find_mouse_event_target_at(115.0, 65.0), Ok(None));
     }
 
     // ========== 坐标变换测试 ==========
@@ -3839,12 +3970,12 @@ mod tests {
 
         assert_eq!(
             scene.hit_test_simple((6.0, 6.0)),
-            Some(parent_id),
+            Ok(Some(parent_id)),
             "hit-test must not descend into children outside the painted clientArea"
         );
         assert_eq!(
             scene.hit_test_simple((26.0, 16.0)),
-            Some(child_id),
+            Ok(Some(child_id)),
             "hit-test should descend once the point is inside the painted clientArea"
         );
     }
@@ -4102,8 +4233,11 @@ mod tests {
             Box::new(TestInteractiveFigure::new(5.0, 5.0, 20.0, 20.0)),
         );
 
-        assert_eq!(scene.find_mouse_event_target_at(6.0, 6.0), None);
-        assert_eq!(scene.find_mouse_event_target_at(26.0, 16.0), Some(child_id));
+        assert_eq!(scene.find_mouse_event_target_at(6.0, 6.0), Ok(None));
+        assert_eq!(
+            scene.find_mouse_event_target_at(26.0, 16.0),
+            Ok(Some(child_id))
+        );
     }
 
     #[test]

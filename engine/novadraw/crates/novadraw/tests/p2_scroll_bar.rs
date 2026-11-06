@@ -154,6 +154,89 @@ fn horizontal_and_vertical_layout_use_nonzero_minimum_and_parent_coordinates() {
 }
 
 #[test]
+fn stack_root_skips_layout_for_scroll_value_but_not_range_shape() {
+    use novadraw::{
+        event::{LayoutEvent, LayoutEventKind, LayoutListener, ListenerDirective},
+        layout::StackLayout,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct RootLayouts(FigureId, Arc<AtomicUsize>);
+    impl LayoutListener for RootLayouts {
+        fn layout_changed(&self, event: LayoutEvent) -> ListenerDirective {
+            if event.container_id == self.0 && event.kind == LayoutEventKind::Started {
+                self.1.fetch_add(1, Ordering::Relaxed);
+            }
+            ListenerDirective::Keep
+        }
+    }
+
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 400.0, 400.0).unwrap(),
+        ))
+        .unwrap();
+    runtime
+        .figure(root)
+        .unwrap()
+        .set_layout_manager(Box::new(StackLayout::new()))
+        .unwrap();
+    runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0).unwrap(),
+        ))
+        .unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    runtime
+        .observations()
+        .add_layout_listener(Box::new(RootLayouts(root, calls.clone())))
+        .unwrap();
+    let model = Arc::new(DefaultRangeModel::new(10.0, 20.0, 110.0).unwrap());
+    model.set_value(30.0).unwrap();
+    let bar = ScrollBarFigure::new(model.clone())
+        .with_config(ScrollBarConfig {
+            orientation: ScrollOrientation::Horizontal,
+            ..ScrollBarConfig::default()
+        })
+        .unwrap()
+        .into_subtree();
+    let thumb = bar
+        .parts
+        .iter()
+        .find(|(part, _)| *part == ScrollBarPart::Thumb)
+        .unwrap()
+        .1;
+    let receipt = runtime
+        .figure(root)
+        .unwrap()
+        .add_subtree(bar.subtree)
+        .unwrap();
+    let thumb = receipt.figure(thumb).unwrap();
+    frame(&mut runtime);
+    let old = runtime.tree().figure_bounds(thumb).unwrap();
+    calls.store(0, Ordering::Relaxed);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(393.0, 200.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_released(393.0, 200.0, MouseButton::Left);
+    frame(&mut runtime);
+    assert!(model.value() > 30.0);
+    assert!(runtime.tree().figure_bounds(thumb).unwrap().x > old.x);
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
+    assert!(runtime.take_deferred_mutation_errors().is_empty());
+
+    model.set_extent(30.0).unwrap();
+    frame(&mut runtime);
+    assert!(runtime.tree().figure_bounds(thumb).unwrap().width > old.width);
+    assert!(calls.load(Ordering::Relaxed) > 0);
+}
+
+#[test]
 fn external_model_changes_and_replacement_retire_old_model() {
     let (mut runtime, bar, thumb, model) = fixture(ScrollOrientation::Horizontal);
     model.set_value(90.0).unwrap();
@@ -405,4 +488,97 @@ fn external_activity_shares_clock_and_panic_boundary() {
             assert_eq!(*polls.lock().unwrap(), vec![MonotonicTime::from_micros(10)]);
         }
     }
+}
+
+#[test]
+fn thumb_measurement_cannot_replace_the_complete_layout_range_input() {
+    use novadraw::{
+        figure::{FigureMeasurement, MeasureConstraints},
+        geometry::Dimension,
+        layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery},
+        runtime::FramePreparation,
+    };
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct ThumbMinimum {
+        model: Arc<DefaultRangeModel>,
+        armed: Arc<AtomicBool>,
+    }
+    impl LayoutManager for ThumbMinimum {
+        fn preferred_measurement(
+            &self,
+            _: FigureId,
+            _: MeasureConstraints,
+            _: &LayoutSceneQuery<'_>,
+        ) -> Result<FigureMeasurement, LayoutError> {
+            Ok(FigureMeasurement::new(12.0, 12.0, None))
+        }
+        fn minimum_size(
+            &self,
+            _: FigureId,
+            _: MeasureConstraints,
+            _: &LayoutSceneQuery<'_>,
+        ) -> Result<Dimension, LayoutError> {
+            if self.armed.swap(false, Ordering::Relaxed) {
+                self.model.set_value(60.0).unwrap();
+            }
+            Ok(Dimension::new(12.0, 12.0))
+        }
+        fn layout(
+            &mut self,
+            _: FigureId,
+            _: &LayoutSceneQuery<'_>,
+            _: &mut LayoutOutput,
+        ) -> Result<(), LayoutError> {
+            Ok(())
+        }
+    }
+
+    let (mut runtime, bar, thumb, model) = fixture(ScrollOrientation::Horizontal);
+    let armed = Arc::new(AtomicBool::new(false));
+    runtime
+        .figure(thumb)
+        .unwrap()
+        .set_layout_manager(Box::new(ThumbMinimum {
+            model: model.clone(),
+            armed: armed.clone(),
+        }))
+        .unwrap();
+    frame(&mut runtime);
+    let before = runtime.tree().figure_bounds(thumb).unwrap();
+    armed.store(true, Ordering::Relaxed);
+    // Resize invalidates the thumb's minimum measurement cache.
+    runtime
+        .figure(bar)
+        .unwrap()
+        .set_bounds(Rectangle::new(30.0, 40.0, 220.0, 14.0))
+        .unwrap();
+    let result = runtime.frames().prepare_submission(
+        SurfaceInfo {
+            logical_width: 400.0,
+            logical_height: 400.0,
+            pixel_width: 400,
+            pixel_height: 400,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    );
+    let FramePreparation::Error(error) = result else {
+        panic!("changed complete range must reject the candidate: {result:?}");
+    };
+    let mut source: &(dyn std::error::Error + 'static) = &error;
+    loop {
+        if let Some(input) = source.downcast_ref::<novadraw::figure::PreparationInputError>() {
+            assert_eq!(input.source, Some(bar));
+            assert!(matches!(
+                input.kind,
+                novadraw::figure::PreparationInputErrorKind::Changed { .. }
+            ));
+            break;
+        }
+        source = source.source().expect("original range input error chain");
+    }
+    assert_eq!(runtime.tree().figure_bounds(thumb).unwrap(), before);
+    frame(&mut runtime);
+    assert!(runtime.tree().figure_bounds(thumb).unwrap().x > before.x);
 }

@@ -1,7 +1,7 @@
 use crate::geometry::Point;
 
 use super::focus::FocusChange;
-use crate::FigureId;
+use crate::{FigureId, tree::CoordinateQueryError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseButton {
@@ -266,11 +266,12 @@ pub enum Event {
 }
 
 /// Observable result of dispatching one normalized input event.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DispatchOutcome {
     target: Option<FigureId>,
     handled: bool,
     capture: Option<FigureId>,
+    error: Option<CoordinateQueryError>,
 }
 
 impl DispatchOutcome {
@@ -279,35 +280,71 @@ impl DispatchOutcome {
             target,
             handled,
             capture,
+            error: None,
         }
     }
 
     /// Returns the Figure that received the event.
-    pub const fn target(self) -> Option<FigureId> {
+    pub const fn target(&self) -> Option<FigureId> {
         self.target
     }
 
     /// Returns whether a Figure handler or built-in Runtime fallback handled the event.
-    pub const fn is_handled(self) -> bool {
+    pub const fn is_handled(&self) -> bool {
         self.handled
     }
 
     /// Returns the primary pointer capture after dispatch.
-    pub const fn capture(self) -> Option<FigureId> {
+    pub const fn capture(&self) -> Option<FigureId> {
         self.capture
+    }
+
+    pub fn error(&self) -> Option<&CoordinateQueryError> {
+        self.error.as_ref()
+    }
+
+    pub(crate) fn failed(error: CoordinateQueryError, capture: Option<FigureId>) -> Self {
+        Self {
+            target: None,
+            handled: false,
+            capture,
+            error: Some(error),
+        }
     }
 }
 
 pub trait DispatchContext {
-    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId>;
-    fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+    /// Starts one operation before resolving targets or invoking handlers.
+    fn begin_coordinate_operation(&mut self) {}
+    fn find_mouse_event_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, CoordinateQueryError>;
+    fn find_cursor_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
         self.find_mouse_event_target_at(x, y)
     }
-    fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
+    fn find_hover_source_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
         self.find_cursor_target_at(x, y)
     }
-    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+    fn find_gesture_target_at(
+        &self,
+        x: f64,
+        y: f64,
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
         self.find_mouse_event_target_at(x, y)
+    }
+    /// Checks coordinates actually consumed since this dispatch began.
+    fn validate_coordinates(&self) -> Result<(), CoordinateQueryError> {
+        Ok(())
     }
     fn mouse_target(&self) -> Option<FigureId>;
     fn set_mouse_target(&mut self, id: Option<FigureId>);
@@ -357,34 +394,44 @@ impl EventDispatcher {
         phase: GesturePhase,
         x: f64,
         y: f64,
-    ) -> Option<FigureId> {
+    ) -> Result<Option<FigureId>, CoordinateQueryError> {
         if phase == GesturePhase::Impulse || session_id == GestureSessionId::IMPULSE {
             return ctx.find_gesture_target_at(x, y);
         }
         if phase.starts_session() {
-            let target = ctx.find_gesture_target_at(x, y);
+            let target = ctx.find_gesture_target_at(x, y)?;
             ctx.set_gesture_target(session_id, target);
-            return target;
+            return Ok(target);
         }
         if ctx.has_gesture_session(session_id) {
-            ctx.gesture_target(session_id)
+            Ok(ctx.gesture_target(session_id))
         } else {
-            let target = ctx.find_gesture_target_at(x, y);
+            let target = ctx.find_gesture_target_at(x, y)?;
             ctx.set_gesture_target(session_id, target);
-            target
+            Ok(target)
         }
     }
 
-    fn refresh_mouse_target(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+    fn refresh_mouse_target(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        x: f64,
+        y: f64,
+    ) -> Result<(), CoordinateQueryError> {
         let captured = ctx.captured();
-        ctx.set_cursor_target(ctx.find_cursor_target_at(x, y));
-        let hit_target = if captured.is_none() {
-            let hit_target = ctx.find_mouse_event_target_at(x, y);
-            ctx.set_hover_source(ctx.find_hover_source_at(x, y));
-            hit_target
+        // Resolve every coordinate before publishing any target transition.
+        let cursor_target = ctx.find_cursor_target_at(x, y)?;
+        let (hit_target, hover_source) = if captured.is_none() {
+            (
+                ctx.find_mouse_event_target_at(x, y)?,
+                ctx.find_hover_source_at(x, y)?,
+            )
         } else {
-            None
+            (None, ctx.hover_source())
         };
+        ctx.validate_coordinates()?;
+        ctx.set_cursor_target(cursor_target);
+        ctx.set_hover_source(hover_source);
         let next_target = captured.or(hit_target);
         let previous_target = ctx.mouse_target();
         if previous_target != next_target {
@@ -397,6 +444,7 @@ impl EventDispatcher {
                     MouseButton::None,
                 ));
                 let _ = ctx.dispatch_to_target(Some(previous_target), &exited);
+                ctx.validate_coordinates()?;
             }
             ctx.set_mouse_target(next_target);
             if let Some(next_target) = next_target {
@@ -408,7 +456,20 @@ impl EventDispatcher {
                     MouseButton::None,
                 ));
                 let _ = ctx.dispatch_to_target(Some(next_target), &entered);
+                ctx.validate_coordinates()?;
             }
+        }
+        Ok(())
+    }
+
+    fn outcome(
+        ctx: &dyn DispatchContext,
+        target: Option<FigureId>,
+        handled: bool,
+    ) -> DispatchOutcome {
+        match ctx.validate_coordinates() {
+            Ok(()) => DispatchOutcome::new(target, handled, ctx.captured()),
+            Err(error) => DispatchOutcome::failed(error, ctx.captured()),
         }
     }
 
@@ -450,17 +511,26 @@ impl EventDispatcher {
         y: f64,
         button: MouseButton,
     ) -> DispatchOutcome {
-        self.refresh_mouse_target(ctx, x, y);
+        ctx.begin_coordinate_operation();
+        if let Err(error) = self.refresh_mouse_target(ctx, x, y) {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(kind, x, y, button));
         let handled = ctx.dispatch_to_target(target, &event);
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 }
 
 impl EventDispatcher {
-    pub fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
-        self.refresh_mouse_target(ctx, x, y);
+    pub fn receive(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        x: f64,
+        y: f64,
+    ) -> Result<(), CoordinateQueryError> {
+        ctx.begin_coordinate_operation();
+        self.refresh_mouse_target(ctx, x, y)
     }
 
     pub fn dispatch_mouse_pressed(
@@ -470,10 +540,16 @@ impl EventDispatcher {
         y: f64,
         button: MouseButton,
     ) -> DispatchOutcome {
-        self.refresh_mouse_target(ctx, x, y);
+        ctx.begin_coordinate_operation();
+        if let Err(error) = self.refresh_mouse_target(ctx, x, y) {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(MouseEventKind::Pressed, x, y, button));
         let handled = ctx.dispatch_to_target(target, &event);
+        if let Err(error) = ctx.validate_coordinates() {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         if handled {
             ctx.set_captured(target);
             if let Some(target) = target {
@@ -483,7 +559,7 @@ impl EventDispatcher {
                 self.update_focus(ctx, target);
             }
         }
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn dispatch_mouse_released(
@@ -493,16 +569,21 @@ impl EventDispatcher {
         y: f64,
         button: MouseButton,
     ) -> DispatchOutcome {
-        self.refresh_mouse_target(ctx, x, y);
+        ctx.begin_coordinate_operation();
+        if let Err(error) = self.refresh_mouse_target(ctx, x, y) {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(MouseEventKind::Released, x, y, button));
         let handled = ctx.dispatch_to_target(target, &event);
         if let Some(captured) = ctx.captured() {
             ctx.set_pressed(captured, false);
             ctx.set_captured(None);
-            self.refresh_mouse_target(ctx, x, y);
+            if let Err(error) = self.refresh_mouse_target(ctx, x, y) {
+                return DispatchOutcome::failed(error, ctx.captured());
+            }
         }
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn dispatch_mouse_moved(
@@ -520,6 +601,7 @@ impl EventDispatcher {
     }
 
     pub fn dispatch_pointer_exited(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+        ctx.begin_coordinate_operation();
         if let Some(captured) = ctx.captured() {
             ctx.set_pressed(captured, false);
             ctx.set_captured(None);
@@ -555,7 +637,10 @@ impl EventDispatcher {
         x: f64,
         y: f64,
     ) -> DispatchOutcome {
-        self.refresh_mouse_target(ctx, x, y);
+        ctx.begin_coordinate_operation();
+        if let Err(error) = self.refresh_mouse_target(ctx, x, y) {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let event = Event::Mouse(MouseEvent::new(
             MouseEventKind::Hover,
             x,
@@ -564,7 +649,7 @@ impl EventDispatcher {
         ));
         let target = ctx.mouse_target();
         let handled = ctx.dispatch_to_target(target, &event);
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn dispatch_mouse_wheel(
@@ -583,6 +668,7 @@ impl EventDispatcher {
         ctx: &mut dyn DispatchContext,
         wheel_event: WheelEvent,
     ) -> DispatchOutcome {
+        ctx.begin_coordinate_operation();
         if !wheel_event.x.is_finite()
             || !wheel_event.y.is_finite()
             || !wheel_event.delta_x.is_finite()
@@ -592,15 +678,22 @@ impl EventDispatcher {
         }
         let session_id = wheel_event.session_id;
         let phase = wheel_event.phase;
-        let target = self.gesture_target(ctx, session_id, phase, wheel_event.x, wheel_event.y);
+        let target = match self.gesture_target(ctx, session_id, phase, wheel_event.x, wheel_event.y)
+        {
+            Ok(target) => target,
+            Err(error) => return DispatchOutcome::failed(error, ctx.captured()),
+        };
         let event = Event::Wheel(wheel_event);
         let handled = ctx.dispatch_to_target(target, &event);
+        if let Err(error) = ctx.validate_coordinates() {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let handled =
             handled || target.is_some_and(|target| ctx.apply_scroll_fallback(target, &wheel_event));
         if phase.ends_session() {
             ctx.clear_gesture_target(session_id);
         }
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn dispatch_zoom(
@@ -608,21 +701,28 @@ impl EventDispatcher {
         ctx: &mut dyn DispatchContext,
         zoom_event: ZoomEvent,
     ) -> DispatchOutcome {
+        ctx.begin_coordinate_operation();
         if !zoom_event.is_valid() {
             return DispatchOutcome::default();
         }
         let session_id = zoom_event.session_id;
         let phase = zoom_event.phase;
         let initial_target =
-            self.gesture_target(ctx, session_id, phase, zoom_event.x, zoom_event.y);
+            match self.gesture_target(ctx, session_id, phase, zoom_event.x, zoom_event.y) {
+                Ok(target) => target,
+                Err(error) => return DispatchOutcome::failed(error, ctx.captured()),
+            };
         let event = Event::Zoom(zoom_event);
         let handled = ctx.dispatch_to_target(initial_target, &event);
+        if let Err(error) = ctx.validate_coordinates() {
+            return DispatchOutcome::failed(error, ctx.captured());
+        }
         let handled = handled
             || initial_target.is_some_and(|target| ctx.apply_zoom_fallback(target, &zoom_event));
         if phase.ends_session() {
             ctx.clear_gesture_target(session_id);
         }
-        DispatchOutcome::new(initial_target, handled, ctx.captured())
+        Self::outcome(ctx, initial_target, handled)
     }
 
     pub fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
@@ -635,6 +735,7 @@ impl EventDispatcher {
         key: Key,
         modifiers: KeyModifiers,
     ) -> DispatchOutcome {
+        ctx.begin_coordinate_operation();
         let target = ctx.focus_owner();
         let event = Event::Key(KeyEvent {
             kind: KeyEventKind::Pressed,
@@ -642,7 +743,7 @@ impl EventDispatcher {
             modifiers,
         });
         let handled = ctx.dispatch_to_target(target, &event);
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn dispatch_key_released(
@@ -651,6 +752,7 @@ impl EventDispatcher {
         key: Key,
         modifiers: KeyModifiers,
     ) -> DispatchOutcome {
+        ctx.begin_coordinate_operation();
         let target = ctx.focus_owner();
         let event = Event::Key(KeyEvent {
             kind: KeyEventKind::Released,
@@ -658,7 +760,7 @@ impl EventDispatcher {
             modifiers,
         });
         let handled = ctx.dispatch_to_target(target, &event);
-        DispatchOutcome::new(target, handled, ctx.captured())
+        Self::outcome(ctx, target, handled)
     }
 
     pub fn request_focus(
@@ -729,16 +831,28 @@ mod tests {
     }
 
     impl DispatchContext for MockDispatchContext {
-        fn find_mouse_event_target_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
-            self.hit_target
+        fn find_mouse_event_target_at(
+            &self,
+            _x: f64,
+            _y: f64,
+        ) -> Result<Option<FigureId>, CoordinateQueryError> {
+            Ok(self.hit_target)
         }
 
-        fn find_cursor_target_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
-            self.cursor_hit
+        fn find_cursor_target_at(
+            &self,
+            _x: f64,
+            _y: f64,
+        ) -> Result<Option<FigureId>, CoordinateQueryError> {
+            Ok(self.cursor_hit)
         }
 
-        fn find_hover_source_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
-            self.hover_hit
+        fn find_hover_source_at(
+            &self,
+            _x: f64,
+            _y: f64,
+        ) -> Result<Option<FigureId>, CoordinateQueryError> {
+            Ok(self.hover_hit)
         }
 
         fn mouse_target(&self) -> Option<FigureId> {
@@ -818,7 +932,7 @@ mod tests {
         ctx.cursor_hit = Some(target);
         ctx.hover_hit = Some(target);
 
-        dispatcher.receive(&mut ctx, 10.0, 20.0);
+        dispatcher.receive(&mut ctx, 10.0, 20.0).unwrap();
 
         assert_eq!(ctx.mouse_target(), Some(target));
         assert_eq!(ctx.cursor_target(), Some(target));
@@ -851,7 +965,7 @@ mod tests {
         ctx.cursor_hit = Some(visual_hit);
         ctx.hover_hit = Some(visual_hit);
 
-        dispatcher.receive(&mut ctx, 2.0, 2.0);
+        dispatcher.receive(&mut ctx, 2.0, 2.0).unwrap();
 
         assert_eq!(ctx.mouse_target(), Some(event_target));
         assert_eq!(ctx.cursor_target(), Some(visual_hit));
@@ -872,7 +986,7 @@ mod tests {
         ctx.dispatched.clear();
         ctx.cursor_hit = Some(event_target);
         ctx.hover_hit = Some(event_target);
-        dispatcher.receive(&mut ctx, 8.0, 8.0);
+        dispatcher.receive(&mut ctx, 8.0, 8.0).unwrap();
 
         assert!(ctx.dispatched.is_empty());
         assert_eq!(ctx.mouse_target(), Some(event_target));

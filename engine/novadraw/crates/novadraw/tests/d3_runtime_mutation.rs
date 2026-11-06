@@ -292,7 +292,10 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(top));
+    assert_eq!(
+        runtime.tree().hit_test_simple((30.0, 30.0)).unwrap(),
+        Some(top)
+    );
     assert!(
         runtime
             .figure(root)
@@ -301,7 +304,10 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
             .unwrap()
     );
     assert_eq!(runtime.tree().child_order(root), Ok(vec![top, bottom]));
-    assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(bottom));
+    assert_eq!(
+        runtime.tree().hit_test_simple((30.0, 30.0)).unwrap(),
+        Some(bottom)
+    );
     assert!(
         !runtime
             .figure(root)

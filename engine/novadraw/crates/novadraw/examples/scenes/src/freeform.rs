@@ -362,11 +362,16 @@ mod tests {
         assert_eq!(
             demo.runtime
                 .tree()
-                .hit_test_simple((overlap.x(), overlap.y())),
+                .hit_test_simple((overlap.x(), overlap.y()))
+                .unwrap(),
             Some(demo.upper_overlap)
         );
         let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
-        let target = demo.runtime.tree().hit_test_simple((empty.x(), empty.y()));
+        let target = demo
+            .runtime
+            .tree()
+            .hit_test_simple((empty.x(), empty.y()))
+            .unwrap();
         assert_ne!(target, Some(demo.content_layer));
         assert_ne!(target, Some(demo.overlay_layer));
     }
