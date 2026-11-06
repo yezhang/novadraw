@@ -64,6 +64,7 @@ pub struct NdCanvas {
     transform_floor: Option<Affine2D>,
     recording_budget: Option<(usize, usize)>,
     coverage_outset: Option<f64>,
+    damage_selection_enabled: bool,
     text_paint_statistics: crate::graphics::TextPaintStatistics,
 }
 
@@ -86,6 +87,7 @@ impl NdCanvas {
             transform_floor: None,
             recording_budget: None,
             coverage_outset: None,
+            damage_selection_enabled: true,
             text_paint_statistics: Default::default(),
         }
     }
@@ -110,6 +112,15 @@ impl NdCanvas {
     pub(crate) fn set_coverage_outset(&mut self, outset: Option<f64>) {
         debug_assert!(self.commands.is_empty());
         self.coverage_outset = outset.filter(|v| v.is_finite() && *v >= 0.0);
+    }
+
+    pub(crate) fn set_damage_selection_enabled(&mut self, enabled: bool) {
+        debug_assert!(self.commands.is_empty());
+        self.damage_selection_enabled = enabled;
+    }
+
+    pub(crate) fn damage_selection_enabled(&self) -> bool {
+        self.damage_selection_enabled
     }
 
     /// Conservative geometric clip in the current local domain; None means unknown/unbounded.
@@ -159,9 +170,29 @@ impl NdCanvas {
     }
 
     pub(crate) fn covered_text_clip(&self, origin: Point) -> Option<Rectangle> {
-        self.coverage_outset?;
+        let outset = self.coverage_outset?;
+        // Damage constrains output selection, not the clip observable by painters.
+        // Only the existing filled-path coverage certificate permits this pruning.
+        let damage = self
+            .damage_selection_enabled
+            .then(|| self.damage.union())
+            .flatten()
+            .and_then(|bounds| {
+                let expanded = Rectangle::new(
+                    bounds.x - outset,
+                    bounds.y - outset,
+                    bounds.width + outset * 2.0,
+                    bounds.height + outset * 2.0,
+                );
+                crate::text::outline::paint_index::transformed_bounds(expanded, Affine2D::IDENTITY)
+            });
+        let bounds = match (self.state.covered_clip_bounds, damage) {
+            (Some(clip), Some(damage)) => Self::intersect_clip(Some(clip), damage)?,
+            (Some(bounds), None) | (None, Some(bounds)) => bounds,
+            (None, None) => return None,
+        };
         let local = crate::text::outline::paint_index::transformed_bounds(
-            self.state.covered_clip_bounds?,
+            bounds,
             self.state.transform.inverse()?,
         )?;
         let result = Rectangle::new(
@@ -1281,6 +1312,113 @@ impl NdCanvas {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "release-only local recording cost probe"]
+    fn local_damage_recording_cost_probe() {
+        use crate::text::outline::{OutlineTextEngine, SkrifaOutlineProvider};
+        use crate::text::shaping::{ParleyTextEngine, TextLayoutEngine};
+        use crate::text::{BuiltinFont, FontDescriptor, TextConstraints};
+        let mut engine = OutlineTextEngine::new(
+            Box::new(ParleyTextEngine::new()),
+            Box::new(SkrifaOutlineProvider),
+        );
+        let font = BuiltinFont::Inter;
+        let resource = crate::render::ResourceId::new(uuid::Uuid::nil(), 1);
+        engine.register_font(resource, 1, font.bytes()).unwrap();
+        let layout = engine
+            .layout(
+                &"AB CD EF GH\n".repeat(2000),
+                &FontDescriptor::new(font.family(), 16.0).unwrap(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        let damage = Rectangle::new(4.0, 8.0, 2.0, 12.0);
+        let record = |local: bool| {
+            let mut canvas = NdCanvas::new();
+            canvas.set_coverage_outset(Some(2.0));
+            canvas.clip_rect(0.0, 0.0, 100.0, 800.0);
+            canvas.set_fill_paint(Color::BLACK.into());
+            if local {
+                canvas.damage_mut().set_union(damage);
+            }
+            canvas.fill_text_layout(&layout, 0.0, 0.0);
+            // Baseline attaches the same damage after recording, as before this slice.
+            canvas.damage_mut().set_union(damage);
+            canvas
+        };
+        let mut samples = [Vec::new(), Vec::new()];
+        for sample in 0..420 {
+            for index in [sample % 2, 1 - sample % 2] {
+                let start = std::time::Instant::now();
+                let canvas = record(index == 1);
+                let elapsed = start.elapsed().as_secs_f64() * 1_000_000.0;
+                std::hint::black_box(&canvas);
+                if sample >= 20 {
+                    samples[index].push(elapsed);
+                }
+            }
+        }
+        if let Ok(path) = std::env::var("NOVADRAW_LOCAL_DAMAGE_SAMPLES") {
+            let mut csv = String::from("sample,baseline_us,local_us\n");
+            for (sample, (baseline, local)) in samples[0].iter().zip(&samples[1]).enumerate() {
+                use std::fmt::Write;
+                writeln!(csv, "{sample},{baseline},{local}").unwrap();
+            }
+            std::fs::write(path, csv).unwrap();
+        }
+        for (index, times) in samples.iter_mut().enumerate() {
+            times.sort_by(f64::total_cmp);
+            let canvas = record(index == 1);
+            let operations: usize = canvas
+                .commands()
+                .iter()
+                .map(|command| match &command.kind {
+                    RenderCommandKind::FillPath { path, .. } => path.operations().len(),
+                    _ => 0,
+                })
+                .sum();
+            println!(
+                "local={} samples={} p50_us={:.3} p95_us={:.3} selected={} path_ops={}",
+                index == 1,
+                times.len(),
+                times[times.len() / 2],
+                times[times.len() * 95 / 100],
+                canvas.text_paint_statistics().selected_glyphs,
+                operations
+            );
+        }
+    }
+
+    #[test]
+    fn damage_selection_preserves_observable_clip_and_handles_transform_reset() {
+        let mut canvas = NdCanvas::new();
+        canvas.set_coverage_outset(Some(2.0));
+        canvas
+            .damage_mut()
+            .set_union(Rectangle::new(20.0, 30.0, 10.0, 10.0));
+        canvas.clip_rect(0.0, 0.0, 100.0, 100.0);
+        assert_eq!(
+            canvas.effective_clip_bounds(),
+            Some(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+        );
+        canvas.translate(10.0, 20.0);
+        assert_eq!(
+            canvas.covered_text_clip(Point::new(3.0, 4.0)),
+            Some(Rectangle::new(5.0, 4.0, 14.0, 14.0))
+        );
+        canvas.reset_clip();
+        assert_eq!(canvas.effective_clip_bounds(), None);
+        assert_eq!(
+            canvas.covered_text_clip(Point::ZERO),
+            Some(Rectangle::new(8.0, 8.0, 14.0, 14.0))
+        );
+        canvas.set_transform(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+        assert_eq!(canvas.covered_text_clip(Point::ZERO), None);
+        canvas.reset_transform();
+        canvas.damage_mut().set_full();
+        assert_eq!(canvas.covered_text_clip(Point::ZERO), None);
+    }
 
     #[test]
     fn final_font_validation_checks_later_runs_and_current_resource_status() {

@@ -345,6 +345,117 @@ fn damage_test_run(id: u32) -> GlyphRun {
 }
 
 #[test]
+fn core_outline_damage_selection_preserves_repaired_pixels() {
+    use novadraw::figure::Figure;
+    use novadraw::graphics::{GraphicsError, PaintContext};
+    use novadraw::runtime::Runtime;
+    use novadraw::text::{
+        BuiltinFont, FontDescriptor, TextConstraints, TextLayout,
+        outline::{OutlineTextEngine, SkrifaOutlineProvider},
+        shaping::{ParleyTextEngine, TextLayoutEngine},
+    };
+    struct TextFigure(TextLayout);
+    impl Figure for TextFigure {
+        fn name(&self) -> &'static str {
+            "LocalOutlineDamageOracle"
+        }
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 64.0, 64.0)
+        }
+        fn paint(&self, paint: &mut PaintContext<'_>, _: Rectangle) -> Result<(), GraphicsError> {
+            paint.set_fill_paint(Color::WHITE);
+            paint.fill_text(&self.0, Point::ZERO)
+        }
+    }
+    let mut gpu = Gpu::new();
+    for scale in [1.0, 1.5, 2.0] {
+        let mut runtime = Runtime::empty();
+        let id = runtime
+            .resources()
+            .register_builtin_font(BuiltinFont::Inter)
+            .unwrap();
+        let mut text = OutlineTextEngine::new(
+            Box::new(ParleyTextEngine::new()),
+            Box::new(SkrifaOutlineProvider),
+        );
+        text.register_font(id.resource_id(), 1, BuiltinFont::Inter.bytes())
+            .unwrap();
+        let layout = text
+            .layout(
+                &"AB CD EF\n".repeat(100),
+                &FontDescriptor::new(BuiltinFont::Inter.family(), 16.0).unwrap(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        let root = runtime.set_contents(Box::new(TextFigure(layout))).unwrap();
+        let surface = SurfaceInfo {
+            logical_width: 64.0 / scale,
+            logical_height: 64.0 / scale,
+            pixel_width: 64,
+            pixel_height: 64,
+            scale_factor: scale,
+        };
+        let caps = BackendCapabilities::RETAINED_PARTIAL.with_filled_path_coverage_outset(2);
+        let full = runtime
+            .frames()
+            .prepare_submission(surface, caps)
+            .into_ready()
+            .unwrap();
+        let mut encoder = SceneEncoder::new(scale);
+        encoded(&mut encoder, &full);
+        let expected = gpu.render(&encoder.scene);
+        let acknowledgement = runtime
+            .frames()
+            .complete_submission(
+                full.session_id,
+                full.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .unwrap();
+        assert_eq!(
+            acknowledgement,
+            novadraw::runtime::SubmissionAcknowledgement::Presented
+        );
+        let damage = Rectangle::new(4.3, 8.2, 5.2, 12.4);
+        runtime.figure(root).unwrap().repaint(Some(damage)).unwrap();
+        let partial = runtime
+            .frames()
+            .prepare_submission(surface, caps)
+            .into_ready()
+            .unwrap();
+        assert!(!partial.damage.is_full());
+        encoded(&mut encoder, &partial);
+        let actual = gpu.render(&encoder.scene);
+        let operations = |frame: &RenderSubmission| -> usize {
+            frame
+                .commands
+                .iter()
+                .map(|c| match &c.kind {
+                    Kind::FillPath { path, .. } => path.operations().len(),
+                    _ => 0,
+                })
+                .sum()
+        };
+        assert!(operations(&partial) < operations(&full));
+        let (x, y, w, h) = damage_rect_to_copy_region(damage, 64, 64, scale).unwrap();
+        let mut nonempty = false;
+        for py in y..y + h {
+            for px in x..x + w {
+                let offset = ((py * 64 + px) * 4) as usize;
+                nonempty |= expected[offset + 3] > 0;
+                for channel in 0..4 {
+                    assert!(
+                        expected[offset + channel].abs_diff(actual[offset + channel]) <= 1,
+                        "dpi={scale} pixel=({px},{py}) channel={channel}"
+                    );
+                }
+            }
+        }
+        assert!(nonempty);
+    }
+}
+
+#[test]
 fn damage_selection_honors_clip_restore_reset_and_unknown_stroke() {
     use novadraw::render::{BuiltinFont, PositionedGlyph};
     use novadraw::text::shaping::GlyphRange;

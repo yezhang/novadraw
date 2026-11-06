@@ -82,6 +82,20 @@ fn drawing(
     Vec<novadraw::render::RenderCommand>,
     TextPaintStatistics,
 ) {
+    drawing_after_repaint(provider, stroke, certified, None, false)
+}
+
+fn drawing_after_repaint(
+    provider: Option<Box<dyn GlyphOutlineProvider>>,
+    stroke: bool,
+    certified: bool,
+    damage: Option<Rectangle>,
+    force_full: bool,
+) -> (
+    TextLayout,
+    Vec<novadraw::render::RenderCommand>,
+    TextPaintStatistics,
+) {
     let mut runtime = Runtime::empty();
     let id = runtime
         .resources()
@@ -105,7 +119,7 @@ fn drawing(
         )
         .unwrap();
     let work = Arc::new(Mutex::new(TextPaintStatistics::default()));
-    runtime
+    let contents = runtime
         .set_contents(Box::new(TextDrawing {
             layout: layout.clone(),
             stroke,
@@ -121,22 +135,93 @@ fn drawing(
     } else {
         capabilities
     };
-    let frame = runtime
+    let surface = SurfaceInfo {
+        logical_width: 128.0,
+        logical_height: 128.0,
+        pixel_width: 128,
+        pixel_height: 128,
+        scale_factor: 1.0,
+    };
+    let mut frame = runtime
         .frames()
-        .prepare_submission(
-            SurfaceInfo {
-                logical_width: 128.0,
-                logical_height: 128.0,
-                pixel_width: 128,
-                pixel_height: 128,
-                scale_factor: 1.0,
-            },
-            capabilities,
-        )
+        .prepare_submission(surface, capabilities)
         .into_ready()
         .unwrap();
+    if let Some(damage) = damage {
+        let acknowledgement = runtime
+            .frames()
+            .complete_submission(
+                frame.session_id,
+                frame.frame_id,
+                Ok(novadraw::render::RenderDisposition::Presented),
+            )
+            .unwrap();
+        assert_eq!(
+            acknowledgement,
+            novadraw::runtime::SubmissionAcknowledgement::Presented
+        );
+        runtime
+            .figure(contents)
+            .unwrap()
+            .repaint(Some(damage))
+            .unwrap();
+        if force_full {
+            runtime.frames().request_full_redraw();
+        }
+        frame = runtime
+            .frames()
+            .prepare_submission(surface, capabilities)
+            .into_ready()
+            .unwrap();
+        assert_eq!(frame.damage.is_full(), force_full);
+    }
     let work = *work.lock().unwrap();
     (layout, frame.commands, work)
+}
+
+#[test]
+fn local_damage_reduces_outline_generation_and_full_promotion_restores_output() {
+    let (_, viewport, viewport_work) = drawing(Some(Box::new(SkrifaOutlineProvider)), false, true);
+    let damage = Rectangle::new(0.0, 0.0, 100.0, 1.0);
+    let (_, partial, partial_work) = drawing_after_repaint(
+        Some(Box::new(SkrifaOutlineProvider)),
+        false,
+        true,
+        Some(damage),
+        false,
+    );
+    assert!(path_operations(&partial) < path_operations(&viewport));
+    assert!(partial_work.selected_glyphs < viewport_work.selected_glyphs);
+    let (_, promoted, _) = drawing_after_repaint(
+        Some(Box::new(SkrifaOutlineProvider)),
+        false,
+        true,
+        Some(damage),
+        true,
+    );
+    assert_eq!(path_operations(&promoted), path_operations(&viewport));
+
+    let (_, uncertified, _) = drawing_after_repaint(
+        Some(Box::new(SkrifaOutlineProvider)),
+        false,
+        false,
+        Some(damage),
+        false,
+    );
+    let (_, full_uncertified, _) = drawing(Some(Box::new(SkrifaOutlineProvider)), false, false);
+    assert_eq!(
+        path_operations(&uncertified),
+        path_operations(&full_uncertified)
+    );
+    let (_, stroke, _) = drawing_after_repaint(
+        Some(Box::new(SkrifaOutlineProvider)),
+        true,
+        true,
+        Some(damage),
+        false,
+    );
+    let (_, full_stroke, _) = drawing(Some(Box::new(SkrifaOutlineProvider)), true, true);
+    assert_eq!(path_operations(&stroke), path_operations(&full_stroke));
 }
 
 fn path_operations(commands: &[novadraw::render::RenderCommand]) -> usize {

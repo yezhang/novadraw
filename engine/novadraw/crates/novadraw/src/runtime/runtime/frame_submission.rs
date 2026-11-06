@@ -1064,6 +1064,7 @@ impl Runtime {
                     &mut self.updates,
                     presentation.as_ref(),
                     coverage_outset,
+                    !force_full_frame && capabilities.supports_partial_damage(),
                 )
             } else if force_full_frame {
                 match self
@@ -1094,7 +1095,12 @@ impl Runtime {
             let promote_partial = canvas.damage().mode() == DamageMode::Partial
                 && !capabilities.supports_partial_damage();
             if force_full_frame || promote_partial {
-                if canvas.damage().mode() == DamageMode::None {
+                // Partial recording may omit certified text outside damage.
+                // Changing the tag cannot recover that output for a Full repair.
+                if canvas.damage().mode() == DamageMode::None
+                    || (canvas.damage().mode() == DamageMode::Partial
+                        && canvas.damage_selection_enabled())
+                {
                     canvas = match self
                         .tree
                         .try_render_with_paint_coverage(presentation.as_ref(), coverage_outset)
