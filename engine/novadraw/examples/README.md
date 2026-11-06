@@ -55,6 +55,7 @@ example target，也不将 GUI 依赖加入 Core／Editor 的 `dev-dependencies`
 | 后端／Native | [`vello-app`](backend/vello-app/) | Vello 原始 API | `cargo run -p vello-app` |
 | 集成／Native | [`winit-canvas-demo`](integration/winit-canvas-demo/README.md) | 双 Canvas、后端与平台桥接 | `cargo run -p winit-canvas-demo` |
 | Richtext／Native | [`rich-text-figure-app`](../crates/novadraw-richtext/examples/native/rich-text-figure-app/README.md) | 静态类图与独立文档型富文本、自有滚动条 | `cargo run -p rich-text-figure-app` |
+| Richtext／Editor／Native | [`richtext-figure-edit-app`](../crates/novadraw-richtext/examples/native/richtext-figure-edit-app/README.md) | 统一会话、专用控制器、选区、composition、文档撤销与编辑成本回放 | `cargo run --release -p richtext-figure-edit-app` |
 | 集成／Web | [`web-validation`](integration/web-validation/README.md) | Core 共享场景与 Editor 浏览器验证 | `./tools/scripts/build_web_validation.sh` |
 
 ## 共享场景

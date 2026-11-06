@@ -42,6 +42,14 @@ cargo xtask verify <suite-id>
 
 单个 Cargo test、应用启动、性能观测和平台构建不再包装成 suite。
 
+ADR-061 控制器验证入口：
+`cargo test -p novadraw-editor --test p2_e02_direct_text_edit_contract`、
+`cargo test --manifest-path tests/consumers/editor-open-protocol/Cargo.toml --lib edit_session`、
+`cargo test -p novadraw-richtext --test edit_controller` 和
+`cargo test -p richtext-figure-edit-app --bin richtext-figure-edit-app`。
+外部数字领域控制器不依赖 TextFlow 或 plain 草稿；样例同时验证独立与嵌入宿主。
+范围与未完成平台项见[验证矩阵](../doc/verification/plans/specialized-edit-controller.md)。
+
 ADR-059 A 使用 [text-stages 独立消费者](consumers/text-stages/README.md)
 验证 typed 分析资产、lease、预算和阶段绑定。
 私有事务入口为 `cargo test -p novadraw --lib text::staged`；

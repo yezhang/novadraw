@@ -70,6 +70,10 @@ Editor／GEF 框架能力补充（分批评审与实施）：
 
 相关入口：
 
+- [ADR-061 统一会话协调与专用编辑控制器](../../adr/adr-061-edit-session-and-specialized-controller-boundary.md)：
+  已接受并实施公开接入；[具体协议](specialized-edit-controller.md)与
+  [验证矩阵](../../verification/plans/specialized-edit-controller.md)分别维护行为和验收范围。
+
 - GEF 外部事实：[`../../reference/gef/`](../../reference/gef/00-index.md)
 - 语义采用账本：[`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)
 - 架构决策：[`../../adr/adr-015-editor-framework-boundary.md`](../../adr/adr-015-editor-framework-boundary.md)

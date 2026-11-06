@@ -365,8 +365,10 @@ DirectTextEditRequest
 -> model notification refresh
 ```
 
-草稿、caret、selection 和 IME composition 属于 Editor session；TextFlow Core 只提供
-immutable layout 上的位置与几何查询；Native/Web adapter 只桥接平台输入和候选窗。
+ADR-061 将活动协调记录与领域状态分开：Viewer 只保留一个会话，草稿、selection
+和 composition 由该会话持有的 `EditController` 管理。plain 控制器使用 TextFlow，
+外部控制器可以消费自己的同版布局；Core 提供场景发布，Native/Web adapter 桥接
+平台输入和候选窗。接入协议见[专用控制器设计](specialized-edit-controller.md)。
 Viewer selection 与 session 内 text selection 不共享状态。完整契约见
 [`p2-direct-text-edit.md`](p2-direct-text-edit.md)。
 
@@ -381,6 +383,7 @@ Viewer selection 与 session 内 text selection 不共享状态。完整契约�
 - `SelectionPolicy`：选择规则；
 - `RootLayerFactory`：root layer 组合；
 - `DirectEditPolicy`：feature snapshot、draft feedback 与模型 Command；
+- `EditController` / `EditSessionPlan`：领域编辑、同版几何、反馈和模型命令适配；
 - `ClipboardAdapter`、`Serializer`：后续产品集成。
 
 ## 12. 失败模式

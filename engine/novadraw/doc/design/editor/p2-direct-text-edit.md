@@ -2,7 +2,13 @@
 
 类型：`normative-design`
 
-能力归属：Core 提供文字交互几何；Editor 拥有 direct-edit 草稿与命令，应用拥有持久模型，platform 适配 IME。
+能力归属：Core 提供文字交互几何；Editor 协调会话与命令，控制器持有领域草稿，
+应用拥有持久模型，platform 适配 IME。
+
+ADR-061 将本页的 plain-text 实现接入统一 `EditController` 会话槽。
+外部领域控制器使用相同的启动、输入、反馈与接受路径；具体协议见
+[专用控制器设计](specialized-edit-controller.md)。本页的 TextFlow 算法仍属于 plain
+控制器，不要求 richtext 转成 TextFlow。
 
 规范效力：`accepted`；P2-T02/E02 的实施与验收状态见
 [P2 backlog](../../roadmap/p2-delta-backlog.md)。
@@ -58,7 +64,7 @@ DirectEditRequest
 | 已提交文本 | application model | Command 修改，模型通知刷新 Figure |
 | TextFlow page 与 layout cache | Core Runtime/Figure | 持久视图投影与不可变布局事实 |
 | cluster、line、caret、selection geometry | immutable text interaction map | 与 layout revision 同生共灭 |
-| draft text、text selection、preedit | Editor direct-edit session | 不进入业务模型或普通 Figure state |
+| draft text、text selection、preedit | 会话持有的专用控制器 | plain 实现为 `DirectTextEditState`；协调记录不复制领域状态 |
 | active feature、source revision | Editor direct-edit session | commit 时进行 stale 校验 |
 | IME enable、candidate area、native focus | platform adapter | 只执行 Editor 发出的 host effect |
 | Viewer part selection | Viewer `SelectionModel` | 与 session 内文本 selection 完全分离 |

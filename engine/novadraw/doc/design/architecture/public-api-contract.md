@@ -226,6 +226,15 @@ scoped facade 的有效范围受一次 Runtime 借用限制。它只持有受限
 
 ## 历史批准依据
 
+ADR-061 的公开编辑增量归属 Editor：`EditControllerKey<C>`、`EditController`、
+`EditSessionDescriptor`、`EditSessionContribution`、`EditSessionPlan` 与
+`StartEditSession` 通过既有 Request/Policy 注册接入同一 Viewer 活动槽。
+`edit_session()` 按 typed key 查询领域状态，`edit_input_snapshot()` 在扩展失败边界
+内生成 host 投影。plain 接口适配同一活动槽，不复制外部控制器的草稿。
+`EditGeometryContext` 输入阶段限制为读取，挂载新反馈时允许目标限定的组件更新。
+richtext 的 `RichTextEditController` 属于扩展包；精确行为见
+[专用控制器设计](../editor/specialized-edit-controller.md)。
+
 原编号 017／018／019／035 的批准范围、修订与原稿统一从
 [归并记录](../../archive/adr-consolidation-2026-11-03.md)追溯。
 当前行为由本页对应章节及其领域专题维护。

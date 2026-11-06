@@ -1211,7 +1211,7 @@ fn window_scene_navigation(
     count: usize,
     alt: bool,
 ) -> Option<usize> {
-    if count == 0 {
+    if count <= 1 {
         return None;
     }
     match key {
@@ -1601,6 +1601,26 @@ fn run_runtime_demo_app_with_options(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn single_window_scene_keeps_editing_navigation_keys() {
+        use super::*;
+        for count in [0, 1] {
+            for key in [
+                KeyCode::ArrowLeft,
+                KeyCode::ArrowRight,
+                KeyCode::Home,
+                KeyCode::End,
+                KeyCode::PageUp,
+                KeyCode::PageDown,
+            ] {
+                assert_eq!(
+                    window_scene_navigation(&PhysicalKey::Code(key), 0, count, false),
+                    None
+                );
+            }
+        }
+    }
+
     #[test]
     fn window_scene_navigation_reserves_plain_arrows_and_leaves_alt_arrows_to_canvas() {
         use super::*;

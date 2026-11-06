@@ -1,0 +1,19 @@
+[package]
+name = "richtext-figure-edit-app"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[features]
+profiling = ["novadraw/perfetto", "dep:perfetto-sdk"]
+
+[dependencies]
+novadraw = { path = "../../../../novadraw" }
+novadraw-richtext = { path = "../../.." }
+novadraw-editor = { path = "../../../../novadraw-editor" }
+novadraw-platform-winit = { path = "../../../../novadraw-platform-winit", features = ["editor"] }
+novadraw-example-support = { path = "../../../../../examples/support" }
+winit.workspace = true
+unicode-segmentation.workspace = true
+serde_json.workspace = true
+perfetto-sdk = { version = "1.2.1", optional = true }

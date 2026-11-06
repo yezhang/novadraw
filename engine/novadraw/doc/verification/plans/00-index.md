@@ -8,6 +8,7 @@
 
 | 文档 | 范围 | 状态 |
 |---|---|---|
+| [specialized-edit-controller.md](specialized-edit-controller.md) | ADR-061 单一会话、专用控制器、外部消费者、richtext 与 Native/成本 | 接口与样例已实施，平台及完整性能验收开放 |
 | [textflow-large-research-app.md](textflow-large-research-app.md) | 独立 Large 原场景、固定回放、CPU／Native 测量与有界导出 | 已实现；自动回放通过，人工交互未验收 |
 | [long-text-benchmark-protocol.md](long-text-benchmark-protocol.md) | 可恢复基线、计时、采样分母、统计与正确性对照 | 承接既有 LT-00 方法；性能验收未关闭 |
 | [flow-assembly-reuse.md](flow-assembly-reuse.md) | FR-02 组装内部归因、开放复用反例与性能／留存矩阵 | 归因完成；修订 1 待复核，生产矩阵未执行 |

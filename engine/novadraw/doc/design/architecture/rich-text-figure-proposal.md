@@ -16,7 +16,14 @@
 `rich-text-figure-app`。app 包含类图和富文本两个内容 Figure，
 富文本区域含自己的滚动条。两个内容共享一个画布和 Runtime，采用左右并排布局。
 用户后续要求已落地：单击选择画布对象，双击富文本进入编辑模式。
-当前编辑模式仅开放组件内滚动，文本输入、光标及文本选择后续逐步添加。
+原双内容样例的编辑模式仅开放组件内滚动。独立
+[`richtext-figure-edit-app`](../../../crates/novadraw-richtext/examples/native/richtext-figure-edit-app/README.md)
+补充段内输入、字素删除、光标及编辑成本回放；ADR-061 随后补充专用控制器、
+文本选区、composition 和 Editor 文档提交／撤销，跨段拓扑编辑仍未交付。
+光标由同一稳定布局快照的 `position`／`caret_bounds` 查询，后者同时验证文档和布局身份。
+样例负责 Native 键盘与 IME 适配。独立组件以源快照提交，嵌入样例以应用模型提交，
+具体状态归属见[ADR-061](../../adr/adr-061-edit-session-and-specialized-controller-boundary.md)；
+完整富文本编辑器仍未交付。
 方案阶段未扫描本项目 Rust 实现；获授权后已核对公开 API 并实现基础切片。
 当前用户要求“先构建核心数据结构，样例 app 的能力从简单开始”，
 因此下文的完整首版目标不等于本切片已经全部交付。

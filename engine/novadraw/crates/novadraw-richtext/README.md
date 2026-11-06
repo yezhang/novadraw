@@ -13,8 +13,11 @@
 - 单段替换与纯文本段内编辑；保留未变段落资产，拒绝非法 UTF-8 端点及错误版本。
 - 持久化平衡高度索引，支持累计位置、逻辑可见范围和单高度更新。
 - Runtime 文字服务上的完整段落排版、不可变绘制快照及同版文本点位查询。
+- `position` 接纳段落光标，`caret_bounds` 返回内容坐标矩形；文档／布局身份失配时拒绝查询。
 - 真实 `RichTextFigure` 外壳、一个正文内容 Figure、内部 ScrollPane 与垂直滚动条。
 - `ReplaceRichTextDocument` typed update 和 `RICH_TEXT_DOCUMENT` 属性通知。
+- `RichTextEditController`：独立草稿、受检选区、同段样式保留编辑、字素删除和
+  composition；通过不可变布局导航。基础包不依赖 Editor，嵌入接入由样例适配器提供。
 
 文档版本包含文档实例、修订号和快照身份。从同一旧版本构造不同候选时，
 即使修订号相同，候选也具有不同身份。相同快照更新返回 NoChange。
@@ -66,7 +69,9 @@ Ropey 1.6.1 使用 MIT 许可证，类型不进入公开签名。当前每段保
 文档目录用共享段落数组；编辑会物化受影响段落并复制目录。跨段 split／merge、
 样式覆盖树、全局文档 Rope 和巨段局部编辑仍待后续切片。
 当前样式输入要求调用方先解析为非重叠 runs，不接受嵌套覆盖。
-下划线、range／caret 对外查询、完整编辑器输入、IME、撤销和 Markdown 均未交付。
+caret 和 range 几何查询、基本编辑控制器已提供；下划线、完整编辑器输入和
+Markdown 仍未交付。文档级撤销由嵌入宿主的 Editor CommandStack 管理，
+组件库不另建历史。键盘和 IME 由编辑样例适配。
 相同文本但不同文档实例仍作为换文档处理，尚无整文档语义去重。
 
 文档入口限制文本字节、段落数和样式数；preparation 使用 Core 共享预算，
@@ -80,14 +85,21 @@ cargo test -p novadraw-richtext --lib
 cargo check -p novadraw-richtext --lib --target wasm32-unknown-unknown
 cargo run -p rich-text-figure-app -- --headless
 cargo run -p rich-text-figure-app
+cargo run --release -p richtext-figure-edit-app
 ```
 
 [单画布样例](examples/native/rich-text-figure-app/README.md)支持类图与富文本对象单击选择，
 双击富文本进入目前仅能滚动的编辑模式。选择和模式入口属于 app 编排；
-组件库的文本输入与光标能力尚未提供。[验证记录](../../doc/verification/reviews/rich-text-figure-foundation-2026-11-05.md)
+组件库提供独立编辑控制器；跨段拓扑编辑、剪贴板与完整交互样式工具仍未提供。
+[验证记录](../../doc/verification/reviews/rich-text-figure-foundation-2026-11-05.md)
 区分代码、截图与尚未完成的人工／性能验收。
 窗口缩放的 CPU 对照与 Perfetto 归因见
 [缩放优化验证](../../doc/verification/reviews/rich-text-figure-resize-optimization-2026-11-05.md)。
 样例默认打开长文压力档，也提供原始 27 段、混合字号／emoji 和超长单段；
 数据规模、样例预算与测量口径见
 [压力验证](../../doc/verification/reviews/rich-text-figure-stress-performance-2026-11-05.md)。
+
+[编辑性能样例](examples/native/richtext-figure-edit-app/README.md)复用独立控制器，
+Native 接入 Editor 统一会话，提供选区、composition、文档提交和撤销重做，
+以及段首／段中／段尾 CPU 回放。跨段改写仍明确拒绝。
+范围与成本见[ADR-061 实施记录](../../doc/verification/reviews/specialized-edit-controller-2026-11-06.md)。

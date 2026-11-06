@@ -2,7 +2,7 @@
 
 类型：`roadmap`
 
-更新：2026-11-05。能力归属：Core、Editor、Inspector、backend、platform 和应用分别列项。
+更新：2026-11-06。能力归属：Core、Editor、Inspector、backend、platform 和应用分别列项。
 本页是 P2 的唯一执行队列，记录已确认增量、当前状态、阻塞和恢复条件；
 运行时契约由 design／ADR 定义，验证依据由 verification 保存。
 
@@ -23,7 +23,17 @@ Editor 的必要 Core 依赖须有 GEF → Draw2D → Core 证据。确认缺失
 `novadraw-richtext` 文档快照、稳定段落、高度索引、typed update、
 内部 ScrollPane 与 `rich-text-figure-app` 已实现；
 app 已按用户后续要求支持单画布对象选择、双击富文本进入仅滚动的编辑模式，
-真实 Runtime 输入验证覆盖焦点互斥、滚轮与滑块 capture；文本输入和光标仍待后续切片。
+真实 Runtime 输入验证覆盖焦点互斥、滚轮与滑块 capture。新增
+[`richtext-figure-edit-app`](../verification/reviews/richtext-figure-edit-app-2026-11-06.md)
+提供段内输入、字素删除、受检光标、IME 提交回放与 CPU 编辑成本展示；
+混合档编辑后的 Native 图像通过，系统输入法和完整编辑器协议仍待验。
+2026-11-06 用户“执行 ADR-061”授权
+[统一会话与专用控制器](../adr/adr-061-edit-session-and-specialized-controller-boundary.md)。
+Editor 公开控制器接入、plain 同槽适配、richtext 独立控制器和嵌入模型样例已实施，
+外部消费者、模型历史及失败回归已有验证；Native 回放图像和 mixed/large CPU
+成本已采样。当前执行与剩余项见[实施记录](../verification/reviews/specialized-edit-controller-2026-11-06.md)；
+人工系统输入法、完整 Bidi/DPI 组合与 giant 成本继续开放。
+此切片不关闭 Core FR-02、长文黑帧或平台发布门禁。
 [基础验证](../verification/reviews/rich-text-figure-foundation-2026-11-05.md)
 覆盖 Native 图像、单元测试、实际 Runtime 源替换／滚动隔离／resize 与 Wasm 编译。
 Parley 官方 `complex-scripts` feature 已启用，缺失 ICU4X 分词模型告警已关闭，
