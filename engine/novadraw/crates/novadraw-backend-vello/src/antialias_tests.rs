@@ -315,284 +315,6 @@ fn encoded(encoder: &mut SceneEncoder, frame: &RenderSubmission) {
     );
 }
 
-fn damage_test_run(id: u32) -> GlyphRun {
-    use novadraw::render::{
-        BuiltinFont, FontDescriptor, ParleyTextEngine, PositionedGlyph, ResourceId, TextConstraints,
-    };
-    use novadraw::text::shaping::GlyphRange;
-    let mut text = ParleyTextEngine::new();
-    text.register_font(
-        ResourceId::new(uuid::Uuid::nil(), 199),
-        1,
-        BuiltinFont::Inter.bytes(),
-    )
-    .unwrap();
-    let layout = text
-        .layout("A", &FontDescriptor::default(), TextConstraints::UNBOUNDED)
-        .unwrap();
-    let mut run = layout.glyph_runs()[0].clone();
-    run.font_size = 18.0;
-    run.glyphs = GlyphRange::new(vec![
-        PositionedGlyph { id, x: 0.0, y: 0.0 },
-        PositionedGlyph {
-            id,
-            x: 400.0,
-            y: 400.0,
-        },
-    ])
-    .unwrap();
-    run
-}
-
-#[test]
-fn damage_selection_honors_clip_restore_reset_and_unknown_stroke() {
-    use novadraw::render::{BuiltinFont, PositionedGlyph};
-    use novadraw::text::shaping::GlyphRange;
-    use skrifa::MetadataProvider;
-    let bytes = BuiltinFont::Inter.bytes();
-    let font = skrifa::FontRef::from_index(bytes, 0).unwrap();
-    let id = font.charmap().map('A').unwrap().to_u32();
-    let mut run = damage_test_run(id);
-    run.glyphs = GlyphRange::new(vec![PositionedGlyph { id, x: 0.0, y: 0.0 }]).unwrap();
-    let draw = || {
-        command(Kind::DrawGlyphRun {
-            antialias: Aa::Default,
-            run: run.clone(),
-            origin: Point::new(20.0, 30.0),
-            paint: GlyphPaint::Fill(Color::WHITE.into()),
-        })
-    };
-    let mut encoder = SceneEncoder::new(1.0);
-    encoder.font_faces.insert(
-        (run.font.resource_id(), run.font.revision()),
-        bytes.to_vec().into(),
-    );
-    let frame = submission(
-        vec![
-            command(Kind::Clip {
-                rect: Rectangle::new(0.0, 0.0, 4.0, 4.0),
-            }),
-            command(Kind::PushState),
-            command(Kind::ResetClip),
-            draw(),
-            command(Kind::RestoreState),
-            draw(),
-            command(Kind::ResetClip),
-            draw(),
-            command(Kind::PopState),
-            command(Kind::ResetClip),
-        ],
-        1.0,
-    );
-    encoded(&mut encoder, &frame);
-    assert_eq!(encoder.scene.encoding().resources.glyphs.len(), 2);
-    let prepared = antialias_frame::prepare(&encoder, &frame, true)
-        .unwrap()
-        .unwrap();
-    encoder.encode(
-        &frame.commands,
-        Rectangle::new(0.0, 0.0, 4.0, 4.0),
-        1.0,
-        prepared,
-    );
-    assert!(
-        encoder.scene.encoding().resources.glyphs.is_empty(),
-        "ResetClip must retain damage restriction"
-    );
-
-    let data = vello::peniko::FontData::new(bytes.to_vec().into(), 0);
-    let selected = encoder.ink_cache.select(
-        &data,
-        &run,
-        (Point::new(300.0, 300.0), Affine::IDENTITY, 1.0),
-        &GlyphPaint::Stroke {
-            paint: Color::WHITE.into(),
-            stroke: StrokeStyle::default(),
-        },
-        Rect::new(0.0, 0.0, 4.0, 4.0),
-    );
-    assert_eq!(
-        selected.len(),
-        1,
-        "uncertified stroke must remain conservative"
-    );
-}
-
-impl Gpu {
-    fn render_damage_target(&mut self, scene: &vello::Scene, width: u32, height: u32) -> Vec<u8> {
-        use vello::wgpu as w;
-        let texture = self.device.create_texture(&w::TextureDescriptor {
-            label: Some("local damage pixel oracle"),
-            size: w::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: w::TextureDimension::D2,
-            format: w::TextureFormat::Rgba8Unorm,
-            usage: w::TextureUsages::STORAGE_BINDING | w::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        self.renderer
-            .render_to_texture(
-                &self.device,
-                &self.queue,
-                scene,
-                &texture.create_view(&Default::default()),
-                &vello::RenderParams {
-                    base_color: VelloColor::TRANSPARENT,
-                    width,
-                    height,
-                    antialiasing_method: AaConfig::Msaa16,
-                },
-            )
-            .unwrap();
-        let stride =
-            (width * 4).div_ceil(w::COPY_BYTES_PER_ROW_ALIGNMENT) * w::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let buffer = self.device.create_buffer(&w::BufferDescriptor {
-            label: Some("local damage readback"),
-            size: u64::from(stride * height),
-            usage: w::BufferUsages::MAP_READ | w::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let mut encoder = self.device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            texture.as_image_copy(),
-            w::TexelCopyBufferInfo {
-                buffer: &buffer,
-                layout: w::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(stride),
-                    rows_per_image: Some(height),
-                },
-            },
-            texture.size(),
-        );
-        self.queue.submit([encoder.finish()]);
-        let (tx, rx) = std::sync::mpsc::channel();
-        buffer.map_async(w::MapMode::Read, .., move |r| tx.send(r).unwrap());
-        self.device
-            .poll(w::PollType::Wait {
-                submission_index: None,
-                timeout: Some(std::time::Duration::from_secs(10)),
-            })
-            .unwrap();
-        rx.recv().unwrap().unwrap();
-        let mapped = buffer.get_mapped_range(..).unwrap();
-        mapped
-            .chunks_exact(stride as usize)
-            .flat_map(|row| row[..(width * 4) as usize].iter().copied())
-            .collect()
-    }
-}
-
-#[test]
-fn local_damage_ink_and_tile_translation_match_unfiltered_pixels() {
-    use novadraw::render::BuiltinFont;
-    use skrifa::MetadataProvider;
-    let fonts = vec![BuiltinFont::Inter.bytes().to_vec()];
-    #[cfg(target_os = "macos")]
-    let fonts = {
-        let mut fonts = fonts;
-        fonts.push(std::fs::read("/System/Library/Fonts/Apple Color Emoji.ttc").unwrap());
-        fonts
-    };
-    let mut gpu = Gpu::new();
-    for (font_index, bytes) in fonts.iter().enumerate() {
-        let face = skrifa::FontRef::from_index(bytes, 0).unwrap();
-        let id = face
-            .charmap()
-            .map(if font_index == 0 { 'f' } else { '😀' })
-            .unwrap()
-            .to_u32();
-        let data = vello::peniko::FontData::new(bytes.clone().into(), 0);
-        for scale in [1.0, 1.5, 2.0] {
-            for matrix in [
-                Affine2D::IDENTITY,
-                Affine2D::new(0.85, 0.12, -0.18, 0.9, 1.27, 0.31),
-            ] {
-                let mut run = damage_test_run(id);
-                run.skew_degrees = Some(17.0);
-                let origin = Point::new(19.23 / scale, 33.41 / scale);
-                let paint = GlyphPaint::Fill(Color::WHITE.into());
-                let mut reference = vello::Scene::new();
-                append_glyph_run(&mut reference, &run, &data, origin, &paint, &matrix, scale);
-                let full = gpu.render_damage_target(&reference, 64, 64);
-                let mut encoder = SceneEncoder::new(scale);
-                encoder.font_faces.insert(
-                    (run.font.resource_id(), run.font.revision()),
-                    bytes.clone().into(),
-                );
-                let frame = submission(
-                    vec![
-                        command(Kind::SetTransform { matrix }),
-                        command(Kind::DrawGlyphRun {
-                            antialias: Aa::Default,
-                            run: run.clone(),
-                            origin,
-                            paint,
-                        }),
-                    ],
-                    scale,
-                );
-                for device_clip in [
-                    Rectangle::new(17.2, 14.1, 7.6, 24.3),
-                    Rectangle::new(31.1, 20.2, 6.5, 22.3),
-                    Rectangle::new(1.1, 1.2, 3.2, 3.3),
-                ] {
-                    let clip = damage_rect_to_aligned_clip(
-                        Rectangle::new(
-                            device_clip.x / scale,
-                            device_clip.y / scale,
-                            device_clip.width / scale,
-                            device_clip.height / scale,
-                        ),
-                        64,
-                        64,
-                        scale,
-                    )
-                    .unwrap();
-                    let prepared = antialias_frame::prepare(&encoder, &frame, true)
-                        .unwrap()
-                        .unwrap();
-                    encoder.encode(&frame.commands, clip, scale, prepared);
-                    if font_index == 1 && device_clip.x < 2.0 {
-                        assert!(
-                            encoder.scene.encoding().resources.patches.is_empty(),
-                            "remote bitmap must not reach image encoding"
-                        );
-                    }
-                    let repair = RepairTarget::new(clip, 64, 64, scale);
-                    repair.translate(&mut encoder.scene);
-                    let partial =
-                        gpu.render_damage_target(&encoder.scene, repair.width, repair.height);
-                    let (x, y, w, h) = damage_rect_to_copy_region(clip, 64, 64, scale).unwrap();
-                    for py in y..y + h {
-                        for px in x..x + w {
-                            let a = ((py * 64 + px) * 4) as usize;
-                            let b = (((py - repair.y) * repair.width + px - repair.x) * 4) as usize;
-                            // Image sampling uses f32 transforms. Rebasing a rotated bitmap
-                            // can change the final 8-bit rounding by one unit.
-                            let tolerance =
-                                u8::from(font_index == 1 && matrix != Affine2D::IDENTITY);
-                            for channel in 0..4 {
-                                assert!(
-                                    full[a + channel].abs_diff(partial[b + channel]) <= tolerance,
-                                    "font={font_index} dpi={scale} pixel=({px},{py}) matrix={matrix:?} full={:?} partial={:?}",
-                                    &full[a..a + 4],
-                                    &partial[b..b + 4]
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[test]
 fn production_msaa_mask_alpha_gradient_clip_order_and_texture_rejection() {
     let mut gpu = Gpu::new();
@@ -774,19 +496,6 @@ fn structurally_empty_native_glyf(font: &skrifa::FontRef<'_>, glyph: u32) -> boo
 
 #[test]
 fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
-    // Vello writes straight-alpha RGBA. Quantized alpha-zero pixels can retain tiny
-    // RGB residuals after unpremultiplication; those channels have no contribution
-    // when composited. Compare a canonical transparent representation while keeping
-    // alpha and every nontransparent channel byte-exact.
-    fn render(gpu: &mut Gpu, scene: &vello::Scene, aa: AaConfig) -> Vec<u8> {
-        let mut pixels = gpu.render_with_aa(scene, aa);
-        for pixel in pixels.chunks_exact_mut(4) {
-            if pixel[3] == 0 {
-                pixel[..3].fill(0);
-            }
-        }
-        pixels
-    }
     use novadraw::render::{
         BuiltinFont, FontDescriptor, ParleyTextEngine, ResourceId, TextConstraints,
     };
@@ -914,7 +623,7 @@ fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
                 append_filtered_glyph_run(
                     &mut masked,
                     &original,
-                    (&font, Some(&mask), None),
+                    (&font, Some(&mask)),
                     Point::new(3.5, 16.25),
                     &paint,
                     &transform,
@@ -934,7 +643,7 @@ fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
                 append_filtered_glyph_run(
                     &mut empty_masked,
                     &all_empty,
-                    (&font, Some(&mask), None),
+                    (&font, Some(&mask)),
                     Point::new(3.5, 16.25),
                     &paint,
                     &transform,
@@ -947,12 +656,12 @@ fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
                 assert_eq!(masked.encoding().resources.glyph_runs.len(), 1);
                 assert!(empty_masked.encoding().resources.glyphs.is_empty());
                 for aa in [AaConfig::Area, AaConfig::Msaa8, AaConfig::Msaa16] {
-                    let expected = render(&mut gpu, &full, aa);
+                    let expected = gpu.render_with_aa(&full, aa);
                     assert!(expected.chunks_exact(4).any(|pixel| pixel[3] != 0));
-                    let filtered_pixels = render(&mut gpu, &filtered, aa);
+                    let filtered_pixels = gpu.render_with_aa(&filtered, aa);
                     if filtered_pixels != expected {
-                        let repeated_full = render(&mut gpu, &full, aa);
-                        let repeated_filtered = render(&mut gpu, &filtered, aa);
+                        let repeated_full = gpu.render_with_aa(&full, aa);
+                        let repeated_filtered = gpu.render_with_aa(&filtered, aa);
                         let differences: Vec<_> = expected
                             .chunks_exact(4)
                             .zip(filtered_pixels.chunks_exact(4))
@@ -967,10 +676,10 @@ fn empty_native_glyf_domain_preserves_gpu_pixels_without_fragmenting_runs() {
                             repeated_full == repeated_filtered,
                         );
                     }
-                    assert_eq!(render(&mut gpu, &masked, aa), expected);
-                    let empty_pixels = render(&mut gpu, &empty_reference, aa);
+                    assert_eq!(gpu.render_with_aa(&masked, aa), expected);
+                    let empty_pixels = gpu.render_with_aa(&empty_reference, aa);
                     assert!(empty_pixels.iter().all(|byte| *byte == 0));
-                    assert_eq!(render(&mut gpu, &empty_masked, aa), empty_pixels);
+                    assert_eq!(gpu.render_with_aa(&empty_masked, aa), empty_pixels);
                 }
             }
         }
@@ -1017,7 +726,6 @@ fn empty_native_glyf_cache_follows_resource_replacement_and_session_snapshot() {
     encoder.sync_resources(&mut gate, &frame).unwrap();
     encoded(&mut encoder, &frame);
     assert_eq!(encoder.empty_glyphs.len(), 1);
-    assert!(encoder.ink_cache.len() > 0);
     let storage: usize = encoder
         .empty_glyphs
         .values()
@@ -1029,7 +737,6 @@ fn empty_native_glyf_cache_follows_resource_replacement_and_session_snapshot() {
     });
     encoder.sync_resources(&mut gate, &frame).unwrap();
     assert!(encoder.empty_glyphs.is_empty());
-    assert_eq!(encoder.ink_cache.len(), 0);
     encoded(&mut encoder, &frame);
     assert_eq!(encoder.empty_glyphs.len(), 1);
     frame.resources = ResourceSync::Snapshot(ResourceSnapshot {
@@ -1037,19 +744,16 @@ fn empty_native_glyf_cache_follows_resource_replacement_and_session_snapshot() {
     });
     encoder.sync_resources(&mut gate, &frame).unwrap();
     assert!(encoder.empty_glyphs.is_empty());
-    assert_eq!(encoder.ink_cache.len(), 0);
     encoded(&mut encoder, &frame);
     frame.session_id = frame.session_id.next().unwrap();
     encoder.sync_resources(&mut gate, &frame).unwrap();
     assert!(encoder.empty_glyphs.is_empty());
-    assert_eq!(encoder.ink_cache.len(), 0);
     encoded(&mut encoder, &frame);
     frame.resources = ResourceSync::Delta(ResourceDelta {
         ops: vec![ResourceOp::Remove(font_id)],
     });
     encoder.sync_resources(&mut gate, &frame).unwrap();
     assert!(encoder.empty_glyphs.is_empty());
-    assert_eq!(encoder.ink_cache.len(), 0);
     assert!(encoder.font_faces.is_empty());
 }
 

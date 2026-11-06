@@ -17,8 +17,6 @@
 | RichTextFigure 压力 | [混合字号、emoji 与长文](rich-text-figure-stress-performance-2026-11-05.md)：四档 Runtime／CPU 回放通过，混合字号和彩色 emoji 图像通过；25 万字符变宽 P50 189.463 ms，Native 黑帧，长文绘制未通过 |
 | RichTextFigure 编辑 | [Native 编辑性能样例](richtext-figure-edit-app-2026-11-06.md)：段内输入、字素删除、受检光标和 IME 提交回放；混合档编辑后图像通过，完整输入法与长文绘制仍待验 |
 | ADR-061 会话与控制器 | [实施验证](specialized-edit-controller-2026-11-06.md)：统一活动槽、外部领域控制器、richtext 独立及嵌入接入；Native 回放和匹配 CPU 成本，平台与长文限制分别保留 |
-| 富文本点击 GPU 瓶颈 | [63 ms 专项诊断](richtext-click-gpu-bottleneck-2026-11-06.md)：局部 damage 未约束全文记录与编码；Emoji 消融 P50 61.644 → 25.065 ms 证明无关绘制成本，整改优先打通局部绘制范围，GPU／屏幕呈现边界继续保留 |
-| 富文本后端局部修补 | [实施与完整输出复测](richtext-local-damage-2026-11-06.md)：编码前字形筛选、小纹理 GPU 修补；点击到 GPU 完成 P50 61.644 → 7.614 ms，Core 全文记录与屏幕呈现验收仍保留 |
 | Draw2D 文本算法采用 | [局部实现与匹配成本](draw2d-text-algorithm-adoption-2026-11-05.md)：候选缓冲区及最佳布局复用、当前字体指标缓存；平均宽度预测未采用，不代表长文本整体性能验收 |
 | Draw2D 文本优化第二批 | [实施与验证](draw2d-text-followup-2026-11-05.md)：等值修改保护、独占工作区容量复用与生产分析／重排分离的准入缺口 |
 | Perfetto Native trace | [四份 trace 诊断](perfetto-trace-diagnosis-2026-11-04.md)、[官方 skill 文本渲染分析](perfetto-text-rendering-bottlenecks-2026-11-04.md)：重复测量组装、准备校验、文字引擎子阶段与 backend 观测缺口；debug 手动运行，不代表 release 性能验收 |

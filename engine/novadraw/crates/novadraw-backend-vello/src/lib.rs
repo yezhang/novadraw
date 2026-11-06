@@ -8,7 +8,6 @@ mod antialias_frame;
 mod antialias_stroke;
 #[cfg(test)]
 mod antialias_tests;
-mod damage_selection;
 mod diagnostics;
 mod glyph_outline;
 mod native_empty;
@@ -407,47 +406,6 @@ fn damage_rect_to_aligned_clip(
     ))
 }
 
-/// Integer tile translation preserves Vello's device-space sampling phase.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct RepairTarget {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-}
-
-impl RepairTarget {
-    fn new(clip: Rectangle, width: u32, height: u32, scale: f64) -> Self {
-        const TILE: u32 = 16;
-        let (x, y, w, h) = damage_rect_to_copy_region(clip, width, height, scale)
-            .expect("aligned nonempty damage");
-        let x0 = x / TILE * TILE;
-        let y0 = y / TILE * TILE;
-        let x1 = (x + w).div_ceil(TILE).saturating_mul(TILE).min(width);
-        let y1 = (y + h).div_ceil(TILE).saturating_mul(TILE).min(height);
-        Self {
-            x: x0,
-            y: y0,
-            width: x1 - x0,
-            height: y1 - y0,
-        }
-    }
-
-    fn translate(self, scene: &mut vello::Scene) {
-        if self.x != 0 || self.y != 0 {
-            let mut translated = vello::Scene::new();
-            translated.append(
-                scene,
-                Some(vello::kurbo::Affine::translate((
-                    -f64::from(self.x),
-                    -f64::from(self.y),
-                ))),
-            );
-            *scene = translated;
-        }
-    }
-}
-
 #[cfg(all(target_os = "macos", feature = "native"))]
 fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
@@ -559,7 +517,7 @@ fn append_glyph_run(
     append_filtered_glyph_run(
         scene,
         run,
-        (font, None, None),
+        (font, None),
         origin,
         paint,
         transform,
@@ -570,29 +528,24 @@ fn append_glyph_run(
 fn append_filtered_glyph_run(
     scene: &mut vello::Scene,
     run: &GlyphRun,
-    font_input: (
-        &vello::peniko::FontData,
-        Option<&native_empty::EmptyGlyphs>,
-        Option<&[novadraw::render::PositionedGlyph]>,
-    ),
+    font_input: (&vello::peniko::FontData, Option<&native_empty::EmptyGlyphs>),
     origin: Point,
     paint: &GlyphPaint,
     transform: &Affine2D,
     scale_factor: f64,
 ) {
-    let (font, empty, selected) = font_input;
-    let source = selected.unwrap_or(run.glyphs.as_slice());
-    if source.is_empty() {
+    let (font, empty) = font_input;
+    let _glyph = diagnostics::glyph_scope();
+    if run.glyphs.is_empty() {
         return;
     }
-    let _glyph = diagnostics::glyph_scope();
     let affine = SceneEncoder::transform_to_affine(transform, scale_factor);
     let brush = vello_paint(paint.paint(), scale_factor);
     let glyph_transform = run
         .skew_degrees
         .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
     let glyphs = || {
-        source
+        run.glyphs
             .iter()
             .filter(|glyph| {
                 !matches!(paint, GlyphPaint::Fill(_))
@@ -699,8 +652,6 @@ struct SceneEncoder {
     images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
     antialias_config: AntialiasConfig,
     antialias_cache: antialias_frame::Cache,
-    ink_cache: damage_selection::Cache,
-    damage_clip: vello::kurbo::Rect,
 }
 
 impl SceneEncoder {
@@ -714,8 +665,6 @@ impl SceneEncoder {
             images: HashMap::new(),
             antialias_config: AntialiasConfig::default(),
             antialias_cache: antialias_frame::Cache::default(),
-            ink_cache: damage_selection::Cache::default(),
-            damage_clip: vello::kurbo::Rect::ZERO,
         }
     }
 
@@ -740,12 +689,6 @@ impl SceneEncoder {
         let draws = prepared.publish(self);
         let mut prepared = draws.iter().peekable();
         self.scale_factor = scale;
-        self.damage_clip = vello::kurbo::Rect::new(
-            clip.x * scale,
-            clip.y * scale,
-            (clip.x + clip.width) * scale,
-            (clip.y + clip.height) * scale,
-        );
         self.scene = vello::Scene::new();
         self.state_stack.clear();
         self.state_stack.push(RenderState::default());
@@ -842,7 +785,6 @@ impl SceneEncoder {
         if replaced {
             self.font_faces.clear();
             self.empty_glyphs.clear();
-            self.ink_cache.clear();
             self.images.clear();
             self.antialias_cache = antialias_frame::Cache::default();
         }
@@ -853,7 +795,6 @@ impl SceneEncoder {
             novadraw::render::ResourceSync::Snapshot(_)
         ) {
             self.empty_glyphs.clear();
-            self.ink_cache.clear();
         } else if let novadraw::render::ResourceSync::Delta(delta) = &submission.resources {
             for op in &delta.ops {
                 let id = match op {
@@ -862,7 +803,6 @@ impl SceneEncoder {
                 };
                 self.empty_glyphs
                     .retain(|(resource, _, _), _| *resource != id);
-                self.ink_cache.remove(id);
             }
         }
         sync_image_cache(&mut self.images, &submission.resources);
@@ -1184,15 +1124,6 @@ impl VelloRenderer {
     ) -> (vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32) {
         let width = self.surface.config.width;
         let height = self.surface.config.height;
-        self.create_sized_offscreen_texture(label, width, height)
-    }
-
-    fn create_sized_offscreen_texture(
-        &self,
-        label: &'static str,
-        width: u32,
-        height: u32,
-    ) -> (vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32) {
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let device = &device_handle.device;
 
@@ -1294,8 +1225,8 @@ impl VelloRenderer {
     }
 
     /// 确保临时渲染纹理存在
-    fn ensure_scratch_texture(&mut self, repair: RepairTarget) {
-        let (width, height) = (repair.width, repair.height);
+    fn ensure_scratch_texture(&mut self) {
+        let (width, height) = self.current_surface_size();
 
         #[allow(clippy::collapsible_if)]
         if let Some((_, _, old_width, old_height)) = &self.scratch_texture {
@@ -1304,8 +1235,7 @@ impl VelloRenderer {
             }
         }
 
-        self.scratch_texture =
-            Some(self.create_sized_offscreen_texture("Scratch Texture", width, height));
+        self.scratch_texture = Some(self.create_offscreen_texture("Scratch Texture"));
     }
 
     fn damage_rect_to_copy_region(
@@ -1668,21 +1598,6 @@ impl SceneEncoder {
                 let font = vello::peniko::FontData::new(font_data, run.font.collection_index());
                 let transform = self.current_state().transform;
                 let scale_factor = self.scale_factor;
-                let clip = self.selection_clip();
-                let selected = self.ink_cache.select(
-                    &font,
-                    run,
-                    (
-                        *origin,
-                        Self::transform_to_affine(&transform, scale_factor),
-                        scale_factor,
-                    ),
-                    paint,
-                    clip,
-                );
-                if selected.is_empty() {
-                    return;
-                }
                 let key = (
                     run.font.resource_id(),
                     run.font.revision(),
@@ -1702,7 +1617,7 @@ impl SceneEncoder {
                 append_filtered_glyph_run(
                     &mut self.scene,
                     run,
-                    (&font, empty, Some(&selected)),
+                    (&font, empty),
                     *origin,
                     paint,
                     &transform,
@@ -1717,17 +1632,6 @@ impl SceneEncoder {
                 alpha,
             } => {
                 if image.width() == 0 || image.height() == 0 || *alpha <= 0.0 {
-                    return;
-                }
-                let affine =
-                    Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let bounds = affine.transform_rect_bbox(vello::kurbo::Rect::new(
-                    dest_rect.x * self.scale_factor,
-                    dest_rect.y * self.scale_factor,
-                    (dest_rect.x + dest_rect.width) * self.scale_factor,
-                    (dest_rect.y + dest_rect.height) * self.scale_factor,
-                ));
-                if !damage_selection::visible(bounds, self.selection_clip()) {
                     return;
                 }
                 let Some(image_data) = self
@@ -1769,30 +1673,6 @@ impl SceneEncoder {
     }
 
     /// 将 Affine2D 转换为 vello Affine
-    fn selection_clip(&self) -> vello::kurbo::Rect {
-        use vello::kurbo::Shape;
-        let mut result = self.damage_clip;
-        for clip in &self.current_state().clips {
-            let bounds = match &clip.geometry {
-                ClipGeometry::Rectangle(rect) => vello::kurbo::Rect::new(
-                    rect.x * self.scale_factor,
-                    rect.y * self.scale_factor,
-                    (rect.x + rect.width) * self.scale_factor,
-                    (rect.y + rect.height) * self.scale_factor,
-                ),
-                ClipGeometry::Path(path) => {
-                    path_to_vello(path.path(), self.scale_factor).bounding_box()
-                }
-            };
-            let bounds = Self::transform_to_affine(&clip.transform, self.scale_factor)
-                .transform_rect_bbox(bounds);
-            if bounds.is_finite() {
-                result = result.intersect(bounds);
-            }
-        }
-        result
-    }
-
     fn transform_to_affine(transform: &Affine2D, scale_factor: f64) -> vello::kurbo::Affine {
         let coeffs = transform.coeffs();
         // coeffs = [a, b, c, d, e, f]
@@ -1907,7 +1787,6 @@ impl RenderBackend for VelloRenderer {
         };
 
         drop(damage);
-        let repair = RepairTarget::new(clip_rect, width, height, self.scale_factor);
         let raster = self.prepare_text_raster(submission, width, height)?;
         let encode = diagnostics::scope(c"backend-encode");
         self.encoder.encode_with_raster(
@@ -1917,11 +1796,10 @@ impl RenderBackend for VelloRenderer {
             prepared,
             raster.as_ref(),
         );
-        repair.translate(&mut self.encoder.scene);
         drop(encode);
         let textures = diagnostics::scope(c"backend-textures");
         self.ensure_retained_texture();
-        self.ensure_scratch_texture(repair);
+        self.ensure_scratch_texture();
         drop(textures);
 
         #[cfg(all(target_os = "macos", feature = "native"))]
@@ -1975,8 +1853,8 @@ impl RenderBackend for VelloRenderer {
             &scratch_view,
             &vello::RenderParams {
                 base_color,
-                width: repair.width,
-                height: repair.height,
+                width,
+                height,
                 antialiasing_method: AaConfig::Msaa16,
             },
         ) {
@@ -2024,8 +1902,8 @@ impl RenderBackend for VelloRenderer {
                     texture: scratch_texture,
                     mip_level: 0,
                     origin: vello::wgpu::Origin3d {
-                        x: origin_x - repair.x,
-                        y: origin_y - repair.y,
+                        x: origin_x,
+                        y: origin_y,
                         z: 0,
                     },
                     aspect: vello::wgpu::TextureAspect::All,
@@ -2150,7 +2028,6 @@ impl VelloRenderer {
             return Ok(RenderDisposition::Skipped);
         };
         let raster = self.prepare_text_raster(submission, width, height)?;
-        let repair = RepairTarget::new(clip_rect, width, height, self.scale_factor);
         let encode = diagnostics::scope(c"backend-encode");
         self.encoder.encode_with_raster(
             &submission.commands,
@@ -2159,11 +2036,10 @@ impl VelloRenderer {
             prepared,
             raster.as_ref(),
         );
-        repair.translate(&mut self.encoder.scene);
         drop(encode);
 
         self.ensure_retained_texture();
-        self.ensure_scratch_texture(repair);
+        self.ensure_scratch_texture();
         let scratch_view = self
             .scratch_texture
             .as_ref()
@@ -2195,8 +2071,8 @@ impl VelloRenderer {
             &scratch_view,
             &vello::RenderParams {
                 base_color: VelloColor::new(submission_base_rgba(submission)),
-                width: repair.width,
-                height: repair.height,
+                width,
+                height,
                 antialiasing_method: AaConfig::Msaa16,
             },
         ) {
@@ -2233,11 +2109,7 @@ impl VelloRenderer {
                 vello::wgpu::TexelCopyTextureInfo {
                     texture: scratch,
                     mip_level: 0,
-                    origin: vello::wgpu::Origin3d {
-                        x: x - repair.x,
-                        y: y - repair.y,
-                        z: 0,
-                    },
+                    origin,
                     aspect: vello::wgpu::TextureAspect::All,
                 },
                 vello::wgpu::TexelCopyTextureInfo {
